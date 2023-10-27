@@ -564,110 +564,6 @@ class PropertyReader(TabularReader):
         self.data = full_prop
         self.state.model.data['properties'][prop_name] = self.data
 
-        # is_prop_array: bool = False
-        # does_prop_support_array: bool = False
-        # given_name = row['property']
-        # if row['property'].endswith('[]'):
-        #     self.name = row['property'][:-2]
-        #     does_prop_support_array = True
-        #     if row['type'] != 'backref':
-        #         is_prop_array = True
-        # else:
-        #     self.name = row['property']
-        #
-        # if self.state.model is None:
-        #     context = self.state.stack[-1]
-        #     self.error(
-        #         f"Property {self.name!r} must be defined in a model context. "
-        #         f"Now it is defined in {context.name!r} {context.type} context."
-        #     )
-        # existing_prop = None
-        # if self.name in self.state.model.data['properties']:
-        #     existing_prop = self.state.model.data['properties'][self.name]
-        #     should_error = True
-        #     if is_prop_array:
-        #         if not existing_prop['items']:
-        #             should_error = False
-        #     if should_error:
-        #         self.error(
-        #             f"Property {self.name!r} with the same name is already "
-        #             f"defined for this {self.state.model.name!r} model."
-        #         )
-        # dtype = _get_type_repr(row['type'])
-        # dtype = _parse_dtype_string(dtype)
-        # if dtype['error']:
-        #     self.error(
-        #         dtype['error']
-        #     )
-        #
-        # if self.state.base and not dtype['type']:
-        #     dtype['type'] = 'inherit'
-        #
-        # new_data = {
-        #     'type': dtype['type'],
-        #     'type_args': dtype['type_args'],
-        #     'prepare': row[PREPARE],
-        #     'level': row['level'],
-        #     'access': row['access'],
-        #     'uri': row['uri'],
-        #     'title': row['title'],
-        #     'description': row['description'],
-        #     'required': dtype['required'],
-        #     'unique': dtype['unique'],
-        #     'given_name': given_name,
-        #     'prepare_given': [],
-        # }
-        # dataset = self.state.dataset.data if self.state.dataset else None
-        #
-        # custom_data = new_data.copy() if is_prop_array else new_data
-        # if row['prepare']:
-        #     custom_data['prepare_given'].append(
-        #         PrepareGiven(
-        #             appended=False,
-        #             source='',
-        #             prepare=row['prepare']
-        #         )
-        #     )
-        # if row['ref']:
-        #     if dtype['type'] in ('ref', 'backref', 'generic'):
-        #         ref_model, ref_props = _parse_property_ref(row['ref'])
-        #         custom_data['model'] = get_relative_model_name(dataset, ref_model)
-        #         if dtype['type'] == 'backref':
-        #             if len(ref_props) > 1:
-        #                 raise InvalidBackRefReferenceAmount(backref=self.name)
-        #             if len(ref_props) == 1:
-        #                 custom_data['refprop'] = ref_props[0]
-        #         else:
-        #             custom_data['refprops'] = ref_props
-        #     else:
-        #         # TODO: Detect if ref is a unit or an enum.
-        #         custom_data['enum'] = row['ref']
-        # if dataset or row['source']:
-        #     custom_data['external'] = {
-        #         'name': row['source'],
-        #     }
-        # # Denormalized form
-        # if "." in self.name and not new_data['type']:
-        #     new_data['type'] = 'denorm'
-        # if existing_prop and existing_prop['type'] == 'array':
-        #     existing_prop['items'] = custom_data.copy()
-        # else:
-        #     if does_prop_support_array:
-        #         if is_prop_array:
-        #             new_data = {
-        #                 'type': 'array',
-        #                 'given_name': given_name,
-        #                 'access': custom_data['access'],
-        #                 'items': custom_data.copy()
-        #             }
-        #         else:
-        #             new_data['type'] = 'array_backref'
-        #     elif new_data['type'] == 'array':
-        #         new_data['items'] = {}
-        #
-        #     self.data = new_data
-        #     self.state.model.data['properties'][self.name] = self.data
-
     def append(self, row: Dict[str, str]) -> None:
         if not row['property']:
             result = row['prepare']
@@ -2133,7 +2029,8 @@ def _property_to_tabular(
     )
     if yield_rows:
         for yield_row in yield_rows:
-            yield from _property_to_tabular(yield_row, external=external, access=access, order_by=order_by)
+            if yield_row:
+                yield from _property_to_tabular(yield_row, external=external, access=access, order_by=order_by)
 
 
 def _prepare_to_tabular(data, prop):

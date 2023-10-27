@@ -167,7 +167,7 @@ def test_json_inherit_nested(rc: RawConfig, tmp_path: Path):
                 "name": "Lithuania",
                 "code": "LT",
                 "location": {
-                    "coords": [54.5 ,58.6],
+                    "coords": [54.5, 58.6],
                     "test": "nope",
                     "geo": [
                         {
