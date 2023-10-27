@@ -216,7 +216,7 @@ id | d | r | b | m | property            | type                    | ref     | s
    |   |   |   | Country                 |                         |         | country                         |         |       |        |     |       |
    |   |   |   |   | name                | string required unique  |         | name                            |         |       |        |     |       |
    |   |   |   |   | code                | string required unique  |         | code                            |         |       |        |     |       |
-   |   |   |   |   | location_coords     | array                   |         | location.coords                 |         |       |        |     |       |
+   |   |   |   |   | location_coords[]   | number                  |         | location.coords                 |         |       |        |     |       |
    |   |   |   |   | location_test       | string unique           |         | location.test                   |         |       |        |     |       |
    |                                     |                         |         |                                 |         |       |        |     |       |
    |   |   |   | Geo                     |                         |         | country[].location.geo          |         |       |        |     |       |
@@ -229,7 +229,7 @@ id | d | r | b | m | property            | type                    | ref     | s
    |                                     |                         |         |                                 |         |       |        |     |       |
    |   |   |   | Cities                  |                         |         | country[].cities                |         |       |        |     |       |
    |   |   |   |   | name                | string required unique  |         | name                            |         |       |        |     |       |
-   |   |   |   |   | location_coords     | array                   |         | location.coords                 |         |       |        |     |       |
+   |   |   |   |   | location_coords[]   | number                  |         | location.coords                 |         |       |        |     |       |
    |   |   |   |   | country             | ref                     | Country | ..                              |         |       |        |     |       |
 ''')
     assert a == b
