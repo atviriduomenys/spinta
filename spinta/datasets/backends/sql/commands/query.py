@@ -16,12 +16,12 @@ from decimal import Decimal
 import sqlalchemy as sa
 from sqlalchemy.sql.functions import Function
 
+from spinta import exceptions
 from spinta.auth import authorized
-from spinta.components import Action
+from spinta.components import Action, Page
 from spinta.components import Model
 from spinta.components import Property
 from spinta.core.ufuncs import Bind
-from spinta.core.ufuncs import Env
 from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import Negative
 from spinta.core.ufuncs import ufunc
@@ -29,7 +29,7 @@ from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.backends.sql.ufuncs.components import SqlResultBuilder
 from spinta.dimensions.enum.helpers import prepare_enum_value
 from spinta.dimensions.param.components import ResolvedParams
-from spinta.exceptions import PropertyNotFound
+from spinta.exceptions import PropertyNotFound, SourceCannotBeList
 from spinta.exceptions import UnknownMethod
 from spinta.exceptions import UnableToCast
 from spinta.types.datatype import DataType
@@ -38,6 +38,8 @@ from spinta.types.datatype import Ref
 from spinta.types.datatype import String
 from spinta.types.datatype import Integer
 from spinta.types.file.components import FileData
+from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, merge_with_page_selected_list, \
+    merge_with_page_sort, merge_with_page_limit
 from spinta.ufuncs.components import ForeignProperty
 from spinta.core.ufuncs import Unresolved
 from spinta.utils.data import take
@@ -115,7 +117,7 @@ class SqlFrom:
         return self.joins[fpr.name]
 
 
-class SqlQueryBuilder(Env):
+class SqlQueryBuilder(BaseQueryBuilder):
     backend: Sql
     model: Model
     table: sa.Table
@@ -139,6 +141,7 @@ class SqlQueryBuilder(Env):
             sort=[],
             limit=None,
             offset=None,
+            page=QueryPage()
         )
 
     def build(self, where):
@@ -146,18 +149,20 @@ class SqlQueryBuilder(Env):
             # If select list was not explicitly given by client, then select all
             # properties.
             self.call('select', Expr('select'))
-
-        qry = sa.select(self.columns)
+        merged_selected = merge_with_page_selected_list(self.columns, self.page)
+        merged_sorted = merge_with_page_sort(self.sort, self.page)
+        merged_limit = merge_with_page_limit(self.limit, self.page)
+        qry = sa.select(merged_selected)
         qry = qry.select_from(self.joins.from_)
 
         if where is not None:
             qry = qry.where(where)
 
-        if self.sort:
-            qry = qry.order_by(*self.sort)
+        if merged_sorted:
+            qry = qry.order_by(*merged_sorted)
 
-        if self.limit is not None:
-            qry = qry.limit(self.limit)
+        if merged_limit is not None:
+            qry = qry.limit(merged_limit)
 
         if self.offset is not None:
             qry = qry.offset(self.offset)
@@ -202,6 +207,11 @@ class Selected:
 
     def __repr__(self):
         return self.debug()
+
+    def __eq__(self, other):
+        if isinstance(other, Selected):
+            return self.item == other.item and self.prop == other.prop and self.prep == other.prep
+        return False
 
     def debug(self, indent: str = ''):
         prop = self.prop.place if self.prop else 'None'
@@ -530,23 +540,25 @@ def select(env: SqlQueryBuilder, expr: Expr):
     keys = [str(k) for k in expr.args]
     args, kwargs = expr.resolve(env)
     args = list(zip(keys, args)) + list(kwargs.items())
-
     if env.selected is not None:
         raise RuntimeError("`select` was already called.")
 
     env.selected = {}
     if args:
         for key, arg in args:
-            env.selected[key] = env.call('select', arg)
+            selected = env.call('select', arg)
+            if selected is not None:
+                env.selected[key] = selected
     else:
         for prop in take(['_id', all], env.model.properties).values():
             if authorized(env.context, prop, Action.GETALL):
                 env.selected[prop.place] = env.call('select', prop)
 
-    if not env.columns:
-        raise RuntimeError(
-            f"{expr} didn't added anything to select list."
-        )
+    if not (len(args) == 1 and args[0][0] == '_page'):
+        if not env.columns:
+            raise RuntimeError(
+                f"{expr} didn't added anything to select list."
+            )
 
 
 @ufunc.resolver(SqlQueryBuilder, object)
@@ -557,6 +569,8 @@ def select(env: SqlQueryBuilder, value: Any) -> Selected:
 
 @ufunc.resolver(SqlQueryBuilder, Bind)
 def select(env: SqlQueryBuilder, item: Bind, *, nested: bool = False):
+    if item.name == '_page':
+        return None
     prop = _get_property_for_select(env, item.name, nested=nested)
     return env.call('select', prop)
 
@@ -600,9 +614,7 @@ def _get_property_for_select(
 def select(env: SqlQueryBuilder, prop: Property) -> Selected:
     if prop.place not in env.resolved:
         if isinstance(prop.external, list):
-            # TODO: Should raise one of spinta.exceptions exception, with
-            #       property as a context.
-            raise ValueError("Source can't be a list, use prepare instead.")
+            raise SourceCannotBeList(prop)
         if prop.external.prepare is not NA:
             # If `prepare` formula is given, evaluate formula.
             if isinstance(prop.external.prepare, Expr):
@@ -638,6 +650,16 @@ def select(env: SqlQueryBuilder, dtype: DataType) -> Selected:
         item=env.add_column(column),
         prop=dtype.prop,
     )
+
+
+@ufunc.resolver(SqlQueryBuilder, Page)
+def select(env: SqlQueryBuilder, page: Page) -> List[sa.Column]:
+    table = env.backend.get_table(env.model)
+    return_selected = []
+    for item in page.by.values():
+        column = env.backend.get_column(table, item.prop, select=True)
+        return_selected.append(column)
+    return return_selected
 
 
 @ufunc.resolver(SqlQueryBuilder, DataType, object)
@@ -686,15 +708,6 @@ def select(
             for prop in pkeys
         ]
     return Selected(prop=dtype.prop, prep=result)
-
-
-@ufunc.resolver(SqlQueryBuilder, Ref, object)
-def select(env: SqlQueryBuilder, dtype: Ref, prep: Any) -> Selected:
-    fpr = ForeignProperty(None, dtype, dtype.model.properties['_id'].dtype)
-    return Selected(
-        prop=dtype.prop,
-        prep=env.call('select', fpr, fpr.right.prop),
-    )
 
 
 @ufunc.resolver(SqlQueryBuilder, GetAttr)
@@ -922,6 +935,37 @@ def sort(env: SqlQueryBuilder, expr: Expr):
         env.sort.append(column)
 
 
+@ufunc.resolver(SqlQueryBuilder, Bind)
+def sort(env, field):
+    prop = _get_from_flatprops(env.model, field.name)
+    return env.call('asc', prop.dtype)
+
+
+@ufunc.resolver(SqlQueryBuilder, Negative)
+def sort(env, field):
+    prop = _get_from_flatprops(env.model, field.name)
+    return env.call('desc', prop.dtype)
+
+
+@ufunc.resolver(SqlQueryBuilder, DataType)
+def asc(env, dtype):
+    column = env.backend.get_column(env.table, dtype.prop)
+    return column.asc()
+
+
+@ufunc.resolver(SqlQueryBuilder, DataType)
+def desc(env, dtype):
+    column = env.backend.get_column(env.table, dtype.prop)
+    return column.desc()
+
+
+def _get_from_flatprops(model: Model, prop: str):
+    if prop in model.flatprops:
+        return model.flatprops[prop]
+    else:
+        raise exceptions.FieldNotInResource(model, property=prop)
+
+
 @ufunc.resolver(SqlQueryBuilder, int)
 def limit(env: SqlQueryBuilder, n: int):
     env.limit = n
@@ -932,9 +976,16 @@ def offset(env: SqlQueryBuilder, n: int):
     env.offset = n
 
 
-@ufunc.resolver(SqlQueryBuilder, Property, object, object)
-def swap(env: SqlQueryBuilder, prop: Property, old: Any, new: Any) -> Any:
-    return Expr('swap', old, new)
+@ufunc.resolver(SqlQueryBuilder, Expr)
+def swap(env: SqlQueryBuilder, expr: Expr):
+    args, kwargs = expr.resolve(env)
+    return Expr('swap', *args, **kwargs)
+
+
+@ufunc.resolver(SqlResultBuilder, Expr)
+def swap(env: SqlResultBuilder, expr: Expr):
+    args, kwargs = expr.resolve(env)
+    return env.call('swap', *args, *kwargs)
 
 
 @ufunc.resolver(SqlQueryBuilder, Expr)

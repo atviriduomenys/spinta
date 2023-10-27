@@ -23,6 +23,7 @@ CONFIG = {
     'ufuncs': [
         'spinta.ufuncs',
         'spinta.datasets.backends.sql.commands.query',
+        'spinta.datasets.backends.dataframe.commands.query',
     ],
     'components': {
         'core': {
@@ -62,10 +63,10 @@ CONFIG = {
             # XXX: Probably these should be moved to components.resources?
             'sql': 'spinta.datasets.backends.sql.components:Sql',
             'sqldump': 'spinta.datasets.backends.sqldump.components:SqlDump',
-            'csv': 'spinta.datasets.backends.csv.components:Csv',
-            'xml': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
+            'csv': 'spinta.datasets.backends.dataframe.components:Csv',
+            'xml': 'spinta.datasets.backends.dataframe.components:Xml',
+            'json': 'spinta.datasets.backends.dataframe.components:Json',
             'xlsx': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
-            'json': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
             'geojson': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
             'html': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
         },
@@ -108,6 +109,7 @@ CONFIG = {
             'spatial': 'spinta.types.geometry.components:Spatial',
             'ref': 'spinta.types.datatype:Ref',
             'backref': 'spinta.types.datatype:BackRef',
+            'array_backref': 'spinta.types.datatype:ArrayBackRef',
             'generic': 'spinta.types.datatype:Generic',
             'array': 'spinta.types.datatype:Array',
             'object': 'spinta.types.datatype:Object',
@@ -117,6 +119,7 @@ CONFIG = {
             'denorm': 'spinta.types.datatype:Denorm',
             '_external_ref': 'spinta.types.datatype:ExternalRef',
             'inherit': 'spinta.types.datatype:Inherit',
+            'page': 'spinta.types.datatype:PageType'
         },
         'urlparams': {
             'component': 'spinta.urlparams:UrlParams',
@@ -206,6 +209,9 @@ CONFIG = {
     'root': None,
 
     'env': 'prod',
+
+    # Limit of objects in the page
+    'push_page_size': None,
 
     'environments': {
         'dev': {

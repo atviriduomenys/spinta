@@ -14,17 +14,15 @@ from responses import RequestsMock
 
 from spinta.client import add_client_credentials
 from spinta.core.config import RawConfig
+from spinta.utils.schema import NA
+from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.data import listdata
-from spinta.testing.client import create_test_client
-from spinta.testing.context import create_test_context
+from spinta.testing.client import create_client, create_rc, configure_remote_server
 from spinta.testing.datasets import Sqlite
 from spinta.testing.datasets import create_sqlite_db
-from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.utils import error
-from spinta.testing.client import create_remote_server
-from spinta.utils.schema import NA
 
 
 @pytest.fixture(scope='module')
@@ -40,6 +38,11 @@ def geodb():
             sa.Column('pavadinimas', sa.Text),
             sa.Column('salis', sa.Text),
         ],
+        'cities': [
+            sa.Column('id', sa.Integer, primary_key=True),
+            sa.Column('name', sa.Text),
+            sa.Column('country', sa.Integer),
+        ]
     }) as db:
         db.write('salis', [
             {'kodas': 'lt', 'pavadinimas': 'Lietuva'},
@@ -51,80 +54,10 @@ def geodb():
             {'salis': 'lv', 'pavadinimas': 'Ryga'},
             {'salis': 'ee', 'pavadinimas': 'Talinas'},
         ])
+        db.write('cities', [
+            {'name': 'Vilnius', 'country': 2},
+        ])
         yield db
-
-
-def create_rc(rc: RawConfig, tmp_path: pathlib.Path, db: Sqlite) -> RawConfig:
-    return rc.fork({
-        'manifests': {
-            'default': {
-                'type': 'tabular',
-                'path': str(tmp_path / 'manifest.csv'),
-                'backend': 'sql',
-                'keymap': 'default',
-            },
-        },
-        'backends': {
-            'sql': {
-                'type': 'sql',
-                'dsn': db.dsn,
-            },
-        },
-        # tests/config/clients/3388ea36-4a4f-4821-900a-b574c8829d52.yml
-        'default_auth_client': '3388ea36-4a4f-4821-900a-b574c8829d52',
-    })
-
-
-def configure_remote_server(
-    cli,
-    local_rc: RawConfig,
-    rc: RawConfig,
-    tmp_path: pathlib.Path,
-    responses,
-    remove_source: bool = True
-):
-    invoke_props = [
-        'copy',
-        '--access', 'open',
-        '-o', tmp_path / 'remote.csv',
-        tmp_path / 'manifest.csv',
-    ]
-    if remove_source:
-        invoke_props.append('--no-source')
-    cli.invoke(local_rc, invoke_props)
-
-    # Create remote server with PostgreSQL backend
-    remote_rc = rc.fork({
-        'manifests': {
-            'default': {
-                'type': 'tabular',
-                'path': str(tmp_path / 'remote.csv'),
-                'backend': 'default',
-            },
-        },
-        'backends': ['default'],
-    })
-    return create_remote_server(
-        remote_rc,
-        tmp_path,
-        responses,
-        scopes=[
-            'spinta_set_meta_fields',
-            'spinta_getone',
-            'spinta_getall',
-            'spinta_search',
-            'spinta_insert',
-            'spinta_patch',
-            'spinta_delete',
-        ],
-        credsfile=True,
-    )
-
-
-def create_client(rc: RawConfig, tmp_path: pathlib.Path, geodb: Sqlite):
-    rc = create_rc(rc, tmp_path, geodb)
-    context = create_test_context(rc)
-    return create_test_client(context)
 
 
 def test_filter(rc, tmp_path, geodb):
@@ -286,30 +219,27 @@ def test_filter_join_ne_array_value(rc, tmp_path, geodb):
     ]
 
 
-@pytest.mark.skip('todo')
 def test_filter_multi_column_pk(rc, tmp_path, geodb):
     create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
-    id | d | r | b | m | property | source      | prepare            | type   | ref           | level | access | uri | title   | description
-       | datasets/gov/example     |             |                    |        |               |       |        |     | Example |
-       |   | data                 |             |                    | sql    |               |       |        |     | Data    |
-       |   |   |                  |             |                    |        |               |       |        |     |         |
-       |   |   |   | country      | salis       |                    |        | id,code       |       |        |     | Country |
-       |   |   |   |   | id       | id          |                    | string |               | 3     | open   |     | Code    |
-       |   |   |   |   | code     | kodas       |                    | string |               | 3     | open   |     | Code    |
-       |   |   |   |   | name     | pavadinimas |                    | string |               | 3     | open   |     | Name    |
-       |   |   |                  |             |                    |        |               |       |        |     |         |
-       |   |   |   | city         | miestas     | country.code!='ee' |        | name          |       |        |     | City    |
-       |   |   |   |   | name     | pavadinimas |                    | string |               | 3     | open   |     | Name    |
-       |   |   |   |   | country  | salis       |                    | ref    | country[code] | 4     | open   |     | Country |
+    id | d | r | b | m | property | source      | prepare            | type    | ref            | level | access | uri | title   | description
+       | keymap                   |             |                    |         |                |       |        |     | Example |
+       |   | data                 |             |                    | sql     |                |       |        |     | Data    |
+       |   |   |                  |             |                    |         |                |       |        |     |         |
+       |   |   |   | Country      | salis       |                    |         | id             |       |        |     | Country |
+       |   |   |   |   | id       | id          |                    | integer |                | 3     | open   |     | Code    |
+       |   |   |   |   | code     | kodas       |                    | string  |                | 3     | open   |     | Code    |
+       |   |   |   |   | name     | pavadinimas |                    | string  |                | 3     | open   |     | Name    |
+       |   |   |                  |             |                    |         |                |       |        |     |         |
+       |   |   |   | City         | miestas     | country.code!='ee' |         | name           |       |        |     | City    |
+       |   |   |   |   | name     | pavadinimas |                    | string  |                | 3     | open   |     | Name    |
+       |   |   |   |   | country  | salis       |                    | ref     | Country[code]  | 4     | open   |     | Country |
     '''))
-
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country')
-    codes = dict(listdata(resp, '_id', 'code'))
-
-    resp = app.get('/datasets/gov/example/city?sort(name)')
-    data = listdata(resp, 'country._id', 'name', sort='name')
+    resp_country = app.get('keymap/Country')
+    codes = dict(listdata(resp_country, '_id', 'code'))
+    resp_city = app.get('keymap/City?sort(name)')
+    data = listdata(resp_city, 'country._id', 'name', sort='name')
     data = [(codes.get(country), city) for country, city in data]
     assert data == [
         ('lv', 'Ryga'),
@@ -2198,7 +2128,7 @@ def test_push_null_foreign_key(
         {
             'name': 'Ryga',
             'country._id': countries['Latvia'],
-            'embassy._id': None,
+            'embassy': None,
         },
         {
             'name': 'Vilnius',
@@ -2207,8 +2137,8 @@ def test_push_null_foreign_key(
         },
         {
             'name': 'Winterfell',
-            'country._id': None,
-            'embassy._id': None,
+            'country': None,
+            'embassy': None,
         },
     ]
 
@@ -2271,12 +2201,12 @@ def test_push_self_ref(
     cities = dict(listdata(resp, 'name', '_id'))
     assert listdata(resp, full=True) == [
         {
-            'name': 'Trakai',
-            'governance._id': cities['Vilnius'],
+            'name': 'Vilnius',
+            'governance': None,
         },
         {
-            'name': 'Vilnius',
-            'governance._id': None,
+            'name': 'Trakai',
+            'governance._id': cities['Vilnius'],
         },
     ]
 
@@ -2748,12 +2678,99 @@ def test_point(
     })
     sqlite.write('data', [{
         'id': 1,
-        'x': 4,
-        'y': 2,
+        'x': 4.5,
+        'y': 2.5,
     }])
 
     app = create_client(rc, tmp_path, sqlite)
     app.authmodel(dataset, ['getall'])
 
     resp = app.get(f'/{dataset}/Data')
-    assert listdata(resp) == [(1, 'POINT (4.0 2.0)')]
+    assert listdata(resp) == [(1, 'POINT (4.5 2.5)')]
+
+
+def test_swap_single(rc, tmp_path, geodb):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    id | d | r | b | m | property | source      | type   | ref     | access | prepare
+       | datasets/gov/example     |             |        |         |        |
+       |   | data                 |             | sql    |         |        |
+       |   |   |                  |             |        |         |        |
+       |   |   |   | country      | salis       |        | code    | open   |
+       |   |   |   |   | code     | kodas       | string |         |        | swap('lt', 'LT')
+       |   |   |   |   | name     | pavadinimas | string |         |        |
+    '''))
+
+    app = create_client(rc, tmp_path, geodb)
+
+    resp = app.get('/datasets/gov/example/country')
+    assert listdata(resp, 'code', 'name') == [
+        ('LT', 'Lietuva'),
+        ('ee', 'Estija'),
+        ('lv', 'Latvija')
+    ]
+
+
+def test_swap_multi_with_dot(rc, tmp_path, geodb):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    id | d | r | b | m | property | source      | type   | ref     | access | prepare
+       | datasets/gov/example     |             |        |         |        |
+       |   | data                 |             | sql    |         |        |
+       |   |   |                  |             |        |         |        |
+       |   |   |   | country      | salis       |        | code    | open   |
+       |   |   |   |   | code     | kodas       | string |         |        | swap('lt', 'LT').swap('lv', 'LV')
+       |   |   |   |   | name     | pavadinimas | string |         |        |
+    '''))
+
+    app = create_client(rc, tmp_path, geodb)
+
+    resp = app.get('/datasets/gov/example/country')
+    assert listdata(resp, 'code', 'name') == [
+        ('LT', 'Lietuva'),
+        ('LV', 'Latvija'),
+        ('ee', 'Estija')
+    ]
+
+
+def test_swap_multi_with_multi_lines(rc, tmp_path, geodb):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    id | d | r | b | m | property | source      | type   | ref     | access | prepare
+       | datasets/gov/example     |             |        |         |        |
+       |   | data                 |             | sql    |         |        |
+       |   |   |                  |             |        |         |        |
+       |   |   |   | country      | salis       |        | code    | open   |
+       |   |   |   |   | code     | kodas       | string |         |        | swap('lt', 'LT')
+       |   |   |   |   |          | lv        |        |         |        | swap('LV')
+       |   |   |   |   | name     | pavadinimas | string |         |        |
+    '''))
+
+    app = create_client(rc, tmp_path, geodb)
+
+    resp = app.get('/datasets/gov/example/country')
+    assert listdata(resp, 'code', 'name') == [
+        ('LT', 'Lietuva'),
+        ('LV', 'Latvija'),
+        ('ee', 'Estija')
+    ]
+
+
+def test_swap_multi_with_multi_lines_all_to_same(rc, tmp_path, geodb):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    id | d | r | b | m | property | source      | type   | ref     | access | prepare
+       | datasets/gov/example     |             |        |         |        |
+       |   | data                 |             | sql    |         |        |
+       |   |   |                  |             |        |         |        |
+       |   |   |   | country      | salis       |        | code    | open   |
+       |   |   |   |   | code     | kodas       | string |         |        | swap('lt', 'CODE')
+       |   |   |   |   |          | lv          |        |         |        | swap('CODE')
+       |   |   |   |   |          |             |        |         |        | swap('ee', 'CODE')
+       |   |   |   |   | name     | pavadinimas | string |         |        |
+    '''))
+
+    app = create_client(rc, tmp_path, geodb)
+
+    resp = app.get('/datasets/gov/example/country')
+    assert listdata(resp, 'code', 'name') == [
+        ('CODE', 'Estija'),
+        ('CODE', 'Latvija'),
+        ('CODE', 'Lietuva')
+    ]

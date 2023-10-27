@@ -162,7 +162,7 @@ def delete(app, model: str, pk: str, rev: str):
 
 def get(app, model, pk, rev, status=200):
     name = model.split('/')[-1]
-    resp = app.get(f'{model}/{pk}')
+    resp = app.get(f'{model}/{pk}?expand()')
     data = resp.json()
     assert resp.status_code == status, data
     if status == 200:
@@ -192,7 +192,7 @@ def search(app, model, pk, rev, val=NA, by=None):
         by = f'_id="{pk}"'
     else:
         by = f'{by}={val}'
-    resp = app.get(f'{model}?select(_type,_id,_revision,{place})&{by}')
+    resp = app.get(f'{model}?expand()&select(_type,_id,_revision,{place})&{by}')
     data = resp.json()
     assert resp.status_code == 200, data
     assert '_data' in data, data
