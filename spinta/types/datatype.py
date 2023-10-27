@@ -485,23 +485,14 @@ def load(context: Context, dtype: Object, value: object) -> dict:
 
 @load.register(Context, Ref, object)
 def load(context: Context, dtype: Ref, value: object) -> dict:
-    # loads value into native python dict, including all dict's items
     loaded_obj = dtype.load(value)
-
-    non_hidden_keys = []
-    for key, prop in dtype.properties.items():
-        if not prop.hidden:
-            non_hidden_keys.append(key)
-
-    # check that given obj does not have more keys, than dtype's schema
-    check_no_extra_keys(dtype, non_hidden_keys, loaded_obj)
-
-    new_loaded_obj = {}
-    for k, v in dtype.properties.items():
-        # only load value keys which are available in schema
-        if k in loaded_obj:
-            new_loaded_obj[k] = load(context, v.dtype, loaded_obj[k])
-    return new_loaded_obj
+    # TODO: add better support for dtype.properties load
+    if isinstance(value, dict):
+        dtype.properties = {
+            name: load(context, Property(), prop)
+            for name, prop in value.get('properties', {}).items()
+        }
+    return loaded_obj
 
 
 @load.register(Context, RQL, str)

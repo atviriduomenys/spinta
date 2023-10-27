@@ -757,6 +757,13 @@ def _initial_partial_property_schema(given_name: str, dtype: dict, row: dict):
     return result
 
 
+def _initial_backref_property_schema(given_name: str, dtype: dict, row: dict):
+    result = _initial_normal_property_schema(given_name, dtype, row)
+    if given_name.endswith('[]'):
+        result['type'] = 'array_backref'
+    return result
+
+
 def _datatype_handler(reader: PropertyReader, row: dict, initial_data_loader: Callable[[str, dict, dict], dict]):
     given_name = row['property']
     reader.name = _clean_up_prop_name(row['property'].split('.')[-1])
@@ -797,7 +804,13 @@ def _datatype_handler(reader: PropertyReader, row: dict, initial_data_loader: Ca
         if dtype['type'] in ('ref', 'backref', 'generic'):
             ref_model, ref_props = _parse_property_ref(row['ref'])
             custom_data['model'] = get_relative_model_name(dataset, ref_model)
-            custom_data['refprops'] = ref_props
+            if dtype['type'] == 'backref':
+                if len(ref_props) > 1:
+                    raise InvalidBackRefReferenceAmount(backref=reader.name)
+                if len(ref_props) == 1:
+                    custom_data['refprop'] = ref_props[0]
+            else:
+                custom_data['refprops'] = ref_props
         else:
             # TODO: Detect if ref is a unit or an enum.
             custom_data['enum'] = row['ref']
@@ -821,6 +834,10 @@ def _partial_datatype_handler(reader: PropertyReader, row: dict):
     return _datatype_handler(reader, row, _initial_partial_property_schema)
 
 
+def _backref_datatype_handler(reader: PropertyReader, row: dict):
+    return _datatype_handler(reader, row, _initial_backref_property_schema)
+
+
 def _handle_datatype(reader: PropertyReader, row: dict):
     if row['type'] in DATATYPE_HANDLERS:
         handler = DATATYPE_HANDLERS[row['type']]
@@ -835,7 +852,8 @@ DATATYPE_HANDLERS = {
     "array": _array_datatype_handler,
     "object": _partial_datatype_handler,
     "partial": _partial_datatype_handler,
-    "ref": _partial_datatype_handler
+    "ref": _partial_datatype_handler,
+    "backref": _backref_datatype_handler,
 }
 
 
@@ -866,9 +884,14 @@ def _combine_parent_with_prop(prop_name: str, prop: dict, parent_prop: dict, ful
             parent_prop['properties'][prop_name] = prop
             return_name = _clean_up_prop_name(full_prop['given_name'].split('.')[0])
         elif parent_prop['type'] in ALLOWED_ARRAY_TYPES:
-            if parent_prop['items']:
-                prop = _combine_previous_data(prop, parent_prop['items'])
-            parent_prop['items'] = prop
+            # Array backref edge to replace parent instead of update array.items
+            if prop['type'] == 'array_backref':
+                parent_prop.clear()
+                parent_prop.update(prop)
+            else:
+                if parent_prop['items']:
+                    prop = _combine_previous_data(prop, parent_prop['items'])
+                parent_prop['items'] = prop
             return_name = _clean_up_prop_name(full_prop['given_name'].split('.')[0])
         else:
             full_prop.clear()
@@ -894,8 +917,8 @@ def _get_parent_data_array(reader: PropertyReader, given_row: dict, full_name: s
     })
     if not current_parent:
         current_parent.update(_array_datatype_handler(reader, empty_array_row))
-
-    for i in range(count):
+    adjustment = 1 if current_parent['type'] == 'partial_array' else 0
+    for i in range(count - adjustment):
         if current_parent['type'] in ALLOWED_ARRAY_TYPES:
             if current_parent['items'] and current_parent['items']['type'] not in ALLOWED_ARRAY_TYPES:
                 raise Exception()
@@ -2055,11 +2078,7 @@ def _property_to_tabular(
     if isinstance(prop.dtype, Array):
         yield_array_row = prop.dtype.items
         yield_rows.append(yield_array_row)
-        if prop.dtype.items and prop.given.name == prop.dtype.items.given.name:
-            yield from _property_to_tabular(yield_array_row, external=external, access=access, order_by=order_by)
-            return
-
-    if isinstance(prop.dtype, Ref):
+    elif isinstance(prop.dtype, Ref):
         model = prop.model
         if model.external and model.external.dataset:
             data['ref'] = to_relative_model_name(
@@ -2073,6 +2092,10 @@ def _property_to_tabular(
                 data['ref'] += f'[{rkeys}]'
         else:
             data['ref'] = prop.dtype.model.name
+
+        if prop.dtype.properties:
+            for obj_prop in prop.dtype.properties.values():
+                yield_rows.append(obj_prop)
     elif isinstance(prop.dtype, BackRef):
         model = prop.model
         if model.external and model.external.dataset:
@@ -2088,10 +2111,8 @@ def _property_to_tabular(
 
         for denorm_prop in prop.dtype.properties.values():
             yield_rows.append(denorm_prop)
-
-    if isinstance(prop.dtype, Object):
+    elif isinstance(prop.dtype, Object):
         for obj_prop in prop.dtype.properties.values():
-            print(obj_prop.dtype, obj_prop.given.name)
             yield_rows.append(obj_prop)
 
     elif prop.enum is not None:
