@@ -15,12 +15,10 @@ poetry run spinta copy $BASEDIR/manifest.txt -o $BASEDIR/manifest.csv
 cat $BASEDIR/manifest.csv
 poetry run spinta show $BASEDIR/manifest.csv
 
-# notes/spinta/server.sh    Check configuration
 # notes/spinta/server.sh    Run migrations
-# notes/spinta/server.sh    Add client
 # notes/spinta/server.sh    Run server
 
-# Configure client
+# notes/spinta/client.sh    Configure client
 SERVER=:8000
 CLIENT=test
 SECRET=secret
@@ -38,7 +36,11 @@ SCOPES=(
     spinta_wipe
     spinta_auth_clients
 )
-http -a $CLIENT:$SECRET -f $SERVER/auth/token grant_type=client_credentials scope="$SCOPES"
+http \
+    -a $CLIENT:$SECRET \
+    -f $SERVER/auth/token \
+    grant_type=client_credentials \
+    scope="$SCOPES"
 #| HTTP/1.1 400 Bad Request
 #| 
 #| {
@@ -56,3 +58,14 @@ tail -50 $BASEDIR/spinta.log
 #|     raise InvalidScopeError(state=self.request.state)
 #| authlib.oauth2.rfc6749.errors.InvalidScopeError: invalid_scope: 
 #| INFO: "POST /auth/token HTTP/1.1" 400 Bad Request
+
+TOKEN=$(
+    http \
+        -a $CLIENT:$SECRET \
+        -f $SERVER/auth/token \
+        grant_type=client_credentials \
+        scope="$SCOPES" \
+    | jq -r .access_token
+)
+AUTH="Authorization: Bearer $TOKEN"
+echo $AUTH
