@@ -4,9 +4,9 @@ git checkout master
 git pull
 
 git tag -l -n1 | sort -h | tail -n5
-export CURRENT_VERSION=0.1.56
-export NEW_VERSION=0.1.57
-export FUTURE_VERSION=0.1.58
+export CURRENT_VERSION=0.1.57
+export NEW_VERSION=0.1.58
+export FUTURE_VERSION=0.1.59
 
 head CHANGES.rst
 
@@ -31,7 +31,7 @@ COMMIT;
 EOF
 
 poetry run pytest -vvx --tb=short tests
-#| 1486 passed, 39 skipped, 203 warnings in 263.34s (0:04:23)
+#| 1495 passed, 39 skipped, 111 warnings in 271.45s (0:04:31)
 
 poetry run rst2html.py CHANGES.rst var/changes.html
 xdg-open var/changes.html
@@ -203,6 +203,7 @@ http GET ":8000/datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo?select(_id,ja_ko
 http GET ":8000/datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo/:changes"
 
 xdg-open http://localhost:8000/datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo
+xdg-open "http://localhost:8000/datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo?select(_id,ja_kodas,ja_pavadinimas,reg_data,forma.pavadinimas,statusas.pavadinimas)"
 
 test -n "$PID" && kill $PID
 unset SPINTA_CONFIG
