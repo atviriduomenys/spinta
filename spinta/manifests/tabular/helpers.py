@@ -670,7 +670,8 @@ class PropertyReader(TabularReader):
                     split = result.split('.')
                     formula = split[0]
                     split_formula = formula.split('(')
-                    reconstructed = f'{split_formula[0]}("{row["source"]}", {"(".join(split_formula[1:])}'
+                    formatted = row["source"].replace('"', '\\"').replace("'", "\\'")
+                    reconstructed = f'{split_formula[0]}("{formatted}", {"(".join(split_formula[1:])}'
                     split[0] = reconstructed
                     result = '.'.join(split)
                 else:

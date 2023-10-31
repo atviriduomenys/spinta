@@ -42,6 +42,10 @@ def geodb():
             sa.Column('id', sa.Integer, primary_key=True),
             sa.Column('name', sa.Text),
             sa.Column('country', sa.Integer),
+        ],
+        'test': [
+            sa.Column('id', sa.Integer, primary_key=True),
+            sa.Column('text', sa.Text)
         ]
     }) as db:
         db.write('salis', [
@@ -56,6 +60,13 @@ def geodb():
         ])
         db.write('cities', [
             {'name': 'Vilnius', 'country': 2},
+        ])
+        db.write('test', [
+            {'id': 0, 'text': '"TEST"'},
+            {'id': 1, 'text': 'test "TEST"'},
+            {'id': 2, 'text': "'TEST'"},
+            {'id': 3, 'text': "test 'TEST'"},
+            {'id': 4, 'text': "\"TEST\" 'TEST'"}
         ])
         yield db
 
@@ -2633,4 +2644,32 @@ def test_swap_multi_with_multi_lines_all_to_same(rc, tmp_path, geodb):
         ('CODE', 'Estija'),
         ('CODE', 'Latvija'),
         ('CODE', 'Lietuva')
+    ]
+
+
+def test_swap_multi_escape_source(rc, tmp_path, geodb):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    id | d | r | b | m | property | source          | type    | ref     | access | prepare
+       | datasets/gov/example     |                 |         |         |        |
+       |   | data                 |                 | sql     |         |        |
+       |   |   |                  |                 |         |         |        |
+       |   |   |   | test         | test            |         | id      | open   |
+       |   |   |   |   | id       | id              | integer |         |        |
+       |   |   |   |   | text     | text            | string  |         |        | swap("\\"TEST\\"", "NORMAL SWAPPED PREPARE")
+       |   |   |   |   |          | 'TEST'          |         |         |        | swap("TESTAS")
+       |   |   |   |   |          | test 'TEST'     |         |         |        | swap("TEST 'test'")
+       |   |   |   |   |          |                 |         |         |        | swap("test \\"TEST\\"", "TEST \\"test\\"")
+       |   |   |   |   |          | "TEST" 'TEST'   |         |         |        | swap("'TEST' \\"TEST\\"")
+       |   |   |   |   | old      | text            | string  |         |        |
+    '''))
+
+    app = create_client(rc, tmp_path, geodb)
+
+    resp = app.get('/datasets/gov/example/test')
+    assert listdata(resp, 'old', 'text') == [
+        ("'TEST'", 'TESTAS'),
+        ("test 'TEST'", "TEST 'test'"),
+        ('"TEST" \'TEST\'', '\'TEST\' "TEST"'),
+        ('"TEST"', 'NORMAL SWAPPED PREPARE'),
+        ('test "TEST"', 'TEST "test"'),
     ]
