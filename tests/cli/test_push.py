@@ -1,13 +1,14 @@
 import pytest
 import sqlalchemy as sa
+import sqlalchemy_utils as su
 
 from spinta.exceptions import UnauthorizedKeymapSync
 from spinta.manifests.tabular.helpers import striptable
 from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
-from spinta.testing.client import create_client, create_rc, configure_remote_server
+from spinta.testing.client import create_client, create_rc, configure_remote_server, create_test_client
 from spinta.testing.data import listdata
-from spinta.testing.datasets import create_sqlite_db
+from spinta.testing.datasets import create_sqlite_db, Sqlite
 from spinta.testing.tabular import create_tabular_manifest
 
 
@@ -1063,3 +1064,71 @@ def test_push_sync_private_no_error(
         '--no-progress-bar',
     ], fail=False)
     assert result.exception is None
+
+
+def test_push_postgresql(
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    request,
+    geodb,
+):
+    db = f'{postgresql}/push_db'
+    if su.database_exists(db):
+        su.drop_database(db)
+    su.create_database(db)
+    engine = sa.create_engine(db)
+    with engine.connect() as conn:
+        meta = sa.MetaData(conn)
+        table = sa.Table(
+            'cities',
+            meta,
+            sa.Column('id', sa.Integer),
+            sa.Column('name', sa.Text)
+        )
+        meta.create_all()
+        conn.execute(
+            table.insert((0, "Test"))
+        )
+        conn.execute(
+            table.insert((1, "Test1"))
+        )
+    table = f'''
+        d | r | b | m | property | type    | ref                             | source         | level | access
+        postgrespush              |         |                                |                |       |
+          | db                   | sql     |                                 | {db}           |       |
+          |   |   | City         |         | id                              | cities         | 4     |
+          |   |   |   | id       | integer |                                 | id             | 4     | open
+          |   |   |   | name     | string  |                                 | name           | 2     | open
+        '''
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable(table))
+
+    # Configure local server with SQL backend
+    tmp = Sqlite(db)
+    localrc = create_rc(rc, tmp_path, tmp)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    result = cli.invoke(localrc, [
+        'push',
+        '-o', remote.url,
+        '--credentials', remote.credsfile
+    ], fail=False)
+    assert result.exit_code == 0
+    assert 'PUSH: 100%|##########| 2/2' in result.stderr
+
+    result = cli.invoke(localrc, [
+        'push',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '-i'
+    ], fail=False)
+    assert result.exit_code == 0
+    assert 'PUSH: 100%|##########| 2/2' not in result.stderr
+    su.drop_database(db)
