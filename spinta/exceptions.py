@@ -671,3 +671,6 @@ class SummaryWithMultipleProperties(UserError):
 class TooManyModelUriProperties(UserError):
     template = "Model already has {uri_prop!r} set as uri property."
 
+
+class DataTypeCannotBeUsedForNesting(UserError):
+    template = "Type {dtype!r} cannot be used for nesting properties."

@@ -1,7 +1,7 @@
 import pytest
 
 from spinta.exceptions import InvalidManifestFile, ModelReferenceNotFound, ReferencedPropertyNotFound, \
-    PartialTypeNotFound
+    PartialTypeNotFound, DataTypeCannotBeUsedForNesting
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.manifest import load_manifest
 from spinta.manifests.tabular.helpers import TabularManifestError
@@ -896,3 +896,41 @@ def test_prop_multi_nested(tmp_path, rc):
         ''')
 
 
+def test_multi_nested_incorrect(tmp_path, rc):
+    with pytest.raises(DataTypeCannotBeUsedForNesting) as e:
+        check(tmp_path, rc, '''
+                d | r | b | m | property                       | type    | ref      | access | title
+                example                                        |         |          |        |
+                                                               |         |          |        |
+                  |   |   | Language                           |         |          |        |
+                  |   |   |   | dialect                        | string  |          | open   |
+                  |   |   |   | meta.version                   | string  |          | open   |
+                  |   |   |   | meta                           | integer |          | open   |
+            ''')
+
+
+def test_multi_nested_incorrect_reversed_order(tmp_path, rc):
+    with pytest.raises(DataTypeCannotBeUsedForNesting) as e:
+        check(tmp_path, rc, '''
+                d | r | b | m | property                       | type    | ref      | access | title
+                example                                        |         |          |        |
+                                                               |         |          |        |
+                  |   |   | Language                           |         |          |        |
+                  |   |   |   | dialect                        | string  |          | open   |
+                  |   |   |   | meta                           | integer |          | open   |
+                  |   |   |   | meta.version                   | string  |          | open   |
+            ''')
+
+
+def test_multi_nested_incorrect_deep(tmp_path, rc):
+    with pytest.raises(DataTypeCannotBeUsedForNesting) as e:
+        check(tmp_path, rc, '''
+                d | r | b | m | property                       | type    | ref      | access | title
+                example                                        |         |          |        |
+                                                               |         |          |        |
+                  |   |   | Language                           |         |          |        |
+                  |   |   |   | dialect                        | string  |          | open   |
+                  |   |   |   | meta.version.id                | integer |          | open   |
+                  |   |   |   | meta.version                   | string  |          | open   |
+                  |   |   |   | meta                           | object  |          | open   |
+            ''')

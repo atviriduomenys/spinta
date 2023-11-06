@@ -43,7 +43,7 @@ from spinta.datasets.components import Dataset
 from spinta.dimensions.enum.components import Enums
 from spinta.dimensions.lang.components import LangData
 from spinta.dimensions.prefix.components import UriPrefix
-from spinta.exceptions import MultipleErrors, InvalidBackRefReferenceAmount
+from spinta.exceptions import MultipleErrors, InvalidBackRefReferenceAmount, DataTypeCannotBeUsedForNesting
 from spinta.exceptions import PropertyNotFound
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
@@ -670,8 +670,7 @@ def _datatype_handler(reader: PropertyReader, row: dict, initial_data_loader: Ca
             f"Property {reader.name!r} must be defined in a model context. "
             f"Now it is defined in {context.name!r} {context.type} context."
         )
-
-    _check_if_property_already_set(reader, given_name)
+    _check_if_property_already_set(reader, row, given_name)
     dtype = _get_type_repr(row['type'])
     dtype = _parse_dtype_string(dtype)
     if dtype['error']:
@@ -873,10 +872,12 @@ def _get_parent_data(reader: PropertyReader, given_row: dict, name: str):
                 current_parent = _get_parent_data_partial(reader, given_row, '.'.join(full_name), current_parent or full_prop)
         else:
             prop_name = _clean_up_prop_name(prop)
+        if current_parent and (current_parent['type'] not in ALLOWED_PARTIAL_TYPES and current_parent['type'] not in ALLOWED_ARRAY_TYPES):
+            raise DataTypeCannotBeUsedForNesting(dtype=current_parent['type'])
     return full_prop, current_parent, prop_name
 
 
-def _check_if_property_already_set(reader: PropertyReader, full_name: str):
+def _check_if_property_already_set(reader: PropertyReader, given_row: dict, full_name: str):
     split = full_name.split('.')
     base_name = _clean_up_prop_name(split[0])
     base = {}
@@ -895,7 +896,7 @@ def _check_if_property_already_set(reader: PropertyReader, full_name: str):
             count = prop.count('[]')
             prop = prop.replace('[]', '')
 
-            for i in range(count):
+            for a_i in range(count):
                 if not base:
                     return
                 if base['type'] in ALLOWED_ARRAY_TYPES:
@@ -903,14 +904,21 @@ def _check_if_property_already_set(reader: PropertyReader, full_name: str):
                 elif base['type'] in ALLOWED_PARTIAL_TYPES:
                     base = base['properties'].get(prop, None)
                 else:
-                    raise Exception()
-        if not base:
-            return
+                    raise DataTypeCannotBeUsedForNesting(dtype=base['type'])
+        else:
+            if i > 0:
+                if not base:
+                    return
+                if base['type'] in ALLOWED_PARTIAL_TYPES:
+                    base = base['properties'].get(prop, None)
+                elif base['type'] in ALLOWED_ARRAY_TYPES:
+                    base = base['items']
+                else:
+                    raise DataTypeCannotBeUsedForNesting(dtype=base['type'])
 
-        if base['type'] in ALLOWED_PARTIAL_TYPES:
-            base = base['properties'].get(prop, None)
-        elif base['type'] in ALLOWED_ARRAY_TYPES:
-            base = base['items']
+    if base:
+        if not (base['type'] == 'partial' and given_row['type'] in ALLOWED_PARTIAL_TYPES) and not (base['type'] == 'array_partial' and given_row['type'] in ALLOWED_ARRAY_TYPES):
+            raise DataTypeCannotBeUsedForNesting(dtype=given_row['type'])
 
 
 class AppendReader(TabularReader):
