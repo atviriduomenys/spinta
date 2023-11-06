@@ -1,7 +1,7 @@
 import pytest
 
 from spinta.exceptions import InvalidManifestFile, ModelReferenceNotFound, ReferencedPropertyNotFound, \
-    PartialTypeNotFound, DataTypeCannotBeUsedForNesting
+    PartialTypeNotFound, DataTypeCannotBeUsedForNesting, NestedDataTypeMissmatch
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.manifest import load_manifest
 from spinta.manifests.tabular.helpers import TabularManifestError
@@ -932,5 +932,47 @@ def test_multi_nested_incorrect_deep(tmp_path, rc):
                   |   |   |   | dialect                        | string  |          | open   |
                   |   |   |   | meta.version.id                | integer |          | open   |
                   |   |   |   | meta.version                   | string  |          | open   |
+                  |   |   |   | meta                           | object  |          | open   |
+            ''')
+
+
+def test_multi_nested_incorrect_with_array(tmp_path, rc):
+    with pytest.raises(DataTypeCannotBeUsedForNesting) as e:
+        check(tmp_path, rc, '''
+                d | r | b | m | property                       | type    | ref      | access | title
+                example                                        |         |          |        |
+                                                               |         |          |        |
+                  |   |   | Language                           |         |          |        |
+                  |   |   |   | dialect                        | string  |          | open   |
+                  |   |   |   | meta.version[].id              | integer |          | open   |
+                  |   |   |   | meta.version[]                 | string  |          | open   |
+                  |   |   |   | meta                           | object  |          | open   |
+            ''')
+
+
+def test_multi_nested_type_missmatch_with_array(tmp_path, rc):
+    with pytest.raises(NestedDataTypeMissmatch) as e:
+        check(tmp_path, rc, '''
+                d | r | b | m | property                       | type    | ref      | access | title
+                example                                        |         |          |        |
+                                                               |         |          |        |
+                  |   |   | Language                           |         |          |        |
+                  |   |   |   | dialect                        | string  |          | open   |
+                  |   |   |   | meta.version.id                | integer |          | open   |
+                  |   |   |   | meta.version[]                 | string  |          | open   |
+                  |   |   |   | meta                           | object  |          | open   |
+            ''')
+
+
+def test_multi_nested_type_missmatch_with_partial(tmp_path, rc):
+    with pytest.raises(NestedDataTypeMissmatch) as e:
+        check(tmp_path, rc, '''
+                d | r | b | m | property                       | type    | ref      | access | title
+                example                                        |         |          |        |
+                                                               |         |          |        |
+                  |   |   | Language                           |         |          |        |
+                  |   |   |   | dialect                        | string  |          | open   |
+                  |   |   |   | meta.version[]                 | string  |          | open   |
+                  |   |   |   | meta.version.id                | integer |          | open   |
                   |   |   |   | meta                           | object  |          | open   |
             ''')

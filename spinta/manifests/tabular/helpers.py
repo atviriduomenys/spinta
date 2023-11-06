@@ -43,7 +43,8 @@ from spinta.datasets.components import Dataset
 from spinta.dimensions.enum.components import Enums
 from spinta.dimensions.lang.components import LangData
 from spinta.dimensions.prefix.components import UriPrefix
-from spinta.exceptions import MultipleErrors, InvalidBackRefReferenceAmount, DataTypeCannotBeUsedForNesting
+from spinta.exceptions import MultipleErrors, InvalidBackRefReferenceAmount, DataTypeCannotBeUsedForNesting, \
+    NestedDataTypeMissmatch
 from spinta.exceptions import PropertyNotFound
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
@@ -812,17 +813,17 @@ def _get_parent_data_array(reader: PropertyReader, given_row: dict, full_name: s
     })
     if not current_parent:
         current_parent.update(_array_datatype_handler(reader, empty_array_row))
-    adjustment = 1 if current_parent['type'] == 'partial_array' else 0
+    adjustment = 1 if current_parent['type'] in ALLOWED_ARRAY_TYPES else 0
     for i in range(count - adjustment):
         if current_parent['type'] in ALLOWED_ARRAY_TYPES:
             if current_parent['items'] and current_parent['items']['type'] not in ALLOWED_ARRAY_TYPES:
-                raise Exception()
+                raise NestedDataTypeMissmatch(initial=current_parent['type'], required='array')
             elif not current_parent['items']:
                 current_parent['items'].update(_handle_datatype(reader, empty_array_row))
             current_parent = current_parent['items']
         elif current_parent['type'] in ALLOWED_PARTIAL_TYPES:
             if root_name in current_parent['properties'] and current_parent['properties'][root_name]['type'] not in ALLOWED_ARRAY_TYPES:
-                raise Exception()
+                raise NestedDataTypeMissmatch(initial=current_parent['type'], required='array')
             elif root_name not in current_parent['properties']:
                 current_parent['properties'][root_name] = _handle_datatype(reader, empty_array_row)
             current_parent = current_parent['properties'][root_name]
@@ -840,11 +841,15 @@ def _get_parent_data_partial(reader: PropertyReader, given_row: dict, full_name:
         current_parent.update(_handle_datatype(reader, empty_partial_row))
     else:
         if current_parent['type'] in ALLOWED_ARRAY_TYPES:
-            if not current_parent['items']:
+            if current_parent['items'] and current_parent['items']['type'] not in ALLOWED_PARTIAL_TYPES:
+                raise NestedDataTypeMissmatch(initial=current_parent['type'], required='partial')
+            elif not current_parent['items']:
                 current_parent['items'].update(_handle_datatype(reader, empty_partial_row))
             current_parent = current_parent['items']
         elif current_parent['type'] in ALLOWED_PARTIAL_TYPES:
-            if name not in current_parent['properties']:
+            if name in current_parent['properties'] and current_parent['properties'][name]['type'] not in ALLOWED_PARTIAL_TYPES:
+                raise NestedDataTypeMissmatch(initial=current_parent['type'], required='partial')
+            elif name not in current_parent['properties']:
                 current_parent['properties'][name] = _handle_datatype(reader, empty_partial_row)
             current_parent = current_parent['properties'][name]
     return current_parent
@@ -893,7 +898,7 @@ def _check_if_property_already_set(reader: PropertyReader, given_row: dict, full
 
     for i, prop in enumerate(split):
         if '[]' in prop:
-            count = prop.count('[]')
+            count = prop.count('[]') + 1
             prop = prop.replace('[]', '')
 
             for a_i in range(count):
@@ -917,7 +922,7 @@ def _check_if_property_already_set(reader: PropertyReader, given_row: dict, full
                     raise DataTypeCannotBeUsedForNesting(dtype=base['type'])
 
     if base:
-        if not (base['type'] == 'partial' and given_row['type'] in ALLOWED_PARTIAL_TYPES) and not (base['type'] == 'array_partial' and given_row['type'] in ALLOWED_ARRAY_TYPES):
+        if (base['type'] in ALLOWED_PARTIAL_TYPES and given_row['type'] not in ALLOWED_PARTIAL_TYPES) or (base['type'] in ALLOWED_ARRAY_TYPES and given_row['type'] not in ALLOWED_ARRAY_TYPES):
             raise DataTypeCannotBeUsedForNesting(dtype=given_row['type'])
 
 
