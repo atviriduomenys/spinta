@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS cities (
 INSERT INTO cities VALUES (1, 'Vilnius');
 INSERT INTO cities VALUES (2, 'Vėlnius');
 INSERT INTO cities VALUES (3, 'Vilna');
+INSERT INTO cities VALUES (4, '"Kauns"');
 EOF
 sqlite3 $BASEDIR/db.sqlite "SELECT * FROM cities;"
 
@@ -26,6 +27,7 @@ $DATASET            |         |     |                               |           
   |   |  |          |         |     | Vėlnius                       | swap("Vilnius") |       |     
   |   |  |          |         |     | Vilna                         | swap("Vilnius") |       |     
   |   |  |          |         |     | Kauna                         | swap("Kaunas")  |       |     
+  |   |  |          |         |     | "Kauns"                       | swap("Kaunas")  |       |     
 EOF
 poetry run spinta copy $BASEDIR/manifest.txt -o $BASEDIR/manifest.csv
 cat $BASEDIR/manifest.csv
@@ -39,8 +41,9 @@ tail -50 $BASEDIR/spinta.log
 # notes/spinta/client.sh    Configure client
 
 http GET "$SERVER/$DATASET/City?format(ascii)"
-#| _type             _id                                   _revision  id  name   
-#| ----------------  ------------------------------------  ---------  --  -------
-#| ufuncs/swap/City  c81430b7-d214-414a-a3a1-f5f6087b09e4  ∅          1   Vilnius
-#| ufuncs/swap/City  d8ac4016-a8fd-493f-9bf4-63150c8ce9fa  ∅          2   Vilnius
-#| ufuncs/swap/City  8c9a6563-e203-4806-ae18-ed69de3e5831  ∅          3   Vilnius
+#| id  name   
+#| --  -------
+#| 1   Vilnius
+#| 2   Vėlnius
+#| 3   Vilnius
+#| 4   Kaunas

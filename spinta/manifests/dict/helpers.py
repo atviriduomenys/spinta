@@ -1,5 +1,6 @@
 import pathlib
 import json
+from copy import deepcopy
 
 import requests
 import xmltodict
@@ -107,8 +108,6 @@ def read_schema(manifest_type: DictFormat, path: str):
                     extra = {
                         'model': ref_model
                     }
-                elif prop_type == "array":
-                    extra['items'] = {}
                 converted_props[new_prop] = {
                     'type': prop_type,
                     'external': {
@@ -119,6 +118,12 @@ def read_schema(manifest_type: DictFormat, path: str):
                     'unique': type_detector.unique,
                     **extra
                 }
+                if type_detector.array:
+                    copied = deepcopy(converted_props[new_prop])
+                    converted_props[new_prop]['type'] = 'partial_array'
+                    copied['given_name'] = f'{new_prop}[]'
+                    converted_props[new_prop]['items'] = copied
+
             fixed_external_source = m["source"]
             if mapping_meta["remove_array_suffix"]:
                 fixed_external_source = fixed_external_source.replace("[]", "")
@@ -496,7 +501,7 @@ def set_type_detector(dataset: _MappedDataset, mapping_scope: _MappingScope, map
 
         type_detector = dataset["models"][model_name][model_source]["properties"][prop_name]["type_detector"]
         if is_array:
-            type_detector.type = 'array'
+            type_detector.array = True
             type_detector.unique = False
             type_detector.required = False
         if is_ref:

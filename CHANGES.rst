@@ -3,8 +3,26 @@
 Changes
 #######
 
-0.1.58 (unreleased)
+0.1.59 (unreleased)
 ===================
+
+
+0.1.58 (2023-10-31)
+===================
+
+Bug fixes:
+
+- Fix error in CSV containing NULL data (`#528`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/528
+
+- Fix `swap()` containing quotes (`#508`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/508
+
+- Fix `UnauthorizedKeymapSync` error on `spinta push` command (`#532`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/532
 
 
 0.1.57 (2023-10-24)

@@ -574,6 +574,10 @@ class UnableToCast(UserError):
     template = "Unable to cast {value} to {type} type."
 
 
+class NotImplementedFeature(BaseError):
+    template = "{feature} is not implemented yet."
+
+
 class ReferencedObjectNotFound(UserError):
     template = "Referenced object {id!r} not found."
 
@@ -584,10 +588,6 @@ class ReferringObjectFound(UserError):
 
 class CompositeUniqueConstraint(UserError):
     template = "Given values for composition of properties ({properties}) already exist."
-
-
-class NotImplementedFeature(BaseError):
-    template = "{feature} is not implemented yet."
 
 
 class SourceCannotBeList(BaseError):
@@ -644,6 +644,10 @@ class GivenValueCountMissmatch(BaseError):
     template = "While assigning ref values {given_count} were given, while {expected_count} were expected."
 
 
+class PartialTypeNotFound(BaseError):
+    template = "Partial type can only be used for ref type."
+
+
 class NoReferencesFound(UserError):
     template = "Property {prop_name!r} of type 'Ref' was not found."
 
@@ -675,3 +679,10 @@ class SummaryWithMultipleProperties(UserError):
 class TooManyModelUriProperties(UserError):
     template = "Model already has {uri_prop!r} set as uri property."
 
+
+class DataTypeCannotBeUsedForNesting(UserError):
+    template = "Type {dtype!r} cannot be used for nesting properties."
+
+
+class NestedDataTypeMissmatch(UserError):
+    template = "While nesting, {initial!r} type cannot be cast to {required!r} type."

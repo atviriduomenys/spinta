@@ -163,7 +163,7 @@ class Visitor:
 
     def value(self, node, token):
         if token.type == 'STRING':
-            return token.value[1:-1]
+            return token.value[1:-1].encode().decode("unicode_escape")
         if token.type == 'INT':
             return int(token.value)
         if token.type == 'FLOAT':

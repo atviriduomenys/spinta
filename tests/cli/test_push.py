@@ -1,5 +1,7 @@
 import pytest
 import sqlalchemy as sa
+
+from spinta.exceptions import UnauthorizedKeymapSync
 from spinta.manifests.tabular.helpers import striptable
 from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
@@ -972,3 +974,92 @@ def test_push_sync(
     assert resp_city.status_code == 200
     assert listdata(resp_city, 'name') == ['Vilnius']
     assert listdata(resp_city, '_id', 'id', 'name', 'country')[0] == (city_id, 1, 'Vilnius', {'_id': country_id})
+
+
+def test_push_sync_to_private_error(
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    geodb,
+    request
+):
+    with pytest.raises(UnauthorizedKeymapSync):
+        table = '''
+            d | r | b | m | property | type    | ref                             | source         | level | access
+            syncdataset              |         |                                 |                |       |
+              | db                   | sql     |                                 |                |       |
+              |   |   | City         |         | id                              | cities         | 4     |
+              |   |   |   | id       | integer |                                 | id             | 4     | open
+              |   |   |   | name     | string  |                                 | name           | 2     | open
+              |   |   |   | country  | ref     | /syncdataset/countries/Country | country        | 4     | open
+              |   |   |   |          |         |                                 |                |       |
+            syncdataset/countries    |         |                                 |                |       |
+              |   |   | Country      |         | code                            |                | 4     |
+              |   |   |   | code     | integer |                                 |                | 4     | private
+              |   |   |   | name     | string  |                                 |                | 2     | open
+            '''
+        create_tabular_manifest(tmp_path / 'manifest.csv', striptable(table))
+
+        # Configure local server with SQL backend
+        localrc = create_rc(rc, tmp_path, geodb)
+
+        # Configure remote server
+        remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+        request.addfinalizer(remote.app.context.wipe_all)
+
+        # Push data from local to remote.
+        assert remote.url == 'https://example.com/'
+        result = cli.invoke(localrc, [
+            'push',
+            '-o', remote.url,
+            '--credentials', remote.credsfile,
+            '--sync',
+            '--no-progress-bar',
+        ], fail=False)
+        raise result.exception
+
+
+def test_push_sync_private_no_error(
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    geodb,
+    request
+):
+    table = '''
+        d | r | b | m | property | type    | ref                             | source         | level | access
+        syncdataset              |         |                                 |                |       |
+          | db                   | sql     |                                 |                |       |
+          |   |   | City         |         | id                              | cities         | 4     |
+          |   |   |   | id       | integer |                                 | id             | 4     | open
+          |   |   |   | name     | string  |                                 | name           | 2     | open
+          |   |   |   | country  | ref     | /syncdataset/countries/Country  | country        | 4     | private
+          |   |   |   |          |         |                                 |                |       |
+        syncdataset/countries    |         |                                 |                |       |
+          |   |   | Country      |         | code                            |                | 4     |
+          |   |   |   | code     | integer |                                 |                | 4     | private
+          |   |   |   | name     | string  |                                 |                | 2     | open
+        '''
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable(table))
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, geodb)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    result = cli.invoke(localrc, [
+        'push',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--sync',
+        '--no-progress-bar',
+    ], fail=False)
+    assert result.exception is None

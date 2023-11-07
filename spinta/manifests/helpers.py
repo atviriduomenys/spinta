@@ -348,6 +348,7 @@ class TypeDetector:
         self.type = ""
         self.unique = True
         self.required = True
+        self.array = False
 
     def get_type(self) -> str:
         value = self.type
@@ -360,18 +361,21 @@ class TypeDetector:
         self._process_for_required(value)
 
         if value is not None and value != "":
-            str_value = str(value)
-            if self.type in self._key_list:
-                self._type_detector_priority[self.type](self, str_value)
+            if not isinstance(value, (list, tuple)):
+                value = [value]
+            for item in value:
+                str_value = str(item)
+                if self.type in self._key_list:
+                    self._type_detector_priority[self.type](self, str_value)
 
-            if self.type == "":
-                for key in self._key_list[self._highest_type_level:]:
-                    self._type_detector_priority[key](self, str_value)
-                    if self.type != "":
-                        current_level_index = self._key_list.index(self.type)
-                        if current_level_index > self._highest_type_level:
-                            self._highest_type_level = current_level_index
-                        break
+                if self.type == "":
+                    for key in self._key_list[self._highest_type_level:]:
+                        self._type_detector_priority[key](self, str_value)
+                        if self.type != "":
+                            current_level_index = self._key_list.index(self.type)
+                            if current_level_index > self._highest_type_level:
+                                self._highest_type_level = current_level_index
+                            break
 
     def _process_for_unique(self, value: Any):
         if self.unique:
