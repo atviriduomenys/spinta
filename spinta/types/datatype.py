@@ -58,6 +58,12 @@ class DataType(Component):
     def get_bind_expr(self):
         return Expr('bind', self.prop.name)
 
+    def __copy__(self):
+        cls = self.__class__
+        result = cls.__new__(cls)
+        result.__dict__.update(self.__dict__)
+        return result
+
 
 class PrimaryKey(DataType):
     pass
@@ -175,6 +181,8 @@ class Ref(DataType):
     refprops: List[Property]
     # True if ref column is set explicitly
     explicit: bool = False
+    # Denorm properties
+    properties: Dict[str, Property] = {}
 
     schema = {
         'model': {
@@ -184,7 +192,8 @@ class Ref(DataType):
             'type': 'array',
             'items': {'type': 'string'},
         },
-        'enum': {'type': 'array'}
+        'enum': {'type': 'array'},
+        'properties': {'type': 'object'},
     }
 
 
@@ -228,6 +237,13 @@ class Array(DataType):
             return list(value)
         else:
             raise exceptions.InvalidValue(self)
+
+
+class Partial(DataType):
+    schema = {
+        'properties': {'type': 'object'},
+    }
+    properties: Dict[str, Property] = None
 
 
 class Object(DataType):
@@ -288,6 +304,10 @@ class Inherit(DataType):
         return ""
 
 
+class PartialArray(Array):
+    pass
+
+
 class PageType(DataType):
     pass
 
@@ -333,6 +353,43 @@ def _add_leaf_props(prop: Property) -> None:
     if prop.name not in prop.model.leafprops:
         prop.model.leafprops[prop.name] = []
     prop.model.leafprops[prop.name].append(prop)
+
+
+@load.register(Context, Partial, dict, Manifest)
+def load(context: Context, dtype: Partial, data: dict, manifest: Manifest) -> DataType:
+    props = {}
+    for name, params in (dtype.properties or {}).items():
+        place = dtype.prop.place + '.' + name
+        prop = dtype.prop.__class__()
+        prop.name = name
+        prop.place = place
+        prop.parent = dtype.prop
+        prop.model = dtype.prop.model
+        prop.list = dtype.prop.list
+        commands.load(context, prop, params, manifest)
+        dtype.prop.model.flatprops[place] = prop
+        props[name] = prop
+    dtype.properties = props
+    return dtype
+
+
+@load.register(Context, Ref, dict, Manifest)
+def load(context: Context, dtype: Ref, data: dict, manifest: Manifest) -> DataType:
+    props = {}
+    for name, params in (dtype.properties or {}).items():
+        place = dtype.prop.place + '.' + name
+        prop = dtype.prop.__class__()
+        prop.name = name
+        prop.place = place
+        prop.parent = dtype.prop
+        prop.model = dtype.prop.model
+        prop.list = dtype.prop.list
+        commands.load(context, prop, params, manifest)
+        dtype.prop.model.flatprops[place] = prop
+        props[name] = prop
+    dtype.properties = props
+    _add_leaf_props(dtype.prop)
+    return dtype
 
 
 @load.register(Context, Object, dict, Manifest)
@@ -426,6 +483,18 @@ def load(context: Context, dtype: Object, value: object) -> dict:
     return new_loaded_obj
 
 
+@load.register(Context, Ref, object)
+def load(context: Context, dtype: Ref, value: object) -> dict:
+    loaded_obj = dtype.load(value)
+    # TODO: add better support for dtype.properties load
+    if isinstance(value, dict):
+        dtype.properties = {
+            name: load(context, Property(), prop)
+            for name, prop in value.get('properties', {}).items()
+        }
+    return loaded_obj
+
+
 @load.register(Context, RQL, str)
 def load(context: Context, dtype: RQL, value: str) -> dict:
     rql = spyna.parse(value)
@@ -442,3 +511,11 @@ def get_error_context(dtype: DataType, *, prefix='this'):
 @commands.rename_metadata.register(Context, dict)
 def rename_metadata(context: Context, data: dict) -> dict:
     return data
+
+
+@load.register(Context, Partial, dict)
+def load(context: Context, dtype: Partial, data: dict):
+    dtype.properties = {
+        name: load(context, Property(), prop)
+        for name, prop in data.get('properties', {}).items()
+    }

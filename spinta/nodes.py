@@ -134,6 +134,9 @@ def load_node(
     ...
 
 
+ARRAY_TYPES = ['array', 'partial_array']
+
+
 def load_node(
     context: Context,
     node: Union[Node, Component],
@@ -152,8 +155,13 @@ def load_node(
             if mixed:
                 remainder[name] = data[name]
                 continue
+            elif isinstance(data[name], dict):
+                for n in data[name]:
+                    remainder[n] = data[name]
+                    continue
             else:
                 raise exceptions.UnknownParameter(node, param=name)
+
         schema = node_schema[name]
         if schema.get('parent'):
             attr = schema.get('attr', name)
@@ -173,7 +181,7 @@ def load_node(
                 value = schema['factory']()
             else:
                 value = schema.get('default')
-        elif schema.get('type') == 'array':
+        elif schema.get('type') in ARRAY_TYPES:
             if not isinstance(value, list) and schema.get('force'):
                 value = [value]
         attr = schema.get('attr', name)
