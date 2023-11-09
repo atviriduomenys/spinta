@@ -56,10 +56,10 @@ def get_column(backend: PostgreSQL, dtype: String, table: sa.Table = None, **kwa
 
     if table is None:
         table = get_table(backend, prop)
-    column_name = gcn(dtype.prop.parent if isinstance(parent.dtype, Text) else dtype.prop)
+    column_name = gcn(parent if parent and isinstance(parent.dtype, Text) else dtype.prop)
     column = convert_str_to_column(table, prop, column_name)
 
-    if isinstance(parent.dtype, Text):
+    if parent and isinstance(parent.dtype, Text):
         column = column[dtype.prop.name].label(dtype.prop.place.replace('@', '.'))
     return column
 
