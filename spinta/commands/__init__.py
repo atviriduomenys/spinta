@@ -630,7 +630,7 @@ def getall(
     backend: Backend,
     *,
     query: Expr = None,
-    params: UrlParams = None
+    **kwargs
 ) -> Iterator[ObjectData]:
     pass
 
@@ -642,8 +642,8 @@ def getall(
     backend: Backend,
     *,
     query: Expr = None,
-    params: UrlParams = None,
-    default_expand: bool = True
+    default_expand: bool = True,
+    **kwargs
 ) -> Iterator[ObjectData]:
     pass
 
@@ -655,7 +655,7 @@ def getall(
     backend: ExternalBackend,
     *,
     query: Expr = None,
-    params: UrlParams = None
+    **kwargs
 ) -> Iterator[ObjectData]:
     pass
 
@@ -666,10 +666,10 @@ def getall(
     ns: Namespace,
     *,
     query: Expr = None,
-    params: UrlParams = None,
     action: Optional[Action] = None,
     dataset_: Optional[str] = None,
     resource: Optional[str] = None,
+    **kwargs
 ):
     pass
 

@@ -347,7 +347,7 @@ def getall(
     backend: Json,
     *,
     query: Expr = None,
-    params: UrlParams = None
+    **kwargs
 ) -> Iterator[ObjectData]:
     base = model.external.resource.external
     builder = DaskDataFrameQueryBuilder(context)
@@ -379,7 +379,7 @@ def getall(
     backend: Xml,
     *,
     query: Expr = None,
-    params: UrlParams = None
+    **kwargs
 ) -> Iterator[ObjectData]:
     base = model.external.resource.external
     builder = DaskDataFrameQueryBuilder(context)
@@ -408,7 +408,7 @@ def getall(
     backend: Csv,
     *,
     query: Expr = None,
-    params: UrlParams = None
+    **kwargs
 ) -> Iterator[ObjectData]:
     base = model.external.resource.external
     resource_builder = TabularResource(context)

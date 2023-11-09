@@ -13,7 +13,7 @@ def getall(
     backend: NoBackend,
     *,
     query: Expr = None,
-    params: UrlParams = None
+    **kwargs
 ):
     raise BackendNotGiven(model)
 

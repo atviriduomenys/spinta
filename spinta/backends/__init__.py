@@ -80,7 +80,10 @@ def prepare_for_write(
     for name, value in patch.items():
         if not name.startswith('_'):
             prop = model.properties[name]
-            value = commands.prepare_for_write(context, prop.dtype, backend, value, params)
+            if params:
+                value = commands.prepare_for_write(context, prop.dtype, backend, value, params)
+            else:
+                value = commands.prepare_for_write(context, prop.dtype, backend, value)
         result[name] = value
     return result
 

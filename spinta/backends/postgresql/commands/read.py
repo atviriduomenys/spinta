@@ -43,7 +43,8 @@ def getall(
     *,
     query: Expr = None,
     default_expand: bool = True,
-    params: UrlParams = None
+    params: UrlParams = None,
+    **kwargs
 ) -> Iterator[ObjectData]:
     assert isinstance(query, (Expr, type(None))), query
     connection = context.get('transaction').connection

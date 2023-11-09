@@ -107,7 +107,7 @@ def getall(
     backend: Mongo,
     *,
     query: Expr = None,
-    params: UrlParams = None
+    **kwargs
 ) -> Iterator[ObjectData]:
     builder = MongoQueryBuilder(context)
     builder.update(model=model)

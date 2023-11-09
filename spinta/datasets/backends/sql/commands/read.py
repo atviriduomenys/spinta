@@ -77,7 +77,8 @@ def getall(
     backend: Sql,
     *,
     query: Expr = None,
-    params: UrlParams = None
+    params: UrlParams = None,
+    **kwargs
 ) -> Iterator[ObjectData]:
     conn = context.get(f'transaction.{backend.name}')
     builder = SqlQueryBuilder(context)

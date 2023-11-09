@@ -17,7 +17,7 @@ def getall(
     db: Memory,
     *,
     query: Expr = None,
-    params: UrlParams = None
+    **kwargs
 ) -> Iterator[ObjectData]:
     table = get_table_name(model)
     return db.data[table].values()
