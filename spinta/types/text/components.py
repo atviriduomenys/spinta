@@ -10,5 +10,5 @@ class Text(DataType):
         'langs': {'type': 'object'},
         'hidden': {'type': 'bool', 'default': True}
     }
-
+    requires_source = False
     langs: Optional[Dict[str, Property]]

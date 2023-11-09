@@ -22,7 +22,7 @@ from spinta.datasets.enums import Level
 from spinta.exceptions import EmptyStringSearch, PropertyNotFound
 from spinta.exceptions import UnknownMethod
 from spinta.exceptions import FieldNotInResource
-from spinta.components import Model, Property, Action, Page
+from spinta.components import Model, Property, Action, Page, UrlParams
 from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, merge_with_page_sort, merge_with_page_limit, merge_with_page_selected_list
 from spinta.utils.data import take
 from spinta.types.datatype import DataType, ExternalRef, Inherit, BackRef, Time, ArrayBackRef
@@ -45,8 +45,8 @@ from spinta.backends.postgresql.components import BackendFeatures
 class PgQueryBuilder(BaseQueryBuilder):
     backend: PostgreSQL
 
-    def init(self, backend: PostgreSQL, table: sa.Table):
-        return self(
+    def init(self, params: UrlParams, backend: PostgreSQL, table: sa.Table):
+        result = self(
             backend=backend,
             table=table,
             # TODO: Select list must be taken from params.select.
@@ -60,6 +60,8 @@ class PgQueryBuilder(BaseQueryBuilder):
             page=QueryPage(),
             group_by=[]
         )
+        result.parse_params(params)
+        return result
 
     def build(self, where):
         if self.select is None:
@@ -84,22 +86,9 @@ class PgQueryBuilder(BaseQueryBuilder):
                 for item in items:
                     if item is not None and item not in select:
                         select.append(item)
-        items_to_jsonb_each_text = []
-        # for sel in self.select.values():
-        #     items = sel.item if isinstance(sel.item, list) else [sel.item]
-        #     for item in items:
-        #         if item is not None and item not in select:
-        #             if not isinstance(sel.item, list):
-        #                 if isinstance(sel.item.type, Text) and '._id' not in str(where) and where is not None:
-        #                     items_to_jsonb_each_text.append(item)
-        #             select.append(item)
-        qry = sa.select(select)
 
-        if items_to_jsonb_each_text:
-            qry = qry.select_from(self.from_).join(sa.func.jsonb_each_text(items_to_jsonb_each_text[-1]).alias("e"),
-                                                   onclause=True)
-        else:
-            qry = qry.select_from(self.from_)
+        qry = sa.select(select)
+        qry = qry.select_from(self.from_)
 
         if where is not None:
             qry = qry.where(where)
@@ -407,7 +396,9 @@ def getattr_(env, dtype, attr):
 def getattr_(env, dtype, bind):
     if dtype.prop.name in env.model.properties:
         prop = env.model.properties[dtype.prop.name]
-    return prop.dtype
+        if bind.name in prop.dtype.langs:
+            return prop.dtype.langs[bind.name].dtype
+    raise Exception("UNABLE TO GET")
 
 
 @ufunc.resolver(PgQueryBuilder, Expr)
@@ -483,6 +474,14 @@ def select(env, dtype):
     return Selected(column, dtype.prop)
 
 
+@ufunc.resolver(PgQueryBuilder, Text)
+def select(env, dtype):
+    default_langs = env.context.get('config').languages
+    table = env.backend.get_table(env.model)
+    column = env.backend.get_column(table, dtype.prop, langs=env.lang_priority, default_langs=default_langs)
+    return Selected(column, dtype.prop)
+
+
 @ufunc.resolver(PgQueryBuilder, Object)
 def select(env, dtype):
     columns = []
@@ -539,13 +538,6 @@ def select(env, dtype):
     else:
         table = env.backend.get_table(env.model)
         column = table.c[dtype.prop.place + '._id']
-    return Selected(column, dtype.prop)
-
-
-@ufunc.resolver(PgQueryBuilder, Text)
-def select(env, dtype):
-    table = env.backend.get_table(env.model)
-    column = table.c[dtype.prop.place]
     return Selected(column, dtype.prop)
 
 
@@ -979,9 +971,13 @@ def compare(env, op, fn, value):
 
 
 def _sa_compare(op, column, value):
+    # Convert JSONB value from -> to ->> with astext
+    if isinstance(column.type, sa.JSON):
+        if not isinstance(column, sa.Column):
+            column = column.element
+        column = column.astext
+
     if op == 'eq':
-        if str(column.type) == 'JSONB':
-            return sa.text("value='" + str(value) + "'")
         return column == value
 
     if op == 'lt':
@@ -1247,15 +1243,15 @@ def sort(env, expr):
     ]
 
 
-@ufunc.resolver(PgQueryBuilder, Text)
-def sort(env, dtype):
-    return dtype.prop.name
-
-
 @ufunc.resolver(PgQueryBuilder, Bind)
 def sort(env, field):
     prop = _get_from_flatprops(env.model, field.name)
     return env.call('asc', prop.dtype)
+
+
+@ufunc.resolver(PgQueryBuilder, DataType)
+def sort(env, dtype):
+    return env.call('asc', dtype)
 
 
 @ufunc.resolver(PgQueryBuilder, Negative_)

@@ -313,6 +313,7 @@ def load(
     else:
         prop.given.enum = unit
     prop.given.name = prop.given_name if prop.given_name else prop.name
+    prop.given.explicit = prop.explicitly_given if prop.explicitly_given else True
     return prop
 
 
@@ -413,14 +414,8 @@ def load(context: Context, model: Model, data: dict) -> dict:
     # check that given data does not have more keys, than model's schema
     non_hidden_keys = []
     for key, prop in model.properties.items():
-        if isinstance(prop.dtype, Text):
-            prop.hidden = True
         if not prop.hidden:
             non_hidden_keys.append(key)
-        elif isinstance(prop.dtype, Text):
-            for d in data:
-                if prop.name in d:
-                    non_hidden_keys.append(d)
 
     unknown_props = set(data.keys()) - set(non_hidden_keys)
     if unknown_props:
@@ -431,16 +426,10 @@ def load(context: Context, model: Model, data: dict) -> dict:
 
     result = {}
     for name, prop in model.properties.items():
-        if isinstance(prop.dtype, Text):
-            value = data.get(name + '@' + next(iter(prop.dtype.langs.keys())), NA)
-        else:
-            value = data.get(name, NA)
+        value = data.get(name, NA)
         value = load(context, prop.dtype, value)
         if value is not NA:
-            if isinstance(prop.dtype, Text):
-                result[name + "@" + next(iter(prop.dtype.langs.keys()))] = value
-            else:
-                result[name] = value
+            result[name] = value
     return result
 
 

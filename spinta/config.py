@@ -121,7 +121,7 @@ CONFIG = {
             'inherit': 'spinta.types.datatype:Inherit',
             'page': 'spinta.types.datatype:PageType',
             'partial': 'spinta.types.datatype:Partial',
-            'partial_array': 'spinta.types.datatype:PartialArray'
+            'partial_array': 'spinta.types.datatype:PartialArray',
         },
         'urlparams': {
             'component': 'spinta.urlparams:UrlParams',
@@ -214,6 +214,11 @@ CONFIG = {
 
     # Limit of objects in the page
     'push_page_size': None,
+
+    # Default languages
+    # Top most popular EU languages + lt, gathered from https://en.wikipedia.org/wiki/List_of_languages_by_number_of_speakers_in_Europe
+    # Last updated: 2023-11-08
+    'languages': ['lt', 'ru', 'de', 'en', 'fr', 'it', 'es', 'pl', 'uk', 'ro', 'nl'],
 
     'environments': {
         'dev': {

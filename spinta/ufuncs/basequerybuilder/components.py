@@ -2,7 +2,7 @@ import base64
 import json
 from typing import Any, List
 
-from spinta.components import Page, PageBy, Model, Property
+from spinta.components import Page, PageBy, Model, Property, UrlParams
 from spinta.core.ufuncs import Env, Negative, Bind, Expr
 from spinta.datasets.components import ExternalBackend
 from spinta.exceptions import FieldNotInResource
@@ -25,6 +25,12 @@ class BaseQueryBuilder(Env):
     page: QueryPage
     expand: List[Property] = None
     prioritize_uri: bool = False
+    lang_priority: List[str] = None
+
+    def parse_params(self, params: UrlParams):
+        if params is not None:
+            self.lang_priority = params.accept_langs
+            self.prioritize_uri = params.fmt.prioritize_uri
 
 
 class LoadBuilder(Env):

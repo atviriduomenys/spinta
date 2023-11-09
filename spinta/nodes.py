@@ -173,10 +173,7 @@ def load_node(
             assert parent is not None, node
             setattr(node, attr, parent)
             continue
-        if data.get('type') == 'text' and name != 'langs' and data.get('langs'):
-            value = data['langs'][next(iter(data['langs'].keys()))].get(name, NA)
-        else:
-            value = data.get(name, NA)
+        value = data.get(name, NA)
         if schema.get('inherit', False) and value is NA:
             if node.parent and hasattr(node.parent, name):
                 value = getattr(node.parent, name)
@@ -224,8 +221,6 @@ def load_model_properties(
         **data,
     }
 
-    data = split_complex_props(model, data)
-
     model.flatprops = {}
     model.leafprops = {}
     model.properties = {}
@@ -245,54 +240,3 @@ class _SplitProp(NamedTuple):
     name: str   # base part of the name
     tail: str   # tail part of the name
     data: str   # property data dict
-
-
-def split_complex_props(node: Node, data: Dict[str, Any]):
-    props = {}
-    split = defaultdict(list)
-    for name, params in data.items():
-        if '@' in name:
-            name, lang = name.split('@', 1)
-            split[name].append(_SplitProp(
-                type='text',
-                name=name,
-                tail=lang,
-                data=params,
-            ))
-        else:
-            props[name] = params
-
-    handlers = {
-        'text': _add_text_prop,
-    }
-    for sprops in split.values():
-        for sprop in sprops:
-            handlers[sprop.type](node, props, sprop)
-
-    return props
-
-
-def _add_text_prop(
-    node: Node,
-    props: Dict[str, Any],
-    sprop: _SplitProp,
-) -> None:
-    if sprop.name not in props:
-        props[sprop.name] = {
-            'type': 'text',
-            'langs': {},
-        }
-
-    prop = props[sprop.name]
-
-    if prop.get('type') != 'text':
-        raise exceptions.InvalidPropertyType(
-            node,
-            type=prop.get('type'),
-            expected='text',
-        )
-
-    if 'langs' not in prop:
-        prop['langs'] = {}
-
-    prop['langs'][sprop.tail] = sprop.data

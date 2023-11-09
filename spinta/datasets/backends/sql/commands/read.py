@@ -6,7 +6,7 @@ from sqlalchemy.engine.row import RowProxy
 
 from spinta import commands
 from spinta.backends.nobackend.components import NoBackend
-from spinta.components import Context
+from spinta.components import Context, UrlParams
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.helpers import handle_ref_key_assignment, generate_pk_for_row
@@ -77,6 +77,7 @@ def getall(
     backend: Sql,
     *,
     query: Expr = None,
+    params: UrlParams = None
 ) -> Iterator[ObjectData]:
     conn = context.get(f'transaction.{backend.name}')
     builder = SqlQueryBuilder(context)
@@ -86,11 +87,11 @@ def getall(
     query = merge_formulas(query, get_enum_filters(context, model))
     query = merge_formulas(query, get_ref_filters(context, model))
     keymap: KeyMap = context.get(f'keymap.{model.keymap.name}')
-    for params in iterparams(context, model):
-        table = model.external.name.format(**params)
+    for model_params in iterparams(context, model):
+        table = model.external.name.format(**model_params)
         table = backend.get_table(model, table)
-        env = builder.init(backend, table)
-        env.update(params=params)
+        env = builder.init(params, backend, table)
+        env.update(params=model_params)
         expr = env.resolve(query)
         where = env.execute(expr)
         qry = env.build(where)

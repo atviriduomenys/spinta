@@ -29,7 +29,7 @@ from spinta.commands import gen_object_id
 from spinta.commands import is_object_id
 from spinta.commands import load_operator_value
 from spinta.commands import prepare
-from spinta.components import Action
+from spinta.components import Action, UrlParams
 from spinta.components import Context
 from spinta.components import DataItem
 from spinta.components import Model
@@ -72,6 +72,7 @@ def prepare_for_write(
     patch: Dict[str, Any],
     *,
     action: Action,
+    params: UrlParams = None
 ) -> dict:
     # prepares model's data for storing in a backend
     backend = model.backend
@@ -79,7 +80,7 @@ def prepare_for_write(
     for name, value in patch.items():
         if not name.startswith('_'):
             prop = model.properties[name]
-            value = commands.prepare_for_write(context, prop.dtype, backend, value)
+            value = commands.prepare_for_write(context, prop.dtype, backend, value, params)
         result[name] = value
     return result
 
@@ -92,6 +93,7 @@ def prepare_for_write(
     value: Any,
     *,
     action: Action,
+    params: UrlParams = None
 ) -> Any:
     if prop.name in value:
         value[prop.name] = commands.prepare_for_write(
@@ -99,8 +101,22 @@ def prepare_for_write(
             prop.dtype,
             prop.dtype.backend,
             value[prop.name],
+            params
         )
     return value
+
+
+@commands.prepare_for_write.register(Context, DataType, Backend, object, UrlParams)
+def prepare_for_write(
+    context: Context,
+    dtype: DataType,
+    backend: Backend,
+    value: Any,
+    params: UrlParams
+) -> Any:
+    executor = commands.prepare_for_write[Context, type(dtype), type(backend), type(value)]
+    result = executor(context, dtype, backend, value)
+    return result
 
 
 @commands.prepare_for_write.register(Context, DataType, Backend, object)
@@ -143,6 +159,48 @@ def prepare_for_write(
         prop = dtype.properties[k]
         prepped[k] = commands.prepare_for_write(context, prop.dtype, backend, v)
     return prepped
+
+
+@commands.prepare_for_write.register(Context, Text, Backend, str, UrlParams)
+def prepare_for_write(
+    context: Context,
+    dtype: Text,
+    backend: Backend,
+    value: str,
+    params: UrlParams
+) -> Any:
+    default_langs = context.get('config').languages
+    preferred_lang = None
+    # First Step: Check Content-Language if lang exists in the property
+    if params.content_langs:
+        if len(params.content_langs) > 1:
+            raise Exception("TOO MANY LANGS GIVEN")
+
+        if params.content_langs[0] not in dtype.langs:
+            raise Exception("CONTENT-LANGUAGE DOES NOT EXIST IN GIVEN PROP")
+
+        preferred_lang = dtype.langs[params.content_langs[0]]
+
+    # Second Step: if Content-Language not given check default languages
+    if not preferred_lang:
+        for lang in default_langs:
+            if lang in dtype.langs:
+                preferred_lang = dtype.langs[lang]
+                break
+
+    # Third Step: if Content-Language and default language does not exist, check for C language (unknown)
+    if not preferred_lang:
+        if dtype.prop.level and dtype.prop.level <= 3 and 'C' in dtype.langs:
+            preferred_lang = dtype.langs['C']
+
+    # Fourth Step: if nothing works raise Exception that language was not determined
+    if not preferred_lang:
+        raise Exception("UNABLE TO DETERMINE LANGUAGE")
+
+    value = {preferred_lang.name: value}
+    executor = commands.prepare_for_write[Context, Text, type(backend), dict]
+    result = executor(context, dtype, backend, value)
+    return result
 
 
 @prepare.register(Context, Backend, Property)
@@ -217,10 +275,6 @@ def simple_data_check(
     updating = data.action in (Action.UPDATE, Action.PATCH)
     if updating and '_revision' not in data.given:
         raise NoItemRevision(prop)
-    if isinstance(dtype, Text) and not Action.DELETE:
-        if list(data.given.keys()):
-            if not list(filter(lambda x: '@' in x, list(data.given.keys()))):
-                raise UserError
 
 
 @commands.simple_data_check.register(Context, DataItem, Object, Property, Backend, dict)
@@ -237,18 +291,33 @@ def simple_data_check(
         simple_data_check(context, data, prop.dtype, prop, prop.dtype.backend, v)
 
 
-@commands.simple_data_check.register(Context, DataItem, Array, Property, Backend, list)
+@commands.simple_data_check.register(Context, DataItem, Object, Property, Backend, dict)
 def simple_data_check(
     context: Context,
     data: DataItem,
-    dtype: Array,
+    dtype: Object,
     prop: Property,
     backend: Backend,
-    value: list,
+    value: Dict[str, Any],
 ) -> None:
-    dtype = dtype.items.dtype
-    for v in value:
-        simple_data_check(context, data, dtype, prop, dtype.backend, v)
+    for prop in dtype.properties.values():
+        v = value.get(prop.name, NA)
+        simple_data_check(context, data, prop.dtype, prop, prop.dtype.backend, v)
+
+
+@commands.simple_data_check.register(Context, DataItem, Text, Property, Backend, dict)
+def simple_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: Text,
+    prop: Property,
+    backend: Backend,
+    value: dict,
+) -> None:
+    langs = dtype.langs
+    for lang, val in value.items():
+        if lang not in langs:
+            raise Exception(f"{lang} LANG NOT SET")
 
 
 @commands.simple_data_check.register(Context, DataItem, ExternalRef, Property, Backend, dict)
@@ -618,7 +687,7 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    assert isinstance(value, (str, int, float, bool, type(None), list)), (
+    assert isinstance(value, (str, int, float, bool, type(None), list, dict)), (
         f"prepare_dtype_for_response must return only primitive, json "
         f"serializable types, {type(value)} is not a primitive data type, "
         f"model={dtype.prop.model!r}, dtype={dtype!r}"
@@ -976,6 +1045,20 @@ def prepare_dtype_for_response(
         action,
         select,
     )
+
+
+@commands.prepare_dtype_for_response.register(Context, Format, DateTime, datetime.datetime)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: DateTime,
+    value: datetime.datetime,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    return value.isoformat()
 
 
 def _prepare_array_for_response(

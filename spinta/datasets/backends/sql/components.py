@@ -3,6 +3,7 @@ import contextlib
 import sqlalchemy as sa
 from sqlalchemy.engine.base import Engine
 
+from spinta import commands
 from spinta.components import Model
 from spinta.components import Property
 from spinta.datasets.components import ExternalBackend
@@ -45,13 +46,11 @@ class Sql(ExternalBackend):
         prop: Property,
         *,
         select=False,
+        **kwargs
     ) -> sa.Column:
-        if prop.external is None or not prop.external.name:
-            raise NoExternalName(prop)
-        if prop.external.name not in table.c:
-            raise PropertyNotFound(
-                prop.model,
-                property=prop.name,
-                external=prop.external.name,
-            )
-        return table.c[prop.external.name]
+        column = commands.get_column(self, prop, table=table, **kwargs)
+        return column
+
+
+
+

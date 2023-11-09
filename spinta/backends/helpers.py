@@ -24,7 +24,6 @@ from spinta.components import Property
 from spinta.types.datatype import DataType, Denorm
 from spinta.utils.data import take
 from spinta.backends.constants import TableType
-from spinta.types.text.components import Text
 
 
 def load_backend(
@@ -102,7 +101,7 @@ def get_select_prop_names(
             p.name
             for p in props.values() if (
                 not p.name.startswith('_') and
-                (not p.hidden or isinstance(p.dtype, Text)) and (not auth or authorized(context, p, action) or isinstance(p.dtype, Text)) and
+                not p.hidden and (not auth or authorized(context, p, action)) and
                 (include_denorm_props or not isinstance(p.dtype, Denorm))
             )
         ]
@@ -187,7 +186,7 @@ def _select_prop(
         #        request, not when returning results.
         raise exceptions.FieldNotInResource(node, property=key)
     prop = props[key]
-    if not prop.hidden or isinstance(prop.dtype, Text):
+    if not prop.hidden:
         return prop
 
 
@@ -209,12 +208,7 @@ def select_keys(
             continue
 
         if key in value:
-            if sel is None or sel.get('*') == {} or isinstance(sel, dict):
-                val = value[key]
-            else:
-                val = {}
-                for sel_key in list(sel.keys()):
-                    val.update({sel_key: value[key][sel_key]})
+            val = value[key]
         else:
             val = None
 

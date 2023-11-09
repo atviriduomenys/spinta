@@ -4,7 +4,7 @@ from typing import Iterator
 from spinta.typing import ObjectData
 from spinta import commands
 from spinta.core.ufuncs import Expr
-from spinta.components import Context
+from spinta.components import Context, UrlParams
 from spinta.components import Model
 from spinta.exceptions import NotFoundError
 from spinta.exceptions import ItemDoesNotExist
@@ -42,7 +42,8 @@ def getall(
     backend: PostgreSQL,
     *,
     query: Expr = None,
-    default_expand: bool = True
+    default_expand: bool = True,
+    params: UrlParams = None
 ) -> Iterator[ObjectData]:
     assert isinstance(query, (Expr, type(None))), query
     connection = context.get('transaction').connection
@@ -55,7 +56,7 @@ def getall(
     builder = PgQueryBuilder(context)
     builder.update(model=model)
     table = backend.get_table(model)
-    env = builder.init(backend, table)
+    env = builder.init(params, backend, table)
     expr = env.resolve(query)
     where = env.execute(expr)
     qry = env.build(where)

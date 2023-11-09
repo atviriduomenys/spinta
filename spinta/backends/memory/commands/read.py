@@ -2,7 +2,7 @@ from typing import Iterator
 
 from spinta import commands
 from spinta.core.ufuncs import Expr
-from spinta.components import Context
+from spinta.components import Context, UrlParams
 from spinta.components import Model
 from spinta.typing import ObjectData
 from spinta.backends.memory.components import Memory
@@ -17,6 +17,7 @@ def getall(
     db: Memory,
     *,
     query: Expr = None,
+    params: UrlParams = None
 ) -> Iterator[ObjectData]:
     table = get_table_name(model)
     return db.data[table].values()

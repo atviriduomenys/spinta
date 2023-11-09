@@ -84,8 +84,7 @@ async def push(
         )
     dstream = push_stream(context, stream,
                           stop_on_error=stop_on_error,
-                          url=request.url,
-                          headers=request.headers)
+                          params=params)
 
     dstream = log_async_response(context, dstream)
 
@@ -141,8 +140,7 @@ async def push_stream(
     context: Context,
     stream: AsyncIterator[DataItem],
     stop_on_error: bool = True,
-    url: URL = URL(),
-    headers: Headers = Headers(),
+    params: UrlParams = None
 ) -> AsyncIterator[DataItem]:
 
     cmds = {
@@ -171,7 +169,7 @@ async def push_stream(
         dstream = read_existing_data(context, dstream)
         dstream = validate_data(context, dstream)
         dstream = prepare_patch(context, dstream)
-        dstream = prepare_data_for_write(context, dstream)
+        dstream = prepare_data_for_write(context, dstream, params)
         if prop:
             dstream = cmds[action](
                 context, prop, prop.dtype, prop.dtype.backend or model.backend, dstream=dstream,
@@ -688,8 +686,8 @@ async def prepare_patch(
             data.patch['_revision'] = commands.gen_object_id(
                 context, data.model.backend, data.model)
 
-        if [key for key in list(data.given.keys()) if '@' in key]:
-            data.patch = _prepare_text_properties(data.patch, data.payload)
+        # if [key for key in list(data.given.keys()) if '@' in key]:
+        #     data.patch = _prepare_text_properties(data.patch, data.payload)
 
         yield data
 
@@ -863,15 +861,9 @@ def build_data_patch_for_write(
 ) -> Union[dict, NotAvailable]:
     if given is NA:
         if insert_action or update_action:
-            if isinstance(dtype, Text):
-                given = dtype.prop.name
-            else:
-                given = dtype.default
+            given = dtype.default
         else:
-            if isinstance(dtype, Text):
-                given = dtype.prop.name
-            else:
-                return NA
+            return NA
     if given != saved:
         return given
     else:
@@ -895,6 +887,7 @@ def build_data_patch_for_write(
 async def prepare_data_for_write(
     context: Context,
     dstream: AsyncIterator[DataItem],
+    params: UrlParams
 ) -> AsyncIterator[DataItem]:
     async for data in dstream:
         if data.prop:
@@ -904,6 +897,7 @@ async def prepare_data_for_write(
                 data.backend,
                 data.patch,
                 action=data.action,
+                params=params
             )
         else:
             data.patch = commands.prepare_for_write(
@@ -912,6 +906,7 @@ async def prepare_data_for_write(
                 data.model.backend,
                 data.patch,
                 action=data.action,
+                params=params
             )
         yield data
 

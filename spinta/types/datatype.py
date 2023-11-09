@@ -48,6 +48,7 @@ class DataType(Component):
     backend: Backend = None
     prop: Property = None
     expandable: bool = False
+    requires_source: bool = True
 
     def __repr__(self):
         return f'<{self.prop.name}:{self.name}>'

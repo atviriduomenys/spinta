@@ -651,6 +651,7 @@ class PropertyGiven:
     enum: str = None
     unit: str = None
     name: str = None
+    explicit: bool = True
     prepare: List[PrepareGiven] = []
 
 
@@ -704,6 +705,7 @@ class Property(Node):
         'lang': {'type': 'object'},
         'comments': {},
         'given_name': {'type': 'string'},
+        'explicitly_given': {'type': 'boolean', 'default': True},
         'prepare_given': {'required': False},
     }
 
@@ -842,6 +844,9 @@ class UrlParams:
     page: Optional[ParamsPage] = None
 
     expand: Optional[List[str]] = None
+
+    accept_langs: Optional[List[str]] = None
+    content_langs: Optional[List[str]] = None
 
     def changed_parsetree(self, change):
         ptree = {x['name']: x['args'] for x in (self.parsetree or [])}
@@ -1010,6 +1015,7 @@ class Config:
     AccessLog: Type[AccessLog]
     exporters: Dict[str, Format]
     push_page_size: int = None
+    languages: List[str]
 
     def __init__(self):
         self.commands = _CommandsConfig()

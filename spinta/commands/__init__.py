@@ -346,10 +346,22 @@ def prepare(*args, **kwargs):
 @overload
 def prepare_for_write(
     context: Context,
+    prop: DataType,
+    backend: Backend,
+    patch_: Any,
+    params: UrlParams
+):
+    """prepare_for_write datatype wrapper to use UrlParams"""
+
+
+@overload
+def prepare_for_write(
+    context: Context,
     model: Model,
     backend: Backend,
     patch_: Dict[str, Any],
     action: Action,
+    params: UrlParams
 ):
     """Convert Python-native Model patch data to backend-native patch"""
 
@@ -360,6 +372,7 @@ def prepare_for_write(
     prop: Property,
     backend: Backend,
     patch_: Any,
+    params: UrlParams
 ):
     """Convert Python-native Property patch data to backend-native patch
 
@@ -617,6 +630,7 @@ def getall(
     backend: Backend,
     *,
     query: Expr = None,
+    params: UrlParams = None
 ) -> Iterator[ObjectData]:
     pass
 
@@ -628,6 +642,7 @@ def getall(
     backend: Backend,
     *,
     query: Expr = None,
+    params: UrlParams = None,
     default_expand: bool = True
 ) -> Iterator[ObjectData]:
     pass
@@ -640,6 +655,7 @@ def getall(
     backend: ExternalBackend,
     *,
     query: Expr = None,
+    params: UrlParams = None
 ) -> Iterator[ObjectData]:
     pass
 
@@ -650,6 +666,7 @@ def getall(
     ns: Namespace,
     *,
     query: Expr = None,
+    params: UrlParams = None,
     action: Optional[Action] = None,
     dataset_: Optional[str] = None,
     resource: Optional[str] = None,
@@ -1069,10 +1086,17 @@ def get_column(
     pass
 
 
-@command()
+@overload
 def get_column(
     backend: Backend,
     prop: Property,
+    **kwargs
+):
+    pass
+
+
+@command()
+def get_column(
     **kwargs
 ):
     pass

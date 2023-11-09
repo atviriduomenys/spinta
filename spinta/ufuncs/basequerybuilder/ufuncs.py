@@ -7,16 +7,6 @@ from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, LoadBuil
 from spinta.ufuncs.helpers import merge_formulas
 
 
-@ufunc.resolver(Env, Expr, name='prioritize_uri')
-def prioritize_uri(env, expr):
-    pass
-
-
-@ufunc.resolver(BaseQueryBuilder, Expr, name='prioritize_uri')
-def prioritize_uri(env, expr):
-    env.prioritize_uri = True
-
-
 @ufunc.resolver(BaseQueryBuilder, Expr, name='paginate')
 def paginate(env, expr):
     if len(expr.args) != 1:
