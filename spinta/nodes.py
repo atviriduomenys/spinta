@@ -5,11 +5,7 @@ from typing import Optional
 from typing import Tuple
 from typing import Type
 from typing import Union
-from typing import TypeVar
-from typing import Iterator
-from typing import NamedTuple
 from typing import overload
-from collections import defaultdict
 from spinta import commands
 from spinta import exceptions
 from spinta.components import Component
@@ -17,11 +13,9 @@ from spinta.components import Config
 from spinta.components import Context
 from spinta.components import EntryId
 from spinta.components import Node
-from spinta.components import Model
 from spinta.manifests.components import Manifest
 from spinta.utils.schema import NA
 from spinta.utils.schema import resolve_schema
-from spinta.types.datatype import Ref
 
 
 def get_node(
@@ -233,10 +227,3 @@ def load_model_properties(
         prop = commands.load(context, prop, params, model.manifest)
         model.properties[name] = prop
         model.flatprops[name] = prop
-
-
-class _SplitProp(NamedTuple):
-    type: str   # text, object, array
-    name: str   # base part of the name
-    tail: str   # tail part of the name
-    data: str   # property data dict

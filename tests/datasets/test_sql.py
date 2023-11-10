@@ -2459,12 +2459,12 @@ def test_cast_string(
 def test_type_text_push(postgresql, rc, cli: SpintaCliRunner, responses, tmpdir, geodb, request):
     create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
         d | r | b | m | property| type   | ref     | source       | access
-        datasets/gov/example    |        |         |              |
+        datasets/gov/example/text_push    |        |         |              |
           | data                | sql    |         |              |
           |   |                 |        |         |              |
           |   |   | Country     |        | code    | salis        |
           |   |   |   | code    | string |         | kodas        | open
-          |   |   |   | name@lt | text   |         | pavadinimas  | open
+          |   |   |   | name@lt | string |         | pavadinimas  | open
           |   |                 |        |         |              |
           |   |   | City        |        | name    | miestas      |
           |   |   |   | name    | string |         | pavadinimas  | open
@@ -2482,19 +2482,18 @@ def test_type_text_push(postgresql, rc, cli: SpintaCliRunner, responses, tmpdir,
     assert remote.url == 'https://example.com/'
     result = cli.invoke(localrc, [
         'push',
-        '-d', 'datasets/gov/example',
+        '-d', 'datasets/gov/example/text_push',
         '-o', remote.url,
         '--credentials', remote.credsfile,
         '--dry-run',
     ])
     assert result.exit_code == 0
 
-    remote.app.authmodel('datasets/gov/example/Country', ['getall'])
-    resp = remote.app.get('/datasets/gov/example/Country')
+    remote.app.authmodel('datasets/gov/example/text_push/Country', ['getall'])
+    resp = remote.app.get('/datasets/gov/example/text_push/Country')
     assert listdata(resp, 'code', 'name') == []
 
 
-@pytest.mark.skip('todo')
 def test_text_type_push_chunks(
     postgresql,
     rc,
@@ -2506,13 +2505,13 @@ def test_text_type_push_chunks(
 ):
     create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | source      | type   | ref     | access
-    datasets/gov/example     |             |        |         |
+    datasets/gov/example/text_chunks     |             |        |         |
       | data                 |             | sql    |         |
       |   |                  |             |        |         |
       |   |   | country      | salis       |        | code    |
       |   |   |   | code     | kodas       | string |         | open
-      |   |   |   | name@lt  | pavadinimas | text   |         | open
-      |   |   |   | name@en  | pavadinimas | text   |         | open
+      |   |   |   | name@lt  | pavadinimas | string |         | open
+      |   |   |   | name@en  | pavadinimas | string |         | open
     '''))
 
     # Configure local server with SQL backend
@@ -2525,7 +2524,7 @@ def test_text_type_push_chunks(
     # Push data from local to remote.
     cli.invoke(localrc, [
         'push',
-        '-d', 'datasets/gov/example',
+        '-d', 'datasets/gov/example/text_chunks',
         '-o', 'spinta+' + remote.url,
         '--credentials', remote.credsfile,
         '--chunk-size=1',
@@ -2533,14 +2532,14 @@ def test_text_type_push_chunks(
 
     cli.invoke(localrc, [
         'push',
-        '-d', 'datasets/gov/example',
+        '-d', 'datasets/gov/example/text_chunks',
         '-o', 'spinta+' + remote.url,
         '--credentials', remote.credsfile,
         '--chunk-size=1',
     ])
 
-    remote.app.authmodel('datasets/gov/example/country', ['getall'])
-    resp = remote.app.get('/datasets/gov/example/country')
+    remote.app.authmodel('datasets/gov/example/text_chunks/country', ['getall'])
+    resp = remote.app.get('/datasets/gov/example/text_chunks/country')
     assert listdata(resp, 'code', 'name') == [
         ('ee', 'Estija'),
         ('lt', 'Lietuva'),
@@ -2551,12 +2550,12 @@ def test_text_type_push_chunks(
 def test_text_type_push_state(postgresql, rc, cli: SpintaCliRunner, responses, tmp_path, geodb, request):
     create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | source      | type   | ref     | access
-    datasets/gov/example     |             |        |         |
+    datasets/gov/example/text     |             |        |         |
       | data                 |             | sql    |         |
       |   |                  |             |        |         |
       |   |   | country      | salis       |        | code    |
       |   |   |   | code     | kodas       | string |         | open
-      |   |   |   | name@lt  | pavadinimas | text   |         | open
+      |   |   |   | name@lt  | pavadinimas | string |         | open
     '''))
 
     # Configure local server with SQL backend
@@ -2569,7 +2568,7 @@ def test_text_type_push_state(postgresql, rc, cli: SpintaCliRunner, responses, t
     # Push one row, save state and stop.
     cli.invoke(localrc, [
         'push',
-        '-d', 'datasets/gov/example',
+        '-d', 'datasets/gov/example/text',
         '-o', remote.url,
         '--credentials', remote.credsfile,
         '--chunk-size', '1k',
@@ -2578,20 +2577,20 @@ def test_text_type_push_state(postgresql, rc, cli: SpintaCliRunner, responses, t
         '--state', tmp_path / 'state.db',
     ])
 
-    remote.app.authmodel('datasets/gov/example/country', ['getall'])
-    resp = remote.app.get('/datasets/gov/example/country')
+    remote.app.authmodel('/datasets/gov/example/text/country', ['getall'])
+    resp = remote.app.get('/datasets/gov/example/text/country')
     assert len(listdata(resp)) == 1
 
     cli.invoke(localrc, [
         'push',
-        '-d', 'datasets/gov/example',
+        '-d', 'datasets/gov/example/text',
         '-o', remote.url,
         '--credentials', remote.credsfile,
         '--stop-row', '1',
         '--state', tmp_path / 'state.db',
     ])
 
-    resp = remote.app.get('/datasets/gov/example/country')
+    resp = remote.app.get('/datasets/gov/example/text/country')
     assert len(listdata(resp)) == 2
 
 

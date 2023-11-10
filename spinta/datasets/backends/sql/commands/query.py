@@ -952,13 +952,13 @@ def sort(env: SqlQueryBuilder, expr: Expr):
     args, kwargs = expr.resolve(env)
     env.sort = []
     for key in args:
-        prop = env.model.properties[key.name]
-        column = env.backend.get_column(env.table, prop)
-        if isinstance(key, Negative):
-            column = column.desc()
-        else:
-            column = column.asc()
-        env.sort.append(column)
+        result = env.call('sort', key)
+        env.sort.append(result)
+
+
+@ufunc.resolver(SqlQueryBuilder, DataType)
+def sort(env, dtype):
+    return env.call('asc', dtype)
 
 
 @ufunc.resolver(SqlQueryBuilder, Bind)
@@ -990,6 +990,18 @@ def _get_from_flatprops(model: Model, prop: str):
         return model.flatprops[prop]
     else:
         raise exceptions.FieldNotInResource(model, property=prop)
+
+
+@ufunc.resolver(SqlQueryBuilder, DataType)
+def negative(env: SqlQueryBuilder, dtype: DataType):
+    return Negative(dtype.prop.place)
+
+
+@ufunc.resolver(SqlQueryBuilder, String)
+def negative(env: SqlQueryBuilder, dtype: String):
+    if dtype.prop.parent and isinstance(dtype.prop.parent.dtype, Text):
+        return Negative(dtype.prop.place.replace('.', '@'))
+    return Negative(dtype.prop.place)
 
 
 @ufunc.resolver(SqlQueryBuilder, int)

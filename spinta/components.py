@@ -705,7 +705,7 @@ class Property(Node):
         'lang': {'type': 'object'},
         'comments': {},
         'given_name': {'type': 'string'},
-        'explicitly_given': {'type': 'boolean', 'default': True},
+        'explicitly_given': {'type': 'boolean'},
         'prepare_given': {'required': False},
     }
 

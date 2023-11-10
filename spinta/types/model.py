@@ -259,8 +259,6 @@ def load(
     prop, data = load_node(context, prop, data, mixed=True)
     prop = cast(Property, prop)
 
-    if 'prepare_given' in data and data['prepare_given']:
-        prop.given.prepare = data['prepare_given']
     parents = list(itertools.chain(
         [prop.model, prop.model.ns],
         prop.model.ns.parents(),
@@ -313,7 +311,7 @@ def load(
     else:
         prop.given.enum = unit
     prop.given.name = prop.given_name if prop.given_name else prop.name
-    prop.given.explicit = prop.explicitly_given if prop.explicitly_given else True
+    prop.given.explicit = prop.explicitly_given if prop.explicitly_given is not None else True
     return prop
 
 
