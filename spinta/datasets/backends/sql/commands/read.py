@@ -23,7 +23,7 @@ from spinta.dimensions.enum.helpers import get_prop_enum
 from spinta.exceptions import ValueNotInEnum, BackendNotGiven
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
-from spinta.ufuncs.basequerybuilder.components import get_page_values
+from spinta.ufuncs.basequerybuilder.components import get_page_values, QueryParams
 from spinta.ufuncs.helpers import merge_formulas
 from spinta.utils.nestedstruct import flat_dicts_to_nested
 from spinta.utils.schema import NA
@@ -77,7 +77,7 @@ def getall(
     backend: Sql,
     *,
     query: Expr = None,
-    params: UrlParams = None,
+    params: QueryParams = None,
     **kwargs
 ) -> Iterator[ObjectData]:
     conn = context.get(f'transaction.{backend.name}')
@@ -91,7 +91,7 @@ def getall(
     for model_params in iterparams(context, model):
         table = model.external.name.format(**model_params)
         table = backend.get_table(model, table)
-        env = builder.init(params, backend, table)
+        env = builder.init(backend, table, params)
         env.update(params=model_params)
         expr = env.resolve(query)
         where = env.execute(expr)

@@ -21,16 +21,20 @@ class QueryPage:
         self.page_ = Page()
 
 
-class BaseQueryBuilder(Env):
-    page: QueryPage
-    expand: List[Property] = None
+class QueryParams:
     prioritize_uri: bool = False
     lang_priority: List[str] = None
 
-    def parse_params(self, params: UrlParams):
-        if params is not None:
-            self.lang_priority = params.accept_langs
-            self.prioritize_uri = params.fmt.prioritize_uri
+
+class BaseQueryBuilder(Env):
+    page: QueryPage
+    expand: List[Property] = None
+    query_params: QueryParams = None
+
+    def init_query_params(self, params: QueryParams):
+        if params is None:
+            params = QueryParams()
+        self.query_params = params
 
 
 class LoadBuilder(Env):
@@ -136,3 +140,8 @@ def merge_with_page_limit(limit: int, page: QueryPage):
             return limit
         return page.size
     return limit
+
+
+def update_query_with_url_params(query_params: QueryParams, url_params: UrlParams):
+    query_params.prioritize_uri = url_params.fmt.prioritize_uri
+    query_params.lang_priority = url_params.accept_langs

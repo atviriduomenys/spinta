@@ -40,7 +40,7 @@ from spinta.types.datatype import Integer
 from spinta.types.file.components import FileData
 from spinta.types.text.components import Text
 from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, merge_with_page_selected_list, \
-    merge_with_page_sort, merge_with_page_limit
+    merge_with_page_sort, merge_with_page_limit, QueryParams
 from spinta.ufuncs.components import ForeignProperty
 from spinta.core.ufuncs import Unresolved
 from spinta.utils.data import take
@@ -131,7 +131,7 @@ class SqlQueryBuilder(BaseQueryBuilder):
     selected: Dict[str, Selected] = None
     params: ResolvedParams
 
-    def init(self, params: UrlParams, backend: Sql, table: sa.Table):
+    def init(self, backend: Sql, table: sa.Table, params: QueryParams = None):
         result = self(
             backend=backend,
             table=table,
@@ -142,9 +142,9 @@ class SqlQueryBuilder(BaseQueryBuilder):
             sort=[],
             limit=None,
             offset=None,
-            page=QueryPage()
+            page=QueryPage(),
         )
-        result.parse_params(params)
+        result.init_query_params(params)
         return result
 
     def build(self, where):
@@ -674,7 +674,7 @@ def select(env: SqlQueryBuilder, dtype: DataType) -> Selected:
 def select(env, dtype):
     default_langs = env.context.get('config').languages
     table = env.backend.get_table(env.model)
-    column = env.backend.get_column(table, dtype.prop, langs=env.lang_priority, default_langs=default_langs)
+    column = env.backend.get_column(table, dtype.prop, langs=env.query_params.lang_priority, default_langs=default_langs)
     return Selected(env.add_column(column), dtype.prop)
 
 

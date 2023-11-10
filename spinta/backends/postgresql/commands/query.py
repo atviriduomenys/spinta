@@ -23,7 +23,8 @@ from spinta.exceptions import EmptyStringSearch, PropertyNotFound
 from spinta.exceptions import UnknownMethod
 from spinta.exceptions import FieldNotInResource
 from spinta.components import Model, Property, Action, Page, UrlParams
-from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, merge_with_page_sort, merge_with_page_limit, merge_with_page_selected_list
+from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, merge_with_page_sort, \
+    merge_with_page_limit, merge_with_page_selected_list, QueryParams
 from spinta.utils.data import take
 from spinta.types.datatype import DataType, ExternalRef, Inherit, BackRef, Time, ArrayBackRef
 from spinta.types.datatype import Array
@@ -45,7 +46,7 @@ from spinta.backends.postgresql.components import BackendFeatures
 class PgQueryBuilder(BaseQueryBuilder):
     backend: PostgreSQL
 
-    def init(self, params: UrlParams, backend: PostgreSQL, table: sa.Table):
+    def init(self, backend: PostgreSQL, table: sa.Table, params: QueryParams = None):
         result = self(
             backend=backend,
             table=table,
@@ -58,9 +59,9 @@ class PgQueryBuilder(BaseQueryBuilder):
             offset=None,
             aggregate=False,
             page=QueryPage(),
-            group_by=[]
+            group_by=[],
         )
-        result.parse_params(params)
+        result.init_query_params(params)
         return result
 
     def build(self, where):
@@ -478,7 +479,7 @@ def select(env, dtype):
 def select(env, dtype):
     default_langs = env.context.get('config').languages
     table = env.backend.get_table(env.model)
-    column = env.backend.get_column(table, dtype.prop, langs=env.lang_priority, default_langs=default_langs)
+    column = env.backend.get_column(table, dtype.prop, langs=env.query_params.lang_priority, default_langs=default_langs)
     return Selected(column, dtype.prop)
 
 
@@ -530,7 +531,7 @@ def select(env, dtype, leaf):
 @ufunc.resolver(PgQueryBuilder, Ref)
 def select(env, dtype):
     uri = dtype.model.uri_prop
-    if env.prioritize_uri and uri is not None:
+    if env.query_params.prioritize_uri and uri is not None:
         fpr = ForeignProperty(None, dtype.prop, dtype.model.properties['_id'])
         table = env.get_joined_table(fpr)
         column = table.c[uri.place]

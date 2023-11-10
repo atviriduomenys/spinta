@@ -761,7 +761,7 @@ def _string_datatype_handler(reader: PropertyReader, row: dict):
             )
         )
     if row['ref']:
-        pass
+        new_data['enum'] = row['ref']
     if dataset or row['source']:
         new_data['external'] = {
             'name': row['source'],
@@ -829,7 +829,7 @@ def _text_datatype_handler(reader: PropertyReader, row: dict):
             )
         )
     if row['ref']:
-        pass
+        new_data['enum'] = row['ref']
     if dataset or row['source']:
         new_data['external'] = {
             'name': row['source'],
