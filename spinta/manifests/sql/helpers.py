@@ -171,6 +171,7 @@ TYPES = [
     (postgresql.JSON, 'object'),
     (postgresql.JSONB, 'object'),
     (postgresql.UUID, 'string'),
+    (postgresql.INTERVAL, 'integer'),  # total number of seconds
     (Geometry, 'geometry'),
     (oracle.ROWID, 'string'),
     (oracle.RAW, 'binary'),
