@@ -49,6 +49,7 @@ from spinta.types.datatype import Number
 from spinta.types.datatype import Binary
 from spinta.types.datatype import JSON
 from spinta.types.datatype import Inherit
+from spinta.types.text.components import Text
 from spinta.utils.encoding import is_url_safe_base64, encode_page_values
 from spinta.utils.nestedstruct import flatten
 from spinta.utils.schema import NotAvailable
@@ -775,3 +776,19 @@ def prepare_dtype_for_response(
 ):
     return Cell('', color=Color.null)
 
+
+@commands.prepare_dtype_for_response.register(Context, Html, Text, dict)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: Text,
+    value: Dict[str, str],
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    return {
+        k: Cell(v)
+        for k, v in value.items()
+    }

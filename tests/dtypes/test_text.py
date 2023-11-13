@@ -20,25 +20,28 @@ def test_text(
     d | r | b | m | property      | type
     backends/postgres/dtypes/text |
       |   |   | Country           |
-      |   |   |   | name@lt       | text
-      |   |   |   | name@en       | text
+      |   |   |   | name@lt       | string
+      |   |   |   | name@en       | string
     ''', backend=postgresql, request=request)
 
     app = create_test_client(context)
     app.authmodel('backends/postgres/dtypes/text/Country', [
         'insert',
         'getall',
+        'search'
     ])
 
     # Write data
     resp = app.post('/backends/postgres/dtypes/text/Country', json={
-        'name@lt': 'Lietuva',
-        'name@en': 'Lithuania',
+        'name': {
+            'lt': 'Lietuva',
+            'en': 'Lithuania'
+        }
     })
     assert resp.status_code == 201
 
     # Read data
-    resp = app.get('/backends/postgres/dtypes/text/Country')
+    resp = app.get('/backends/postgres/dtypes/text/Country?select(name@en, name@lt)')
     assert listdata(resp, full=True) == [{'name.en': 'Lithuania', 'name.lt': 'Lietuva'}]
 
     listdata(resp, full=True)
@@ -53,8 +56,8 @@ def test_text_patch(
     d | r | b | m | property      | type
     backends/postgres/dtypes/text |
       |   |   | Country           |
-      |   |   |   | name@lt       | text
-      |   |   |   | name@en       | text
+      |   |   |   | name@lt       | string
+      |   |   |   | name@en       | string
     ''', backend=postgresql, request=request)
 
     app = create_test_client(context)
@@ -62,12 +65,15 @@ def test_text_patch(
         'insert',
         'patch',
         'getall',
+        'search'
     ])
 
     # Write data
     resp = app.post('/backends/postgres/dtypes/text/Country', json={
-        'name@lt': 'Lietuva',
-        'name@en': 'Lithuania',
+        'name': {
+            'lt': 'Lietuva',
+            'en': 'Lithuania'
+        }
     })
 
     assert resp.status_code == 201
@@ -78,29 +84,31 @@ def test_text_patch(
     rev = data['_revision']
     resp = app.patch(f'/backends/postgres/dtypes/text/Country/{pk}', json={
         '_revision': rev,
-        'name@lt': "Latvija",
-        'name@en': "Latvia",
+        'name': {
+            'lt': 'Latvija',
+            'en': 'Latvia'
+        }
 
     })
     assert resp.status_code == 200
 
     # Read data
-    resp = app.get('/backends/postgres/dtypes/text/Country')
+    resp = app.get('/backends/postgres/dtypes/text/Country?select(name@lt, name@en)')
     assert listdata(resp, full=True) == [{'name.lt': "Latvija", 'name.en': "Latvia"}]
 
 
 def test_html(rc: RawConfig):
     context, manifest = load_manifest_and_context(rc, '''
-    d | r | b | m | property | type | access
-    example                  |      |
-      |   |   | Country      |      |
-      |   |   |   | name@lt  | text | open
-      |   |   |   | name@en  | text | open
+    d | r | b | m | property | type   | access
+    example                  |        |
+      |   |   | Country      |        |
+      |   |   |   | name@lt  | string | open
+      |   |   |   | name@en  | string | open
     ''')
     result = render_data(
         context, manifest,
         'example/Country',
-        query=None,
+        query='select(_id,name@lt,name@en)',
         accept='text/html',
         data={
             '_id': '262f6c72-4284-4d26-b9b0-e282bfe46a46',
@@ -131,8 +139,8 @@ def test_text_change_log(
     d | r | b | m | property      | type
     backends/postgres/dtypes/text |
       |   |   | Country           |
-      |   |   |   | name@lt       | text
-      |   |   |   | name@en       | text
+      |   |   |   | name@lt       | string
+      |   |   |   | name@en       | string
     ''', backend=postgresql, request=request)
     model = 'backends/postgres/dtypes/text/Country'
     app = create_test_client(context)
@@ -142,7 +150,12 @@ def test_text_change_log(
         'delete',
         'changes',
     ])
-    resp = app.post(model, json={'name@lt': 'lietuva', 'name@en': 'lithuania'})
+    resp = app.post(model, json={
+        'name': {
+            'lt': 'Lietuva',
+            'en': 'Lithuania'
+        }
+    })
     assert resp.status_code == 201
 
     data = resp.json()
@@ -177,8 +190,8 @@ def test_text_select_by_prop(
            |   |   |   |   | name     | string |     |        |         | 3     | open   |     |       |
            |                          |        |     |        |         |       |        |     |       |
            |   |   |   | Country1     |        |     |        |         |       |        |     |       |
-           |   |   |   |   | name@lt  | text   |     |        |         | 3     | open   |     |       |
-           |   |   |   |   | name@en  | text   |     |        |         | 3     | open   |     |       |
+           |   |   |   |   | name@lt  | string   |     |        |         | 3     | open   |     |       |
+           |   |   |   |   | name@en  | string   |     |        |         | 3     | open   |     |       |
     ''', backend=postgresql, request=request)
     model = 'types/text/Country1'
     app = create_test_client(context)
@@ -190,7 +203,10 @@ def test_text_select_by_prop(
         'search'
     ])
     resp = app.post(f'/{model}', json={
-        'name@lt': 'lietuva', 'name@en': 'lithuania'
+        'name': {
+            'lt': 'Lietuva',
+            'en': 'Lithuania'
+        }
     })
 
     assert resp.status_code == 201
@@ -211,8 +227,8 @@ def test_text_post_wrong_property_with_text(
     d | r | b | m | property      | type
     backends/postgres/dtypes/text |
       |   |   | Country           |
-      |   |   |   | name@lt       | text
-      |   |   |   | name@en       | text
+      |   |   |   | name@lt       | string
+      |   |   |   | name@en       | string
     ''', backend=postgresql, request=request)
     model = 'backends/postgres/dtypes/text/Country'
     app = create_test_client(context)

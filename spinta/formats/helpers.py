@@ -84,8 +84,17 @@ def _get_dtype_header(
                 name_ = name + '.' + prop.name
                 yield from _get_dtype_header(prop.dtype, sel, name_)
     elif isinstance(dtype, Text):
-        for lang in dtype.langs.keys():
-            yield f'{name}.{lang}'
+        if select is None or select == {'*': {}}:
+            yield name
+        else:
+            for prop, sel in select_only_props(
+                dtype.prop,
+                dtype.langs.keys(),
+                dtype.langs,
+                select,
+            ):
+                name_ = name + '.' + prop.name
+                yield from _get_dtype_header(prop.dtype, sel, name_)
     elif isinstance(dtype, Inherit):
         if select and select != {'*': {}}:
             properties = {}
