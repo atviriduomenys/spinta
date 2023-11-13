@@ -246,6 +246,12 @@ class Selected:
             )
 
 
+def _get_column_with_extra(env: SqlQueryBuilder, prop: Property):
+    default_langs = env.context.get('config').languages
+    column = env.backend.get_column(env.table, prop, langs=env.query_params.lang_priority, default_langs=default_langs)
+    return column
+
+
 @dataclasses.dataclass
 class GetAttr(Unresolved):
     obj: str
@@ -420,6 +426,12 @@ def compare(env: SqlQueryBuilder, op: str, dtype: DataType, value: Any):
     return _sa_compare(op, column, value)
 
 
+@ufunc.resolver(SqlQueryBuilder, Text, object, names=COMPARE)
+def compare(env: SqlQueryBuilder, op: str, dtype: Text, value: Any):
+    column = _get_column_with_extra(env, dtype.prop)
+    return _sa_compare(op, column, value)
+
+
 @ufunc.resolver(SqlQueryBuilder, ForeignProperty, DataType, object, names=COMPARE)
 def compare(
     env: SqlQueryBuilder,
@@ -444,6 +456,12 @@ def eq(env: SqlQueryBuilder, dtype: DataType, value: List[Any]):
     return column.in_(value)
 
 
+@ufunc.resolver(SqlQueryBuilder, Text, list)
+def eq(env: SqlQueryBuilder, dtype: Text, value: List[Any]):
+    column = _get_column_with_extra(env, dtype.prop)
+    return column.in_(value)
+
+
 @ufunc.resolver(SqlQueryBuilder, ForeignProperty, DataType, list)
 def eq(env: SqlQueryBuilder, fpr: ForeignProperty, dtype: DataType, value: list):
     table = env.joins.get_table(env, fpr)
@@ -454,6 +472,12 @@ def eq(env: SqlQueryBuilder, fpr: ForeignProperty, dtype: DataType, value: list)
 @ufunc.resolver(SqlQueryBuilder, DataType, list)
 def ne(env: SqlQueryBuilder, dtype: DataType, value: List[Any]):
     column = env.backend.get_column(env.table, dtype.prop)
+    return ~column.in_(value)
+
+
+@ufunc.resolver(SqlQueryBuilder, Text, list)
+def ne(env: SqlQueryBuilder, dtype: Text, value: List[Any]):
+    column = _get_column_with_extra(env, dtype.prop)
     return ~column.in_(value)
 
 
@@ -667,9 +691,7 @@ def select(env: SqlQueryBuilder, dtype: DataType) -> Selected:
 
 @ufunc.resolver(SqlQueryBuilder, Text)
 def select(env, dtype):
-    default_langs = env.context.get('config').languages
-    table = env.backend.get_table(env.model)
-    column = env.backend.get_column(table, dtype.prop, langs=env.query_params.lang_priority, default_langs=default_langs)
+    column = _get_column_with_extra(env, dtype.prop)
     return Selected(env.add_column(column), dtype.prop)
 
 
@@ -895,6 +917,12 @@ def join_table_on(env: SqlQueryBuilder, dtype: DataType) -> Tuple[Any]:
     return column
 
 
+@ufunc.resolver(SqlQueryBuilder, Text)
+def join_table_on(env: SqlQueryBuilder, dtype: Text) -> Tuple[Any]:
+    column = _get_column_with_extra(env, dtype.prop)
+    return column
+
+
 @ufunc.resolver(SqlQueryBuilder, PrimaryKey)
 def join_table_on(env: SqlQueryBuilder, dtype: DataType) -> Any:
     model = dtype.prop.model
@@ -991,9 +1019,21 @@ def asc(env, dtype):
     return column.asc()
 
 
+@ufunc.resolver(SqlQueryBuilder, Text)
+def asc(env, dtype):
+    column = _get_column_with_extra(env, dtype.prop)
+    return column.asc()
+
+
 @ufunc.resolver(SqlQueryBuilder, DataType)
 def desc(env, dtype):
     column = env.backend.get_column(env.table, dtype.prop)
+    return column.desc()
+
+
+@ufunc.resolver(SqlQueryBuilder, Text)
+def desc(env, dtype):
+    column = _get_column_with_extra(env, dtype.prop)
     return column.desc()
 
 

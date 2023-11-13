@@ -477,9 +477,7 @@ def select(env, dtype):
 
 @ufunc.resolver(PgQueryBuilder, Text)
 def select(env, dtype):
-    default_langs = env.context.get('config').languages
-    table = env.backend.get_table(env.model)
-    column = env.backend.get_column(table, dtype.prop, langs=env.query_params.lang_priority, default_langs=default_langs)
+    column = _get_column_with_extra(env, dtype.prop)
     return Selected(column, dtype.prop)
 
 
@@ -838,16 +836,9 @@ def eq(env, dtype, value):
     return _prepare_condition(env, dtype.prop, cond)
 
 
-@ufunc.resolver(PgQueryBuilder, Text, str)
+@ufunc.resolver(PgQueryBuilder, Text, (str, Bind, type(None)))
 def eq(env, dtype, value):
-    column = env.backend.get_column(env.table, dtype.prop)
-    cond = _sa_compare('eq', column, value)
-    return _prepare_condition(env, dtype.prop, cond)
-
-
-@ufunc.resolver(PgQueryBuilder, Text, Bind)
-def eq(env, dtype, value):
-    column = env.backend.get_column(env.table, dtype.prop)
+    column = _get_column_with_extra(env, dtype.prop)
     cond = _sa_compare('eq', column, value)
     return _prepare_condition(env, dtype.prop, cond)
 
@@ -965,7 +956,7 @@ def lower(env, recurse):
 def compare(env, op, fn, value):
     if op in ('startswith', 'contains'):
         _ensure_non_empty(op, value)
-    column = env.backend.get_column(env.table, fn.dtype.prop)
+    column = _get_column_with_extra(env, fn.dtype.prop)
     column = sa.func.lower(column)
     cond = _sa_compare(op, column, value)
     return _prepare_condition(env, fn.dtype.prop, cond)
@@ -1048,6 +1039,12 @@ def ne(
 @ufunc.resolver(PgQueryBuilder, String, str)
 def ne(env, dtype, value):
     column = env.backend.get_column(env.table, dtype.prop)
+    return _ne_compare(env, dtype.prop, column, value)
+
+
+@ufunc.resolver(PgQueryBuilder, Text, str)
+def ne(env, dtype, value):
+    column = _get_column_with_extra(env, dtype.prop)
     return _ne_compare(env, dtype.prop, column, value)
 
 
@@ -1134,7 +1131,7 @@ def compare(env, op, dtype, value):
 
 @ufunc.resolver(PgQueryBuilder, Lower, str)
 def ne(env, fn, value):
-    column = env.backend.get_column(env.table, fn.dtype.prop)
+    column = _get_column_with_extra(env, fn.dtype.prop)
     column = sa.func.lower(column)
     return _ne_compare(env, fn.dtype.prop, column, value)
 
@@ -1317,8 +1314,14 @@ def sort(env, name, dtype: Array):
     return env.call(name, dtype.items.dtype)
 
 
+def _get_column_with_extra(env: PgQueryBuilder, prop: Property):
+    default_langs = env.context.get('config').languages
+    column = env.backend.get_column(env.table, prop, langs=env.query_params.lang_priority, default_langs=default_langs)
+    return column
+
+
 def _get_sort_column(env: PgQueryBuilder, prop: Property):
-    column = env.backend.get_column(env.table, prop)
+    column = _get_column_with_extra(env, prop)
 
     if prop.list is None:
         return column
