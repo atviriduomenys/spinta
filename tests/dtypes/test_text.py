@@ -7,8 +7,7 @@ from spinta.testing.data import listdata
 from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.testing.request import render_data
-from spinta.testing.tabular import create_tabular_manifest
-from spinta.testing.manifest import load_manifest
+from starlette.datastructures import Headers
 
 
 def test_text(
@@ -248,3 +247,133 @@ def test_text_post_wrong_property_with_text(
     })
 
     assert resp.status_code != 200
+
+
+def test_text_accept_language(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, '''
+        id | d | r | b | m | property | type     | ref | source | prepare | level | access | uri | title | description
+           | types/text/accept               |          |     |        |         |       |        |     |       |
+           |   |   |   | Country      |          |     |        |         |       |        |     |       |
+           |   |   |   |   | name@lt  | string   |     |        |         | 3     | open   |     |       |
+           |   |   |   |   | name@en  | string   |     |        |         | 3     | open   |     |       |
+    ''', backend=postgresql, request=request)
+    model = 'types/text/accept/Country'
+    app = create_test_client(context)
+    app.authmodel('types/text/accept/Country', [
+        'insert',
+        'update',
+        'delete',
+        'changes',
+        'search'
+    ])
+    resp = app.post(f'/{model}', json={
+        'name': {
+            'lt': 'Lietuva',
+            'en': 'Lithuania'
+        }
+    })
+
+    assert resp.status_code == 201
+
+    select_by_prop = app.get(f'/{model}/?select(name)', headers=Headers(headers={
+        'accept-language': 'en'
+    }))
+    assert select_by_prop.status_code == 200
+    assert len(select_by_prop.json()['_data']) == 1
+    assert select_by_prop.json()['_data'] == [{
+        'name': 'Lithuania'
+    }]
+
+    select_by_prop = app.get(f'/{model}/?select(name)', headers=Headers(headers={
+        'accept-language': 'lt'
+    }))
+    assert select_by_prop.status_code == 200
+    assert len(select_by_prop.json()['_data']) == 1
+    assert select_by_prop.json()['_data'] == [{
+        'name': 'Lietuva'
+    }]
+
+
+def test_text_content_language(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, '''
+        id | d | r | b | m | property | type     | ref | source | prepare | level | access | uri | title | description
+           | types/text/content               |          |     |        |         |       |        |     |       |
+           |   |   |   | Country      |          |     |        |         |       |        |     |       |
+           |   |   |   |   | name@lt  | string   |     |        |         | 3     | open   |     |       |
+           |   |   |   |   | name@en  | string   |     |        |         | 3     | open   |     |       |
+    ''', backend=postgresql, request=request)
+    model = 'types/text/content/Country'
+    app = create_test_client(context)
+    app.authmodel('types/text/content/Country', [
+        'insert',
+        'update',
+        'delete',
+        'changes',
+        'search'
+    ])
+    resp = app.post(f'/{model}', json={
+        'name': 'Lithuania'
+    }, headers=Headers(headers={
+        'content-language': 'en'
+    }))
+
+    assert resp.status_code == 201
+
+    select_by_prop = app.get(f'/{model}/?select(name@en,name@lt)')
+    assert select_by_prop.status_code == 200
+    assert len(select_by_prop.json()['_data']) == 1
+    assert select_by_prop.json()['_data'] == [{
+        'name': {
+            'lt': None,
+            'en': 'Lithuania'
+        }
+    }]
+
+
+def test_text_unknown_language(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, '''
+        id | d | r | b | m | property | type     | ref | source | prepare | level | access | uri | title | description
+           | types/text/content               |          |     |        |         |       |        |     |       |
+           |   |   |   | Country      |          |     |        |         |       |        |     |       |
+           |   |   |   |   | name     | text     |     |        |         | 3     | open   |     |       |
+           |   |   |   |   | name@lt  | string   |     |        |         |       | open   |     |       |
+           |   |   |   |   | name@en  | string   |     |        |         |       | open   |     |       |
+    ''', backend=postgresql, request=request)
+    model = 'types/text/content/Country'
+    app = create_test_client(context)
+    app.authmodel('types/text/content/Country', [
+        'insert',
+        'update',
+        'delete',
+        'changes',
+        'search'
+    ])
+    resp = app.post(f'/{model}', json={
+        'name': {
+            'C': 'LT',
+            'lt': 'Lietuva'
+        }
+    })
+
+    assert resp.status_code == 201
+
+    select_by_prop = app.get(f'/{model}/?select(name@C)')
+    assert select_by_prop.status_code == 200
+    assert len(select_by_prop.json()['_data']) == 1
+    assert select_by_prop.json()['_data'] == [{
+        'name': {
+            'C': 'LT',
+        }
+    }]
