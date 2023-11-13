@@ -254,11 +254,7 @@ class GetAttr(Unresolved):
 
 @ufunc.resolver(SqlQueryBuilder, Bind, Bind, name='getattr')
 def getattr_(env: SqlQueryBuilder, field: Bind, attr: Bind):
-    if field.name in env.model.properties:
-        prop = env.model.properties[field.name]
-    else:
-        raise FieldNotInResource(env.model, property=field.name)
-    return env.call('_resolve_getattr', prop.dtype, attr)
+    return GetAttr(field.name, attr)
 
 
 @ufunc.resolver(SqlQueryBuilder, Bind, GetAttr, name='getattr')
@@ -390,9 +386,8 @@ def compare(env: SqlQueryBuilder, op: str, field: Bind, value: Any):
 
 @ufunc.resolver(SqlQueryBuilder, GetAttr, object, names=COMPARE)
 def compare(env: SqlQueryBuilder, op: str, attr: GetAttr, value: Any):
-    fpr: ForeignProperty = env.call('_resolve_getattr', attr)
-    value = _prepare_value(fpr.right.prop, value)
-    return env.call(op, fpr, fpr.right, value)
+    resolved = env.call('_resolve_getattr', attr)
+    return env.call(op, resolved, value)
 
 
 @ufunc.resolver(SqlQueryBuilder, Bind, list, names=COMPARE)
@@ -739,11 +734,22 @@ def select(
 @ufunc.resolver(SqlQueryBuilder, GetAttr)
 def select(env: SqlQueryBuilder, attr: GetAttr) -> Selected:
     """For things like select(foo.bar.baz)."""
-    fpr: ForeignProperty = env.call('_resolve_getattr', attr)
+    resolved = env.call('_resolve_getattr', attr)
+    return env.call('select', resolved, attr)
+
+
+@ufunc.resolver(SqlQueryBuilder, ForeignProperty, GetAttr)
+def select(env: SqlQueryBuilder, fpr: ForeignProperty, attr: GetAttr) -> Selected:
+    """For things like select(foo.bar.baz)."""
     return Selected(
         prop=fpr.right.prop,
         prep=env.call('select', fpr, fpr.right.prop),
     )
+
+
+@ufunc.resolver(SqlQueryBuilder, DataType, GetAttr)
+def select(env: SqlQueryBuilder, dtype: DataType, attr: GetAttr) -> Selected:
+    return env.call('select', dtype)
 
 
 @ufunc.resolver(SqlQueryBuilder, ForeignProperty)
@@ -973,6 +979,12 @@ def sort(env, field):
     return env.call('desc', prop.dtype)
 
 
+@ufunc.resolver(SqlQueryBuilder, GetAttr)
+def sort(env, field):
+    dtype = env.call('_resolve_getattr', field)
+    return env.call('sort', dtype)
+
+
 @ufunc.resolver(SqlQueryBuilder, DataType)
 def asc(env, dtype):
     column = env.backend.get_column(env.table, dtype.prop)
@@ -995,6 +1007,12 @@ def _get_from_flatprops(model: Model, prop: str):
 @ufunc.resolver(SqlQueryBuilder, DataType)
 def negative(env: SqlQueryBuilder, dtype: DataType):
     return Negative(dtype.prop.place)
+
+
+@ufunc.resolver(SqlQueryBuilder, GetAttr)
+def negative(env: SqlQueryBuilder, attr: GetAttr):
+    resolved = env.call('_resolve_getattr', attr)
+    return env.call('negative', resolved)
 
 
 @ufunc.resolver(SqlQueryBuilder, String)
