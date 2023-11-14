@@ -4,9 +4,9 @@ git checkout master
 git pull
 
 git tag -l -n1 | sort -h | tail -n5
-export CURRENT_VERSION=0.1.57
-export NEW_VERSION=0.1.58
-export FUTURE_VERSION=0.1.59
+export CURRENT_VERSION=0.1.58
+export NEW_VERSION=0.1.59
+export FUTURE_VERSION=0.1.60
 
 head CHANGES.rst
 
@@ -17,11 +17,12 @@ xdg-open https://github.com/atviriduomenys/spinta/compare/$CURRENT_VERSION...mas
 docker-compose ps
 docker-compose up -d
 unset SPINTA_CONFIG
+unset SPINTA_CONFIG_PATH
 test -n "$PID" && kill $PID
 
 psql -h localhost -p 54321 -U admin postgres -c 'DROP DATABASE spinta_tests'
 psql -h localhost -p 54321 -U admin postgres -c 'CREATE DATABASE spinta_tests'
-psql -h localhost -p 54321 -U admin spinta <<EOF
+psql -h localhost -p 54321 -U admin spinta_tests <<EOF
 BEGIN TRANSACTION;
   CREATE EXTENSION IF NOT EXISTS postgis;
   CREATE EXTENSION IF NOT EXISTS postgis_topology;
@@ -31,7 +32,7 @@ COMMIT;
 EOF
 
 poetry run pytest -vvx --tb=short tests
-#| 1495 passed, 39 skipped, 111 warnings in 271.45s (0:04:31)
+#| 1537 passed, 39 skipped, 113 warnings in 294.19s (0:04:54)
 
 poetry run rst2html.py CHANGES.rst var/changes.html
 xdg-open var/changes.html
@@ -59,6 +60,10 @@ backends:
     type: postgresql
     dsn: postgresql://admin:admin123@localhost:54321/spinta
 
+  external:
+    type: sql
+    dsn: postgresql://admin:admin123@localhost:54321/spinta_external
+
 manifest: default
 manifests:
   default:
@@ -74,18 +79,6 @@ accesslog:
 EOF
 export SPINTA_CONFIG=$BASEDIR/config.yml
 
-tree ~/.config/spinta/
-poetry run spinta genkeys
-
-# Add default client
-cat ~/.config/spinta/clients/default.yml
-poetry run spinta client add -n default --add-secret --scope - <<EOF
-spinta_getone
-spinta_getall
-spinta_search
-spinta_changes
-EOF
-
 # Create manifest file
 cd ~/dev/data/manifest
 git status
@@ -95,7 +88,111 @@ find datasets -iname "*.csv" | xargs spinta check
 cat get_data_gov_lt.in | xargs spinta copy -o $BASEDIR/manifest.csv
 spinta check
 
-# Reset database
+
+# Reset EXTERNAL (source) database
+test -n "$PID" && kill $PID
+psql -h localhost -p 54321 -U admin postgres -c 'DROP DATABASE spinta_external'
+psql -h localhost -p 54321 -U admin postgres -c 'CREATE DATABASE spinta_external'
+psql -h localhost -p 54321 -U admin spinta_external <<EOF
+CREATE TABLE formos (
+    kodas integer primary key,
+    pavadinimas text,
+    pav_ilgas text,
+    name varchar(255),
+    tipas varchar(255),
+    type varchar(255)
+);
+INSERT INTO formos
+    (kodas, pavadinimas, pav_ilgas, name, tipas, type)
+    VALUES 
+    (950, 'Biudžetinė įstaiga', 'Biudžetinė įstaiga', 'Budget Institution', 'Viešasis', 'Public');
+
+CREATE TABLE statusai (
+    kodas integer primary key,
+    pavadinimas text,
+    name varchar(255)
+);
+INSERT INTO statusai
+    (kodas, pavadinimas, name)
+    VALUES 
+    (1, 'Biudžetinė įstaiga', 'No legal proceedings');
+
+CREATE TABLE iregistruoti (
+    ja_kodas integer primary key,
+    ja_pavadinimas text,
+    pilnas_adresas text,
+    reg_data varchar(10),
+    stat_data varchar(10),
+    forma_id integer,
+    statusas_id integer,
+    adreso_kodas integer
+);
+INSERT INTO iregistruoti
+    (ja_kodas, ja_pavadinimas, pilnas_adresas, reg_data, stat_data, forma_id, statusas_id, adreso_kodas)
+    VALUES 
+    (188772433, 'Informacinės visuomenės plėtros komitetas', 'Vilnius, Konstitucijos pr. 15-89', '2001-08-01', '2001-08-01', 950, 1, 190557457);
+EOF
+psql -h localhost -p 54321 -U admin spinta_external -c '\dt public.*'
+psql -h localhost -p 54321 -U admin spinta_external -c 'select * from formos;'
+psql -h localhost -p 54321 -U admin spinta_external -c 'select * from statusai;'
+psql -h localhost -p 54321 -U admin spinta_external -c 'select * from iregistruoti;'
+
+spinta show \
+    datasets/gov/rc/ar/adresai.csv \
+    datasets/gov/rc/jar/formos_statusai.csv \
+    datasets/gov/rc/jar/iregistruoti.csv
+
+cat > $BASEDIR/sdsa.txt <<EOF
+d | r | b | m | property            | type    | ref                                           | source         | prepare | level | access
+datasets/gov/rc/ar/adresai          |         |                                               |                |         |       |
+  |   |   | Adresas                 |         | aob_kodas                                     |                |         | 4     |
+  |   |   |   | tipas               | integer |                                               |                |         | 4     | open
+  |   |   |   | aob_kodas           | integer |                                               |                |         | 4     | open
+  |   |   |   | aob_data_nuo        | date    | D                                             |                |         | 4     | open
+  |   |   |   | aob_data_iki        | date    | D                                             |                |         | 4     | open
+                                    |         |                                               |                |         |       |
+datasets/gov/rc/jar/formos_statusai |         |                                               |                |         |       |
+  | db                              | sql     | external                                      |                |         |       |
+  |   |   | Forma                   |         | kodas                                         | formos         |         | 4     |
+  |   |   |   | kodas               | integer |                                               | kodas          |         | 4     | open
+  |   |   |   | pavadinimas         | string  |                                               | pavadinimas    |         | 3     | open
+  |   |   |   | pav_ilgas           | string  |                                               | pav_ilgas      |         | 3     | open
+  |   |   |   | name                | string  |                                               | name           |         | 3     | open
+  |   |   |   | tipas               | string  |                                               | tipas          |         | 4     | open
+                                    | enum    |                                               | Privatus       |         |       |
+                                    |         |                                               | Viešasis       |         |       |
+  |   |   |   | type                | string  |                                               | type           |         | 4     | open
+                                    | enum    |                                               | Private        |         |       |
+                                    |         |                                               | Public         |         |       |
+                                    |         |                                               |                |         |       |
+  |   |   | Statusas                |         | kodas                                         | statusai       |         | 4     |
+  |   |   |   | kodas               | integer |                                               | kodas          |         | 4     | open
+  |   |   |   | pavadinimas         | string  |                                               | pavadinimas    |         | 3     | open
+  |   |   |   | name                | string  |                                               | name           |         | 3     | open
+                                    |         |                                               |                |         |       |
+datasets/gov/rc/jar/iregistruoti    |         |                                               |                |         |       |
+  | db                              | sql     | external                                      |                |         |       |
+  |   |   | JuridinisAsmuo          |         | ja_kodas                                      | iregistruoti   |         | 4     |
+  |   |   |   | ja_kodas            | integer |                                               | ja_kodas       |         | 4     | open
+  |   |   |   | ja_pavadinimas      | string  |                                               | ja_pavadinimas |         | 4     | open
+  |   |   |   | pilnas_adresas      | string  |                                               | pilnas_adresas |         | 1     | open
+  |   |   |   | adresas             | ref     | /datasets/gov/rc/ar/adresai/Adresas           | adreso_kodas   |         | 4     | open
+  |   |   |   | reg_data            | date    | D                                             | reg_data       |         | 4     | open
+  |   |   |   | forma               | ref     | /datasets/gov/rc/jar/formos_statusai/Forma    | forma_id       |         | 4     | open
+  |   |   |   | statusas            | ref     | /datasets/gov/rc/jar/formos_statusai/Statusas | statusas_id    |         | 4     | open
+EOF
+spinta check $BASEDIR/sdsa.txt
+
+test -n "$PID" && kill $PID
+spinta run --mode external $BASEDIR/sdsa.txt &>> $BASEDIR/spinta.log &; PID=$!
+tail -50 $BASEDIR/spinta.log
+
+xdg-open http://localhost:8000/datasets/gov/rc/jar/formos_statusai/Forma
+xdg-open http://localhost:8000/datasets/gov/rc/jar/formos_statusai/Statusas
+xdg-open http://localhost:8000/datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo
+
+
+# Reset INTERNAL database
 psql -h localhost -p 54321 -U admin postgres -c 'DROP DATABASE spinta'
 psql -h localhost -p 54321 -U admin postgres -c 'CREATE DATABASE spinta'
 psql -h localhost -p 54321 -U admin spinta <<EOF
@@ -112,6 +209,7 @@ spinta bootstrap
 
 export PAGER="cat"
 psql -h localhost -p 54321 -U admin spinta -c '\dt public.*'
+#| (2074 rows)
 
 # Run server
 test -n "$PID" && kill $PID
@@ -159,51 +257,44 @@ http POST :8000/datasets/gov/rc/ar/adresai/Adresas $AUTH <<EOF
     "aob_data_nuo": "2018-12-07"
 }
 EOF
-http POST :8000/datasets/gov/rc/jar/formos_statusai/Forma $AUTH <<EOF
-{
-    "_id": "c7fda07b-1689-42d3-8412-24d375f01bcb",
-    "kodas": 950,
-    "pavadinimas": "Biudžetinė įstaiga",
-    "pav_ilgas": "Biudžetinė įstaiga",
-    "name": "Budget Institution",
-    "tipas": "Viešasis",
-    "type": "Public"
-}
+
+cat ~/.config/spinta/credentials.cfg
+cat >> ~/.config/spinta/credentials.cfg <<EOF
+[test@localhost]
+client = $CLIENT
+secret = $SECRET
+server = http://localhost:8000
+scopes =
+  spinta_set_meta_fields
+  spinta_getone
+  spinta_getall
+  spinta_search
+  spinta_changes
+  spinta_insert
+  spinta_upsert
+  spinta_update
+  spinta_patch
+  spinta_delete
+  spinta_wipe
 EOF
-http POST :8000/datasets/gov/rc/jar/formos_statusai/Statusas $AUTH <<EOF
-{
-    "_id": "5ef6b364-a5ff-47fb-8600-ff859214ef85",
-    "kodas": 0,
-    "pavadinimas": "Teisinis statusas neįregistruotas",
-    "name": "No legal proceedings"
-}
-EOF
-http POST :8000/datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo $AUTH <<EOF
-{
-    "_id": "cf8e5cfd-32b3-4f24-a89b-e7c94bbd1c36",
-    "ja_kodas": 188772433,
-    "ja_pavadinimas": "Informacinės visuomenės plėtros komitetas",
-    "pilnas_adresas": "Vilnius, Konstitucijos pr. 15-89",
-    "reg_data": "2001-08-01",
-    "stat_data": "2001-08-01",
-    "forma": {"_id": "c7fda07b-1689-42d3-8412-24d375f01bcb"},
-    "statusas": {"_id": "5ef6b364-a5ff-47fb-8600-ff859214ef85"},
-    "adresas": {"_id": "264ae0f9-53eb-496b-a07c-ce1b9cbe510c"}
-}
-EOF
+
+test -f $BASEDIR/keymap.db && rm $BASEDIR/keymap.db
+test -f $BASEDIR/push/localhost.db && rm $BASEDIR/push/localhost.db
+
+spinta push $BASEDIR/sdsa.txt -o test@localhost
 
 http GET ":8000/datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo?select(_id,ja_kodas,ja_pavadinimas,reg_data,forma.pavadinimas,statusas.pavadinimas)&format(json)"
-
 http GET ":8000/datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo?select(_id,ja_kodas,ja_pavadinimas,reg_data,forma.pavadinimas,statusas.pavadinimas)&format(csv)"
-
 http GET ":8000/datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo?select(_id,ja_kodas,ja_pavadinimas,reg_data,forma.pavadinimas,statusas.pavadinimas)&format(ascii)"
-
 http GET ":8000/datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo?select(_id,ja_kodas,ja_pavadinimas,reg_data,forma.pavadinimas,statusas.pavadinimas)&format(rdf)"
+http GET ":8000/datasets/gov/rc/jar/:all?format(rdf)"
 
 http GET ":8000/datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo/:changes"
 
 xdg-open http://localhost:8000/datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo
 xdg-open "http://localhost:8000/datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo?select(_id,ja_kodas,ja_pavadinimas,reg_data,forma.pavadinimas,statusas.pavadinimas)"
+xdg-open http://localhost:8000/datasets/gov/rc/ar/adresai/Adresas/:changes
+xdg-open http://localhost:8000/datasets/gov/rc/ar/adresai/Adresas/264ae0f9-53eb-496b-a07c-ce1b9cbe510c/:changes
 
 test -n "$PID" && kill $PID
 unset SPINTA_CONFIG

@@ -3,8 +3,105 @@
 Changes
 #######
 
-0.1.59 (unreleased)
+0.1.59 (2023-11-14)
 ===================
+
+Backwards incompatible changes:
+
+- With addition of new API for client management, structure how client files
+  are stored, was changed.
+
+  Previously clients were stored in `SPINTA_CONFIG_PATH` like this::
+
+    clients/
+    └── myclient.yml
+
+  Where `myclient` was usually a client name if given, if not given it was
+  an UUID.
+
+  Client file content looked like this:
+
+  .. code-block:: yaml
+
+      client_id: myclient
+      client_secret: secret
+      client_secret_hash: pbkdf2$sha256$346842$yLpG_ganZxGDuwzIsED4_Q$PBAqfikg6rvXzg2_s74zIPlGGilA5MZpyCyTjlEuzfI
+      scopes:
+        - spinta_getall
+        - spinta_getone
+
+  Now `clients/` folder structure looks like this::
+
+    ├── helpers/
+    │   └── keymap.yml
+    └── id/
+        └── 7e/
+            └── 1c/
+                └── 0625-fd42-4215-bd86-f0ddff04fda1.yml
+
+  In the new structure, all clients are stored under `id/` folder and client
+  files are named after client_id uuid form.
+
+  In the example above `7e1c0625-fd42-4215-bd86-f0ddff04fda1` is a `client_id`.
+
+  `client_id` now a clear meaning ant now it is just a client id in UUID form.
+  Client name is stored in `client_name`. If client name is not given, then
+  `client_name` is the same as `client_id`.
+
+  There is another file called `helpers/keymap.yml`, that looks like this:
+
+  .. code-block:: yaml
+
+      myclient: 7e1c0625-fd42-4215-bd86-f0ddff04fda1
+
+  This file, stores a mapping of client names as an index to help locating
+  clients by name faster.
+
+  Client names can change, but id can't.
+
+  Structure of client file mostly stays the same, except `client_id` is not
+  only id in UUID form and a new option `client_name` was added to store
+  client name. For example content of
+  `id/7e/1c/0625-fd42-4215-bd86-f0ddff04fda1.yml` now looks like this:
+
+  .. code-block:: yaml
+
+      client_id: 7e1c0625-fd42-4215-bd86-f0ddff04fda1
+      client_name: myclient
+      client_secret: secret
+      client_secret_hash: pbkdf2$sha256$346842$yLpG_ganZxGDuwzIsED4_Q$PBAqfikg6rvXzg2_s74zIPlGGilA5MZpyCyTjlEuzfI
+      scopes:
+        - spinta_getall
+        - spinta_getone
+
+
+New features:
+
+- Add possibility to manage clients via API (`#122`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/122
+
+
+Improvements:
+
+- Add better support for denormalized properties (`#397`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/397
+
+
+Bug fixes:
+
+- Fix error on object counting when running `spinta push` (`#535`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/535
+
+- Restore recognition of views in `spinta inspect` (`#476`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/476
+
+- Fix single object change list rendering in HTML format (`#459`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/459
 
 
 0.1.58 (2023-10-31)
