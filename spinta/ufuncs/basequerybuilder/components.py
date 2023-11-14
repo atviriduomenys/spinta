@@ -102,10 +102,11 @@ def get_allowed_page_property_types():
 
 
 def get_page_values(env: BaseQueryBuilder, row: dict):
-    if isinstance(env.model.backend, ExternalBackend):
-        return [row[item.prop.external.name] for item in env.page.page_.by.values()]
-    else:
-        return [row[item.prop.name] for item in env.page.page_.by.values()]
+    if not env.page.page_.filter_only:
+        if isinstance(env.model.backend, ExternalBackend):
+            return [row[item.prop.external.name] for item in env.page.page_.by.values()]
+        else:
+            return [row[item.prop.name] for item in env.page.page_.by.values()]
 
 
 def merge_with_page_selected_list(select_list: list, page: QueryPage):

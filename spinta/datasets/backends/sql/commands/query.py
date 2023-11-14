@@ -154,7 +154,6 @@ class SqlQueryBuilder(BaseQueryBuilder):
         merged_limit = merge_with_page_limit(self.limit, self.page)
         qry = sa.select(merged_selected)
         qry = qry.select_from(self.joins.from_)
-
         if where is not None:
             qry = qry.where(where)
 
@@ -166,7 +165,6 @@ class SqlQueryBuilder(BaseQueryBuilder):
 
         if self.offset is not None:
             qry = qry.offset(self.offset)
-
         return qry
 
     def execute(self, expr: Any):

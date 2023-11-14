@@ -497,11 +497,13 @@ class Page:
     is_enabled: bool
     by: Dict[str, PageBy]
     size: int
+    filter_only: bool
 
     def __init__(self):
         self.by = {}
         self.size = None
         self.is_enabled = True
+        self.filter_only = False
 
     def __deepcopy__(self, memo):
         cls = self.__class__
@@ -509,6 +511,7 @@ class Page:
         result.is_enabled = self.is_enabled
         result.size = self.size
         result.by = {}
+        result.filter_only = self.filter_only
         for by, page_by in self.by.items():
             result.by[by] = PageBy(page_by.prop, page_by.value)
         return result
