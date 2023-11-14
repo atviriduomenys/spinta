@@ -17,15 +17,12 @@ from spinta import commands
 from spinta.cli.helpers.store import load_manifest
 from spinta.components import Context, Property, Node, Namespace
 from spinta.components import Mode
-from spinta.core.config import RawConfig
 from spinta.core.config import ResourceTuple
 from spinta.core.config import parse_resource_args
 from spinta.core.context import configure_context
-from spinta.datasets.components import Dataset, Resource, Attribute, Entity, ExternalBackend
+from spinta.datasets.components import Dataset, Resource, ExternalBackend
 from spinta.dimensions.prefix.components import UriPrefix
 from spinta.manifests.components import Manifest
-from spinta.manifests.components import ManifestPath
-from spinta.manifests.helpers import get_manifest_from_type, init_manifest
 from spinta.manifests.tabular.helpers import render_tabular_manifest
 from spinta.manifests.tabular.helpers import write_tabular_manifest
 from spinta.types.datatype import Ref, DataType, Array, Object, Denorm
@@ -67,17 +64,19 @@ def inspect(
         priority = 'manifest'
     has_manifest_priority = priority == 'manifest'
     resources = parse_resource_args(*resource, formula)
+
+    paths = None
+    if manifest:
+        paths = [manifest]
+
     context = configure_context(
         ctx.obj,
-        [manifest] if manifest else None,
+        paths,
         mode=Mode.external,
-        backend=backend,
+        backend=backend
     )
     store = load_manifest(context, ensure_config_dir=True)
     old = store.manifest
-    manifest = Manifest()
-    init_manifest(context, manifest, 'inspect')
-    commands.merge(context, manifest, manifest, old, has_manifest_priority)
 
     if not resources:
         resources = []
@@ -91,11 +90,11 @@ def inspect(
 
     if resources:
         for resource in resources:
-            _merge(context, manifest, manifest, resource, has_manifest_priority)
+            _merge(context, old, old, resource, has_manifest_priority)
 
     # Sort models for render
     sorted_models = {}
-    for key, model in manifest.models.items():
+    for key, model in old.models.items():
         if key not in sorted_models.keys():
             if model.external and model.external.resource:
                 resource = model.external.resource
@@ -104,31 +103,26 @@ def inspect(
                         sorted_models[resource_key] = resource_model
             else:
                 sorted_models[key] = model
-    manifest.objects['model'] = sorted_models
+    old.objects['model'] = sorted_models
 
     if output:
-        write_tabular_manifest(output, manifest)
+        write_tabular_manifest(output, old)
     else:
-        echo(render_tabular_manifest(manifest))
+        echo(render_tabular_manifest(old))
 
 
 def _merge(context: Context, manifest: Manifest, old: Manifest, resource: ResourceTuple, has_manifest_priority: bool):
-    rc: RawConfig = context.get('rc')
-    Manifest_ = get_manifest_from_type(rc, resource.type)
-    path = ManifestPath(type=Manifest_.type, path=resource.external)
-    context = configure_context(context, [path], mode=Mode.external)
-    store = load_manifest(context)
+    new_context = configure_context(
+        context,
+        manifests=[resource],
+        mode=Mode.external)
+    store = load_manifest(new_context)
     new = store.manifest
-    commands.merge(context, manifest, old, new, has_manifest_priority)
+    commands.merge(new_context, manifest, old, new, has_manifest_priority)
 
 
 @commands.merge.register(Context, Manifest, Manifest, Manifest, bool)
 def merge(context: Context, manifest: Manifest, old: Manifest, new: Manifest, has_manifest_priority: bool) -> None:
-    resource_list = []
-    for ds in new.datasets.values():
-        for res in ds.resources.values():
-            resource_list.append(_resource_source_key(res))
-
     backends = zipitems(
         old.backends.values(),
         new.backends.values(),
