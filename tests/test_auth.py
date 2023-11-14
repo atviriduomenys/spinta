@@ -2,6 +2,7 @@ import io
 import json
 import pathlib
 import shutil
+import uuid
 
 import pytest
 import ruamel.yaml
@@ -10,7 +11,8 @@ from authlib.jose import jwk
 from authlib.jose import jwt
 
 from spinta import auth
-from spinta.components import Action
+from spinta.auth import get_client_file_path, query_client, get_clients_path
+from spinta.components import Action, Context
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.utils import get_error_codes
 from spinta.testing.client import create_test_client
@@ -58,22 +60,43 @@ def test_genkeys(rc, cli: SpintaCliRunner, tmp_path):
     jwk.loads(json.loads((tmp_path / 'keys/public.json').read_text()))
 
 
-def test_client_add(rc, cli: SpintaCliRunner, tmp_path):
-    result = cli.invoke(rc, ['client', 'add', '-p', tmp_path])
+def test_client_add_old(rc, cli: SpintaCliRunner, tmp_path):
+    result = cli.invoke(rc, ['client', 'add', '-p', tmp_path, '-n', 'test'])
 
-    client_file = pathlib.Path(str(next(tmp_path.iterdir())))
+    for child in tmp_path.glob('**/*'):
+        if not str(child).endswith("keymap.yml"):
+            client_file = child
     assert f'client created and saved to:\n\n    {client_file}' in result.output
 
     yaml = ruamel.yaml.YAML(typ='safe')
     client = yaml.load(client_file)
     assert client == {
         'client_id': client['client_id'],
+        'client_name': 'test',
         'client_secret_hash': client['client_secret_hash'],
         'scopes': [],
     }
 
 
-def test_client_add_with_scope(rc, cli: SpintaCliRunner, tmp_path):
+def test_client_add(rc, cli: SpintaCliRunner, tmp_path):
+    result = cli.invoke(rc, ['client', 'add', '-p', tmp_path])
+
+    for child in tmp_path.glob('**/*'):
+        if not str(child).endswith("keymap.yml"):
+            client_file = child
+    assert f'client created and saved to:\n\n    {client_file}' in result.output
+
+    yaml = ruamel.yaml.YAML(typ='safe')
+    client = yaml.load(client_file)
+    assert client == {
+        'client_id': client['client_id'],
+        'client_name': client['client_id'],
+        'client_secret_hash': client['client_secret_hash'],
+        'scopes': [],
+    }
+
+
+def test_client_add_with_scope(rc, context: Context, cli: SpintaCliRunner, tmp_path):
     cli.invoke(rc, [
         'client', 'add',
         '--path', tmp_path,
@@ -81,15 +104,11 @@ def test_client_add_with_scope(rc, cli: SpintaCliRunner, tmp_path):
         '--scope', 'spinta_getall spinta_getone',
     ])
 
-    yaml = ruamel.yaml.YAML(typ='safe')
-    client = yaml.load(tmp_path / 'test.yml')
-    assert client == {
-        'client_id': 'test',
-        'client_secret_hash': client['client_secret_hash'],
-        'scopes': [
-            'spinta_getall',
-            'spinta_getone',
-        ],
+    client = query_client(get_clients_path(tmp_path), "test", is_name=True)
+    assert client.name == 'test'
+    assert client.scopes == {
+        'spinta_getall',
+        'spinta_getone',
     }
 
 
@@ -105,15 +124,11 @@ def test_client_add_with_scope_via_stdin(rc, cli: SpintaCliRunner, tmp_path):
         '--scope', '-',
     ], input=stdin)
 
-    yaml = ruamel.yaml.YAML(typ='safe')
-    client = yaml.load(tmp_path / 'test.yml')
-    assert client == {
-        'client_id': 'test',
-        'client_secret_hash': client['client_secret_hash'],
-        'scopes': [
-            'spinta_getall',
-            'spinta_getone',
-        ],
+    client = query_client(get_clients_path(tmp_path), "test", is_name=True)
+    assert client.name == 'test'
+    assert client.scopes == {
+        'spinta_getall',
+        'spinta_getone',
     }
 
 
@@ -148,7 +163,7 @@ def test_invalid_client(app):
 
     assert resp.json() == {
         "error": "invalid_client",
-        "error_description": "Invalid client id or secret"
+        "error_description": "Invalid client name"
     }
 
 
@@ -232,10 +247,12 @@ def basic_auth(backends, rc, tmp_path, request):
     confdir = pathlib.Path(__file__).parent / 'config'
     shutil.copytree(str(confdir / 'keys'), str(tmp_path / 'keys'))
 
-    (tmp_path / 'clients').mkdir()
+    get_clients_path(tmp_path).mkdir()
+    new_id = uuid.uuid4()
     auth.create_client_file(
-        tmp_path / 'clients',
-        client='default',
+        get_clients_path(tmp_path),
+        name='default',
+        client_id=str(new_id),
         secret='secret',
         scopes=['spinta_getall'],
         add_secret=True,
@@ -291,3 +308,8 @@ def test_http_basic_auth(basic_auth):
     client = basic_auth
     resp = client.get('/reports', auth=('default', 'secret'))
     assert resp.status_code == 200, resp.json()
+
+
+def test_get_client_file_path_uuid(tmp_path):
+    file_name = "a6c06c3a-3aa4-4704-b144-4fc23e2152f7"
+    assert str(get_client_file_path(get_clients_path(tmp_path), file_name)) == str(tmp_path / 'clients' / 'id' / 'a6' / 'c0' / '6c3a-3aa4-4704-b144-4fc23e2152f7.yml')

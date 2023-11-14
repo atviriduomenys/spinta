@@ -16,12 +16,13 @@ def paginate(env, expr):
     page = expr.args[0]
     if isinstance(page, Page):
         if page.is_enabled:
-            for by, page_by in page.by.items():
-                sorted_ = env.call('sort', Negative(page_by.prop.name) if by.startswith("-") else Bind(page_by.prop.name))
-                if sorted_ is not None:
-                    env.page.sort.append(sorted_)
+            if not page.filter_only:
+                env.page.select = env.call('select', page)
+                for by, page_by in page.by.items():
+                    sorted_ = env.call('sort', Negative(page_by.prop.name) if by.startswith("-") else Bind(page_by.prop.name))
+                    if sorted_ is not None:
+                        env.page.sort.append(sorted_)
             env.page.page_ = page
-            env.page.select = env.call('select', page)
             env.page.size = page.size
             return env.resolve(_get_pagination_compare_query(page))
     else:

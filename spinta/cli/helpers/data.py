@@ -1,6 +1,7 @@
 import logging
 import pathlib
 import types
+from copy import deepcopy
 from typing import Any
 from typing import Dict
 from typing import Iterable
@@ -36,7 +37,9 @@ def _get_row_count(
 ) -> int:
     query = Expr('select', Expr('count'))
     if model.page.is_enabled:
-        query = add_page_expr(query, model.page)
+        copied = deepcopy(model.page)
+        copied.filter_only = True
+        query = add_page_expr(query, copied)
     stream = commands.getall(context, model, model.backend, query=query)
     for data in stream:
         return data['count()']
