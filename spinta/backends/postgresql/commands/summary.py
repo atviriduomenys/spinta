@@ -1,39 +1,38 @@
 import calendar
 import datetime
+import sqlalchemy as sa
 
 from spinta.backends.helpers import get_table_name
+from spinta.core.ufuncs import Expr
 from spinta.types.datatype import Integer, Number, Boolean, String, Date, DateTime, Time, Ref
 from spinta import commands
 from spinta.components import Context, Property
 from spinta.components import Model
-from spinta.exceptions import NotFoundError, PropertyNotFound, NotImplementedFeature, InvalidRequestQuery, \
-    UnknownRequestQuery
+from spinta.exceptions import NotFoundError, NotImplementedFeature, InvalidRequestQuery
 from spinta.exceptions import ItemDoesNotExist
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.types.geometry.components import Geometry
+from spinta.ufuncs.summaryenv.components import SummaryEnv, BBox
 from spinta.units.helpers import split_time_unit
 from spinta.utils.nestedstruct import flat_dicts_to_nested
 
 from dateutil.relativedelta import relativedelta
 
 
-@commands.summary.register(Context, Model, PostgreSQL)
+@commands.summary.register(Context, Model, PostgreSQL, Expr)
 def summary(
     context: Context,
     model: Model,
     backend: PostgreSQL,
-    **kwargs,
+    query: Expr
 ):
-    if kwargs["args"]["prop"] in model.properties.keys():
-        summary_property = model.properties[kwargs["args"]["prop"]]
-    else:
-        raise PropertyNotFound(model, property=kwargs["args"]["prop"])
-    for key in kwargs["args"].keys():
-        if key != "prop":
-            if key != "bbox":
-                raise UnknownRequestQuery(request="summary", query=key)
-    result = commands.summary(context, summary_property.dtype, backend, args=kwargs["args"])
-
+    env = SummaryEnv(context)
+    env = env.init(model)
+    env.resolve(query)
+    kwargs = {}
+    if env.bbox:
+        kwargs['bbox'] = env.bbox
+    result = commands.summary(context, env.prop.dtype, backend, **kwargs)
     return result
 
 
@@ -428,27 +427,37 @@ def summary(
         prop = dtype.prop.name
         model = get_table_name(dtype.prop)
         bounding_box = ""
-        if "bbox" in kwargs["args"]:
-            bbox = kwargs["args"]["bbox"]
-            if isinstance(bbox, list) and len(bbox) == 4:
+        params = {}
+        if "bbox" in kwargs:
+            bbox = kwargs["bbox"]
+
+            if isinstance(bbox, BBox):
                 if dtype.srid:
-                    bounding_box = f'WHERE ST_Intersects("{prop}", ST_MakeEnvelope({bbox[0]}, {bbox[1]}, {bbox[2]}, {bbox[3]}, {dtype.srid}))'
+                    bounding_box = f'WHERE ST_Intersects("{prop}", ST_MakeEnvelope(:x_min, :y_min, :x_max, :y_max, :srid))'
                 else:
-                    bounding_box = f'WHERE ST_Intersects("{prop}", ST_MakeEnvelope({bbox[0]}, {bbox[1]}, {bbox[2]}, {bbox[3]}))'
+                    bounding_box = f'WHERE ST_Intersects("{prop}", ST_MakeEnvelope(:x_min, :y_min, :x_max, :y_max))'
             else:
                 raise InvalidRequestQuery(query="bbox", format="bbox(min_lon, min_lat, max_lon, max_lat)")
 
-        count_exec = connection.execute(f'SELECT COUNT(DISTINCT "{prop}") FROM "{model}" {bounding_box}')
+            params = {
+                'x_min': bbox.x_min,
+                'y_min': bbox.y_min,
+                'x_max': bbox.x_max,
+                'y_max': bbox.y_max,
+                'srid': dtype.srid
+            }
+
+        count_exec = connection.execute(sa.text(f'SELECT COUNT(DISTINCT "{prop}") FROM "{model}" {bounding_box}'), params)
         count = 0
         for item in count_exec:
             count = item[0]
-
-        result = connection.execute(f'''
+        params['count'] = count
+        result = connection.execute(sa.text(f'''
                 WITH clusters AS (
                     SELECT 
                     ST_ClusterKMeans(
-                        model."{prop}",
-                        {min(100, count)}
+                        model."{prop}", 
+                        :count
                     ) OVER() AS cluster_id,
                     model."{prop}" AS geom,
                     model._id AS _id,
@@ -463,7 +472,7 @@ def summary(
                 FROM clusters
                 GROUP BY cluster_id
                 ORDER BY MIN(clusters.created_at);
-                ''')
+                '''), params)
         for item in result:
             data = flat_dicts_to_nested(dict(item))
             if data["cluster"]:

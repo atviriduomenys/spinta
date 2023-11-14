@@ -3,8 +3,131 @@
 Changes
 #######
 
-0.1.54 (unreleased)
+0.1.59 (unreleased)
 ===================
+
+
+0.1.58 (2023-10-31)
+===================
+
+Bug fixes:
+
+- Fix error in CSV containing NULL data (`#528`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/528
+
+- Fix `swap()` containing quotes (`#508`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/508
+
+- Fix `UnauthorizedKeymapSync` error on `spinta push` command (`#532`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/532
+
+
+0.1.57 (2023-10-24)
+===================
+
+New features:
+
+- Add support for array type (`#161`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/161
+
+- Add support for backref type (`#96`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/96
+
+- Add support for XML resources (`#217`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/217
+
+- Add support for JSON resources (`#256`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/256
+
+- Add support for CSV resources (`#268`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/268
+
+
+Improvements:
+
+- Add support for custom subject URI in RDF/XML format (`#512`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/512
+
+
+Bug fixes:
+
+- Fixed pagination error with date types (`#516`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/516
+
+- Fix issue with old SQLite versions used for keymaps (`#518`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/518
+
+- Fix summary bbox function with negative values (`#523`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/523
+
+
+0.1.56 (2023-09-30)
+===================
+
+New features:
+
+- Pagination, this should enable possibility to push large amounts of data
+  (`#366`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/366
+
+- Push models using bases (`#346`__, `#391`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/346
+  __ https://github.com/atviriduomenys/spinta/issues/391
+
+- Sync push state from push target (`#289`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/289
+
+- Add support for non-primary key refs in push (`#345`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/345
+
+- Push models with external dependencies (`#394`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/394
+
+- `swap()` function (`#508`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/508
+
+
+0.1.55 (2023-08-18)
+===================
+
+New features:
+
+- Summary for numeric and date types (`#452`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/452
+
+- Summary for geometry types (`#451`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/451
+
+Bug fixes:
+
+- Fixed error on `_id>"UUID"` (`#490`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/490
+
+
+- Fixed an error with unique constraints (`#500`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/500
 
 
 0.1.53 (2023-08-01)

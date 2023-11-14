@@ -82,6 +82,7 @@ EOF
 
 
 # Run server
+
 poetry run spinta run &>> $BASEDIR/spinta.log &
 PID=$!
 tail -50 $BASEDIR/spinta.log

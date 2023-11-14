@@ -9,6 +9,8 @@ from spinta.components import Model
 from spinta.exceptions import NotFoundError
 from spinta.exceptions import ItemDoesNotExist
 from spinta.backends.postgresql.components import PostgreSQL
+from spinta.ufuncs.basequerybuilder.components import get_page_values
+from spinta.ufuncs.helpers import merge_formulas
 from spinta.utils.nestedstruct import flat_dicts_to_nested
 from spinta.backends.postgresql.commands.query import PgQueryBuilder
 
@@ -40,9 +42,15 @@ def getall(
     backend: PostgreSQL,
     *,
     query: Expr = None,
+    default_expand: bool = True
 ) -> Iterator[ObjectData]:
     assert isinstance(query, (Expr, type(None))), query
     connection = context.get('transaction').connection
+
+    if default_expand:
+        query = merge_formulas(
+            query, Expr('expand')
+        )
 
     builder = PgQueryBuilder(context)
     builder.update(model=model)
@@ -56,10 +64,12 @@ def getall(
     result = conn.execute(qry)
 
     for row in result:
-        row = flat_dicts_to_nested(dict(row))
-        row = {
+        converted = flat_dicts_to_nested(dict(row))
+        res = {
             '_type': model.model_type(),
-            **row,
+            **converted
         }
-        row = commands.cast_backend_to_python(context, model, backend, row)
-        yield row
+        if model.page.is_enabled:
+            res['_page'] = get_page_values(env, row)
+        res = commands.cast_backend_to_python(context, model, backend, res)
+        yield res

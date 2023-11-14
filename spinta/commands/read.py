@@ -1,5 +1,6 @@
 import uuid
-from typing import overload
+from copy import deepcopy
+from typing import overload, Optional, Iterator, List, Tuple
 from pathlib import Path
 
 from starlette.requests import Request
@@ -10,10 +11,12 @@ from spinta import commands
 from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
 from spinta.backends.components import Backend
+from spinta.backends.nobackend.components import NoBackend
 from spinta.compat import urlparams_to_expr
-from spinta.components import Context, Node, Action, UrlParams
+from spinta.components import Context, Node, Action, UrlParams, Page, PageBy
 from spinta.components import Model
 from spinta.components import Property
+from spinta.core.ufuncs import Expr
 from spinta.datasets.components import ExternalBackend
 from spinta.renderer import render
 from spinta.types.datatype import Integer
@@ -21,10 +24,14 @@ from spinta.types.datatype import Object
 from spinta.types.datatype import File
 from spinta.accesslog import AccessLog
 from spinta.accesslog import log_response
-from spinta.exceptions import UnavailableSubresource
+from spinta.exceptions import UnavailableSubresource, InfiniteLoopWithPagination, DuplicateRowWhilePaginating, BackendNotGiven
 from spinta.exceptions import ItemDoesNotExist
 from spinta.types.datatype import DataType
+from spinta.typing import ObjectData
+from spinta.ufuncs.basequerybuilder.components import get_allowed_page_property_types
+from spinta.ufuncs.basequerybuilder.ufuncs import add_page_expr
 from spinta.utils.data import take
+from spinta.utils.encoding import encode_page_values
 
 
 @commands.getall.register(Context, Model, Request)
@@ -37,8 +44,12 @@ async def getall(
     params: UrlParams,
 ) -> Response:
     commands.authorize(context, action, model)
-
     backend = model.backend
+    if isinstance(backend, NoBackend):
+        raise BackendNotGiven(model)
+
+    copy_page = prepare_page_for_get_all(context, model, params)
+    is_page_enabled = not params.count and backend.paginated and copy_page and copy_page and copy_page.is_enabled
 
     if isinstance(backend, ExternalBackend):
         # XXX: `add_count` is a hack, because, external backends do not
@@ -59,7 +70,13 @@ async def getall(
     if params.head:
         rows = []
     else:
-        rows = commands.getall(context, model, backend, query=expr)
+        if is_page_enabled:
+            rows = get_page(context, model, backend, copy_page, expr, params.limit, default_expand=False)
+        else:
+            if backend.support_expand:
+                rows = commands.getall(context, model, backend, query=expr, default_expand=False)
+            else:
+                rows = commands.getall(context, model, backend, query=expr)
 
     if params.count:
         # XXX: Quick and dirty hack. Functions should be handled properly.
@@ -88,7 +105,7 @@ async def getall(
                     data=row,
                     action=action,
                 )
-                for key, val in row.items()
+                for key, val in row.items() if key in props
             }
             for row in rows
         )
@@ -98,6 +115,8 @@ async def getall(
             reserved = ['_type', '_id', '_revision', '_base']
         else:
             reserved = ['_type', '_id', '_revision']
+        if model.page.is_enabled:
+            reserved.append('_page')
         prop_names = get_select_prop_names(
             context,
             model,
@@ -123,6 +142,136 @@ async def getall(
     rows = log_response(context, rows)
 
     return render(context, request, model, params, rows, action=action)
+
+
+# XXX: params.sort handle should be moved to BaseQueryBuilder, AST should be handled by Env, this only supports basic sort arguments, that ar Positive, Negative or Bind.
+# Issue: in order to create correct WHERE, we need to have finalized Page, currently we combine sort properties with page here.
+def prepare_page_for_get_all(context: Context, model: Model, params: UrlParams):
+    if model.page:
+        copied = deepcopy(model.page)
+        copied.clear()
+
+        if params.page:
+            copied.is_enabled = params.page.is_enabled
+        if copied.is_enabled:
+            config = context.get('config')
+            page_size = config.push_page_size
+            size = params.page and params.page.size or copied.size or page_size or 1000
+            copied.size = size
+
+            if params.sort:
+                new_order = {}
+                for sort_ast in params.sort:
+                    negative = False
+                    if sort_ast['name'] == 'negative':
+                        negative = True
+                        sort_ast = sort_ast['args'][0]
+                    elif sort_ast['name'] == 'positive':
+                        sort_ast = sort_ast['args'][0]
+                    for sort in sort_ast['args']:
+                        if isinstance(sort, str):
+                            if sort in model.properties.keys():
+                                by = sort if not negative else f'-{sort}'
+                                prop = model.properties[sort]
+                                if isinstance(prop.dtype, get_allowed_page_property_types()):
+                                    new_order[by] = PageBy(prop)
+                                else:
+                                    copied.is_enabled = False
+                                    break
+                        else:
+                            copied.is_enabled = False
+                            break
+
+                for key, page_by in copied.by.items():
+                    reversed_key = key[1:] if key.startswith("-") else f'-{key}'
+                    if key not in new_order and reversed_key not in new_order:
+                        new_order[key] = page_by
+
+                copied.by = new_order
+
+            if params.page and params.page.values:
+                copied.update_values_from_list(params.page.values)
+
+        return copied
+
+
+def get_page(
+    context: Context,
+    model: Model,
+    backend: Backend,
+    model_page: Page,
+    expr: Expr,
+    limit: Optional[int] = None,
+    default_expand: bool = True
+) -> Iterator[ObjectData]:
+    config = context.get('config')
+    page_size = config.push_page_size
+    model_page.size = model_page.size or page_size or 1000
+
+    true_count = 0
+
+    last_value = None
+    while True:
+        finished = True
+        query = add_page_expr(expr, model_page)
+        if backend.support_expand:
+            rows = commands.getall(context, model, backend, query=query, default_expand=default_expand)
+        else:
+            rows = commands.getall(context, model, backend, query=query)
+        first_value = None
+        previous_value = None
+        for row in rows:
+            if previous_value is not None:
+                if previous_value == row:
+                    raise DuplicateRowWhilePaginating(key=encode_page_values(row['_page']))
+            previous_value = row
+            if finished:
+                finished = False
+
+            if limit and true_count >= limit:
+                finished = True
+                break
+
+            if first_value is None:
+                first_value = row
+                if first_value == last_value:
+                    raise InfiniteLoopWithPagination()
+                else:
+                    last_value = first_value
+
+            true_count += 1
+            if '_page' in row:
+                model_page.update_values_from_list(row['_page'])
+            yield row
+
+        if finished:
+            break
+
+
+def _update_expr_args(
+    expr: Expr,
+    name: str,
+    args: List,
+    override: bool = False
+) -> Tuple[bool, Expr]:
+    updated = False
+    expr.args = list(expr.args)
+    if expr.name == name:
+        if override:
+            expr.args = args
+            updated = True
+        else:
+            if expr.args:
+                expr.args.extend(args)
+                updated = True
+    else:
+        for i, arg in enumerate(expr.args):
+            if isinstance(arg, Expr):
+                updated, expr.args[i] = _update_expr_args(arg, name, args, override)
+                if updated:
+                    break
+    expr.args = tuple(expr.args)
+    return updated, expr
 
 
 @overload
@@ -431,7 +580,6 @@ async def summary(
 ) -> Response:
     commands.authorize(context, action, model)
     backend = model.backend
-    prop = params.select[0]
 
     accesslog: AccessLog = context.get('accesslog')
     accesslog.request(
@@ -444,12 +592,7 @@ async def summary(
     if params.head:
         rows = []
     else:
-        args = {
-            "prop": prop
-        }
-        if params.query:
-            for item in params.query:
-                args[item["name"]] = item["args"]
-        rows = commands.summary(context, model, backend, args=args)
+        expr = urlparams_to_expr(params)
+        rows = commands.summary(context, model, backend, expr)
     rows = log_response(context, rows)
     return render(context, request, model, params, rows, action=action)

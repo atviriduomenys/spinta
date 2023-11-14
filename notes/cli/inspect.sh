@@ -22,11 +22,13 @@ CREATE TABLE IF NOT EXISTS cities (
     country_id   INTEGER,
     FOREIGN KEY  (country_id) REFERENCES countries (id)
 );
+CREATE VIEW cities_view AS
+SELECT id, name FROM cities;
 EOF
 sqlite3 $BASEDIR/db.sqlite ".schema"
 
 unset SPINTA_CONFIG
-test -f $BASEDIR/config.yml && echo "Remove $BASEDIR/config.yml"
+test -f $BASEDIR/config.yml && rm $BASEDIR/config.yml
 
 poetry run spinta config manifest
 #| Origin  Name                       Value   
@@ -53,6 +55,12 @@ poetry run spinta show $BASEDIR/manifest.csv
 #|    |                              |         |           |                                               |         |       |        |     |       |
 #|    |   |   |   | Countries        |         | id        | countries                                     |         |       |        |     |       |
 #|    |   |   |   |   | continent_id | integer |           | continent_id                                  |         |       |        |     |       |
+#|    |   |   |   |   | id           | integer |           | id                                            |         |       |        |     |       |
+#|    |   |   |   |   | name         | string  |           | name                                          |         |       |        |     |       |
+#|    | dbsqlite/views               |         |           |                                               |         |       |        |     |       |
+#|    |   | resource1                | sql     |           | sqlite:///var/instances/cli/inspect/db.sqlite |         |       |        |     |       |
+#|    |                              |         |           |                                               |         |       |        |     |       |
+#|    |   |   |   | CitiesView       |         |           | cities_view                                   |         |       |        |     |       |
 #|    |   |   |   |   | id           | integer |           | id                                            |         |       |        |     |       |
 #|    |   |   |   |   | name         | string  |           | name                                          |         |       |        |     |       |
 
@@ -107,6 +115,10 @@ poetry run spinta show $BASEDIR/manifest.csv
 #|    |   |   |   | Continents       |         | id      | continents                                    |         |       |        |     |       |
 #|    |   |   |   |   | id           | integer |         | id                                            |         |       |        |     |       |
 #|    |   |   |   |   | name         | string  |         | name                                          |         |       |        |     |       |
+#|    |                              |         |         |                                               |         |       |        |     |       |
+#|    |   |   |   | CitiesView       |         |         | cities_view                                   |         |       |        |     |       |
+#|    |   |   |   |   | id           | integer |         | id                                            |         |       |        |     |       |
+#|    |   |   |   |   | name         | string  |         | name                                          |         |       |        |     |       |
 
 
 cat > $BASEDIR/manifest.txt <<EOF
@@ -143,24 +155,28 @@ poetry run spinta inspect $BASEDIR/manifest.csv -o $BASEDIR/manifest.csv
 #| Loading InlineManifest manifest default
 
 poetry run spinta show $BASEDIR/manifest.csv
-#| id | d | r | b | m | property   | type    | ref     | source                                        | prepare | level | access | uri | title | description
-#|    | datasets/examplle          |         |         |                                               |         |       |        |     |       |
-#|    |   | db                     | sql     |         | sqlite:///var/instances/cli/inspect/db.sqlite |         |       |        |     |       |
-#|    |                            |         |         |                                               |         |       |        |     |       |
-#|    |   |   |   | City           |         | id      | cities                                        |         |       |        |     |       |
-#|    |   |   |   |   | id         | integer |         | id                                            |         |       |        |     |       |
-#|    |   |   |   |   | name       | string  |         | name                                          |         |       |        |     |       |
-#|    |   |   |   |   | country    | ref     | Country | country_id                                    |         |       |        |     |       |
-#|    |                            |         |         |                                               |         |       |        |     |       |
-#|    |   |   |   | Country        |         | id      | countries                                     |         |       |        |     |       |
-#|    |   |   |   |   | id         | integer |         | id                                            |         |       |        |     |       |
-#|    |   |   |   |   | name       | string  |         | name                                          |         |       |        |     |       |
-#|    |   |   |   |   | continent  | integer |         | continent_id                                  |         |       |        |     |       |
-#|    |   |   |   |   | population | integer |         | population                                    |         |       |        |     |       |
-#|    |                            |         |         |                                               |         |       |        |     |       |
-#|    |   |   |   | Continent      |         | id      | continents                                    |         |       |        |     |       |
-#|    |   |   |   |   | id         | integer |         | id                                            |         |       |        |     |       |
-#|    |   |   |   |   | name       | string  |         | name                                          |         |       |        |     |       |
+#| id | d | r | b | m | property   | type    | ref       | source                                        | prepare | level | access | uri | title | description
+#|    | datasets/examplle          |         |           |                                               |         |       |        |     |       |
+#|    |   | db                     | sql     |           | sqlite:///var/instances/cli/inspect/db.sqlite |         |       |        |     |       |
+#|    |                            |         |           |                                               |         |       |        |     |       |
+#|    |   |   |   | City           |         | id        | cities                                        |         |       |        |     |       |
+#|    |   |   |   |   | id         | integer |           | id                                            |         |       |        |     |       |
+#|    |   |   |   |   | name       | string  |           | name                                          |         |       |        |     |       |
+#|    |   |   |   |   | country    | ref     | Country   | country_id                                    |         |       |        |     |       |
+#|    |                            |         |           |                                               |         |       |        |     |       |
+#|    |   |   |   | Country        |         | id        | countries                                     |         |       |        |     |       |
+#|    |   |   |   |   | id         | integer |           | id                                            |         |       |        |     |       |
+#|    |   |   |   |   | name       | string  |           | name                                          |         |       |        |     |       |
+#|    |   |   |   |   | continent  | ref     | Continent | continent_id                                  |         |       |        |     |       |
+#|    |   |   |   |   | population | integer |           | population                                    |         |       |        |     |       |
+#|    |                            |         |           |                                               |         |       |        |     |       |
+#|    |   |   |   | Continent      |         | id        | continents                                    |         |       |        |     |       |
+#|    |   |   |   |   | id         | integer |           | id                                            |         |       |        |     |       |
+#|    |   |   |   |   | name       | string  |           | name                                          |         |       |        |     |       |
+#|    |                            |         |           |                                               |         |       |        |     |       |
+#|    |   |   |   | CitiesView     |         |           | cities_view                                   |         |       |        |     |       |
+#|    |   |   |   |   | id         | integer |           | id                                            |         |       |        |     |       |
+#|    |   |   |   |   | name       | string  |           | name                                          |         |       |        |     |       |
 
 
 sqlite3 $BASEDIR/db.sqlite <<'EOF'

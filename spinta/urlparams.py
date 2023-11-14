@@ -9,7 +9,7 @@ import urllib.parse
 from starlette.requests import Request
 
 from spinta.commands import prepare
-from spinta.components import Action
+from spinta.components import Action, ParamsPage, decode_page_values
 from spinta.components import Config
 from spinta.components import Context, Node
 from spinta.components import Model
@@ -20,7 +20,9 @@ from spinta.components import UrlParams, Version
 from spinta.commands import is_object_id
 from spinta import exceptions
 from spinta import spyna
-from spinta.exceptions import ModelNotFound
+from spinta.exceptions import ModelNotFound, InvalidPageParameterCount, InvalidPageKey
+from spinta.utils.config import asbool
+from spinta.utils.encoding import is_url_safe_base64
 
 
 @prepare.register(Context, UrlParams, Version, Request)
@@ -135,7 +137,17 @@ def _prepare_urlparams_from_path(params: UrlParams):
                     )
                 params.limit, params.offset = map(int, args)
             elif len(args) == 1:
-                params.limit = int(args[0])
+                try:
+                    limit = int(args[0])
+                    if limit <= 0:
+                        raise Exception
+                    params.limit = limit
+                except Exception:
+                    raise exceptions.InvalidValue(
+                        operator='limit',
+                        message="Limit must be a number higher than 0"
+                    )
+
             else:
                 raise exceptions.InvalidValue(
                     operator='limit',
@@ -175,12 +187,43 @@ def _prepare_urlparams_from_path(params: UrlParams):
             params.summary = True
             if args:
                 params.select = args
+        elif name == 'bbox':
+            params.bbox = args
         elif name == 'fault-tolerant':
             params.fault_tolerant = True
         elif name == 'wipe':
             params.action = Action.WIPE
         elif name == 'check':
             params.action = Action.CHECK
+        elif name == 'page':
+            params.page = ParamsPage()
+            is_sort_attr = False
+            is_disabled = False
+            key_given = False
+            for arg in args:
+                if isinstance(arg, dict):
+                    if is_sort_attr:
+                        raise InvalidPageParameterCount()
+                    elif is_disabled:
+                        raise InvalidPageParameterCount()
+                    if arg['name'] == 'bind' and 'size' in arg['args']:
+                        params.page.size = arg['args'][1]
+                        is_sort_attr = True
+                    elif arg['name'] == 'bind' and 'disable' in arg['args']:
+                        params.page.is_enabled = not asbool(arg['args'][1])
+                        is_disabled = True
+                else:
+                    if key_given:
+                        raise InvalidPageParameterCount()
+                    if not is_url_safe_base64(bytes(arg, 'ascii')):
+                        raise InvalidPageKey(key=arg)
+                    params.page.values = decode_page_values(arg)
+                    key_given = True
+        elif name == 'expand':
+            if params.expand is None:
+                params.expand = args
+            else:
+                params.expand += args
         else:
             if params.query is None:
                 params.query = []

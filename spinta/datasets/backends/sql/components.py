@@ -15,6 +15,7 @@ class Sql(ExternalBackend):
     engine: Engine = None
     schema: sa.MetaData = None
     dbschema: str = None  # Database schema name
+    paginated: bool = True
 
     @contextlib.contextmanager
     def transaction(self, write=False):

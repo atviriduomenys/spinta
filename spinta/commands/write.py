@@ -28,7 +28,7 @@ from spinta.backends.helpers import get_select_tree
 from spinta.backends.components import Backend, BackendFeatures
 from spinta.components import Context, Node, UrlParams, Action, DataItem, Namespace, Model, Property, DataStream, DataSubItem
 from spinta.renderer import render
-from spinta.types.datatype import DataType, Object, Array, File, Ref, ExternalRef, Denorm, Inherit
+from spinta.types.datatype import DataType, Object, Array, File, Ref, ExternalRef, Denorm, Inherit, BackRef
 from spinta.urlparams import get_model_by_name
 from spinta.utils.aiotools import agroupby
 from spinta.utils.aiotools import aslice, alist, aiter
@@ -738,6 +738,19 @@ def build_data_patch_for_write(
         return {}
 
 
+@commands.build_data_patch_for_write.register(Context, BackRef)
+def build_data_patch_for_write(
+    context: Context,
+    dtype: BackRef,
+    *,
+    given: Optional[dict],
+    saved: Optional[dict],
+    insert_action: bool = False,
+    update_action: bool = False,
+) -> Union[dict, NotAvailable]:
+    return NA
+
+
 @commands.build_data_patch_for_write.register(Context, Object)
 def build_data_patch_for_write(
     context: Context,
@@ -952,6 +965,17 @@ def build_full_response(  # noqa
         return saved
     else:
         return dtype.default
+
+
+@commands.build_full_response.register()  # noqa
+def build_full_response(  # noqa
+    context: Context,
+    dtype: BackRef,
+    *,
+    patch: Optional[object],
+    saved: Optional[object],
+):
+    return NA
 
 
 @commands.build_full_response.register()  # noqa
