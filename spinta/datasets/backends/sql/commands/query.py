@@ -246,9 +246,10 @@ class Selected:
 
 def _gather_selected_properties(env: SqlQueryBuilder):
     result = []
-    for selected in env.selected.values():
-        if selected and selected.prop:
-            result.append(selected.prop)
+    if env.selected:
+        for selected in env.selected.values():
+            if selected and selected.prop:
+                result.append(selected.prop)
     return result
 
 

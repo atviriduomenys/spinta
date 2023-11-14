@@ -252,9 +252,10 @@ class PgQueryBuilder(BaseQueryBuilder):
 
 def _gather_selected_properties(env: PgQueryBuilder):
     result = []
-    for selected in env.select.values():
-        if selected and selected.prop:
-            result.append(selected.prop)
+    if env.select:
+        for selected in env.select.values():
+            if selected and selected.prop:
+                result.append(selected.prop)
     return result
 
 
