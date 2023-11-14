@@ -487,14 +487,20 @@ def select(env, dtype):
 @ufunc.resolver(PgQueryBuilder, String)
 def select(env, dtype):
     env.call('validate_dtype_for_select', dtype, _gather_selected_properties(env))
-    column = env.backend.get_column(env.table, dtype.prop)
+    if dtype.prop.list is None:
+        column = env.backend.get_column(env.table, dtype.prop)
+    else:
+        column = env.backend.get_column(env.table, dtype.prop.list)
     return Selected(column, dtype.prop)
 
 
 @ufunc.resolver(PgQueryBuilder, Text)
 def select(env, dtype):
     env.call('validate_dtype_for_select', dtype, _gather_selected_properties(env))
-    column = _get_column_with_extra(env, dtype.prop)
+    if dtype.prop.list is None:
+        column = _get_column_with_extra(env, dtype.prop)
+    else:
+        column = env.backend.get_column(env.table, dtype.prop.list)
     return Selected(column, dtype.prop)
 
 
