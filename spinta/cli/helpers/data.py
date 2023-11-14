@@ -19,6 +19,7 @@ from spinta.components import Context
 from spinta.components import DataStream
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
+from spinta.ufuncs.basequerybuilder.components import QueryParams
 from spinta.ufuncs.basequerybuilder.ufuncs import add_page_expr
 from spinta.types.datatype import Inherit
 from spinta.utils.aiotools import alist
@@ -74,6 +75,7 @@ def read_model_data(
     model: components.Model,
     limit: int = None,
     stop_on_error: bool = False,
+    params: QueryParams = None
 ) -> Iterable[Dict[str, Any]]:
 
     if limit is None:
@@ -81,7 +83,7 @@ def read_model_data(
     else:
         query = Expr('limit', limit)
 
-    stream = commands.getall(context, model, model.backend, query=query)
+    stream = commands.getall(context, model, model.backend, query=query, params=params)
 
     if stop_on_error:
         stream = peek(stream)

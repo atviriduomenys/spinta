@@ -250,6 +250,14 @@ class PgQueryBuilder(BaseQueryBuilder):
         return self.joins[base_model.name]
 
 
+def _gather_selected_properties(env: PgQueryBuilder):
+    result = []
+    for selected in env.select.values():
+        if selected and selected.prop:
+            result.append(selected.prop)
+    return result
+
+
 class ForeignProperty:
 
     def __init__(
@@ -475,8 +483,16 @@ def select(env, dtype):
     return Selected(column, dtype.prop)
 
 
+@ufunc.resolver(PgQueryBuilder, String)
+def select(env, dtype):
+    env.call('validate_dtype_for_select', dtype, _gather_selected_properties(env))
+    column = env.backend.get_column(env.table, dtype.prop)
+    return Selected(column, dtype.prop)
+
+
 @ufunc.resolver(PgQueryBuilder, Text)
 def select(env, dtype):
+    env.call('validate_dtype_for_select', dtype, _gather_selected_properties(env))
     column = _get_column_with_extra(env, dtype.prop)
     return Selected(column, dtype.prop)
 
@@ -1316,7 +1332,7 @@ def sort(env, name, dtype: Array):
 
 def _get_column_with_extra(env: PgQueryBuilder, prop: Property):
     default_langs = env.context.get('config').languages
-    column = env.backend.get_column(env.table, prop, langs=env.query_params.lang_priority, default_langs=default_langs)
+    column = env.backend.get_column(env.table, prop, langs=env.query_params.lang_priority, push=env.query_params.push, default_langs=default_langs)
     return column
 
 

@@ -24,6 +24,7 @@ class QueryPage:
 class QueryParams:
     prioritize_uri: bool = False
     lang_priority: List[str] = None
+    push: bool = False
 
 
 class BaseQueryBuilder(Env):

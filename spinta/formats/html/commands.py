@@ -789,6 +789,6 @@ def prepare_dtype_for_response(
     select: dict = None,
 ):
     return {
-        k: Cell(v)
+        k: Cell(v) if v is not None else Cell('', color=Color.null)
         for k, v in value.items()
     }

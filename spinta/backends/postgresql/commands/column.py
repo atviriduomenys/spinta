@@ -65,11 +65,16 @@ def get_column(backend: PostgreSQL, dtype: String, table: sa.Table = None, **kwa
 
 
 @commands.get_column.register(PostgreSQL, Text)
-def get_column(backend: PostgreSQL, dtype: Text, table: sa.Table = None, langs: list = [], default_langs: list = [], **kwargs):
+def get_column(backend: PostgreSQL, dtype: Text, table: sa.Table = None, langs: list = [], default_langs: list = [], push: bool = False, **kwargs):
     prop = dtype.prop
     column_name = gcn(dtype.prop)
     if table is None:
         table = get_table(backend, prop)
+
+    if push:
+        column = convert_str_to_column(table, prop, column_name)
+        return column
+
     existing_langs = list(dtype.langs.keys())
     lang_prop = None
     if langs:

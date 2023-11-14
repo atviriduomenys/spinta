@@ -698,3 +698,7 @@ class TooManyLangsGiven(UserError):
 
 class UnableToDetermineRequiredLang(UserError):
     template = "Unable to determine required language."
+
+
+class CannotSelectTextAndSpecifiedLang(UserError):
+    template = "Cannot select undisclosed language Text at the same time when disclosed language Text is selected."

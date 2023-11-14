@@ -246,9 +246,17 @@ class Selected:
             )
 
 
+def _gather_selected_properties(env: SqlQueryBuilder):
+    result = []
+    for selected in env.selected.values():
+        if selected and selected.prop:
+            result.append(selected.prop)
+    return result
+
+
 def _get_column_with_extra(env: SqlQueryBuilder, prop: Property):
     default_langs = env.context.get('config').languages
-    column = env.backend.get_column(env.table, prop, langs=env.query_params.lang_priority, default_langs=default_langs)
+    column = env.backend.get_column(env.table, prop, langs=env.query_params.lang_priority, push=env.query_params.push, default_langs=default_langs)
     return column
 
 
@@ -689,10 +697,25 @@ def select(env: SqlQueryBuilder, dtype: DataType) -> Selected:
     )
 
 
+@ufunc.resolver(SqlQueryBuilder, String)
+def select(env, dtype):
+    env.call('validate_dtype_for_select', dtype, _gather_selected_properties(env))
+    column = env.backend.get_column(env.table, dtype.prop)
+    return Selected(env.add_column(column), dtype.prop)
+
+
 @ufunc.resolver(SqlQueryBuilder, Text)
 def select(env, dtype):
-    column = _get_column_with_extra(env, dtype.prop)
-    return Selected(env.add_column(column), dtype.prop)
+    env.call('validate_dtype_for_select', dtype, _gather_selected_properties(env))
+    if env.query_params.push:
+        result = {
+            key: env.call('select', prop)
+            for key, prop in dtype.langs.items()
+        }
+        return Selected(prop=dtype.prop, prep=result)
+    else:
+        column = _get_column_with_extra(env, dtype.prop)
+        return Selected(env.add_column(column), dtype.prop)
 
 
 @ufunc.resolver(SqlQueryBuilder, Page)

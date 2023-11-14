@@ -27,8 +27,9 @@ def get_column(backend: Sql, dtype: DataType, table: sa.Table, **kwargs):
 
 
 @commands.get_column.register(Sql, Text)
-def get_column(backend: Sql, dtype: Text, table: sa.Table, langs: list = [], default_langs: list = [], **kwargs):
+def get_column(backend: Sql, dtype: Text, table: sa.Table, langs: list = [], default_langs: list = [], push: bool = False, **kwargs):
     prop = dtype.prop
+
     existing_langs = list(dtype.langs.keys())
     lang_prop = None
     if langs:
