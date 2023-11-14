@@ -1,7 +1,7 @@
 import pathlib
 from typing import Optional
 
-from spinta.auth import gen_auth_server_keys
+from spinta.auth import gen_auth_server_keys, get_clients_path
 from spinta.core.config import RawConfig
 from spinta.testing.datasets import Sqlite
 from spinta.testing.tabular import create_tabular_manifest
@@ -32,7 +32,7 @@ CONFIG = {
 
 def create_config_path(path: pathlib.Path) -> pathlib.Path:
     path.mkdir(exist_ok=True)
-    (path / 'clients').mkdir(exist_ok=True)
+    get_clients_path(path).mkdir(exist_ok=True)
     gen_auth_server_keys(path, exist_ok=True)
     return path
 

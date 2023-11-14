@@ -7,19 +7,23 @@ from typing import cast
 
 import pytest
 
+from spinta.auth import query_client, delete_client_file, get_clients_path
+from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.formats.html.components import Cell
 from spinta.formats.html.helpers import short_id
 from spinta.testing.client import TestClient
 from spinta.testing.client import TestClientResponse
 from spinta.testing.client import get_html_tree
-from spinta.testing.utils import get_error_codes, get_error_context
+from spinta.testing.utils import get_error_codes, get_error_context, error
 from spinta.testing.manifest import prepare_manifest
 from spinta.testing.data import pushdata
 from spinta.utils.nestedstruct import flatten
 from spinta.testing.client import create_test_client
 from spinta.backends.memory.components import Memory
 from spinta.testing.data import send
+from spinta.utils.types import is_str_uuid
+from tests.test_config import yaml
 
 
 def _cleaned_context(
@@ -60,6 +64,24 @@ def _cleaned_context(
     if 'request' in context:
         del context['request']
     return context
+
+
+def clean_up_auth_client(context: Context, client_id: str):
+    config = context.get('config')
+    path = get_clients_path(config)
+    delete_client_file(path, client_id)
+
+
+def ensure_clients_dont_exist(context: Context, client_ids: list):
+    config = context.get('config')
+    path = get_clients_path(config)
+    keymap_path = path / 'helpers' / 'keymap.yml'
+    if keymap_path.exists():
+        keymap = yaml.load(keymap_path)
+        keymap_keys = keymap.keys()
+        for item in client_ids:
+            if item in keymap_keys:
+                clean_up_auth_client(context, keymap[item])
 
 
 def test_version(app):
@@ -1344,3 +1366,492 @@ def test_get_gt_ge_lt_le_ne(app):
     request_line = '/datasets/json/rinkimai?_id!="{0}"'.format(eq_id_for_gt_ge)
     resp = app.get(request_line)
     assert len(resp.json()['_data']) == 4
+
+
+@pytest.mark.parametrize('client_name, scopes, secret', [
+    ("test_client_id", ["spinta_getall"], "secret"),
+    ("test_only_client", None, "req"),
+    (None, ["spinta_getall"], "req"),
+    (None, None, "onlysecret")
+], ids=["all given", "only name", "only scope", "only secret"])
+def test_auth_clients_create_authorized_correct(
+    context: Context,
+    app: TestClient,
+    client_name: str,
+    scopes: list,
+    secret: str
+):
+    path = get_clients_path(context.get('config'))
+    if client_name:
+        ensure_clients_dont_exist(context, [client_name])
+    app.authorize(["spinta_auth_clients"])
+    data = {}
+    if client_name:
+        data["client_name"] = client_name
+    if scopes:
+        data["scopes"] = scopes
+    if secret:
+        data["secret"] = secret
+    resp = app.post('/auth/clients', json=data)
+    resp_json = resp.json()
+    resp_client_name = client_name if client_name else resp_json["client_name"]
+    resp_scopes = scopes if scopes else []
+
+    assert resp.status_code == 200
+    assert resp.json() == {
+        "client_id": resp_json["client_id"],
+        "client_name": resp_client_name,
+        "scopes": resp_scopes
+    }
+    if not client_name:
+        assert is_str_uuid(resp_client_name)
+    if secret:
+        client = query_client(path, client=resp_json["client_id"])
+        assert client.check_client_secret(secret)
+
+    # Clean up
+    clean_up_auth_client(context, resp_json["client_id"])
+
+
+def test_auth_clients_create_authorized_incorrect(
+    context: Context,
+    app: TestClient,
+):
+    ensure_clients_dont_exist(context, ["exists"])
+    app.authorize(["spinta_auth_clients"])
+    resp_created = app.post('/auth/clients', json={
+        "client_name": "exists",
+        "secret": "secret"
+    })
+    assert resp_created.status_code == 200
+
+    resp = app.post('/auth/clients', json={
+        "client_name": "exists",
+        "secret": "secret"
+    })
+    assert resp.status_code == 400
+    assert error(resp) == "ClientWithNameAlreadyExists"
+
+    resp = app.post('/auth/clients', json={
+        "client_name": "exist",
+        "secret": "secret",
+        "new_field": "FIELD"
+    })
+    assert resp.status_code == 400
+    assert error(resp) == "UnknownPropertyInRequest"
+
+    resp = app.post('/auth/clients', json={
+        "client_name": "exist0"
+    })
+    assert resp.status_code == 400
+    assert error(resp) == "EmptyPassword"
+
+    resp = app.post('/auth/clients', json={
+        "client_name": "exist1",
+        "secret": ""
+    })
+    assert resp.status_code == 400
+    assert error(resp) == "EmptyPassword"
+
+    # Clean up
+    clean_up_auth_client(context, resp_created.json()["client_id"])
+
+
+def test_auth_clients_create_unauthorized(
+    context: Context,
+    app: TestClient
+):
+    ensure_clients_dont_exist(context, ["test"])
+    resp = app.post('/auth/clients', json={
+        "client_name": "test",
+        "secret": "secret",
+        "scopes": [
+            "spinta_getall"
+        ]
+    })
+    assert resp.status_code == 403
+    assert error(resp) == "InsufficientPermission"
+
+
+def test_auth_clients_delete_unauthorized(
+    context: Context,
+    app: TestClient,
+):
+    ensure_clients_dont_exist(context, ["to_delete"])
+    app.authorize(["spinta_auth_clients"])
+    resp_create = app.post('/auth/clients', json={
+        "client_name": "to_delete",
+        "secret": "secret"
+    })
+    assert resp_create.status_code == 200
+
+    app.authorize([], strict_set=True)
+    resp = app.delete(f'/auth/clients/{resp_create.json()["client_id"]}')
+    assert resp.status_code == 403
+    assert error(resp) == "InsufficientPermission"
+
+    # Clean up
+    clean_up_auth_client(context, resp_create.json()["client_id"])
+
+
+def test_auth_clients_delete_authorized_correct(
+    context: Context,
+    app: TestClient,
+):
+    ensure_clients_dont_exist(context, ["to_delete"])
+    app.authorize(["spinta_auth_clients"])
+    resp = app.post('/auth/clients', json={
+        "client_name": "to_delete",
+        "secret": "secret"
+    })
+    assert resp.status_code == 200
+
+    resp = app.delete(f'/auth/clients/{resp.json()["client_id"]}')
+    assert resp.status_code == 204
+
+
+def test_auth_clients_delete_authorized_incorrect(
+    context: Context,
+    app: TestClient,
+):
+    app.authorize(["spinta_auth_clients"])
+    resp = app.delete('/auth/clients/non-existent')
+    assert resp.status_code == 400
+    assert error(resp) == "InvalidClientError"
+
+
+def test_auth_clients_get_authorized(
+    context: Context,
+    app: TestClient,
+):
+    ensure_clients_dont_exist(context, ["to_get"])
+    app.authorize(["spinta_auth_clients"])
+    resp_created = app.post('/auth/clients', json={
+        "client_name": "to_get",
+        "secret": "secret"
+    })
+    resp = app.get(f'/auth/clients/{resp_created.json()["client_id"]}')
+    resp_json = resp.json()
+
+    assert resp.status_code == 200
+    assert resp_json == {
+        "client_id": resp_json["client_id"],
+        "client_name": "to_get",
+        'scopes': []
+    }
+
+    # Clean up
+    clean_up_auth_client(context, resp_json["client_id"])
+
+
+def test_auth_clients_get_unauthorized(
+    context: Context,
+    app: TestClient,
+):
+    ensure_clients_dont_exist(context, ["to_get", 'normal'])
+    app.authorize(["spinta_auth_clients"])
+    resp_created = app.post('/auth/clients', json={
+        "client_name": "to_get",
+        "secret": "secret"
+    })
+    assert resp_created.status_code == 200
+
+    resp_created_own = app.post('/auth/clients', json={
+        "client_name": "normal",
+        "secret": "secret"
+    })
+    assert resp_created_own.status_code == 200
+
+    app.authorize(creds=("normal", "secret"), strict_set=True)
+    resp = app.get(f'/auth/clients/{resp_created.json()["client_id"]}')
+    assert resp.status_code == 403
+    assert error(resp) == "InsufficientPermission"
+
+    resp = app.get(f'/auth/clients/{resp_created_own.json()["client_id"]}')
+    assert resp.status_code == 200
+    assert resp.json() == {
+        "client_id": resp.json()["client_id"],
+        "client_name": "normal",
+        'scopes': []
+    }
+
+    # Clean up
+    clean_up_auth_client(context, resp_created.json()["client_id"])
+    clean_up_auth_client(context, resp_created_own.json()["client_id"])
+
+
+def test_auth_clients_get_all_authorized(
+    context: Context,
+    app: TestClient,
+):
+    ensure_clients_dont_exist(context, ["one", "two", "three"])
+    app.authorize(["spinta_auth_clients"])
+
+    resp_one = app.post('/auth/clients', json={
+        "client_name": "one",
+        "secret": "secret"
+    })
+    assert resp_one.status_code == 200
+    resp_two = app.post('/auth/clients', json={
+        "client_name": "two",
+        "secret": "secret"
+    })
+    assert resp_two.status_code == 200
+    resp_three = app.post('/auth/clients', json={
+        "client_name": "three",
+        "secret": "secret"
+    })
+    assert resp_three.status_code == 200
+
+    resp = app.get('/auth/clients')
+    resp_json = resp.json()
+    assert resp.status_code == 200
+    assert {
+        "client_id": str(resp_one.json()["client_id"]),
+        "client_name": "one"
+    } in resp_json
+    assert {
+        "client_id": str(resp_two.json()["client_id"]),
+        "client_name": "two"
+    } in resp_json
+    assert {
+        "client_id": str(resp_three.json()["client_id"]),
+        "client_name": "three"
+    } in resp_json
+
+    # Clean up
+    clean_up_auth_client(context, resp_one.json()["client_id"])
+    clean_up_auth_client(context, resp_two.json()["client_id"])
+    clean_up_auth_client(context, resp_three.json()["client_id"])
+
+
+def test_auth_clients_get_all_unauthorized(
+    context: Context,
+    app: TestClient,
+):
+    ensure_clients_dont_exist(context, ["one", "two", "three"])
+    app.authorize(["spinta_auth_clients"])
+
+    resp_one = app.post('/auth/clients', json={
+        "client_name": "one",
+        "secret": "secret"
+    })
+    assert resp_one.status_code == 200
+    resp_two = app.post('/auth/clients', json={
+        "client_name": "two",
+        "secret": "secret"
+    })
+    assert resp_two.status_code == 200
+    resp_three = app.post('/auth/clients', json={
+        "client_name": "three",
+        "secret": "secret"
+    })
+    assert resp_three.status_code == 200
+
+    app.authorize(creds=("one", "secret"), strict_set=True)
+
+    resp = app.get('/auth/clients')
+    assert resp.status_code == 403
+    assert error(resp) == "InsufficientPermission"
+
+    # Clean up
+    clean_up_auth_client(context, resp_one.json()["client_id"])
+    clean_up_auth_client(context, resp_two.json()["client_id"])
+    clean_up_auth_client(context, resp_three.json()["client_id"])
+
+
+@pytest.mark.parametrize('client_name, scopes, secret', [
+    ("test_client_id", ["spinta_insert"], "secret"),
+    (None, None, None),
+    ("test_only_client", None, None),
+    (None, ["spinta_insert"], None),
+    (None, None, "onlysecret")
+], ids=["all given", "none given", "only name", "only scope", "only secret"])
+def test_auth_clients_update_authorized_admin_correct(
+    context: Context,
+    app: TestClient,
+    client_name: str,
+    scopes: list,
+    secret: str
+):
+    path = get_clients_path(context.get("config"))
+    ensure_clients_dont_exist(context, ["TEST", client_name])
+    app.authorize(["spinta_auth_clients"])
+    resp = app.post('/auth/clients', json={
+        "client_name": "TEST",
+        "secret": "OLD_SECRET",
+        "scopes": [
+            "spinta_getall"
+        ]
+    })
+    assert resp.status_code == 200
+    data = {}
+    if client_name:
+        data["client_name"] = client_name
+    if scopes:
+        data["scopes"] = scopes
+    if secret:
+        data["secret"] = secret
+    resp = app.patch(f'/auth/clients/{resp.json()["client_id"]}', json=data)
+    resp_json = resp.json()
+    resp_client_name = client_name if client_name else resp_json["client_name"]
+    resp_scopes = scopes if scopes else ["spinta_getall"]
+
+    assert resp.status_code == 200
+    assert resp.json() == {
+        "client_id": resp_json["client_id"],
+        "client_name": resp_client_name,
+        "scopes": resp_scopes
+    }
+    if not client_name:
+        assert resp_client_name == "TEST"
+    client = query_client(path, client=resp_json["client_id"])
+    if secret:
+        assert client.check_client_secret(secret)
+    else:
+        assert client.check_client_secret("OLD_SECRET")
+
+    # Clean up
+    clean_up_auth_client(context, resp_json["client_id"])
+
+
+def test_auth_clients_update_authorized_admin_incorrect(
+    context: Context,
+    app: TestClient
+):
+    ensure_clients_dont_exist(context, ["TEST", "NEW"])
+    app.authorize(["spinta_auth_clients"])
+    resp_test = app.post('/auth/clients', json={
+        "client_name": "TEST",
+        "secret": "OLD_SECRET",
+        "scopes": [
+            "spinta_getall"
+        ]
+    })
+    assert resp_test.status_code == 200
+    resp_new = app.post('/auth/clients', json={
+        "client_name": "NEW",
+        "secret": "OLD_SECRET",
+        "scopes": [
+            "spinta_getall"
+        ]
+    })
+    assert resp_new.status_code == 200
+
+    resp = app.patch(f'/auth/clients/{resp_new.json()["client_id"]}', json={
+        "client_name": "TEST"
+    })
+    assert resp.status_code == 400
+    assert error(resp) == "ClientWithNameAlreadyExists"
+    # Clean up
+    clean_up_auth_client(context, resp_test.json()["client_id"])
+    clean_up_auth_client(context, resp_new.json()["client_id"])
+
+
+def test_auth_clients_update_authorized_correct(
+    context: Context,
+    app: TestClient
+):
+    path = get_clients_path(context.get("config"))
+    ensure_clients_dont_exist(context, ["TEST"])
+    app.authorize(["spinta_auth_clients"])
+    resp = app.post('/auth/clients', json={
+        "client_name": "TEST",
+        "secret": "OLD_SECRET",
+        "scopes": [
+            "spinta_getall"
+        ]
+    })
+    assert resp.status_code == 200
+
+    app.authorize(creds=("TEST", "OLD_SECRET"), strict_set=True)
+    resp = app.patch(f'/auth/clients/{resp.json()["client_id"]}', json={
+        "secret": "NEW_SECRET"
+    })
+    resp_json = resp.json()
+
+    assert resp.status_code == 200
+    assert resp.json() == {
+        "client_id": resp_json["client_id"],
+        "client_name": "TEST",
+        "scopes": [
+            "spinta_getall"
+        ]
+    }
+    client = query_client(path, client=resp_json["client_id"])
+    assert client.check_client_secret("NEW_SECRET")
+
+    # Clean up
+    clean_up_auth_client(context, resp_json["client_id"])
+
+
+def test_auth_clients_update_authorized_incorrect(
+    context: Context,
+    app: TestClient
+):
+    ensure_clients_dont_exist(context, ["TEST"])
+    app.authorize(["spinta_auth_clients"])
+    resp_created = app.post('/auth/clients', json={
+        "client_name": "TEST",
+        "secret": "OLD_SECRET",
+        "scopes": [
+            "spinta_getall"
+        ]
+    })
+    assert resp_created.status_code == 200
+
+    app.authorize(creds=("TEST", "OLD_SECRET"), strict_set=True)
+    resp = app.patch(f'/auth/clients/{resp_created.json()["client_id"]}', json={
+        "client_name": "NEW"
+    })
+    assert resp.status_code == 403
+    assert error(resp) == "InsufficientPermissionForUpdate"
+
+    resp = app.patch(f'/auth/clients/{resp_created.json()["client_id"]}', json={
+        "scopes": [
+            "spinta_insert"
+        ]
+    })
+    assert resp.status_code == 403
+    assert error(resp) == "InsufficientPermissionForUpdate"
+
+    resp = app.patch(f'/auth/clients/{resp_created.json()["client_id"]}', json={
+        "something": "else"
+    })
+    assert resp.status_code == 400
+    assert error(resp) == "UnknownPropertyInRequest"
+
+    resp = app.patch(f'/auth/clients/{resp_created.json()["client_id"]}', json={
+        "secret": ""
+    })
+    assert resp.status_code == 400
+    assert error(resp) == "EmptyPassword"
+
+    # Clean up
+    clean_up_auth_client(context, resp_created.json()["client_id"])
+
+
+def test_auth_clients_update_unauthorized(
+    context: Context,
+    app: TestClient
+):
+    ensure_clients_dont_exist(context, ["TEST"])
+    app.authorize(["spinta_auth_clients"])
+    resp_created = app.post('/auth/clients', json={
+        "client_name": "TEST",
+        "secret": "OLD_SECRET",
+        "scopes": [
+            "spinta_getall"
+        ]
+    })
+    assert resp_created.status_code == 200
+
+    app.authorize(scopes=[], strict_set=True)
+    resp = app.patch(f'/auth/clients/{resp_created.json()["client_id"]}', json={
+        "secret": "NEW"
+    })
+    assert resp.status_code == 403
+    assert error(resp) == "InsufficientPermission"
+
+    # Clean up
+    clean_up_auth_client(context, resp_created.json()["client_id"])
