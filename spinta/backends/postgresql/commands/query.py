@@ -19,7 +19,7 @@ from spinta.core.ufuncs import ufunc
 from spinta.core.ufuncs import Bind, Negative as Negative_
 from spinta.core.ufuncs import Expr
 from spinta.datasets.enums import Level
-from spinta.exceptions import EmptyStringSearch, PropertyNotFound
+from spinta.exceptions import EmptyStringSearch, PropertyNotFound, LangNotDeclared
 from spinta.exceptions import UnknownMethod
 from spinta.exceptions import FieldNotInResource
 from spinta.components import Model, Property, Action, Page, UrlParams
@@ -399,7 +399,7 @@ def getattr_(env, dtype, bind):
         prop = env.model.properties[dtype.prop.name]
         if bind.name in prop.dtype.langs:
             return prop.dtype.langs[bind.name].dtype
-    raise Exception("UNABLE TO GET")
+        raise LangNotDeclared(dtype, lang=bind.name)
 
 
 @ufunc.resolver(PgQueryBuilder, Expr)

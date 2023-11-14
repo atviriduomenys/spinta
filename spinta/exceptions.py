@@ -686,3 +686,15 @@ class DataTypeCannotBeUsedForNesting(UserError):
 
 class NestedDataTypeMissmatch(UserError):
     template = "While nesting, {initial!r} type cannot be cast to {required!r} type."
+
+
+class LangNotDeclared(UserError):
+    template = "Language {lang!r} has not been declared."
+
+
+class TooManyLangsGiven(UserError):
+    template = "Too many languages given in 'content-language' header, expected only one, but were given {amount}."
+
+
+class UnableToDetermineRequiredLang(UserError):
+    template = "Unable to determine required language."

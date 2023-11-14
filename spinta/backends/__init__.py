@@ -36,7 +36,8 @@ from spinta.components import Model
 from spinta.components import Namespace
 from spinta.components import Node
 from spinta.components import Property
-from spinta.exceptions import ConflictingValue, RequiredProperty
+from spinta.exceptions import ConflictingValue, RequiredProperty, LangNotDeclared, TooManyLangsGiven, \
+    UnableToDetermineRequiredLang
 from spinta.exceptions import NoItemRevision
 from spinta.formats.components import Format
 from spinta.types.datatype import Array, ExternalRef, Denorm, Inherit, PageType, BackRef, ArrayBackRef, Integer, Boolean
@@ -177,10 +178,10 @@ def prepare_for_write(
     # First Step: Check Content-Language if lang exists in the property
     if params.content_langs:
         if len(params.content_langs) > 1:
-            raise Exception("TOO MANY LANGS GIVEN")
+            raise TooManyLangsGiven(dtype, amount=len(params.content_langs))
 
         if params.content_langs[0] not in dtype.langs:
-            raise Exception("CONTENT-LANGUAGE DOES NOT EXIST IN GIVEN PROP")
+            raise LangNotDeclared(dtype, lang=params.content_langs[0])
 
         preferred_lang = dtype.langs[params.content_langs[0]]
 
@@ -198,7 +199,7 @@ def prepare_for_write(
 
     # Fourth Step: if nothing works raise Exception that language was not determined
     if not preferred_lang:
-        raise Exception("UNABLE TO DETERMINE LANGUAGE")
+        raise UnableToDetermineRequiredLang()
 
     value = {preferred_lang.name: value}
     executor = commands.prepare_for_write[Context, Text, type(backend), dict]
@@ -320,7 +321,7 @@ def simple_data_check(
     langs = dtype.langs
     for lang, val in value.items():
         if lang not in langs:
-            raise Exception(f"{lang} LANG NOT SET")
+            raise LangNotDeclared(dtype, lang=lang)
 
 
 @commands.simple_data_check.register(Context, DataItem, ExternalRef, Property, Backend, dict)

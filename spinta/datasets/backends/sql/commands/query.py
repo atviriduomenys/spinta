@@ -29,7 +29,7 @@ from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.backends.sql.ufuncs.components import SqlResultBuilder
 from spinta.dimensions.enum.helpers import prepare_enum_value
 from spinta.dimensions.param.components import ResolvedParams
-from spinta.exceptions import PropertyNotFound, SourceCannotBeList, FieldNotInResource
+from spinta.exceptions import PropertyNotFound, SourceCannotBeList, FieldNotInResource, LangNotDeclared
 from spinta.exceptions import UnknownMethod
 from spinta.exceptions import UnableToCast
 from spinta.types.datatype import DataType
@@ -304,7 +304,7 @@ def _resolve_getattr(env, dtype, bind):
         prop = env.model.properties[dtype.prop.name]
         if bind.name in prop.dtype.langs:
             return prop.dtype.langs[bind.name].dtype
-    raise Exception("UNABLE TO GET")
+        raise LangNotDeclared(dtype, lang=bind.name)
 
 
 @ufunc.resolver(SqlQueryBuilder, ForeignProperty, Ref, GetAttr)

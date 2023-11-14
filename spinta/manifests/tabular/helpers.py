@@ -740,7 +740,10 @@ def _string_datatype_handler(reader: PropertyReader, row: dict):
         )
     existing_data = _check_if_property_already_set(reader, row, given_name)
     if row['type'] == 'text' and existing_data:
-        raise Exception("ALREADY DEFINED")
+        reader.error(
+            f"Property {reader.name!r} with the same name is already "
+            f"defined for this {reader.state.model.name!r} model."
+        )
 
     dtype = _get_type_repr(row['type'])
     dtype = _parse_dtype_string(dtype)
@@ -775,13 +778,17 @@ def _string_datatype_handler(reader: PropertyReader, row: dict):
         if existing_data['type'] == 'text':
             should_return = False
             if lang and lang in existing_data['langs']:
-                raise Exception("LANG ALREADY DEFINED")
+                reader.error(
+                    f"Language {lang} has already been set for the {existing_data['given_name']} property."
+                )
             elif not lang:
                 existing_data['langs']['C'] = new_data
             else:
                 existing_data['langs'][lang] = new_data
         else:
-            raise Exception("CANNOT ADD LANG PROPS TO NOT TEXT TYPE")
+            reader.error(
+                f"Language can only be added to Text type properties."
+            )
     elif lang and not existing_data:
         copy = new_data.copy()
         new_data = _initial_text_property_schema(given_name, dtype, {
@@ -809,7 +816,10 @@ def _text_datatype_handler(reader: PropertyReader, row: dict):
         )
     result = _check_if_property_already_set(reader, row, given_name)
     if not (result and result['explicitly_given'] is False and result['type'] == 'text' or not result):
-        raise Exception("ALREADY TEXT SET")
+        reader.error(
+            f"Property {reader.name!r} with the same name is already "
+            f"defined for this {reader.state.model.name!r} model."
+        )
     dtype = _get_type_repr(row['type'])
     dtype = _parse_dtype_string(dtype)
     if dtype['error']:

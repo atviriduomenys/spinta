@@ -9,6 +9,8 @@ from spinta.testing.manifest import load_manifest_and_context
 from spinta.testing.request import render_data
 from starlette.datastructures import Headers
 
+from spinta.testing.utils import error
+
 
 def test_text(
     rc: RawConfig,
@@ -377,3 +379,35 @@ def test_text_unknown_language(
             'C': 'LT',
         }
     }]
+
+
+def test_text_unknown_language_invalid(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, '''
+        id | d | r | b | m | property | type     | ref | source | prepare | level | access | uri | title | description
+           | types/text/content               |          |     |        |         |       |        |     |       |
+           |   |   |   | Country      |          |     |        |         |       |        |     |       |
+           |   |   |   |   | name     | text     |     |        |         | 4     | open   |     |       |
+           |   |   |   |   | name@lt  | string   |     |        |         |       | open   |     |       |
+           |   |   |   |   | name@en  | string   |     |        |         |       | open   |     |       |
+    ''', backend=postgresql, request=request)
+    model = 'types/text/content/Country'
+    app = create_test_client(context)
+    app.authmodel('types/text/content/Country', [
+        'insert',
+        'update',
+        'delete',
+        'changes',
+        'search'
+    ])
+    resp = app.post(f'/{model}', json={
+        'name': {
+            'C': 'LT',
+            'lt': 'Lietuva'
+        }
+    })
+    assert resp.status_code == 400
+    assert error(resp) == 'LangNotDeclared'
