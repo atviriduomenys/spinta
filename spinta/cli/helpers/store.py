@@ -4,7 +4,7 @@ from pathlib import Path
 import click
 
 from spinta import commands
-from spinta.auth import auth_server_keys_exists, handle_auth_client_files, client_name_exists, get_clients_path
+from spinta.auth import auth_server_keys_exists, client_name_exists, get_clients_path
 from spinta.auth import create_client_file
 from spinta.auth import gen_auth_server_keys
 from spinta.components import Config
@@ -62,7 +62,6 @@ def load_config(
 ) -> Config:
     config = context.get('config')
     commands.load(context, config)
-    handle_auth_client_files(context)
     if ensure_config_dir:
         _ensure_config_dir(
             config,
