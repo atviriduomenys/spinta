@@ -5,6 +5,8 @@ from typing import Dict
 from typing import Optional
 from typing import Set
 
+from spinta.typing import ObjectData
+
 
 class BackendOrigin(enum.Enum):
     """Origin where backend was defined.
@@ -40,6 +42,9 @@ class Backend:
     # Original configuration values given in manifest, this is used to restore
     # manifest back to its original form.
     config: Dict[str, Any]
+
+    paginated: bool = False
+    support_expand: bool = False
 
     def __repr__(self):
         return (

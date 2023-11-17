@@ -1,10 +1,10 @@
+import uuid
 from pathlib import Path
 
 import click
 
 from spinta import commands
-from spinta.auth import auth_server_keys_exists
-from spinta.auth import client_exists
+from spinta.auth import auth_server_keys_exists, handle_auth_client_files, client_name_exists, get_clients_path
 from spinta.auth import create_client_file
 from spinta.auth import gen_auth_server_keys
 from spinta.components import Config
@@ -14,6 +14,7 @@ from spinta.core.config import DEFAULT_CONFIG_PATH
 
 
 def _ensure_config_dir(
+    config: Config,
     path: Path,
     default_auth_client: str,
     *,
@@ -26,7 +27,7 @@ def _ensure_config_dir(
         raise Exception(f"Config dir {path} does not exist!")
 
     # Ensure clients directory.
-    clients_path = (path / 'clients')
+    clients_path = get_clients_path(config)
     clients_path.mkdir(parents=True, exist_ok=True)
 
     # Ensure auth server keys.
@@ -36,12 +37,13 @@ def _ensure_config_dir(
         gen_auth_server_keys(path)
 
     # Ensure default client.
-    if not client_exists(clients_path, default_auth_client):
+    if not client_name_exists(clients_path, default_auth_client):
         if verbose:
             click.echo(f"Initializing default auth client: {path}")
         create_client_file(
             clients_path,
             default_auth_client,
+            str(uuid.uuid4()),
             secret=None,
             scopes=[
                 'spinta_getall',
@@ -60,8 +62,10 @@ def load_config(
 ) -> Config:
     config = context.get('config')
     commands.load(context, config)
+    handle_auth_client_files(context)
     if ensure_config_dir:
         _ensure_config_dir(
+            config,
             config.config_path,
             config.default_auth_client,
             verbose=verbose,

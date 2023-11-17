@@ -30,7 +30,7 @@ from spinta import commands
 from spinta import spyna
 from spinta.backends import Backend
 from spinta.backends.components import BackendOrigin
-from spinta.components import Context, Base
+from spinta.components import Context, Base, PrepareGiven
 from spinta.datasets.components import Resource
 from spinta.dimensions.comments.components import Comment
 from spinta.dimensions.enum.components import EnumItem
@@ -43,7 +43,8 @@ from spinta.datasets.components import Dataset
 from spinta.dimensions.enum.components import Enums
 from spinta.dimensions.lang.components import LangData
 from spinta.dimensions.prefix.components import UriPrefix
-from spinta.exceptions import MultipleErrors
+from spinta.exceptions import MultipleErrors, InvalidBackRefReferenceAmount, DataTypeCannotBeUsedForNesting, \
+    NestedDataTypeMissmatch
 from spinta.exceptions import PropertyNotFound
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
@@ -74,7 +75,7 @@ from spinta.manifests.tabular.components import TabularFormat
 from spinta.manifests.tabular.constants import DATASET
 from spinta.manifests.tabular.formats.gsheets import read_gsheets_manifest
 from spinta.spyna import SpynaAST
-from spinta.types.datatype import Ref, DataType, Denorm, Inherit, ExternalRef
+from spinta.types.datatype import Ref, DataType, Denorm, Inherit, ExternalRef, BackRef, ArrayBackRef, Array, Object
 from spinta.utils.data import take
 from spinta.utils.schema import NA
 from spinta.utils.schema import NotAvailable
@@ -372,7 +373,8 @@ class BaseReader(TabularReader):
                 'pk': (
                     [x.strip() for x in row['ref'].split(',')]
                     if row['ref'] else []
-                )
+                ),
+                'level': row['level']
             }
 
     def release(self, reader: TabularReader = None) -> bool:
@@ -423,6 +425,7 @@ class ModelReader(TabularReader):
                 'name': base.name,
                 'parent': base.data['model'],
                 'pk': base.data['pk'],
+                'level': base.data['level']
             } if base and base.data else None,
             'level': row['level'],
             'access': row['access'],
@@ -523,8 +526,8 @@ def _get_type_repr(dtype: [DataType, str]):
         if dtype.type_args:
             args = ', '.join(dtype.type_args)
             args = f'({args})'
-        return f'{dtype.name}{args}{required}{unique}' if not isinstance(dtype, (Denorm, Inherit, ExternalRef)
-                                                                         ) else dtype.get_type_repr()
+        dtype_name = dtype.name if not isinstance(dtype, (Denorm, Inherit, ExternalRef, ArrayBackRef)) else dtype.get_type_repr()
+        return f'{dtype_name}{args}{required}{unique}'
     else:
         args = ''
         required = ' required' if 'required' in dtype else ''
@@ -555,60 +558,31 @@ class PropertyReader(TabularReader):
     enums: Set[str]
 
     def read(self, row: Dict[str, str]) -> None:
-        self.name = row['property']
-        if self.state.model is None:
-            context = self.state.stack[-1]
-            self.error(
-                f"Property {self.name!r} must be defined in a model context. "
-                f"Now it is defined in {context.name!r} {context.type} context."
-            )
+        full_prop, parent_prop, prop_name = _get_parent_data(self, row, row['property'])
+        prop_data = _handle_datatype(self, row)
+        prop_name = _combine_parent_with_prop(prop_name, prop_data, parent_prop, full_prop)
+        self.name = prop_name
+        self.data = full_prop
+        self.state.model.data['properties'][prop_name] = self.data
 
-        if row['property'] in self.state.model.data['properties']:
-            self.error(
-                f"Property {self.name!r} with the same name is already "
-                f"defined for this {self.state.model.name!r} model."
-            )
-        dtype = _get_type_repr(row['type'])
-        dtype = _parse_dtype_string(dtype)
-        if dtype['error']:
-            self.error(
-                dtype['error']
-            )
+    def append(self, row: Dict[str, str]) -> None:
+        if not row['property']:
+            result = row['prepare']
 
-        if self.state.base and not dtype['type']:
-            dtype['type'] = 'inherit'
-
-        self.data = {
-            'type': dtype['type'],
-            'type_args': dtype['type_args'],
-            'prepare': _parse_spyna(self, row[PREPARE]),
-            'level': row['level'],
-            'access': row['access'],
-            'uri': row['uri'],
-            'title': row['title'],
-            'description': row['description'],
-            'required': dtype['required'],
-            'unique': dtype['unique'],
-        }
-        dataset = self.state.dataset.data if self.state.dataset else None
-        if row['ref']:
-            if dtype['type'] in ('ref', 'backref', 'generic'):
-                ref_model, ref_props = _parse_property_ref(row['ref'])
-                self.data['model'] = get_relative_model_name(dataset, ref_model)
-                self.data['refprops'] = ref_props
-            else:
-                # TODO: Detect if ref is a unit or an enum.
-                self.data['enum'] = row['ref']
-        if dataset or row['source']:
-            self.data['external'] = {
-                'name': row['source'],
-                'prepare': self.data.pop('prepare'),
-            }
-        # Denormalized form
-        if "." in self.name and not self.data['type']:
-            self.data['type'] = 'denorm'
-
-        self.state.model.data['properties'][row['property']] = self.data
+            if row['source']:
+                if result:
+                    split = result.split('.')
+                    formula = split[0]
+                    split_formula = formula.split('(')
+                    formatted = row["source"].replace('"', '\\"').replace("'", "\\'")
+                    reconstructed = f'{split_formula[0]}("{formatted}", {"(".join(split_formula[1:])}'
+                    split[0] = reconstructed
+                    result = '.'.join(split)
+                else:
+                    result = row['source']
+            if not result:
+                return
+            self._append_prepare(row, result)
 
     def release(self, reader: TabularReader = None) -> bool:
         return reader is None or isinstance(reader, (
@@ -625,7 +599,332 @@ class PropertyReader(TabularReader):
         self.state.prop = self
 
     def leave(self) -> None:
+        self._parse_prepare()
+        if 'external' in self.data:
+            self.data['external']['prepare'] = self.data.pop('prepare') if 'prepare' in self.data else NA
+
         self.state.prop = None
+
+    def _parse_prepare(self):
+        if "prepare" in self.data:
+            self.data["prepare"] = _parse_spyna(self, self.data["prepare"])
+
+    def _append_prepare(self, row: Dict[str, str], prepare: str):
+        if "prepare" in self.data:
+            prep = self.data["prepare"]
+            self.data["prepare"] = f'{prep}.{prepare}' if prep else prepare
+        self.data['prepare_given'].append(
+            PrepareGiven(
+                appended=True,
+                source=row['source'],
+                prepare=row['prepare']
+            )
+        )
+
+
+ALLOWED_PARTIAL_TYPES = ['object', 'partial', 'ref']
+ALLOWED_ARRAY_TYPES = ['array', 'partial_array']
+
+
+def _initial_normal_property_schema(given_name: str, dtype: dict, row: dict):
+    return {
+        'type': dtype['type'],
+        'type_args': dtype['type_args'],
+        'prepare': row[PREPARE],
+        'level': row['level'],
+        'access': row['access'],
+        'uri': row['uri'],
+        'title': row['title'],
+        'description': row['description'],
+        'required': dtype['required'],
+        'unique': dtype['unique'],
+        'given_name': given_name,
+        'prepare_given': [],
+    }
+
+
+def _initial_array_property_schema(given_name: str, dtype: dict, row: dict):
+    result = _initial_normal_property_schema(given_name, dtype, row)
+    result['items'] = {}
+    return result
+
+
+def _initial_partial_property_schema(given_name: str, dtype: dict, row: dict):
+    result = _initial_normal_property_schema(given_name, dtype, row)
+    result['properties'] = {}
+    return result
+
+
+def _initial_backref_property_schema(given_name: str, dtype: dict, row: dict):
+    result = _initial_normal_property_schema(given_name, dtype, row)
+    if given_name.endswith('[]'):
+        result['type'] = 'array_backref'
+    return result
+
+
+def _datatype_handler(reader: PropertyReader, row: dict, initial_data_loader: Callable[[str, dict, dict], dict]):
+    given_name = row['property']
+    reader.name = _clean_up_prop_name(row['property'].split('.')[-1])
+
+    if reader.state.model is None:
+        context = reader.state.stack[-1]
+        reader.error(
+            f"Property {reader.name!r} must be defined in a model context. "
+            f"Now it is defined in {context.name!r} {context.type} context."
+        )
+    _check_if_property_already_set(reader, row, given_name)
+    dtype = _get_type_repr(row['type'])
+    dtype = _parse_dtype_string(dtype)
+    if dtype['error']:
+        reader.error(
+            dtype['error']
+        )
+
+    if reader.state.base and not dtype['type']:
+        dtype['type'] = 'inherit'
+    elif '.' in given_name and not dtype['type']:
+        dtype['type'] = 'denorm'
+
+    new_data = initial_data_loader(given_name, dtype, row)
+    dataset = reader.state.dataset.data if reader.state.dataset else None
+
+    custom_data = new_data
+    if row['prepare']:
+        custom_data['prepare_given'].append(
+            PrepareGiven(
+                appended=False,
+                source='',
+                prepare=row['prepare']
+            )
+        )
+    if row['ref']:
+        if dtype['type'] in ('ref', 'backref', 'generic'):
+            ref_model, ref_props = _parse_property_ref(row['ref'])
+            custom_data['model'] = get_relative_model_name(dataset, ref_model)
+            if dtype['type'] == 'backref':
+                if len(ref_props) > 1:
+                    raise InvalidBackRefReferenceAmount(backref=reader.name)
+                if len(ref_props) == 1:
+                    custom_data['refprop'] = ref_props[0]
+            else:
+                custom_data['refprops'] = ref_props
+        else:
+            # TODO: Detect if ref is a unit or an enum.
+            custom_data['enum'] = row['ref']
+    if dataset or row['source']:
+        custom_data['external'] = {
+            'name': row['source'],
+        }
+
+    return new_data
+
+
+def _default_datatype_handler(reader: PropertyReader, row: dict):
+    return _datatype_handler(reader, row, _initial_normal_property_schema)
+
+
+def _array_datatype_handler(reader: PropertyReader, row: dict):
+    return _datatype_handler(reader, row, _initial_array_property_schema)
+
+
+def _partial_datatype_handler(reader: PropertyReader, row: dict):
+    return _datatype_handler(reader, row, _initial_partial_property_schema)
+
+
+def _backref_datatype_handler(reader: PropertyReader, row: dict):
+    return _datatype_handler(reader, row, _initial_backref_property_schema)
+
+
+def _handle_datatype(reader: PropertyReader, row: dict):
+    if row['type'] in DATATYPE_HANDLERS:
+        handler = DATATYPE_HANDLERS[row['type']]
+    else:
+        handler = DATATYPE_HANDLERS['_default']
+    return handler(reader, row)
+
+
+DATATYPE_HANDLERS = {
+    "_default": _default_datatype_handler,
+    "partial_array": _array_datatype_handler,
+    "array": _array_datatype_handler,
+    "object": _partial_datatype_handler,
+    "partial": _partial_datatype_handler,
+    "ref": _partial_datatype_handler,
+    "backref": _backref_datatype_handler,
+}
+
+
+def _get_root_prop(reader: PropertyReader, name: str):
+    if name in reader.state.model.data['properties']:
+        return reader.state.model.data['properties'][name]
+    return None
+
+
+def _clean_up_prop_name(name: str):
+    return name.replace('[]', '')
+
+
+def _combine_previous_data(prop: dict, existing_prop: dict):
+    if 'properties' in existing_prop:
+        prop['properties'] = existing_prop['properties']
+    elif 'items' in existing_prop:
+        prop['items'] = existing_prop['items']
+    return prop
+
+
+def _combine_parent_with_prop(prop_name: str, prop: dict, parent_prop: dict, full_prop: dict):
+    return_name = _clean_up_prop_name(prop['given_name'])
+    if parent_prop:
+        if parent_prop['type'] in ALLOWED_PARTIAL_TYPES:
+            if prop_name in parent_prop['properties']:
+                prop = _combine_previous_data(prop, parent_prop['properties'][prop_name])
+            parent_prop['properties'][prop_name] = prop
+            return_name = _clean_up_prop_name(full_prop['given_name'].split('.')[0])
+        elif parent_prop['type'] in ALLOWED_ARRAY_TYPES:
+            # Array backref edge to replace parent instead of update array.items
+            if prop['type'] == 'array_backref':
+                parent_prop.clear()
+                parent_prop.update(prop)
+            else:
+                if parent_prop['items']:
+                    prop = _combine_previous_data(prop, parent_prop['items'])
+                parent_prop['items'] = prop
+            return_name = _clean_up_prop_name(full_prop['given_name'].split('.')[0])
+        else:
+            full_prop.clear()
+            full_prop.update(prop)
+    else:
+        if full_prop:
+            if prop['type'] in ALLOWED_ARRAY_TYPES:
+                prop['items'] = full_prop['items']
+            elif prop['type'] in ALLOWED_PARTIAL_TYPES and 'properties' in full_prop:
+                prop['properties'] = full_prop['properties']
+        full_prop.update(prop)
+    return return_name
+
+
+def _get_parent_data_array(reader: PropertyReader, given_row: dict, full_name: str, current_parent: dict):
+    name = full_name.split('.')[-1]
+    count = name.count('[]')
+    root_name = name.replace('[]', '')
+    empty_array_row = torow(DATASET, {
+        'property': full_name,
+        'type': 'partial_array',
+        'access': given_row['access'],
+    })
+    if not current_parent:
+        current_parent.update(_array_datatype_handler(reader, empty_array_row))
+    adjustment = 1 if current_parent['type'] in ALLOWED_ARRAY_TYPES else 0
+    for i in range(count - adjustment):
+        if current_parent['type'] in ALLOWED_ARRAY_TYPES:
+            if current_parent['items'] and current_parent['items']['type'] not in ALLOWED_ARRAY_TYPES:
+                raise NestedDataTypeMissmatch(initial=current_parent['type'], required='array')
+            elif not current_parent['items']:
+                current_parent['items'].update(_handle_datatype(reader, empty_array_row))
+            current_parent = current_parent['items']
+        elif current_parent['type'] in ALLOWED_PARTIAL_TYPES:
+            if root_name in current_parent['properties'] and current_parent['properties'][root_name]['type'] not in ALLOWED_ARRAY_TYPES:
+                raise NestedDataTypeMissmatch(initial=current_parent['type'], required='array')
+            elif root_name not in current_parent['properties']:
+                current_parent['properties'][root_name] = _handle_datatype(reader, empty_array_row)
+            current_parent = current_parent['properties'][root_name]
+    return current_parent
+
+
+def _get_parent_data_partial(reader: PropertyReader, given_row: dict, full_name: str, current_parent: dict):
+    empty_partial_row = torow(DATASET, {
+        'property': full_name,
+        'type': 'partial',
+        'access': given_row['access'],
+    })
+    name = _clean_up_prop_name(full_name.split('.')[-1])
+    if not current_parent:
+        current_parent.update(_handle_datatype(reader, empty_partial_row))
+    else:
+        if current_parent['type'] in ALLOWED_ARRAY_TYPES:
+            if current_parent['items'] and current_parent['items']['type'] not in ALLOWED_PARTIAL_TYPES:
+                raise NestedDataTypeMissmatch(initial=current_parent['type'], required='partial')
+            elif not current_parent['items']:
+                current_parent['items'].update(_handle_datatype(reader, empty_partial_row))
+            current_parent = current_parent['items']
+        elif current_parent['type'] in ALLOWED_PARTIAL_TYPES:
+            if name in current_parent['properties'] and current_parent['properties'][name]['type'] not in ALLOWED_PARTIAL_TYPES:
+                raise NestedDataTypeMissmatch(initial=current_parent['type'], required='partial')
+            elif name not in current_parent['properties']:
+                current_parent['properties'][name] = _handle_datatype(reader, empty_partial_row)
+            current_parent = current_parent['properties'][name]
+    return current_parent
+
+
+def _get_parent_data(reader: PropertyReader, given_row: dict, name: str):
+    split_props = name.split('.')
+    full_prop = {}
+    root = _get_root_prop(reader, _clean_up_prop_name(split_props[0]))
+    if root:
+        full_prop.update(root)
+
+    current_parent = None
+    count = len(split_props)
+    prop_name = name
+    full_name = []
+    for i, prop in enumerate(split_props):
+        full_name.append(prop)
+        if '[]' in prop:
+            current_parent = _get_parent_data_array(reader, given_row, '.'.join(full_name), current_parent or full_prop)
+        if i + 1 != count:
+            if not current_parent and full_prop:
+                current_parent = full_prop
+            else:
+                current_parent = _get_parent_data_partial(reader, given_row, '.'.join(full_name), current_parent or full_prop)
+        else:
+            prop_name = _clean_up_prop_name(prop)
+        if current_parent and (current_parent['type'] not in ALLOWED_PARTIAL_TYPES and current_parent['type'] not in ALLOWED_ARRAY_TYPES):
+            raise DataTypeCannotBeUsedForNesting(dtype=current_parent['type'])
+    return full_prop, current_parent, prop_name
+
+
+def _check_if_property_already_set(reader: PropertyReader, given_row: dict, full_name: str):
+    split = full_name.split('.')
+    base_name = _clean_up_prop_name(split[0])
+    base = {}
+    if base_name in reader.state.model.data['properties']:
+        base = reader.state.model.data['properties'][base_name]
+        if base_name == full_name and base['type'] != 'partial' and base['type'] != 'partial_array':
+            reader.error(
+                f"Property {reader.name!r} with the same name is already "
+                f"defined for this {reader.state.model.name!r} model."
+            )
+    if not base:
+        return
+
+    for i, prop in enumerate(split):
+        if '[]' in prop:
+            count = prop.count('[]') + 1
+            prop = prop.replace('[]', '')
+
+            for a_i in range(count):
+                if not base:
+                    return
+                if base['type'] in ALLOWED_ARRAY_TYPES:
+                    base = base['items']
+                elif base['type'] in ALLOWED_PARTIAL_TYPES:
+                    base = base['properties'].get(prop, None)
+                else:
+                    raise DataTypeCannotBeUsedForNesting(dtype=base['type'])
+        else:
+            if i > 0:
+                if not base:
+                    return
+                if base['type'] in ALLOWED_PARTIAL_TYPES:
+                    base = base['properties'].get(prop, None)
+                elif base['type'] in ALLOWED_ARRAY_TYPES:
+                    base = base['items']
+                else:
+                    raise DataTypeCannotBeUsedForNesting(dtype=base['type'])
+
+    if base:
+        if (base['type'] in ALLOWED_PARTIAL_TYPES and given_row['type'] not in ALLOWED_PARTIAL_TYPES) or (base['type'] in ALLOWED_ARRAY_TYPES and given_row['type'] not in ALLOWED_ARRAY_TYPES):
+            raise DataTypeCannotBeUsedForNesting(dtype=given_row['type'])
 
 
 class AppendReader(TabularReader):
@@ -1303,7 +1602,9 @@ def load_ascii_tabular_manifest(
     commands.link(context, manifest)
 
 
-def get_relative_model_name(dataset: dict, name: str) -> str:
+def get_relative_model_name(dataset: [str, dict], name: str) -> str:
+    if isinstance(dataset, str):
+        return name.replace(dataset, '')
     if name.startswith('/'):
         return name[1:]
     elif dataset is None:
@@ -1638,7 +1939,8 @@ def _base_to_tabular(
     base: Base,
 ) -> Iterator[ManifestRow]:
     data = {
-        'base': base.name
+        'base': base.name,
+        'level': base.level.value if base.level else "",
     }
     if base.pk:
         data['ref'] = ', '.join([pk.place for pk in base.pk])
@@ -1656,11 +1958,11 @@ def _property_to_tabular(
     if prop.name.startswith('_'):
         return
 
-    if prop.access < access:
+    if prop.access is not None and prop.access < access:
         return
 
     data = {
-        'property': prop.place,
+        'property': prop.given.name,
         'type': _get_type_repr(prop.dtype),
         'level': prop.level.value if prop.level else "",
         'access': prop.given.access,
@@ -1682,7 +1984,11 @@ def _property_to_tabular(
         elif prop.external:
             data['source'] = prop.external.name
             data['prepare'] = unparse(prop.external.prepare or NA)
-    if isinstance(prop.dtype, Ref):
+    yield_rows = []
+    if isinstance(prop.dtype, Array):
+        yield_array_row = prop.dtype.items
+        yield_rows.append(yield_array_row)
+    elif isinstance(prop.dtype, Ref):
         model = prop.model
         if model.external and model.external.dataset:
             data['ref'] = to_relative_model_name(
@@ -1696,12 +2002,37 @@ def _property_to_tabular(
                 data['ref'] += f'[{rkeys}]'
         else:
             data['ref'] = prop.dtype.model.name
+
+        if prop.dtype.properties:
+            for obj_prop in prop.dtype.properties.values():
+                yield_rows.append(obj_prop)
+    elif isinstance(prop.dtype, BackRef):
+        model = prop.model
+        if model.external and model.external.dataset:
+            data['ref'] = to_relative_model_name(
+                prop.dtype.model,
+                model.external.dataset,
+            )
+            rkey = prop.dtype.refprop.place
+            if prop.dtype.explicit:
+                data['ref'] += f'[{rkey}]'
+        else:
+            data['ref'] = prop.dtype.model.name
+
+        for denorm_prop in prop.dtype.properties.values():
+            yield_rows.append(denorm_prop)
+    elif isinstance(prop.dtype, Object):
+        for obj_prop in prop.dtype.properties.values():
+            yield_rows.append(obj_prop)
+
     elif prop.enum is not None:
         data['ref'] = prop.given.enum
     elif prop.unit is not None:
         data['ref'] = prop.given.unit
-
-    yield torow(DATASET, data)
+    data, prepare_rows = _prepare_to_tabular(data, prop)
+    if prop.given.name:
+        yield torow(DATASET, data)
+    yield from prepare_rows
     yield from _comments_to_tabular(prop.comments, access=access)
     yield from _lang_to_tabular(prop.lang)
     yield from _enums_to_tabular(
@@ -1710,6 +2041,26 @@ def _property_to_tabular(
         access=access,
         order_by=order_by,
     )
+    if yield_rows:
+        for yield_row in yield_rows:
+            if yield_row:
+                yield from _property_to_tabular(yield_row, external=external, access=access, order_by=order_by)
+
+
+def _prepare_to_tabular(data, prop):
+    prep_rows = []
+    if prop.given.prepare:
+        data['prepare'] = ''
+        for prep in prop.given.prepare:
+            if prep['appended']:
+                prep_rows.append(torow(DATASET, {
+                    'source': prep['source'],
+                    'prepare': prep['prepare']
+                }))
+            else:
+                if prop.external:
+                    data['prepare'] = prep['prepare']
+    return data, prep_rows
 
 
 def _model_to_tabular(
@@ -1726,6 +2077,7 @@ def _model_to_tabular(
         'access': model.given.access,
         'title': model.title,
         'description': model.description,
+        'uri': model.uri if model.uri else "",
     }
     if model.external and model.external.dataset:
         data['model'] = to_relative_model_name(
@@ -1844,7 +2196,7 @@ def datasets_to_tabular(
         else:
             separator = False
 
-        if model.base and (not base or model.base.name != base.name):
+        if model.base and (not base or not is_base_same(model.base, base)):
             base = model.base
             yield from _base_to_tabular(model.base)
         elif base and not model.base:
@@ -1869,6 +2221,10 @@ def datasets_to_tabular(
         )
         for resource in dataset.resources.values():
             yield from _resource_to_tabular(resource)
+
+
+def is_base_same(a: Base, b: Base):
+    return a.name == b.name and a.level == b.level and a.pk == b.pk
 
 
 def torow(keys, values) -> ManifestRow:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import List, Union, Any
+import uuid
+from typing import List, Union, Any, Tuple
 
 import datetime
 import dataclasses
@@ -9,19 +10,22 @@ from typing import Optional
 import sqlalchemy as sa
 
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import array_agg
 
 from spinta import exceptions
 from spinta.auth import authorized
 from spinta.backends import get_property_base_model
-from spinta.core.ufuncs import Env, ufunc
-from spinta.core.ufuncs import Bind
+from spinta.core.ufuncs import ufunc
+from spinta.core.ufuncs import Bind, Negative as Negative_
 from spinta.core.ufuncs import Expr
+from spinta.datasets.enums import Level
 from spinta.exceptions import EmptyStringSearch, PropertyNotFound
 from spinta.exceptions import UnknownMethod
 from spinta.exceptions import FieldNotInResource
-from spinta.components import Action, Model, Property
+from spinta.components import Model, Property, Action, Page
+from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, merge_with_page_sort, merge_with_page_limit, merge_with_page_selected_list
 from spinta.utils.data import take
-from spinta.types.datatype import DataType, ExternalRef, Inherit
+from spinta.types.datatype import DataType, ExternalRef, Inherit, BackRef, Time, ArrayBackRef
 from spinta.types.datatype import Array
 from spinta.types.datatype import File
 from spinta.types.datatype import Object
@@ -37,7 +41,7 @@ from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.components import BackendFeatures
 
 
-class PgQueryBuilder(Env):
+class PgQueryBuilder(BaseQueryBuilder):
     backend: PostgreSQL
 
     def init(self, backend: PostgreSQL, table: sa.Table):
@@ -52,6 +56,8 @@ class PgQueryBuilder(Env):
             limit=None,
             offset=None,
             aggregate=False,
+            page=QueryPage(),
+            group_by=[]
         )
 
     def build(self, where):
@@ -65,11 +71,18 @@ class PgQueryBuilder(Env):
                 self.table.c['_id'],
                 self.table.c['_revision'],
             ]
-        for sel in self.select.values():
-            items = sel.item if isinstance(sel.item, list) else [sel.item]
-            for item in items:
-                if item is not None and item not in select:
-                    select.append(item)
+        merged_selected = merge_with_page_selected_list(list(self.select.values()), self.page)
+        merged_sorted = merge_with_page_sort(self.sort, self.page)
+        merged_limit = merge_with_page_limit(self.limit, self.page)
+        for sel in merged_selected:
+            if sel is not None:
+                if sel.prop and sel.prop.dtype.expandable:
+                    if self.expand is None or self.expand and sel.prop not in self.expand:
+                        continue
+                items = sel.item if isinstance(sel.item, list) else [sel.item]
+                for item in items:
+                    if item is not None and item not in select:
+                        select.append(item)
         qry = sa.select(select)
 
         qry = qry.select_from(self.from_)
@@ -77,15 +90,17 @@ class PgQueryBuilder(Env):
         if where is not None:
             qry = qry.where(where)
 
-        if self.sort:
-            qry = qry.order_by(*self.sort)
+        if merged_sorted:
+            qry = qry.order_by(*merged_sorted)
 
-        if self.limit is not None:
-            qry = qry.limit(self.limit)
+        if merged_limit is not None:
+            qry = qry.limit(merged_limit)
 
         if self.offset is not None:
             qry = qry.offset(self.offset)
 
+        if self.group_by:
+            qry = qry.group_by(*self.group_by)
         return qry
 
     def default_resolver(self, expr, *args, **kwargs):
@@ -110,6 +125,102 @@ class PgQueryBuilder(Env):
             self.joins[fpr.name] = rtable
             self.from_ = self.from_.outerjoin(rtable, condition)
 
+        return self.joins[fpr.name]
+
+    def generate_backref_select(self, left: Property, right: Property, required_columns: List[Tuple[str, str]], aggregate: bool = False):
+        select_columns = []
+        group_by = []
+
+        left_table = self.backend.get_table(left.model)
+        left_keys = self.backend.get_column(left_table, left)
+
+        join_condition = None
+        right_table = self.backend.get_table(right)
+        right_list_table = None
+        list_join_condition = None
+        right_keys = self.backend.get_column(right_table, right, override_table=False)
+        right_list_keys = None
+        if right.list is not None:
+            right_list_table = self.backend.get_table(right, TableType.LIST)
+            list_join_condition = right_list_table.c['_rid'] == right_table.c['_id']
+            right_list_keys = self.backend.get_column(right_list_table, right)
+        from_ = right_list_table if right_list_table is not None else right_table
+        initial_join_right_keys = right_list_keys if right_list_keys is not None else right_keys
+
+        if aggregate:
+            json_columns = []
+            for col, label in required_columns:
+                json_columns.extend([col, right_table.c[col]])
+            column = array_agg(sa.func.json_build_object(*json_columns))
+            column = column.label(left.name)
+            select_columns.append(column)
+
+            if isinstance(initial_join_right_keys, list):
+                for key in initial_join_right_keys:
+                    group_by.append(key)
+            else:
+                group_by.append(initial_join_right_keys)
+
+        else:
+            for col, label in required_columns:
+                column = right_table.c[col]
+                column = column.label(label)
+                select_columns.append(column)
+
+        if isinstance(initial_join_right_keys, list):
+            select_columns.extend(initial_join_right_keys)
+        else:
+            select_columns.append(initial_join_right_keys)
+
+        if isinstance(left_keys, list) and isinstance(initial_join_right_keys, list):
+            if len(left_keys) == len(initial_join_right_keys):
+                for i, key in enumerate(left_keys):
+                    if join_condition is None:
+                        join_condition = key == initial_join_right_keys[i]
+                    else:
+                        join_condition = sa.and_(join_condition, key == initial_join_right_keys[i])
+            else:
+                raise Exception("DOESNT MATCH")
+        elif type(left_keys) != type(initial_join_right_keys):
+            raise Exception("TYPE DOESNT MATCH")
+        else:
+            join_condition = left_keys == initial_join_right_keys
+
+        from_ = from_.outerjoin(left_table, join_condition)
+        if list_join_condition is not None:
+            from_ = from_.outerjoin(right_table, list_join_condition)
+        stmt = sa.select(select_columns)
+        stmt = stmt.select_from(from_)
+        stmt = stmt.group_by(*group_by)
+        stmt = stmt.subquery()
+        return stmt
+
+    def get_backref_joined_table(self, prop: ForeignProperty, selector: sa.sql.expression) -> sa.sql.expression:
+        for fpr in prop.chain:
+            if fpr.name in self.joins:
+                continue
+            if len(fpr.chain) > 1:
+                ltable = self.joins[fpr.chain[-2].name]
+            else:
+                ltable = self.backend.get_table(fpr.left.model)
+            lrkey = self.backend.get_column(ltable, fpr.left)
+            rpkey = self.backend.get_column(selector, fpr.right, override_table=False)
+            condition = None
+            if isinstance(lrkey, list) and isinstance(rpkey, list):
+                if len(lrkey) == len(rpkey):
+                    for i, key in enumerate(lrkey):
+                        if condition is None:
+                            condition = key == rpkey[i]
+                        else:
+                            condition = sa.and_(condition, key == rpkey[i])
+                else:
+                    raise Exception("DOESNT MATCH")
+            elif type(lrkey) != type(rpkey):
+                raise Exception("TYPE DOESNT MATCH")
+            else:
+                condition = lrkey == rpkey
+            self.joins[fpr.name] = selector
+            self.from_ = self.from_.outerjoin(selector, condition)
         return self.joins[fpr.name]
 
     def get_joined_base_table(self, model: Model, prop: str):
@@ -256,6 +367,12 @@ def getattr_(env, dtype, attr):
     return ForeignProperty(None, dtype.prop, prop)
 
 
+@ufunc.resolver(PgQueryBuilder, BackRef, Bind, name='getattr')
+def getattr_(env, dtype, attr):
+    prop = dtype.model.properties[attr.name]
+    return ForeignProperty(None, dtype.prop, prop)
+
+
 @ufunc.resolver(PgQueryBuilder, ForeignProperty, Bind, name='getattr')
 def getattr_(env, fpr, attr):
     prop = fpr.right.dtype.model.properties[attr.name]
@@ -288,7 +405,8 @@ def select(env, expr):
     else:
         env.call('select', Star())
 
-    assert env.select, args
+    if not (len(args) == 1 and args[0][0] == '_page'):
+        assert env.select, args
 
 
 @ufunc.resolver(PgQueryBuilder, Star)
@@ -305,6 +423,8 @@ def select(env, arg: Star) -> None:
 def select(env, arg):
     if arg.name == '_type':
         return Selected(None, env.model.properties['_type'])
+    if arg.name == '_page':
+        return None
     prop = _get_property_for_select(env, arg.name)
     return env.call('select', prop.dtype)
 
@@ -322,10 +442,16 @@ class Selected:
     item: Any
     prop: Property = None
 
+    def __eq__(self, other):
+        if isinstance(other, Selected):
+            return self.prop == other.prop
+        return False
+
 
 @ufunc.resolver(PgQueryBuilder, DataType)
 def select(env, dtype):
     table = env.backend.get_table(env.model)
+
     if dtype.prop.list is None:
         column = env.backend.get_column(table, dtype.prop, select=True)
     else:
@@ -341,10 +467,11 @@ def select(env, dtype):
     columns = []
     for prop in take(dtype.properties).values():
         sel = env.call('select', prop.dtype)
-        if isinstance(sel.item, list):
-            columns += sel.item
-        else:
-            columns += [sel.item]
+        if sel is not None:
+            if isinstance(sel.item, list):
+                columns += sel.item
+            else:
+                columns += [sel.item]
     return Selected(columns, dtype.prop)
 
 
@@ -382,8 +509,15 @@ def select(env, dtype, leaf):
 
 @ufunc.resolver(PgQueryBuilder, Ref)
 def select(env, dtype):
-    table = env.backend.get_table(env.model)
-    column = table.c[dtype.prop.place + '._id']
+    uri = dtype.model.uri_prop
+    if env.prioritize_uri and uri is not None:
+        fpr = ForeignProperty(None, dtype.prop, dtype.model.properties['_id'])
+        table = env.get_joined_table(fpr)
+        column = table.c[uri.place]
+        column = column.label(dtype.prop.place + '._uri')
+    else:
+        table = env.backend.get_table(env.model)
+        column = table.c[dtype.prop.place + '._id']
     return Selected(column, dtype.prop)
 
 
@@ -399,6 +533,63 @@ def select(env, dtype):
         column = table.c[f"{dtype.prop.place}.{prop.place}"]
         columns.append(column)
     return Selected(columns, dtype.prop)
+
+
+@ufunc.resolver(PgQueryBuilder, BackRef)
+def select(env, dtype):
+    fpr = ForeignProperty(
+        None,
+        left=dtype.prop,
+        right=dtype.refprop,
+    )
+    refprop = dtype.refprop
+    required_columns = []
+    return_columns = []
+    if refprop.level is None or refprop.level > Level.open:
+        column_name = fpr.right.model.properties['_id'].name
+        label = f'{dtype.prop.name}.{column_name}'
+        required_columns.append((column_name, label))
+        return_columns.append(label)
+    else:
+        required_columns = []
+        for prop in dtype.refprop.dtype.refprops:
+            column_name = prop.name
+            label = f'{dtype.prop.name}.{column_name}'
+            required_columns.append((column_name, label))
+            return_columns.append(label)
+    selector = env.generate_backref_select(dtype.prop, dtype.refprop, required_columns, False)
+    table = env.get_backref_joined_table(fpr, selector)
+    if len(return_columns) == 1:
+        column = table.c[return_columns[0]]
+        return Selected(column, fpr.left)
+    else:
+        collected_columns = []
+        for col in return_columns:
+            collected_columns.append(table.c[col])
+        return Selected(collected_columns, fpr.left)
+
+
+@ufunc.resolver(PgQueryBuilder, ArrayBackRef)
+def select(env, dtype):
+    fpr = ForeignProperty(
+        None,
+        left=dtype.prop,
+        right=dtype.refprop,
+    )
+    refprop = dtype.refprop
+    required_columns = []
+    if refprop.level is None or refprop.level > Level.open:
+        column_name = fpr.right.model.properties['_id'].name
+        required_columns.append((column_name, column_name))
+    else:
+        required_columns = []
+        for prop in dtype.refprop.dtype.refprops:
+            column_name = prop.name
+            required_columns.append((column_name, column_name))
+    selector = env.generate_backref_select(dtype.prop, dtype.refprop, required_columns, True)
+    table = env.get_backref_joined_table(fpr, selector)
+    column = table.c[dtype.prop.name]
+    return Selected(column, fpr.left)
 
 
 @ufunc.resolver(PgQueryBuilder, ForeignProperty)
@@ -423,6 +614,15 @@ def select(env, dtype):
     column = table.c[dtype.prop_name]
     column = column.label(f"{dtype.base_prop.name}.{dtype.prop_name}")
     return Selected(column, dtype.base_prop)
+
+
+@ufunc.resolver(PgQueryBuilder, Page)
+def select(env, page):
+    return_selected = []
+    for item in page.by.values():
+        selected = env.call('select', item.prop.dtype)
+        return_selected.append(selected)
+    return return_selected
 
 
 @ufunc.resolver(PgQueryBuilder, int)
@@ -479,6 +679,21 @@ COMPARE = [
     'contains',
 ]
 
+COMPARE_EQUATIONS = [
+    'eq',
+    'ne',
+    'lt',
+    'le',
+    'gt',
+    'ge',
+]
+
+COMPARE_STRING = [
+    'eq',
+    'startswith',
+    'contains',
+]
+
 
 @ufunc.resolver(PgQueryBuilder, Bind, object, names=COMPARE)
 def compare(env, op, field, value):
@@ -491,6 +706,92 @@ def _get_from_flatprops(model: Model, prop: str):
         return model.flatprops[prop]
     else:
         raise exceptions.FieldNotInResource(model, property=prop)
+
+
+@ufunc.resolver(PgQueryBuilder, PrimaryKey, object, names=COMPARE_EQUATIONS)
+def compare(env, op, dtype, value):
+    column = env.backend.get_column(env.table, dtype.prop)
+    cond = _sa_compare(op, column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
+
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, object, names=COMPARE)
+def compare(env, op: str, fpr: ForeignProperty, value: Any):
+    return env.call(op, fpr, fpr.right.dtype, value)
+
+
+@ufunc.resolver(PgQueryBuilder, PrimaryKey, object, names=COMPARE)
+def compare(env, op, dtype, value):
+    value = str(value)
+    try:
+        uuid.UUID(value)
+    except ValueError:
+        raise exceptions.InvalidValue(dtype, op=op, arg=type(value).__name__)
+
+    column = env.backend.get_column(env.table, dtype.prop)
+    cond = _sa_compare(op, column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
+
+@ufunc.resolver(PgQueryBuilder, String, str, names=COMPARE)
+def compare(env, op, dtype, value):
+    if op in ('startswith', 'contains'):
+        _ensure_non_empty(op, value)
+    column = env.backend.get_column(env.table, dtype.prop)
+    cond = _sa_compare(op, column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
+
+@ufunc.resolver(PgQueryBuilder, (Integer, Number), (int, float), names=COMPARE_EQUATIONS)
+def compare(env, op, dtype, value):
+    column = env.backend.get_column(env.table, dtype.prop)
+    cond = _sa_compare(op, column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
+
+@ufunc.resolver(PgQueryBuilder, DateTime, str, names=COMPARE_EQUATIONS)
+def compare(env, op, dtype, value):
+    column = env.backend.get_column(env.table, dtype.prop)
+    value = datetime.datetime.fromisoformat(value)
+    cond = _sa_compare(op, column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
+
+@ufunc.resolver(PgQueryBuilder, DateTime, datetime.datetime, names=COMPARE_EQUATIONS)
+def compare(env, op, dtype, value):
+    column = env.backend.get_column(env.table, dtype.prop)
+    cond = _sa_compare(op, column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
+
+@ufunc.resolver(PgQueryBuilder, Date, str, names=COMPARE_EQUATIONS)
+def compare(env, op, dtype, value):
+    column = env.backend.get_column(env.table, dtype.prop)
+    value = datetime.date.fromisoformat(value)
+    cond = _sa_compare(op, column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
+
+@ufunc.resolver(PgQueryBuilder, Date, datetime.date, names=COMPARE_EQUATIONS)
+def compare(env, op, dtype, value):
+    column = env.backend.get_column(env.table, dtype.prop)
+    cond = _sa_compare(op, column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
+
+@ufunc.resolver(PgQueryBuilder, Time, str, names=COMPARE_EQUATIONS)
+def compare(env, op, dtype, value):
+    column = env.backend.get_column(env.table, dtype.prop)
+    value = datetime.time.fromisoformat(value)
+    cond = _sa_compare(op, column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
+
+@ufunc.resolver(PgQueryBuilder, Time, datetime.time, names=COMPARE_EQUATIONS)
+def compare(env, op, dtype, value):
+    column = env.backend.get_column(env.table, dtype.prop)
+    cond = _sa_compare(op, column, value)
+    return _prepare_condition(env, dtype.prop, cond)
 
 
 @ufunc.resolver(PgQueryBuilder, DataType, object, names=COMPARE)
@@ -507,11 +808,6 @@ def compare(
     value: Any,
 ):
     raise exceptions.InvalidValue(dtype, op=op, arg=type(value).__name__)
-
-
-@ufunc.resolver(PgQueryBuilder, ForeignProperty, object, names=COMPARE)
-def compare(env, op: str, fpr: ForeignProperty, value: Any):
-    return env.call(op, fpr, fpr.right.dtype, value)
 
 
 @ufunc.resolver(PgQueryBuilder, DataType, type(None))
@@ -552,20 +848,7 @@ def _ensure_non_empty(op, s):
         raise EmptyStringSearch(op=op)
 
 
-@ufunc.resolver(PgQueryBuilder, String, str, names=[
-    'eq', 'startswith', 'contains',
-])
-def compare(env, op, dtype, value):
-    if op in ('startswith', 'contains'):
-        _ensure_non_empty(op, value)
-    column = env.backend.get_column(env.table, dtype.prop)
-    cond = _sa_compare(op, column, value)
-    return _prepare_condition(env, dtype.prop, cond)
-
-
-@ufunc.resolver(PgQueryBuilder, ForeignProperty, String, str, names=[
-    'eq', 'startswith', 'contains',
-])
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, String, str, names=COMPARE_STRING)
 def compare(
     env: PgQueryBuilder,
     op: str,
@@ -581,9 +864,7 @@ def compare(
     return _prepare_condition(env, dtype.prop, cond)
 
 
-@ufunc.resolver(PgQueryBuilder, PrimaryKey, str, names=[
-    'eq', 'startswith', 'contains',
-])
+@ufunc.resolver(PgQueryBuilder, PrimaryKey, str, names=COMPARE_STRING)
 def compare(env, op, dtype, value):
     if op in ('startswith', 'contains'):
         _ensure_non_empty(op, value)
@@ -591,18 +872,7 @@ def compare(env, op, dtype, value):
     return _sa_compare(op, column, value)
 
 
-@ufunc.resolver(PgQueryBuilder, (Integer, Number), (int, float), names=[
-    'eq', 'lt', 'le', 'gt', 'ge',
-])
-def compare(env, op, dtype, value):
-    column = env.backend.get_column(env.table, dtype.prop)
-    cond = _sa_compare(op, column, value)
-    return _prepare_condition(env, dtype.prop, cond)
-
-
-@ufunc.resolver(PgQueryBuilder, ForeignProperty, (Integer, Number), (int, float), names=[
-    'eq', 'lt', 'le', 'gt', 'ge',
-])
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, (Integer, Number), (int, float), names=COMPARE_EQUATIONS)
 def compare(
     env: PgQueryBuilder,
     op: str,
@@ -616,19 +886,7 @@ def compare(
     return _prepare_condition(env, dtype.prop, cond)
 
 
-@ufunc.resolver(PgQueryBuilder, DateTime, str, names=[
-    'eq', 'lt', 'le', 'gt', 'ge',
-])
-def compare(env, op, dtype, value):
-    column = env.backend.get_column(env.table, dtype.prop)
-    value = datetime.datetime.fromisoformat(value)
-    cond = _sa_compare(op, column, value)
-    return _prepare_condition(env, dtype.prop, cond)
-
-
-@ufunc.resolver(PgQueryBuilder, ForeignProperty, DateTime, str, names=[
-    'eq', 'lt', 'le', 'gt', 'ge',
-])
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, DateTime, str, names=COMPARE_EQUATIONS)
 def compare(
     env: PgQueryBuilder,
     op: str,
@@ -643,19 +901,7 @@ def compare(
     return _prepare_condition(env, dtype.prop, cond)
 
 
-@ufunc.resolver(PgQueryBuilder, Date, str, names=[
-    'eq', 'lt', 'le', 'gt', 'ge',
-])
-def compare(env, op, dtype, value):
-    column = env.backend.get_column(env.table, dtype.prop)
-    value = datetime.date.fromisoformat(value)
-    cond = _sa_compare(op, column, value)
-    return _prepare_condition(env, dtype.prop, cond)
-
-
-@ufunc.resolver(PgQueryBuilder, ForeignProperty, Date, str, names=[
-    'eq', 'lt', 'le', 'gt', 'ge',
-])
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, Date, str, names=COMPARE_EQUATIONS)
 def compare(
     env: PgQueryBuilder,
     op: str,
@@ -680,9 +926,7 @@ def lower(env, recurse):
     return Recurse([env.call('lower', arg) for arg in recurse.args])
 
 
-@ufunc.resolver(PgQueryBuilder, Lower, str, names=[
-    'eq', 'startswith', 'contains',
-])
+@ufunc.resolver(PgQueryBuilder, Lower, str, names=COMPARE_STRING)
 def compare(env, op, fn, value):
     if op in ('startswith', 'contains'):
         _ensure_non_empty(op, value)
@@ -841,9 +1085,7 @@ def ne(
     return _ne_compare(env, dtype.prop, column, value)
 
 
-@ufunc.resolver(PgQueryBuilder, Array, (object, type(None)), names=[
-    'eq', 'ne', 'lt', 'le', 'gt', 'ge', 'contains', 'startswith',
-])
+@ufunc.resolver(PgQueryBuilder, Array, (object, type(None)), names=COMPARE)
 def compare(env, op, dtype, value):
     return env.call(op, dtype.items.dtype, value)
 
@@ -932,9 +1174,7 @@ def recurse(env, field):
         raise exceptions.FieldNotInResource(env.model, property=field.name)
 
 
-@ufunc.resolver(PgQueryBuilder, Recurse, object, names=[
-    'eq', 'ne', 'lt', 'le', 'gt', 'ge', 'contains', 'startswith',
-])
+@ufunc.resolver(PgQueryBuilder, Recurse, object, names=COMPARE)
 def recurse(env, op, recurse, value):
     return env.call('or', [
         env.call(op, arg, value)
@@ -966,6 +1206,12 @@ def sort(env, expr):
 def sort(env, field):
     prop = _get_from_flatprops(env.model, field.name)
     return env.call('asc', prop.dtype)
+
+
+@ufunc.resolver(PgQueryBuilder, Negative_)
+def sort(env, field):
+    prop = _get_from_flatprops(env.model, field.name)
+    return env.call('desc', prop.dtype)
 
 
 @ufunc.resolver(PgQueryBuilder, ForeignProperty)
