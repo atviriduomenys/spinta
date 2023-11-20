@@ -704,3 +704,7 @@ class DataTypeCannotBeUsedForNesting(UserError):
 
 class NestedDataTypeMissmatch(UserError):
     template = "While nesting, {initial!r} type cannot be cast to {required!r} type."
+
+
+class OutOfMemoryMigrate(UserError):
+    template = "Ran out of shared memory while migrating. Use '--autocommit' tag, or increase 'max_locks_per_transaction'."

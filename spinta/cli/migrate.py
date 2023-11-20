@@ -61,6 +61,9 @@ def migrate(
     ), is_flag=True),
     rename: str = Option(None, '-r', '--rename', help=(
         "JSON file, that maps manifest node renaming (models, properties)"
+    )),
+    autocommit: bool = Option(False, '-a', '--autocommit', help=(
+        "If added, migrate will do atomic transactions, meaning it will automatically commit after each action (use it at your own risk)"
     ))
 ):
     """Migrate schema change to backends"""
@@ -72,6 +75,7 @@ def migrate(
         backend = manifest.backend
         migrate_meta = MigrateMeta(
             plan=plan,
+            autocommit=autocommit,
             rename=MigrateRename(
                 path=rename
             )
@@ -172,11 +176,13 @@ class MigrateRename:
 
 class MigrateMeta:
     plan: bool
+    autocommit: bool
     rename: MigrateRename
 
-    def __init__(self, plan: bool, rename: MigrateRename):
+    def __init__(self, plan: bool, autocommit: bool, rename: MigrateRename):
         self.plan = plan
         self.rename = rename
+        self.autocommit = autocommit
 
 
 def _validate_migrate_rename(rename: MigrateRename, manifest: Manifest):

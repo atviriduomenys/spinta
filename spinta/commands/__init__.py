@@ -973,11 +973,26 @@ def merge(*args) -> None:
     """Merge new manifest into old."""
 
 
-@command()
+@overload
 def create_exception(
     data_item: DataItem,
     error: Exception
 ) -> BaseError:
+    pass
+
+
+@overload
+def create_exception(
+    manifest: Manifest,
+    error: Exception
+) -> BaseError:
+    pass
+
+
+@command()
+def create_exception(
+    **kwargs
+):
     """
         Creates Spinta Exception from normal error
     """

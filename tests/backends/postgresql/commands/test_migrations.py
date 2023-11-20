@@ -170,7 +170,8 @@ def test_migrate_create_simple_datatype_model(
         '    "someUri" VARCHAR, \n'
         '    "someBinary" BYTEA, \n'
         '    "someJson" JSONB, \n'
-        '    PRIMARY KEY (_id)\n'
+        '    PRIMARY KEY (_id), \n'
+        '    UNIQUE ("someUri")\n'
         ');\n'
         '\n'
         'CREATE INDEX "ix_migrate/example/Test__txn" ON "migrate/example/Test" '
@@ -737,6 +738,7 @@ def test_migrate_model_ref_unique_constraint(
     result = cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv', '-p'
     ])
+
     assert result.output.endswith(
         'BEGIN;\n'
         '\n'

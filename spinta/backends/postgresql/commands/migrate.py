@@ -16,7 +16,10 @@ from sqlalchemy.dialects.postgresql import JSONB, BIGINT, ARRAY
 from sqlalchemy.dialects import postgresql
 
 from spinta.cli.migrate import MigrateMeta, MigrateRename
+from spinta.commands import create_exception
+from spinta.datasets.enums import Level
 from spinta.types.datatype import DataType, Ref, File, Inherit, Array, Object
+from spinta.types.namespace import sort_models_by_ref_and_base
 from spinta.utils.schema import NotAvailable, NA
 
 from alembic.migration import MigrationContext
@@ -50,14 +53,17 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
         if name not in manifest.models.keys():
             name = table
         tables.append(name)
+    sorted_models = sort_models_by_ref_and_base(list(manifest.models.values()))
+    sorted_model_names = list([model.name for model in sorted_models])
+    # Do reversed zip, to ensure that sorted models get selected first
     models = zipitems(
+        sorted_model_names,
         tables,
-        manifest.models.keys(),
         _model_name_key
     )
     handler = MigrationHandler()
     for items in models:
-        for old_model, new_model in items:
+        for new_model, old_model in items:
             if old_model and any(value in old_model for value in (TableType.CHANGELOG.value, TableType.FILE.value)):
                 continue
             if old_model and old_model in EXCLUDED_MODELS:
@@ -67,10 +73,23 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
                 old = metadata.tables[migrate_meta.rename.get_old_table_name(old_model)]
             new = manifest.models.get(new_model) if new_model else new_model
             commands.migrate(context, backend, inspector, old, new, handler, migrate_meta.rename)
-    _handle_foreign_key_constraints(inspector, manifest, handler, migrate_meta.rename)
-    _clean_up_file_type(inspector, manifest, handler, migrate_meta.rename)
-    with ctx.begin_transaction():
-        handler.run_migrations(op)
+    _handle_foreign_key_constraints(inspector, sorted_models, handler, migrate_meta.rename)
+    _clean_up_file_type(inspector, sorted_models, handler, migrate_meta.rename)
+    try:
+        if migrate_meta.autocommit:
+            # Recreate new connection, that auto commits
+            with backend.engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+                ctx = MigrationContext.configure(conn, opts={
+                    "as_sql": migrate_meta.plan
+                })
+                op = Operations(ctx)
+                handler.run_migrations(op)
+        else:
+            with ctx.begin_transaction():
+                handler.run_migrations(op)
+    except sa.exc.OperationalError as error:
+        exception = create_exception(manifest, error)
+        raise exception
 
 
 @commands.migrate.register(Context, PostgreSQL, Inspector, sa.Table, Model, MigrationHandler, MigrateRename)
@@ -106,7 +125,7 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, old: sa
             items = []
             column_name = rename.get_old_column_name(old.name, get_column_name(prop))
             for column in old.columns:
-                if column.name.startswith(column_name):
+                if '.' in column.name and column.name.split('.')[0] == column_name:
                     renamed = rename.get_column_name(old.name, column.name)
                     if renamed in columns:
                         columns.remove(renamed)
@@ -138,33 +157,50 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, old: sa
     if new.unique:
         for val in new.unique:
             prop_list = []
+
             for prop in val:
-                name = prop.name
-                if isinstance(prop.dtype, Ref):
-                    name = f'{name}.{prop.dtype.refprops[0].name}'
-                prop_list.append(get_pg_name(name))
+                for name in _get_prop_names(prop):
+                    prop_list.append(get_pg_name(name))
+
             constraints = inspector.get_unique_constraints(old.name)
             constraint_name = f'{old.name}_{"_".join(prop_list)}_key'
             if old.name != table_name:
                 constraint_name = f'{table_name}_{"_".join(prop_list)}_key'
-            required_unique_constraints.append(constraint_name)
-            if not any(constraint['name'] == constraint_name for constraint in constraints):
-                handler.add_action(ma.CreateUniqueConstraintMigrationAction(
-                    table_name=table_name,
-                    constraint_name=constraint_name,
-                    columns=prop_list
-                ))
+            constraint_name = get_pg_name(constraint_name)
+            required_unique_constraints.append(prop_list)
+
+            # Skip unique properties, since they are already handled in other parts
+            if not (len(val) == 1 and val[0].dtype.unique):
+                if not any(constraint['name'] == constraint_name for constraint in constraints):
+                    handler.add_action(ma.CreateUniqueConstraintMigrationAction(
+                        table_name=table_name,
+                        constraint_name=constraint_name,
+                        columns=prop_list
+                    ))
+
+    for prop in new.properties.values():
+        if prop.dtype.unique:
+            result = commands.prepare(context, backend, prop.dtype)
+            if not isinstance(result, list):
+                result = [result]
+            prop_list = []
+            for item in result:
+                if isinstance(item, sa.Column):
+                    prop_list.append(item.name)
+            if prop_list:
+                required_unique_constraints.append(prop_list)
 
     # Clean up old multi constraints for non required models (happens when model.ref is changed)
     # Solo unique constraints are handled with property migrate
     if not old.name.startswith("_"):
         unique_constraints = inspector.get_unique_constraints(old.name)
         for constraint in unique_constraints:
-            if constraint["name"] not in required_unique_constraints and len(constraint["column_names"]) > 1:
-                handler.add_action(ma.DropConstraintMigrationAction(
-                    table_name=table_name,
-                    constraint_name=constraint["name"]
-                ))
+            if constraint["column_names"] not in required_unique_constraints:
+                if not handler.has_constraint_been_dropped(constraint["name"]):
+                    handler.add_action(ma.DropConstraintMigrationAction(
+                        table_name=table_name,
+                        constraint_name=constraint["name"]
+                    ))
 
 
 @commands.migrate.register(Context, PostgreSQL, Inspector, NotAvailable, Model, MigrationHandler, MigrateRename)
@@ -205,11 +241,9 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, old: No
         for val in new.unique:
             prop_list = []
             for prop in val:
-                name = prop.name
-                if isinstance(prop.dtype, Ref):
-                    name = f'{name}.{prop.dtype.refprops[0].name}'
-                prop_list.append(get_pg_name(name))
-            constraint_name = f'{table_name}_{"_".join(prop_list)}_key'
+                for name in _get_prop_names(prop):
+                    prop_list.append(get_pg_name(name))
+            constraint_name = get_pg_name(f'{table_name}_{"_".join(prop_list)}_key')
             handler.add_action(ma.CreateUniqueConstraintMigrationAction(
                 table_name=table_name,
                 constraint_name=constraint_name,
@@ -417,7 +451,7 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
             requires_drop = True
             for new_column in new_columns:
                 if isinstance(new_column, sa.Column):
-                    if new_column == f'{old_prop_name}._id':
+                    if new_column.name == f'{old_prop_name}._id':
                         requires_drop = False
                         commands.migrate(context, backend, inspector, table, old[0], new_column, handler, rename, True)
                     else:
@@ -508,7 +542,7 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
         ), foreign_key)
 
     renamed = _check_if_renamed(table.name, table_name, old.name, new.name)
-    unique_name = f'{table_name}_{column_name}_key'
+    unique_name = get_pg_name(f'{table_name}_{column_name}_key')
     removed = []
     if renamed:
         unique_constraints = inspector.get_unique_constraints(table_name=table.name)
@@ -519,7 +553,7 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
                     constraint_name=constraint["name"],
                     table_name=table_name
                 ), foreign_key)
-                unique_name = _rename_index_name(constraint["name"], table.name, table_name, old.name, new.name)
+                unique_name = get_pg_name(_rename_index_name(constraint["name"], table.name, table_name, old.name, new.name))
                 if new.unique:
                     handler.add_action(ma.CreateUniqueConstraintMigrationAction(
                         constraint_name=unique_name,
@@ -537,9 +571,13 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
         else:
             for constraint in inspector.get_unique_constraints(table_name=table.name):
                 if constraint["column_names"] == [column_name]:
+                    # Check if old column was unique, if not add it to removed list, but don't actually remove it, other part of the code handles this case
+                    if not old.unique:
+                        removed.append(constraint["name"])
+                        continue
                     removed.append(constraint["name"])
                     handler.add_action(ma.DropConstraintMigrationAction(
-                        constraint_name=unique_name,
+                        constraint_name=constraint["name"],
                         table_name=table_name,
                     ), foreign_key)
             for index in inspector.get_indexes(table_name=table.name):
@@ -555,7 +593,7 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
                         columns=[column_name]
                     ), foreign_key)
 
-    index_name = f'ix_{table_name}_{column_name}'
+    index_name = get_pg_name(f'ix_{table_name}_{column_name}')
     if renamed:
         indexes = inspector.get_indexes(table_name=table.name)
         for index in indexes:
@@ -565,7 +603,7 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
                         index_name=index["name"],
                         table_name=table_name
                     ), foreign_key)
-                index_name = _rename_index_name(index["name"], table.name, table_name, old.name, new.name)
+                index_name = get_pg_name(_rename_index_name(index["name"], table.name, table_name, old.name, new.name))
                 if new.index:
                     handler.add_action(ma.CreateIndexMigrationAction(
                         index_name=index_name,
@@ -610,23 +648,25 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
 def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: sa.Table,
             old: NotAvailable, new: sa.Column, handler: MigrationHandler, rename: MigrateRename,
             foreign_key: bool = False):
-    table_name = rename.get_table_name(table.name)
+    table_name = get_pg_name(rename.get_table_name(table.name))
     handler.add_action(ma.AddColumnMigrationAction(
         table_name=table_name,
         column=new,
     ), foreign_key)
     if new.unique:
-        handler.add_action(ma.CreateUniqueConstraintMigrationAction(
-            constraint_name=f'{table_name}_{new.name}_key',
-            table_name=table_name,
-            columns=[new.name]
-        ))
+        constraint_name = get_pg_name(f'{table_name}_{new.name}_key')
+        if not any(constraint["name"] == constraint_name for constraint in inspector.get_unique_constraints(table_name)):
+            handler.add_action(ma.CreateUniqueConstraintMigrationAction(
+                constraint_name=constraint_name,
+                table_name=table_name,
+                columns=[new.name]
+            ))
     index_required = isinstance(new.type, geoalchemy2.types.Geometry)
     if index_required:
         handler.add_action(ma.CreateIndexMigrationAction(
             table_name=table_name,
             columns=[new.name],
-            index_name=f'idx_{table_name}_{new.name}',
+            index_name=get_pg_name(f'idx_{table_name}_{new.name}'),
             using='gist'
         ))
 
@@ -697,10 +737,10 @@ def _drop_all_indexes_and_constraints(inspector: Inspector, table: str, new_tabl
             )
 
 
-def _clean_up_file_type(inspector: Inspector, manifest: Manifest, handler: MigrationHandler, rename: MigrateRename):
+def _clean_up_file_type(inspector: Inspector, models: List[Model], handler: MigrationHandler, rename: MigrateRename):
     allowed_file_tables = []
     existing_tables = []
-    for model in manifest.models.values():
+    for model in models:
         existing_tables.append(rename.get_old_table_name(model.name))
         for prop in model.properties.values():
             if isinstance(prop.dtype, File):
@@ -713,7 +753,7 @@ def _clean_up_file_type(inspector: Inspector, manifest: Manifest, handler: Migra
             split = table.split(f'{TableType.FILE.value}/')
             if split[0] in existing_tables:
                 if table not in allowed_file_tables and not split[1].startswith("__"):
-                    new_name = f'{split[0]}{TableType.FILE.value}/__{split[1]}'
+                    new_name = get_pg_name(f'{split[0]}{TableType.FILE.value}/__{split[1]}')
                     if inspector.has_table(new_name):
                         handler.add_action(ma.DropTableMigrationAction(
                             table_name=new_name
@@ -725,11 +765,11 @@ def _clean_up_file_type(inspector: Inspector, manifest: Manifest, handler: Migra
                     _drop_all_indexes_and_constraints(inspector, table, new_name, handler)
 
 
-def _handle_foreign_key_constraints(inspector: Inspector, manifest: Manifest, handler: MigrationHandler,
+def _handle_foreign_key_constraints(inspector: Inspector, models: List[Model], handler: MigrationHandler,
                                     rename: MigrateRename):
-    for model in manifest.models.values():
+    for model in models:
         source_table = get_pg_name(get_table_name(model))
-        old_name = rename.get_old_table_name(source_table)
+        old_name = get_pg_name(rename.get_old_table_name(source_table))
         foreign_keys = []
         if old_name in inspector.get_table_names():
             foreign_keys = inspector.get_foreign_keys(old_name)
@@ -737,9 +777,10 @@ def _handle_foreign_key_constraints(inspector: Inspector, manifest: Manifest, ha
             referent_table = get_pg_name(get_table_name(model.base.parent))
             if not model.base.level or model.base.level > 3:
                 check = False
+                fk_name = get_pg_name(f'fk_{referent_table}_id')
                 for key in foreign_keys:
                     if key["constrained_columns"] == ["_id"]:
-                        if key["name"] == f'fk_{referent_table}_id' and key["referred_table"] == referent_table:
+                        if key["name"] == fk_name and key["referred_table"] == referent_table:
                             check = True
                         else:
                             handler.add_action(ma.DropConstraintMigrationAction(
@@ -752,7 +793,7 @@ def _handle_foreign_key_constraints(inspector: Inspector, manifest: Manifest, ha
                         ma.CreateForeignKeyMigrationAction(
                             source_table=source_table,
                             referent_table=referent_table,
-                            constraint_name=f'fk_{referent_table}_id',
+                            constraint_name=fk_name,
                             local_cols=["_id"],
                             remote_cols=["_id"]
                         ), True
@@ -778,11 +819,11 @@ def _handle_foreign_key_constraints(inspector: Inspector, manifest: Manifest, ha
         for prop in model.properties.values():
             if isinstance(prop.dtype, Ref):
                 if not prop.level or prop.level > 3:
-                    name = f"fk_{source_table}_{prop.name}._id"
+                    name = get_pg_name(f"fk_{source_table}_{prop.name}._id")
                     required_ref_props[name] = {
                         "name": name,
                         "constrained_columns": [f"{prop.name}._id"],
-                        "referred_table": prop.dtype.model.name,
+                        "referred_table": get_pg_name(prop.dtype.model.name),
                         "referred_columns": ["_id"]
                     }
 
@@ -948,3 +989,14 @@ def _get_remove_name(name: str) -> str:
     new_name = '/'.join(new_name)
     new_name = get_pg_name(new_name)
     return new_name
+
+
+def _get_prop_names(prop: Property):
+    name = prop.name
+    if isinstance(prop.dtype, Ref):
+        if not prop.level or prop.level > Level.open:
+            name = f'{name}._id'
+        else:
+            for refprop in prop.dtype.refprops:
+                yield f'{name}.{refprop.name}'
+    yield name

@@ -206,6 +206,17 @@ class MigrationHandler:
         else:
             self.migrations.append(action)
 
+    def has_constraint_been_dropped(self, constraint_name: str):
+        for migration in self.migrations:
+            if isinstance(migration, DropConstraintMigrationAction):
+                if migration.constraint_name == constraint_name:
+                    return True
+        for migration in self.foreign_key_migration:
+            if isinstance(migration, DropConstraintMigrationAction):
+                if migration.constraint_name == constraint_name:
+                    return True
+        return False
+
     def run_migrations(self, op: Operations):
         for migration in self.migrations:
             migration.execute(op)
