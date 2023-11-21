@@ -1,13 +1,17 @@
 import json
 from io import TextIOWrapper
-from typing import cast
+from typing import cast, Optional, List, Dict, Any, Tuple
 
 import itertools
+from urllib.error import HTTPError
+
+import requests
 from starlette.datastructures import UploadFile
 from starlette.requests import Request
 
 from spinta import commands
 from spinta import exceptions
+from spinta.cli.helpers.errors import ErrorCounter
 from spinta.formats.components import Format
 from spinta.components import Action
 from spinta.components import Context
@@ -133,7 +137,16 @@ async def create_http_response(
                 action=action,
                 params=params,
             )
-
+        elif params.summary:
+            model = params.model
+            action = params.action
+            return await commands.summary(
+                context,
+                request,
+                model,
+                action=action,
+                params=params
+            )
         else:
             _enforce_limit(context, params)
             action = params.action
@@ -249,3 +262,42 @@ async def get_request_data(node: Node, request: Request):
         raise exceptions.JSONError(node, error=str(e))
 
     return data
+
+
+def get_request(
+    client: requests.Session,
+    server: str,
+    *,
+    stop_on_error: bool = False,
+    ignore_errors: Optional[List[int]] = None,
+    error_counter: ErrorCounter = None,
+) -> Tuple[Optional[int], Optional[Dict[str, Any]]]:
+    if not ignore_errors:
+        ignore_errors = []
+
+    try:
+        resp = client.request("GET", server)
+    except IOError as e:
+        if error_counter:
+            error_counter.increase()
+        if stop_on_error:
+            raise
+        return None, None
+
+    try:
+        resp.raise_for_status()
+    except HTTPError:
+        if resp.status_code not in ignore_errors:
+            if error_counter:
+                error_counter.increase()
+            try:
+                recv = resp.json()
+            except requests.JSONDecodeError:
+                if stop_on_error:
+                    raise
+
+            if stop_on_error:
+                raise
+        return resp.status_code, None
+
+    return resp.status_code, resp.json()

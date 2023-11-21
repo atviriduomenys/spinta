@@ -176,5 +176,13 @@ def test_null_expr():
     assert ast is None
 
 
+def test_escale_quotes_one():
+    check("swap('TEST', '\"TEST\" \\\'TEST\\\'')")
+
+
+def test_escale_quotes_both():
+    check("swap('\\\'TEST\\\' \"TEST\"', '\"TEST\" \\\'TEST\\\'')")
+
+
 def test_normal_text():
     check("'TEST'")

@@ -1,6 +1,6 @@
 from spinta import commands
 from spinta.components import Context
-from spinta.types.datatype import Array
+from spinta.types.datatype import Array, PartialArray
 from spinta.types.helpers import set_dtype_backend
 
 
@@ -10,3 +10,10 @@ def link(context: Context, dtype: Array) -> None:
     # In case of a dynamic array, dtype of items is not known.
     if dtype.items:
         commands.link(context, dtype.items.dtype)
+
+
+@commands.link.register(Context, PartialArray)
+def link(context: Context, dtype: PartialArray):
+    dtype.prop.given.name = ''
+    super_ = commands.link[Context, Array]
+    return super_(context, dtype)

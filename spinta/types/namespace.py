@@ -17,12 +17,14 @@ from starlette.requests import Request
 from starlette.responses import Response
 from toposort import toposort
 
+import spinta.components
 from spinta import commands
 from spinta import exceptions
 from spinta.auth import authorized
 from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
 from spinta.backends.components import BackendFeatures
+from spinta.backends.nobackend.components import NoBackend
 from spinta.compat import urlparams_to_expr
 from spinta.components import Action
 from spinta.components import Config
@@ -31,6 +33,7 @@ from spinta.components import Model
 from spinta.components import Namespace
 from spinta.components import Node
 from spinta.components import UrlParams
+from spinta.datasets.enums import Level
 from spinta.manifests.components import Manifest
 from spinta.nodes import load_node
 from spinta.renderer import render
@@ -132,6 +135,7 @@ async def getall(
     *,
     action: Action,
     params: UrlParams,
+    **kwargs
 ) -> Response:
     config: Config = context.get('config')
     if config.root and ns.is_root():
@@ -230,6 +234,10 @@ def _query_data(
         yield from commands.getall(context, model, model.backend, **kwargs)
 
 
+def check_if_model_has_backend_and_source(model: Model):
+    return not isinstance(model.backend, NoBackend) and (model.external and model.external.name)
+
+
 def traverse_ns_models(
     context: Context,
     ns: Namespace,
@@ -238,11 +246,13 @@ def traverse_ns_models(
     resource: Optional[str] = None,
     *,
     internal: bool = False,
+    source_check: bool = False
 ):
     models = (ns.models or {})
     for model in models.values():
-        if _model_matches_params(context, model, action, dataset_, resource, internal):
-            yield model
+        if not (source_check and not check_if_model_has_backend_and_source(model)):
+            if _model_matches_params(context, model, action, dataset_, resource, internal):
+                yield model
     for ns_ in ns.names.values():
         if not internal and ns_.name.startswith('_'):
             continue
@@ -253,6 +263,7 @@ def traverse_ns_models(
             dataset_,
             resource,
             internal=internal,
+            source_check=source_check
         )
 
 
@@ -264,6 +275,7 @@ def _model_matches_params(
     resource: Optional[str] = None,
     internal: bool = False,
 ):
+
     if not internal and model.name.startswith('_'):
         return False
 
@@ -438,6 +450,60 @@ def sort_models_by_refs(models: Iterable[Model]) -> Iterator[Model]:
                 continue
             seen.add(name)
             yield models[name]
+
+
+def sort_models_by_base(models: Iterable[Model]) -> Iterator[Model]:
+    models = {model.model_type(): model for model in models}
+    graph = collections.defaultdict(set)
+    for name, model in models.items():
+        graph[''].add(name)
+        for base in iter_model_base(model):
+            ref = base.model_type()
+            if ref in models:
+                graph[ref].add(name)
+    graph = toposort(graph)
+    seen = {''}
+    for group in graph:
+        for name in sorted(group):
+            if name in seen:
+                continue
+            seen.add(name)
+            yield models[name]
+
+
+def _topological_sort(model: Model, visited: dict, stack: list, dependencies: dict):
+    visited[model.model_type()] = True
+    for neighbor in dependencies[model.model_type()]:
+        if not visited[neighbor.model_type()]:
+            _topological_sort(neighbor, visited, stack, dependencies)
+    stack.append(model)
+
+
+def sort_models_by_ref_and_base(models: List[Model]):
+    dependencies = collections.defaultdict(list)
+    for model in models:
+        if model.base and (model.base.level and model.base.level > Level.open or not model.base.level):
+            if model.base.parent in models:
+                dependencies[model.model_type()].append(model.base.parent)
+        for ref in iter_model_refs(model):
+            if ref.prop.level and ref.prop.level > Level.open or not ref.prop.level:
+                if ref.model in models:
+                    dependencies[model.model_type()].append(ref.model)
+
+    visited = {model.model_type(): False for model in models}
+    stack = []
+
+    for model in models:
+        if not visited[model.model_type()]:
+            _topological_sort(model, visited, stack, dependencies)
+
+    return stack
+
+
+def iter_model_base(model: Model) -> Iterator[Model]:
+    if model.base:
+        yield from iter_model_base(model.base.parent)
+        yield model.base.parent
 
 
 def iter_model_refs(model: Model) -> Iterator[Ref]:

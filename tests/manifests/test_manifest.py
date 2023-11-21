@@ -2,7 +2,7 @@ import pathlib
 
 import pytest
 
-from spinta.exceptions import InvalidManifestFile, NoRefPropertyForDenormProperty, ReferencedPropertyNotFound
+from spinta.exceptions import InvalidManifestFile, NoRefPropertyForDenormProperty, ReferencedPropertyNotFound, ModelReferenceNotFound, PartialTypeNotFound, DataTypeCannotBeUsedForNesting, NestedDataTypeMissmatch
 from spinta.manifests.components import Manifest
 from spinta.manifests.internal_sql.helpers import write_internal_sql_manifest
 from spinta.testing.datasets import Sqlite
@@ -286,6 +286,23 @@ def test_time_type(is_tabular, tmp_path, rc):
     ''', is_tabular)
 
 
+def test_explicit_ref(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property | type       | ref
+    datasets/gov/example     |            |
+      | data                 | postgresql | default
+                             |            |
+      |   |   | Country      |            | id
+      |   |   |   | id       | integer    |
+      |   |   |   | code     | string     |
+      |   |   |   | name     | string     |
+                             |            |
+      |   |   | City         |            | name
+      |   |   |   | name     | string     |
+      |   |   |   | country  | ref        | Country[code]
+      ''')
+
+
 @pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
 def test_property_unique_add(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
@@ -472,7 +489,7 @@ def test_with_denormalized_data(is_tabular, tmp_path, rc):
 
 @pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
 def test_with_denormalized_data_ref_error(is_tabular, tmp_path, rc):
-    with pytest.raises(NoRefPropertyForDenormProperty) as e:
+    with pytest.raises(PartialTypeNotFound) as e:
         check(tmp_path, rc, '''
         d | r | b | m | property               | type   | ref       | access
         example                                |        |           |
@@ -484,10 +501,6 @@ def test_with_denormalized_data_ref_error(is_tabular, tmp_path, rc):
           |   |   |   | name                   | string |           | open
           |   |   |   | country.name           |        |           | open
         ''', is_tabular)
-    assert e.value.message == (
-        "Property 'country' with type 'ref' or 'object' must be defined "
-        "before defining property 'country.name'."
-    )
 
 
 @pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
@@ -584,6 +597,34 @@ def test_end_marker(is_tabular, tmp_path, rc):
     ''', is_tabular)
 
 
+def test_with_same_base(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property   | type    | ref      | level
+    datasets/gov/example       |         |          |
+                               |         |          |
+      |   |   | Base           |         |          |
+      |   |   |   | id         | integer |          |
+                               |         |          |
+      |   | Base               |         |          |
+      |   |   | Location       |         |          |
+      |   |   |   | id         |         |          |
+      |   |   |   | name       | string  |          |
+      |   |   |   | population | integer |          |
+                               |         |          |
+      |   | Location           |         | name     | 4
+      |   |   | City           |         | name     |
+      |   |   |   | id         |         |          |
+      |   |   |   | name       |         |          |
+      |   |   |   | population |         |          |
+                               |         |          |
+      |   | Location           |         | name     | 3
+      |   |   | Village        |         | name     |
+      |   |   |   | id         |         |          |
+      |   |   |   | name       |         |          |
+      |   |   |   | population |         |          |
+    ''')
+
+
 @pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
 def test_model_param_list(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
@@ -675,3 +716,330 @@ def test_resource_param_multiple(is_tabular, tmp_path, rc):
       |   |   |   | name       | string  |         |          |
       |   |   |   | population | integer |         |          |
     ''', is_tabular)
+
+
+def test_multiline_prepare(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property   | type    | ref     | source   | prepare
+    datasets/gov/example       |         |         |          |
+                               |         |         |          |
+      |   |   | Location       |         |         |          |
+      |   |   |   | id         | integer |         |          |
+      |   |   |   | name       | string  |         |          | cast()
+                               |         |         | 'namas'  | swap('Namas')
+                               |         |         |          | swap('kiemas', 'Kiemas')
+      |   |   |   | population | integer |         |          |
+    ''')
+
+
+def test_multiline_prepare_without_given_prepare(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property   | type    | ref     | source   | prepare
+    datasets/gov/example       |         |         |          |
+                               |         |         |          |
+      |   |   | Location       |         |         |          |
+      |   |   |   | id         | integer |         |          |
+      |   |   |   | name       | string  |         |          |
+                               |         |         | 'namas'  | swap('Namas')
+                               |         |         |          | swap('kiemas', 'Kiemas')
+      |   |   |   | population | integer |         |          |
+    ''')
+
+
+@pytest.mark.skip('backref not implemented yet #96')
+def test_prop_array_backref(tmp_path, rc):
+    check(tmp_path, rc, '''
+        d | r | b | m | property    | type    | ref      | access
+        example                     |         |          |
+                                    |         |          |
+          |   |   | Language        |         |          |
+          |   |   |   | name        | string  |          | open
+          |   |   |   | countries[] | backref | Country  | open
+                                    |         |          |
+          |   |   | Country         |         |          |
+          |   |   |   | name        | string  |          | open
+          |   |   |   | languages[] | ref     | Language | open
+    ''')
+
+
+@pytest.mark.skip('backref not implemented yet #96')
+def test_prop_array_with_custom_backref(rc, tmp_path):
+    check(tmp_path, rc, '''
+        d | r | b | m | property    | type                                       | ref
+        example                     |                                            |
+                                    |                                            |
+          |   |   | Language        |                                            |
+          |   |   |   | name        | string                                     |
+          |   |   |   | countries[] | backref                                    | Country
+                                    |                                            |
+          |   |   | Country         |                                            |
+          |   |   |   | name        | string                                     |
+          |   |   |   | languages   | array                                      | CountryLanguage[country, language]
+          |   |   |   | languages[] | ref                                        | Language
+                                    |                                            |
+          |   |   | CountryLanguage |                                            |
+          |   |   |   | language    | ref                                        | Language
+          |   |   |   | country     | ref                                        | Country
+    ''')
+
+
+@pytest.mark.skip('backref not implemented yet #96')
+def test_prop_array_with_custom_without_properties_backref(rc, tmp_path):
+    check(tmp_path, rc, '''
+        d | r | b | m | property    | type                                       | ref
+        example                     |                                            |
+                                    |                                            |
+          |   |   | Language        |                                            |
+          |   |   |   | name        | string                                     |
+          |   |   |   | countries[] | backref                                    | Country
+                                    |                                            |
+          |   |   | Country         |                                            |
+          |   |   |   | name        | string                                     |
+          |   |   |   | languages   | array                                      | CountryLanguage
+          |   |   |   | languages[] | ref                                        | Language
+                                    |                                            |
+          |   |   | CountryLanguage |                                            |
+          |   |   |   | language    | ref                                        | Language
+          |   |   |   | country     | ref                                        | Country
+    ''')
+
+
+def test_prop_array_simple_type(tmp_path, rc):
+    check(tmp_path, rc, '''
+        d | r | b | m | property    | type    | ref      | access
+        example                     |         |          |
+                                    |         |          |
+          |   |   | Country         |         |          |
+          |   |   |   | name        | string  |          | open
+          |   |   |   | languages[] | string  |          | open
+    ''')
+
+
+def test_prop_array_ref_type(tmp_path, rc):
+    check(tmp_path, rc, '''
+        d | r | b | m | property    | type    | ref      | access
+        example                     |         |          |
+                                    |         |          |
+          |   |   | Language        |         |          |
+          |   |   |   | name        | string  |          | open
+                                    |         |          |
+          |   |   | Country         |         |          |
+          |   |   |   | name        | string  |          | open
+          |   |   |   | languages[] | ref     | Language | open
+    ''')
+
+
+def test_prop_array_customize_type(tmp_path, rc):
+    check(tmp_path, rc, '''
+        d | r | b | m | property    | type    | ref      | access | title
+        example                     |         |          |        |
+                                    |         |          |        |
+          |   |   | Country         |         |          |        |
+          |   |   |   | name        | string  |          | open   |
+          |   |   |   | languages   | array   |          | open   | Array of languages
+          |   |   |   | languages[] | string  |          | open   | Correction
+    ''')
+
+
+def test_prop_multi_array(tmp_path, rc):
+    check(tmp_path, rc, '''
+        d | r | b | m | property        | type    | ref      | access | title
+        example                         |         |          |        |
+                                        |         |          |        |
+          |   |   | Country             |         |          |        |
+          |   |   |   | name            | string  |          | open   |
+          |   |   |   | languages[][][] | string  |          | open   | Correction
+    ''')
+
+
+def test_prop_multi_array_specific(tmp_path, rc):
+    check(tmp_path, rc, '''
+        d | r | b | m | property        | type    | ref      | access | title
+        example                         |         |          |        |
+                                        |         |          |        |
+          |   |   | Country             |         |          |        |
+          |   |   |   | name            | string  |          | open   |
+          |   |   |   | languages       | array   |          | open   | Correction T0
+          |   |   |   | languages[]     | array   |          | open   | Correction T1
+          |   |   |   | languages[][]   | array   |          | open   | Correction T2
+          |   |   |   | languages[][][] | string  |          | open   | Correction T3
+    ''')
+
+
+def test_prop_nested_denorm(tmp_path, rc):
+    check(tmp_path, rc, '''
+        d | r | b | m | property        | type    | ref      | access | title
+        example                         |         |          |        |
+                                        |         |          |        |
+          |   |   | Language            |         |          |        |
+          |   |   |   | dialect         | string  |          | open   |
+                                        |         |          |        |
+          |   |   | Country             |         |          |        |
+          |   |   |   | name            | string  |          | open   |
+          |   |   |   | langs[]         | ref     | Language | open   |
+          |   |   |   | langs[].dialect |         |          | open   | Denorm
+    ''')
+
+
+def test_prop_multi_nested_denorm(tmp_path, rc):
+    check(tmp_path, rc, '''
+        d | r | b | m | property          | type    | ref      | access | title
+        example                           |         |          |        |
+                                          |         |          |        |
+          |   |   | Language              |         |          |        |
+          |   |   |   | dialect           | string  |          | open   |
+                                          |         |          |        |
+          |   |   | Country               |         |          |        |
+          |   |   |   | name              | string  |          | open   |
+          |   |   |   | langs             | array   |          | open   |
+          |   |   |   | langs[]           | array   |          | open   |
+          |   |   |   | langs[][]         | ref     | Language | open   |
+          |   |   |   | langs[][].dialect |         |          | open   |
+    ''')
+
+
+def test_prop_multi_nested_error_partial(tmp_path, rc):
+    with pytest.raises(PartialTypeNotFound) as e:
+        check(tmp_path, rc, '''
+            d | r | b | m | property          | type    | ref      | access | title
+            example                           |         |          |        |
+                                              |         |          |        |
+              |   |   | Language              |         |          |        |
+              |   |   |   | dialect           | string  |          | open   |
+                                              |         |          |        |
+              |   |   | Country               |         |          |        |
+              |   |   |   | name              | string  |          | open   |
+              |   |   |   | langs             | array   |          | open   |
+              |   |   |   | langs[][].dialect |         |          | open   |
+        ''')
+
+
+def test_prop_multi_nested_multi_models(tmp_path, rc):
+    check(tmp_path, rc, '''
+        d | r | b | m | property               | type    | ref       | access | title
+        example                                |         |           |        |
+                                               |         |           |        |
+          |   |   | Continent                  |         | id        |        |
+          |   |   |   | id                     | integer |           | open   |
+          |   |   |   | name                   | string  |           | open   |
+                                               |         |           |        |
+          |   |   | Country                    |         | id        |        |
+          |   |   |   | id                     | integer |           | open   |
+          |   |   |   | name                   | string  |           | open   |
+          |   |   |   | continent              | ref     | Continent | open   |
+                                               |         |           |        |
+          |   |   | City                       |         | id        |        |
+          |   |   |   | id                     | integer |           | open   |
+          |   |   |   | country                | ref     | Country   | open   |
+          |   |   |   | country.code           | string  |           | open   |
+          |   |   |   | country.name           |         |           | open   |
+          |   |   |   | country.continent.code | string  |           | open   |
+          |   |   |   | country.continent.name |         |           | open   |
+    ''')
+
+
+def test_prop_multi_nested(tmp_path, rc):
+    check(tmp_path, rc, '''
+            d | r | b | m | property                       | type    | ref      | access | title
+            example                                        |         |          |        |
+                                                           |         |          |        |
+              |   |   | Language                           |         |          |        |
+              |   |   |   | dialect                        | string  |          | open   |
+              |   |   |   | meta                           | object  |          | open   |
+              |   |   |   | meta.version                   | integer |          | open   |
+                                                           |         |          |        |
+              |   |   | Country                            |         |          |        |
+              |   |   |   | name                           | string  |          | open   |
+              |   |   |   | meta                           | object  |          | open   |
+              |   |   |   | meta.version                   | integer |          | open   |
+              |   |   |   | meta.old                       | object  |          | open   |
+              |   |   |   | meta.old.language              | ref     | Language | open   |
+              |   |   |   | meta.old.language.dialect      |         |          | open   |
+              |   |   |   | meta.old.language.meta.version | integer |          | open   |
+              |   |   |   | meta.langs                     | array   |          | open   |
+              |   |   |   | meta.langs[]                   | array   |          | open   |
+              |   |   |   | meta.langs[][]                 | ref     | Language | open   |
+              |   |   |   | meta.langs[][].dialect         |         |          | open   |
+        ''')
+
+
+def test_multi_nested_incorrect(tmp_path, rc):
+    with pytest.raises(DataTypeCannotBeUsedForNesting) as e:
+        check(tmp_path, rc, '''
+                d | r | b | m | property                       | type    | ref      | access | title
+                example                                        |         |          |        |
+                                                               |         |          |        |
+                  |   |   | Language                           |         |          |        |
+                  |   |   |   | dialect                        | string  |          | open   |
+                  |   |   |   | meta.version                   | string  |          | open   |
+                  |   |   |   | meta                           | integer |          | open   |
+            ''')
+
+
+def test_multi_nested_incorrect_reversed_order(tmp_path, rc):
+    with pytest.raises(DataTypeCannotBeUsedForNesting) as e:
+        check(tmp_path, rc, '''
+                d | r | b | m | property                       | type    | ref      | access | title
+                example                                        |         |          |        |
+                                                               |         |          |        |
+                  |   |   | Language                           |         |          |        |
+                  |   |   |   | dialect                        | string  |          | open   |
+                  |   |   |   | meta                           | integer |          | open   |
+                  |   |   |   | meta.version                   | string  |          | open   |
+            ''')
+
+
+def test_multi_nested_incorrect_deep(tmp_path, rc):
+    with pytest.raises(DataTypeCannotBeUsedForNesting) as e:
+        check(tmp_path, rc, '''
+                d | r | b | m | property                       | type    | ref      | access | title
+                example                                        |         |          |        |
+                                                               |         |          |        |
+                  |   |   | Language                           |         |          |        |
+                  |   |   |   | dialect                        | string  |          | open   |
+                  |   |   |   | meta.version.id                | integer |          | open   |
+                  |   |   |   | meta.version                   | string  |          | open   |
+                  |   |   |   | meta                           | object  |          | open   |
+            ''')
+
+
+def test_multi_nested_incorrect_with_array(tmp_path, rc):
+    with pytest.raises(DataTypeCannotBeUsedForNesting) as e:
+        check(tmp_path, rc, '''
+                d | r | b | m | property                       | type    | ref      | access | title
+                example                                        |         |          |        |
+                                                               |         |          |        |
+                  |   |   | Language                           |         |          |        |
+                  |   |   |   | dialect                        | string  |          | open   |
+                  |   |   |   | meta.version[].id              | integer |          | open   |
+                  |   |   |   | meta.version[]                 | string  |          | open   |
+                  |   |   |   | meta                           | object  |          | open   |
+            ''')
+
+
+def test_multi_nested_type_missmatch_with_array(tmp_path, rc):
+    with pytest.raises(NestedDataTypeMissmatch) as e:
+        check(tmp_path, rc, '''
+                d | r | b | m | property                       | type    | ref      | access | title
+                example                                        |         |          |        |
+                                                               |         |          |        |
+                  |   |   | Language                           |         |          |        |
+                  |   |   |   | dialect                        | string  |          | open   |
+                  |   |   |   | meta.version.id                | integer |          | open   |
+                  |   |   |   | meta.version[]                 | string  |          | open   |
+                  |   |   |   | meta                           | object  |          | open   |
+            ''')
+
+
+def test_multi_nested_type_missmatch_with_partial(tmp_path, rc):
+    with pytest.raises(NestedDataTypeMissmatch) as e:
+        check(tmp_path, rc, '''
+                d | r | b | m | property                       | type    | ref      | access | title
+                example                                        |         |          |        |
+                                                               |         |          |        |
+                  |   |   | Language                           |         |          |        |
+                  |   |   |   | dialect                        | string  |          | open   |
+                  |   |   |   | meta.version[]                 | string  |          | open   |
+                  |   |   |   | meta.version.id                | integer |          | open   |
+                  |   |   |   | meta                           | object  |          | open   |
+            ''')

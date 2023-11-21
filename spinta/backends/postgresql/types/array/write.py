@@ -111,6 +111,7 @@ def _get_list_column_name(place, name):
         return name[len(place) + 1:]
 
 
+
 def _get_lists_data(
     dtype: Union[Model, DataType],
     value: object,
