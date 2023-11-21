@@ -769,10 +769,8 @@ def create_client_file_name_id_mapping(path: pathlib.Path):
     yml.dump(keymap, keymap_path)
 
 
-def handle_auth_client_files(context: Context):
-    config = context.get('config')
+def handle_auth_client_files(config: Config):
     path = get_clients_path(config)
-
     if path.exists():
         if not (path / 'id').exists():
             items = os.listdir(path)

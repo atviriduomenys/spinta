@@ -728,3 +728,7 @@ class UnableToDetermineRequiredLang(UserError):
 
 class CannotSelectTextAndSpecifiedLang(UserError):
     template = "Cannot select undisclosed language Text at the same time when disclosed language Text is selected."
+
+    
+class DuplicateRdfPrefixMissmatch(UserError):
+    template = "Currently system does not support prefix missmatch. Prefix {prefix!r} has {old_value!r} and {new_value!r} values given."

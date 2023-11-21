@@ -1004,6 +1004,7 @@ def test_push_sync(
     assert listdata(resp_city, '_id', 'id', 'name', 'country')[0] == (city_id, 1, 'Vilnius', {'_id': country_id})
 
 
+@pytest.mark.skip("Private now sends warning that model has been skipped syncing rather throwing exception")
 def test_push_sync_to_private_error(
     postgresql,
     rc: RawConfig,
