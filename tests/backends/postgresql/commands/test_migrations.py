@@ -986,6 +986,24 @@ def test_migrate_create_models_with_ref(
     result = cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv', '-p'
     ])
+    # Adjust index order, since it can be random
+    order = (
+        'CREATE INDEX "ix_migrate/example/RefOne_someRef._id" ON '
+        '"migrate/example/RefOne" ("someRef._id");\n'
+        '\n'
+        'CREATE INDEX "ix_migrate/example/RefOne__txn" ON "migrate/example/RefOne" '
+        '(_txn);\n'
+        '\n'
+    )
+    if order not in result.output:
+        order = (
+            'CREATE INDEX "ix_migrate/example/RefOne__txn" ON "migrate/example/RefOne" '
+            '(_txn);\n'
+            '\n'
+            'CREATE INDEX "ix_migrate/example/RefOne_someRef._id" ON '
+            '"migrate/example/RefOne" ("someRef._id");\n'
+            '\n'
+        )
     assert result.output.endswith(
         'BEGIN;\n'
         '\n'
@@ -1033,12 +1051,7 @@ def test_migrate_create_models_with_ref(
         '    PRIMARY KEY (_id)\n'
         ');\n'
         '\n'
-        'CREATE INDEX "ix_migrate/example/RefOne__txn" ON "migrate/example/RefOne" '
-        '(_txn);\n'
-        '\n'
-        'CREATE INDEX "ix_migrate/example/RefOne_someRef._id" ON '
-        '"migrate/example/RefOne" ("someRef._id");\n'
-        '\n'
+        f'{order}'
         'CREATE TABLE "migrate/example/RefOne/:changelog" (\n'
         '    _id BIGSERIAL NOT NULL, \n'
         '    _revision VARCHAR, \n'
