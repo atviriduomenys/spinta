@@ -706,5 +706,9 @@ class NestedDataTypeMissmatch(UserError):
     template = "While nesting, {initial!r} type cannot be cast to {required!r} type."
 
 
+class DuplicateRdfPrefixMissmatch(UserError):
+    template = "Currently system does not support prefix missmatch. Prefix {prefix!r} has {old_value!r} and {new_value!r} values given."
+
+
 class OutOfMemoryMigrate(UserError):
     template = "Ran out of shared memory while migrating. Use '--autocommit' tag, or increase 'max_locks_per_transaction'."

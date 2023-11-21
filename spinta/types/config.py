@@ -4,7 +4,7 @@ from typing import Type
 
 from ruamel.yaml import YAML
 
-from spinta.auth import client_name_exists, get_clients_path
+from spinta.auth import client_name_exists, get_clients_path, handle_auth_client_files
 from spinta.formats.components import Format
 from spinta.core.config import DEFAULT_CONFIG_PATH
 from spinta.core.config import DEFAULT_DATA_PATH
@@ -96,6 +96,8 @@ def load(context: Context, config: Config) -> Config:
             "Configuration option `mode` must be added to a manifest, now it "
             "is added to the config root."
         )
+    # Ensure that client filed were migrated
+    handle_auth_client_files(config)
 
     return config
 
