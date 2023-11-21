@@ -520,7 +520,7 @@ def _get_type_repr(dtype: [DataType, str]):
         unique = ' unique' if dtype.unique else ''
 
         model = dtype.prop.model
-        if model.external.unknown_primary_key is False:
+        if model.external and model.external.unknown_primary_key is False:
             if len(model.external.pkeys) == 1 and dtype.prop in model.external.pkeys:
                 unique = ''
         if dtype.type_args:
