@@ -1,4 +1,5 @@
 import datetime
+from typer import echo
 from typing import List
 
 from spinta.auth import authorized
@@ -18,16 +19,23 @@ def sync_keymap(context: Context, keymap: KeyMap, client, server: str, models: L
         counters = {
             '_total': tqdm.tqdm(desc='SYNCHRONIZING KEYMAP', ascii=True)
         }
+        echo()
 
     for model in models:
         model_keymaps = [model.model_type()]
-        for combination in model.required_keymap_properties:
-            model_keymaps.append(f'{model.model_type()}.{"_".join(combination)}')
         primary_keys = model.external.pkeys
+        skip_model = False
         for key in primary_keys:
             is_authorized = authorized(context, key, action=Action.SEARCH)
             if not is_authorized:
-                raise UnauthorizedKeymapSync(model)
+                echo(f"SKIPPED '{model.model_type()}' MODEL SYNC, NO PERMISSION.")
+                skip_model = True
+                break
+        if skip_model:
+            continue
+
+        for combination in model.required_keymap_properties:
+            model_keymaps.append(f'{model.model_type()}.{"_".join(combination)}')
 
         # Get min cid (in case new model was added, or models are out of sync)
         sync_cid = 0
