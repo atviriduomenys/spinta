@@ -286,7 +286,8 @@ def test_time_type(is_tabular, tmp_path, rc):
     ''', is_tabular)
 
 
-def test_explicit_ref(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_explicit_ref(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property | type       | ref
     datasets/gov/example     |            |
@@ -300,7 +301,7 @@ def test_explicit_ref(tmp_path, rc):
       |   |   | City         |            | name
       |   |   |   | name     | string     |
       |   |   |   | country  | ref        | Country[code]
-      ''')
+      ''', is_tabular)
 
 
 @pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
@@ -597,7 +598,8 @@ def test_end_marker(is_tabular, tmp_path, rc):
     ''', is_tabular)
 
 
-def test_with_same_base(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_with_same_base(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property   | type    | ref      | level
     datasets/gov/example       |         |          |
@@ -622,7 +624,7 @@ def test_with_same_base(tmp_path, rc):
       |   |   |   | id         |         |          |
       |   |   |   | name       |         |          |
       |   |   |   | population |         |          |
-    ''')
+    ''', is_tabular)
 
 
 @pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
@@ -718,7 +720,8 @@ def test_resource_param_multiple(is_tabular, tmp_path, rc):
     ''', is_tabular)
 
 
-def test_multiline_prepare(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_multiline_prepare(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property   | type    | ref     | source   | prepare
     datasets/gov/example       |         |         |          |
@@ -732,7 +735,8 @@ def test_multiline_prepare(tmp_path, rc):
     ''')
 
 
-def test_multiline_prepare_without_given_prepare(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_multiline_prepare_without_given_prepare(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property   | type    | ref     | source   | prepare
     datasets/gov/example       |         |         |          |
@@ -743,7 +747,7 @@ def test_multiline_prepare_without_given_prepare(tmp_path, rc):
                                |         |         | 'namas'  | swap('Namas')
                                |         |         |          | swap('kiemas', 'Kiemas')
       |   |   |   | population | integer |         |          |
-    ''')
+    ''', is_tabular)
 
 
 @pytest.mark.skip('backref not implemented yet #96')
@@ -804,7 +808,8 @@ def test_prop_array_with_custom_without_properties_backref(rc, tmp_path):
     ''')
 
 
-def test_prop_array_simple_type(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_prop_array_simple_type(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
         d | r | b | m | property    | type    | ref      | access
         example                     |         |          |
@@ -812,10 +817,11 @@ def test_prop_array_simple_type(tmp_path, rc):
           |   |   | Country         |         |          |
           |   |   |   | name        | string  |          | open
           |   |   |   | languages[] | string  |          | open
-    ''')
+    ''', is_tabular)
 
 
-def test_prop_array_ref_type(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_prop_array_ref_type(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
         d | r | b | m | property    | type    | ref      | access
         example                     |         |          |
@@ -826,10 +832,11 @@ def test_prop_array_ref_type(tmp_path, rc):
           |   |   | Country         |         |          |
           |   |   |   | name        | string  |          | open
           |   |   |   | languages[] | ref     | Language | open
-    ''')
+    ''', is_tabular)
 
 
-def test_prop_array_customize_type(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_prop_array_customize_type(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
         d | r | b | m | property    | type    | ref      | access | title
         example                     |         |          |        |
@@ -838,10 +845,11 @@ def test_prop_array_customize_type(tmp_path, rc):
           |   |   |   | name        | string  |          | open   |
           |   |   |   | languages   | array   |          | open   | Array of languages
           |   |   |   | languages[] | string  |          | open   | Correction
-    ''')
+    ''', is_tabular)
 
 
-def test_prop_multi_array(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_prop_multi_array(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
         d | r | b | m | property        | type    | ref      | access | title
         example                         |         |          |        |
@@ -849,10 +857,11 @@ def test_prop_multi_array(tmp_path, rc):
           |   |   | Country             |         |          |        |
           |   |   |   | name            | string  |          | open   |
           |   |   |   | languages[][][] | string  |          | open   | Correction
-    ''')
+    ''', is_tabular)
 
 
-def test_prop_multi_array_specific(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_prop_multi_array_specific(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
         d | r | b | m | property        | type    | ref      | access | title
         example                         |         |          |        |
@@ -863,10 +872,11 @@ def test_prop_multi_array_specific(tmp_path, rc):
           |   |   |   | languages[]     | array   |          | open   | Correction T1
           |   |   |   | languages[][]   | array   |          | open   | Correction T2
           |   |   |   | languages[][][] | string  |          | open   | Correction T3
-    ''')
+    ''', is_tabular)
 
 
-def test_prop_nested_denorm(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_prop_nested_denorm(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
         d | r | b | m | property        | type    | ref      | access | title
         example                         |         |          |        |
@@ -878,10 +888,11 @@ def test_prop_nested_denorm(tmp_path, rc):
           |   |   |   | name            | string  |          | open   |
           |   |   |   | langs[]         | ref     | Language | open   |
           |   |   |   | langs[].dialect |         |          | open   | Denorm
-    ''')
+    ''', is_tabular)
 
 
-def test_prop_multi_nested_denorm(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_prop_multi_nested_denorm(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
         d | r | b | m | property          | type    | ref      | access | title
         example                           |         |          |        |
@@ -895,10 +906,11 @@ def test_prop_multi_nested_denorm(tmp_path, rc):
           |   |   |   | langs[]           | array   |          | open   |
           |   |   |   | langs[][]         | ref     | Language | open   |
           |   |   |   | langs[][].dialect |         |          | open   |
-    ''')
+    ''', is_tabular)
 
 
-def test_prop_multi_nested_error_partial(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_prop_multi_nested_error_partial(is_tabular, tmp_path, rc):
     with pytest.raises(PartialTypeNotFound) as e:
         check(tmp_path, rc, '''
             d | r | b | m | property          | type    | ref      | access | title
@@ -911,10 +923,11 @@ def test_prop_multi_nested_error_partial(tmp_path, rc):
               |   |   |   | name              | string  |          | open   |
               |   |   |   | langs             | array   |          | open   |
               |   |   |   | langs[][].dialect |         |          | open   |
-        ''')
+        ''', is_tabular)
 
 
-def test_prop_multi_nested_multi_models(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_prop_multi_nested_multi_models(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
         d | r | b | m | property               | type    | ref       | access | title
         example                                |         |           |        |
@@ -935,10 +948,11 @@ def test_prop_multi_nested_multi_models(tmp_path, rc):
           |   |   |   | country.name           |         |           | open   |
           |   |   |   | country.continent.code | string  |           | open   |
           |   |   |   | country.continent.name |         |           | open   |
-    ''')
+    ''', is_tabular)
 
 
-def test_prop_multi_nested(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_prop_multi_nested(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
             d | r | b | m | property                       | type    | ref      | access | title
             example                                        |         |          |        |
@@ -960,10 +974,11 @@ def test_prop_multi_nested(tmp_path, rc):
               |   |   |   | meta.langs[]                   | array   |          | open   |
               |   |   |   | meta.langs[][]                 | ref     | Language | open   |
               |   |   |   | meta.langs[][].dialect         |         |          | open   |
-        ''')
+        ''', is_tabular)
 
 
-def test_multi_nested_incorrect(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_multi_nested_incorrect(is_tabular, tmp_path, rc):
     with pytest.raises(DataTypeCannotBeUsedForNesting) as e:
         check(tmp_path, rc, '''
                 d | r | b | m | property                       | type    | ref      | access | title
@@ -973,10 +988,11 @@ def test_multi_nested_incorrect(tmp_path, rc):
                   |   |   |   | dialect                        | string  |          | open   |
                   |   |   |   | meta.version                   | string  |          | open   |
                   |   |   |   | meta                           | integer |          | open   |
-            ''')
+            ''', is_tabular)
 
 
-def test_multi_nested_incorrect_reversed_order(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_multi_nested_incorrect_reversed_order(is_tabular, tmp_path, rc):
     with pytest.raises(DataTypeCannotBeUsedForNesting) as e:
         check(tmp_path, rc, '''
                 d | r | b | m | property                       | type    | ref      | access | title
@@ -986,10 +1002,11 @@ def test_multi_nested_incorrect_reversed_order(tmp_path, rc):
                   |   |   |   | dialect                        | string  |          | open   |
                   |   |   |   | meta                           | integer |          | open   |
                   |   |   |   | meta.version                   | string  |          | open   |
-            ''')
+            ''', is_tabular)
 
 
-def test_multi_nested_incorrect_deep(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_multi_nested_incorrect_deep(is_tabular, tmp_path, rc):
     with pytest.raises(DataTypeCannotBeUsedForNesting) as e:
         check(tmp_path, rc, '''
                 d | r | b | m | property                       | type    | ref      | access | title
@@ -1000,10 +1017,11 @@ def test_multi_nested_incorrect_deep(tmp_path, rc):
                   |   |   |   | meta.version.id                | integer |          | open   |
                   |   |   |   | meta.version                   | string  |          | open   |
                   |   |   |   | meta                           | object  |          | open   |
-            ''')
+            ''', is_tabular)
 
 
-def test_multi_nested_incorrect_with_array(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_multi_nested_incorrect_with_array(is_tabular, tmp_path, rc):
     with pytest.raises(DataTypeCannotBeUsedForNesting) as e:
         check(tmp_path, rc, '''
                 d | r | b | m | property                       | type    | ref      | access | title
@@ -1014,10 +1032,11 @@ def test_multi_nested_incorrect_with_array(tmp_path, rc):
                   |   |   |   | meta.version[].id              | integer |          | open   |
                   |   |   |   | meta.version[]                 | string  |          | open   |
                   |   |   |   | meta                           | object  |          | open   |
-            ''')
+            ''', is_tabular)
 
 
-def test_multi_nested_type_missmatch_with_array(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_multi_nested_type_missmatch_with_array(is_tabular, tmp_path, rc):
     with pytest.raises(NestedDataTypeMissmatch) as e:
         check(tmp_path, rc, '''
                 d | r | b | m | property                       | type    | ref      | access | title
@@ -1028,10 +1047,11 @@ def test_multi_nested_type_missmatch_with_array(tmp_path, rc):
                   |   |   |   | meta.version.id                | integer |          | open   |
                   |   |   |   | meta.version[]                 | string  |          | open   |
                   |   |   |   | meta                           | object  |          | open   |
-            ''')
+            ''', is_tabular)
 
 
-def test_multi_nested_type_missmatch_with_partial(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_multi_nested_type_missmatch_with_partial(is_tabular, tmp_path, rc):
     with pytest.raises(NestedDataTypeMissmatch) as e:
         check(tmp_path, rc, '''
                 d | r | b | m | property                       | type    | ref      | access | title
@@ -1042,4 +1062,4 @@ def test_multi_nested_type_missmatch_with_partial(tmp_path, rc):
                   |   |   |   | meta.version[]                 | string  |          | open   |
                   |   |   |   | meta.version.id                | integer |          | open   |
                   |   |   |   | meta                           | object  |          | open   |
-            ''')
+            ''', is_tabular)
