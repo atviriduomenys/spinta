@@ -114,7 +114,7 @@ def or_(env, expr):
 def filter_page_values(page: Page):
     new_page = Page()
     for by, page_by in page.by.items():
-        if page_by.value:
+        if page_by.value is not None:
             new_page.by[by] = page_by
     return new_page
 
@@ -128,7 +128,7 @@ def _get_pagination_compare_query(
     for i in range(item_count):
         where_list.append([])
     for i, (by, page_by) in enumerate(filtered.by.items()):
-        if page_by.value:
+        if page_by.value is not None:
             for n in range(item_count):
                 if n >= i:
                     if n == i:
