@@ -5,6 +5,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from spinta import commands
 from spinta.components import Context, Model
+from spinta.core.enums import Access
 from spinta.manifests.components import Manifest
 from spinta.types.datatype import DataType, PrimaryKey, Ref, BackRef
 from spinta.backends.constants import TableType
@@ -82,6 +83,7 @@ def prepare(context: Context, backend: PostgreSQL, dtype: DataType):
     name = get_column_name(prop)
     types = {
         'string': sa.Text,
+        'text': JSONB,
         'date': sa.Date,
         'time': sa.Time,
         'datetime': sa.DateTime,

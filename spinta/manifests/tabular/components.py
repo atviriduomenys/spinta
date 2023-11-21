@@ -224,6 +224,7 @@ class PropertyRow(TypedDict, total=False):
     unique: bool
     given_name: str
     prepare_given: List[PrepareGiven]
+    explicitly_given: bool
 
 
 class PropertyExternalRow(TypedDict, total=False):

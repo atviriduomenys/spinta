@@ -4,7 +4,7 @@ from typing import overload
 from spinta.typing import ObjectData
 from spinta.typing import FileObjectData
 from spinta import commands
-from spinta.components import Context
+from spinta.components import Context, UrlParams
 from spinta.components import Model
 from spinta.components import Property
 from spinta.core.ufuncs import Expr
@@ -107,6 +107,7 @@ def getall(
     backend: Mongo,
     *,
     query: Expr = None,
+    **kwargs
 ) -> Iterator[ObjectData]:
     builder = MongoQueryBuilder(context)
     builder.update(model=model)

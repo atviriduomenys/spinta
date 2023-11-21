@@ -228,6 +228,10 @@ class InvalidValue(UserError):
     template = "Invalid value."
 
 
+class InvalidPropertyType(UserError):
+    template = "Invalid property type, expected {expected}, got {type}.."
+
+
 class ValueNotInEnum(UserError):
     template = "Given value {value} is not defined in enum."
 
@@ -558,6 +562,10 @@ class RemoteClientScopesNotGiven(RemoteClientError):
     )
 
 
+class DupicateProperty(UserError):
+    template = "Duplicate property {name}."
+
+
 class RequiredProperty(UserError):
     template = "Property is required."
 
@@ -706,5 +714,21 @@ class NestedDataTypeMissmatch(UserError):
     template = "While nesting, {initial!r} type cannot be cast to {required!r} type."
 
 
+class LangNotDeclared(UserError):
+    template = "Language {lang!r} has not been declared."
+
+
+class TooManyLangsGiven(UserError):
+    template = "Too many languages given in 'content-language' header, expected only one, but were given {amount}."
+
+
+class UnableToDetermineRequiredLang(UserError):
+    template = "Unable to determine required language."
+
+
+class CannotSelectTextAndSpecifiedLang(UserError):
+    template = "Cannot select undisclosed language Text at the same time when disclosed language Text is selected."
+
+    
 class DuplicateRdfPrefixMissmatch(UserError):
     template = "Currently system does not support prefix missmatch. Prefix {prefix!r} has {old_value!r} and {new_value!r} values given."

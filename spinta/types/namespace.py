@@ -135,6 +135,7 @@ async def getall(
     *,
     action: Action,
     params: UrlParams,
+    **kwargs
 ) -> Response:
     config: Config = context.get('config')
     if config.root and ns.is_root():

@@ -13,7 +13,7 @@ from dask.dataframe.utils import make_meta
 from lxml import etree
 
 from spinta import commands
-from spinta.components import Context, Property, Model
+from spinta.components import Context, Property, Model, UrlParams
 from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.dataframe.components import DaskBackend, Csv, Xml, Json
 from spinta.datasets.backends.dataframe.commands.query import DaskDataFrameQueryBuilder, Selected
@@ -347,6 +347,7 @@ def getall(
     backend: Json,
     *,
     query: Expr = None,
+    **kwargs
 ) -> Iterator[ObjectData]:
     base = model.external.resource.external
     builder = DaskDataFrameQueryBuilder(context)
@@ -378,6 +379,7 @@ def getall(
     backend: Xml,
     *,
     query: Expr = None,
+    **kwargs
 ) -> Iterator[ObjectData]:
     base = model.external.resource.external
     builder = DaskDataFrameQueryBuilder(context)
@@ -406,6 +408,7 @@ def getall(
     backend: Csv,
     *,
     query: Expr = None,
+    **kwargs
 ) -> Iterator[ObjectData]:
     base = model.external.resource.external
     resource_builder = TabularResource(context)

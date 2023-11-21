@@ -1,3 +1,5 @@
+import re
+from collections import OrderedDict
 from typing import List
 
 import cgi
@@ -87,6 +89,8 @@ def prepare_urlparams(context: Context, params: UrlParams, request: Request):
     _prepare_urlparams_from_path(params)
     _resolve_path(context, params)
     params.format = get_response_type(context, request, params)
+    params.accept_langs = get_preferred_accept_lang(request, params)
+    params.content_langs = get_preferred_content_lang(request, params)
     config: Config = context.get('config')
     params.fmt = config.exporters[params.format]
 
@@ -356,3 +360,89 @@ def get_response_type(
                 return formats[media_type]
 
     return 'json'
+
+
+ACCEPT_LANGUAGE_HEADER_MAX_LENGTH = 500
+accept_language_re = re.compile(
+    r"""
+        # "en", "en-au", "x-y-z", "es-419", "*"
+        ([A-Za-z]{1,8}(?:-[A-Za-z0-9]{1,8})*|\*)
+        # Optional "q=1.00", "q=0.8"
+        (?:\s*;\s*q=(0(?:\.[0-9]{,3})?|1(?:\.0{,3})?))?
+        # Multiple accepts per header.
+        (?:\s*,\s*|$)
+    """,
+    re.VERBOSE,
+)
+
+
+def _parse_accept_lang_header(lang_string):
+    """
+    Parse the lang_string, which is the body of an HTTP Accept-Language
+    header, and return a tuple of (lang, q-value), ordered by 'q' values.
+
+    Return an empty tuple if there are any format errors in lang_string.
+    """
+    result = []
+    pieces = accept_language_re.split(lang_string.lower())
+    if pieces[-1]:
+        return ()
+    for i in range(0, len(pieces) - 1, 3):
+        first, lang, priority = pieces[i : i + 3]
+        if first:
+            return []
+        if priority:
+            priority = float(priority)
+        else:
+            priority = 1.0
+        result.append((lang, priority))
+    result.sort(key=lambda k: k[1], reverse=True)
+    return list(OrderedDict.fromkeys(key.split('-')[0] for key, value in result))
+
+
+def parse_accept_lang_header(lang_string):
+    """
+    Parse the value of the Accept-Language header up to a maximum length.
+
+    The value of the header is truncated to a maximum length to avoid potential
+    denial of service and memory exhaustion attacks. Excessive memory could be
+    used if the raw value is very large as it would be cached due to the use of
+    functools.lru_cache() to avoid repetitive parsing of common header values.
+    """
+    # If the header value doesn't exceed the maximum allowed length, parse it.
+    if len(lang_string) <= ACCEPT_LANGUAGE_HEADER_MAX_LENGTH:
+        return _parse_accept_lang_header(lang_string)
+
+    # If there is at least one comma in the value, parse up to the last comma
+    # before the max length, skipping any truncated parts at the end of the
+    # header value.
+    if (index := lang_string.rfind(",", 0, ACCEPT_LANGUAGE_HEADER_MAX_LENGTH)) > 0:
+        return _parse_accept_lang_header(lang_string[:index])
+
+    # Don't attempt to parse if there is only one language-range value which is
+    # longer than the maximum allowed length and so truncated.
+    return []
+
+
+def get_preferred_accept_lang(
+    request: Request,
+    params: UrlParams = None,
+) -> List[str]:
+    header = 'accept-language'
+    if params is not None and params.accept_langs:
+        return params.accept_langs
+    if header in request.headers and request.headers[header]:
+        return parse_accept_lang_header(request.headers[header])
+    return []
+
+
+def get_preferred_content_lang(
+    request: Request,
+    params: UrlParams = None,
+) -> List[str]:
+    header = 'content-language'
+    if params is not None and params.content_langs:
+        return params.content_langs
+    if header in request.headers and request.headers[header]:
+        return parse_accept_lang_header(request.headers[header])
+    return []

@@ -16,7 +16,6 @@ from spinta.components import Node
 from spinta.manifests.components import Manifest
 from spinta.utils.schema import NA
 from spinta.utils.schema import resolve_schema
-from spinta.types.datatype import Ref
 
 
 def get_node(

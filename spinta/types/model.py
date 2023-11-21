@@ -12,6 +12,8 @@ from typing import Dict
 from typing import TYPE_CHECKING
 from typing import cast
 
+import requests.api
+
 from spinta import commands
 from spinta import exceptions
 from spinta.auth import authorized
@@ -47,6 +49,7 @@ from spinta.ufuncs.basequerybuilder.components import LoadBuilder
 from spinta.units.helpers import is_unit
 from spinta.utils.enums import enum_by_value
 from spinta.utils.schema import NA
+from spinta.types.text.components import Text
 from spinta.types.datatype import Ref
 from spinta.backends.nobackend.components import NoBackend
 from spinta.datasets.components import ExternalBackend
@@ -256,8 +259,6 @@ def load(
     prop, data = load_node(context, prop, data, mixed=True)
     prop = cast(Property, prop)
 
-    if 'prepare_given' in data and data['prepare_given']:
-        prop.given.prepare = data['prepare_given']
     parents = list(itertools.chain(
         [prop.model, prop.model.ns],
         prop.model.ns.parents(),
@@ -310,6 +311,7 @@ def load(
     else:
         prop.given.enum = unit
     prop.given.name = prop.given_name if prop.given_name else prop.name
+    prop.given.explicit = prop.explicitly_given if prop.explicitly_given is not None else True
     return prop
 
 

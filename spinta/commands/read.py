@@ -28,7 +28,8 @@ from spinta.exceptions import UnavailableSubresource, InfiniteLoopWithPagination
 from spinta.exceptions import ItemDoesNotExist
 from spinta.types.datatype import DataType
 from spinta.typing import ObjectData
-from spinta.ufuncs.basequerybuilder.components import get_allowed_page_property_types
+from spinta.ufuncs.basequerybuilder.components import get_allowed_page_property_types, QueryParams, \
+    update_query_with_url_params
 from spinta.ufuncs.basequerybuilder.ufuncs import add_page_expr
 from spinta.utils.data import take
 from spinta.utils.encoding import encode_page_values
@@ -57,7 +58,8 @@ async def getall(
         expr = urlparams_to_expr(params, add_count=False)
     else:
         expr = urlparams_to_expr(params)
-
+    query_params = QueryParams()
+    update_query_with_url_params(query_params, params)
     accesslog: AccessLog = context.get('accesslog')
     accesslog.request(
         # XXX: Read operations does not have a transaction, but it
@@ -71,12 +73,12 @@ async def getall(
         rows = []
     else:
         if is_page_enabled:
-            rows = get_page(context, model, backend, copy_page, expr, params.limit, default_expand=False)
+            rows = get_page(context, model, backend, copy_page, expr, params.limit, default_expand=False, params=query_params)
         else:
             if backend.support_expand:
-                rows = commands.getall(context, model, backend, query=expr, default_expand=False)
+                rows = commands.getall(context, model, backend, params=query_params, query=expr, default_expand=False)
             else:
-                rows = commands.getall(context, model, backend, query=expr)
+                rows = commands.getall(context, model, backend, params=query_params, query=expr)
 
     if params.count:
         # XXX: Quick and dirty hack. Functions should be handled properly.
@@ -202,7 +204,8 @@ def get_page(
     model_page: Page,
     expr: Expr,
     limit: Optional[int] = None,
-    default_expand: bool = True
+    default_expand: bool = True,
+    params: QueryParams = None,
 ) -> Iterator[ObjectData]:
     config = context.get('config')
     page_size = config.push_page_size
@@ -215,9 +218,9 @@ def get_page(
         finished = True
         query = add_page_expr(expr, model_page)
         if backend.support_expand:
-            rows = commands.getall(context, model, backend, query=query, default_expand=default_expand)
+            rows = commands.getall(context, model, backend, params=params, query=query, default_expand=default_expand)
         else:
-            rows = commands.getall(context, model, backend, query=query)
+            rows = commands.getall(context, model, backend, params=params, query=query)
         first_value = None
         previous_value = None
         for row in rows:

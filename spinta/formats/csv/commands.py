@@ -3,7 +3,6 @@ from typing import Any
 from typing import Dict
 from typing import Iterator
 
-import itertools
 from starlette.requests import Request
 from starlette.responses import Response
 from starlette.responses import StreamingResponse

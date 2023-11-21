@@ -59,6 +59,7 @@ from spinta.exceptions import InfiniteLoopWithPagination, UnauthorizedPropertyPu
 from spinta.manifests.components import Manifest
 from spinta.types.datatype import Ref
 from spinta.types.namespace import sort_models_by_ref_and_base
+from spinta.ufuncs.basequerybuilder.components import QueryParams
 from spinta.ufuncs.basequerybuilder.ufuncs import filter_page_values
 from spinta.utils.data import take
 from spinta.utils.itertools import peek
@@ -540,6 +541,8 @@ def _iter_model_rows(
     no_progress_bar: bool = False,
     push_counter: tqdm.tqdm = None,
 ) -> Iterator[ModelRow]:
+    params = QueryParams()
+    params.push = True
     for model in models:
 
         model_push_counter = None
@@ -556,6 +559,7 @@ def _iter_model_rows(
                 stop_on_error,
                 push_counter,
                 model_push_counter,
+                params=params
             )
             for row in rows:
                 yield row
@@ -564,7 +568,8 @@ def _iter_model_rows(
                 context,
                 model,
                 limit,
-                stop_on_error
+                stop_on_error,
+                params=params
             )
             for item in stream:
                 if push_counter:
@@ -589,6 +594,7 @@ def _read_model_data_by_page(
     model_page: Page,
     limit: int = None,
     stop_on_error: bool = False,
+    params: QueryParams = None
 ) -> Iterable[Dict[str, Any]]:
 
     if limit is None:
@@ -602,7 +608,8 @@ def _read_model_data_by_page(
         model.backend,
         model_page,
         query,
-        limit
+        limit,
+        params=params
     )
 
     if stop_on_error:
@@ -629,6 +636,7 @@ def _read_rows_by_pages(
     stop_on_error: bool = False,
     push_counter: tqdm.tqdm = None,
     model_push_counter: tqdm.tqdm = None,
+    params: QueryParams = None
 ) -> Iterator[_PushRow]:
     conn = context.get('push.state.conn')
     config = context.get('config')
@@ -648,7 +656,8 @@ def _read_rows_by_pages(
         model,
         deepcopy(model.page),
         limit,
-        stop_on_error
+        stop_on_error,
+        params
     )
     total_count = 0
     data_push_count = 0
