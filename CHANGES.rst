@@ -3,8 +3,32 @@
 Changes
 #######
 
-0.1.60 (unreleased)
+0.1.60 (2023-11-21)
 ===================
+
+New features:
+
+- Add new `text` type (`#204`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/204
+
+Bug fixes:
+
+- Fix client files migration issue (`#544`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/544
+
+- Fix pagination infinite loop error (`#542`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/542
+
+- Do not sync keymap on models not required for push operation (`#541`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/541
+
+- Fix `/:all` on RDF format (`#543`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/543
 
 
 0.1.59 (2023-11-14)
