@@ -1550,7 +1550,7 @@ def test_inspect_multiple_datasets_different_resources_specific(
 
 
 def test_inspect_with_views(
-    rc: RawConfig,
+    rc_new: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite
@@ -1575,13 +1575,13 @@ def test_inspect_with_views(
 
     result_file_path = tmp_path / 'result.csv'
     # Configure Spinta.
-    cli.invoke(rc, [
+    cli.invoke(rc_new, [
         'inspect',
         '-r', 'sql', sqlite.dsn,
         '-o', tmp_path / 'result.csv',
     ])
     # Check what was detected.
-    manifest = load_manifest(rc, result_file_path)
+    manifest = load_manifest(rc_new, result_file_path)
     manifest.datasets['dbsqlite'].resources['resource1'].external = 'sqlite'
     manifest.datasets['dbsqlite/views'].resources['resource1'].external = 'sqlite'
     a, b = compare_manifest(manifest, f'''
