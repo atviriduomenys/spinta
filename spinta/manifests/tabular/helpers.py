@@ -638,7 +638,7 @@ ALLOWED_ARRAY_TYPES = ['array', 'partial_array']
 
 def _initial_normal_property_schema(given_name: str, dtype: dict, row: dict):
     return {
-        'id': row['id'],
+        'id': row.get('id'),
         'type': dtype['type'],
         'type_args': dtype['type_args'],
         'prepare': row.get(PREPARE),
