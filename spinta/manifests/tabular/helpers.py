@@ -2320,7 +2320,7 @@ def datasets_to_tabular(
 ) -> Iterator[ManifestRow]:
     yield from _prefixes_to_tabular(manifest.prefixes, separator=True)
     yield from _backends_to_tabular(manifest.backends, separator=True)
-    yield from _namespaces_to_tabular(manifest.namespaces, separator=True)
+    yield from _namespaces_to_tabular(commands.get_namespaces(manifest), separator=True)
     yield from _enums_to_tabular(
         manifest.enums,
         external=external,
@@ -2333,7 +2333,8 @@ def datasets_to_tabular(
     dataset = None
     resource = None
     base = None
-    models = manifest.models if internal else take(manifest.models)
+    models = commands.get_models(manifest)
+    models = models if internal else take(models)
     models = sort(MODELS_ORDER_BY, models.values(), order_by)
 
     separator = False
@@ -2400,7 +2401,7 @@ def datasets_to_tabular(
             order_by=order_by,
         )
 
-    datasets = sort(DATASETS_ORDER_BY, manifest.datasets.values(), order_by)
+    datasets = sort(DATASETS_ORDER_BY, commands.get_datasets(manifest).values(), order_by)
     for dataset in datasets:
         if dataset.name in seen_datasets:
             continue

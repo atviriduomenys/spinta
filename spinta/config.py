@@ -77,8 +77,6 @@ CONFIG = {
         'nodes': {
             'ns': 'spinta.components:Namespace',
             'model': 'spinta.components:Model',
-            'owner': 'spinta.types.owner:Owner',
-            'project': 'spinta.types.project:Project',
             'dataset': 'spinta.datasets.components:Dataset',
             'base': 'spinta.components:Base',
         },

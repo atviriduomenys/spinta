@@ -1,6 +1,7 @@
 # Register get_error_context commands.
 import spinta.commands  # noqa
 import spinta.manifests.commands.error  # noqa
+from spinta import commands
 
 from spinta.exceptions import BaseError, error_response
 from spinta.components import Node
@@ -126,7 +127,7 @@ def test_missing_var_in_template():
 
 
 def test_this_model(context):
-    model = context.get('store').manifest.objects['model']['org']
+    model = commands.get_model(context.get('store').manifest, 'org')
     model.path = 'manifest/models/org.yml'
     error = Error(model)
     assert str(error) == (
@@ -140,7 +141,7 @@ def test_this_model(context):
 
 
 def test_this_model_property(context):
-    prop = context.get('store').manifest.objects['model']['org'].properties['title']
+    prop = commands.get_model(context.get('store').manifest, 'org').properties['title']
     prop.model.path = 'manifest/models/org.yml'
     error = Error(prop)
     assert str(error) == (
@@ -155,7 +156,7 @@ def test_this_model_property(context):
 
 
 def test_this_model_property_dtype(context):
-    dtype = context.get('store').manifest.objects['model']['org'].properties['title'].dtype
+    dtype = commands.get_model(context.get('store').manifest, 'org').properties['title'].dtype
     dtype.prop.model.path = 'manifest/models/org.yml'
     error = Error(dtype)
     assert str(error) == (
@@ -171,7 +172,7 @@ def test_this_model_property_dtype(context):
 
 
 def test_this_dataset_model(context):
-    model = context.get('store').manifest.models['datasets/backends/postgres/dataset/report']
+    model = commands.get_model(context.get('store').manifest, 'datasets/backends/postgres/dataset/report')
     model.path = 'manifest/backends/postgres/dataset/report.yml'
     error = Error(model)
     assert str(error) == (
@@ -189,7 +190,7 @@ def test_this_dataset_model(context):
 
 
 def test_this_dataset_model_property(context):
-    prop = context.get('store').manifest.models['datasets/backends/postgres/dataset/report'].properties['status']
+    prop = commands.get_model(context.get('store').manifest, 'datasets/backends/postgres/dataset/report').properties['status']
     prop.model.path = 'manifest/backends/postgres/dataset/report.yml'
     error = Error(prop)
     assert str(error) == (

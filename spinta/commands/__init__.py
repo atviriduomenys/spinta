@@ -1100,3 +1100,95 @@ def get_column(
     **kwargs
 ):
     pass
+
+
+@command()
+def has_node_type(manifest: Manifest, obj_type: str) -> bool:
+    """Check if manifest has specified node type"""
+
+
+@command()
+def has_node(manifest: Manifest, obj_type: str, obj: str) -> bool:
+    """Check if manifest has specified node"""
+
+
+@command()
+def get_node(manifest: Manifest, obj_type: str, obj: str) -> Node:
+    """Return node from manifest"""
+
+
+@command()
+def get_nodes(manifest: Manifest, obj_type: str) -> Dict[str, Node]:
+    """Return all nodes from manifest"""
+
+
+@command()
+def set_node(manifest: Manifest, obj_type: str, obj_name, obj: Node):
+    """Add node to manifest"""
+
+
+@command()
+def has_model(manifest: Manifest, model: str) -> bool:
+    """Check if manifest has specified model"""
+
+
+@command()
+def get_model(manifest: Manifest, model: str) -> Model:
+    """Return model from manifest"""
+
+
+@command()
+def get_models(manifest: Manifest) -> Dict[str, Model]:
+    """Return all models from manifest"""
+
+
+@command()
+def set_model(manifest: Manifest, model_name: str, model: Model):
+    """Add model to manifest"""
+
+
+@command()
+def set_models(manifest: Manifest, models: Dict[str, Model]):
+    """Sets all model to manifest"""
+
+
+@command()
+def has_namespace(manifest: Manifest, namespace: str) -> bool:
+    """Check if manifest has specified namespace"""
+
+
+@command()
+def get_namespaces(manifest: Manifest) -> Dict[str, Namespace]:
+    """Return all namespaces from manifest"""
+
+
+@command()
+def get_namespace(manifest: Manifest, namespace: str) -> Namespace:
+    """Return namespace from manifest"""
+
+
+@command()
+def set_namespace(manifest: Manifest, namespace: str, ns: Namespace):
+    """Add namespace to manifest"""
+
+
+@command()
+def has_dataset(manifest: Manifest, dataset: str) -> bool:
+    """Check if manifest has specified dataset"""
+
+
+@command()
+def get_dataset(manifest: Manifest, dataset: str) -> Dataset:
+    """Return dataset from manifest"""
+
+
+@command()
+def get_datasets(manifest: Manifest) -> Dict[str, Dataset]:
+    """Return all datasets from manifest"""
+
+
+@command()
+def set_dataset(manifest: Manifest, dataset_name: str, dataset: Dataset):
+    """Add dataset to manifest"""
+
+

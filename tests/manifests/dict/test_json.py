@@ -1,5 +1,6 @@
 import json
 
+from spinta import commands
 from spinta.core.config import RawConfig
 
 from pathlib import Path
@@ -37,7 +38,7 @@ def test_json_normal(rc: RawConfig, tmp_path: Path):
     path.write_text(json.dumps(json_manifest))
 
     manifest = load_manifest(rc, path)
-    manifest.datasets["dataset"].resources["resource"].external = "manifest.json"
+    commands.get_dataset(manifest, "dataset").resources["resource"].external = "manifest.json"
     a, b = compare_manifest(manifest, f'''
 id | d | r | b | m | property | type                   | ref     | source           | prepare | level | access | uri | title | description
    | dataset                  |                        |         |                  |         |       |        |     |       |
@@ -82,7 +83,7 @@ def test_json_blank_node(rc: RawConfig, tmp_path: Path):
     path.write_text(json.dumps(json_manifest))
 
     manifest = load_manifest(rc, path)
-    manifest.datasets["dataset"].resources["resource"].external = "manifest.json"
+    commands.get_dataset(manifest, "dataset").resources["resource"].external = "manifest.json"
     a, b = compare_manifest(manifest, f'''
 id | d | r | b | m | property | type                   | ref     | source        | prepare | level | access | uri | title | description
    | dataset                  |                        |         |               |         |       |        |     |       |
@@ -139,7 +140,7 @@ def test_json_blank_node_inherit(rc: RawConfig, tmp_path: Path):
     path.write_text(json.dumps(json_manifest))
 
     manifest = load_manifest(rc, path)
-    manifest.datasets["dataset"].resources["resource"].external = "manifest.json"
+    commands.get_dataset(manifest, "dataset").resources["resource"].external = "manifest.json"
     a, b = compare_manifest(manifest, f'''
 id | d | r | b | m | property            | type                   | ref     | source              | prepare | level | access | uri | title | description
    | dataset                             |                        |         |                     |         |       |        |     |       |
@@ -207,7 +208,7 @@ def test_json_inherit_nested(rc: RawConfig, tmp_path: Path):
     path.write_text(json.dumps(json_manifest))
 
     manifest = load_manifest(rc, path)
-    manifest.datasets["dataset"].resources["resource"].external = "manifest.json"
+    commands.get_dataset(manifest, "dataset").resources["resource"].external = "manifest.json"
     a, b = compare_manifest(manifest, f'''
 id | d | r | b | m | property            | type                    | ref     | source                          | prepare | level | access | uri | title | description
    | dataset                             |                         |         |                                 |         |       |        |     |       |

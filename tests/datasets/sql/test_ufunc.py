@@ -4,6 +4,7 @@ import pytest
 
 import sqlalchemy as sa
 
+from spinta import commands
 from spinta.core.config import RawConfig
 from spinta.datasets.backends.sql.ufuncs.components import SqlResultBuilder
 from spinta.testing.manifest import load_manifest_and_context
@@ -26,7 +27,7 @@ def test_cast_integer(rc: RawConfig, value):
       |   |   | Data         |         |         |       |
       |   |   |   | value    | integer |         |       |
     ''')
-    dtype = manifest.models['example/Data'].properties['value'].dtype
+    dtype = commands.get_model(manifest, 'example/Data').properties['value'].dtype
     env = SqlResultBuilder(context)
     env.call('cast', dtype, value)
 
@@ -42,7 +43,7 @@ def test_cast_integer_error(rc: RawConfig, value):
       |   |   | Data         |         |         |       |
       |   |   |   | value    | integer |         |       |
     ''')
-    dtype = manifest.models['example/Data'].properties['value'].dtype
+    dtype = commands.get_model(manifest, 'example/Data').properties['value'].dtype
     env = SqlResultBuilder(context)
     with pytest.raises(UnableToCast) as e:
         env.call('cast', dtype, value)
@@ -63,7 +64,7 @@ def test_point(rc: RawConfig):
     context.set('auth.token', AdminToken())
 
     model_name = 'example/Data'
-    model = manifest.models[model_name]
+    model = commands.get_model(manifest, model_name)
 
     env = SqlQueryBuilder(context)
     env.update(model=model)

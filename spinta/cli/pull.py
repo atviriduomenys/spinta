@@ -21,7 +21,7 @@ from spinta.manifests.components import Manifest
 
 
 def _get_dataset_models(manifest: Manifest, dataset: Dataset):
-    for model in manifest.models.values():
+    for model in commands.get_models(manifest).values():
         if model.external and model.external.dataset and model.external.dataset.name == dataset.name:
             yield model
 
@@ -50,8 +50,8 @@ def pull(
     context = ctx.obj
     store = prepare_manifest(context)
     manifest = store.manifest
-    if dataset in manifest.objects['dataset']:
-        dataset = manifest.objects['dataset'][dataset]
+    if commands.has_namespace(manifest, dataset):
+        dataset = commands.get_dataset(manifest, dataset)
     else:
         echo(str(exceptions.NodeNotFound(manifest, type='dataset', name=dataset)))
         raise Exit(code=1)
@@ -59,10 +59,10 @@ def pull(
     if model:
         models = []
         for model in model:
-            if model not in manifest.models:
+            if not commands.has_model(manifest, model):
                 echo(str(exceptions.NodeNotFound(manifest, type='model', name=model)))
                 raise Exit(code=1)
-            models.append(manifest.models[model])
+            models.append(commands.get_model(manifest, model))
     else:
         models = _get_dataset_models(manifest, dataset)
 
@@ -77,7 +77,7 @@ def pull(
 
             stream = _pull_models(context, models)
             if push:
-                root = manifest.objects['ns']['']
+                root = commands.get_namespace(manifest, '')
                 stream = write(context, root, stream, changed=True)
 
             if export is None and push is False:

@@ -17,7 +17,7 @@ def inspect(
     manifest: Manifest,
     source: None,
 ) -> Iterator[ManifestSchema]:
-    for dataset in manifest.datasets.values():
+    for dataset in commands.get_datasets(manifest).values():
         yield from commands.inspect(context, manifest.backend, dataset, None)
 
 

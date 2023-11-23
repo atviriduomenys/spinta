@@ -1,3 +1,4 @@
+from spinta import commands
 from spinta.core.config import RawConfig
 from spinta.datasets.backends.sql.commands.read import _get_row_value
 from spinta.manifests.tabular.helpers import striptable
@@ -36,7 +37,7 @@ def test__get_row_value_null(rc: RawConfig):
       |   |   |   |          |         |     | 2      | 2       |
     ''')
     row = ["Vilnius", None]
-    model = manifest.models['example/City']
+    model = commands.get_model(manifest, 'example/City')
     sel = Selected(1, model.properties['rating'])
     assert _get_row_value(context, row, sel) is None
 

@@ -1,4 +1,4 @@
-from spinta import exceptions
+from spinta import exceptions, commands
 from spinta.core.config import RawConfig
 from spinta.testing.manifest import load_manifest
 from spinta.utils.errors import report_error
@@ -12,7 +12,7 @@ def test_report_error__id(rc: RawConfig):
       |   |   |   | name     | string | open
     ''')
 
-    model = manifest.models['datasets/gov/example/Country']
+    model = commands.get_model(manifest, 'datasets/gov/example/Country')
     prop = model.properties['name']
 
     exc = exceptions.InvalidValue(prop.dtype, value=42)

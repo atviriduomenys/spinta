@@ -20,39 +20,40 @@ def load(
     rename_duplicates: bool = False,
     load_internal: bool = True,
 ):
-    assert freezed, (
-        "SqlManifest does not have unfreezed version of manifest."
-    )
-
-    if load_internal:
-        target = into or manifest
-        if '_schema' not in target.models:
-            store = context.get('store')
-            commands.load(context, store.internal, into=target)
-
-    schemas = read_schema(manifest.path)
-
-    if into:
-        log.info(
-            'Loading freezed manifest %r into %r from %s.',
-            manifest.name,
-            into.name,
-            manifest.path,
-        )
-        load_manifest_nodes(context, into, schemas, source=manifest)
-    else:
-        log.info(
-            'Loading freezed manifest %r from %s.',
-            manifest.name,
-            manifest.path,
-        )
-        load_manifest_nodes(context, manifest, schemas)
-
-    for source in manifest.sync:
-        commands.load(
-            context, source,
-            into=into or manifest,
-            freezed=freezed,
-            rename_duplicates=rename_duplicates,
-            load_internal=load_internal,
-        )
+    pass
+    # assert freezed, (
+    #     "SqlManifest does not have unfreezed version of manifest."
+    # )
+    #
+    # if load_internal:
+    #     target = into or manifest
+    #     if '_schema' not in target.models:
+    #         store = context.get('store')
+    #         commands.load(context, store.internal, into=target)
+    #
+    # schemas = read_schema(manifest.path)
+    #
+    # if into:
+    #     log.info(
+    #         'Loading freezed manifest %r into %r from %s.',
+    #         manifest.name,
+    #         into.name,
+    #         manifest.path,
+    #     )
+    #     load_manifest_nodes(context, into, schemas, source=manifest)
+    # else:
+    #     log.info(
+    #         'Loading freezed manifest %r from %s.',
+    #         manifest.name,
+    #         manifest.path,
+    #     )
+    #     load_manifest_nodes(context, manifest, schemas)
+    #
+    # for source in manifest.sync:
+    #     commands.load(
+    #         context, source,
+    #         into=into or manifest,
+    #         freezed=freezed,
+    #         rename_duplicates=rename_duplicates,
+    #         load_internal=load_internal,
+    #     )

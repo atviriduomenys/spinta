@@ -63,7 +63,7 @@ def load_namespace_from_name(
     for part in [''] + parts_:
         parts.append(part)
         name = '/'.join(parts[1:])
-        if name not in manifest.namespaces:
+        if not commands.has_namespace(manifest, name):
             ns = Namespace()
             data = {
                 'type': 'ns',
@@ -74,7 +74,7 @@ def load_namespace_from_name(
             commands.load(context, ns, data, manifest)
             ns.generated = True
         else:
-            ns = manifest.namespaces[name]
+            ns = commands.get_namespace(manifest, name)
             pass
 
         if parent:
@@ -109,7 +109,7 @@ def load(
     ns.backend = None
     ns.names = {}
     ns.models = {}
-    manifest.namespaces[ns.name] = ns
+    commands.set_namespace(manifest, ns.name, ns)
 
 
 @commands.link.register(Context, Namespace)
@@ -139,7 +139,7 @@ async def getall(
 ) -> Response:
     config: Config = context.get('config')
     if config.root and ns.is_root():
-        ns = ns.manifest.namespaces[config.root]
+        ns = commands.get_namespace(ns.manifest, config.root)
 
     commands.authorize(context, action, ns)
 
@@ -187,7 +187,7 @@ async def getall(
         rows = (
             commands.prepare_data_for_response(
                 context,
-                ns.manifest.models[row['_type']],
+                commands.get_model(ns.manifest, row['_type']),
                 params.fmt,
                 row,
                 action=action,
@@ -328,7 +328,7 @@ def _get_ns_content(
 
     data = sorted(data, key=lambda x: (x.data['_type'] != 'ns', x.data['name']))
 
-    model = ns.manifest.models['_ns']
+    model = commands.get_model(ns.manifest, '_ns')
     select = params.select or ['name', 'title', 'description']
     select_tree = get_select_tree(context, action, select)
     prop_names = get_select_prop_names(

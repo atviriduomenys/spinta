@@ -544,7 +544,7 @@ def prepare_data_for_response(
             select=sel,
         )
         for prop, val, sel in select_model_props(
-            ns.manifest.models['_ns'],
+            commands.get_model(ns.manifest, '_ns'),
             prop_names,
             value,
             select,

@@ -44,8 +44,8 @@ def _get_available_prefixes(model: Model) -> dict:
         RDF: "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
         PAV: "http://purl.org/pav/"
     }
-    if model.manifest.datasets.get(model.ns.name):
-        manifest_prefixes = model.manifest.datasets.get(model.ns.name).prefixes
+    if commands.has_dataset(model.manifest, model.ns.name):
+        manifest_prefixes = commands.get_dataset(model.manifest, model.ns.name).prefixes
         for key, val in manifest_prefixes.items():
             if isinstance(val, UriPrefix):
                 prefixes[key] = val.uri

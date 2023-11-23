@@ -56,7 +56,7 @@ def get_node(
         # If parent is given, that means we are loading a node whose parent is
         # not manifest, that means we can't do checks on manifest.objects.
 
-        if ctype not in manifest.objects:
+        if not commands.has_node_type(manifest, ctype):
             raise exceptions.InvalidManifestFile(
                 manifest=manifest.name,
                 eid=eid,
@@ -71,9 +71,9 @@ def get_node(
                     prop='name',
                 )
 
-            if data['name'] in manifest.objects[ctype]:
+            if commands.has_node(manifest, ctype, data['name']):
                 name = data['name']
-                other = manifest.objects[ctype][name].eid
+                other = commands.get_node(manifest, ctype, name).eid
                 raise exceptions.InvalidManifestFile(
                     manifest=manifest.name,
                     eid=eid,

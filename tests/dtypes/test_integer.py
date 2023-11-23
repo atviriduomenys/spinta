@@ -29,7 +29,7 @@ def test_integer(rc: RawConfig, value: Optional[int]):
     store: Store = context.get('store')
     manifest: Manifest = store.manifest
     backend: Memory = manifest.backend
-    model = manifest.models['datasets/gov/example/City']
+    model = commands.get_model(manifest, 'datasets/gov/example/City')
     payload = {
         '_op': 'insert',
         'population': value,

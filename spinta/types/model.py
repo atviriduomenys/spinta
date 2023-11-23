@@ -85,7 +85,6 @@ def load(
     else:
         model.keymap = manifest.keymap
 
-    manifest.add_model_endpoint(model)
     _load_namespace_from_model(context, manifest, model)
     load_access_param(model, data.get('access'), itertools.chain(
         [model.ns],
@@ -237,7 +236,7 @@ def _link_model_page(model: Model):
 @overload
 @commands.link.register(Context, Base)
 def link(context: Context, base: Base):
-    base.parent = base.model.manifest.models[base.parent]
+    base.parent = commands.get_model(base.model.manifest, base.parent)
     base.pk = [
         base.parent.properties[pk]
         for pk in base.pk

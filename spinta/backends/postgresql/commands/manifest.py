@@ -49,7 +49,7 @@ def load(
         )
 
         target = into or manifest
-        if '_schema' not in target.models:
+        if not commands.has_model(target, '_schema'):
             store = context.get('store')
             commands.load(context, store.internal, into=target)
 

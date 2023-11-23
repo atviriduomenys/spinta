@@ -3,6 +3,7 @@ from typing import Tuple
 
 import pytest
 
+from spinta import commands
 from spinta.core.config import RawConfig
 from spinta.testing.client import TestClient
 from spinta.testing.client import create_test_client
@@ -148,7 +149,7 @@ def test_sort_models_by_refs(rc: RawConfig):
       |   |   |   | country   | ref    | Country   | open
     ''')
 
-    models = sort_models_by_refs(manifest.models.values())
+    models = sort_models_by_refs(commands.get_models(manifest).values())
     names = [model.name for model in models]
     assert names == [
         'datasets/gov/example/City',

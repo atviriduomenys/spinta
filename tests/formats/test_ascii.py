@@ -5,6 +5,7 @@ import hashlib
 import pytest
 from _pytest.fixtures import FixtureRequest
 
+from spinta import commands
 from spinta.auth import AdminToken
 from spinta.components import Action
 from spinta.components import UrlParams
@@ -103,7 +104,7 @@ async def test_export_multiple_types(rc: RawConfig):
     context.set('auth.token', AdminToken())
     config = context.get('config')
     exporter = config.exporters['ascii']
-    ns = manifest.namespaces['']
+    ns = commands.get_namespace(manifest, '')
     params = UrlParams()
     assert ''.join(exporter(context, ns, Action.GETALL, params, rows)) == (
         '\n'

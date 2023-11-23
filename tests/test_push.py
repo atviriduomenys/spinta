@@ -16,6 +16,7 @@ from requests import PreparedRequest
 from responses import POST
 from responses import RequestsMock
 
+from spinta import commands
 from spinta.cli.helpers.errors import ErrorCounter
 from spinta.cli.push import _PushRow, _reset_pushed
 from spinta.cli.push import _get_row_for_error
@@ -157,7 +158,7 @@ def test__map_sent_and_recv__no_recv(rc: RawConfig):
       |   |   |   | name     | string | open
     ''')
 
-    model = manifest.models['datasets/gov/example/Country']
+    model = commands.get_model(manifest, 'datasets/gov/example/Country')
     sent = [
         _PushRow(model, {'name': 'Vilnius'}),
     ]
@@ -173,7 +174,7 @@ def test__get_row_for_error__errors(rc: RawConfig):
       |   |   |   | name     | string | open
     ''')
 
-    model = manifest.models['datasets/gov/example/Country']
+    model = commands.get_model(manifest, 'datasets/gov/example/Country')
     rows = [
         _PushRow(model, {
             '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
@@ -251,7 +252,7 @@ def test_push_state__create(rc: RawConfig, responses: RequestsMock):
       | name     | string | open
     ''')
 
-    model = manifest.models['City']
+    model = commands.get_model(manifest, 'City')
     models = [model]
 
     state = _State(*_init_push_state('sqlite://', models))
@@ -310,7 +311,7 @@ def test_push_state__create_error(rc: RawConfig, responses: RequestsMock):
       | name     | string | open
     ''')
 
-    model = manifest.models['City']
+    model = commands.get_model(manifest, 'City')
     models = [model]
 
     state = _State(*_init_push_state('sqlite://', models))
@@ -352,7 +353,7 @@ def test_push_state__update(rc: RawConfig, responses: RequestsMock):
       | name     | string | open
     ''')
 
-    model = manifest.models['City']
+    model = commands.get_model(manifest, 'City')
     models = [model]
 
     state = _State(*_init_push_state('sqlite://', models))
@@ -425,7 +426,7 @@ def test_push_state__update_without_sync(rc: RawConfig, responses: RequestsMock)
       | name     | string | open
     ''')
 
-    model = manifest.models['City']
+    model = commands.get_model(manifest, 'City')
     models = [model]
 
     state = _State(*_init_push_state('sqlite://', models))
@@ -493,7 +494,7 @@ def test_push_state__update_sync_first_time(rc: RawConfig, responses: RequestsMo
       | name     | string | open
     ''')
 
-    model = manifest.models['City']
+    model = commands.get_model(manifest, 'City')
     models = [model]
 
     state = _State(*_init_push_state('sqlite://', models))
@@ -560,7 +561,7 @@ def test_push_state__update_sync(rc: RawConfig, responses: RequestsMock):
       | name     | string | open
     ''')
 
-    model = manifest.models['City']
+    model = commands.get_model(manifest, 'City')
     models = [model]
 
     state = _State(*_init_push_state('sqlite://', models))
@@ -625,7 +626,7 @@ def test_push_state__update_error(rc: RawConfig, responses: RequestsMock):
       | name     | string | open
     ''')
 
-    model = manifest.models['City']
+    model = commands.get_model(manifest, 'City')
     models = [model]
 
     state = _State(*_init_push_state('sqlite://', models))
@@ -751,7 +752,7 @@ def test_push_state__delete(rc: RawConfig, responses: RequestsMock):
       | name     | string | open
     ''')
 
-    model = manifest.models['City']
+    model = commands.get_model(manifest, 'City')
     models = [model]
 
     state = _State(*_init_push_state('sqlite://', models))
@@ -825,7 +826,7 @@ def test_push_state__retry(rc: RawConfig, responses: RequestsMock):
          | name     | string | open
        ''')
 
-    model = manifest.models['City']
+    model = commands.get_model(manifest, 'City')
     models = [model]
 
     state = _State(*_init_push_state('sqlite://', models))
@@ -892,7 +893,7 @@ def test_push_state__max_errors(rc: RawConfig, responses: RequestsMock):
          | name     | string | open
        ''')
 
-    model = manifest.models['City']
+    model = commands.get_model(manifest, 'City')
     models = [model]
 
     state = _State(*_init_push_state('sqlite://', models))
@@ -972,7 +973,7 @@ def test_push_init_state(rc: RawConfig, sqlite: Sqlite):
              | name     | string | open
            ''')
 
-    model = manifest.models['City']
+    model = commands.get_model(manifest, 'City')
     models = [model]
 
     sqlite.init({
@@ -1022,7 +1023,7 @@ def test_push_state__paginate(rc: RawConfig, responses: RequestsMock):
          | name     | string | open
        ''')
 
-    model = manifest.models['City']
+    model = commands.get_model(manifest, 'City')
     models = [model]
 
     state = _State(*_init_push_state('sqlite://', models))

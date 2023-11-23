@@ -1,6 +1,7 @@
 from typing import Any
 from typing import Union
 
+from spinta import commands
 from spinta.components import Context
 from spinta.components import Model
 from spinta.components import Property
@@ -134,10 +135,11 @@ def _format_model(model: Model) -> Model:
 
 
 def reformat_names(context: Context, manifest: Manifest):
-    for model in manifest.models.values():
+    models = commands.get_models(manifest)
+    for model in models:
         _format_model_expr(context, model)
 
-    manifest.objects['model'] = {
+    commands.set_models(manifest, {
         model.name: model
-        for model in map(_format_model, manifest.models.values())
-    }
+        for model in map(_format_model, models.values())
+    })

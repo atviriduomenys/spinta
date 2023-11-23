@@ -10,7 +10,7 @@ import ruamel.yaml
 from authlib.jose import jwk
 from authlib.jose import jwt
 
-from spinta import auth
+from spinta import auth, commands
 from spinta.auth import get_client_file_path, query_client, get_clients_path
 from spinta.components import Action, Context
 from spinta.testing.cli import SpintaCliRunner
@@ -200,11 +200,11 @@ def test_authorized(context, client, scope, node, action, authorized):
     store = context.get('store')
     if '.' in node:
         model, prop = node.split('.', 1)
-        node = store.manifest.models[model].flatprops[prop]
-    elif node in store.manifest.models:
-        node = store.manifest.models[node]
+        node = commands.get_model(store.manifest, model).flatprops[prop]
+    elif commands.has_model(store.manifest, node):
+        node = commands.get_model(store.manifest, node)
     else:
-        node = store.manifest.objects['ns'][node]
+        node = commands.get_namespace(store.manifest, node)
     action = getattr(Action, action.upper())
     assert auth.authorized(context, node, action) is authorized
 

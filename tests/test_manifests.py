@@ -3,7 +3,7 @@ from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.utils import create_manifest_files
 from spinta.testing.context import create_test_context
 from spinta.components import Model
-from spinta.manifests.components import Manifest
+from spinta.manifests.components import Manifest, get_manifest_object_names
 
 
 def show(c: Manifest):
@@ -12,12 +12,13 @@ def show(c: Manifest):
             'type': c.type,
             'nodes': {},
         }
-        for group, nodes in c.objects.items():
-            if nodes:
-                res['nodes'][group] = {
-                    name: show(node)
-                    for name, node in nodes.items()
-                }
+        for group in get_manifest_object_names():
+            for nodes in commands.get_nodes(c, group):
+                if nodes:
+                    res['nodes'][group] = {
+                        name: show(node)
+                        for name, node in nodes.items()
+                    }
         return res
     if isinstance(c, Model):
         return {

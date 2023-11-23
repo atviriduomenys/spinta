@@ -583,7 +583,6 @@ class Model(MetaData):
     title: str
     description: str
     ns: Namespace
-    endpoint: str = None
     external: Entity = None
     properties: Dict[str, Property]
     mode: Mode = None
@@ -604,7 +603,6 @@ class Model(MetaData):
         'base': {},
         'link': {},
         'properties': {'default': {}},
-        'endpoint': {},
         'external': {},
         'level': {
             'type': 'integer',

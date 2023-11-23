@@ -10,6 +10,7 @@ from sqlalchemy.engine.base import Engine
 from spinta.backends.components import Backend
 from spinta.components import EntryId, ExtraMetaData
 from spinta.components import Namespace
+from spinta.dimensions.comments.components import Comment
 from spinta.dimensions.lang.components import LangData
 from spinta.components import MetaData
 from spinta.components import Model
@@ -19,8 +20,6 @@ from spinta.core.ufuncs import Expr
 from spinta.datasets.enums import Level
 from spinta.dimensions.prefix.components import UriPrefix
 from spinta.manifests.components import Manifest
-from spinta.types.owner import Owner
-from spinta.types.project import Project
 from spinta.utils.schema import NA
 
 
@@ -36,11 +35,9 @@ class Dataset(MetaData):
 
     id: str
     manifest: Manifest
-    owner: Owner = None
     level: Level = 3
     access: Access = Access.private
     website: str = None
-    projects: List[Project] = None
     resources: Dict[str, Resource] = None
     source: Optional[str] = None  # metadata source
     title: str

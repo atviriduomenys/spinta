@@ -32,7 +32,7 @@ def test_get_model_tabular_header(rc: RawConfig, query: str, header: List[str]):
       |   |   |   | country    | ref     | Country | open
     ''')
     context.set('auth.token', AdminToken())
-    model = manifest.models['example/City']
+    model = commands.get_model(manifest, 'example/City')
     request = make_get_request(model.name, query)
     params = commands.prepare(context, UrlParams(), Version(), request)
     action = Action.SEARCH if query else Action.GETALL

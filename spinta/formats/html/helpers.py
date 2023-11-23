@@ -8,6 +8,7 @@ from typing import Optional
 from typing import Tuple
 from typing import TypedDict
 
+from spinta import commands
 from spinta.components import Config
 from spinta.components import Context
 from spinta.components import Model
@@ -222,10 +223,10 @@ def _split_path(
     base = [base] if base else []
     for i, part in enumerate(parts, 1):
         path = '/'.join(base + parts[:i])
-        if i == last and path in manifest.models:
-            title = manifest.models[path].title
-        elif path in manifest.namespaces:
-            title = manifest.namespaces[path].title
+        if i == last and commands.has_model(manifest, path):
+            title = commands.get_model(manifest, path).title
+        elif commands.has_namespace(manifest, path):
+            title = commands.get_namespace(manifest, path).title
         else:
             title = ''
         title = title or part

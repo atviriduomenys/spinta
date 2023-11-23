@@ -37,9 +37,8 @@ def init_manifest(context: Context, manifest: Manifest, name: str):
     manifest.name = name
     manifest.store = context.get('store')
     manifest.parent = None
-    manifest.endpoints = {}
     manifest.backends = {}
-    manifest.objects = {name: {} for name in config.components['nodes']}
+    manifest._objects = {name: {} for name in config.components['nodes']}
     manifest.sync = []
     manifest.prefixes = {}
     manifest.enums = {}
@@ -136,11 +135,11 @@ def load_manifest_nodes(
             _load_manifest(context, manifest, schema, eid)
         else:
             node = _load_manifest_node(context, config, manifest, source, eid, schema)
-            manifest.objects[node.type][node.name] = node
+            commands.set_node(manifest, node.type, node.name, node)
             if link:
                 to_link.append(node)
 
-    if '' not in manifest.namespaces:
+    if not commands.has_namespace(manifest, ''):
         # Root namespace must always be present in manifest event if manifest is
         # empty.
         load_namespace_from_name(context, manifest, '', drop=False)

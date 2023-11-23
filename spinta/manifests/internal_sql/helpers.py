@@ -1,10 +1,11 @@
 import uuid
 from operator import itemgetter
-from typing import Optional, List, Iterator, Dict, Any, Tuple
+from typing import Optional, List, Iterator, Dict, Any, Tuple, Text
 
 import sqlalchemy as sa
 from sqlalchemy.sql.elements import Null
 
+from spinta import commands
 from spinta.backends import Backend
 from spinta.backends.components import BackendOrigin
 from spinta.components import Namespace, Base, Model, Property
@@ -24,7 +25,7 @@ from spinta.manifests.tabular.helpers import ENUMS_ORDER_BY, sort, MODELS_ORDER_
 from sqlalchemy_utils import UUIDType
 
 from spinta.spyna import unparse
-from spinta.types.datatype import Ref
+from spinta.types.datatype import Ref, Array, BackRef, Object
 from spinta.utils.data import take
 from spinta.utils.schema import NotAvailable, NA
 from spinta.utils.types import is_str_uuid
@@ -79,17 +80,13 @@ def _read_all_sql_manifest_rows(
 
 def write_internal_sql_manifest(dsn: str, manifest: Manifest):
     engine = sa.create_engine(dsn)
+    inspect = sa.inspect(engine)
     with engine.connect() as conn:
         meta = sa.MetaData(conn)
-        meta.reflect()
-        create_table = True
-        if "_manifest" in meta.tables.keys():
-            table = meta.tables["_manifest"]
-            table.drop()
-        if create_table:
-            meta.clear()
-            meta.reflect()
-            table = get_table_structure(meta)
+        table = get_table_structure(meta)
+        if inspect.has_table('_manifest'):
+            conn.execute(table.delete())
+        else:
             table.create()
         rows = datasets_to_sql(manifest)
         for row in rows:
@@ -115,7 +112,7 @@ def datasets_to_sql(
 ) -> Iterator[InternalManifestRow]:
     yield from _prefixes_to_sql(manifest.prefixes)
     yield from _backends_to_sql(manifest.backends)
-    yield from _namespaces_to_sql(manifest.namespaces)
+    yield from _namespaces_to_sql(commands.get_namespaces(manifest))
     yield from _enums_to_sql(
         manifest.enums,
         external=external,
@@ -144,7 +141,8 @@ def datasets_to_sql(
         "item": None,
         "depth": 0
     }
-    models = manifest.models if internal else take(manifest.models)
+    models = commands.get_models(manifest)
+    models = models if internal else take(models)
     models = sort(MODELS_ORDER_BY, models.values(), order_by)
 
     for model in models:
@@ -267,7 +265,7 @@ def datasets_to_sql(
             mpath=mpath
         )
 
-    datasets = sort(DATASETS_ORDER_BY, manifest.datasets.values(), order_by)
+    datasets = sort(DATASETS_ORDER_BY, commands.get_datasets(manifest).values(), order_by)
     for dataset in datasets:
         if dataset.name in seen_datasets:
             continue
@@ -759,8 +757,8 @@ def _property_to_sql(
         return
 
     item_id = _handle_id(prop.id)
-    new_path = '/'.join([path, prop.place] if path else [prop.place])
-    new_mpath = '/'.join([mpath, prop.place] if mpath else [prop.place])
+    new_path = '/'.join([path, prop.name] if path else [prop.name])
+    new_mpath = '/'.join([mpath, prop.name] if mpath else [prop.name])
     data = {
         'id': item_id,
         'parent': parent_id,
@@ -768,7 +766,7 @@ def _property_to_sql(
         'path': new_path,
         'mpath': new_mpath,
         'dim': 'property',
-        'name': prop.place,
+        'name': prop.name,
         'type': _get_type_repr(prop.dtype),
         'level': prop.level.value if prop.level else None,
         'access': prop.given.access,
@@ -790,6 +788,10 @@ def _property_to_sql(
         elif prop.external:
             data['source'] = prop.external.name
             data['prepare'] = _handle_prepare(prop.external.prepare)
+    yield_rows = []
+    if isinstance(prop.dtype, Array):
+        yield_array_row = prop.dtype.items
+        yield_rows.append(yield_array_row)
     if isinstance(prop.dtype, Ref):
         model = prop.model
         if model.external and model.external.dataset:
@@ -804,6 +806,32 @@ def _property_to_sql(
                 data['ref'] += f'[{rkeys}]'
         else:
             data['ref'] = prop.dtype.model.name
+
+        if prop.dtype.properties:
+            for obj_prop in prop.dtype.properties.values():
+                yield_rows.append(obj_prop)
+    elif isinstance(prop.dtype, BackRef):
+        model = prop.model
+        if model.external and model.external.dataset:
+            data['ref'] = to_relative_model_name(
+                prop.dtype.model,
+                model.external.dataset,
+            )
+            rkey = prop.dtype.refprop.place
+            if prop.dtype.explicit:
+                data['ref'] += f'[{rkey}]'
+        else:
+            data['ref'] = prop.dtype.model.name
+
+        for denorm_prop in prop.dtype.properties.values():
+            yield_rows.append(denorm_prop)
+    elif isinstance(prop.dtype, Object):
+        for obj_prop in prop.dtype.properties.values():
+            yield_rows.append(obj_prop)
+    elif isinstance(prop.dtype, Text):
+        for lang_prop in prop.dtype.langs.values():
+            yield_rows.append(lang_prop)
+
     elif prop.enum is not None:
         data['ref'] = prop.given.enum
     elif prop.unit is not None:
@@ -823,6 +851,10 @@ def _property_to_sql(
         path=new_path,
         mpath=new_mpath
     )
+    if yield_rows:
+        for yield_row in yield_rows:
+            if yield_row:
+                yield from _property_to_sql(yield_row, external=external, access=access, order_by=order_by, parent_id=item_id, depth=depth + 1, path=new_path, mpath=new_mpath)
 
 
 def _value_or_null(value: Any):

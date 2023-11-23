@@ -23,9 +23,9 @@ def link(context: Context, resource: Resource):
 
 @commands.link.register(Context, Entity)
 def link(context: Context, entity: Entity):
-    datasets = entity.model.manifest.datasets
+    manifest = entity.model.manifest
     if entity.dataset:
-        if entity.dataset not in datasets:
+        if not commands.has_dataset(manifest, entity.dataset):
             raise MissingReference(
                 entity,
                 param='dataset',
@@ -33,7 +33,7 @@ def link(context: Context, entity: Entity):
             )
         # XXX: https://gitlab.com/atviriduomenys/spinta/-/issues/44
         dataset: str = entity.dataset
-        entity.dataset = datasets[dataset]
+        entity.dataset = commands.get_dataset(manifest, dataset)
 
         resources = entity.dataset.resources
         if entity.resource:

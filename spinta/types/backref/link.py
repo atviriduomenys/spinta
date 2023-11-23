@@ -65,9 +65,9 @@ def _link_backref(context: Context, dtype: BackRef):
         # Self reference.
         dtype.model = dtype.prop.model
     else:
-        if backref_target_model not in dtype.prop.model.manifest.models:
+        if not commands.has_model(dtype.prop.model.manifest, backref_target_model):
             raise ModelReferenceNotFound(dtype, ref=backref_target_model)
-        dtype.model = dtype.prop.model.manifest.models[backref_target_model]
+        dtype.model = commands.get_model(dtype.prop.model.manifest, backref_target_model)
     given_refprop = dtype.refprop
     if dtype.refprop:
         dtype.explicit = True

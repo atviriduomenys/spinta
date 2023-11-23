@@ -217,7 +217,7 @@ def test_geometry_coordinate_transformation(
           |   |   |   | coordinates                | {dtype} |       |
         ''')
 
-    model = manifest.models['example/City']
+    model = commands.get_model(manifest, 'example/City')
     prop = model.properties['coordinates']
 
     value = shapely.wkt.loads(wkt)
@@ -253,7 +253,7 @@ def test_geometry_wkt_value_shortening(
       |   |   |   | name        | string         |     |
       |   |   |   | coordinates | geometry(4326) |     | WGS
     ''')
-    model = manifest.models['example/City']
+    model = commands.get_model(manifest, 'example/City')
     prop = model.properties['coordinates']
 
     value = shapely.wkt.loads(wkt)
