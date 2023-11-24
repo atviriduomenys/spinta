@@ -13,12 +13,12 @@ def show(c: Manifest):
             'nodes': {},
         }
         for group in get_manifest_object_names():
-            for nodes in commands.get_nodes(c, group):
-                if nodes:
-                    res['nodes'][group] = {
-                        name: show(node)
-                        for name, node in nodes.items()
-                    }
+            res['nodes'][group] = {
+                name: show(node)
+                for name, node in commands.get_nodes(c, group).items()
+            }
+            if not res['nodes'][group]:
+                res['nodes'].pop(group)
         return res
     if isinstance(c, Model):
         return {
@@ -45,7 +45,7 @@ def test_manifest_loading(postgresql, rc, cli: SpintaCliRunner, tmp_path, reques
     create_manifest_files(tmp_path, {
         'country.yml': {
             'type': 'model',
-            'name': 'country',
+            'name': 'Country',
             'properties': {
                 'name': {'type': 'string'},
             },
@@ -88,7 +88,7 @@ def test_manifest_loading(postgresql, rc, cli: SpintaCliRunner, tmp_path, reques
                 '_txn': {
                     'backend': 'default',
                 },
-                'country': {
+                'Country': {
                     'backend': 'default',
                 },
             },
