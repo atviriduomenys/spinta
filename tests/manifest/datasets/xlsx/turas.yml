@@ -1,5 +1,5 @@
 type: model
-name: datasets/xlsx/rinkimai/turas
+name: datasets/xlsx/Rinkimai/Turas
 external:
   dataset: datasets/xlsx
   resource: data
@@ -12,5 +12,5 @@ properties:
     external: Turas
   rinkimai:
     type: ref
-    model: datasets/xlsx/rinkimai
+    model: datasets/xlsx/Rinkimai
     external: Rinkimai

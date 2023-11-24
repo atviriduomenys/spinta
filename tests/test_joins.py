@@ -20,35 +20,35 @@ def create_cities(app: TestClient, backend: str):
     +-----------+-----------+---------+
 
     """
-    app.authmodel(f'backends/{backend}/continent', ['insert'])
-    app.authmodel(f'backends/{backend}/country', ['insert'])
-    app.authmodel(f'backends/{backend}/city', ['insert', 'search'])
+    app.authmodel(f'backends/{backend}/Continent', ['insert'])
+    app.authmodel(f'backends/{backend}/Country', ['insert'])
+    app.authmodel(f'backends/{backend}/City', ['insert', 'search'])
 
     # Add a continent
-    eu = pushdata(app, f'/backends/{backend}/continent', {
+    eu = pushdata(app, f'/backends/{backend}/Continent', {
         'title': 'Europe',
     })
 
     # Add countries
-    lt = pushdata(app, f'/backends/{backend}/country', {
+    lt = pushdata(app, f'/backends/{backend}/Country', {
         'title': 'Lithuania',
         'continent': {'_id': eu['_id']},
     })
-    lv = pushdata(app, f'/backends/{backend}/country', {
+    lv = pushdata(app, f'/backends/{backend}/Country', {
         'title': 'Latvia',
         'continent': {'_id': eu['_id']},
     })
 
     # Add cities
-    pushdata(app, f'/backends/{backend}/city', {
+    pushdata(app, f'/backends/{backend}/City', {
         'title': 'Vilnius',
         'country': {'_id': lt['_id']},
     })
-    pushdata(app, f'/backends/{backend}/city', {
+    pushdata(app, f'/backends/{backend}/City', {
         'title': 'Kaunas',
         'country': {'_id': lt['_id']},
     })
-    pushdata(app, f'/backends/{backend}/city', {
+    pushdata(app, f'/backends/{backend}/City', {
         'title': 'Riga',
         'country': {'_id': lv['_id']},
     })
@@ -57,12 +57,12 @@ def create_cities(app: TestClient, backend: str):
 @pytest.mark.parametrize('backend', ['postgres'])
 def test_select_with_joins(app, backend):
     create_cities(app, backend)
-    app.authmodel(f'backends/{backend}/city', ['search'])
+    app.authmodel(f'backends/{backend}/City', ['search'])
     # XXX: Maybe we should require `search` scope also for linked models? Now,
     #      we only have access to `continent`, but using foreign keys, we can
     #      also access country and continent.
     resp = app.get(
-        f'/backends/{backend}/city'
+        f'/backends/{backend}/City'
         '?select(title,country.title,country.continent.title)'
         '&sort(+_id)'
     )

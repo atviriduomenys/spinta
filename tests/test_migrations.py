@@ -52,7 +52,7 @@ def test_create_model(
     create_manifest_files(tmp_path, {
         'country.yml': {
             'type': 'model',
-            'name': 'country',
+            'name': 'Country',
             'properties': {
                 'name': {'type': 'string'},
             },
@@ -66,29 +66,29 @@ def test_create_model(
         'country.yml': [
             {
                 'type': 'model',
-                'name': 'country',
-                'id': 'country:0',
-                'version': 'country:1',
+                'name': 'Country',
+                'id': 'Country:0',
+                'version': 'Country:1',
                 'properties': {
                     'name': {'type': 'string'},
                 },
             },
             {
-                'id': 'country:1',
+                'id': 'Country:1',
                 'parents': [],
                 'migrate': [
                     {
                         'type': 'schema',
                         'upgrade': [
                             "create_table(",
-                            "    'country',",
+                            "    'Country',",
                             "    column('_id', pk()),",
                             "    column('_revision', string()),",
                             "    column('name', string())",
                             ")",
                         ],
                         'downgrade': [
-                            "drop_table('country')",
+                            "drop_table('Country')",
                         ],
                     },
                 ],
@@ -121,5 +121,5 @@ def test_create_model(
     resp = client.get('/_schema/version?select(type, name)')
     data = [(t, n) for t, n in listdata(resp) if not t.startswith('_')]
     assert data == [
-        ('country', 'model'),
+        ('Country', 'model'),
     ]

@@ -172,7 +172,7 @@ def test_this_model_property_dtype(context):
 
 
 def test_this_dataset_model(context):
-    model = commands.get_model(context.get('store').manifest, 'datasets/backends/postgres/dataset/report')
+    model = commands.get_model(context.get('store').manifest, 'datasets/backends/postgres/dataset/Report')
     model.path = 'manifest/backends/postgres/dataset/report.yml'
     error = Error(model)
     assert str(error) == (
@@ -183,7 +183,7 @@ def test_this_dataset_model(context):
         '    schema: backends/postgres/dataset/report.yml\n'
         '    dataset: datasets/backends/postgres/dataset\n'
         '    resource: sql\n'
-        '    model: datasets/backends/postgres/dataset/report\n'
+        '    model: datasets/backends/postgres/dataset/Report\n'
         '    entity: reports\n'
         '    resource.backend: datasets/backends/postgres/dataset/sql\n'
     )

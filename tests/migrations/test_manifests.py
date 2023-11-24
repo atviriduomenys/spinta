@@ -40,7 +40,7 @@ def test_new_version_new_manifest(rc, cli: SpintaCliRunner, tmp_path):
     create_manifest_files(tmp_path, {
         'models/report.yml': {
             'type': 'model',
-            'name': 'report',
+            'name': 'Report',
             'version': {
                 'id': 'a8ecf2ce-bfb7-49cd-b453-27898f8e03a2',
                 'date': '2020-03-14 15:26:53'
@@ -66,7 +66,7 @@ def test_new_version_no_changes(rc, cli: SpintaCliRunner, tmp_path):
     create_manifest_files(tmp_path, {
         'models/report.yml': {
             'type': 'model',
-            'name': 'report',
+            'name': 'Report',
             'properties': {
                 'title': {'type': 'string'},
             },
@@ -93,7 +93,7 @@ def test_new_version_with_changes(rc, cli: SpintaCliRunner, tmp_path):
     create_manifest_files(tmp_path, {
         'models/report.yml': {
             'type': 'model',
-            'name': 'report',
+            'name': 'Report',
             'properties': {
                 'title': {'type': 'string'},
             },
@@ -138,7 +138,7 @@ def test_new_version_branching_versions(rc, cli: SpintaCliRunner, tmp_path):
     schema = [
         {
             'type': 'model',
-            'name': 'report',
+            'name': 'Report',
             'version': {
                 'id': 'a8ecf2ce-bfb7-49cd-b453-27898f8e03a2',
                 'date': '2020-03-14 15:26:53',
@@ -257,7 +257,7 @@ def test_new_version_w_foreign_key(rc, cli: SpintaCliRunner, tmp_path):
         'models/org.yml': [
             {
                 'type': 'model',
-                'name': 'org',
+                'name': 'Org',
                 'version': {
                     'id': '365b3209-c00f-4357-9749-5f680d337834',
                     'date': '2020-03-14 15:26:53'

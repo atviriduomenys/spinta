@@ -1,5 +1,5 @@
 type: model
-name: datasets/backends/postgres/dataset/report
+name: datasets/backends/postgres/dataset/Report
 external:
   dataset: datasets/backends/postgres/dataset
   resource: sql

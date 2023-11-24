@@ -1,5 +1,5 @@
 type: model
-name: datasets/denorm/org
+name: datasets/denorm/Org
 external:
   dataset: datasets/denorm
   resource: orgs
@@ -14,5 +14,5 @@ properties:
     external: org
   country:
     type: ref
-    model: datasets/denorm/country
+    model: datasets/denorm/Country
     external: kodas

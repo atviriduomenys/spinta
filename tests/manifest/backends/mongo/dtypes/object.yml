@@ -1,6 +1,6 @@
 ---
 type: model
-name: backends/mongo/dtypes/object
+name: backends/mongo/dtypes/Object
 backend: mongo
 version:
   id: 1

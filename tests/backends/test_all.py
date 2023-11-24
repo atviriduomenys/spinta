@@ -3,8 +3,8 @@ from spinta.testing.utils import get_error_codes, get_error_context
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_insert_get(model, app):
     app.authmodel(model, ['insert', 'getone'])
@@ -55,8 +55,8 @@ def test_insert_get(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_update_get(model, app):
     app.authmodel(model, ['insert', 'update', 'getone', 'getall'])
@@ -150,8 +150,8 @@ def test_update_get(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_put_non_existant_resource(model, app):
     resp = app.get(f'/{model}/4e67-256f9a7388f88ccc502570f434f289e8-057553c2')
@@ -165,20 +165,22 @@ def test_put_non_existant_resource(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_get_non_existant_subresource(model, context, app):
     app.authmodel(model, ['insert', 'getone'])
 
     resp = app.post(f'/{model}', json={
-        '_type': 'report',
+        '_type': 'Report',
         'status': '42',
     })
     assert resp.status_code == 201
     id_ = resp.json()['_id']
 
     resp = app.get(f'/{model}/{id_}/foo')
+    schema = '\\'.join(model.split('/')[:-1])
+    schema = f"{schema}\\report.yml"
     assert resp.status_code == 404
     # FIXME: Fix error message, here model and resource is found, but model
     #        preprety is not found.
@@ -189,7 +191,7 @@ def test_get_non_existant_subresource(model, context, app):
         'message': "Property 'foo' not found.",
         'context': {
             'component': 'spinta.components.Model',
-            'schema': f'{model}.yml',
+            'schema': schema,
             'manifest': 'default',
             'model': model,
             'property': 'foo',
@@ -198,8 +200,8 @@ def test_get_non_existant_subresource(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_delete(model, app, tmp_path):
     # FIXME: `spinta_report_pdf_delete` gives access to:
@@ -275,8 +277,8 @@ def test_delete(model, app, tmp_path):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_delete_with_list_value(model, app):
     app.authmodel(model, [
@@ -294,8 +296,8 @@ def test_delete_with_list_value(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_patch(model, app, context):
     app.authorize(['spinta_set_meta_fields'])
@@ -396,8 +398,8 @@ def test_patch(model, app, context):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_escaping_chars(model, app):
     app.authmodel(model, ['insert', 'getone'])
@@ -415,8 +417,8 @@ def test_escaping_chars(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/subitem',
-    'backends/postgres/subitem',
+    'backends/mongo/Subitem',
+    'backends/postgres/Subitem',
 )
 def test_update_same_scalar(model, app):
     app.authmodel(model, ['insert', 'getone', 'update'])
@@ -451,8 +453,8 @@ def test_update_same_scalar(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/subitem',
-    'backends/postgres/subitem',
+    'backends/mongo/Subitem',
+    'backends/postgres/Subitem',
 )
 def test_update_same_obj(model, app):
     app.authmodel(model, ['insert', 'getone', 'update'])
@@ -493,8 +495,8 @@ def test_update_same_obj(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/subitem',
-    'backends/postgres/subitem',
+    'backends/mongo/Subitem',
+    'backends/postgres/Subitem',
 )
 def test_update_same_subresource(model, app):
     app.authmodel(model, ['insert', 'getone', 'update', 'subobj_update', 'subobj_get'])
@@ -534,8 +536,8 @@ def test_update_same_subresource(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/subitem',
-    'backends/postgres/subitem',
+    'backends/mongo/Subitem',
+    'backends/postgres/Subitem',
 )
 def test_update_same_array(model, app):
     app.authmodel(model, ['insert', 'getone', 'update'])

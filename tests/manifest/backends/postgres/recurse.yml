@@ -1,6 +1,6 @@
 ---
 type: model
-name: backends/postgres/recurse
+name: backends/postgres/Recurse
 version:
   id: 1
   date: 2019-02-06

@@ -1,5 +1,5 @@
 type: model
-name: datasets/xml/tenure
+name: datasets/xml/Tenure
 external:
   dataset: datasets/xml
   resource: data

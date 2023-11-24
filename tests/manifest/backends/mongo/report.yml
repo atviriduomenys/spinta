@@ -1,7 +1,6 @@
 ---
 type: model
-name: backends/mongo/report
-endpoint: backends/mongo/reports
+name: backends/mongo/Report
 backend: mongo
 title: "Report"
 version:

@@ -1,6 +1,6 @@
 ---
 type: model
-name: backends/mongo/org
+name: backends/mongo/Org
 backend: mongo
 title: "Organization"
 version:
@@ -11,4 +11,4 @@ unique:
 properties:
   title: {type: string}
   govid: {type: string, title: "Identification number", description: "Identification number assigned by government."}
-  country: {type: ref, model: backends/mongo/country}
+  country: {type: ref, model: backends/mongo/Country}

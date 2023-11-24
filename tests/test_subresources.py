@@ -6,8 +6,8 @@ from spinta.testing.utils import get_error_context, get_error_codes
 
 
 @pytest.mark.models(
-    'backends/mongo/subitem',
-    'backends/postgres/subitem',
+    'backends/mongo/Subitem',
+    'backends/postgres/Subitem',
 )
 def test_get_subresource(model, app):
     app.authmodel(model, ['insert', 'getone',
@@ -71,8 +71,8 @@ def test_get_subresource(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/subitem',
-    'backends/postgres/subitem',
+    'backends/mongo/Subitem',
+    'backends/postgres/Subitem',
 )
 def test_put_subresource(model, app):
     app.authmodel(model, [
@@ -168,8 +168,8 @@ def test_put_subresource(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/subitem',
-    'backends/postgres/subitem',
+    'backends/mongo/Subitem',
+    'backends/postgres/Subitem',
 )
 def test_patch_subresource(model, app):
     app.authmodel(model, [
@@ -285,8 +285,8 @@ def test_patch_subresource(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/subitem',
-    'backends/postgres/subitem',
+    'backends/mongo/Subitem',
+    'backends/postgres/Subitem',
 )
 def test_subresource_scopes(model, app):
     app.authmodel(model, ['insert', 'hidden_subobj_update'])
@@ -368,8 +368,8 @@ def test_subresource_scopes(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/subitem',
-    'backends/postgres/subitem',
+    'backends/mongo/Subitem',
+    'backends/postgres/Subitem',
 )
 def test_get_subresource_file(model, app, tmp_path):
     app.authmodel(model, ['insert', 'getone', 'hidden_subobj_update',
@@ -417,8 +417,8 @@ def test_get_subresource_file(model, app, tmp_path):
 
 
 @pytest.mark.models(
-    'backends/mongo/subitem',
-    'backends/postgres/subitem',
+    'backends/mongo/Subitem',
+    'backends/postgres/Subitem',
 )
 def test_put_hidden_subresource_on_model(model, app):
     app.authmodel(model, ['insert', 'getone', 'update', 'hidden_subobj_update'])
@@ -450,8 +450,8 @@ def test_put_hidden_subresource_on_model(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/subitem',
-    'backends/postgres/subitem',
+    'backends/mongo/Subitem',
+    'backends/postgres/Subitem',
 )
 def test_patch_hidden_subresource_on_model(model, app):
     app.authmodel(model, ['insert', 'getone', 'patch', 'hidden_subobj_update'])
@@ -483,8 +483,8 @@ def test_patch_hidden_subresource_on_model(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/subitem',
-    'backends/postgres/subitem',
+    'backends/mongo/Subitem',
+    'backends/postgres/Subitem',
 )
 def test_hidden_subresource_after_put(model, app):
     # tests that hidden subresource is not changed when
@@ -532,14 +532,14 @@ def test_hidden_subresource_after_put(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_file_without_content_type(model, app):
     app.authmodel(model, ['insert', 'pdf_update', 'pdf_getone'])
 
     # Create a new report resource.
-    resp = app.post(f'/{model}s', json={
+    resp = app.post(f'/{model}', json={
         '_type': model,
         'report_type': 'pdf',
     })

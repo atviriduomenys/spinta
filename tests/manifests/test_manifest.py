@@ -50,13 +50,13 @@ def test_loading(is_tabular, tmp_path, rc):
      datasets/gov/example     |             |           |            |         |       | open   |     | Example |
        | data                 |             |           | postgresql | default |       | open   |     | Data    |
                               |             |           |            |         |       |        |     |         |
-       |   |   | country      |             | code='lt' |            | code    |       | open   |     | Country |
+       |   |   | Country      |             | code='lt' |            | code    |       | open   |     | Country |
        |   |   |   | code     | kodas       | lower()   | string     |         | 3     | open   |     | Code    |
        |   |   |   | name     | pavadinimas |           | string     |         | 3     | open   |     | Name    |
                               |             |           |            |         |       |        |     |         |
-       |   |   | city         |             |           |            | name    |       | open   |     | City    |
+       |   |   | City         |             |           |            | name    |       | open   |     | City    |
        |   |   |   | name     | pavadinimas |           | string     |         | 3     | open   |     | Name    |
-       |   |   |   | country  | šalis       |           | ref        | country | 4     | open   |     | Country |
+       |   |   |   | country  | šalis       |           | ref        | Country | 4     | open   |     | Country |
     ''', is_tabular)
 
 
@@ -95,7 +95,7 @@ def test_backends_with_models(is_tabular, tmp_path, rc):
     d | r | b | m | property | type   | ref | source
       | default              | sql    |     | sqlite:///{tmp_path}/db
                              |        |     |
-      |   |   | country      |        |     | code
+      |   |   | Country      |        |     | code
       |   |   |   | code     | string |     |
       |   |   |   | name     | string |     |
     ''', is_tabular)

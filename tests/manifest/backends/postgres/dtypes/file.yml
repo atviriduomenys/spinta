@@ -1,6 +1,6 @@
 ---
 type: model
-name: backends/postgres/dtypes/file
+name: backends/postgres/dtypes/File
 version:
   id: 1
   date: 2020-01-30

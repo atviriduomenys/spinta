@@ -12,7 +12,7 @@ from spinta.testing.data import pushdata
 
 def test_export_csv(app):
     app.authorize(['spinta_set_meta_fields'])
-    app.authmodel('datasets/csv/country', [
+    app.authmodel('datasets/csv/Country', [
         'insert',
         'patch',
         'getall',
@@ -20,16 +20,16 @@ def test_export_csv(app):
         'changes',
     ])
 
-    resp = app.post('/datasets/csv/country', json={'_data': [
+    resp = app.post('/datasets/csv/Country', json={'_data': [
         {
             '_op': 'insert',
-            '_type': 'datasets/csv/country',
+            '_type': 'datasets/csv/Country',
             'code': 'lt',
             'title': 'Lithuania',
         },
         {
             '_op': 'insert',
-            '_type': 'datasets/csv/country',
+            '_type': 'datasets/csv/Country',
             'code': 'lv',
             'title': 'LATVIA',
         },
@@ -37,23 +37,23 @@ def test_export_csv(app):
     assert resp.status_code == 200, resp.json()
     data = resp.json()['_data']
     lv = data[1]
-    resp = app.patch(f'/datasets/csv/country/{lv["_id"]}/', json={
+    resp = app.patch(f'/datasets/csv/Country/{lv["_id"]}/', json={
         '_revision': lv['_revision'],
         'title': 'Latvia',
     })
     assert resp.status_code == 200, resp.json()
 
     assert app.get(
-        '/datasets/csv/country/:format/csv?select(code,title)&sort(+code)'
+        '/datasets/csv/Country/:format/csv?select(code,title)&sort(+code)'
     ).text == (
         'code,title\r\n'
         'lt,Lithuania\r\n'
         'lv,Latvia\r\n'
     )
 
-    resp = app.get('/datasets/csv/country/:changes/:format/csv')
+    resp = app.get('/datasets/csv/Country/:changes/:format/csv')
     assert resp.status_code == 200
-    assert resp.headers['content-disposition'] == 'attachment; filename="country.csv"'
+    assert resp.headers['content-disposition'] == 'attachment; filename="Country.csv"'
     header, *lines = resp.text.splitlines()
     header = header.split(',')
     assert header == [
@@ -83,15 +83,15 @@ def test_export_csv(app):
 
 
 def test_csv_limit(app: TestClient):
-    app.authmodel('country', ['insert', 'search', ])
-    resp = app.post('/country', json={'_data': [
-        {'_op': 'insert', '_type': 'country', 'code': 'lt', 'title': 'Lithuania'},
-        {'_op': 'insert', '_type': 'country', 'code': 'lv', 'title': 'Latvia'},
-        {'_op': 'insert', '_type': 'country', 'code': 'ee', 'title': 'Estonia'},
+    app.authmodel('Country', ['insert', 'search', ])
+    resp = app.post('/Country', json={'_data': [
+        {'_op': 'insert', '_type': 'Country', 'code': 'lt', 'title': 'Lithuania'},
+        {'_op': 'insert', '_type': 'Country', 'code': 'lv', 'title': 'Latvia'},
+        {'_op': 'insert', '_type': 'Country', 'code': 'ee', 'title': 'Estonia'},
     ]})
     assert resp.status_code == 200, resp.json()
 
-    resp = app.get('/country/:format/csv?select(code,title)&sort(code)&limit(1)')
+    resp = app.get('/Country/:format/csv?select(code,title)&sort(code)&limit(1)')
     assert parse_csv(resp) == [
         ['code', 'title'],
         ['ee', 'Estonia'],

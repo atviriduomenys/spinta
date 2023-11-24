@@ -1,5 +1,5 @@
 type: model
-name: org
+name: Org
 title: Organization
 version:
   date: 2020-03-12 16:30:35.118407+02:00
@@ -9,7 +9,7 @@ unique:
 properties:
   country:
     type: ref
-    model: country
+    model: Country
   govid:
     type: string
     title: Identification number

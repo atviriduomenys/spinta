@@ -17,8 +17,8 @@ from spinta.testing.tabular import create_tabular_manifest
     'backends/postgres/{}',
 )
 def test_schema_loader(model, app):
-    model_org = model.format('org')
-    model_country = model.format('country')
+    model_org = model.format('Org')
+    model_country = model.format('Country')
 
     app.authmodel(model_org, ['insert'])
     app.authmodel(model_country, ['insert'])
@@ -78,8 +78,8 @@ def test_schema_loader(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_nested(model, app):
     app.authmodel(model, ['insert', 'getone'])

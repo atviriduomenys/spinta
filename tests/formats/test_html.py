@@ -92,10 +92,10 @@ def test_select_with_joins(app):
 
 
 def test_limit_in_links(app):
-    app.authmodel('country', ['search', ])
-    resp = app.get('/country/:format/html?limit(1)')
+    app.authmodel('Country', ['search', ])
+    resp = app.get('/Country/:format/html?limit(1)')
     assert resp.context['formats'][0] == (
-        'CSV', '/country/:format/csv?limit(1)'
+        'CSV', '/Country/:format/csv?limit(1)'
     )
 
 

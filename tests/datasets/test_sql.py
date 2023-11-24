@@ -77,14 +77,14 @@ def test_filter(rc, tmp_path, geodb):
        | datasets/gov/example     |             |           |        |         |       |        |     | Example |
        |   | data                 |             |           | sql    |         |       |        |     | Data    |
        |   |   |                  |             |           |        |         |       |        |     |         |
-       |   |   |   | country      | salis       | code='lt' |        | code    |       |        |     | Country |
+       |   |   |   | Country      | salis       | code='lt' |        | code    |       |        |     | Country |
        |   |   |   |   | code     | kodas       |           | string |         | 3     | open   |     | Code    |
        |   |   |   |   | name     | pavadinimas |           | string |         | 3     | open   |     | Name    |
     '''))
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country')
+    resp = app.get('/datasets/gov/example/Country')
     assert listdata(resp, 'code', 'name') == [
         ('lt', 'Lietuva'),
     ]
@@ -179,21 +179,21 @@ def test_filter_join_array_value(rc, tmp_path, geodb):
        | datasets/gov/example     |             |                          |        |         |       |        |     | Example |
        |   | data                 |             |                          | sql    |         |       |        |     | Data    |
        |   |   |                  |             |                          |        |         |       |        |     |         |
-       |   |   |   | country      | salis       |                          |        | code    |       |        |     | Country |
+       |   |   |   | Country      | salis       |                          |        | code    |       |        |     | Country |
        |   |   |   |   | code     | kodas       |                          | string |         | 3     | open   |     | Code    |
        |   |   |   |   | name     | pavadinimas |                          | string |         | 3     | open   |     | Name    |
        |   |   |                  |             |                          |        |         |       |        |     |         |
-       |   |   |   | city         | miestas     | country.code=['lt','lv'] |        | name    |       |        |     | City    |
+       |   |   |   | City         | miestas     | country.code=['lt','lv'] |        | name    |       |        |     | City    |
        |   |   |   |   | name     | pavadinimas |                          | string |         | 3     | open   |     | Name    |
-       |   |   |   |   | country  | salis       |                          | ref    | country | 4     | open   |     | Country |
+       |   |   |   |   | country  | salis       |                          | ref    | Country | 4     | open   |     | Country |
     '''))
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country')
+    resp = app.get('/datasets/gov/example/Country')
     codes = dict(listdata(resp, '_id', 'code'))
 
-    resp = app.get('/datasets/gov/example/city?sort(name)')
+    resp = app.get('/datasets/gov/example/City?sort(name)')
     data = listdata(resp, 'country._id', 'name', sort='name')
     data = [(codes.get(country), city) for country, city in data]
     assert data == [
@@ -208,21 +208,21 @@ def test_filter_join_ne_array_value(rc, tmp_path, geodb):
        | datasets/gov/example     |             |                           |        |         |       |        |     | Example |
        |   | data                 |             |                           | sql    |         |       |        |     | Data    |
        |   |   |                  |             |                           |        |         |       |        |     |         |
-       |   |   |   | country      | salis       |                           |        | code    |       |        |     | Country |
+       |   |   |   | Country      | salis       |                           |        | code    |       |        |     | Country |
        |   |   |   |   | code     | kodas       |                           | string |         | 3     | open   |     | Code    |
        |   |   |   |   | name     | pavadinimas |                           | string |         | 3     | open   |     | Name    |
        |   |   |                  |             |                           |        |         |       |        |     |         |
-       |   |   |   | city         | miestas     | country.code!=['lt','lv'] |        | name    |       |        |     | City    |
+       |   |   |   | City         | miestas     | country.code!=['lt','lv'] |        | name    |       |        |     | City    |
        |   |   |   |   | name     | pavadinimas |                           | string |         | 3     | open   |     | Name    |
-       |   |   |   |   | country  | salis       |                           | ref    | country | 4     | open   |     | Country |
+       |   |   |   |   | country  | salis       |                           | ref    | Country | 4     | open   |     | Country |
     '''))
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country')
+    resp = app.get('/datasets/gov/example/Country')
     codes = dict(listdata(resp, '_id', 'code'))
 
-    resp = app.get('/datasets/gov/example/city?sort(name)')
+    resp = app.get('/datasets/gov/example/City?sort(name)')
     data = listdata(resp, 'country._id', 'name', sort='name')
     data = [(codes.get(country), city) for country, city in data]
     assert data == [
@@ -264,32 +264,32 @@ def test_getall(rc, tmp_path, geodb):
        | datasets/gov/example     |             |         |        |         |       |        |     | Example |
        |   | data                 |             |         | sql    |         |       |        |     | Data    |
        |   |   |                  |             |         |        |         |       |        |     |         |
-       |   |   |   | country      | salis       |         |        | code    |       |        |     | Country |
+       |   |   |   | Country      | salis       |         |        | code    |       |        |     | Country |
        |   |   |   |   | code     | kodas       |         | string |         | 3     | open   |     | Code    |
        |   |   |   |   | name     | pavadinimas |         | string |         | 3     | open   |     | Name    |
        |   |   |                  |             |         |        |         |       |        |     |         |
-       |   |   |   | city         | miestas     |         |        | name    |       |        |     | City    |
+       |   |   |   | City         | miestas     |         |        | name    |       |        |     | City    |
        |   |   |   |   | name     | pavadinimas |         | string |         | 3     | open   |     | Name    |
-       |   |   |   |   | country  | salis       |         | ref    | country | 4     | open   |     | Country |
+       |   |   |   |   | country  | salis       |         | ref    | Country | 4     | open   |     | Country |
     '''))
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country?sort(code)')
+    resp = app.get('/datasets/gov/example/Country?sort(code)')
     codes = dict(listdata(resp, '_id', 'code'))
     assert listdata(resp, 'code', 'name', '_type') == [
-        ('ee', 'Estija', 'datasets/gov/example/country'),
-        ('lt', 'Lietuva', 'datasets/gov/example/country'),
-        ('lv', 'Latvija', 'datasets/gov/example/country'),
+        ('ee', 'Estija', 'datasets/gov/example/Country'),
+        ('lt', 'Lietuva', 'datasets/gov/example/Country'),
+        ('lv', 'Latvija', 'datasets/gov/example/Country'),
     ]
 
-    resp = app.get('/datasets/gov/example/city?sort(name)')
+    resp = app.get('/datasets/gov/example/City?sort(name)')
     data = listdata(resp, 'country._id', 'name', '_type', sort='name')
     data = [(codes.get(country), city, _type) for country, city, _type in data]
     assert data == [
-        ('lv', 'Ryga', 'datasets/gov/example/city'),
-        ('ee', 'Talinas', 'datasets/gov/example/city'),
-        ('lt', 'Vilnius', 'datasets/gov/example/city'),
+        ('lv', 'Ryga', 'datasets/gov/example/City'),
+        ('ee', 'Talinas', 'datasets/gov/example/City'),
+        ('lt', 'Vilnius', 'datasets/gov/example/City'),
     ]
 
 
@@ -299,14 +299,14 @@ def test_select(rc, tmp_path, geodb):
        | datasets/gov/example     |             |         |        |         |       |        |     | Example |
        |   | data                 |             |         | sql    |         |       |        |     | Data    |
        |   |   |                  |             |         |        |         |       |        |     |         |
-       |   |   |   | country      | salis       |         |        | code    |       |        |     | Country |
+       |   |   |   | Country      | salis       |         |        | code    |       |        |     | Country |
        |   |   |   |   | code     | kodas       |         | string |         | 3     | open   |     | Code    |
        |   |   |   |   | name     | pavadinimas |         | string |         | 3     | open   |     | Name    |
     '''))
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country?select(code,name)')
+    resp = app.get('/datasets/gov/example/Country?select(code,name)')
     assert listdata(resp, 'code', 'name') == [
         ('ee', 'Estija'),
         ('lt', 'Lietuva'),
@@ -321,14 +321,14 @@ def test_select_len(rc, tmp_path, geodb):
        | datasets/gov/example     |             |         |        |         |       |        |     | Example |
        |   | data                 |             |         | sql    |         |       |        |     | Data    |
        |   |   |                  |             |         |        |         |       |        |     |         |
-       |   |   |   | country      | salis       |         |        | code    |       |        |     | Country |
+       |   |   |   | Country      | salis       |         |        | code    |       |        |     | Country |
        |   |   |   |   | code     | kodas       |         | string |         | 3     | open   |     | Code    |
        |   |   |   |   | name     | pavadinimas |         | string |         | 3     | open   |     | Name    |
     '''))
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country?select(code,len(name))')
+    resp = app.get('/datasets/gov/example/Country?select(code,len(name))')
     assert listdata(resp, 'code', 'len(name)') == [
         ('ee', 6),
         ('lt', 7),
@@ -342,14 +342,14 @@ def test_filter_len(rc, tmp_path, geodb):
        | datasets/gov/example     |             |         |        |         |       |        |     | Example |
        |   | data                 |             |         | sql    |         |       |        |     | Data    |
        |   |   |                  |             |         |        |         |       |        |     |         |
-       |   |   |   | country      | salis       |         |        | code    |       |        |     | Country |
+       |   |   |   | Country      | salis       |         |        | code    |       |        |     | Country |
        |   |   |   |   | code     | kodas       |         | string |         | 3     | open   |     | Code    |
        |   |   |   |   | name     | pavadinimas |         | string |         | 3     | open   |     | Name    |
     '''))
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country?select(code,name)&len(name)=7&sort(code)')
+    resp = app.get('/datasets/gov/example/Country?select(code,name)&len(name)=7&sort(code)')
     assert listdata(resp, 'code', 'name') == [
         ('lt', 'Lietuva'),
         ('lv', 'Latvija'),
@@ -362,14 +362,14 @@ def test_private_property(rc, tmp_path, geodb):
        | datasets/gov/example     |             |            |        |         |       |         |     | Example |
        |   | data                 |             |            | sql    |         |       |         |     | Data    |
        |   |   |                  |             |            |        |         |       |         |     |         |
-       |   |   |   | country      | salis       | code!='ee' |        | code    |       |         |     | Country |
+       |   |   |   | Country      | salis       | code!='ee' |        | code    |       |         |     | Country |
        |   |   |   |   | code     | kodas       |            | string |         | 3     | private |     | Code    |
        |   |   |   |   | name     | pavadinimas |            | string |         | 3     | open    |     | Name    |
     '''))
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country')
+    resp = app.get('/datasets/gov/example/Country')
     assert listdata(resp) == [
         'Latvija',
         'Lietuva',
@@ -382,14 +382,14 @@ def test_all_private_properties(rc, tmp_path, geodb):
        | datasets/gov/example     |             |            |        |         |       |         |     | Example |
        |   | data                 |             |            | sql    |         |       |         |     | Data    |
        |   |   |                  |             |            |        |         |       |         |     |         |
-       |   |   |   | country      | salis       | code!='ee' |        | code    |       |         |     | Country |
+       |   |   |   | Country      | salis       | code!='ee' |        | code    |       |         |     | Country |
        |   |   |   |   | code     | kodas       |            | string |         | 3     | private |     | Code    |
        |   |   |   |   | name     | pavadinimas |            | string |         | 3     | private |     | Name    |
     '''))
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country')
+    resp = app.get('/datasets/gov/example/Country')
     assert error(resp, status=401) == 'AuthorizedClientsOnly'
 
 
@@ -399,14 +399,14 @@ def test_default_access(rc, tmp_path, geodb):
        | datasets/gov/example     |             |            |        |         |       |         |     | Example |
        |   | data                 |             |            | sql    |         |       |         |     | Data    |
        |   |   |                  |             |            |        |         |       |         |     |         |
-       |   |   |   | country      | salis       | code!='ee' |        | code    |       |         |     | Country |
+       |   |   |   | Country      | salis       | code!='ee' |        | code    |       |         |     | Country |
        |   |   |   |   | code     | kodas       |            | string |         | 3     |         |     | Code    |
        |   |   |   |   | name     | pavadinimas |            | string |         | 3     |         |     | Name    |
     '''))
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country')
+    resp = app.get('/datasets/gov/example/Country')
     assert error(resp, status=401) == 'AuthorizedClientsOnly'
 
 
@@ -416,14 +416,14 @@ def test_model_open_access(rc, tmp_path, geodb):
        | datasets/gov/example     |             |            |        |         |       |         |     | Example |
        |   | data                 |             |            | sql    |         |       |         |     | Data    |
        |   |   |                  |             |            |        |         |       |         |     |         |
-       |   |   |   | country      | salis       | code!='ee' |        | code    |       | open    |     | Country |
+       |   |   |   | Country      | salis       | code!='ee' |        | code    |       | open    |     | Country |
        |   |   |   |   | code     | kodas       |            | string |         | 3     |         |     | Code    |
        |   |   |   |   | name     | pavadinimas |            | string |         | 3     |         |     | Name    |
     '''))
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country')
+    resp = app.get('/datasets/gov/example/Country')
     assert listdata(resp) == [
         ('lt', 'Lietuva'),
         ('lv', 'Latvija'),
@@ -436,20 +436,20 @@ def test_property_public_access(rc, tmp_path, geodb):
        | datasets/gov/example     |             |            |        |         |       |         |     | Example |
        |   | data                 |             |            | sql    |         |       |         |     | Data    |
        |   |   |                  |             |            |        |         |       |         |     |         |
-       |   |   |   | country      | salis       | code!='ee' |        | code    |       |         |     | Country |
+       |   |   |   | Country      | salis       | code!='ee' |        | code    |       |         |     | Country |
        |   |   |   |   | code     | kodas       |            | string |         | 3     | public  |     | Code    |
        |   |   |   |   | name     | pavadinimas |            | string |         | 3     | open    |     | Name    |
     '''))
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country')
+    resp = app.get('/datasets/gov/example/Country')
     assert listdata(resp) == [
         'Latvija',
         'Lietuva',
     ]
 
-    resp = app.get('/datasets/gov/example/country', headers={'Accept': 'text/html'})
+    resp = app.get('/datasets/gov/example/Country', headers={'Accept': 'text/html'})
     assert listdata(resp) == [
         'Latvija',
         'Lietuva',
@@ -462,17 +462,17 @@ def test_select_protected_property(rc, tmp_path, geodb):
        | datasets/gov/example     |             |            |        |         |       |         |     | Example |
        |   | data                 |             |            | sql    |         |       |         |     | Data    |
        |   |   |                  |             |            |        |         |       |         |     |         |
-       |   |   |   | country      | salis       | code!='ee' |        | code    |       |         |     | Country |
+       |   |   |   | Country      | salis       | code!='ee' |        | code    |       |         |     | Country |
        |   |   |   |   | code     | kodas       |            | string |         | 3     | public  |     | Code    |
        |   |   |   |   | name     | pavadinimas |            | string |         | 3     | open    |     | Name    |
     '''))
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country?select(code,name)')
+    resp = app.get('/datasets/gov/example/Country?select(code,name)')
     assert error(resp) == 'PropertyNotFound'
 
-    resp = app.get('/datasets/gov/example/country?select(code,name)', headers={'Accept': 'text/html'})
+    resp = app.get('/datasets/gov/example/Country?select(code,name)', headers={'Accept': 'text/html'})
     assert error(resp) == 'PropertyNotFound'
 
 
@@ -482,7 +482,7 @@ def test_ns_getall(rc, tmp_path, geodb):
        | datasets/gov/example     |             |            |        |         |       |         |     | Example |
        |   | data                 |             |            | sql    |         |       |         |     | Data    |
        |   |   |                  |             |            |        |         |       |         |     |         |
-       |   |   |   | country      | salis       | code!='ee' |        | code    |       |         |     | Country |
+       |   |   |   | Country      | salis       | code!='ee' |        | code    |       |         |     | Country |
        |   |   |   |   | code     | kodas       |            | string |         | 3     | public  |     | Code    |
        |   |   |   |   | name     | pavadinimas |            | string |         | 3     | open    |     | Name    |
     '''))
@@ -491,12 +491,12 @@ def test_ns_getall(rc, tmp_path, geodb):
 
     resp = app.get('/datasets/gov/example')
     assert listdata(resp, 'name', 'title') == [
-        ('datasets/gov/example/country', 'Country'),
+        ('datasets/gov/example/Country', 'Country'),
     ]
 
     resp = app.get('/datasets/gov/example', headers={'Accept': 'text/html'})
     assert listdata(resp, 'name', 'title') == [
-        ('📄 country', 'Country'),
+        ('📄 Country', 'Country'),
     ]
 
 
@@ -626,14 +626,14 @@ def test_no_primary_key(rc, tmp_path, geodb):
     datasets/gov/example     |             |        |     |
       | data                 |             | sql    |     |
       |   |                  |             |        |     |
-      |   |   | country      | salis       |        |     |
+      |   |   | Country      | salis       |        |     |
       |   |   |   | code     | kodas       | string |     | open
       |   |   |   | name     | pavadinimas | string |     | open
     '''))
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country')
+    resp = app.get('/datasets/gov/example/Country')
     codes = dict(listdata(resp, '_id', 'code'))
     data = listdata(resp, '_id', 'code', 'name', sort='code')
     data = [(codes.get(_id), code, name) for _id, code, name in data]
@@ -650,14 +650,14 @@ def test_count(rc, tmp_path, geodb):
     datasets/gov/example     |             |        |     |
       | data                 |             | sql    |     |
       |   |                  |             |        |     |
-      |   |   | country      | salis       |        |     |
+      |   |   | Country      | salis       |        |     |
       |   |   |   | code     | kodas       | string |     | open
       |   |   |   | name     | pavadinimas | string |     | open
     '''))
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country?select(count())')
+    resp = app.get('/datasets/gov/example/Country?select(count())')
     assert listdata(resp) == [3]
 
 
@@ -675,7 +675,7 @@ def test_push_chunks(
     datasets/gov/example     |             |        |         |
       | data                 |             | sql    |         |
       |   |                  |             |        |         |
-      |   |   | country      | salis       |        | code    |
+      |   |   | Country      | salis       |        | code    |
       |   |   |   | code     | kodas       | string |         | open
       |   |   |   | name     | pavadinimas | string |         | open
     '''))
@@ -696,8 +696,8 @@ def test_push_chunks(
         '--chunk-size=1',
     ])
 
-    remote.app.authmodel('datasets/gov/example/country', ['getall'])
-    resp = remote.app.get('/datasets/gov/example/country')
+    remote.app.authmodel('datasets/gov/example/Country', ['getall'])
+    resp = remote.app.get('/datasets/gov/example/Country')
     assert listdata(resp, 'code', 'name') == [
         ('ee', 'Estija'),
         ('lt', 'Lietuva'),
@@ -711,7 +711,7 @@ def test_push_state(postgresql, rc, cli: SpintaCliRunner, responses, tmp_path, g
     datasets/gov/example     |             |        |         |
       | data                 |             | sql    |         |
       |   |                  |             |        |         |
-      |   |   | country      | salis       |        | code    |
+      |   |   | Country      | salis       |        | code    |
       |   |   |   | code     | kodas       | string |         | open
       |   |   |   | name     | pavadinimas | string |         | open
     '''))
@@ -735,8 +735,8 @@ def test_push_state(postgresql, rc, cli: SpintaCliRunner, responses, tmp_path, g
         '--state', tmp_path / 'state.db',
     ])
 
-    remote.app.authmodel('datasets/gov/example/country', ['getall'])
-    resp = remote.app.get('/datasets/gov/example/country')
+    remote.app.authmodel('datasets/gov/example/Country', ['getall'])
+    resp = remote.app.get('/datasets/gov/example/Country')
     assert len(listdata(resp)) == 1
 
     cli.invoke(localrc, [
@@ -748,7 +748,7 @@ def test_push_state(postgresql, rc, cli: SpintaCliRunner, responses, tmp_path, g
         '--state', tmp_path / 'state.db',
     ])
 
-    resp = remote.app.get('/datasets/gov/example/country')
+    resp = remote.app.get('/datasets/gov/example/Country')
     assert len(listdata(resp)) == 2
 
 
@@ -757,7 +757,7 @@ def test_prepared_property(rc, tmp_path, geodb):
     d | r | b | m | property  | type   | ref  | source      | prepare | access
     datasets/gov/example      |        |      |             |         |
       | data                  | sql    |      |             |         |
-      |   |   | country       |        | code | salis       |         | open
+      |   |   | Country       |        | code | salis       |         | open
       |   |   |   | code      | string |      | kodas       |         |
       |   |   |   | name      | string |      | pavadinimas |         |
       |   |   |   | continent | string |      |             | 'EU'    |
@@ -765,7 +765,7 @@ def test_prepared_property(rc, tmp_path, geodb):
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country')
+    resp = app.get('/datasets/gov/example/Country')
     assert listdata(resp, 'continent', 'code', 'name') == [
         ('EU', 'ee', 'Estija'),
         ('EU', 'lt', 'Lietuva'),
@@ -2508,7 +2508,7 @@ def test_text_type_push_chunks(
     datasets/gov/example/text_chunks     |             |        |         |
       | data                 |             | sql    |         |
       |   |                  |             |        |         |
-      |   |   | country      | salis       |        | code    |
+      |   |   | Country      | salis       |        | code    |
       |   |   |   | code     | kodas       | string |         | open
       |   |   |   | name@lt  | pavadinimas | string |         | open
       |   |   |   | name@en  | pavadinimas | string |         | open
@@ -2538,8 +2538,8 @@ def test_text_type_push_chunks(
         '--chunk-size=1',
     ])
 
-    remote.app.authmodel('datasets/gov/example/text_chunks/country', ['getall'])
-    resp = remote.app.get('/datasets/gov/example/text_chunks/country')
+    remote.app.authmodel('datasets/gov/example/text_chunks/Country', ['getall'])
+    resp = remote.app.get('/datasets/gov/example/text_chunks/Country')
     assert listdata(resp, 'code', 'name') == [
         ('ee', 'Estija'),
         ('lt', 'Lietuva'),
@@ -2553,7 +2553,7 @@ def test_text_type_push_state(postgresql, rc, cli: SpintaCliRunner, responses, t
     datasets/gov/example/text     |             |        |         |
       | data                 |             | sql    |         |
       |   |                  |             |        |         |
-      |   |   | country      | salis       |        | code    |
+      |   |   | Country      | salis       |        | code    |
       |   |   |   | code     | kodas       | string |         | open
       |   |   |   | name@lt  | pavadinimas | string |         | open
     '''))
@@ -2577,8 +2577,8 @@ def test_text_type_push_state(postgresql, rc, cli: SpintaCliRunner, responses, t
         '--state', tmp_path / 'state.db',
     ])
 
-    remote.app.authmodel('/datasets/gov/example/text/country', ['getall'])
-    resp = remote.app.get('/datasets/gov/example/text/country')
+    remote.app.authmodel('/datasets/gov/example/text/Country', ['getall'])
+    resp = remote.app.get('/datasets/gov/example/text/Country')
     assert len(listdata(resp)) == 1
 
     cli.invoke(localrc, [
@@ -2590,7 +2590,7 @@ def test_text_type_push_state(postgresql, rc, cli: SpintaCliRunner, responses, t
         '--state', tmp_path / 'state.db',
     ])
 
-    resp = remote.app.get('/datasets/gov/example/text/country')
+    resp = remote.app.get('/datasets/gov/example/text/Country')
     assert len(listdata(resp)) == 2
 
 
@@ -2705,14 +2705,14 @@ def test_swap_single(rc, tmp_path, geodb):
        | datasets/gov/example     |             |        |         |        |
        |   | data                 |             | sql    |         |        |
        |   |   |                  |             |        |         |        |
-       |   |   |   | country      | salis       |        | code    | open   |
+       |   |   |   | Country      | salis       |        | code    | open   |
        |   |   |   |   | code     | kodas       | string |         |        | swap('lt', 'LT')
        |   |   |   |   | name     | pavadinimas | string |         |        |
     '''))
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country')
+    resp = app.get('/datasets/gov/example/Country')
     assert listdata(resp, 'code', 'name') == [
         ('LT', 'Lietuva'),
         ('ee', 'Estija'),
@@ -2726,14 +2726,14 @@ def test_swap_multi_with_dot(rc, tmp_path, geodb):
        | datasets/gov/example     |             |        |         |        |
        |   | data                 |             | sql    |         |        |
        |   |   |                  |             |        |         |        |
-       |   |   |   | country      | salis       |        | code    | open   |
+       |   |   |   | Country      | salis       |        | code    | open   |
        |   |   |   |   | code     | kodas       | string |         |        | swap('lt', 'LT').swap('lv', 'LV')
        |   |   |   |   | name     | pavadinimas | string |         |        |
     '''))
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country')
+    resp = app.get('/datasets/gov/example/Country')
     assert listdata(resp, 'code', 'name') == [
         ('LT', 'Lietuva'),
         ('LV', 'Latvija'),
@@ -2747,7 +2747,7 @@ def test_swap_multi_with_multi_lines(rc, tmp_path, geodb):
        | datasets/gov/example     |             |        |         |        |
        |   | data                 |             | sql    |         |        |
        |   |   |                  |             |        |         |        |
-       |   |   |   | country      | salis       |        | code    | open   |
+       |   |   |   | Country      | salis       |        | code    | open   |
        |   |   |   |   | code     | kodas       | string |         |        | swap('lt', 'LT')
        |   |   |   |   |          | lv        |        |         |        | swap('LV')
        |   |   |   |   | name     | pavadinimas | string |         |        |
@@ -2755,7 +2755,7 @@ def test_swap_multi_with_multi_lines(rc, tmp_path, geodb):
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country')
+    resp = app.get('/datasets/gov/example/Country')
     assert listdata(resp, 'code', 'name') == [
         ('LT', 'Lietuva'),
         ('LV', 'Latvija'),
@@ -2769,7 +2769,7 @@ def test_swap_multi_with_multi_lines_all_to_same(rc, tmp_path, geodb):
        | datasets/gov/example     |             |        |         |        |
        |   | data                 |             | sql    |         |        |
        |   |   |                  |             |        |         |        |
-       |   |   |   | country      | salis       |        | code    | open   |
+       |   |   |   | Country      | salis       |        | code    | open   |
        |   |   |   |   | code     | kodas       | string |         |        | swap('lt', 'CODE')
        |   |   |   |   |          | lv          |        |         |        | swap('CODE')
        |   |   |   |   |          |             |        |         |        | swap('ee', 'CODE')
@@ -2778,7 +2778,7 @@ def test_swap_multi_with_multi_lines_all_to_same(rc, tmp_path, geodb):
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country')
+    resp = app.get('/datasets/gov/example/Country')
     assert listdata(resp, 'code', 'name') == [
         ('CODE', 'Estija'),
         ('CODE', 'Latvija'),
@@ -2792,7 +2792,7 @@ def test_swap_multi_escape_source(rc, tmp_path, geodb):
        | datasets/gov/example     |                 |         |         |        |
        |   | data                 |                 | sql     |         |        |
        |   |   |                  |                 |         |         |        |
-       |   |   |   | test         | test            |         | id      | open   |
+       |   |   |   | Test         | test            |         | id      | open   |
        |   |   |   |   | id       | id              | integer |         |        |
        |   |   |   |   | text     | text            | string  |         |        | swap("\\"TEST\\"", "NORMAL SWAPPED PREPARE")
        |   |   |   |   |          | 'TEST'          |         |         |        | swap("TESTAS")
@@ -2804,7 +2804,7 @@ def test_swap_multi_escape_source(rc, tmp_path, geodb):
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/test')
+    resp = app.get('/datasets/gov/example/Test')
     assert listdata(resp, 'old', 'text') == [
         ("'TEST'", 'TESTAS'),
         ("test 'TEST'", "TEST 'test'"),

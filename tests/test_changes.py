@@ -4,8 +4,8 @@ from spinta.testing.data import send
 
 
 @pytest.mark.models(
-    'backends/postgres/report',
-    # 'backends/mongo/report',
+    'backends/postgres/Report',
+    # 'backends/mongo/Report',
 )
 def test_changes(model, context, app):
     app.authmodel(model, ['insert', 'patch', 'changes'])
@@ -37,8 +37,8 @@ def test_changes(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/postgres/report',
-    # 'backends/mongo/report',
+    'backends/postgres/Report',
+    # 'backends/mongo/Report',
 )
 def test_changes_negative_offset(model, context, app):
     app.authmodel(model, ['insert', 'patch', 'changes'])
@@ -73,8 +73,8 @@ def test_changes_negative_offset(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/postgres/report',
-    # 'backends/mongo/report',
+    'backends/postgres/Report',
+    # 'backends/mongo/Report',
 )
 def test_changes_empty_patch(model, context, app):
     app.authmodel(model, ['insert', 'patch', 'changes'])
@@ -88,11 +88,11 @@ def test_changes_empty_patch(model, context, app):
 
 
 def test_changes_with_ref(context, app):
-    model = 'backends/postgres/country'
+    model = 'backends/postgres/Country'
     app.authmodel(model, ['insert'])
     country = send(app, model, 'insert', {'title': 'Lithuania'})
 
-    model = 'backends/postgres/city'
+    model = 'backends/postgres/City'
     app.authmodel(model, ['insert', 'changes'])
     send(app, model, 'insert', {'title': 'Vilnius', 'country': {'_id': country.id}})
     send(app, model, 'insert', {'title': 'Kaunas', 'country': {'_id': country.id}})

@@ -1,6 +1,6 @@
 ---
 type: model
-name: country
+name: Country
 title: "Country"
 version:
   id: 1

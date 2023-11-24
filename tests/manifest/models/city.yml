@@ -11,4 +11,4 @@ properties:
     type: string
   country:
     type: ref
-    model: country
+    model: Country

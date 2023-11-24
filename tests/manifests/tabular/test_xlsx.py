@@ -11,11 +11,11 @@ def test_xlsx(rc: RawConfig, tmp_path: Path):
     datasets/gov/example     |             |           |            |         |       | open   |     | Example |
       | data                 |             |           | postgresql | default |       | open   |     | Data    |
                              |             |           |            |         |       |        |     |         |
-      |   |   | country      |             | code='lt' |            | code    |       | open   |     | Country |
+      |   |   | Country      |             | code='lt' |            | code    |       | open   |     | Country |
       |   |   |   | code     | kodas       | lower()   | string     |         | 3     | open   |     | Code    |
       |   |   |   | name     | pavadinimas |           | string     |         | 3     | open   |     | Name    |
                              |             |           |            |         |       |        |     |         |
-      |   |   | city         |             |           |            | name    |       | open   |     | City    |
+      |   |   | City         |             |           |            | name    |       | open   |     | City    |
       |   |   |   | name     | pavadinimas |           | string     |         | 3     | open   |     | Name    |
       |   |   |   | country  | šalis       |           | ref        | country | 4     | open   |     | Country |
     '''

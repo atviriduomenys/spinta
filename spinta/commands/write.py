@@ -1391,5 +1391,5 @@ def prepare_headers(
     headers = {}
     if action == Action.INSERT and not is_batch:
         server_url = context.get('config').server_url
-        headers['location'] = f'{server_url}{node.endpoint}/{resp["_id"]}'
+        headers['location'] = f'{server_url}{node.name}/{resp["_id"]}'
     return headers

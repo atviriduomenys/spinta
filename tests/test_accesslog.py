@@ -28,8 +28,8 @@ def _upload_pdf(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_post_accesslog(model, app, context):
     app.authmodel(model, ['insert'])
@@ -66,8 +66,8 @@ def test_post_accesslog(model, app, context):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_post_array_accesslog(model, app, context):
     app.authmodel(model, ['insert'])
@@ -108,8 +108,8 @@ def test_post_array_accesslog(model, app, context):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_put_accesslog(model, app, context):
     app.authmodel(model, ['insert', 'update'])
@@ -157,8 +157,8 @@ def test_put_accesslog(model, app, context):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_pdf_put_accesslog(model, app, context):
     app.authmodel(model, ['insert', 'update', 'pdf_update'])
@@ -196,8 +196,8 @@ def test_pdf_put_accesslog(model, app, context):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_patch_accesslog(model, app, context):
     app.authmodel(model, ['insert', 'patch'])
@@ -244,8 +244,8 @@ def test_patch_accesslog(model, app, context):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_get_accesslog(app, model, context):
     app.authmodel(model, ['insert', 'getone'])
@@ -286,8 +286,8 @@ def test_get_accesslog(app, model, context):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_get_array_accesslog(model, app, context):
     app.authmodel(model, ['insert', 'getone'])
@@ -331,8 +331,8 @@ def test_get_array_accesslog(model, app, context):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_pdf_get_accesslog(model, app, context):
     app.authmodel(model, ['insert', 'update', 'pdf_update', 'pdf_getone'])
@@ -369,8 +369,8 @@ def test_pdf_get_accesslog(model, app, context):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_get_prop_accesslog(app, model, context):
     app.authmodel(model, ['insert', 'getone'])
@@ -412,8 +412,8 @@ def test_get_prop_accesslog(app, model, context):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_get_w_select_accesslog(app, model, context):
     app.authmodel(model, ['insert', 'getone'])
@@ -453,8 +453,8 @@ def test_get_w_select_accesslog(app, model, context):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_getall_accesslog(app, model, context):
     app.authmodel(model, ['insert', 'getall'])
@@ -493,8 +493,8 @@ def test_getall_accesslog(app, model, context):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_getall_w_select_accesslog(app, model, context):
     app.authmodel(model, ['insert', 'getall', 'search'])
@@ -532,7 +532,7 @@ def test_getall_w_select_accesslog(app, model, context):
 
 
 @pytest.mark.models(
-    'backends/postgres/report',
+    'backends/postgres/Report',
 )
 def test_accesslog_file(model, postgresql, rc, request, tmp_path):
     logfile = tmp_path / 'accesslog.log'
@@ -581,7 +581,7 @@ def test_accesslog_file(model, postgresql, rc, request, tmp_path):
 
 
 @pytest.mark.models(
-    'backends/postgres/report',
+    'backends/postgres/Report',
 )
 def test_accesslog_file_dev_null(model, postgresql, rc, request):
     rc = rc.fork({
@@ -605,7 +605,7 @@ def test_accesslog_file_dev_null(model, postgresql, rc, request):
 
 
 @pytest.mark.models(
-    'backends/postgres/report',
+    'backends/postgres/Report',
 )
 def test_accesslog_file_null(model, postgresql, rc, request):
     rc = rc.fork({
@@ -629,7 +629,7 @@ def test_accesslog_file_null(model, postgresql, rc, request):
 
 
 @pytest.mark.models(
-    'backends/postgres/report',
+    'backends/postgres/Report',
 )
 def test_accesslog_file_stdin(
     model: str,
@@ -675,9 +675,9 @@ def test_accesslog_file_stdin(
             'client': 'test-client',
             'format': 'json',
             'method': 'POST',
-            'model': 'backends/postgres/report',
+            'model': 'backends/postgres/Report',
             'rctype': 'application/json',
-            'url': 'https://testserver/backends/postgres/report'
+            'url': 'https://testserver/backends/postgres/Report'
         },
         {
             'txn': accesslog[-2]['txn'],
@@ -691,7 +691,7 @@ def test_accesslog_file_stdin(
 
 
 @pytest.mark.models(
-    'backends/postgres/report',
+    'backends/postgres/Report',
 )
 def test_accesslog_file_stderr(
     model: str,
@@ -737,9 +737,9 @@ def test_accesslog_file_stderr(
             'client': 'test-client',
             'format': 'json',
             'method': 'POST',
-            'model': 'backends/postgres/report',
+            'model': 'backends/postgres/Report',
             'rctype': 'application/json',
-            'url': 'https://testserver/backends/postgres/report',
+            'url': 'https://testserver/backends/postgres/Report',
         },
         {
             'txn': accesslog[-2]['txn'],
@@ -753,8 +753,8 @@ def test_accesslog_file_stderr(
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_delete_accesslog(model, app, context):
     app.authmodel(model, ['insert', 'delete'])
@@ -796,8 +796,8 @@ def test_delete_accesslog(model, app, context):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_pdf_delete_accesslog(model, app, context):
     app.authmodel(model, ['insert', 'update', 'getone', 'pdf_getone', 'pdf_update', 'pdf_delete'])
@@ -844,8 +844,8 @@ def _get_object_rev(app, model: str, id_: str) -> str:
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_pdf_ref_update_accesslog(model, app, context, tmp_path):
     app.authmodel(model, ['insert', 'update', 'getone', 'pdf_getone', 'pdf_update', 'pdf_delete'])
@@ -907,11 +907,11 @@ def test_pdf_ref_update_accesslog(model, app, context, tmp_path):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_batch_write(model, app, context, tmp_path):
-    ns = model[:-len('/report')]
+    ns = model[:-len('/Report')]
 
     app.authmodel(ns, ['insert'])
 
@@ -955,11 +955,11 @@ def test_batch_write(model, app, context, tmp_path):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_stream_write(model, app, context, tmp_path):
-    ns = model[:-len('/report')]
+    ns = model[:-len('/Report')]
 
     app.authmodel(ns, ['insert'])
 
@@ -1000,11 +1000,11 @@ def test_stream_write(model, app, context, tmp_path):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_ns_read(model, app, context, tmp_path):
-    ns = model[:-len('/report')]
+    ns = model[:-len('/Report')]
 
     app.authmodel(ns, ['getall'])
 
@@ -1012,8 +1012,8 @@ def test_ns_read(model, app, context, tmp_path):
     assert resp.status_code == 200, resp.json()
 
     objects = {
-        'backends/mongo/report': 20,
-        'backends/postgres/report': 21,
+        'backends/mongo/Report': 20,
+        'backends/postgres/Report': 21,
     }
 
     accesslog = context.get('accesslog.stream')
@@ -1044,11 +1044,11 @@ def test_ns_read(model, app, context, tmp_path):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_ns_read_csv(model, app, context, tmp_path):
-    ns = model[:-len('/report')]
+    ns = model[:-len('/Report')]
 
     app.authmodel(ns, ['getall'])
 
@@ -1056,8 +1056,8 @@ def test_ns_read_csv(model, app, context, tmp_path):
     assert resp.status_code == 200
 
     objects = {
-        'backends/mongo/report': 20,
-        'backends/postgres/report': 21,
+        'backends/mongo/Report': 20,
+        'backends/postgres/Report': 21,
     }
 
     accesslog = context.get('accesslog.stream')

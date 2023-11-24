@@ -147,6 +147,9 @@ def load(
     builder.update(model=model)
     builder.load_page()
 
+    if not model.name.startswith('_') and not model.basename[0].isupper():
+        raise Exception(model.basename, "MODEL NAME NEEDS TO BE UPPER CASED")
+
     return model
 
 

@@ -16,9 +16,9 @@ from spinta.utils.data import take
 
 
 def _create_data(app: TestClient, ns: str) -> Tuple[str, str]:
-    continent = ns + '/continent'
-    country = ns + '/country'
-    capital = ns + '/capital'
+    continent = ns + '/Continent'
+    country = ns + '/Country'
+    capital = ns + '/Capital'
 
     app.authmodel(continent, ['insert'])
     app.authmodel(country, ['insert'])
@@ -67,11 +67,11 @@ def test_getall_ns(model, app):
 
     resp = app.get('/datasets/backends/postgres/dataset/:ns/:all')
     assert listdata(resp, 'name') == [
-        'datasets/backends/postgres/dataset/capital',
-        'datasets/backends/postgres/dataset/continent',
-        'datasets/backends/postgres/dataset/country',
-        'datasets/backends/postgres/dataset/org',
-        'datasets/backends/postgres/dataset/report',
+        'datasets/backends/postgres/dataset/Capital',
+        'datasets/backends/postgres/dataset/Continent',
+        'datasets/backends/postgres/dataset/Country',
+        'datasets/backends/postgres/dataset/Org',
+        'datasets/backends/postgres/dataset/Report',
     ]
 
 

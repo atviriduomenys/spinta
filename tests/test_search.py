@@ -18,7 +18,7 @@ from spinta.testing.data import listdata
 
 test_data = [
     {
-        '_type': 'report',
+        '_type': 'Report',
         '_id': '1845aa15-c8e0-4368-a325-c31c6ac3bfac',
         'status': 'OK',
         'report_type': 'STV',
@@ -33,7 +33,7 @@ test_data = [
         }],
     },
     {
-        '_type': 'report',
+        '_type': 'Report',
         '_id': '2dc605ba-f4ff-4240-9db6-51e1a7ad7d28',
         'status': 'invalid',
         'report_type': 'VMI',
@@ -48,7 +48,7 @@ test_data = [
         }],
     },
     {
-        '_type': 'report',
+        '_type': 'Report',
         '_id': '34e9f68d-7291-4b63-ad61-0480ae3941c4',
         'status': 'invalid',
         'report_type': 'STV',
@@ -80,8 +80,8 @@ def _push_test_data(app, model, data=None):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_exact(model, context, app):
     r1, r2, r3, = _push_test_data(app, model)
@@ -96,8 +96,8 @@ def test_search_exact(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_exact_lower(model, context, app):
     r1, r2, r3, = _push_test_data(app, model)
@@ -109,8 +109,8 @@ def test_search_exact_lower(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_exact_non_string(model, context, app):
     r1, r2, r3, = _push_test_data(app, model)
@@ -141,8 +141,8 @@ def test_search_exact_non_string(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_exact_multiple_props(model, context, app):
     r1, r2, r3, = _push_test_data(app, model)
@@ -154,8 +154,8 @@ def test_search_exact_multiple_props(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_exact_same_prop_multiple_times(model, context, app):
     r1, r2, r3, = _push_test_data(app, model)
@@ -166,8 +166,8 @@ def test_search_exact_same_prop_multiple_times(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_gt(model, context, app):
     r1, r2, r3, = _push_test_data(app, model)
@@ -201,8 +201,8 @@ def test_search_gt(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_gt_with_nested_date(model, context, app):
     ids = RowIds(_push_test_data(app, model))
@@ -212,8 +212,8 @@ def test_search_gt_with_nested_date(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_gte(model, context, app):
     r1, r2, r3, = _push_test_data(app, model)
@@ -248,8 +248,8 @@ def test_search_gte(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_ge_with_nested_date(model, context, app):
     r1, r2, r3, = _push_test_data(app, model)
@@ -261,8 +261,8 @@ def test_search_ge_with_nested_date(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_lt(model, context, app):
     r1, r2, r3, = _push_test_data(app, model)
@@ -296,8 +296,8 @@ def test_search_lt(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_lt_with_nested_date(model, context, app):
     r1, r2, r3, = _push_test_data(app, model)
@@ -309,8 +309,8 @@ def test_search_lt_with_nested_date(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_lte(model, context, app):
     r1, r2, r3, = _push_test_data(app, model)
@@ -345,8 +345,8 @@ def test_search_lte(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_le_with_nested_date(model, context, app):
     r1, r2, r3, = _push_test_data(app, model)
@@ -358,8 +358,8 @@ def test_search_le_with_nested_date(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_ne(model, context, app):
     app.authmodel(model, ['search'])
@@ -371,8 +371,8 @@ def test_search_ne(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_ne_lower(model, context, app):
     app.authmodel(model, ['search'])
@@ -383,8 +383,8 @@ def test_search_ne_lower(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_ne_multiple_props(model, context, app):
     app.authmodel(model, ['search'])
@@ -396,8 +396,8 @@ def test_search_ne_multiple_props(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_ne_multiple_props_and_logic(model, context, app):
     app.authmodel(model, ['search'])
@@ -409,8 +409,8 @@ def test_search_ne_multiple_props_and_logic(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_ne_nested(model, context, app):
     app.authmodel(model, ['search'])
@@ -421,8 +421,8 @@ def test_search_ne_nested(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_ne_nested_missing_data(model, context, app):
     app.authmodel(model, ['search'])
@@ -433,8 +433,8 @@ def test_search_ne_nested_missing_data(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_contains(model, context, app, mocker):
     r1, r2, r3, = _push_test_data(app, model)
@@ -449,8 +449,8 @@ def test_search_contains(model, context, app, mocker):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_contains_case_insensitive(model, context, app, mocker):
     r1, r2, r3, = _push_test_data(app, model)
@@ -463,8 +463,8 @@ def test_search_contains_case_insensitive(model, context, app, mocker):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_contains_multi_field(model, context, app, mocker):
     r1, r2, r3, = _push_test_data(app, model)
@@ -500,8 +500,8 @@ def test_search_contains_multi_field(model, context, app, mocker):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_contains_type_check(model, context, app):
     r1, r2, r3, = _push_test_data(app, model)
@@ -512,8 +512,8 @@ def test_search_contains_type_check(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_contains_with_select(model, context, app, mocker):
     r1, r2, r3, = _push_test_data(app, model)
@@ -550,8 +550,8 @@ def test_search_contains_with_select(model, context, app, mocker):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_select_unknown_property(model, context, app, mocker):
     _push_test_data(app, model)
@@ -561,8 +561,8 @@ def test_select_unknown_property(model, context, app, mocker):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_select_unknown_property_in_object(model, context, app, mocker):
     _push_test_data(app, model)
@@ -572,8 +572,8 @@ def test_select_unknown_property_in_object(model, context, app, mocker):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_startswith(model, context, app):
     r1, r2, r3, = _push_test_data(app, model)
@@ -618,8 +618,8 @@ def test_search_startswith(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_nested(model, context, app):
     r1, r2, r3, = _push_test_data(app, model)
@@ -663,8 +663,8 @@ def test_search_nested(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_nested_contains(model, context, app):
     app.authmodel(model, ['search'])
@@ -674,8 +674,8 @@ def test_search_nested_contains(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_nested_startswith(model, context, app):
     app.authmodel(model, ['search'])
@@ -702,8 +702,8 @@ def ids(resources):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_or(model, context, app):
     ids = RowIds(_push_test_data(app, model))
@@ -716,8 +716,8 @@ def test_or(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_nested_recurse(model, context, app):
     r1, r2, r3, = _push_test_data(app, model)
@@ -729,8 +729,8 @@ def test_search_nested_recurse(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_nested_recurse_lower(model, context, app):
     r1, r2, r3, = ids(_push_test_data(app, model))
@@ -740,8 +740,8 @@ def test_search_nested_recurse_lower(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/recurse',
-    'backends/postgres/recurse',
+    'backends/mongo/Recurse',
+    'backends/postgres/Recurse',
 )
 def test_search_nested_recurse_multiple_props(model, context, app):
     r1, r2, = ids(_push_test_data(app, model, [
@@ -774,8 +774,8 @@ def test_search_nested_recurse_multiple_props(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/recurse',
-    'backends/postgres/recurse',
+    'backends/mongo/Recurse',
+    'backends/postgres/Recurse',
 )
 def test_search_recurse_multiple_props_lower(model, app):
     r1, r2, = ids(_push_test_data(app, model, [
@@ -809,7 +809,7 @@ def test_search_recurse_multiple_props_lower(model, app):
 
 # TODO: add mongo
 def test_search_any(app):
-    model = 'backends/postgres/report'
+    model = 'backends/postgres/Report'
     app.authmodel(model, ['search'])
     ids = RowIds(_push_test_data(app, model))
     resp = app.get(f'/{model}?any("eq",count,10,42)')
@@ -821,7 +821,7 @@ def test_search_any(app):
 
 # TODO: add mongo
 def test_search_any_in_list(app):
-    model = 'backends/postgres/report'
+    model = 'backends/postgres/Report'
     app.authmodel(model, ['search'])
     ids = RowIds(_push_test_data(app, model))
     resp = app.get(f'/{model}?any("eq",notes.note,"hello","world")')
@@ -833,7 +833,7 @@ def test_search_any_in_list(app):
 
 # TODO: add mongo
 def test_search_any_in_list_of_scalars(app):
-    model = 'backends/postgres/report'
+    model = 'backends/postgres/Report'
     app.authmodel(model, ['search'])
     ids = RowIds(_push_test_data(app, model))
     resp = app.get(f'/{model}?any("eq",operating_licenses.license_types,"valid","invalid","expired")')
@@ -845,7 +845,7 @@ def test_search_any_in_list_of_scalars(app):
 
 # TODO: add mongo
 def test_search_any_recurse(app):
-    model = 'backends/postgres/report'
+    model = 'backends/postgres/Report'
     app.authmodel(model, ['search'])
     ids = RowIds(_push_test_data(app, model))
     resp = app.get(f'/{model}?any("eq",recurse(status),"OK","none")')
@@ -854,7 +854,7 @@ def test_search_any_recurse(app):
 
 # TODO: add mongo
 def test_search_any_recurse_lower(app):
-    model = 'backends/postgres/report'
+    model = 'backends/postgres/Report'
     app.authmodel(model, ['search'])
     ids = RowIds(_push_test_data(app, model))
     resp = app.get(f'/{model}?any("eq",recurse(status).lower(),"ok","none")')
@@ -863,7 +863,7 @@ def test_search_any_recurse_lower(app):
 
 # TODO: add mongo
 def test_search_any_contains(app):
-    model = 'backends/postgres/report'
+    model = 'backends/postgres/Report'
     app.authmodel(model, ['search'])
     ids = RowIds(_push_test_data(app, model))
     resp = app.get(f'/{model}?any("contains",status,"inv","val","lid")')
@@ -872,7 +872,7 @@ def test_search_any_contains(app):
 
 # TODO: add mongo
 def test_search_any_contains_nested(app):
-    model = 'backends/postgres/report'
+    model = 'backends/postgres/Report'
     app.authmodel(model, ['search'])
     ids = RowIds(_push_test_data(app, model))
     resp = app.get(f'/{model}?any("contains",notes.note,"hel","wor")')
@@ -881,7 +881,7 @@ def test_search_any_contains_nested(app):
 
 # TODO: add mongo
 def test_search_any_contains_recurse_lower(app):
-    model = 'backends/postgres/report'
+    model = 'backends/postgres/Report'
     app.authmodel(model, ['search'])
     ids = RowIds(_push_test_data(app, model))
     resp = app.get(f'/{model}?any("contains",recurse(status).lower(),"o","k")')
@@ -889,8 +889,8 @@ def test_search_any_contains_recurse_lower(app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_id_contains(model, app):
     app.authmodel(model, ['search', 'getall'])
@@ -904,8 +904,8 @@ def test_search_id_contains(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_id_not_contains(model, app):
     app.authmodel(model, ['search', 'getall'])
@@ -915,8 +915,8 @@ def test_search_id_not_contains(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_id_startswith(model, app):
     app.authmodel(model, ['search'])
@@ -927,8 +927,8 @@ def test_search_id_startswith(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_id_not_startswith(model, app):
     app.authmodel(model, ['search'])
@@ -939,8 +939,8 @@ def test_search_id_not_startswith(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_revision_contains(model, app):
     app.authmodel(model, ['search'])
@@ -950,8 +950,8 @@ def test_search_revision_contains(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_revision_startswith(model, app):
     app.authmodel(model, ['search', 'getone'])
@@ -964,8 +964,8 @@ def test_search_revision_startswith(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_group(model, app):
     app.authmodel(model, ['search', 'getone'])
@@ -975,8 +975,8 @@ def test_search_group(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_select_in_or(model, app):
     app.authmodel(model, ['search', 'getone'])
@@ -987,8 +987,8 @@ def test_search_select_in_or(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_lower_contains(model, app):
     app.authmodel(model, ['search', 'getone'])
@@ -999,8 +999,8 @@ def test_search_lower_contains(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_null(model, app):
     app.authmodel(model, ['search'])
@@ -1013,8 +1013,8 @@ def test_search_null(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_search_not_null(model, app):
     app.authmodel(model, ['search'])
@@ -1040,7 +1040,7 @@ def test_extra_fields(postgresql, mongo, backend, rc, tmp_path, request):
     # Create data into a extrafields model with code and name properties.
     create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
     m | property | type
-    extrafields  |
+    Extrafields  |
       | code     | string
       | name     | string
     '''))
@@ -1048,8 +1048,8 @@ def test_extra_fields(postgresql, mongo, backend, rc, tmp_path, request):
     request.addfinalizer(context.wipe_all)
     app = create_test_client(context)
     app.authorize(['spinta_set_meta_fields'])
-    app.authmodel('extrafields', ['insert'])
-    resp = app.post('/extrafields', json={'_data': [
+    app.authmodel('Extrafields', ['insert'])
+    resp = app.post('/Extrafields', json={'_data': [
         {'_op': 'insert', 'code': 'lt', 'name': 'Lietuva', '_id': '00600aa5-1629-4ead-a4fc-736a2e64f5ce'},
         {'_op': 'insert', 'code': 'lv', 'name': 'Latvija', '_id': '0411734b-8658-40c5-bf32-9ade37cbb401'},
         {'_op': 'insert', 'code': 'ee', 'name': 'Estija', '_id': '0a3afc49-263c-40a0-a278-b58514ed961a'},
@@ -1059,13 +1059,13 @@ def test_extra_fields(postgresql, mongo, backend, rc, tmp_path, request):
     # Now try to read from same model, but loaded with just one property.
     create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
     m | property | type
-    extrafields  |
+    Extrafields  |
       | name     | string
     '''))
     context = create_test_context(rc)
     app = create_test_client(context)
-    app.authmodel('extrafields', ['getall', 'getone'])
-    resp = app.get('/extrafields')
+    app.authmodel('Extrafields', ['getall', 'getone'])
+    resp = app.get('/Extrafields')
     assert listdata(resp, sort=True) == [
         "Estija",
         "Latvija",
@@ -1073,7 +1073,7 @@ def test_extra_fields(postgresql, mongo, backend, rc, tmp_path, request):
     ]
 
     pk = resp.json()['_data'][0]['_id']
-    resp = app.get(f'/extrafields/{pk}')
+    resp = app.get(f'/Extrafields/{pk}')
     data = resp.json()
     assert resp.status_code == 200, data
     assert take(data) == {'name': 'Lietuva'}
@@ -1093,13 +1093,13 @@ def test_missing_fields(postgresql, mongo, backend, rc, tmp_path):
     # Create data into a extrafields model with code and name properties.
     create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
     m | property  | type
-    missingfields |
+    Missingfields |
       | code      | string
     '''))
     context = create_test_context(rc)
     app = create_test_client(context)
-    app.authmodel('missingfields', ['insert'])
-    resp = app.post('/missingfields', json={'_data': [
+    app.authmodel('Missingfields', ['insert'])
+    resp = app.post('/Missingfields', json={'_data': [
         {'_op': 'insert', 'code': 'lt'},
         {'_op': 'insert', 'code': 'lv'},
         {'_op': 'insert', 'code': 'ee'},
@@ -1109,14 +1109,14 @@ def test_missing_fields(postgresql, mongo, backend, rc, tmp_path):
     # Now try to read from same model, but loaded with just one property.
     create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
     m | property  | type
-    missingfields |
+    Missingfields |
       | code      | string
       | name      | string
     '''))
     context = create_test_context(rc)
     app = create_test_client(context)
-    app.authmodel('missingfields', ['search', 'getone'])
-    resp = app.get('/missingfields?select(_id,code,name)')
+    app.authmodel('Missingfields', ['search', 'getone'])
+    resp = app.get('/Missingfields?select(_id,code,name)')
     assert listdata(resp, sort=True) == [
         ('ee', None),
         ('lt', None),
@@ -1124,7 +1124,7 @@ def test_missing_fields(postgresql, mongo, backend, rc, tmp_path):
     ]
 
     pk = resp.json()['_data'][0]['_id']
-    resp = app.get(f'/missingfields/{pk}')
+    resp = app.get(f'/Missingfields/{pk}')
     data = resp.json()
     assert resp.status_code == 200, data
     assert take(data) == {'code': 'lt'}
@@ -1177,8 +1177,8 @@ def test_base_select(rc, postgresql, request):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_select_revision(model, app):
     app.authmodel(model, ['search', 'getone', 'getall'])

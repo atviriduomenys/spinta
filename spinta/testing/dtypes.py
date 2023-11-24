@@ -5,6 +5,7 @@ from spinta.testing.utils import get_error_codes
 
 def path(model: str):
     parts = model.split('/')
+    parts = list([part.lower() for part in parts])
     if len(parts) > 3 and (parts[0], parts[2]) == ('backends', 'dtypes'):
         parts = parts[3:]
         parts = [
@@ -17,11 +18,13 @@ def path(model: str):
 
 def nest(model: str, data: dict):
     parts = model.split('/')
+    parts = list([part.lower() for part in parts])
+    name = parts[-1]
     if len(parts) > 3 and (parts[0], parts[2]) == ('backends', 'dtypes'):
         parts = parts[3:]
         if parts[-1] in data:
             d = data = data.copy()
-            value = d.pop(parts[-1])
+            value = d.pop(name)
             for k in parts[:-1]:
                 if k == 'array':
                     v = []
@@ -35,12 +38,14 @@ def nest(model: str, data: dict):
             if isinstance(d, list):
                 d.append(value)
             else:
-                d[parts[-1]] = value
+                d[name] = value
     return data
 
 
 def flat(model, data):
     parts = model.split('/')
+    parts = list([part.lower() for part in parts])
+    name = parts[-1]
     if len(parts) > 3 and (parts[0], parts[2]) == ('backends', 'dtypes'):
         parts = parts[3:]
         if parts[0] in data:
@@ -60,12 +65,12 @@ def flat(model, data):
                         break
             data.pop(parts[0])
             if v is not NA:
-                data[parts[-1]] = v
+                data[name] = v
     return data
 
 
 def post(app, model: str, value: str, *, status: int = 201):
-    name = model.split('/')[-1]
+    name = model.split('/')[-1].lower()
     data = nest(model, {name: value})
     resp = app.post(f'/{model}', json=data)
     assert resp.status_code == status, resp.json()
@@ -84,7 +89,7 @@ def post(app, model: str, value: str, *, status: int = 201):
 
 
 def upsert(app, model: str, where: str, value: str, *, status: int):
-    name = model.split('/')[-1]
+    name = model.split('/')[-1].lower()
     data = nest(model, {
         '_op': 'upsert',
         '_where': f'%s={where!r}' % path(model),
@@ -107,7 +112,7 @@ def upsert(app, model: str, where: str, value: str, *, status: int):
 
 
 def put(app, model: str, pk: str, rev: str, value: str = NA):
-    name = model.split('/')[-1]
+    name = model.split('/')[-1].lower()
     data = nest(model, take(all, {
         '_revision': rev,
         name: value,
@@ -129,7 +134,7 @@ def put(app, model: str, pk: str, rev: str, value: str = NA):
 
 
 def patch(app, model: str, pk: str, rev: str, value: str = NA):
-    name = model.split('/')[-1]
+    name = model.split('/')[-1].lower()
     data = nest(model, take(all, {
         '_revision': rev,
         name: value,
@@ -161,7 +166,7 @@ def delete(app, model: str, pk: str, rev: str):
 
 
 def get(app, model, pk, rev, status=200):
-    name = model.split('/')[-1]
+    name = model.split('/')[-1].lower()
     resp = app.get(f'{model}/{pk}?expand()')
     data = resp.json()
     assert resp.status_code == status, data
@@ -180,7 +185,7 @@ def get(app, model, pk, rev, status=200):
 
 
 def search(app, model, pk, rev, val=NA, by=None):
-    name = model.split('/')[-1]
+    name = model.split('/')[-1].lower()
     place = path(model)
     if val is None:
         val = 'null'

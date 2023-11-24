@@ -2,8 +2,8 @@ import pytest
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_update_object(model, app):
     app.authmodel(model, ['insert', 'patch', 'getone'])
@@ -15,7 +15,7 @@ def test_update_object(model, app):
             'sync_resources': [
                 {
                     'sync_id': '2',
-                    'sync_source': 'report'
+                    'sync_source': 'Report'
                 }
             ]
         }
@@ -40,15 +40,15 @@ def test_update_object(model, app):
         'sync_resources': [
             {
                 'sync_id': '2',
-                'sync_source': 'report'
+                'sync_source': 'Report'
             }
         ]
     }
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_update_object_array(model, app):
     app.authmodel(model, ['insert', 'patch', 'getone'])
@@ -60,7 +60,7 @@ def test_update_object_array(model, app):
             'sync_resources': [
                 {
                     'sync_id': '2',
-                    'sync_source': 'report'
+                    'sync_source': 'Report'
                 }
             ]
         }
