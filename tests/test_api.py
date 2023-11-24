@@ -117,7 +117,7 @@ def test_app(app):
         ],
     }
     assert next(d for d in data['data'] if d['title'] == 'Country') == {
-        'name': '📄 country',
+        'name': '📄 Country',
         'title': 'Country',
         'description': '',
     }
@@ -125,7 +125,7 @@ def test_app(app):
     html = get_html_tree(resp)
     rows = html.cssselect('table.table tr td:nth-child(1)')
     rows = [row.text_content().strip() for row in rows]
-    assert '📄 country' in rows
+    assert '📄 Country' in rows
     assert '📁 datasets/' in rows
 
 
@@ -140,28 +140,28 @@ def test_directory(app):
             ('🏠', '/'),
             ('datasets', '/datasets'),
             ('xlsx', '/datasets/xlsx'),
-            ('rinkimai', None),
+            ('Rinkimai', None),
         ],
         'empty': False,
         'header': ['name', 'title', 'description'],
         'data': [
             [
-                {'value': '📄 apygarda', 'link': '/datasets/xlsx/Rinkimai/Apygarda'},
+                {'value': '📄 Apygarda', 'link': '/datasets/xlsx/Rinkimai/Apygarda'},
                 {'value': '', 'color': '#f5f5f5'},
                 {'value': '', 'color': '#f5f5f5'},
             ],
             [
-                {'value': '📄 apylinke', 'link': '/datasets/xlsx/Rinkimai/Apylinke'},
+                {'value': '📄 Apylinke', 'link': '/datasets/xlsx/Rinkimai/Apylinke'},
                 {'value': '', 'color': '#f5f5f5'},
                 {'value': '', 'color': '#f5f5f5'},
             ],
             [
-                {'value': '📄 kandidatas', 'link': '/datasets/xlsx/Rinkimai/Kandidatas'},
+                {'value': '📄 Kandidatas', 'link': '/datasets/xlsx/Rinkimai/Kandidatas'},
                 {'value': '', 'color': '#f5f5f5'},
                 {'value': '', 'color': '#f5f5f5'},
             ],
             [
-                {'value': '📄 turas', 'link': '/datasets/xlsx/Rinkimai/Ruras'},
+                {'value': '📄 Turas', 'link': '/datasets/xlsx/Rinkimai/Turas'},
                 {'value': '', 'color': '#f5f5f5'},
                 {'value': '', 'color': '#f5f5f5'},
             ]
@@ -346,14 +346,14 @@ def test_dataset(app):
             ('🏠', '/'),
             ('datasets', '/datasets'),
             ('json', '/datasets/json'),
-            ('rinkimai', None),
+            ('Rinkimai', None),
             ('Changes', '/datasets/json/Rinkimai/:changes/-10'),
         ],
         'header': ['_id', 'id', 'pavadinimas'],
         'empty': False,
         'data': [
             [
-                {'link': f'/datasets/json/rinkimai/{pk}', 'value': pk[:8]},
+                {'link': f'/datasets/json/Rinkimai/{pk}', 'value': pk[:8]},
                 {'value': '1'},
                 {'value': 'Rinkimai 1'},
             ],
@@ -430,7 +430,7 @@ def test_nested_dataset(app):
             ('nested', '/datasets/nested'),
             ('dataset', '/datasets/nested/dataset'),
             ('name', '/datasets/nested/dataset/name'),
-            ('model', None),
+            ('Model', None),
             ('Changes', '/datasets/nested/dataset/name/Model/:changes/-10'),
         ],
         'header': ['_id', 'name'],
@@ -471,7 +471,7 @@ def test_dataset_key(app):
             ('🏠', '/'),
             ('datasets', '/datasets'),
             ('json', '/datasets/json'),
-            ('rinkimai', '/datasets/json/Rinkimai'),
+            ('Rinkimai', '/datasets/json/Rinkimai'),
             (short_id(pk), None),
             ('Changes', f'/datasets/json/Rinkimai/{pk}/:changes/-10'),
         ],
@@ -525,7 +525,7 @@ def test_changes_single_object(app: TestClient, mocker):
             ('🏠', '/'),
             ('datasets', '/datasets'),
             ('json', '/datasets/json'),
-            ('rinkimai', '/datasets/json/Rinkimai'),
+            ('Rinkimai', '/datasets/json/Rinkimai'),
             (obj1.sid, f'/datasets/json/Rinkimai/{obj.id}'),
             ('Changes', None),
         ],
@@ -595,7 +595,7 @@ def test_changes_object_list(app, mocker):
             ('🏠', '/'),
             ('datasets', '/datasets'),
             ('json', '/datasets/json'),
-            ('rinkimai', f'/{model}'),
+            ('Rinkimai', f'/{model}'),
             ('Changes', None),
         ],
         'formats': [
@@ -1160,7 +1160,7 @@ def test_location_header(model, app, context):
     assert 'location' in resp.headers
     id_ = resp.json()['_id']
     server_url = context.get('config').server_url
-    assert resp.headers['location'] == f'{server_url}{model}s/{id_}'
+    assert resp.headers['location'] == f'{server_url}{model}/{id_}'
 
 
 @pytest.mark.models(
