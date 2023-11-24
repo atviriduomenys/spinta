@@ -734,4 +734,4 @@ class DuplicateRdfPrefixMissmatch(UserError):
 
 
 class InvalidName(UserError):
-    template = '{class_name} name {name} is not correct.'
+    template = 'Invalid {name!r} {type} code name.'

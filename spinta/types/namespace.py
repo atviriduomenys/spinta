@@ -45,6 +45,10 @@ from spinta.accesslog import log_response
 
 namespace_is_lowercase = re.compile(r'^([a-z][a-z0-9]*)+(/[a-z][a-z0-9]*)+|([a-z][a-z0-9]*)$')
 
+RESERVED_NAMES = {
+    '_schema',
+}
+
 
 class NamespaceData(TypedDict):
     title: str
@@ -128,12 +132,9 @@ def check(context: Context, ns: Namespace):
 
     if config.check_names:
         name = ns.name
-        if name and name not in ['_schema']:
+        if name and name not in RESERVED_NAMES:
             if namespace_is_lowercase.match(name) is None:
-                raise InvalidName(
-                    class_name=ns.__class__.__name__,
-                    name=name
-                )
+                raise InvalidName(ns, name=name, type='namespace')
 
 
 @commands.authorize.register(Context, Action, Namespace)

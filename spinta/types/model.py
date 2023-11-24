@@ -39,6 +39,7 @@ from spinta.dimensions.lang.helpers import load_lang_data
 from spinta.exceptions import KeymapNotSet, InvalidLevel
 from spinta.exceptions import UndefinedEnum
 from spinta.exceptions import UnknownPropertyType
+from spinta.exceptions import PropertyNotFound
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.components import PropertyRow
 from spinta.nodes import get_node
@@ -121,6 +122,8 @@ def load(
             for prop_name in unique_set:
                 if "." in prop_name:
                     prop_name = prop_name.split(".")[0]
+                if prop_name not in model.properties:
+                    raise PropertyNotFound(model, property=prop_name)
                 prop_set.append(model.properties[prop_name])
             if prop_set:
                 unique_properties.append(prop_set)

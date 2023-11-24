@@ -118,9 +118,7 @@ def test_check_names_model(tmp_path: Path, rc: RawConfig):
     with pytest.raises(InvalidName) as e:
         commands.check(context, manifest)
 
-    assert e.value.message == (
-        'Model name datasets/gov/example/data is not correct.'
-    )
+    assert e.value.message == "Invalid 'data' model code name."
 
 
 def test_check_names_property(tmp_path: Path, rc: RawConfig):
@@ -140,9 +138,7 @@ def test_check_names_property(tmp_path: Path, rc: RawConfig):
     with pytest.raises(InvalidName) as e:
         commands.check(context, manifest)
 
-    assert e.value.message == (
-        'Property name value_Value is not correct.'
-    )
+    assert e.value.message == "Invalid 'value_Value' property code name."
 
 
 def test_check_names_dataset(tmp_path: Path, rc: RawConfig):
@@ -162,6 +158,4 @@ def test_check_names_dataset(tmp_path: Path, rc: RawConfig):
     with pytest.raises(InvalidName) as e:
         commands.check(context, manifest)
 
-    assert e.value.message == (
-        'Dataset name datasets/gov/Example is not correct.'
-    )
+    assert e.value.message == "Invalid 'datasets/gov/Example' namespace code name."
