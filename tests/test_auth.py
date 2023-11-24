@@ -211,7 +211,7 @@ def test_authorized(context, client, scope, node, action, authorized):
 
 def test_invalid_access_token(app):
     app.headers.update({"Authorization": "Bearer FAKE_TOKEN"})
-    resp = app.get('/reports')
+    resp = app.get('/Report')
     assert resp.status_code == 401
     assert 'WWW-Authenticate' in resp.headers
     assert resp.headers['WWW-Authenticate'] == 'Bearer error="invalid_token"'
@@ -238,7 +238,7 @@ def test_token_validation_key_config(backends, rc, tmp_path, request):
     token = auth.create_access_token(context, prvkey, client, scopes=scopes)
 
     client = create_test_client(context)
-    resp = client.get('/reports', headers={'Authorization': f'Bearer {token}'})
+    resp = client.get('/Report', headers={'Authorization': f'Bearer {token}'})
     assert resp.status_code == 200
 
 
@@ -274,7 +274,7 @@ def basic_auth(backends, rc, tmp_path, request):
 
 def test_http_basic_auth_unauthorized(basic_auth):
     client = basic_auth
-    resp = client.get('/reports')
+    resp = client.get('/Report')
     assert resp.status_code == 401, resp.json()
     assert resp.headers['www-authenticate'] == 'Basic realm="Authentication required."'
     assert resp.json() == {
@@ -292,21 +292,21 @@ def test_http_basic_auth_unauthorized(basic_auth):
 
 def test_http_basic_auth_invalid_secret(basic_auth):
     client = basic_auth
-    resp = client.get('/reports', auth=('default', 'invalid'))
+    resp = client.get('/Report', auth=('default', 'invalid'))
     assert resp.status_code == 401, resp.json()
     assert resp.headers['www-authenticate'] == 'Basic realm="Authentication required."'
 
 
 def test_http_basic_auth_invalid_client(basic_auth):
     client = basic_auth
-    resp = client.get('/reports', auth=('invalid', 'secret'))
+    resp = client.get('/Report', auth=('invalid', 'secret'))
     assert resp.status_code == 401, resp.json()
     assert resp.headers['www-authenticate'] == 'Basic realm="Authentication required."'
 
 
 def test_http_basic_auth(basic_auth):
     client = basic_auth
-    resp = client.get('/reports', auth=('default', 'secret'))
+    resp = client.get('/Report', auth=('default', 'secret'))
     assert resp.status_code == 200, resp.json()
 
 
