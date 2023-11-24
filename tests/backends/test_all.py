@@ -179,8 +179,8 @@ def test_get_non_existant_subresource(model, context, app):
     id_ = resp.json()['_id']
 
     resp = app.get(f'/{model}/{id_}/foo')
-    schema = '\\'.join(model.split('/')[:-1])
-    schema = f"{schema}\\report.yml"
+    schema = '/'.join(model.split('/')[:-1])
+    schema = f"{schema}/report.yml"
     assert resp.status_code == 404
     # FIXME: Fix error message, here model and resource is found, but model
     #        preprety is not found.
