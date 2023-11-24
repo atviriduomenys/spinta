@@ -336,7 +336,7 @@ def merge(context: Context, manifest: Manifest, old: NotAvailable, new: Model, h
             for old_res, new_res in res:
                 if old_res and new_res:
                     old.external.resource = old_res
-                    commands.set_model(old_res, old.name, old)
+                    old_res.models[old.name] = old
     old.manifest = manifest
     commands.set_model(manifest, old.name, old)
 
