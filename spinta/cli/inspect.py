@@ -108,7 +108,7 @@ def inspect(
                             sorted_models[resource_key] = resource_model
                 else:
                     sorted_models[key] = model
-        commands.set_models(manifest, sorted_models)
+        commands.set_models(old, sorted_models)
 
     if output:
         if InternalSQLManifest.detect_from_path(output):
