@@ -124,9 +124,9 @@ def has_dataset(manifest: Manifest, dataset: str):
 
 @commands.get_dataset.register(Manifest, str)
 def get_dataset(manifest: Manifest, dataset: str):
-    if has_namespace(manifest, dataset):
+    if has_dataset(manifest, dataset):
         return manifest.get_objects()['dataset'][dataset]
-    raise Exception("NAMESPACE NOT FOUND")
+    raise Exception("DATASET NOT FOUND")
 
 
 @commands.get_datasets.register(Manifest)
