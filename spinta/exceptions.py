@@ -561,7 +561,6 @@ class RemoteClientScopesNotGiven(RemoteClientError):
         "{credentials} file."
     )
 
-
 class DupicateProperty(UserError):
     template = "Duplicate property {name}."
 
@@ -732,3 +731,7 @@ class CannotSelectTextAndSpecifiedLang(UserError):
     
 class DuplicateRdfPrefixMissmatch(UserError):
     template = "Currently system does not support prefix missmatch. Prefix {prefix!r} has {old_value!r} and {new_value!r} values given."
+
+
+class InvalidName(UserError):
+    template = 'Invalid {name!r} {type} code name.'
