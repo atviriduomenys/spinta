@@ -128,20 +128,20 @@ def test_copy_with_filters_and_externals(rc, cli, tmp_path):
     datasets/gov/example     |        |         |             |           |
       | data                 | sql    |         |             |           |
                              |        |         |             |           |
-      |   |   | country      |        | code    | salis       | code='lt' |
+      |   |   | Country      |        | code    | salis       | code='lt' |
       |   |   |   | code     | string |         | kodas       |           | private
       |   |   |   | name     | string |         | pavadinimas |           | open
       |   |   |   | driving  | string |         | vairavimas  |           | open
       |   |   |   |          | enum   |         | l           | 'left'    | private
       |   |   |   |          |        |         | r           | 'right'   | open
                              |        |         |             |           |
-      |   |   | city         |        | name    | miestas     |           |
+      |   |   | City         |        | name    | miestas     |           |
       |   |   |   | name     | string |         | pavadinimas |           | open
-      |   |   |   | country  | ref    | country | salis       |           | open
+      |   |   |   | country  | ref    | Country | salis       |           | open
                              |        |         |             |           |
-      |   |   | capital      |        | name    | miestas     |           |
+      |   |   | Capital      |        | name    | miestas     |           |
       |   |   |   | name     | string |         | pavadinimas |           |
-      |   |   |   | country  | ref    | country | salis       |           |
+      |   |   |   | country  | ref    | Country | salis       |           |
     '''))
 
     cli.invoke(rc, [
@@ -157,14 +157,14 @@ def test_copy_with_filters_and_externals(rc, cli, tmp_path):
     datasets/gov/example     |        |         |             |           |       |
       | data                 | sql    |         |             |           |       |
                              |        |         |             |           |       |
-      |   |   | country      |        |         | salis       | code='lt' |       |
+      |   |   | Country      |        |         | salis       | code='lt' |       |
       |   |   |   | name     | string |         | pavadinimas |           |       | open
       |   |   |   | driving  | string |         | vairavimas  |           |       | open
                              | enum   |         | r           | 'right'   |       | open
                              |        |         |             |           |       |
-      |   |   | city         |        | name    | miestas     |           |       |
+      |   |   | City         |        | name    | miestas     |           |       |
       |   |   |   | name     | string |         | pavadinimas |           |       | open
-      |   |   |   | country  | ref    | country | salis       |           |       | open
+      |   |   |   | country  | ref    | Country | salis       |           |       | open
     '''
 
 

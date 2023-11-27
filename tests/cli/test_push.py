@@ -391,12 +391,12 @@ def test_push_with_resource_check(
     d | r | b | m | property  | type   | ref     | source       | access
     datasets/gov/exampleRes   |        |         |              |
       | data                  | sql    |         |              |
-      |   |   | countryRes    |        | code    | salis        |
+      |   |   | CountryRes    |        | code    | salis        |
       |   |   |   | code      | string |         | kodas        | open
       |   |   |   | name      | string |         | pavadinimas  | open
       |   |                   |        |         |              |
     datasets/gov/exampleNoRes |        |         |              |
-      |   |   | countryNoRes  |        |         |              |
+      |   |   | CountryNoRes  |        |         |              |
       |   |   |   | code      | string |         |              | open
       |   |   |   | name      | string |         |              | open
     '''))
@@ -428,12 +428,12 @@ def test_push_with_resource_check(
     ])
     assert result.exit_code == 0
 
-    remote.app.authmodel('datasets/gov/exampleRes/countryRes', ['getall'])
-    resp_res = remote.app.get('/datasets/gov/exampleRes/countryRes')
+    remote.app.authmodel('datasets/gov/exampleRes/CountryRes', ['getall'])
+    resp_res = remote.app.get('/datasets/gov/exampleRes/CountryRes')
     assert len(listdata(resp_res)) == 3
 
-    remote.app.authmodel('datasets/gov/exampleNoRes/countryNoRes', ['getall'])
-    resp_no_res = remote.app.get('/datasets/gov/exampleNoRes/countryNoRes')
+    remote.app.authmodel('datasets/gov/exampleNoRes/CountryNoRes', ['getall'])
+    resp_no_res = remote.app.get('/datasets/gov/exampleNoRes/CountryNoRes')
     assert len(listdata(resp_no_res)) == 0
 
 
