@@ -156,7 +156,7 @@ def test_inspect_format(
     ])
 
     # Check what was detected.
-    context, manifest = load_manifest_and_context(rc, tmp_path / 'result.csv')
+    context, manifest = load_manifest_and_context(rc, tmp_path / 'manifest.csv')
     commands.get_dataset(context, manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
     a, b = compare_manifest(context, manifest, f'''
     d | r | b | m | property   | type    | ref     | source     | prepare
@@ -202,7 +202,7 @@ def test_inspect_cyclic_refs(
     ])
 
     # Check what was detected.
-    context, manifest = load_manifest_and_context(rc, tmp_path / 'result.csv')
+    context, manifest = load_manifest_and_context(rc, tmp_path / 'manifest.csv')
     commands.get_dataset(context, manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
     assert manifest == f'''
     d | r | b | m | property   | type    | ref     | source     | prepare
@@ -249,7 +249,7 @@ def test_inspect_self_refs(
     ])
 
     # Check what was detected.
-    context, manifest = load_manifest_and_context(rc, tmp_path / 'result.csv')
+    context, manifest = load_manifest_and_context(rc, tmp_path / 'manifest.csv')
     commands.get_dataset(context, manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
     assert manifest == f'''
     d | r | b | m | property  | type    | ref      | source    | prepare
@@ -311,7 +311,7 @@ def test_inspect_oracle_sqldump_stdin(
     ''')
 
     # Check what was detected.
-    context, manifest = load_manifest_and_context(rc, tmp_path / 'result.csv')
+    context, manifest = load_manifest_and_context(rc, tmp_path / 'manifest.csv')
     assert manifest == '''
     id | d | r | b | m | property | type    | ref | source  | prepare | level | access | uri | title | description
        | datasets/gov/example     |         |     |         |         |       |        |     |       |
@@ -344,7 +344,7 @@ def test_inspect_oracle_sqldump_file_with_formula(
     ])
 
     # Check what was detected.
-    context, manifest = load_manifest_and_context(rc, tmp_path / 'result.csv')
+    context, manifest = load_manifest_and_context(rc, tmp_path / 'manifest.csv')
     dataset = commands.get_dataset(context, manifest, 'datasets/gov/example')
     dataset.resources['resource1'].external = 'dump.sql'
     assert manifest == '''
