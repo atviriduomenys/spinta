@@ -23,5 +23,5 @@ def show(
     context = configure_context(ctx.obj, manifests, mode=mode)
     store = prepare_manifest(context, verbose=False)
     manifest = store.manifest
-    echo(render_tabular_manifest(manifest))
+    echo(render_tabular_manifest(context, manifest))
 

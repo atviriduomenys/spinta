@@ -8,7 +8,7 @@ from sqlalchemy.sql.elements import Null
 from spinta import commands
 from spinta.backends import Backend
 from spinta.backends.components import BackendOrigin
-from spinta.components import Namespace, Base, Model, Property
+from spinta.components import Namespace, Base, Model, Property, Context
 from spinta.core.enums import Access
 from spinta.core.ufuncs import Expr
 from spinta.datasets.components import Dataset, Resource
@@ -78,7 +78,7 @@ def _read_all_sql_manifest_rows(
     yield from _read_tabular_manifest_rows(path=path, rows=converted, rename_duplicates=rename_duplicates)
 
 
-def write_internal_sql_manifest(dsn: str, manifest: Manifest):
+def write_internal_sql_manifest(context: Context, dsn: str, manifest: Manifest):
     engine = sa.create_engine(dsn)
     inspect = sa.inspect(engine)
     with engine.connect() as conn:
@@ -88,7 +88,7 @@ def write_internal_sql_manifest(dsn: str, manifest: Manifest):
             conn.execute(table.delete())
         else:
             table.create()
-        rows = datasets_to_sql(manifest)
+        rows = datasets_to_sql(context, manifest)
         for row in rows:
             conn.execute(table.insert().values(row))
 
@@ -103,6 +103,7 @@ def _handle_id(item_id: Any):
 
 
 def datasets_to_sql(
+    context: Context,
     manifest: Manifest,
     *,
     external: bool = True,  # clean content of source and prepare
@@ -112,7 +113,7 @@ def datasets_to_sql(
 ) -> Iterator[InternalManifestRow]:
     yield from _prefixes_to_sql(manifest.prefixes)
     yield from _backends_to_sql(manifest.backends)
-    yield from _namespaces_to_sql(commands.get_namespaces(manifest))
+    yield from _namespaces_to_sql(commands.get_namespaces(context, manifest))
     yield from _enums_to_sql(
         manifest.enums,
         external=external,
@@ -141,7 +142,7 @@ def datasets_to_sql(
         "item": None,
         "depth": 0
     }
-    models = commands.get_models(manifest)
+    models = commands.get_models(context, manifest)
     models = models if internal else take(models)
     models = sort(MODELS_ORDER_BY, models.values(), order_by)
 
@@ -265,7 +266,7 @@ def datasets_to_sql(
             mpath=mpath
         )
 
-    datasets = sort(DATASETS_ORDER_BY, commands.get_datasets(manifest).values(), order_by)
+    datasets = sort(DATASETS_ORDER_BY, commands.get_datasets(context, manifest).values(), order_by)
     for dataset in datasets:
         if dataset.name in seen_datasets:
             continue

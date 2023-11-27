@@ -3,7 +3,7 @@ from spinta.core.config import RawConfig
 
 from pathlib import Path
 
-from spinta.testing.manifest import load_manifest, compare_manifest
+from spinta.testing.manifest import load_manifest, compare_manifest, load_manifest_and_context
 
 
 def test_xml_normal(rc: RawConfig, tmp_path: Path):
@@ -25,9 +25,9 @@ def test_xml_normal(rc: RawConfig, tmp_path: Path):
     path = tmp_path / 'manifest.xml'
     path.write_text(xml)
 
-    manifest = load_manifest(rc, path)
-    commands.get_dataset(manifest, "dataset").resources["resource"].external = "manifest.xml"
-    a, b = compare_manifest(manifest, f'''
+    context, manifest = load_manifest_and_context(rc, path)
+    commands.get_dataset(context, manifest, "dataset").resources["resource"].external = "manifest.xml"
+    a, b = compare_manifest(context, manifest, f'''
 d | r | model   | property     | type           | ref     | source
 dataset                  |                |         |
   | resource             | xml            |         | manifest.xml
@@ -70,9 +70,9 @@ def test_xml_blank_node(rc: RawConfig, tmp_path: Path):
     path = tmp_path / 'manifest.xml'
     path.write_text(xml)
 
-    manifest = load_manifest(rc, path)
-    commands.get_dataset(manifest, "dataset").resources["resource"].external = "manifest.xml"
-    a, b = compare_manifest(manifest, f'''
+    context, manifest = load_manifest_and_context(rc, path)
+    commands.get_dataset(context, manifest, "dataset").resources["resource"].external = "manifest.xml"
+    a, b = compare_manifest(context, manifest, f'''
 d | r | model   | property                        | type                    | ref    | source
 dataset                                     |                         |        |
   | resource                                | xml                     |        | manifest.xml
@@ -112,9 +112,9 @@ def test_xml_allowed_namespace(rc: RawConfig, tmp_path: Path):
     path = tmp_path / 'manifest.xml'
     path.write_text(xml)
 
-    manifest = load_manifest(rc, path)
-    commands.get_dataset(manifest, "dataset").resources["resource"].external = "manifest.xml"
-    a, b = compare_manifest(manifest, f'''
+    context, manifest = load_manifest_and_context(rc, path)
+    commands.get_dataset(context, manifest, "dataset").resources["resource"].external = "manifest.xml"
+    a, b = compare_manifest(context, manifest, f'''
 d | r | model   | property     | type           | ref   | source                 | uri
 dataset                  |                |       |                        |
                          | prefix         | xsi   |                        | http://www.example.com/xmlns/xsi
@@ -153,9 +153,9 @@ def test_xml_disallowed_namespace(rc: RawConfig, tmp_path: Path):
     path = tmp_path / 'manifest.xml'
     path.write_text(xml)
 
-    manifest = load_manifest(rc, path)
-    commands.get_dataset(manifest, "dataset").resources["resource"].external = "manifest.xml"
-    a, b = compare_manifest(manifest, f'''
+    context, manifest = load_manifest_and_context(rc, path)
+    commands.get_dataset(context, manifest, "dataset").resources["resource"].external = "manifest.xml"
+    a, b = compare_manifest(context, manifest, f'''
 d | r | model   | property      | type                | ref   | source                 | uri
 dataset                   |                     |       |                        |
                           | prefix              | xmlns |                        | http://www.example.com/xmlns
@@ -214,9 +214,9 @@ def test_xml_inherit_nested(rc: RawConfig, tmp_path: Path):
     path = tmp_path / 'manifest.xml'
     path.write_text(xml)
 
-    manifest = load_manifest(rc, path)
-    commands.get_dataset(manifest, "dataset").resources["resource"].external = "manifest.xml"
-    a, b = compare_manifest(manifest, f'''
+    context, manifest = load_manifest_and_context(rc, path)
+    commands.get_dataset(context, manifest, "dataset").resources["resource"].external = "manifest.xml"
+    a, b = compare_manifest(context, manifest, f'''
 d | r | model   | property        | type                    | ref     | source
 dataset                     |                         |         |
   | resource                | xml                     |         | manifest.xml

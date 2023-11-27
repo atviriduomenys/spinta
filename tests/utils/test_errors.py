@@ -1,18 +1,18 @@
 from spinta import exceptions, commands
 from spinta.core.config import RawConfig
-from spinta.testing.manifest import load_manifest
+from spinta.testing.manifest import load_manifest, load_manifest_and_context
 from spinta.utils.errors import report_error
 
 
 def test_report_error__id(rc: RawConfig):
-    manifest = load_manifest(rc, '''
+    context, manifest = load_manifest_and_context(rc, '''
     d | r | b | m | property | type   | access
     datasets/gov/example     |        |
       |   |   | Country      |        |
       |   |   |   | name     | string | open
     ''')
 
-    model = commands.get_model(manifest, 'datasets/gov/example/Country')
+    model = commands.get_model(context, manifest, 'datasets/gov/example/Country')
     prop = model.properties['name']
 
     exc = exceptions.InvalidValue(prop.dtype, value=42)

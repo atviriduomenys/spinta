@@ -133,7 +133,7 @@ def _detect_nin_lt(value: Any):
     return is_nin_lt(str(value))
 
 
-def _detect_pii(manifest: Manifest, rows: Iterable[ModelRow]) -> None:
+def _detect_pii(context: Context, manifest: Manifest, rows: Iterable[ModelRow]) -> None:
     """Detects PII and modifies given manifest in place"""
 
     detectors = [
@@ -160,7 +160,7 @@ def _detect_pii(manifest: Manifest, rows: Iterable[ModelRow]) -> None:
 
     # Update manifest.
     for model_name, props in result.items():
-        model = commands.get_model(manifest, model_name)
+        model = commands.get_model(context, manifest, model_name)
         for prop_place, matches in props.items():
             prop = model.flatprops[prop_place]
             for uri, match in matches.items():
@@ -228,7 +228,7 @@ def detect(
         for backend in manifest.backends.values():
             backends.add(backend.name)
             context.attach(f'transaction.{backend.name}', backend.begin)
-        for dataset in commands.get_datasets(manifest).values():
+        for dataset in commands.get_datasets(context, manifest).values():
             for resource in dataset.resources.values():
                 if resource.backend and resource.backend.name not in backends:
                     backends.add(resource.backend.name)
@@ -238,7 +238,7 @@ def detect(
 
         from spinta.types.namespace import traverse_ns_models
 
-        ns = commands.get_namespace(manifest, '')
+        ns = commands.get_namespace(context, manifest, '')
         models = traverse_ns_models(context, ns, Action.SEARCH)
         models = sort_models_by_refs(models)
         models = list(reversed(list(models)))
@@ -251,8 +251,8 @@ def detect(
         )
         total = sum(counts.values())
         rows = tqdm.tqdm(rows, 'PII DETECT', ascii=True, total=total)
-        _detect_pii(manifest, rows)
+        _detect_pii(context, manifest, rows)
         if output:
             write_tabular_manifest(output, manifest)
         else:
-            echo(render_tabular_manifest(manifest))
+            echo(render_tabular_manifest(context, manifest))

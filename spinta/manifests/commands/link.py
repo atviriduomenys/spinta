@@ -6,7 +6,7 @@ from spinta.manifests.components import Manifest, get_manifest_object_names
 @commands.link.register(Context, Manifest)
 def link(context: Context, manifest: Manifest):
     for node in get_manifest_object_names():
-        for obj in commands.get_nodes(manifest, node).values():
+        for obj in commands.get_nodes(context, manifest, node).values():
             commands.link(context, obj)
 
 

@@ -8,6 +8,6 @@ from spinta.backends.memory.components import Memory
 
 @commands.prepare.register(Context, Memory, Manifest)
 def prepare(context: Context, backend: Memory, manifest: Manifest):
-    for model in commands.get_models(manifest).values():
+    for model in commands.get_models(context, manifest).values():
         backend.create(get_table_name(model))
         backend.create(get_table_name(model, TableType.CHANGELOG))

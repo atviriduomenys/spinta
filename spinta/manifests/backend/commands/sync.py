@@ -18,5 +18,5 @@ async def sync(
     sources: List[Manifest] = None,
 ):
     stream = read_sync_versions(context, manifest)
-    stream = versions_to_dstream(manifest, stream)
+    stream = versions_to_dstream(context, manifest, stream)
     await adrain(push_stream(context, stream))

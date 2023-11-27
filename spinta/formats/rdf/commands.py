@@ -39,13 +39,13 @@ PAV = "pav"
 DESCRIPTION = "Description"
 
 
-def _get_available_prefixes(model: Model) -> dict:
+def _get_available_prefixes(context: Context, model: Model) -> dict:
     prefixes = {
         RDF: "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
         PAV: "http://purl.org/pav/"
     }
-    if commands.has_dataset(model.manifest, model.ns.name):
-        manifest_prefixes = commands.get_dataset(model.manifest, model.ns.name).prefixes
+    if commands.has_dataset(context, model.manifest, model.ns.name):
+        manifest_prefixes = commands.get_dataset(context, model.manifest, model.ns.name).prefixes
         for key, val in manifest_prefixes.items():
             if isinstance(val, UriPrefix):
                 prefixes[key] = val.uri
@@ -218,6 +218,7 @@ def render(
 
     return StreamingResponse(
         _stream(
+            context,
             request,
             model,
             action,
@@ -259,13 +260,14 @@ def render(
 
 
 async def _stream(
+    context: Context,
     request: Request,
     model: Model,
     action: Action,
     data
 ):
     namespaces = []
-    prefixes = _get_available_prefixes(model)
+    prefixes = _get_available_prefixes(context, model)
     root_name = _get_attribute_name(RDF.upper(), RDF, prefixes)
     for key, val in prefixes.items():
         namespaces.append(f'xmlns:{key}="{val}"')

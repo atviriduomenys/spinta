@@ -14,7 +14,7 @@ from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.config import configure
 from spinta.testing.datasets import Sqlite
-from spinta.testing.manifest import compare_manifest
+from spinta.testing.manifest import compare_manifest, load_manifest_and_context
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.manifest import load_manifest
 
@@ -72,8 +72,8 @@ def test_inspect(
     cli.invoke(rc, ['inspect', sqlite.dsn, '-o', tmp_path / 'result.csv'])
 
     # Check what was detected.
-    manifest = load_manifest(rc, tmp_path / 'result.csv')
-    commands.get_dataset(manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
+    context, manifest = load_manifest_and_context(rc, tmp_path / 'result.csv')
+    commands.get_dataset(context, manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
     assert manifest == f'''
     d | r | b | m | property   | type    | ref     | source     | prepare
     dbsqlite                   |         |         |            |
@@ -115,8 +115,8 @@ def test_inspect_from_manifest_table(
     ])
 
     # Check what was detected.
-    manifest = load_manifest(rc, tmp_path / 'result.csv')
-    commands.get_dataset(manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
+    context, manifest = load_manifest_and_context(rc, tmp_path / 'result.csv')
+    commands.get_dataset(context, manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
     assert manifest == f'''
     d | r | b | m | property  | type    | ref | source  | prepare
     dbsqlite                  |         |     |         |
@@ -153,9 +153,9 @@ def test_inspect_format(
     ])
 
     # Check what was detected.
-    manifest = load_manifest(rc, tmp_path / 'manifest.csv')
-    commands.get_dataset(manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
-    a, b = compare_manifest(manifest, f'''
+    context, manifest = load_manifest_and_context(rc, tmp_path / 'result.csv')
+    commands.get_dataset(context, manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
+    a, b = compare_manifest(context, manifest, f'''
     d | r | b | m | property   | type    | ref     | source     | prepare
     dbsqlite                   |         |         |            |
       | resource1              | sql     |         | sqlite     |
@@ -199,8 +199,8 @@ def test_inspect_cyclic_refs(
     ])
 
     # Check what was detected.
-    manifest = load_manifest(rc, tmp_path / 'manifest.csv')
-    commands.get_dataset(manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
+    context, manifest = load_manifest_and_context(rc, tmp_path / 'result.csv')
+    commands.get_dataset(context, manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
     assert manifest == f'''
     d | r | b | m | property   | type    | ref     | source     | prepare
     dbsqlite                   |         |         |            |
@@ -246,8 +246,8 @@ def test_inspect_self_refs(
     ])
 
     # Check what was detected.
-    manifest = load_manifest(rc, tmp_path / 'manifest.csv')
-    commands.get_dataset(manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
+    context, manifest = load_manifest_and_context(rc, tmp_path / 'result.csv')
+    commands.get_dataset(context, manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
     assert manifest == f'''
     d | r | b | m | property  | type    | ref      | source    | prepare
     dbsqlite                  |         |          |           |
@@ -308,7 +308,7 @@ def test_inspect_oracle_sqldump_stdin(
     ''')
 
     # Check what was detected.
-    manifest = load_manifest(rc, tmp_path / 'manifest.csv')
+    context, manifest = load_manifest_and_context(rc, tmp_path / 'result.csv')
     assert manifest == '''
     id | d | r | b | m | property | type    | ref | source  | prepare | level | access | uri | title | description
        | datasets/gov/example     |         |     |         |         |       |        |     |       |
@@ -341,8 +341,8 @@ def test_inspect_oracle_sqldump_file_with_formula(
     ])
 
     # Check what was detected.
-    manifest = load_manifest(rc, tmp_path / 'manifest.csv')
-    dataset = commands.get_dataset(manifest, 'datasets/gov/example')
+    context, manifest = load_manifest_and_context(rc, tmp_path / 'result.csv')
+    dataset = commands.get_dataset(context, manifest, 'datasets/gov/example')
     dataset.resources['resource1'].external = 'dump.sql'
     assert manifest == '''
     d | r | b | m | property | type    | ref | source   | prepare
@@ -377,9 +377,9 @@ def test_inspect_with_schema(
     cli.invoke(rc, ['inspect', '-o', tmp_path / 'result.csv'])
 
     # Check what was detected.
-    manifest = load_manifest(rc, tmp_path / 'result.csv')
-    commands.get_dataset(manifest, 'dataset').resources['schema'].external = 'sqlite'
-    a, b = compare_manifest(manifest, '''
+    context, manifest = load_manifest_and_context(rc, tmp_path / 'result.csv')
+    commands.get_dataset(context, manifest, 'dataset').resources['schema'].external = 'sqlite'
+    a, b = compare_manifest(context, manifest, '''
     d | r | b | m | property | type    | ref | source | prepare
     dataset                  |         |     |        |
       | schema               | sql     |     | sqlite | connect(self, schema: null)
@@ -429,8 +429,8 @@ def test_inspect_update_existing_manifest(
     ])
 
     # Check what was detected.
-    manifest = load_manifest(rc, tmp_path / 'result.csv')
-    a, b = compare_manifest(manifest, '''
+    context, manifest = load_manifest_and_context(rc, tmp_path / 'result.csv')
+    a, b = compare_manifest(context, manifest, '''
     d | r | b | m | property | type    | ref     | source  | prepare | access  | title
     datasets/gov/example     |         |         |         |         |         | Example
       | schema               | sql     | sql     |         |         |         |
@@ -488,8 +488,8 @@ def test_inspect_update_existing_ref_manifest_priority(
     ])
 
     # Check what was detected.
-    manifest = load_manifest(rc, tmp_path / 'result.csv')
-    a, b = compare_manifest(manifest, '''
+    context, manifest = load_manifest_and_context(rc, tmp_path / 'result.csv')
+    a, b = compare_manifest(context, manifest, '''
     d | r | b | m | property | type    | ref     | source  | prepare | access  | title
     datasets/gov/example     |         |         |         |         |         | Example
       | schema               | sql     | sql     |         |         |         |
@@ -548,8 +548,8 @@ def test_inspect_update_existing_ref_external_priority(
     ])
 
     # Check what was detected.
-    manifest = load_manifest(rc, tmp_path / 'result.csv')
-    a, b = compare_manifest(manifest, '''
+    context, manifest = load_manifest_and_context(rc, tmp_path / 'result.csv')
+    a, b = compare_manifest(context, manifest, '''
     d | r | b | m | property | type    | ref     | source  | prepare | access  | title
     datasets/gov/example     |         |         |         |         |         | Example
       | schema               | sql     | sql     |         |         |         |
@@ -593,8 +593,8 @@ def test_inspect_with_empty_config_dir(
     ])
 
     # Check what was detected.
-    manifest = load_manifest(rc, tmp_path / 'result.csv')
-    commands.get_dataset(manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
+    context, manifest = load_manifest_and_context(rc, tmp_path / 'result.csv')
+    commands.get_dataset(context, manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
     assert manifest == f'''
     d | r | b | m | property | type    | ref | source
     dbsqlite                 |         |     |
@@ -627,8 +627,8 @@ def test_inspect_duplicate_table_names(
     ])
 
     # Check what was detected.
-    manifest = load_manifest(rc, result_file_path)
-    commands.get_dataset(manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
+    context, manifest = load_manifest_and_context(rc, result_file_path)
+    commands.get_dataset(context, manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
     assert manifest == f'''
     d | r | b | m | property | type    | ref | source
     dbsqlite                 |         |     |
@@ -668,8 +668,8 @@ def test_inspect_duplicate_column_names(
     ])
 
     # Check what was detected.
-    manifest = load_manifest(rc, result_file_path)
-    commands.get_dataset(manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
+    context, manifest = load_manifest_and_context(rc, result_file_path)
+    commands.get_dataset(context, manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
     assert manifest == f'''
     d | r | b | m | property | type    | ref | source
     dbsqlite                 |         |     |
@@ -712,8 +712,8 @@ def test_inspect_existing_duplicate_table_names(
         '-o', tmp_path / 'result.csv',
     ])
     # Check what was detected.
-    manifest = load_manifest(rc, result_file_path)
-    a, b = compare_manifest(manifest, f'''
+    context, manifest = load_manifest_and_context(rc, result_file_path)
+    a, b = compare_manifest(context, manifest, f'''
        d | r | m | property | type    | ref | source    | prepare | access  | title
        datasets/gov/example |         |     |           |         |         | Example
          | schema           | sql     | sql |           |         |         |
@@ -765,8 +765,8 @@ def test_inspect_existing_duplicate_column_names(
         '-o', tmp_path / 'result.csv',
     ])
     # Check what was detected.
-    manifest = load_manifest(rc, result_file_path)
-    a, b = compare_manifest(manifest, f'''
+    context, manifest = load_manifest_and_context(rc, result_file_path)
+    a, b = compare_manifest(context, manifest, f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
          | schema           | sql     | sql |         |         |         |
@@ -809,9 +809,9 @@ def test_inspect_insert_new_dataset(
         '-o', tmp_path / 'result.csv',
     ])
     # Check what was detected.
-    manifest = load_manifest(rc, result_file_path)
-    commands.get_dataset(manifest, 'dbsqlite').resources['resource1'].external = "sqlite"
-    a, b = compare_manifest(manifest, f'''
+    context, manifest = load_manifest_and_context(rc, result_file_path)
+    commands.get_dataset(context, manifest, 'dbsqlite').resources['resource1'].external = "sqlite"
+    a, b = compare_manifest(context, manifest, f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
                             |         |     |         |         |         |
@@ -855,8 +855,8 @@ def test_inspect_delete_model_source(
         '-o', tmp_path / 'result.csv',
     ])
     # Check what was detected.
-    manifest = load_manifest(rc, result_file_path)
-    a, b = compare_manifest(manifest, f'''
+    context, manifest = load_manifest_and_context(rc, result_file_path)
+    a, b = compare_manifest(context, manifest, f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
          | schema           | sql     | sql |         |         |         |
@@ -900,8 +900,8 @@ def test_inspect_delete_property_source(
         '-o', tmp_path / 'result.csv',
     ])
     # Check what was detected.
-    manifest = load_manifest(rc, result_file_path)
-    a, b = compare_manifest(manifest, f'''
+    context, manifest = load_manifest_and_context(rc, result_file_path)
+    a, b = compare_manifest(context, manifest, f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
          | schema           | sql     | sql |         |         |         |
@@ -948,10 +948,10 @@ def test_inspect_multiple_resources_all_new(
         '-o', tmp_path / 'result.csv',
     ])
     # Check what was detected.
-    manifest = load_manifest(rc, result_file_path)
-    commands.get_dataset(manifest, 'datasets/gov/example').resources['schema'].external = 'sqlite'
-    commands.get_dataset(manifest, 'datasets/gov/example').resources['schema_1'].external = 'sqlite_new'
-    a, b = compare_manifest(manifest, f'''
+    context, manifest = load_manifest_and_context(rc, result_file_path)
+    commands.get_dataset(context, manifest, 'datasets/gov/example').resources['schema'].external = 'sqlite'
+    commands.get_dataset(context, manifest, 'datasets/gov/example').resources['schema_1'].external = 'sqlite_new'
+    a, b = compare_manifest(context, manifest, f'''
        d | r | m | property | type    | ref | source     | prepare | access  | title
        datasets/gov/example |         |     |            |         |         | Example
          | schema           | sql     |     | sqlite     |         |         |
@@ -1018,10 +1018,10 @@ def test_inspect_multiple_resources_specific(
         '-o', tmp_path / 'result.csv',
     ])
     # Check what was detected.
-    manifest = load_manifest(rc, result_file_path)
-    commands.get_dataset(manifest, 'datasets/gov/example').resources['schema'].external = 'sqlite'
-    commands.get_dataset(manifest, 'datasets/gov/example').resources['schema_1'].external = 'sqlite_new'
-    a, b = compare_manifest(manifest, f'''
+    context, manifest = load_manifest_and_context(rc, result_file_path)
+    commands.get_dataset(context, manifest, 'datasets/gov/example').resources['schema'].external = 'sqlite'
+    commands.get_dataset(context, manifest, 'datasets/gov/example').resources['schema_1'].external = 'sqlite_new'
+    a, b = compare_manifest(context, manifest, f'''
        d | r | m | property  | type    | ref       | source     | prepare | access  | title
        datasets/gov/example  |         |           |            |         |         | Example
          | schema            | sql     |           | sqlite     |         |         |
@@ -1112,10 +1112,10 @@ def test_inspect_multiple_resources_advanced(
         '-o', tmp_path / 'result.csv',
     ])
     # Check what was detected.
-    manifest = load_manifest(rc, result_file_path)
-    commands.get_dataset(manifest, 'datasets/gov/example').resources['schema'].external = 'sqlite'
-    commands.get_dataset(manifest, 'datasets/gov/example').resources['schema_1'].external = 'sqlite_new'
-    a, b = compare_manifest(manifest, f'''
+    context, manifest = load_manifest_and_context(rc, result_file_path)
+    commands.get_dataset(context, manifest, 'datasets/gov/example').resources['schema'].external = 'sqlite'
+    commands.get_dataset(context, manifest, 'datasets/gov/example').resources['schema_1'].external = 'sqlite_new'
+    a, b = compare_manifest(context, manifest, f'''
        d | r | m | property  | type    | ref       | source     | prepare | access  | title
        datasets/gov/example  |         |           |            |         |         | Example
                              |         |           |            |         |         |
@@ -1200,10 +1200,10 @@ def test_inspect_multiple_datasets(
         '-o', tmp_path / 'result.csv',
     ])
     # Check what was detected.
-    manifest = load_manifest(rc, result_file_path)
-    commands.get_dataset(manifest, 'datasets/gov/example').resources['schema'].external = 'sqlite'
-    commands.get_dataset(manifest, 'datasets/gov/loc').resources['schema'].external = 'sqlite'
-    a, b = compare_manifest(manifest, f'''
+    context, manifest = load_manifest_and_context(rc, result_file_path)
+    commands.get_dataset(context, manifest, 'datasets/gov/example').resources['schema'].external = 'sqlite'
+    commands.get_dataset(context, manifest, 'datasets/gov/loc').resources['schema'].external = 'sqlite'
+    a, b = compare_manifest(context, manifest, f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
          | schema           | sql     |     | sqlite  |         |         |
@@ -1274,10 +1274,10 @@ def test_inspect_multiple_datasets_advanced_manifest_priority(
         '-o', tmp_path / 'result.csv',
     ])
     # Check what was detected.
-    manifest = load_manifest(rc, result_file_path)
-    commands.get_dataset(manifest, 'datasets/gov/example').resources['schema'].external = 'sqlite'
-    commands.get_dataset(manifest, 'datasets/gov/loc').resources['schema'].external = 'sqlite'
-    a, b = compare_manifest(manifest, f'''
+    context, manifest = load_manifest_and_context(rc, result_file_path)
+    commands.get_dataset(context, manifest, 'datasets/gov/example').resources['schema'].external = 'sqlite'
+    commands.get_dataset(context, manifest, 'datasets/gov/loc').resources['schema'].external = 'sqlite'
+    a, b = compare_manifest(context, manifest, f'''
        d | r | m | property  | type    | ref          | source    | prepare | access  | title
        datasets/gov/example  |         |              |           |         |         | Example
          | schema            | sql     |              | sqlite    |         |         |
@@ -1353,10 +1353,10 @@ def test_inspect_multiple_datasets_advanced_external_priority(
         '-o', tmp_path / 'result.csv',
     ])
     # Check what was detected.
-    manifest = load_manifest(rc, result_file_path)
-    commands.get_dataset(manifest, 'datasets/gov/example').resources['schema'].external = 'sqlite'
-    commands.get_dataset(manifest, 'datasets/gov/loc').resources['schema'].external = 'sqlite'
-    a, b = compare_manifest(manifest, f'''
+    context, manifest = load_manifest_and_context(rc, result_file_path)
+    commands.get_dataset(context, manifest, 'datasets/gov/example').resources['schema'].external = 'sqlite'
+    commands.get_dataset(context, manifest, 'datasets/gov/loc').resources['schema'].external = 'sqlite'
+    a, b = compare_manifest(context, manifest, f'''
        d | r | m | property  | type    | ref          | source    | prepare | access  | title
        datasets/gov/example  |         |              |           |         |         | Example
          | schema            | sql     |              | sqlite    |         |         |
@@ -1434,10 +1434,10 @@ def test_inspect_multiple_datasets_different_resources(
         '-o', tmp_path / 'result.csv',
     ])
     # Check what was detected.
-    manifest = load_manifest(rc, result_file_path)
-    commands.get_dataset(manifest, 'datasets/gov/car').resources['schema'].external = 'sqlite_new'
-    commands.get_dataset(manifest, 'datasets/gov/loc').resources['schema'].external = 'sqlite'
-    a, b = compare_manifest(manifest, f'''
+    context, manifest = load_manifest_and_context(rc, result_file_path)
+    commands.get_dataset(context, manifest, 'datasets/gov/car').resources['schema'].external = 'sqlite_new'
+    commands.get_dataset(context, manifest, 'datasets/gov/loc').resources['schema'].external = 'sqlite'
+    a, b = compare_manifest(context, manifest, f'''
        d | r | m | property  | type    | ref       | source     | prepare | access  | title
        datasets/gov/loc      |         |           |            |         |         | Example
          | schema            | sql     |           | sqlite     |         |         |
@@ -1522,10 +1522,10 @@ def test_inspect_multiple_datasets_different_resources_specific(
         '-o', tmp_path / 'result.csv',
     ])
     # Check what was detected.
-    manifest = load_manifest(rc, result_file_path)
-    commands.get_dataset(manifest, 'datasets/gov/car').resources['schema'].external = 'sqlite_new'
-    commands.get_dataset(manifest, 'datasets/gov/loc').resources['schema'].external = 'sqlite'
-    a, b = compare_manifest(manifest, f'''
+    context, manifest = load_manifest_and_context(rc, result_file_path)
+    commands.get_dataset(context, manifest, 'datasets/gov/car').resources['schema'].external = 'sqlite_new'
+    commands.get_dataset(context, manifest, 'datasets/gov/loc').resources['schema'].external = 'sqlite'
+    a, b = compare_manifest(context, manifest, f'''
        d | r | m | property | type    | ref    | source     | prepare | access  | title
        datasets/gov/loc     |         |        |            |         |         | Example
          | schema           | sql     |        | sqlite     |         |         |
@@ -1582,10 +1582,10 @@ def test_inspect_with_views(
         '-o', tmp_path / 'result.csv',
     ])
     # Check what was detected.
-    manifest = load_manifest(rc, result_file_path)
-    commands.get_dataset(manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
-    commands.get_dataset(manifest, 'dbsqlite/views').resources['resource1'].external = 'sqlite'
-    a, b = compare_manifest(manifest, f'''
+    context, manifest = load_manifest_and_context(rc, result_file_path)
+    commands.get_dataset(context, manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
+    commands.get_dataset(context, manifest, 'dbsqlite/views').resources['resource1'].external = 'sqlite'
+    a, b = compare_manifest(context, manifest, f'''
        d | r | m | property  | type    | ref       | source     | prepare | access  | title
        dbsqlite              |         |           |            |         |         |
          | resource1         | sql     |           | sqlite     |         |         |
@@ -1643,9 +1643,9 @@ def test_inspect_with_manifest_backends(
         '-o', tmp_path / 'result.csv',
     ])
     # Check what was detected.
-    manifest = load_manifest(rc, result_file_path)
-    commands.get_dataset(manifest, 'datasets/gov/example').resources['test'].external = 'sqlite'
-    a, b = compare_manifest(manifest, f'''
+    context, manifest = load_manifest_and_context(rc, result_file_path)
+    commands.get_dataset(context, manifest, 'datasets/gov/example').resources['test'].external = 'sqlite'
+    a, b = compare_manifest(context, manifest, f'''
        d | r | m | property | type    | ref  | source  | prepare | access  | title
        datasets/gov/example |         |      |         |         |         | Example
          | test             | sql     |      | sqlite  |         |         |
@@ -1726,9 +1726,9 @@ def test_inspect_json_model_ref_change(
         '-o', tmp_path / 'result.csv',
     ])
     # Check what was detected.
-    manifest = load_manifest(rc, result_file_path)
-    commands.get_dataset(manifest, 'datasets/json/inspect').resources['resource'].external = 'resource.json'
-    a, b = compare_manifest(manifest, f'''
+    context, manifest = load_manifest_and_context(rc, result_file_path)
+    commands.get_dataset(context, manifest, 'datasets/json/inspect').resources['resource'].external = 'resource.json'
+    a, b = compare_manifest(context, manifest, f'''
 d | r | model  | property            | type                   | ref    | source
 datasets/json/inspect           |                        |        |
   | resource                    | json                   |        | resource.json
@@ -1803,9 +1803,9 @@ def test_inspect_xml_model_ref_change(
         '-o', tmp_path / 'result.csv',
     ])
     # Check what was detected.
-    manifest = load_manifest(rc, result_file_path)
-    commands.get_dataset(manifest, 'datasets/xml/inspect').resources['resource'].external = 'resource.xml'
-    a, b = compare_manifest(manifest, f'''
+    context, manifest = load_manifest_and_context(rc, result_file_path)
+    commands.get_dataset(context, manifest, 'datasets/xml/inspect').resources['resource'].external = 'resource.xml'
+    a, b = compare_manifest(context, manifest, f'''
 d | r | model  | property            | type                   | ref    | source
 datasets/xml/inspect            |                        |        |
   | resource                    | xml                    |        | resource.xml

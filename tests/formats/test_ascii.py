@@ -104,7 +104,7 @@ async def test_export_multiple_types(rc: RawConfig):
     context.set('auth.token', AdminToken())
     config = context.get('config')
     exporter = config.exporters['ascii']
-    ns = commands.get_namespace(manifest, '')
+    ns = commands.get_namespace(context, manifest, '')
     params = UrlParams()
     assert ''.join(exporter(context, ns, Action.GETALL, params, rows)) == (
         '\n'

@@ -200,11 +200,11 @@ def test_authorized(context, client, scope, node, action, authorized):
     store = context.get('store')
     if '.' in node:
         model, prop = node.split('.', 1)
-        node = commands.get_model(store.manifest, model).flatprops[prop]
-    elif commands.has_model(store.manifest, node):
-        node = commands.get_model(store.manifest, node)
+        node = commands.get_model(context, store.manifest, model).flatprops[prop]
+    elif commands.has_model(context, store.manifest, node):
+        node = commands.get_model(context, store.manifest, node)
     else:
-        node = commands.get_namespace(store.manifest, node)
+        node = commands.get_namespace(context, store.manifest, node)
     action = getattr(Action, action.upper())
     assert auth.authorized(context, node, action) is authorized
 

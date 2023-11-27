@@ -54,7 +54,7 @@ class Ascii(Format):
         for name, group in groups:
             if name:
                 yield f'\n\nTable: {name}\n'
-                model = commands.get_model(manifest, name)
+                model = commands.get_model(context, manifest, name)
 
             rows = flatten(group)
             cols = get_model_tabular_header(context, model, action, params)

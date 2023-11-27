@@ -66,6 +66,7 @@ def _load_namespace_from_model(context: Context, manifest: Manifest, model: Mode
     ns.models[model.model_type()] = model
     model.ns = ns
 
+
 @load.register(Context, Model, dict, Manifest)
 def load(
     context: Context,
@@ -103,6 +104,7 @@ def load(
     if model.base:
         base: dict = model.base
         model.base = get_node(
+            context,
             config,
             manifest,
             model.eid,
@@ -131,6 +133,7 @@ def load(
     if model.external:
         external: dict = model.external
         model.external = get_node(
+            context,
             config,
             manifest,
             model.eid,
@@ -243,7 +246,7 @@ def _link_model_page(model: Model):
 @overload
 @commands.link.register(Context, Base)
 def link(context: Context, base: Base):
-    base.parent = commands.get_model(base.model.manifest, base.parent)
+    base.parent = commands.get_model(context, base.model.manifest, base.parent)
     base.pk = [
         base.parent.properties[pk]
         for pk in base.pk
@@ -283,6 +286,7 @@ def load(
         data['type'] = '_external_ref'
 
     prop.dtype = get_node(
+        context,
         config,
         manifest,
         prop.model.eid,
@@ -400,6 +404,7 @@ def _load_property_external(
 
     config = context.get('config')
     external: Attribute = get_node(
+        context,
         config,
         manifest,
         prop.model.eid,

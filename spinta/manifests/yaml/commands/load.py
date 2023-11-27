@@ -25,7 +25,7 @@ def load(
 ):
     if load_internal:
         target = into or manifest
-        if not commands.has_model(target, '_schema'):
+        if not commands.has_model(context, target, '_schema'):
             store = context.get('store')
             commands.load(context, store.internal, into=target)
 
@@ -82,7 +82,7 @@ def load(
 
     if load_internal:
         target = into or manifest
-        if not commands.has_model(target, '_schema'):
+        if not commands.has_model(context, target, '_schema'):
             store = context.get('store')
             commands.load(context, store.internal, into=target)
 

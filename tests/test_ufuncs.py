@@ -11,7 +11,7 @@ from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import Pair
 from spinta.core.ufuncs import UFuncRegistry
 from spinta.exceptions import IncompatibleForeignProperties
-from spinta.testing.manifest import load_manifest
+from spinta.testing.manifest import load_manifest, load_manifest_and_context
 from spinta.testing.manifest import load_manifest_get_context
 from spinta.testing.ufuncs import UFuncTester
 from spinta.types.datatype import Ref
@@ -154,7 +154,7 @@ def test_execute_attrs(ufunc):
 
 
 def test_fpr_get_bind_expr(rc: RawConfig):
-    manifest = load_manifest(rc, '''
+    context, manifest = load_manifest_and_context(rc, '''
     d | r | m | property  | type   | ref
     datasets/gov/example  |        |
       | resource          | sql    |
@@ -174,10 +174,10 @@ def test_fpr_get_bind_expr(rc: RawConfig):
       |   |   | country   | ref    | Country
     ''')
 
-    planet = commands.get_model(manifest, 'datasets/gov/example/Planet')
-    continent = commands.get_model(manifest, 'datasets/gov/example/Continent')
-    country = commands.get_model(manifest, 'datasets/gov/example/Country')
-    city = commands.get_model(manifest, 'datasets/gov/example/City')
+    planet = commands.get_model(context, manifest, 'datasets/gov/example/Planet')
+    continent = commands.get_model(context, manifest, 'datasets/gov/example/Continent')
+    country = commands.get_model(context, manifest, 'datasets/gov/example/Country')
+    city = commands.get_model(context, manifest, 'datasets/gov/example/City')
 
     fpr = ForeignProperty(
         None,
@@ -200,7 +200,7 @@ def test_fpr_get_bind_expr(rc: RawConfig):
 
 
 def test_fpr_join(rc: RawConfig):
-    manifest = load_manifest(rc, '''
+    context, manifest = load_manifest_and_context(rc, '''
     d | r | m | property  | type   | ref
     datasets/gov/example  |        |
       | resource          | sql    |
@@ -216,9 +216,9 @@ def test_fpr_join(rc: RawConfig):
       |   |   | country   | ref    | Country
     ''')
 
-    continent = commands.get_model(manifest, 'datasets/gov/example/Continent')
-    country = commands.get_model(manifest, 'datasets/gov/example/Country')
-    city = commands.get_model(manifest, 'datasets/gov/example/City')
+    continent = commands.get_model(context, manifest, 'datasets/gov/example/Continent')
+    country = commands.get_model(context, manifest, 'datasets/gov/example/Country')
+    city = commands.get_model(context, manifest, 'datasets/gov/example/City')
 
     fpr1 = ForeignProperty(
         None,
@@ -239,7 +239,7 @@ def test_fpr_join(rc: RawConfig):
 
 
 def test_fpr_join_no_right(rc: RawConfig):
-    manifest = load_manifest(rc, '''
+    context, manifest = load_manifest_and_context(rc, '''
     d | r | m | property  | type   | ref
     datasets/gov/example  |        |
       | resource          | sql    |
@@ -255,9 +255,9 @@ def test_fpr_join_no_right(rc: RawConfig):
       |   |   | country   | ref    | Country
     ''')
 
-    continent = commands.get_model(manifest, 'datasets/gov/example/Continent')
-    country = commands.get_model(manifest, 'datasets/gov/example/Country')
-    city = commands.get_model(manifest, 'datasets/gov/example/City')
+    continent = commands.get_model(context, manifest, 'datasets/gov/example/Continent')
+    country = commands.get_model(context, manifest, 'datasets/gov/example/Country')
+    city = commands.get_model(context, manifest, 'datasets/gov/example/City')
 
     fpr1 = ForeignProperty(
         None,
@@ -277,7 +277,7 @@ def test_fpr_join_no_right(rc: RawConfig):
 
 
 def test_fpr_join_incompatible_refs(rc: RawConfig):
-    manifest = load_manifest(rc, '''
+    context, manifest = load_manifest_and_context(rc, '''
     d | r | m | property  | type   | ref
     datasets/gov/example  |        |
       | resource          | sql    |
@@ -297,9 +297,9 @@ def test_fpr_join_incompatible_refs(rc: RawConfig):
       |   |   | country   | ref    | Country
     ''')
 
-    continent = commands.get_model(manifest, 'datasets/gov/example/Continent')
-    country = commands.get_model(manifest, 'datasets/gov/example/Country')
-    city = commands.get_model(manifest, 'datasets/gov/example/City')
+    continent = commands.get_model(context, manifest, 'datasets/gov/example/Continent')
+    country = commands.get_model(context, manifest, 'datasets/gov/example/Country')
+    city = commands.get_model(context, manifest, 'datasets/gov/example/City')
 
     fpr1 = ForeignProperty(
         None,
@@ -316,7 +316,7 @@ def test_fpr_join_incompatible_refs(rc: RawConfig):
 
 
 def test_fpr_join_incompatible_refs_no_right(rc: RawConfig):
-    manifest = load_manifest(rc, '''
+    context, manifest = load_manifest_and_context(rc, '''
     d | r | m | property  | type   | ref
     datasets/gov/example  |        |
       | resource          | sql    |
@@ -336,8 +336,8 @@ def test_fpr_join_incompatible_refs_no_right(rc: RawConfig):
       |   |   | country   | ref    | Country
     ''')
 
-    continent = commands.get_model(manifest, 'datasets/gov/example/Continent')
-    city = commands.get_model(manifest, 'datasets/gov/example/City')
+    continent = commands.get_model(context, manifest, 'datasets/gov/example/Continent')
+    city = commands.get_model(context, manifest, 'datasets/gov/example/City')
 
     fpr1 = ForeignProperty(
         None,
@@ -372,8 +372,8 @@ def test_change_base_model(rc: RawConfig):
     store: Store = context.get('store')
     manifest = store.manifest
 
-    country = commands.get_model(manifest, 'datasets/gov/example/Country')
-    city = commands.get_model(manifest, 'datasets/gov/example/City')
+    country = commands.get_model(context, manifest, 'datasets/gov/example/Country')
+    city = commands.get_model(context, manifest, 'datasets/gov/example/City')
 
     fpr = ForeignProperty(None, cast(Ref, city.properties['country'].dtype))
     assert str(change_base_model(context, country, fpr)) == (
@@ -401,9 +401,9 @@ def test_change_base_model_non_ref(rc: RawConfig):
     store: Store = context.get('store')
     manifest = store.manifest
 
-    continent = commands.get_model(manifest, 'datasets/gov/example/Continent')
-    country = commands.get_model(manifest, 'datasets/gov/example/Country')
-    city = commands.get_model(manifest, 'datasets/gov/example/City')
+    continent = commands.get_model(context, manifest, 'datasets/gov/example/Continent')
+    country = commands.get_model(context, manifest, 'datasets/gov/example/Country')
+    city = commands.get_model(context, manifest, 'datasets/gov/example/City')
 
     fpr = ForeignProperty(None, cast(Ref, city.properties['country'].dtype))
     fpr = fpr.push(country.properties['continent'])

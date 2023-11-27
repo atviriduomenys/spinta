@@ -37,7 +37,7 @@ def test__get_row_value_null(rc: RawConfig):
       |   |   |   |          |         |     | 2      | 2       |
     ''')
     row = ["Vilnius", None]
-    model = commands.get_model(manifest, 'example/City')
+    model = commands.get_model(context, manifest, 'example/City')
     sel = Selected(1, model.properties['rating'])
     assert _get_row_value(context, row, sel) is None
 

@@ -167,11 +167,11 @@ def push(
     state = f'sqlite:///{state}'
 
     manifest = store.manifest
-    if dataset and not commands.has_dataset(manifest, dataset):
+    if dataset and not commands.has_dataset(context, manifest, dataset):
         echo(str(exceptions.NodeNotFound(manifest, type='dataset', name=dataset)))
         raise Exit(code=1)
 
-    ns = commands.get_namespace(manifest, '')
+    ns = commands.get_namespace(context, manifest, '')
 
     echo(f"Get access token from {creds.server}")
     token = get_access_token(creds)
@@ -477,7 +477,7 @@ def _attach_backends(context: Context, store: Store, manifest: Manifest) -> None
     for backend in manifest.backends.values():
         backends.add(backend.name)
         context.attach(f'transaction.{backend.name}', backend.begin)
-    for dataset_ in commands.get_datasets(manifest).values():
+    for dataset_ in commands.get_datasets(context, manifest).values():
         for resource in dataset_.resources.values():
             if resource.backend and resource.backend.name not in backends:
                 backends.add(resource.backend.name)

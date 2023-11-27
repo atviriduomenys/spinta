@@ -2311,6 +2311,7 @@ def _model_to_tabular(
 
 
 def datasets_to_tabular(
+    context: Context,
     manifest: Manifest,
     *,
     external: bool = True,   # clean content of source and prepare
@@ -2320,7 +2321,7 @@ def datasets_to_tabular(
 ) -> Iterator[ManifestRow]:
     yield from _prefixes_to_tabular(manifest.prefixes, separator=True)
     yield from _backends_to_tabular(manifest.backends, separator=True)
-    yield from _namespaces_to_tabular(commands.get_namespaces(manifest), separator=True)
+    yield from _namespaces_to_tabular(commands.get_namespaces(context, manifest), separator=True)
     yield from _enums_to_tabular(
         manifest.enums,
         external=external,
@@ -2333,7 +2334,7 @@ def datasets_to_tabular(
     dataset = None
     resource = None
     base = None
-    models = commands.get_models(manifest)
+    models = commands.get_models(context, manifest)
     models = models if internal else take(models)
     models = sort(MODELS_ORDER_BY, models.values(), order_by)
 
@@ -2401,7 +2402,7 @@ def datasets_to_tabular(
             order_by=order_by,
         )
 
-    datasets = sort(DATASETS_ORDER_BY, commands.get_datasets(manifest).values(), order_by)
+    datasets = sort(DATASETS_ORDER_BY, commands.get_datasets(context, manifest).values(), order_by)
     for dataset in datasets:
         if dataset.name in seen_datasets:
             continue
@@ -2424,12 +2425,13 @@ def torow(keys, values) -> ManifestRow:
 
 
 def render_tabular_manifest(
+    context: Context,
     manifest: Manifest,
     cols: List[ManifestColumn] = None,
     *,
     sizes: Dict[ManifestColumn, int] = None,
 ) -> str:
-    rows = datasets_to_tabular(manifest)
+    rows = datasets_to_tabular(context, manifest)
     return render_tabular_manifest_rows(rows, cols, sizes=sizes)
 
 

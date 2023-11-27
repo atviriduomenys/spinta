@@ -27,7 +27,7 @@ def import_(
     context = ctx.obj
     store = prepare_manifest(context)
     manifest = store.manifest
-    root = commands.get_namespace(manifest, '')
+    root = commands.get_namespace(context, manifest, '')
 
     with context:
         require_auth(context, auth)

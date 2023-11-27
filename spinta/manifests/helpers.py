@@ -86,6 +86,18 @@ def create_internal_manifest(context: Context, store: Store) -> InternalManifest
     return manifest
 
 
+def get_per_request_manifest(context: Context, store: Store) -> Manifest:
+    old = store.manifest
+    manifest = old.__class__()
+    rc = context.get('rc')
+    init_manifest(context, manifest, old.name)
+    _configure_manifest(
+        context, rc, store, manifest,
+        backend=store.manifest.backend.name if store.manifest.backend else None,
+    )
+    return manifest
+
+
 def _configure_manifest(
     context: Context,
     rc: RawConfig,
@@ -135,11 +147,11 @@ def load_manifest_nodes(
             _load_manifest(context, manifest, schema, eid)
         else:
             node = _load_manifest_node(context, config, manifest, source, eid, schema)
-            commands.set_node(manifest, node.type, node.name, node)
+            commands.set_node(context, manifest, node.type, node.name, node)
             if link:
                 to_link.append(node)
 
-    if not commands.has_namespace(manifest, ''):
+    if not commands.has_namespace(context, manifest, ''):
         # Root namespace must always be present in manifest event if manifest is
         # empty.
         load_namespace_from_name(context, manifest, '', drop=False)
@@ -190,7 +202,7 @@ def _load_manifest_node(
     eid: EntryId,
     data: dict,
 ) -> MetaData:
-    node = get_node(config, manifest, eid, data)
+    node = get_node(context, config, manifest, eid, data)
     node.eid = eid
     node.type = data['type']
     node.parent = manifest

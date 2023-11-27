@@ -20,7 +20,7 @@ def test_prepare(rc: RawConfig):
       |   |   |   | name       | string  |           | 3     | open
       |   |   |   | country    | ref     | Country   | 3     | open
     ''')
-    model = commands.get_model(manifest, 'example/City')
+    model = commands.get_model(context, manifest, 'example/City')
     backend = model.backend
     commands.prepare(context, backend, model)
     table = backend.get_table(model)
@@ -48,7 +48,7 @@ def test_prepare_base_under_level(rc: RawConfig):
       |   |           |             | test     | string  |           | 3     | open
 
     ''')
-    model = commands.get_model(manifest, 'example/base_under/NormalModel')
+    model = commands.get_model(context, manifest, 'example/base_under/NormalModel')
     backend = model.backend
     commands.prepare(context, backend, model)
     table = backend.get_table(model)
@@ -71,7 +71,7 @@ def test_prepare_base_over_level(rc: RawConfig):
       |   |           |             | test     | string  |           | 3     | open
 
     ''')
-    model = commands.get_model(manifest, 'example/base_over/NormalModel')
+    model = commands.get_model(context, manifest, 'example/base_over/NormalModel')
     backend = model.backend
     commands.prepare(context, backend, model)
     table = backend.get_table(model)
@@ -95,7 +95,7 @@ def test_prepare_base_no_level(rc: RawConfig):
       |   |           |             | test     | string  |           | 3     | open
 
     ''')
-    model = commands.get_model(manifest, 'example/base_no/NormalModel')
+    model = commands.get_model(context, manifest, 'example/base_no/NormalModel')
     backend = model.backend
     commands.prepare(context, backend, model)
     table = backend.get_table(model)
@@ -116,7 +116,7 @@ def test_prepare_model_ref_unique_constraint(rc: RawConfig):
       |   |   |   | id         | integer |           | 3     | open
       |   |   |   | name       | string  |           | 3     | open
     ''')
-    model_single_unique = commands.get_model(manifest, 'example/Continent')
+    model_single_unique = commands.get_model(context, manifest, 'example/Continent')
     backend = model_single_unique.backend
     commands.prepare(context, backend, model_single_unique)
     table = backend.get_table(model_single_unique)
@@ -124,7 +124,7 @@ def test_prepare_model_ref_unique_constraint(rc: RawConfig):
         [table.c['id']] == list(constraint.columns) for constraint in table.constraints if
         type(constraint).__name__ == 'UniqueConstraint')
 
-    model_multiple_unique = commands.get_model(manifest, 'example/Country')
+    model_multiple_unique = commands.get_model(context, manifest, 'example/Country')
     commands.prepare(context, backend, model_multiple_unique)
     table = backend.get_table(model_multiple_unique)
     assert any(

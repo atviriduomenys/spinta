@@ -78,7 +78,7 @@ def wait(
         store.manifest.backends.values(),
         (
             resource.backend
-            for dataset in commands.get_datasets(store.manifest).values()
+            for dataset in commands.get_datasets(context, store.manifest).values()
             for resource in dataset.resources.values()
             if resource.backend
         )

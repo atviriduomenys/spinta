@@ -27,7 +27,7 @@ def test_cast_integer(rc: RawConfig, value):
       |   |   | Data         |         |         |       |
       |   |   |   | value    | integer |         |       |
     ''')
-    dtype = commands.get_model(manifest, 'example/Data').properties['value'].dtype
+    dtype = commands.get_model(context, manifest, 'example/Data').properties['value'].dtype
     env = SqlResultBuilder(context)
     env.call('cast', dtype, value)
 
@@ -43,7 +43,7 @@ def test_cast_integer_error(rc: RawConfig, value):
       |   |   | Data         |         |         |       |
       |   |   |   | value    | integer |         |       |
     ''')
-    dtype = commands.get_model(manifest, 'example/Data').properties['value'].dtype
+    dtype = commands.get_model(context, manifest, 'example/Data').properties['value'].dtype
     env = SqlResultBuilder(context)
     with pytest.raises(UnableToCast) as e:
         env.call('cast', dtype, value)
@@ -64,7 +64,7 @@ def test_point(rc: RawConfig):
     context.set('auth.token', AdminToken())
 
     model_name = 'example/Data'
-    model = commands.get_model(manifest, model_name)
+    model = commands.get_model(context, manifest, model_name)
 
     env = SqlQueryBuilder(context)
     env.update(model=model)

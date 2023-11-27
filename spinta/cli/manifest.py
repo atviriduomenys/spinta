@@ -90,7 +90,7 @@ def copy(
 
     if output:
         if internal:
-            write_internal_sql_manifest(output, rows)
+            write_internal_sql_manifest(context, output, rows)
         else:
             write_tabular_manifest(output, rows)
     else:
@@ -145,6 +145,7 @@ def _read_and_return_rows(
         reformat_names(context, store.manifest)
 
     yield from datasets_to_tabular(
+        context,
         store.manifest,
         external=external,
         access=access,

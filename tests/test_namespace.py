@@ -9,7 +9,7 @@ from spinta.testing.client import TestClient
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
 from spinta.testing.data import pushdata
-from spinta.testing.manifest import bootstrap_manifest
+from spinta.testing.manifest import bootstrap_manifest, load_manifest_and_context
 from spinta.testing.manifest import load_manifest
 from spinta.types.namespace import sort_models_by_refs
 from spinta.utils.data import take
@@ -132,7 +132,7 @@ def test_ns_titles_bare_models(
 
 
 def test_sort_models_by_refs(rc: RawConfig):
-    manifest = load_manifest(rc, '''
+    context, manifest = load_manifest_and_context(rc, '''
     d | r | b | m | property  | type   | ref       | access
     datasets/gov/example      |        |           |
       |   |                   |        |           |
@@ -149,7 +149,7 @@ def test_sort_models_by_refs(rc: RawConfig):
       |   |   |   | country   | ref    | Country   | open
     ''')
 
-    models = sort_models_by_refs(commands.get_models(manifest).values())
+    models = sort_models_by_refs(commands.get_models(context, manifest).values())
     names = [model.name for model in models]
     assert names == [
         'datasets/gov/example/City',

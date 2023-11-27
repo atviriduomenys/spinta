@@ -110,11 +110,11 @@ def _get_current_loc(context: Context, path: str):
     params = commands.prepare(context, UrlParams(), Version(), request)
     if isinstance(params.model, Namespace):
         store: Store = context.get('store')
-        model = commands.get_model(store.manifest, '_ns')
+        model = commands.get_model(context, store.manifest, '_ns')
     else:
         model = params.model
     config: Config = context.get('config')
-    return get_current_location(config, model, params)
+    return get_current_location(context, config, model, params)
 
 
 @pytest.fixture(scope='module')
@@ -460,7 +460,7 @@ def test_prepare_ref_for_response(rc: RawConfig):
     fmt = Html()
     value = {'_id': 'c634dbd8-416f-457d-8bda-5a6c35bbd5d6'}
     cell = Cell('c634dbd8', link='/example/Country/c634dbd8-416f-457d-8bda-5a6c35bbd5d6')
-    dtype = commands.get_model(manifest, 'example/City').properties['country'].dtype
+    dtype = commands.get_model(context, manifest, 'example/City').properties['country'].dtype
     result = commands.prepare_dtype_for_response(
         context,
         fmt,
@@ -490,7 +490,7 @@ def test_prepare_ref_for_response_empty(rc: RawConfig):
     fmt = Html()
     value = None
     cell = Cell('', link=None, color=Color.null)
-    dtype = commands.get_model(manifest, 'example/City').properties['country'].dtype
+    dtype = commands.get_model(context, manifest, 'example/City').properties['country'].dtype
     result = commands.prepare_dtype_for_response(
         context,
         fmt,

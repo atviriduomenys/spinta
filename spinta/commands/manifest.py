@@ -1,7 +1,7 @@
 from typing import TypedDict, Callable, Dict
 
 from spinta import commands
-from spinta.components import Namespace, Model, Node
+from spinta.components import Namespace, Model, Node, Context
 from spinta.datasets.components import Dataset
 from spinta.manifests.components import Manifest
 
@@ -35,106 +35,106 @@ NODE_FUNCTION_MAPPER = {
 }
 
 
-@commands.has_node_type.register(Manifest, str)
-def has_object_type(manifest: Manifest, obj_type: str):
+@commands.has_node_type.register(Context, Manifest, str)
+def has_object_type(context: Context, manifest: Manifest, obj_type: str):
     return obj_type in manifest.get_objects()
 
 
-@commands.has_node.register(Manifest, str, str)
-def has_object(manifest: Manifest, obj_type: str, obj: str):
+@commands.has_node.register(Context, Manifest, str, str)
+def has_object(context: Context, manifest: Manifest, obj_type: str, obj: str):
     if obj_type in NODE_FUNCTION_MAPPER:
-        return NODE_FUNCTION_MAPPER[obj_type]['has'](manifest, obj)
+        return NODE_FUNCTION_MAPPER[obj_type]['has'](context, manifest, obj)
     raise Exception("NODE NOT DEFINED")
 
 
-@commands.get_node.register(Manifest, str, str)
-def get_node(manifest: Manifest, obj_type: str, obj: str):
+@commands.get_node.register(Context, Manifest, str, str)
+def get_node(context: Context, manifest: Manifest, obj_type: str, obj: str):
     if obj_type in NODE_FUNCTION_MAPPER:
-        return NODE_FUNCTION_MAPPER[obj_type]['get'](manifest, obj)
+        return NODE_FUNCTION_MAPPER[obj_type]['get'](context, manifest, obj)
     raise Exception("NODE NOT DEFINED")
 
 
-@commands.get_nodes.register(Manifest, str)
-def get_nodes(manifest: Manifest, obj_type: str):
+@commands.get_nodes.register(Context, Manifest, str)
+def get_nodes(context: Context, manifest: Manifest, obj_type: str):
     if obj_type in NODE_FUNCTION_MAPPER:
-        return NODE_FUNCTION_MAPPER[obj_type]['get_all'](manifest)
+        return NODE_FUNCTION_MAPPER[obj_type]['get_all'](context, manifest)
     raise Exception("NODE NOT DEFINED")
 
 
-@commands.set_node.register(Manifest, str, str, Node)
-def set_node(manifest: Manifest, obj_type: str, obj_name, obj: Node):
+@commands.set_node.register(Context, Manifest, str, str, Node)
+def set_node(context: Context, manifest: Manifest, obj_type: str, obj_name, obj: Node):
     if obj_type in NODE_FUNCTION_MAPPER:
-        return NODE_FUNCTION_MAPPER[obj_type]['set'](manifest, obj_name, obj)
+        return NODE_FUNCTION_MAPPER[obj_type]['set'](context, manifest, obj_name, obj)
     raise Exception("NODE NOT DEFINED")
 
 
-@commands.has_model.register(Manifest, str)
-def has_model(manifest: Manifest, model: str):
+@commands.has_model.register(Context, Manifest, str)
+def has_model(context: Context, manifest: Manifest, model: str):
     return model in manifest.get_objects()['model']
 
 
-@commands.get_model.register(Manifest, str)
-def get_model(manifest: Manifest, model: str):
-    if has_model(manifest, model):
+@commands.get_model.register(Context, Manifest, str)
+def get_model(context: Context, manifest: Manifest, model: str):
+    if has_model(context, manifest, model):
         return manifest.get_objects()['model'][model]
     raise Exception("MODEL NOT FOUND")
 
 
-@commands.get_models.register(Manifest)
-def get_models(manifest: Manifest):
+@commands.get_models.register(Context, Manifest)
+def get_models(context: Context, manifest: Manifest):
     return manifest.get_objects()['model']
 
 
-@commands.set_model.register(Manifest, str, Model)
-def set_model(manifest: Manifest, model_name: str, model: Model):
+@commands.set_model.register(Context, Manifest, str, Model)
+def set_model(context: Context, manifest: Manifest, model_name: str, model: Model):
     manifest.get_objects()['model'][model_name] = model
 
 
-@commands.set_models.register(Manifest, dict)
-def set_models(manifest: Manifest, models: Dict[str, Model]):
+@commands.set_models.register(Context, Manifest, dict)
+def set_models(context: Context, manifest: Manifest, models: Dict[str, Model]):
     manifest.get_objects()['model'] = models
 
 
-@commands.has_namespace.register(Manifest, str)
-def has_namespace(manifest: Manifest, namespace: str):
+@commands.has_namespace.register(Context, Manifest, str)
+def has_namespace(context: Context, manifest: Manifest, namespace: str):
     return namespace in manifest.get_objects()['ns']
 
 
-@commands.get_namespace.register(Manifest, str)
-def get_namespace(manifest: Manifest, namespace: str):
-    if has_namespace(manifest, namespace):
+@commands.get_namespace.register(Context, Manifest, str)
+def get_namespace(context: Context, manifest: Manifest, namespace: str):
+    if has_namespace(context, manifest, namespace):
         return manifest.get_objects()['ns'][namespace]
     raise Exception("NAMESPACE NOT FOUND")
 
 
-@commands.get_namespaces.register(Manifest)
-def get_namespaces(manifest: Manifest):
+@commands.get_namespaces.register(Context, Manifest)
+def get_namespaces(context: Context, manifest: Manifest):
     return manifest.get_objects()['ns']
 
 
-@commands.set_namespace.register(Manifest, str, Namespace)
-def set_namespace(manifest: Manifest, namespace: str, ns: Namespace):
+@commands.set_namespace.register(Context, Manifest, str, Namespace)
+def set_namespace(context: Context, manifest: Manifest, namespace: str, ns: Namespace):
     manifest.get_objects()['ns'][namespace] = ns
 
 
-@commands.has_dataset.register(Manifest, str)
-def has_dataset(manifest: Manifest, dataset: str):
+@commands.has_dataset.register(Context, Manifest, str)
+def has_dataset(context: Context, manifest: Manifest, dataset: str):
     return dataset in manifest.get_objects()['dataset']
 
 
-@commands.get_dataset.register(Manifest, str)
-def get_dataset(manifest: Manifest, dataset: str):
-    if has_dataset(manifest, dataset):
+@commands.get_dataset.register(Context, Manifest, str)
+def get_dataset(context: Context, manifest: Manifest, dataset: str):
+    if has_dataset(context, manifest, dataset):
         return manifest.get_objects()['dataset'][dataset]
     raise Exception("DATASET NOT FOUND")
 
 
-@commands.get_datasets.register(Manifest)
-def get_datasets(manifest: Manifest):
+@commands.get_datasets.register(Context, Manifest)
+def get_datasets(context: Context, manifest: Manifest):
     return manifest.get_objects()['dataset']
 
 
-@commands.set_dataset.register(Manifest, str, Dataset)
-def set_dataset(manifest: Manifest, dataset_name: str, dataset: Dataset):
+@commands.set_dataset.register(Context, Manifest, str, Dataset)
+def set_dataset(context: Context, manifest: Manifest, dataset_name: str, dataset: Dataset):
     manifest.get_objects()['dataset'][dataset_name] = dataset
 

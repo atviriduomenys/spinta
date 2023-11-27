@@ -267,7 +267,7 @@ def _resolve_path(context: Context, params: UrlParams) -> None:
     i = _find_model_name_index(params.path_parts)
     parts = params.path_parts[i:]
     params.path = '/'.join(params.path_parts[:i])
-    params.model = get_model_from_params(manifest, params)
+    params.model = get_model_from_params(context, manifest, params)
 
     if parts:
         # Resolve ID.
@@ -302,22 +302,25 @@ def get_model_by_name(context: Context, manifest: Manifest, name: str) -> Node:
 
 
 def get_model_from_params(
+    context: Context,
     manifest: Manifest,
     params: UrlParams,
 ) -> Union[Namespace, Model]:
     name = params.path
+    if name == '':
+        return commands.get_namespace(context, manifest, name)
 
     if params.ns:
-        if commands.has_namespace(manifest, name):
-            return commands.get_namespace(manifest, name)
+        if commands.has_namespace(context, manifest, name):
+            return commands.get_namespace(context, manifest, name)
         else:
             raise ModelNotFound(manifest, model=name)
 
-    elif commands.has_model(manifest, name):
-        return commands.get_model(manifest, name)
+    elif commands.has_model(context, manifest, name):
+        return commands.get_model(context, manifest, name)
 
-    elif commands.has_namespace(manifest, name):
-        return commands.get_namespace(manifest, name)
+    elif commands.has_namespace(context, manifest, name):
+        return commands.get_namespace(context, manifest, name)
 
     else:
         raise ModelNotFound(model=name)

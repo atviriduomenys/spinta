@@ -45,7 +45,7 @@ def test_getall(rc: RawConfig):
             'country.name': 'Lithuania',
         }
     ])
-    model = commands.get_model(manifest, 'example/City')
+    model = commands.get_model(context, manifest, 'example/City')
     backend = model.backend
     query = asttoexpr(spyna.parse('select(_id, country.name)'))
     rows = commands.getall(context, model, backend, query=query)

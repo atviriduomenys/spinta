@@ -22,7 +22,7 @@ from spinta.datasets.enums import Level
 @commands.prepare.register(Context, PostgreSQL, Manifest)
 def prepare(context: Context, backend: PostgreSQL, manifest: Manifest):
     # Prepare backend for models.
-    for model in commands.get_models(manifest).values():
+    for model in commands.get_models(context, manifest).values():
         if model.backend and model.backend.name == backend.name:
             commands.prepare(context, backend, model)
 

@@ -30,11 +30,11 @@ def freeze(context: Context, current: YamlManifest):
             # freeze them.
             continue
 
-        for name, cnode in commands.get_nodes(current, ntype).items():
+        for name, cnode in commands.get_nodes(context, current, ntype).items():
 
             # Get freezed node
-            if commands.has_node(freezed, ntype, name):
-                fnode = commands.get_node(freezed, ntype, name)
+            if commands.has_node(context, freezed, ntype, name):
+                fnode = commands.get_node(context, freezed, ntype, name)
             else:
                 fnode = None
 

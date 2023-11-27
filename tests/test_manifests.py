@@ -2,11 +2,11 @@ from spinta import commands
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.utils import create_manifest_files
 from spinta.testing.context import create_test_context
-from spinta.components import Model
+from spinta.components import Model, Context
 from spinta.manifests.components import Manifest, get_manifest_object_names
 
 
-def show(c: Manifest):
+def show(context: Context, c: Manifest):
     if isinstance(c, Manifest):
         res = {
             'type': c.type,
@@ -14,8 +14,8 @@ def show(c: Manifest):
         }
         for group in get_manifest_object_names():
             res['nodes'][group] = {
-                name: show(node)
-                for name, node in commands.get_nodes(c, group).items()
+                name: show(context, node)
+                for name, node in commands.get_nodes(context, c, group).items()
             }
             if not res['nodes'][group]:
                 res['nodes'].pop(group)
@@ -68,7 +68,7 @@ def test_manifest_loading(postgresql, rc, cli: SpintaCliRunner, tmp_path, reques
 
     request.addfinalizer(context.wipe_all)
 
-    assert show(store.manifest) == {
+    assert show(context, store.manifest) == {
         'type': 'backend',
         'nodes': {
             'ns': {

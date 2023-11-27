@@ -31,6 +31,7 @@ from spinta.commands import prepare, get_version
 from spinta.components import Context
 from spinta.exceptions import BaseError, MultipleErrors, error_response, InsufficientPermission, \
     UnknownPropertyInRequest, InsufficientPermissionForUpdate, EmptyPassword
+from spinta.manifests.helpers import get_per_request_manifest
 from spinta.middlewares import ContextMiddleware
 from spinta.urlparams import Version
 from spinta.urlparams import get_response_type
@@ -258,13 +259,14 @@ async def homepage(request: Request):
     UrlParams: Type[components.UrlParams]
     UrlParams = config.components['urlparams']['component']
     params: UrlParams = prepare(context, UrlParams(), Version(), request)
-
+    store = context.get('store')
     context.attach('accesslog', create_accesslog, context, loaders=(
-        context.get('store'),
+        store,
         context.get("auth.token"),
         request,
         params,
     ))
+    context.bind('request.manifest', get_per_request_manifest, config, store)
 
     return await create_http_response(context, params, request)
 

@@ -151,14 +151,14 @@ def test_push_different_models(app):
 
 
 def test__map_sent_and_recv__no_recv(rc: RawConfig):
-    manifest = load_manifest(rc, '''
+    context, manifest = load_manifest_and_context(rc, '''
     d | r | b | m | property | type   | access
     datasets/gov/example     |        |
       |   |   | Country      |        |
       |   |   |   | name     | string | open
     ''')
 
-    model = commands.get_model(manifest, 'datasets/gov/example/Country')
+    model = commands.get_model(context, manifest, 'datasets/gov/example/Country')
     sent = [
         _PushRow(model, {'name': 'Vilnius'}),
     ]
@@ -167,14 +167,14 @@ def test__map_sent_and_recv__no_recv(rc: RawConfig):
 
 
 def test__get_row_for_error__errors(rc: RawConfig):
-    manifest = load_manifest(rc, '''
+    context, manifest = load_manifest_and_context(rc, '''
     d | r | b | m | property | type   | access
     datasets/gov/example     |        |
       |   |   | Country      |        |
       |   |   |   | name     | string | open
     ''')
 
-    model = commands.get_model(manifest, 'datasets/gov/example/Country')
+    model = commands.get_model(context, manifest, 'datasets/gov/example/Country')
     rows = [
         _PushRow(model, {
             '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
@@ -252,7 +252,7 @@ def test_push_state__create(rc: RawConfig, responses: RequestsMock):
       | name     | string | open
     ''')
 
-    model = commands.get_model(manifest, 'City')
+    model = commands.get_model(context, manifest, 'City')
     models = [model]
 
     state = _State(*_init_push_state('sqlite://', models))
@@ -311,7 +311,7 @@ def test_push_state__create_error(rc: RawConfig, responses: RequestsMock):
       | name     | string | open
     ''')
 
-    model = commands.get_model(manifest, 'City')
+    model = commands.get_model(context, manifest, 'City')
     models = [model]
 
     state = _State(*_init_push_state('sqlite://', models))
@@ -353,7 +353,7 @@ def test_push_state__update(rc: RawConfig, responses: RequestsMock):
       | name     | string | open
     ''')
 
-    model = commands.get_model(manifest, 'City')
+    model = commands.get_model(context, manifest, 'City')
     models = [model]
 
     state = _State(*_init_push_state('sqlite://', models))
@@ -426,7 +426,7 @@ def test_push_state__update_without_sync(rc: RawConfig, responses: RequestsMock)
       | name     | string | open
     ''')
 
-    model = commands.get_model(manifest, 'City')
+    model = commands.get_model(context, manifest, 'City')
     models = [model]
 
     state = _State(*_init_push_state('sqlite://', models))
@@ -494,7 +494,7 @@ def test_push_state__update_sync_first_time(rc: RawConfig, responses: RequestsMo
       | name     | string | open
     ''')
 
-    model = commands.get_model(manifest, 'City')
+    model = commands.get_model(context, manifest, 'City')
     models = [model]
 
     state = _State(*_init_push_state('sqlite://', models))
@@ -561,7 +561,7 @@ def test_push_state__update_sync(rc: RawConfig, responses: RequestsMock):
       | name     | string | open
     ''')
 
-    model = commands.get_model(manifest, 'City')
+    model = commands.get_model(context, manifest, 'City')
     models = [model]
 
     state = _State(*_init_push_state('sqlite://', models))
@@ -626,7 +626,7 @@ def test_push_state__update_error(rc: RawConfig, responses: RequestsMock):
       | name     | string | open
     ''')
 
-    model = commands.get_model(manifest, 'City')
+    model = commands.get_model(context, manifest, 'City')
     models = [model]
 
     state = _State(*_init_push_state('sqlite://', models))
@@ -752,7 +752,7 @@ def test_push_state__delete(rc: RawConfig, responses: RequestsMock):
       | name     | string | open
     ''')
 
-    model = commands.get_model(manifest, 'City')
+    model = commands.get_model(context, manifest, 'City')
     models = [model]
 
     state = _State(*_init_push_state('sqlite://', models))
@@ -826,7 +826,7 @@ def test_push_state__retry(rc: RawConfig, responses: RequestsMock):
          | name     | string | open
        ''')
 
-    model = commands.get_model(manifest, 'City')
+    model = commands.get_model(context, manifest, 'City')
     models = [model]
 
     state = _State(*_init_push_state('sqlite://', models))
@@ -893,7 +893,7 @@ def test_push_state__max_errors(rc: RawConfig, responses: RequestsMock):
          | name     | string | open
        ''')
 
-    model = commands.get_model(manifest, 'City')
+    model = commands.get_model(context, manifest, 'City')
     models = [model]
 
     state = _State(*_init_push_state('sqlite://', models))
@@ -973,7 +973,7 @@ def test_push_init_state(rc: RawConfig, sqlite: Sqlite):
              | name     | string | open
            ''')
 
-    model = commands.get_model(manifest, 'City')
+    model = commands.get_model(context, manifest, 'City')
     models = [model]
 
     sqlite.init({
@@ -1023,7 +1023,7 @@ def test_push_state__paginate(rc: RawConfig, responses: RequestsMock):
          | name     | string | open
        ''')
 
-    model = commands.get_model(manifest, 'City')
+    model = commands.get_model(context, manifest, 'City')
     models = [model]
 
     state = _State(*_init_push_state('sqlite://', models))

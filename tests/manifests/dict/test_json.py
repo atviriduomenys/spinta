@@ -5,7 +5,7 @@ from spinta.core.config import RawConfig
 
 from pathlib import Path
 
-from spinta.testing.manifest import load_manifest, compare_manifest
+from spinta.testing.manifest import load_manifest, compare_manifest, load_manifest_and_context
 
 
 def test_json_normal(rc: RawConfig, tmp_path: Path):
@@ -37,9 +37,9 @@ def test_json_normal(rc: RawConfig, tmp_path: Path):
     path = tmp_path / 'manifest.json'
     path.write_text(json.dumps(json_manifest))
 
-    manifest = load_manifest(rc, path)
-    commands.get_dataset(manifest, "dataset").resources["resource"].external = "manifest.json"
-    a, b = compare_manifest(manifest, f'''
+    context, manifest = load_manifest_and_context(rc, path)
+    commands.get_dataset(context, manifest, "dataset").resources["resource"].external = "manifest.json"
+    a, b = compare_manifest(context, manifest, f'''
 id | d | r | b | m | property | type                   | ref     | source           | prepare | level | access | uri | title | description
    | dataset                  |                        |         |                  |         |       |        |     |       |
    |   | resource             | json                   |         | manifest.json    |         |       |        |     |       |
@@ -82,9 +82,9 @@ def test_json_blank_node(rc: RawConfig, tmp_path: Path):
     path = tmp_path / 'manifest.json'
     path.write_text(json.dumps(json_manifest))
 
-    manifest = load_manifest(rc, path)
-    commands.get_dataset(manifest, "dataset").resources["resource"].external = "manifest.json"
-    a, b = compare_manifest(manifest, f'''
+    context, manifest = load_manifest_and_context(rc, path)
+    commands.get_dataset(context, manifest, "dataset").resources["resource"].external = "manifest.json"
+    a, b = compare_manifest(context, manifest, f'''
 id | d | r | b | m | property | type                   | ref     | source        | prepare | level | access | uri | title | description
    | dataset                  |                        |         |               |         |       |        |     |       |
    |   | resource             | json                   |         | manifest.json |         |       |        |     |       |
@@ -139,9 +139,9 @@ def test_json_blank_node_inherit(rc: RawConfig, tmp_path: Path):
     path = tmp_path / 'manifest.json'
     path.write_text(json.dumps(json_manifest))
 
-    manifest = load_manifest(rc, path)
-    commands.get_dataset(manifest, "dataset").resources["resource"].external = "manifest.json"
-    a, b = compare_manifest(manifest, f'''
+    context, manifest = load_manifest_and_context(rc, path)
+    commands.get_dataset(context, manifest, "dataset").resources["resource"].external = "manifest.json"
+    a, b = compare_manifest(context, manifest, f'''
 id | d | r | b | m | property            | type                   | ref     | source              | prepare | level | access | uri | title | description
    | dataset                             |                        |         |                     |         |       |        |     |       |
    |   | resource                        | json                   |         | manifest.json       |         |       |        |     |       |
@@ -207,9 +207,9 @@ def test_json_inherit_nested(rc: RawConfig, tmp_path: Path):
     path = tmp_path / 'manifest.json'
     path.write_text(json.dumps(json_manifest))
 
-    manifest = load_manifest(rc, path)
-    commands.get_dataset(manifest, "dataset").resources["resource"].external = "manifest.json"
-    a, b = compare_manifest(manifest, f'''
+    context, manifest = load_manifest_and_context(rc, path)
+    commands.get_dataset(context, manifest, "dataset").resources["resource"].external = "manifest.json"
+    a, b = compare_manifest(context, manifest, f'''
 id | d | r | b | m | property            | type                    | ref     | source                          | prepare | level | access | uri | title | description
    | dataset                             |                         |         |                                 |         |       |        |     |       |
    |   | resource                        | json                    |         | manifest.json                   |         |       |        |     |       |

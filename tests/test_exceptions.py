@@ -127,7 +127,7 @@ def test_missing_var_in_template():
 
 
 def test_this_model(context):
-    model = commands.get_model(context.get('store').manifest, 'Org')
+    model = commands.get_model(context, context.get('store').manifest, 'Org')
     model.path = 'manifest/models/org.yml'
     error = Error(model)
     assert str(error) == (
@@ -141,7 +141,7 @@ def test_this_model(context):
 
 
 def test_this_model_property(context):
-    prop = commands.get_model(context.get('store').manifest, 'Org').properties['title']
+    prop = commands.get_model(context, context.get('store').manifest, 'Org').properties['title']
     prop.model.path = 'manifest/models/org.yml'
     error = Error(prop)
     assert str(error) == (
@@ -156,7 +156,7 @@ def test_this_model_property(context):
 
 
 def test_this_model_property_dtype(context):
-    dtype = commands.get_model(context.get('store').manifest, 'Org').properties['title'].dtype
+    dtype = commands.get_model(context, context.get('store').manifest, 'Org').properties['title'].dtype
     dtype.prop.model.path = 'manifest/models/org.yml'
     error = Error(dtype)
     assert str(error) == (
@@ -172,7 +172,7 @@ def test_this_model_property_dtype(context):
 
 
 def test_this_dataset_model(context):
-    model = commands.get_model(context.get('store').manifest, 'datasets/backends/postgres/dataset/Report')
+    model = commands.get_model(context, context.get('store').manifest, 'datasets/backends/postgres/dataset/Report')
     model.path = 'manifest/backends/postgres/dataset/report.yml'
     error = Error(model)
     assert str(error) == (
@@ -190,7 +190,7 @@ def test_this_dataset_model(context):
 
 
 def test_this_dataset_model_property(context):
-    prop = commands.get_model(context.get('store').manifest, 'datasets/backends/postgres/dataset/Report').properties['status']
+    prop = commands.get_model(context, context.get('store').manifest, 'datasets/backends/postgres/dataset/Report').properties['status']
     prop.model.path = 'manifest/backends/postgres/dataset/report.yml'
     error = Error(prop)
     assert str(error) == (
