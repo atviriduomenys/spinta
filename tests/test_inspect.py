@@ -93,7 +93,6 @@ def test_inspect(
 
 
 def test_inspect_from_manifest_table(
-    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
@@ -106,6 +105,7 @@ def test_inspect_from_manifest_table(
             sa.Column('NAME', sa.Text),
         ],
     })
+    context = create_test_context(rc)
     create_tabular_manifest(context, tmp_path / 'manifest.csv', f'''
     d | r | m | property     | type   | ref | source | access
     dbsqlite                |        |     |        |
@@ -357,13 +357,13 @@ def test_inspect_oracle_sqldump_file_with_formula(
 
 
 def test_inspect_with_schema(
-    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite,
 ):
     # Prepare source data.
+    context = create_test_context(rc)
     sqlite.init({
         'CITY': [
             sa.Column('ID', sa.Integer, primary_key=True),
@@ -396,13 +396,13 @@ def test_inspect_with_schema(
 
 
 def test_inspect_update_existing_manifest(
-    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite,
 ):
     # Prepare source data.
+    context = create_test_context(rc)
     sqlite.init({
         'COUNTRY': [
             sa.Column('ID', sa.Integer, primary_key=True),
@@ -453,13 +453,13 @@ def test_inspect_update_existing_manifest(
 
 
 def test_inspect_update_existing_ref_manifest_priority(
-    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite,
 ):
     # Prepare source data.
+    context = create_test_context(rc)
     sqlite.init({
         'COUNTRY': [
             sa.Column('ID', sa.Integer, primary_key=True),
@@ -513,13 +513,13 @@ def test_inspect_update_existing_ref_manifest_priority(
 
 
 def test_inspect_update_existing_ref_external_priority(
-    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite,
 ):
     # Prepare source data.
+    context = create_test_context(rc)
     sqlite.init({
         'COUNTRY': [
             sa.Column('ID', sa.Integer, primary_key=True),
@@ -690,13 +690,13 @@ def test_inspect_duplicate_column_names(
 
 
 def test_inspect_existing_duplicate_table_names(
-    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite,
 ):
     # Prepare source data.
+    context = create_test_context(rc)
     sqlite.init({
         '__COUNTRY': [sa.Column('NAME', sa.Text)],
         '_COUNTRY': [sa.Column('NAME', sa.Text)],
@@ -743,13 +743,13 @@ def test_inspect_existing_duplicate_table_names(
 
 
 def test_inspect_existing_duplicate_column_names(
-    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite,
 ):
     # Prepare source data.
+    context = create_test_context(rc)
     sqlite.init({
         'COUNTRY': [
             sa.Column('__NAME', sa.Text),
@@ -790,13 +790,13 @@ def test_inspect_existing_duplicate_column_names(
 
 
 def test_inspect_insert_new_dataset(
-    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite,
 ):
     # Prepare source data.
+    context = create_test_context(rc)
     sqlite.init({
         'COUNTRY': [
             sa.Column('NAME', sa.Text),
@@ -837,13 +837,13 @@ def test_inspect_insert_new_dataset(
 
 
 def test_inspect_delete_model_source(
-    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite,
 ):
     # Prepare source data.
+    context = create_test_context(rc)
     sqlite.init({
         'COUNTRY': [
             sa.Column('NAME', sa.Text),
@@ -882,13 +882,13 @@ def test_inspect_delete_model_source(
 
 
 def test_inspect_delete_property_source(
-    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite,
 ):
     # Prepare source data.
+    context = create_test_context(rc)
     sqlite.init({
         'COUNTRY': [
             sa.Column('NAME', sa.Text),
@@ -926,7 +926,6 @@ def test_inspect_delete_property_source(
 
 
 def test_inspect_multiple_resources_all_new(
-    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
@@ -934,6 +933,7 @@ def test_inspect_multiple_resources_all_new(
     sqlite_new: Sqlite
 ):
     # Prepare source data.
+    context = create_test_context(rc)
     sqlite.init({
         'COUNTRY': [
             sa.Column('NAME', sa.Text),
@@ -981,7 +981,6 @@ def test_inspect_multiple_resources_all_new(
 
 
 def test_inspect_multiple_resources_specific(
-    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
@@ -989,6 +988,7 @@ def test_inspect_multiple_resources_specific(
     sqlite_new: Sqlite
 ):
     # Prepare source data.
+    context = create_test_context(rc)
     sqlite.init({
         'COUNTRY': [
             sa.Column('NAME', sa.Text),
@@ -1058,7 +1058,6 @@ def test_inspect_multiple_resources_specific(
 
 
 def test_inspect_multiple_resources_advanced(
-    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
@@ -1066,6 +1065,7 @@ def test_inspect_multiple_resources_advanced(
     sqlite_new: Sqlite
 ):
     # Prepare source data.
+    context = create_test_context(rc)
     sqlite.init({
         'COUNTRY': [
             sa.Column('NAME', sa.Text),
@@ -1177,13 +1177,13 @@ def test_inspect_multiple_resources_advanced(
 
 
 def test_inspect_multiple_datasets(
-    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite
 ):
     # Prepare source data.
+    context = create_test_context(rc)
     sqlite.init({
         'COUNTRY': [
             sa.Column('NAME', sa.Text),
@@ -1246,13 +1246,13 @@ def test_inspect_multiple_datasets(
 
 
 def test_inspect_multiple_datasets_advanced_manifest_priority(
-    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite
 ):
     # Prepare source data.
+    context = create_test_context(rc)
     sqlite.init({
         'COUNTRY': [
             sa.Column('CODE', sa.Text),
@@ -1325,13 +1325,13 @@ def test_inspect_multiple_datasets_advanced_manifest_priority(
 
 
 def test_inspect_multiple_datasets_advanced_external_priority(
-    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite
 ):
     # Prepare source data.
+    context = create_test_context(rc)
     sqlite.init({
         'COUNTRY': [
             sa.Column('CODE', sa.Text),
@@ -1405,7 +1405,6 @@ def test_inspect_multiple_datasets_advanced_external_priority(
 
 
 def test_inspect_multiple_datasets_different_resources(
-    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
@@ -1413,6 +1412,7 @@ def test_inspect_multiple_datasets_different_resources(
     sqlite_new: Sqlite
 ):
     # Prepare source data.
+    context = create_test_context(rc)
     sqlite.init({
         'COUNTRY': [
             sa.Column('CODE', sa.Text),
@@ -1486,7 +1486,6 @@ def test_inspect_multiple_datasets_different_resources(
 
 
 def test_inspect_multiple_datasets_different_resources_specific(
-    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
@@ -1494,6 +1493,7 @@ def test_inspect_multiple_datasets_different_resources_specific(
     sqlite_new: Sqlite
 ):
     # Prepare source data.
+    context = create_test_context(rc)
     sqlite.init({
         'COUNTRY': [
             sa.Column('CODE', sa.Text),
@@ -1632,13 +1632,13 @@ def test_inspect_with_views(
 
 @pytest.mark.skip(reason="Requires #440 task")
 def test_inspect_with_manifest_backends(
-    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite,
 ):
     # Prepare source data.
+    context = create_test_context(rc)
     sqlite.init({
         'COUNTRY': [
             sa.Column('NAME', sa.Text),
@@ -1681,7 +1681,6 @@ def test_inspect_with_manifest_backends(
 
 
 def test_inspect_json_model_ref_change(
-    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path):
@@ -1722,6 +1721,7 @@ def test_inspect_json_model_ref_change(
     ]
     path = tmp_path / 'manifest.json'
     path.write_text(json.dumps(json_manifest))
+    context = create_test_context(rc)
 
     result_file_path = tmp_path / 'result.csv'
     # Configure Spinta.
@@ -1771,7 +1771,6 @@ datasets/json/inspect           |                        |        |
 
 
 def test_inspect_xml_model_ref_change(
-    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path):
@@ -1800,6 +1799,7 @@ def test_inspect_xml_model_ref_change(
 '''
     path = tmp_path / 'manifest.xml'
     path.write_text(xml)
+    context = create_test_context(rc)
 
     result_file_path = tmp_path / 'result.csv'
     # Configure Spinta.
