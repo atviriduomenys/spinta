@@ -68,6 +68,8 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
         sa.Column('_updated', sa.DateTime),
         *columns,
     )
+    if main_table_name == 'country':
+        pp(model.manifest.path)
     backend.add_table(main_table, model)
     # Create changes table.
     changelog_table = get_changes_table(context, backend, model)

@@ -1024,6 +1024,7 @@ class Config:
     exporters: Dict[str, Format]
     push_page_size: int = None
     languages: List[str]
+    check_names: bool = False
 
     def __init__(self):
         self.commands = _CommandsConfig()

@@ -82,7 +82,7 @@ def test_manifest_loading(postgresql, rc, cli: SpintaCliRunner, tmp_path, reques
                 '_schema': {
                     'backend': 'default',
                 },
-                '_schema/version': {
+                '_schema/Version': {
                     'backend': 'default',
                 },
                 '_txn': {

@@ -102,13 +102,13 @@ def test_create_model(
     #   KeyError: 'actions'
     # Check if database is cleaned properly.
     #   import sqlalchemy as sa
-    #   query = 'select "type", "name", "id" from "_schema/version"'
+    #   query = 'select "type", "name", "id" from "_schema/Version"'
     #   engine = sa.create_engine(postgresql)
     #   result = engine.execute(query)
     #   pp(result)
     # To fix that, check context.wipe_all method.
     # And probably delete everything manually:
-    #   engine.execute('delete from "_schema/version"')
+    #   engine.execute('delete from "_schema/Version"')
 
     cli.invoke(rc, ['migrate'])
 
@@ -116,9 +116,9 @@ def test_create_model(
     request.addfinalizer(context.wipe_all)
 
     client = create_test_client(context)
-    client.authmodel('_schema/version', ['getall', 'search'])
+    client.authmodel('_schema/Version', ['getall', 'search'])
 
-    resp = client.get('/_schema/version?select(type, name)')
+    resp = client.get('/_schema/Version?select(type, name)')
     data = [(t, n) for t, n in listdata(resp) if not t.startswith('_')]
     assert data == [
         ('Country', 'model'),
