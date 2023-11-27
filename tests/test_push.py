@@ -675,6 +675,7 @@ def test_push_state__update_error(rc: RawConfig, responses: RequestsMock):
 
 
 def test_push_delete_with_dependent_objects(
+    context,
     postgresql,
     rc,
     cli: SpintaCliRunner,
@@ -696,7 +697,7 @@ def test_push_delete_with_dependent_objects(
        |   |   |    | name             | string |                         | pavadinimas|
        |   |   |    | country          | ref    | Country                 | salis      |
     '''
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable(table))
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(table))
 
     localrc = create_rc(rc, tmp_path, geodb)
 

@@ -271,7 +271,7 @@ def test_geometry_wkt_value_shortening(
     assert result.value == display
 
 
-def test_loading(tmp_path: Path, rc: RawConfig):
+def test_loading(context, tmp_path: Path, rc: RawConfig):
     table = '''
     d | r | b | m | property | type                  | ref  | access
     datasets/gov/example     |                       |      | open
@@ -280,7 +280,7 @@ def test_loading(tmp_path: Path, rc: RawConfig):
       |   |   |   | name     | string                |      | open
       |   |   |   | country  | geometry(point, 3346) |      | open
     '''
-    create_tabular_manifest(tmp_path / 'manifest.csv', table)
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', table)
     manifest = load_manifest(rc, tmp_path / 'manifest.csv')
     assert manifest == table
 

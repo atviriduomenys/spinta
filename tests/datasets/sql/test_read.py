@@ -42,8 +42,8 @@ def test__get_row_value_null(rc: RawConfig):
     assert _get_row_value(context, row, sel) is None
 
 
-def test_getall_paginate_null_check_value(rc, tmp_path, geodb_null_check):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_getall_paginate_null_check_value(context, rc, tmp_path, geodb_null_check):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source          | type    | ref     | access | prepare
        | external/paginate        |                 |         |         |        |
        |   | data                 |                 | sql     |         |        |

@@ -8,7 +8,7 @@ from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.manifest import load_manifest
 
 
-def test_gsheets(rc: RawConfig, tmp_path: Path, responses: RequestsMock):
+def test_gsheets(context, rc: RawConfig, tmp_path: Path, responses: RequestsMock):
     path = tmp_path / 'manifest.csv'
     table = '''
     d | r | b | m | property | source      | prepare   | type       | ref     | level | access | uri | title   | description
@@ -23,7 +23,7 @@ def test_gsheets(rc: RawConfig, tmp_path: Path, responses: RequestsMock):
       |   |   |   | name     | pavadinimas |           | string     |         | 3     | open   |     | Name    |
       |   |   |   | country  | šalis       |           | ref        | country | 4     | open   |     | Country |
     '''
-    create_tabular_manifest(path, table)
+    create_tabular_manifest(context, path, table)
 
     gsheet = (
         'https://docs.google.com/spreadsheets'

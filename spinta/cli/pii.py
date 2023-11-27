@@ -253,6 +253,6 @@ def detect(
         rows = tqdm.tqdm(rows, 'PII DETECT', ascii=True, total=total)
         _detect_pii(context, manifest, rows)
         if output:
-            write_tabular_manifest(output, manifest)
+            write_tabular_manifest(context, output, manifest)
         else:
             echo(render_tabular_manifest(context, manifest))

@@ -1027,7 +1027,7 @@ def test_search_not_null(model, app):
 
 
 @pytest.mark.parametrize('backend', ['default', 'mongo'])
-def test_extra_fields(postgresql, mongo, backend, rc, tmp_path, request):
+def test_extra_fields(context, postgresql, mongo, backend, rc, tmp_path, request):
     rc = rc.fork({
         'backends': [backend],
         'manifests.default': {
@@ -1038,7 +1038,7 @@ def test_extra_fields(postgresql, mongo, backend, rc, tmp_path, request):
     })
 
     # Create data into a extrafields model with code and name properties.
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     m | property | type
     Extrafields  |
       | code     | string
@@ -1057,7 +1057,7 @@ def test_extra_fields(postgresql, mongo, backend, rc, tmp_path, request):
     assert resp.status_code == 200, resp.json()
 
     # Now try to read from same model, but loaded with just one property.
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     m | property | type
     Extrafields  |
       | name     | string
@@ -1080,7 +1080,7 @@ def test_extra_fields(postgresql, mongo, backend, rc, tmp_path, request):
 
 
 @pytest.mark.parametrize('backend', ['mongo'])
-def test_missing_fields(postgresql, mongo, backend, rc, tmp_path):
+def test_missing_fields(context, postgresql, mongo, backend, rc, tmp_path):
     rc = rc.fork({
         'backends': [backend],
         'manifests.default': {
@@ -1091,7 +1091,7 @@ def test_missing_fields(postgresql, mongo, backend, rc, tmp_path):
     })
 
     # Create data into a extrafields model with code and name properties.
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     m | property  | type
     Missingfields |
       | code      | string
@@ -1107,7 +1107,7 @@ def test_missing_fields(postgresql, mongo, backend, rc, tmp_path):
     assert resp.status_code == 200, resp.json()
 
     # Now try to read from same model, but loaded with just one property.
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     m | property  | type
     Missingfields |
       | code      | string

@@ -5,7 +5,7 @@ from spinta.testing.config import configure
 from spinta.testing.manifest import load_manifest
 
 
-def test_detect_pii(rc, cli: SpintaCliRunner, tmp_path, sqlite):
+def test_detect_pii(context, rc, cli: SpintaCliRunner, tmp_path, sqlite):
     # Prepare source data.
     sqlite.init({
         'PERSON': [
@@ -38,7 +38,7 @@ def test_detect_pii(rc, cli: SpintaCliRunner, tmp_path, sqlite):
     ])
 
     # Configure Spinta.
-    rc = configure(rc, sqlite, tmp_path / 'manifest.csv', '''
+    rc = configure(context, rc, sqlite, tmp_path / 'manifest.csv', '''
     d | r | m | property     | type   | ref     | source  | access
     datasets/ds              |        |         |         |
       | rs                   | sql    | sql     |         |

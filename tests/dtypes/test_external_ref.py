@@ -11,7 +11,7 @@ from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.utils import get_error_codes
 
 
-def test_load(tmp_path: Path, rc: RawConfig):
+def test_load(context, tmp_path: Path, rc: RawConfig):
     table = '''
     d | r | b | m | property   | type   | ref                | source       | level | access
     dataset/1                  |        |                    |              |       |
@@ -26,7 +26,7 @@ def test_load(tmp_path: Path, rc: RawConfig):
       |   |   |   | name       | string |                    |              |       | open
       |   |   |   | country    | ref    | /dataset/1/Country |              | 3     | open
     '''
-    create_tabular_manifest(tmp_path / 'manifest.csv', table)
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', table)
     manifest = load_manifest(rc, tmp_path / 'manifest.csv')
     assert manifest == table
 

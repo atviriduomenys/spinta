@@ -114,7 +114,7 @@ def inspect(
         if InternalSQLManifest.detect_from_path(output):
             write_internal_sql_manifest(context, output, old)
         else:
-            write_tabular_manifest(output, old)
+            write_tabular_manifest(context, output, old)
     else:
         echo(render_tabular_manifest(context, old))
 

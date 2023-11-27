@@ -2545,6 +2545,7 @@ def normalizes_columns(
 
 
 def write_tabular_manifest(
+    context: Context,
     path: str,
     rows: Union[
         Manifest,
@@ -2558,7 +2559,7 @@ def write_tabular_manifest(
     if rows is None:
         rows = []
     elif isinstance(rows, Manifest):
-        rows = datasets_to_tabular(rows)
+        rows = datasets_to_tabular(context, rows)
 
     rows = ({c: row[c] for c in cols} for row in rows)
     if path.endswith('.csv'):

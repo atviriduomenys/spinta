@@ -44,6 +44,7 @@ def compare_sql_to_required(sql_rows: list, required_rows: list):
 
 @pytest.mark.parametrize("db_type", db_type.values(), ids=db_type.keys())
 def test_internal_store_meta_rows(
+    context,
     db_type: str,
     rc: RawConfig,
     tmp_path: pathlib.Path,
@@ -64,15 +65,15 @@ def test_internal_store_meta_rows(
       |          |   |   |          |        | ogc                  |                         |         |        | http://www.opengis.net/rdf# |                     |
 
     '''
-    tabular_manifest = setup_tabular_manifest(rc, tmp_path, table)
+    tabular_manifest = setup_tabular_manifest(context, rc, tmp_path, table)
     if db_type == "sqlite":
         dsn = 'sqlite:///' + str(tmp_path / 'db.sqlite')
         db = Sqlite(dsn)
         with db.engine.connect():
-            write_internal_sql_manifest(db.dsn, tabular_manifest)
+            write_internal_sql_manifest(context, db.dsn, tabular_manifest)
     else:
         dsn = postgresql
-        write_internal_sql_manifest(dsn, tabular_manifest)
+        write_internal_sql_manifest(context, dsn, tabular_manifest)
 
     compare_rows = [
         [0, None, 0, None, 'locn', 'prefix', 'locn', 'prefix', 'locn', None, None, None, None, 'http://www.w3.org/ns/locn#', None, None],
@@ -101,6 +102,7 @@ def test_internal_store_meta_rows(
 
 @pytest.mark.parametrize("db_type", db_type.values(), ids=db_type.keys())
 def test_internal_store_dataset_rows(
+    context,
     db_type: str,
     rc: RawConfig,
     tmp_path: pathlib.Path,
@@ -128,15 +130,15 @@ def test_internal_store_dataset_rows(
                          |   |   |      | one_str  | string  |      |                             |          |
 
     '''
-    tabular_manifest = setup_tabular_manifest(rc, tmp_path, table)
+    tabular_manifest = setup_tabular_manifest(context, rc, tmp_path, table)
     if db_type == "sqlite":
         dsn = 'sqlite:///' + str(tmp_path / 'db.sqlite')
         db = Sqlite(dsn)
         with db.engine.connect():
-            write_internal_sql_manifest(db.dsn, tabular_manifest)
+            write_internal_sql_manifest(context, db.dsn, tabular_manifest)
     else:
         dsn = postgresql
-        write_internal_sql_manifest(dsn, tabular_manifest)
+        write_internal_sql_manifest(context, dsn, tabular_manifest)
 
     compare_rows = [
         [0, None, 0, 'datasets/gov/example', 'datasets/gov/example', 'dataset', 'datasets/gov/example', None, None, None, None, None, None, None, None, None],
@@ -167,6 +169,7 @@ def test_internal_store_dataset_rows(
 
 @pytest.mark.parametrize("db_type", db_type.values(), ids=db_type.keys())
 def test_internal_store_resource_rows(
+    context,
     db_type: str,
     rc: RawConfig,
     tmp_path: pathlib.Path,
@@ -193,15 +196,15 @@ def test_internal_store_resource_rows(
                          |         |   |      | one_str  | string  |     |                          |       |
 
     '''
-    tabular_manifest = setup_tabular_manifest(rc, tmp_path, table)
+    tabular_manifest = setup_tabular_manifest(context, rc, tmp_path, table)
     if db_type == "sqlite":
         dsn = 'sqlite:///' + str(tmp_path / 'db.sqlite')
         db = Sqlite(dsn)
         with db.engine.connect():
-            write_internal_sql_manifest(db.dsn, tabular_manifest)
+            write_internal_sql_manifest(context, db.dsn, tabular_manifest)
     else:
         dsn = postgresql
-        write_internal_sql_manifest(dsn, tabular_manifest)
+        write_internal_sql_manifest(context, dsn, tabular_manifest)
 
     compare_rows = [
         [0, None, 0, 'datasets/gov/example', 'datasets/gov/example', 'dataset', 'datasets/gov/example', None, None, None, None, None, None, None, None, None],
@@ -232,6 +235,7 @@ def test_internal_store_resource_rows(
 
 @pytest.mark.parametrize("db_type", db_type.values(), ids=db_type.keys())
 def test_internal_store_base_rows(
+    context,
     db_type: str,
     rc: RawConfig,
     tmp_path: pathlib.Path,
@@ -257,15 +261,15 @@ def test_internal_store_base_rows(
                          |   |      |      | one_str  | string  |     |                          |       |
 
     '''
-    tabular_manifest = setup_tabular_manifest(rc, tmp_path, table)
+    tabular_manifest = setup_tabular_manifest(context, rc, tmp_path, table)
     if db_type == "sqlite":
         dsn = 'sqlite:///' + str(tmp_path / 'db.sqlite')
         db = Sqlite(dsn)
         with db.engine.connect():
-            write_internal_sql_manifest(db.dsn, tabular_manifest)
+            write_internal_sql_manifest(context, db.dsn, tabular_manifest)
     else:
         dsn = postgresql
-        write_internal_sql_manifest(dsn, tabular_manifest)
+        write_internal_sql_manifest(context, dsn, tabular_manifest)
 
     compare_rows = [
         [0, None, 0, 'datasets/gov/example', 'datasets/gov/example', 'dataset', 'datasets/gov/example', None, None, None, None, None, None, None, None, None],
@@ -297,6 +301,7 @@ def test_internal_store_base_rows(
 
 @pytest.mark.parametrize("db_type", db_type.values(), ids=db_type.keys())
 def test_internal_store_properties_rows(
+    context,
     db_type: str,
     rc: RawConfig,
     tmp_path: pathlib.Path,
@@ -324,15 +329,15 @@ def test_internal_store_properties_rows(
                          |   |   |      | new_url      | url      |      |
                          |   |   |      | new_uri      | uri      |      |
     '''
-    tabular_manifest = setup_tabular_manifest(rc, tmp_path, table)
+    tabular_manifest = setup_tabular_manifest(context, rc, tmp_path, table)
     if db_type == "sqlite":
         dsn = 'sqlite:///' + str(tmp_path / 'db.sqlite')
         db = Sqlite(dsn)
         with db.engine.connect():
-            write_internal_sql_manifest(db.dsn, tabular_manifest)
+            write_internal_sql_manifest(context, db.dsn, tabular_manifest)
     else:
         dsn = postgresql
-        write_internal_sql_manifest(dsn, tabular_manifest)
+        write_internal_sql_manifest(context, dsn, tabular_manifest)
 
     compare_rows = [
         [0, None, 0, 'datasets/gov/example', 'datasets/gov/example', 'dataset', 'datasets/gov/example', None, None, None, None, None, None, None, None, None],
@@ -369,6 +374,7 @@ def test_internal_store_properties_rows(
 
 @pytest.mark.parametrize("db_type", db_type.values(), ids=db_type.keys())
 def test_internal_store_json_null_rows(
+    context,
     db_type: str,
     rc: RawConfig,
     tmp_path: pathlib.Path,
@@ -380,15 +386,15 @@ def test_internal_store_json_null_rows(
       |   |   |   |          |        |      | l      | 'left'
       |   |   |   |          |        |      | r      | 'right'
     '''
-    tabular_manifest = setup_tabular_manifest(rc, tmp_path, table)
+    tabular_manifest = setup_tabular_manifest(context, rc, tmp_path, table)
     if db_type == "sqlite":
         dsn = 'sqlite:///' + str(tmp_path / 'db.sqlite')
         db = Sqlite(dsn)
         with db.engine.connect():
-            write_internal_sql_manifest(db.dsn, tabular_manifest)
+            write_internal_sql_manifest(context, db.dsn, tabular_manifest)
     else:
         dsn = postgresql
-        write_internal_sql_manifest(dsn, tabular_manifest)
+        write_internal_sql_manifest(context, dsn, tabular_manifest)
 
     compare_rows = [
         [0, None, 0, None, 'side', 'enum', 'side', 'enum', 'side', None, None, None, None, None, None, None, 1],
@@ -414,6 +420,7 @@ def test_internal_store_json_null_rows(
 
 @pytest.mark.parametrize("db_type", db_type.values(), ids=db_type.keys())
 def test_internal_store_old_ids(
+    context,
     db_type: str,
     rc: RawConfig,
     tmp_path: pathlib.Path,
@@ -458,15 +465,15 @@ def test_internal_store_old_ids(
     {comment_id}          |         |          |      |       |          | comment | TEXT         |                         |         |                             | Example             | Comment
     {property_1_id}       |         |          |      |       | text     | string  |              |                         |         |                             |                     |
     '''
-    tabular_manifest = setup_tabular_manifest(rc, tmp_path, table)
+    tabular_manifest = setup_tabular_manifest(context, rc, tmp_path, table)
     if db_type == "sqlite":
         dsn = 'sqlite:///' + str(tmp_path / 'db.sqlite')
         db = Sqlite(dsn)
         with db.engine.connect():
-            write_internal_sql_manifest(db.dsn, tabular_manifest)
+            write_internal_sql_manifest(context, db.dsn, tabular_manifest)
     else:
         dsn = postgresql
-        write_internal_sql_manifest(dsn, tabular_manifest)
+        write_internal_sql_manifest(context, dsn, tabular_manifest)
 
     compare_rows = [
         [namespace_item_0_id, None, 0, None, 'datasets', 'ns', 'datasets', 'ns', 'datasets', None, None, None, None, None, 'All datasets', 'All external datasets.'],

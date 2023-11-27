@@ -13,7 +13,7 @@ from typing import Tuple
 from typing import TypedDict
 from typing import Union
 
-from spinta.components import Component
+from spinta.components import Component, Context
 from spinta.components import Mode
 from spinta.components import Model
 from spinta.components import Namespace
@@ -86,7 +86,7 @@ class Manifest(Component):
             # This uses pytest_assertrepr_compare hook and compare_manifest to
             # eventually compare manifests in ascii table form.
             from spinta.testing.manifest import compare_manifest
-            left, right = compare_manifest(self, other)
+            left, right = compare_manifest(Context('empty'), self, other)
             return left == right
         else:
             super().__eq__(other)

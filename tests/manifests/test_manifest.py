@@ -2,6 +2,7 @@ import pathlib
 
 import pytest
 
+from spinta.components import Context
 from spinta.exceptions import InvalidManifestFile, NoRefPropertyForDenormProperty, ReferencedPropertyNotFound, ModelReferenceNotFound, PartialTypeNotFound, DataTypeCannotBeUsedForNesting, NestedDataTypeMissmatch
 from spinta.manifests.components import Manifest
 from spinta.manifests.internal_sql.helpers import write_internal_sql_manifest
@@ -12,28 +13,29 @@ from spinta.manifests.tabular.helpers import TabularManifestError
 
 
 def create_sql_manifest(
+    context: Context,
     manifest: Manifest,
     path: pathlib.Path
 ):
     db = Sqlite('sqlite:///' + str(path))
     with db.engine.connect():
-        write_internal_sql_manifest(db.dsn, manifest)
+        write_internal_sql_manifest(context, db.dsn, manifest)
 
 
-def setup_tabular_manifest(rc, tmp_path, table):
-    create_tabular_manifest(tmp_path / 'manifest.csv', table)
+def setup_tabular_manifest(context, rc, tmp_path, table):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', table)
     return load_manifest(rc, tmp_path / 'manifest.csv')
 
 
-def setup_internal_manifest(rc, tmp_path, manifest):
-    create_sql_manifest(manifest, tmp_path / 'db.sqlite')
+def setup_internal_manifest(context, rc, tmp_path, manifest):
+    create_sql_manifest(context, manifest, tmp_path / 'db.sqlite')
     return load_manifest(rc, 'sqlite:///' + str(tmp_path / 'db.sqlite'))
 
 
-def check(tmp_path, rc, table, tabular: bool = True):
-    manifest = setup_tabular_manifest(rc, tmp_path, table)
+def check(context, tmp_path, rc, table, tabular: bool = True):
+    manifest = setup_tabular_manifest(context, rc, tmp_path, table)
     if not tabular:
-        manifest = setup_internal_manifest(rc, tmp_path, manifest)
+        manifest = setup_internal_manifest(context, rc, tmp_path, manifest)
     assert manifest == table
 
 
@@ -393,7 +395,7 @@ def test_property_with_ref_with_unique(is_tabular, tmp_path, rc):
 
 
 @pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
-def test_unique_prop_remove_when_model_ref_single(is_tabular, tmp_path, rc):
+def test_unique_prop_remove_when_model_ref_single(context, is_tabular, tmp_path, rc):
     table = '''
     d | r | b | m | property | type               | ref                  | uri
     datasets/gov/example     |                    |                      |
@@ -408,9 +410,9 @@ def test_unique_prop_remove_when_model_ref_single(is_tabular, tmp_path, rc):
       |   |   |   | name     | string             |                      |
       |   |   |   | country  | ref                | Country              |
     '''
-    manifest = setup_tabular_manifest(rc, tmp_path, table)
+    manifest = setup_tabular_manifest(context, rc, tmp_path, table)
     if not is_tabular:
-        manifest = setup_internal_manifest(rc, tmp_path, manifest)
+        manifest = setup_internal_manifest(context, rc, tmp_path, manifest)
     assert manifest == '''
     d | r | b | m | property | type               | ref                  | uri
     datasets/gov/example     |                    |                      |
@@ -427,7 +429,7 @@ def test_unique_prop_remove_when_model_ref_single(is_tabular, tmp_path, rc):
 
 
 @pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
-def test_unique_prop_remove_when_model_ref_multi(is_tabular, tmp_path, rc):
+def test_unique_prop_remove_when_model_ref_multi(context, is_tabular, tmp_path, rc):
     table = '''
     d | r | b | m | property | type               | ref                  | uri
     datasets/gov/example     |                    |                      |
@@ -446,9 +448,9 @@ def test_unique_prop_remove_when_model_ref_multi(is_tabular, tmp_path, rc):
       |   |   |   | id       | string             |                      |
       |   |   |   | country  | ref                | Country              |
     '''
-    manifest = setup_tabular_manifest(rc, tmp_path, table)
+    manifest = setup_tabular_manifest(context, rc, tmp_path, table)
     if not is_tabular:
-        manifest = setup_internal_manifest(rc, tmp_path, manifest)
+        manifest = setup_internal_manifest(context, rc, tmp_path, manifest)
     assert manifest == '''
     d | r | b | m | property | type               | ref                  | uri
     datasets/gov/example     |                    |                      |

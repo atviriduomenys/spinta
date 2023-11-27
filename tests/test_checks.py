@@ -102,8 +102,8 @@ def test_enum_type_boolean(tmp_path, rc):
 
 
 @pytest.mark.skip("SKIP FOR NOW, SINCE CHECK SHOULD ALSO BE ON LOAD")
-def test_check_names_model(tmp_path: Path, rc: RawConfig):
-    create_tabular_manifest(tmp_path / 'hidrologija.csv', '''
+def test_check_names_model(context, tmp_path: Path, rc: RawConfig):
+    create_tabular_manifest(context, tmp_path / 'hidrologija.csv', '''
     d | r | b | m | property | type    | source
     datasets/gov/example     |         |
                              |         |
@@ -122,8 +122,8 @@ def test_check_names_model(tmp_path: Path, rc: RawConfig):
     assert e.value.message == "Invalid 'data' model code name."
 
 
-def test_check_names_property(tmp_path: Path, rc: RawConfig):
-    create_tabular_manifest(tmp_path / 'hidrologija.csv', '''
+def test_check_names_property(context, tmp_path: Path, rc: RawConfig):
+    create_tabular_manifest(context, tmp_path / 'hidrologija.csv', '''
     d | r | b | m | property    | type    | source
     datasets/gov/example        |         |
                                 |         |
@@ -142,8 +142,8 @@ def test_check_names_property(tmp_path: Path, rc: RawConfig):
     assert e.value.message == "Invalid 'value_Value' property code name."
 
 
-def test_check_names_dataset(tmp_path: Path, rc: RawConfig):
-    create_tabular_manifest(tmp_path / 'hidrologija.csv', '''
+def test_check_names_dataset(context, tmp_path: Path, rc: RawConfig):
+    create_tabular_manifest(context, tmp_path / 'hidrologija.csv', '''
     d | r | b | m | property    | type    | source
     datasets/gov/Example        |         |
                                 |         |

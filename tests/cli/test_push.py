@@ -108,6 +108,7 @@ def errordb():
 
 
 def test_push_with_progress_bar(
+    context,
     postgresql,
     rc,
     cli: SpintaCliRunner,
@@ -116,7 +117,7 @@ def test_push_with_progress_bar(
     geodb,
     request
 ):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property| type   | ref     | source       | access
     datasets/gov/example    |        |         |              |
       | data                | sql    |         |              |
@@ -149,6 +150,7 @@ def test_push_with_progress_bar(
 
 
 def test_push_without_progress_bar(
+    context,
     postgresql,
     rc,
     cli: SpintaCliRunner,
@@ -157,7 +159,7 @@ def test_push_without_progress_bar(
     geodb,
     request
 ):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property| type   | ref     | source       | access
     datasets/gov/example    |        |         |              |
       | data                | sql    |         |              |
@@ -188,6 +190,7 @@ def test_push_without_progress_bar(
 
 
 def test_push_error_exit_code(
+    context,
     postgresql,
     rc,
     cli: SpintaCliRunner,
@@ -196,7 +199,7 @@ def test_push_error_exit_code(
     errordb,
     request
 ):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property| type    | ref     | source       | access
     datasets/gov/example    |         |         |              |
       | data                | sql     |         |              |
@@ -225,6 +228,7 @@ def test_push_error_exit_code(
 
 
 def test_push_error_exit_code_with_bad_resource(
+    context,
     postgresql,
     rc,
     cli: SpintaCliRunner,
@@ -232,7 +236,7 @@ def test_push_error_exit_code_with_bad_resource(
     tmp_path,
     request
 ):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable(f'''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
     d | r | b | m | property| type    | ref     | source       | access
     datasets/gov/example    |         |         |              |
       | data                | sql     |         | sqlite:///{tmp_path}/bad.db |
@@ -277,6 +281,7 @@ def test_push_error_exit_code_with_bad_resource(
 
 
 def test_push_ref_with_level_3(
+    context,
     postgresql,
     rc,
     cli: SpintaCliRunner,
@@ -285,7 +290,7 @@ def test_push_ref_with_level_3(
     geodb,
     request
 ):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | type     | ref      | source      | level | access
     level3dataset            |          |          |             |       |
       | db                   | sql      |          |             |       |
@@ -328,6 +333,7 @@ def test_push_ref_with_level_3(
 
 
 def test_push_ref_with_level_4(
+    context,
     postgresql,
     rc,
     cli: SpintaCliRunner,
@@ -336,7 +342,7 @@ def test_push_ref_with_level_4(
     geodb,
     request
 ):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | type     | ref      | source      | level | access
     level4dataset            |          |          |             |       |
       | db                   | sql      |          |             |       |
@@ -379,6 +385,7 @@ def test_push_ref_with_level_4(
 
 
 def test_push_with_resource_check(
+    context,
     postgresql,
     rc,
     cli: SpintaCliRunner,
@@ -387,7 +394,7 @@ def test_push_with_resource_check(
     geodb,
     request
 ):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property  | type   | ref     | source       | access
     datasets/gov/exampleRes   |        |         |              |
       | data                  | sql    |         |              |
@@ -438,6 +445,7 @@ def test_push_with_resource_check(
 
 
 def test_push_ref_with_level_no_source(
+    context,
     postgresql,
     rc: RawConfig,
     cli: SpintaCliRunner,
@@ -460,7 +468,7 @@ def test_push_ref_with_level_no_source(
       |   |   |   | code     | string  |                                 |                | 4     | open
       |   |   |   | name     | string  |                                 |                | 2     | open
     '''
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable(table))
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(table))
 
     app = create_client(rc, tmp_path, geodb)
     app.authmodel('leveldataset', ['getall'])
@@ -492,6 +500,7 @@ def test_push_ref_with_level_no_source(
 
 
 def test_push_ref_with_level_no_source_status_code_400_check(
+    context,
     postgresql,
     rc: RawConfig,
     cli: SpintaCliRunner,
@@ -515,7 +524,7 @@ def test_push_ref_with_level_no_source_status_code_400_check(
       |   |   |   | name     | string  |                                 |                | 2     | open
     '''
 
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable(table))
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(table))
 
     app = create_client(rc, tmp_path, geodb)
     app.authmodel('leveldataset', ['getall'])
@@ -545,6 +554,7 @@ def test_push_ref_with_level_no_source_status_code_400_check(
 
 
 def test_push_pagination_incremental(
+    context,
     postgresql,
     rc,
     cli: SpintaCliRunner,
@@ -553,7 +563,7 @@ def test_push_pagination_incremental(
     geodb,
     request
 ):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | type     | ref      | source      | level | access
     paginated             |          |          |             |       |
       | db                   | sql      |          |             |       |
@@ -598,6 +608,7 @@ def test_push_pagination_incremental(
 
 
 def test_push_pagination_without_incremental(
+    context,
     postgresql,
     rc,
     cli: SpintaCliRunner,
@@ -606,7 +617,7 @@ def test_push_pagination_without_incremental(
     geodb,
     request
 ):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | type     | ref      | source      | level | access
     paginated/without             |          |          |             |       |
       | db                   | sql      |          |             |       |
@@ -650,6 +661,7 @@ def test_push_pagination_without_incremental(
 
 
 def test_push_pagination_incremental_with_page_valid(
+    context,
     postgresql,
     rc,
     cli: SpintaCliRunner,
@@ -658,7 +670,7 @@ def test_push_pagination_incremental_with_page_valid(
     geodb,
     request
 ):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | type     | ref      | source      | level | access
     paginated/valid             |          |          |             |       |
       | db                   | sql      |          |             |       |
@@ -708,6 +720,7 @@ def test_push_pagination_incremental_with_page_valid(
 
 
 def test_push_pagination_incremental_with_page_invalid(
+    context,
     postgresql,
     rc,
     cli: SpintaCliRunner,
@@ -716,7 +729,7 @@ def test_push_pagination_incremental_with_page_invalid(
     geodb,
     request
 ):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | type     | ref      | source      | level | access
     paginated/invalid             |          |          |             |       |
       | db                   | sql      |          |             |       |
@@ -750,6 +763,7 @@ def test_push_pagination_incremental_with_page_invalid(
 
 
 def test_push_with_base(
+    context,
     postgresql,
     rc,
     cli: SpintaCliRunner,
@@ -758,7 +772,7 @@ def test_push_with_base(
     request,
     base_geodb
 ):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | type     | ref      | source      | level | access
     level4basedataset            |          |          |             |       |
       | db                   | sql      |          |             |       |
@@ -810,6 +824,7 @@ def test_push_with_base(
 
 
 def test_push_with_base_different_ref(
+    context,
     postgresql,
     rc,
     cli: SpintaCliRunner,
@@ -818,7 +833,7 @@ def test_push_with_base_different_ref(
     request,
     base_geodb
 ):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | type     | ref      | source      | level | access
     level4basedatasetref           |          |          |             |       |
       | db                   | sql      |          |             |       |
@@ -870,6 +885,7 @@ def test_push_with_base_different_ref(
 
 
 def test_push_with_base_level_3(
+    context,
     postgresql,
     rc,
     cli: SpintaCliRunner,
@@ -878,7 +894,7 @@ def test_push_with_base_level_3(
     request,
     base_geodb
 ):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | base     | m | property | type     | ref      | source      | level | access
     level3basedataset               |          |          |             |       |
       | db           |   |          | sql      |          |             |       |
@@ -931,6 +947,7 @@ def test_push_with_base_level_3(
 
 
 def test_push_sync(
+    context,
     postgresql,
     rc: RawConfig,
     cli: SpintaCliRunner,
@@ -953,7 +970,7 @@ def test_push_sync(
           |   |   |   | code     | integer |                                 |                | 4     | open
           |   |   |   | name     | string  |                                 |                | 2     | open
         '''
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable(table))
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(table))
 
     # Configure local server with SQL backend
     localrc = create_rc(rc, tmp_path, geodb)
@@ -1006,6 +1023,7 @@ def test_push_sync(
 
 @pytest.mark.skip("Private now sends warning that model has been skipped syncing rather throwing exception")
 def test_push_sync_to_private_error(
+    context,
     postgresql,
     rc: RawConfig,
     cli: SpintaCliRunner,
@@ -1029,7 +1047,7 @@ def test_push_sync_to_private_error(
               |   |   |   | code     | integer |                                 |                | 4     | private
               |   |   |   | name     | string  |                                 |                | 2     | open
             '''
-        create_tabular_manifest(tmp_path / 'manifest.csv', striptable(table))
+        create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(table))
 
         # Configure local server with SQL backend
         localrc = create_rc(rc, tmp_path, geodb)
@@ -1051,6 +1069,7 @@ def test_push_sync_to_private_error(
 
 
 def test_push_sync_private_no_error(
+    context,
     postgresql,
     rc: RawConfig,
     cli: SpintaCliRunner,
@@ -1073,7 +1092,7 @@ def test_push_sync_private_no_error(
           |   |   |   | code     | integer |                                 |                | 4     | private
           |   |   |   | name     | string  |                                 |                | 2     | open
         '''
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable(table))
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(table))
 
     # Configure local server with SQL backend
     localrc = create_rc(rc, tmp_path, geodb)
@@ -1095,6 +1114,7 @@ def test_push_sync_private_no_error(
 
 
 def test_push_with_text(
+    context,
     postgresql,
     rc,
     cli: SpintaCliRunner,
@@ -1103,7 +1123,7 @@ def test_push_with_text(
     request,
     text_geodb
 ):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | type     | ref      | source      | level | access
     textnormal               |          |          |             |       |
       | db                   | sql      |          |             |       |
@@ -1141,6 +1161,7 @@ def test_push_with_text(
 
 
 def test_push_with_text_unknown(
+    context,
     postgresql,
     rc,
     cli: SpintaCliRunner,
@@ -1149,7 +1170,7 @@ def test_push_with_text_unknown(
     request,
     text_geodb
 ):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | type     | ref      | source      | level | access
     textunknown              |          |          |             |       |
       | db                   | sql      |          |             |       |
@@ -1186,6 +1207,7 @@ def test_push_with_text_unknown(
 
 
 def test_push_postgresql(
+    context,
     postgresql,
     rc: RawConfig,
     cli: SpintaCliRunner,
@@ -1222,7 +1244,7 @@ def test_push_postgresql(
           |   |   |   | id       | integer |                                 | id             | 4     | open
           |   |   |   | name     | string  |                                 | name           | 2     | open
         '''
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable(table))
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(table))
 
     # Configure local server with SQL backend
     tmp = Sqlite(db)

@@ -26,10 +26,10 @@ def sqlite_new():
 
 
 @pytest.fixture()
-def rc(rc, tmp_path: pathlib.Path):
+def rc(context, rc, tmp_path: pathlib.Path):
     # Need to have a clean slate, ignoring testing context manifests
     path = f'{tmp_path}/manifest.csv'
-    create_tabular_manifest(path, striptable('''
+    create_tabular_manifest(context, path, striptable('''
      d | r | b | m | property   | type    | ref     | source     | prepare
     '''))
     return rc.fork({
@@ -91,6 +91,7 @@ def test_inspect(
 
 
 def test_inspect_from_manifest_table(
+    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
@@ -103,7 +104,7 @@ def test_inspect_from_manifest_table(
             sa.Column('NAME', sa.Text),
         ],
     })
-    create_tabular_manifest(tmp_path / 'manifest.csv', f'''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', f'''
     d | r | m | property     | type   | ref | source | access
     dbsqlite                |        |     |        |
       | resource1            | sql    |   | {sqlite.dsn} |
@@ -354,6 +355,7 @@ def test_inspect_oracle_sqldump_file_with_formula(
 
 
 def test_inspect_with_schema(
+    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
@@ -368,7 +370,7 @@ def test_inspect_with_schema(
     })
 
     # Configure Spinta.
-    rc = configure(rc, None, tmp_path / 'manifest.csv', f'''
+    rc = configure(context, rc, None, tmp_path / 'manifest.csv', f'''
     d | r | m | property | type | source       | prepare
     dataset              |      |              |
       | schema           | sql  | {sqlite.dsn} | connect(self, schema: null)
@@ -392,6 +394,7 @@ def test_inspect_with_schema(
 
 
 def test_inspect_update_existing_manifest(
+    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
@@ -412,7 +415,7 @@ def test_inspect_update_existing_manifest(
     })
 
     # Configure Spinta.
-    rc = configure(rc, sqlite, tmp_path / 'manifest.csv', f'''
+    rc = configure(context, rc, sqlite, tmp_path / 'manifest.csv', f'''
     d | r | m | property | type    | ref | source | prepare | access  | title
     datasets/gov/example |         |     |        |         |         | Example
       | schema           | sql     | sql |        |         |         |
@@ -448,6 +451,7 @@ def test_inspect_update_existing_manifest(
 
 
 def test_inspect_update_existing_ref_manifest_priority(
+    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
@@ -467,7 +471,7 @@ def test_inspect_update_existing_ref_manifest_priority(
     })
 
     # Configure Spinta.
-    rc = configure(rc, sqlite, tmp_path / 'manifest.csv', f'''
+    rc = configure(context, rc, sqlite, tmp_path / 'manifest.csv', f'''
     d | r | m | property | type    | ref | source  | prepare | access  | title
     datasets/gov/example |         |     |         |         |         | Example
       | schema           | sql     | sql |         |         |         |
@@ -507,6 +511,7 @@ def test_inspect_update_existing_ref_manifest_priority(
 
 
 def test_inspect_update_existing_ref_external_priority(
+    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
@@ -526,7 +531,7 @@ def test_inspect_update_existing_ref_external_priority(
     })
 
     # Configure Spinta.
-    rc = configure(rc, sqlite, tmp_path / 'manifest.csv', f'''
+    rc = configure(context, rc, sqlite, tmp_path / 'manifest.csv', f'''
     d | r | m | property | type    | ref | source  | prepare | access  | title
     datasets/gov/example |         |     |         |         |         | Example
       | schema           | sql     | sql |         |         |         |
@@ -683,6 +688,7 @@ def test_inspect_duplicate_column_names(
 
 
 def test_inspect_existing_duplicate_table_names(
+    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
@@ -697,7 +703,7 @@ def test_inspect_existing_duplicate_table_names(
 
     result_file_path = tmp_path / 'result.csv'
     # Configure Spinta.
-    rc = configure(rc, sqlite, tmp_path / 'manifest.csv', f'''
+    rc = configure(context, rc, sqlite, tmp_path / 'manifest.csv', f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
          | schema           | sql     | sql |         |         |         |
@@ -735,6 +741,7 @@ def test_inspect_existing_duplicate_table_names(
 
 
 def test_inspect_existing_duplicate_column_names(
+    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
@@ -751,7 +758,7 @@ def test_inspect_existing_duplicate_column_names(
 
     result_file_path = tmp_path / 'result.csv'
     # Configure Spinta.
-    rc = configure(rc, sqlite, tmp_path / 'manifest.csv', f'''
+    rc = configure(context, rc, sqlite, tmp_path / 'manifest.csv', f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
          | schema           | sql     | sql |         |         |         |
@@ -781,6 +788,7 @@ def test_inspect_existing_duplicate_column_names(
 
 
 def test_inspect_insert_new_dataset(
+    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
@@ -795,7 +803,7 @@ def test_inspect_insert_new_dataset(
 
     result_file_path = tmp_path / 'result.csv'
     # Configure Spinta.
-    rc = configure(rc, sqlite, tmp_path / 'manifest.csv', f'''
+    rc = configure(context, rc, sqlite, tmp_path / 'manifest.csv', f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
                             |         |     |         |         |         |
@@ -827,6 +835,7 @@ def test_inspect_insert_new_dataset(
 
 
 def test_inspect_delete_model_source(
+    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
@@ -841,7 +850,7 @@ def test_inspect_delete_model_source(
 
     result_file_path = tmp_path / 'result.csv'
     # Configure Spinta.
-    rc = configure(rc, sqlite, tmp_path / 'manifest.csv', f'''
+    rc = configure(context, rc, sqlite, tmp_path / 'manifest.csv', f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
          | schema           | sql     | sql |         |         |         |
@@ -871,6 +880,7 @@ def test_inspect_delete_model_source(
 
 
 def test_inspect_delete_property_source(
+    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
@@ -885,7 +895,7 @@ def test_inspect_delete_property_source(
 
     result_file_path = tmp_path / 'result.csv'
     # Configure Spinta.
-    rc = configure(rc, sqlite, tmp_path / 'manifest.csv', f'''
+    rc = configure(context, rc, sqlite, tmp_path / 'manifest.csv', f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
          | schema           | sql     | sql |         |         |         |
@@ -914,6 +924,7 @@ def test_inspect_delete_property_source(
 
 
 def test_inspect_multiple_resources_all_new(
+    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
@@ -935,7 +946,7 @@ def test_inspect_multiple_resources_all_new(
 
     result_file_path = tmp_path / 'result.csv'
     # Configure Spinta.
-    rc = configure(rc, None, tmp_path / 'manifest.csv', f'''
+    rc = configure(context, rc, None, tmp_path / 'manifest.csv', f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
          | schema           | sql     |     | {sqlite.dsn} |         |         |
@@ -968,6 +979,7 @@ def test_inspect_multiple_resources_all_new(
 
 
 def test_inspect_multiple_resources_specific(
+    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
@@ -999,7 +1011,7 @@ def test_inspect_multiple_resources_specific(
 
     result_file_path = tmp_path / 'result.csv'
     # Configure Spinta.
-    rc = configure(rc, None, tmp_path / 'manifest.csv', f'''
+    rc = configure(context, rc, None, tmp_path / 'manifest.csv', f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
          | schema           | sql     |     | {sqlite.dsn} |         |         |
@@ -1044,6 +1056,7 @@ def test_inspect_multiple_resources_specific(
 
 
 def test_inspect_multiple_resources_advanced(
+    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
@@ -1075,7 +1088,7 @@ def test_inspect_multiple_resources_advanced(
 
     result_file_path = tmp_path / 'result.csv'
     # Configure Spinta.
-    rc = configure(rc, None, tmp_path / 'manifest.csv', f'''
+    rc = configure(context, rc, None, tmp_path / 'manifest.csv', f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
          |   | Location     |         |     |         |         |         |
@@ -1162,6 +1175,7 @@ def test_inspect_multiple_resources_advanced(
 
 
 def test_inspect_multiple_datasets(
+    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
@@ -1180,7 +1194,7 @@ def test_inspect_multiple_datasets(
 
     result_file_path = tmp_path / 'result.csv'
     # Configure Spinta.
-    rc = configure(rc, None, tmp_path / 'manifest.csv', f'''
+    rc = configure(context, rc, None, tmp_path / 'manifest.csv', f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
          | schema           | sql     |     | {sqlite.dsn} |         |         |
@@ -1230,6 +1244,7 @@ def test_inspect_multiple_datasets(
 
 
 def test_inspect_multiple_datasets_advanced_manifest_priority(
+    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
@@ -1250,7 +1265,7 @@ def test_inspect_multiple_datasets_advanced_manifest_priority(
 
     result_file_path = tmp_path / 'result.csv'
     # Configure Spinta.
-    rc = configure(rc, None, tmp_path / 'manifest.csv', f'''
+    rc = configure(context, rc, None, tmp_path / 'manifest.csv', f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
          | schema           | sql     |     | {sqlite.dsn} |         |         |
@@ -1308,6 +1323,7 @@ def test_inspect_multiple_datasets_advanced_manifest_priority(
 
 
 def test_inspect_multiple_datasets_advanced_external_priority(
+    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
@@ -1328,7 +1344,7 @@ def test_inspect_multiple_datasets_advanced_external_priority(
 
     result_file_path = tmp_path / 'result.csv'
     # Configure Spinta.
-    rc = configure(rc, None, tmp_path / 'manifest.csv', f'''
+    rc = configure(context, rc, None, tmp_path / 'manifest.csv', f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
          | schema           | sql     |     | {sqlite.dsn} |         |         |
@@ -1387,6 +1403,7 @@ def test_inspect_multiple_datasets_advanced_external_priority(
 
 
 def test_inspect_multiple_datasets_different_resources(
+    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
@@ -1419,7 +1436,7 @@ def test_inspect_multiple_datasets_different_resources(
 
     result_file_path = tmp_path / 'result.csv'
     # Configure Spinta.
-    rc = configure(rc, None, tmp_path / 'manifest.csv', f'''
+    rc = configure(context, rc, None, tmp_path / 'manifest.csv', f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/loc |         |     |         |         |         | Example
          | schema           | sql     |     | {sqlite.dsn} |         |         |
@@ -1467,6 +1484,7 @@ def test_inspect_multiple_datasets_different_resources(
 
 
 def test_inspect_multiple_datasets_different_resources_specific(
+    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
@@ -1499,7 +1517,7 @@ def test_inspect_multiple_datasets_different_resources_specific(
 
     result_file_path = tmp_path / 'result.csv'
     # Configure Spinta.
-    rc = configure(rc, None, tmp_path / 'manifest.csv', f'''
+    rc = configure(context, rc, None, tmp_path / 'manifest.csv', f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/loc |         |     |         |         |         | Example
          | schema           | sql     |     | {sqlite.dsn} |         |         |
@@ -1612,6 +1630,7 @@ def test_inspect_with_views(
 
 @pytest.mark.skip(reason="Requires #440 task")
 def test_inspect_with_manifest_backends(
+    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
@@ -1626,7 +1645,7 @@ def test_inspect_with_manifest_backends(
 
     result_file_path = tmp_path / 'result.csv'
     # Configure Spinta.
-    rc = configure(rc, sqlite, tmp_path / 'manifest.csv', f'''
+    rc = configure(context, rc, sqlite, tmp_path / 'manifest.csv', f'''
        d | r | m | property | type    | ref  | source       | prepare | access  | title
          | test             | sql     |      | {sqlite.dsn} |         |         |
                             |         |      |              |         |         |
@@ -1660,6 +1679,7 @@ def test_inspect_with_manifest_backends(
 
 
 def test_inspect_json_model_ref_change(
+    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path):
@@ -1703,7 +1723,7 @@ def test_inspect_json_model_ref_change(
 
     result_file_path = tmp_path / 'result.csv'
     # Configure Spinta.
-    rc = configure(rc, None, tmp_path / 'manifest.csv', f'''
+    rc = configure(context, rc, None, tmp_path / 'manifest.csv', f'''
            d | r | m      | property            | type                   | ref    | source              
            datasets/json/inspect                |                        |        |
              | resource                         | json                   |        | {path}
@@ -1749,6 +1769,7 @@ datasets/json/inspect           |                        |        |
 
 
 def test_inspect_xml_model_ref_change(
+    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path):
@@ -1780,7 +1801,7 @@ def test_inspect_xml_model_ref_change(
 
     result_file_path = tmp_path / 'result.csv'
     # Configure Spinta.
-    rc = configure(rc, None, tmp_path / 'manifest.csv', f'''
+    rc = configure(context, rc, None, tmp_path / 'manifest.csv', f'''
            d | r | m      | property             | type                   | ref    | source              
            datasets/xml/inspect                  |                        |        |
              | resource                          | xml                    |        | {path}

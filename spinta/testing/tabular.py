@@ -3,6 +3,7 @@ import pathlib
 from io import StringIO
 from typing import List
 
+from spinta.components import Context
 from spinta.manifests.tabular.components import ManifestColumn
 from spinta.manifests.tabular.constants import DATASET
 from spinta.manifests.tabular.helpers import read_ascii_tabular_rows
@@ -11,6 +12,7 @@ from spinta.manifests.tabular.helpers import write_tabular_manifest
 
 
 def create_tabular_manifest(
+    context: Context,
     path: pathlib.Path,
     manifest: str,
 ) -> None:
@@ -19,7 +21,7 @@ def create_tabular_manifest(
     cols: List[ManifestColumn] = next(rows, [])
     if cols:
         rows = (torow(DATASET, dict(zip(cols, row))) for row in rows)
-        write_tabular_manifest(str(path), rows)
+        write_tabular_manifest(context, str(path), rows)
 
 
 def convert_ascii_manifest_to_csv(manifest: str) -> bytes:

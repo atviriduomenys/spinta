@@ -40,6 +40,8 @@ def has_namespace(context: Context, manifest: InternalSQLManifest, namespace: st
 
 @commands.get_namespace.register(Context, InternalSQLManifest, str)
 def get_namespace(context: Context, manifest: InternalSQLManifest, namespace: str):
+    manifest = context.get('request.manifest')
+    print(manifest)
     if has_namespace(context, manifest, namespace):
         return manifest.get_objects()['ns'][namespace]
     raise Exception("NAMESPACE NOT FOUND")

@@ -5,7 +5,7 @@ from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.manifest import load_manifest
 
 
-def test_xlsx(rc: RawConfig, tmp_path: Path):
+def test_xlsx(context, rc: RawConfig, tmp_path: Path):
     table = '''
     d | r | b | m | property | source      | prepare   | type       | ref     | level | access | uri | title   | description
     datasets/gov/example     |             |           |            |         |       | open   |     | Example |
@@ -19,6 +19,6 @@ def test_xlsx(rc: RawConfig, tmp_path: Path):
       |   |   |   | name     | pavadinimas |           | string     |         | 3     | open   |     | Name    |
       |   |   |   | country  | šalis       |           | ref        | country | 4     | open   |     | Country |
     '''
-    create_tabular_manifest(tmp_path / 'manifest.xlsx', table)
+    create_tabular_manifest(context, tmp_path / 'manifest.xlsx', table)
     manifest = load_manifest(rc, tmp_path / 'manifest.xlsx')
     assert manifest == table

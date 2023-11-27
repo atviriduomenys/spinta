@@ -92,7 +92,7 @@ def copy(
         if internal:
             write_internal_sql_manifest(context, output, rows)
         else:
-            write_tabular_manifest(output, rows)
+            write_tabular_manifest(context, output, rows)
     else:
         echo(render_tabular_manifest_rows(rows, cols))
 
