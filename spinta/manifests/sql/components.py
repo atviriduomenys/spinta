@@ -14,6 +14,8 @@ class SqlManifest(Manifest):
     def detect_from_path(path: str) -> bool:
         try:
             url = sa.engine.make_url(path)
+            if not url:
+                return False
             url.get_dialect()
             engine = sa.create_engine(url)
             inspector = sa.inspect(engine)
