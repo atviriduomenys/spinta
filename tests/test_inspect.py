@@ -13,6 +13,7 @@ from spinta.core.config import RawConfig
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.config import configure
+from spinta.testing.context import create_test_context
 from spinta.testing.datasets import Sqlite
 from spinta.testing.manifest import compare_manifest, load_manifest_and_context
 from spinta.testing.tabular import create_tabular_manifest
@@ -26,9 +27,10 @@ def sqlite_new():
 
 
 @pytest.fixture()
-def rc(context, rc, tmp_path: pathlib.Path):
+def rc(rc, tmp_path: pathlib.Path):
     # Need to have a clean slate, ignoring testing context manifests
     path = f'{tmp_path}/manifest.csv'
+    context = create_test_context(rc)
     create_tabular_manifest(context, path, striptable('''
      d | r | b | m | property   | type    | ref     | source     | prepare
     '''))
