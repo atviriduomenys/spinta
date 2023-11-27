@@ -136,7 +136,7 @@ def _format_model(model: Model) -> Model:
 
 def reformat_names(context: Context, manifest: Manifest):
     models = commands.get_models(manifest)
-    for model in models:
+    for model in models.values():
         _format_model_expr(context, model)
 
     commands.set_models(manifest, {
