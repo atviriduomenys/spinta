@@ -348,7 +348,7 @@ def prepare_data_for_response(
     value = value.copy()
     reserved = get_model_reserved_props(action, model)
 
-    available_prefixes = _get_available_prefixes(model)
+    available_prefixes = _get_available_prefixes(context, model)
 
     value['_available_prefixes'] = available_prefixes
     value['_about_name'] = _get_attribute_name('about', RDF, available_prefixes)
