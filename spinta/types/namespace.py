@@ -64,7 +64,6 @@ def load_namespace_from_name(
     drop: bool = True,
 ) -> Namespace:
     ns: Optional[Namespace] = None
-    parent: Optional[Namespace] = None
     parts: List[str] = []
     parts_ = [p for p in path.split('/') if p]
     if drop:
@@ -72,7 +71,7 @@ def load_namespace_from_name(
     for part in [''] + parts_:
         parts.append(part)
         name = '/'.join(parts[1:])
-        if not commands.has_namespace(context, manifest, name):
+        if not commands.has_namespace(context, manifest, name, check_only_loaded=True):
             ns = Namespace()
             data = {
                 'type': 'ns',
@@ -82,22 +81,10 @@ def load_namespace_from_name(
             }
             commands.load(context, ns, data, manifest)
             ns.generated = True
+            commands.link(context, ns)
         else:
             ns = commands.get_namespace(context, manifest, name)
             pass
-
-        if parent:
-            if ns.name == parent.name:
-                raise RuntimeError(f"Self reference in {path!r}.")
-
-            ns.parent = parent or manifest
-
-            if part and part not in parent.names:
-                parent.names[part] = ns
-        else:
-            ns.parent = manifest
-
-        parent = ns
 
     return ns
 
@@ -123,7 +110,19 @@ def load(
 
 @commands.link.register(Context, Namespace)
 def link(context: Context, ns: Namespace):
-    pass
+    split = ns.name.split('/')
+    if len(split) > 1:
+        parent_ns = commands.get_namespace(context, ns.manifest, '/'.join(split[:-1]))
+        if parent_ns:
+            ns.parent = parent_ns
+    elif ns.name != '':
+        if commands.has_namespace(context, ns.manifest, ''):
+            ns.parent = commands.get_namespace(context, ns.manifest, '')
+    else:
+        ns.parent = ns.manifest
+
+    if isinstance(ns.parent, Namespace):
+        ns.parent.names[ns.name] = ns
 
 
 @commands.check.register(Context, Namespace)
@@ -166,54 +165,7 @@ async def getall(
         ns=ns.name,
         action=action.value,
     )
-
-    if params.all and params.ns:
-
-        for model in traverse_ns_models(context, ns, action, internal=True):
-            commands.authorize(context, action, model)
-        return _get_ns_content(
-            context,
-            request,
-            ns,
-            params,
-            action,
-            recursive=True,
-        )
-    elif params.all:
-        accesslog = context.get('accesslog')
-
-        prepare_data_for_response_kwargs = {}
-        for model in traverse_ns_models(context, ns, action, internal=True):
-            commands.authorize(context, action, model)
-            select_tree = get_select_tree(context, action, params.select)
-            prop_names = get_select_prop_names(
-                context,
-                model,
-                model.properties,
-                action,
-                select_tree,
-            )
-            prepare_data_for_response_kwargs[model.model_type()] = {
-                'select': select_tree,
-                'prop_names': prop_names,
-            }
-        expr = urlparams_to_expr(params)
-        rows = getall(context, ns, action=action, query=expr)
-        rows = (
-            commands.prepare_data_for_response(
-                context,
-                commands.get_model(context, ns.manifest, row['_type']),
-                params.fmt,
-                row,
-                action=action,
-                **prepare_data_for_response_kwargs[row['_type']],
-            )
-            for row in rows
-        )
-        rows = log_response(context, rows)
-        return render(context, request, ns, params, rows, action=action)
-    else:
-        return _get_ns_content(context, request, ns, params, action)
+    return commands.getall(context, ns, request, ns.manifest, action=action, params=params)
 
 
 @commands.getall.register(Context, Namespace)
@@ -323,92 +275,6 @@ def _model_matches_params(
         return False
 
     return True
-
-
-def _get_ns_content(
-    context: Context,
-    request: Request,
-    ns: Namespace,
-    params: UrlParams,
-    action: Action,
-    *,
-    recursive: bool = False,
-    dataset_: Optional[str] = None,
-    resource: Optional[str] = None,
-) -> Response:
-    if recursive:
-        data = _get_ns_content_data_recursive(context, ns, action, dataset_, resource)
-    else:
-        data = _get_ns_content_data(context, ns, action, dataset_, resource)
-
-    data = sorted(data, key=lambda x: (x.data['_type'] != 'ns', x.data['name']))
-
-    model = commands.get_model(context, ns.manifest, '_ns')
-    select = params.select or ['name', 'title', 'description']
-    select_tree = get_select_tree(context, action, select)
-    prop_names = get_select_prop_names(
-        context,
-        model,
-        model.properties,
-        action,
-        select_tree,
-        auth=False,
-    )
-    rows = (
-        commands.prepare_data_for_response(
-            context,
-            model,
-            params.fmt,
-            row.data,
-            action=action,
-            select=select_tree,
-            prop_names=prop_names,
-        )
-        for row in data
-    )
-
-    rows = log_response(context, rows)
-
-    return render(context, request, model, params, rows, action=action)
-
-
-class _NodeAndData(NamedTuple):
-    node: Union[Namespace, Model]
-    data: Dict[str, Any]
-
-
-def _get_ns_content_data_recursive(
-    context: Context,
-    ns: Namespace,
-    action: Action,
-    dataset_: Optional[str] = None,
-    resource: Optional[str] = None,
-) -> Iterable[_NodeAndData]:
-    yield from _get_ns_content_data(context, ns, action, dataset_, resource)
-    for name in ns.names.values():
-        yield from _get_ns_content_data_recursive(context, name, action, dataset_, resource)
-
-
-def _get_ns_content_data(
-    context: Context,
-    ns: Namespace,
-    action: Action,
-    dataset_: Optional[str] = None,
-    resource: Optional[str] = None,
-) -> Iterable[_NodeAndData]:
-    items: Iterable[Union[Namespace, Model]] = itertools.chain(
-        ns.names.values(),
-        ns.models.values(),
-    )
-
-    for item in items:
-        if _model_matches_params(context, item, action, dataset_, resource):
-            yield _NodeAndData(item, {
-                '_type': item.node_type(),
-                'name': item.model_type(),
-                'title': item.title,
-                'description': item.description,
-            })
 
 
 @commands.getone.register(Context, Request, Namespace)

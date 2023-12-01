@@ -1,3 +1,4 @@
+import contextlib
 from typing import Optional, Dict, List, Final, Literal
 
 from spinta.manifests.components import Manifest
@@ -7,6 +8,8 @@ import sqlalchemy as sa
 class InternalSQLManifest(Manifest):
     type = 'internal'
     path: Optional[str] = None
+    engine: sa.engine.Engine = None
+    table = None
 
     @staticmethod
     def detect_from_path(path: str) -> bool:
@@ -20,6 +23,19 @@ class InternalSQLManifest(Manifest):
             return inspector.has_table('_manifest')
         except sa.exc.SQLAlchemyError:
             return False
+
+    @contextlib.contextmanager
+    def transaction(self):
+        with self.engine.begin() as connection:
+            yield Transaction(connection)
+
+
+class Transaction:
+    id: str
+    errors: int
+
+    def __init__(self, connection):
+        self.connection = connection
 
 
 ID: Final = 'id'

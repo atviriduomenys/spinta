@@ -129,6 +129,16 @@ def load(
 
 
 @command()
+def load_for_request():
+    pass
+
+
+@command()
+def initialize_missing_models():
+    pass
+
+
+@command()
 def decode():
     """Decode given value from source backend format into target backend format.
 
@@ -626,6 +636,19 @@ def getall(
 @overload
 def getall(
     context: Context,
+    ns: Namespace,
+    request: Request,
+    manifest: Manifest,
+    *,
+    action: Action,
+    params: UrlParams,
+) -> Response:
+    pass
+
+
+@overload
+def getall(
+    context: Context,
     model: Model,
     backend: Backend,
     *,
@@ -1103,92 +1126,92 @@ def get_column(
 
 
 @command()
-def has_node_type(context: Context, manifest: Manifest, obj_type: str) -> bool:
+def has_node_type(context: Context, manifest: Manifest, obj_type: str, **kwargs) -> bool:
     """Check if manifest has specified node type"""
 
 
 @command()
-def has_node(context: Context, manifest: Manifest, obj_type: str, obj: str) -> bool:
+def has_node(context: Context, manifest: Manifest, obj_type: str, obj: str, **kwargs) -> bool:
     """Check if manifest has specified node"""
 
 
 @command()
-def get_node(context: Context, manifest: Manifest, obj_type: str, obj: str) -> Node:
+def get_node(context: Context, manifest: Manifest, obj_type: str, obj: str, **kwargs) -> Node:
     """Return node from manifest"""
 
 
 @command()
-def get_nodes(context: Context, manifest: Manifest, obj_type: str) -> Dict[str, Node]:
+def get_nodes(context: Context, manifest: Manifest, obj_type: str, **kwargs) -> Dict[str, Node]:
     """Return all nodes from manifest"""
 
 
 @command()
-def set_node(context: Context, manifest: Manifest, obj_type: str, obj_name, obj: Node):
+def set_node(context: Context, manifest: Manifest, obj_type: str, obj_name, obj: Node, **kwargs):
     """Add node to manifest"""
 
 
 @command()
-def has_model(context: Context, manifest: Manifest, model: str) -> bool:
+def has_model(context: Context, manifest: Manifest, model: str, **kwargs) -> bool:
     """Check if manifest has specified model"""
 
 
 @command()
-def get_model(context: Context, manifest: Manifest, model: str) -> Model:
+def get_model(context: Context, manifest: Manifest, model: str, **kwargs) -> Model:
     """Return model from manifest"""
 
 
 @command()
-def get_models(context: Context, manifest: Manifest) -> Dict[str, Model]:
+def get_models(context: Context, manifest: Manifest, **kwargs) -> Dict[str, Model]:
     """Return all models from manifest"""
 
 
 @command()
-def set_model(context: Context, manifest: Manifest, model_name: str, model: Model):
+def set_model(context: Context, manifest: Manifest, model_name: str, model: Model, **kwargs):
     """Add model to manifest"""
 
 
 @command()
-def set_models(context: Context, manifest: Manifest, models: Dict[str, Model]):
+def set_models(context: Context, manifest: Manifest, models: Dict[str, Model], **kwargs):
     """Sets all model to manifest"""
 
 
 @command()
-def has_namespace(context: Context, manifest: Manifest, namespace: str) -> bool:
+def has_namespace(context: Context, manifest: Manifest, namespace: str, **kwargs) -> bool:
     """Check if manifest has specified namespace"""
 
 
 @command()
-def get_namespaces(context: Context, manifest: Manifest) -> Dict[str, Namespace]:
+def get_namespaces(context: Context, manifest: Manifest, **kwargs) -> Dict[str, Namespace]:
     """Return all namespaces from manifest"""
 
 
 @command()
-def get_namespace(context: Context, manifest: Manifest, namespace: str) -> Namespace:
+def get_namespace(context: Context, manifest: Manifest, namespace: str, **kwargs) -> Namespace:
     """Return namespace from manifest"""
 
 
 @command()
-def set_namespace(context: Context, manifest: Manifest, namespace: str, ns: Namespace):
+def set_namespace(context: Context, manifest: Manifest, namespace: str, ns: Namespace, **kwargs):
     """Add namespace to manifest"""
 
 
 @command()
-def has_dataset(context: Context, manifest: Manifest, dataset: str) -> bool:
+def has_dataset(context: Context, manifest: Manifest, dataset: str, **kwargs) -> bool:
     """Check if manifest has specified dataset"""
 
 
 @command()
-def get_dataset(context: Context, manifest: Manifest, dataset: str) -> Dataset:
+def get_dataset(context: Context, manifest: Manifest, dataset: str, **kwargs) -> Dataset:
     """Return dataset from manifest"""
 
 
 @command()
-def get_datasets(context: Context, manifest: Manifest) -> Dict[str, Dataset]:
+def get_datasets(context: Context, manifest: Manifest, **kwargs) -> Dict[str, Dataset]:
     """Return all datasets from manifest"""
 
 
 @command()
-def set_dataset(context: Context, manifest: Manifest, dataset_name: str, dataset: Dataset):
+def set_dataset(context: Context, manifest: Manifest, dataset_name: str, dataset: Dataset, **kwargs):
     """Add dataset to manifest"""
 
 

@@ -151,7 +151,7 @@ def load_manifest_nodes(
             if link:
                 to_link.append(node)
 
-    if not commands.has_namespace(context, manifest, ''):
+    if not commands.has_namespace(context, manifest, '', check_only_loaded=True):
         # Root namespace must always be present in manifest event if manifest is
         # empty.
         load_namespace_from_name(context, manifest, '', drop=False)

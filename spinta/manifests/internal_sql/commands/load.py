@@ -1,13 +1,44 @@
 import logging
 
 from spinta import commands
-from spinta.components import Context
+from spinta.components import Context, Namespace
 from spinta.manifests.internal_sql.components import InternalSQLManifest
 from spinta.manifests.components import Manifest
-from spinta.manifests.helpers import load_manifest_nodes
-from spinta.manifests.internal_sql.helpers import read_schema
+from spinta.manifests.internal_sql.helpers import read_initial_schema, load_internal_manifest_nodes
 
 log = logging.getLogger(__name__)
+
+
+@commands.load_for_request.register(Context, InternalSQLManifest)
+def load_for_request(context: Context, manifest: InternalSQLManifest):
+    context.attach('transaction.manifest', manifest.transaction)
+    schemas = read_initial_schema(context, manifest)
+    load_internal_manifest_nodes(context, manifest, schemas)
+    load_initial_empty_ns(context, manifest)
+
+    if not commands.has_model(context, manifest, '_schema'):
+        store = context.get('store')
+        commands.load(context, store.internal, into=manifest)
+
+    for source in manifest.sync:
+        commands.load(
+            context, source,
+            into=manifest,
+        )
+
+    commands.link(context, manifest)
+
+
+def load_initial_empty_ns(context: Context, manifest: InternalSQLManifest):
+    ns = Namespace()
+    data = {
+        'type': 'ns',
+        'name': '',
+        'title': '',
+        'description': '',
+    }
+    commands.load(context, ns, data, manifest)
+    ns.generated = True
 
 
 @commands.load.register(Context, InternalSQLManifest)
@@ -22,17 +53,17 @@ def load(
 ):
     pass
     # assert freezed, (
-    #     "SqlManifest does not have unfreezed version of manifest."
+    #     "InternalSQLManifest does not have unfreezed version of manifest."
     # )
     #
     # if load_internal:
     #     target = into or manifest
-    #     if '_schema' not in target.models:
+    #     if not commands.has_model(context, target, '_schema'):
     #         store = context.get('store')
     #         commands.load(context, store.internal, into=target)
-    #
-    # schemas = read_schema(manifest.path)
-    #
+
+    #schemas = read_schema(manifest.path)
+
     # if into:
     #     log.info(
     #         'Loading freezed manifest %r into %r from %s.',
@@ -48,7 +79,7 @@ def load(
     #         manifest.path,
     #     )
     #     load_manifest_nodes(context, manifest, schemas)
-    #
+
     # for source in manifest.sync:
     #     commands.load(
     #         context, source,

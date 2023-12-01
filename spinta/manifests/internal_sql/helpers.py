@@ -1,6 +1,6 @@
 import uuid
 from operator import itemgetter
-from typing import Optional, List, Iterator, Dict, Any, Tuple, Text
+from typing import Optional, List, Iterator, Dict, Any, Tuple, Text, Iterable
 
 import sqlalchemy as sa
 from sqlalchemy.sql.elements import Null
@@ -8,7 +8,7 @@ from sqlalchemy.sql.elements import Null
 from spinta import commands
 from spinta.backends import Backend
 from spinta.backends.components import BackendOrigin
-from spinta.components import Namespace, Base, Model, Property, Context
+from spinta.components import Namespace, Base, Model, Property, Context, Config, EntryId, MetaData, Action
 from spinta.core.enums import Access
 from spinta.core.ufuncs import Expr
 from spinta.datasets.components import Dataset, Resource
@@ -16,25 +16,264 @@ from spinta.dimensions.comments.components import Comment
 from spinta.dimensions.enum.components import Enums
 from spinta.dimensions.lang.components import LangData
 from spinta.dimensions.prefix.components import UriPrefix
-from spinta.manifests.components import Manifest
+from spinta.manifests.components import Manifest, ManifestSchema
+from spinta.manifests.helpers import _load_manifest
+from spinta.manifests.internal_sql.commands.auth import internal_authorized
 from spinta.manifests.internal_sql.components import InternalManifestRow, INTERNAL_MANIFEST_COLUMNS, \
-    InternalManifestColumn
+    InternalManifestColumn, InternalSQLManifest
 from spinta.manifests.tabular.components import ManifestRow, MANIFEST_COLUMNS
 from spinta.manifests.tabular.helpers import ENUMS_ORDER_BY, sort, MODELS_ORDER_BY, DATASETS_ORDER_BY, \
     to_relative_model_name, PROPERTIES_ORDER_BY, _get_type_repr, _read_tabular_manifest_rows
 from sqlalchemy_utils import UUIDType
 
+from spinta.nodes import get_node
 from spinta.spyna import unparse
 from spinta.types.datatype import Ref, Array, BackRef, Object
+from spinta.types.namespace import load_namespace_from_name
 from spinta.utils.data import take
+from spinta.utils.enums import get_enum_by_name
 from spinta.utils.schema import NotAvailable, NA
 from spinta.utils.types import is_str_uuid
+
+
+def read_initial_schema(context: Context, manifest: InternalSQLManifest):
+    conn = context.get('transaction.manifest').connection
+    table = manifest.table
+    stmt = sa.select([
+        table,
+        sa.literal_column("prepare IS NULL").label("prepare_is_null")]
+    ).where(table.c.path == None)
+    rows = conn.execute(stmt)
+    yield from internal_to_schema(manifest, rows)
+
+
+def internal_to_schema(manifest: InternalSQLManifest, rows):
+    converted = convert_sql_to_tabular_rows(list(rows))
+    yield from _read_tabular_manifest_rows(path=manifest.path, rows=converted, allow_updates=True)
 
 
 def read_schema(path: str):
     engine = sa.create_engine(path)
     with engine.connect() as conn:
         yield from _read_all_sql_manifest_rows(path, conn)
+
+
+def get_namespace_highest_access(context: Context, manifest: InternalSQLManifest, namespace: str):
+    conn = context.get('transaction.manifest').connection
+    table = manifest.table
+    results = conn.execute(sa.select(table.c.access, sa.func.min(table.c.mpath).label('mpath')).where(
+        sa.and_(
+            table.c.mpath.startswith(namespace),
+            sa.or_(
+                table.c.dim == 'ns',
+                table.c.dim == 'dataset',
+                table.c.dim == 'model',
+                table.c.dim == 'property'
+            ),
+        )
+    ).group_by(table.c.access))
+    highest = None
+    null_name = ''
+    for result in results:
+        if result['access'] is not None:
+            enum = get_enum_by_name(Access, result['access'])
+            if highest is None or enum > highest:
+                highest = enum
+        else:
+            if highest is None:
+                null_name = result['mpath']
+    return highest if highest is not None else Access.private if null_name != namespace else manifest.access
+
+
+def can_return_namespace_data(context: Context, manifest: InternalSQLManifest, full_name: str, item, parents: list, action: Action):
+    if full_name.startswith('_'):
+        return False
+
+    if not internal_authorized(
+        context,
+        full_name,
+        get_namespace_highest_access(
+            context,
+            manifest,
+            full_name
+        ),
+        action,
+        parents
+    ):
+        return False
+
+    return True
+
+
+def get_namespace_partial_data(
+    context: Context,
+    manifest: InternalSQLManifest,
+    namespace: str,
+    parents: list,
+    action: Action,
+    recursive: bool = False,
+):
+    conn = context.get('transaction.manifest').connection
+    table = manifest.table
+    parents = parents.copy()
+    parents.append(namespace)
+
+    results = conn.execute(sa.select(table).where(
+        sa.and_(
+            sa.and_(
+                table.c.mpath.startswith(namespace),
+                table.c.mpath != namespace
+            ),
+            sa.or_(
+                table.c.dim == 'ns',
+                sa.or_(
+                    table.c.dim == 'dataset',
+                    table.c.dim == 'model'
+                )
+            )
+        )
+    ).order_by(table.c.mpath))
+    result = []
+    recursive_list = []
+    for item in results:
+        item = item._asdict()
+        if item['path'] == namespace or item['mpath'] == namespace:
+            continue
+
+        type_ = 'ns'
+        if item['dim'] == 'ns' or item['dim'] == 'dataset':
+            name = item['name']
+        else:
+            type_ = 'model'
+            name = item['path']
+
+        name = name[len(namespace):]
+        if name[0] == '/':
+            name = name[1:]
+        split = name.split('/')
+        full_name = f'{namespace}/{split[0]}' if namespace else split[0]
+        if len(split) == 1:
+            result.append(split[0])
+            if can_return_namespace_data(context, manifest, full_name, item, parents, action=action):
+                if recursive and type_ == 'ns' and full_name not in recursive_list:
+                    recursive_list.append(full_name)
+                yield {
+                    '_type': type_,
+                    'name': f'{full_name}/:ns' if type_ == 'ns' else full_name,
+                    'title': item['title'],
+                    'description': item['description']
+                }
+        elif split[0] not in result:
+            result.append(split[0])
+            if can_return_namespace_data(context, manifest, full_name, item, parents, action=action):
+                if recursive and full_name not in recursive_list:
+                    recursive_list.append(full_name)
+                yield {
+                    '_type': 'ns',
+                    'name': f'{full_name}/:ns',
+                    'title': None,
+                    'description': None
+                }
+
+    if recursive and recursive_list:
+        for item in recursive_list:
+            yield from get_namespace_partial_data(
+                context,
+                manifest,
+                item,
+                recursive=recursive,
+                parents=parents,
+                action=action
+            )
+
+
+def load_internal_manifest_nodes(
+    context: Context,
+    manifest: InternalSQLManifest,
+    schemas: Iterable[ManifestSchema],
+    *,
+    link: bool = False,
+) -> None:
+    to_link = []
+    config = context.get('config')
+    for eid, schema in schemas:
+        if schema.get('type') == 'manifest':
+            _load_manifest(context, manifest, schema, eid)
+        else:
+            node = _load_internal_manifest_node(context, config, manifest, None, eid, schema)
+            commands.set_node(context, manifest, node.type, node.name, node)
+            if link:
+                to_link.append(node)
+
+    if to_link:
+        for node in to_link:
+            commands.link(context, node)
+
+
+def _load_internal_manifest_node(
+    context: Context,
+    config: Config,
+    manifest: Manifest,
+    source: Optional[Manifest],
+    eid: EntryId,
+    data: dict,
+) -> MetaData:
+    node = get_node(context, config, manifest, eid, data, check=False)
+    node.eid = eid
+    node.type = data['type']
+    node.parent = manifest
+    node.manifest = manifest
+    commands.load(context, node, data, manifest, source=source)
+    return node
+
+
+def load_internal_namespace_from_name(
+    context: Context,
+    manifest: InternalSQLManifest,
+    path: str,
+    *,
+    # Drop last element from path which is usually a model name.
+    drop: bool = True,
+) -> Namespace:
+    ns: Optional[Namespace] = None
+    parent: Optional[Namespace] = None
+    parts: List[str] = []
+    parts_ = [p for p in path.split('/') if p]
+    if drop:
+        parts_ = parts_[:-1]
+    objects = manifest.get_objects()
+    for part in parts_:
+        parts.append(part)
+        name = '/'.join(parts)
+
+        if name not in objects['ns']:
+            ns = Namespace()
+            data = {
+                'type': 'ns',
+                'name': name,
+                'title': '',
+                'description': '',
+            }
+            commands.load(context, ns, data, manifest)
+            ns.generated = True
+        else:
+            ns = objects['ns'][name]
+            pass
+
+        if parent:
+            if ns.name == parent.name:
+                raise RuntimeError(f"Self reference in {path!r}.")
+
+            ns.parent = parent or manifest
+
+            if part and part not in parent.names:
+                parent.names[part] = ns
+        else:
+            ns.parent = manifest
+
+        parent = ns
+
+    return ns
 
 
 def get_table_structure(meta: sa.MetaData):
@@ -334,6 +573,7 @@ def _namespaces_to_sql(
         k: ns
         for k, ns in namespaces.items() if not ns.generated
     }
+
     for name, ns in namespaces.items():
         item_id = _handle_id(ns.id)
         yield to_row(INTERNAL_MANIFEST_COLUMNS, {

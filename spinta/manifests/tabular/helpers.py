@@ -173,18 +173,21 @@ class TabularReader:
     data: ManifestRow               # Used when `appendable` is False
     rows: List[Dict[str, Any]]      # Used when `appendable` is True
     appendable: bool = False        # Tells if reader is appendable.
+    allow_updates: bool = False     # Tells if manifest supports structure updates
 
     def __init__(
         self,
         state: State,
         path: str,
         line: str,
+        allow_updates: bool = False
     ):
         self.state = state
         self.path = path
         self.line = line
         self.data = {}
         self.rows = []
+        self.allow_updates = allow_updates
 
     def __str__(self):
         return f"<{type(self).__name__} name={self.name!r}>"
@@ -193,10 +196,11 @@ class TabularReader:
         raise NotImplementedError
 
     def append(self, row: Dict[str, str]) -> None:
-        if any(row.values()):
-            self.error(
-                f"Updates are not supported in context of {self.type!r}."
-            )
+        if not self.allow_updates:
+            if any(row.values()):
+                self.error(
+                    f"Updates are not supported in context of {self.type!r}."
+                )
 
     def release(self, reader: TabularReader = None) -> bool:
         raise NotImplementedError
@@ -1543,6 +1547,7 @@ def _read_tabular_manifest_rows(
     rows: Iterator[Tuple[str, List[str]]],
     *,
     rename_duplicates: bool = True,
+    allow_updates: bool = False
 ) -> Iterator[ParsedRow]:
     _, header = next(rows, (None, None))
     if header is None:
@@ -1554,7 +1559,7 @@ def _read_tabular_manifest_rows(
 
     state = State()
     state.rename_duplicates = rename_duplicates
-    reader = ManifestReader(state, path, '1')
+    reader = ManifestReader(state, path, '1', allow_updates=allow_updates)
     reader.read({})
     yield from state.release(reader)
 
@@ -1564,7 +1569,7 @@ def _read_tabular_manifest_rows(
         row = {**defaults, **row}
         dimension = _detect_dimension(path, line, row)
         Reader = READERS[dimension]
-        reader = Reader(state, path, line)
+        reader = Reader(state, path, line, allow_updates=allow_updates)
         reader.read(row)
         yield from state.release(reader)
 

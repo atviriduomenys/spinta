@@ -307,9 +307,6 @@ def get_model_from_params(
     params: UrlParams,
 ) -> Union[Namespace, Model]:
     name = params.path
-    if name == '':
-        return commands.get_namespace(context, manifest, name)
-
     if params.ns:
         if commands.has_namespace(context, manifest, name):
             return commands.get_namespace(context, manifest, name)
