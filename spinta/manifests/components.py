@@ -94,18 +94,6 @@ class Manifest(Component):
     def get_objects(self) -> dict:
         return self._objects
 
-    # @property
-    # def models(self) -> Dict[str, Model]:
-    #     return self.objects['model']
-
-    # @property
-    # def datasets(self) -> Dict[str, Dataset]:
-    #     return self.objects['dataset']
-
-    # @property
-    # def namespaces(self) -> Dict[str, Namespace]:
-    #     return self.objects['ns']
-
 
 NodeSchema = Optional[Dict[str, Any]]
 ManifestSchema = Tuple[Any, NodeSchema]

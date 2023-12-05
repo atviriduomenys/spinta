@@ -48,9 +48,10 @@ def check_no_extra_keys(dtype: DataType, schema: Iterable, data: Iterable):
 def set_dtype_backend(dtype: DataType):
     if dtype.backend:
         backends = dtype.prop.model.manifest.store.backends
-        if dtype.backend not in backends:
-            raise BackendNotFound(dtype, name=dtype.backend)
-        dtype.backend = backends[dtype.backend]
+        if isinstance(dtype.backend, str):
+            if dtype.backend not in backends:
+                raise BackendNotFound(dtype, name=dtype.backend)
+            dtype.backend = backends[dtype.backend]
     else:
         dtype.backend = dtype.prop.model.backend
 

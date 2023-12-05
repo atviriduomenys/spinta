@@ -31,7 +31,6 @@ from spinta.commands import prepare, get_version
 from spinta.components import Context
 from spinta.exceptions import BaseError, MultipleErrors, error_response, InsufficientPermission, \
     UnknownPropertyInRequest, InsufficientPermissionForUpdate, EmptyPassword
-from spinta.manifests.helpers import get_per_request_manifest
 from spinta.middlewares import ContextMiddleware
 from spinta.urlparams import Version
 from spinta.urlparams import get_response_type
@@ -262,7 +261,7 @@ async def homepage(request: Request):
 
     # Currently need to initialize the manifest and then add missing models
     # otherwise, manifest never gets created and becomes infinite loop
-    manifest = get_per_request_manifest(context, store)
+    manifest = commands.create_request_manifest(context, store.manifest)
     context.set('request.manifest', manifest)
     commands.load_for_request(context, manifest)
 

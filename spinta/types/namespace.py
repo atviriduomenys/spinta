@@ -71,7 +71,7 @@ def load_namespace_from_name(
     for part in [''] + parts_:
         parts.append(part)
         name = '/'.join(parts[1:])
-        if not commands.has_namespace(context, manifest, name, check_only_loaded=True):
+        if not commands.has_namespace(context, manifest, name, loaded=True):
             ns = Namespace()
             data = {
                 'type': 'ns',

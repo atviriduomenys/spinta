@@ -36,13 +36,17 @@ from spinta.utils.schema import NotAvailable, NA
 from spinta.utils.types import is_str_uuid
 
 
+def select_full_table(table):
+    return sa.select([
+        table,
+        sa.literal_column("prepare IS NULL").label("prepare_is_null")]
+    )
+
+
 def read_initial_schema(context: Context, manifest: InternalSQLManifest):
     conn = context.get('transaction.manifest').connection
     table = manifest.table
-    stmt = sa.select([
-        table,
-        sa.literal_column("prepare IS NULL").label("prepare_is_null")]
-    ).where(table.c.path == None)
+    stmt = select_full_table(table).where(table.c.path == None)
     rows = conn.execute(stmt)
     yield from internal_to_schema(manifest, rows)
 
@@ -56,6 +60,55 @@ def read_schema(path: str):
     engine = sa.create_engine(path)
     with engine.connect() as conn:
         yield from _read_all_sql_manifest_rows(path, conn)
+
+
+def get_object_from_id(context: Context, manifest: InternalSQLManifest, uid):
+    conn = context.get('transaction.manifest').connection
+    table = manifest.table
+    results = conn.execute(select_full_table(table).where(
+        table.c.id == uid
+    ).limit(1))
+    for item in results:
+        return item
+    return None
+
+
+def update_schema_with_external(schema, external: dict):
+    for id_, item in schema:
+        if item['type'] == 'model':
+            print(item)
+            if external['dataset']:
+                item['name'] = f'{external["dataset"]}/{item["name"]}'
+                item['external']['dataset'] = external['dataset']
+            if external['resource']:
+                item['external']['resource'] = external['resource']
+            if item['properties']:
+                for prop in item['properties'].values():
+                    if 'model' in prop and prop['model']:
+                        if '/' not in prop['model'] and external['dataset']:
+                            prop['model'] = f'{external["dataset"]}/{prop["model"]}'
+            if item['base']:
+                base = item['base']
+                if base['parent']:
+                    if '/' not in base['parent'] and external['dataset']:
+                        base['parent'] = f'{external["dataset"]}/{base["parent"]}'
+        yield id_, item
+
+
+def load_required_models(context: Context, manifest: InternalSQLManifest, schema, model_list: list):
+    for id_, item in schema:
+        if item['type'] == 'model':
+            if item['properties']:
+                for prop in item['properties']:
+                    if 'model' in prop:
+                        if prop['model'] not in model_list:
+                            model_list.append(prop['model'])
+                            commands.get_model(context, manifest, prop['model'])
+            if item['base']:
+                if item['base']['parent'] not in model_list:
+                    model_list.append(item['base']['parent'])
+                    commands.get_model(context, manifest, item['base']['parent'])
+        yield id_, item
 
 
 def get_namespace_highest_access(context: Context, manifest: InternalSQLManifest, namespace: str):
@@ -118,7 +171,7 @@ def get_namespace_partial_data(
     parents = parents.copy()
     parents.append(namespace)
 
-    results = conn.execute(sa.select(table).where(
+    results = conn.execute(select_full_table(table).where(
         sa.and_(
             sa.and_(
                 table.c.mpath.startswith(namespace),
@@ -198,7 +251,7 @@ def load_internal_manifest_nodes(
     config = context.get('config')
     for eid, schema in schemas:
         if schema.get('type') == 'manifest':
-            _load_manifest(context, manifest, schema, eid)
+            _load_manifest(context, manifest, schema, eid, reset=False)
         else:
             node = _load_internal_manifest_node(context, config, manifest, None, eid, schema)
             commands.set_node(context, manifest, node.type, node.name, node)
@@ -1175,9 +1228,9 @@ def convert_sql_to_tabular_rows(rows: list) -> Iterator[Tuple[str, List[str]]]:
         elif dimension == "resource":
             data_row = _convert_resource(row)
         elif dimension == "enum":
-            enum_data = row
+            enum_data = _convert_enum(row)
         elif dimension == "enum.item":
-            data_row = _convert_enum(row, enum_data, is_first)
+            data_row = _convert_enum_item(row, enum_data, is_first)
         elif dimension == "unique":
             data_row = _convert_unique(row)
         elif dimension == "param":
@@ -1312,7 +1365,7 @@ def _convert_unique(row: InternalManifestRow):
     return to_row_tabular(MANIFEST_COLUMNS, row)
 
 
-def _convert_enum(row: InternalManifestRow, enum_data: InternalManifestRow, first: bool = False):
+def _convert_enum_item(row: InternalManifestRow, enum_data: InternalManifestRow, first: bool = False):
     new = to_row_tabular(MANIFEST_COLUMNS, row)
     if not first:
         new["type"] = ''
@@ -1355,4 +1408,10 @@ def _convert_prefixes(row: InternalManifestRow, first: bool = False):
     new = to_row_tabular(MANIFEST_COLUMNS, row)
     if not first:
         new["type"] = ''
+    return new
+
+
+def _convert_enum(row: InternalManifestRow):
+    new = to_row_tabular(MANIFEST_COLUMNS, row)
+    new["ref"] = _value_or_empty(new["ref"])
     return new

@@ -21,6 +21,7 @@ def load(
     freezed: bool = True,
     rename_duplicates: bool = False,
     load_internal: bool = True,
+    full_load=False
 ):
     assert freezed, (
         "TabularManifest does not have unfreezed version of manifest."
@@ -77,4 +78,5 @@ def load(
             freezed=freezed,
             rename_duplicates=rename_duplicates,
             load_internal=load_internal,
+            full_load=full_load
         )

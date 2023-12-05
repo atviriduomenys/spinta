@@ -4,19 +4,116 @@ from spinta import commands
 from spinta.components import Model, Namespace, Context
 from spinta.datasets.components import Dataset
 from spinta.manifests.internal_sql.components import InternalSQLManifest
-from spinta.manifests.internal_sql.helpers import internal_to_schema, load_internal_manifest_nodes
+from spinta.manifests.internal_sql.helpers import internal_to_schema, load_internal_manifest_nodes, get_object_from_id, \
+    select_full_table, update_schema_with_external, load_required_models
 from spinta.types.namespace import load_namespace_from_name
 
 
+def _get_manifest(context: Context, manifest: InternalSQLManifest):
+    if context.has('request.manifest'):
+        return context.get('request.manifest')
+    return manifest
+
+
+def _get_transaction_connection(context: Context):
+    if context.has('transaction.manifest'):
+        return context.get('transaction.manifest').connection
+    return None
+
+
 @commands.has_model.register(Context, InternalSQLManifest, str)
-def has_model(context: Context, manifest: InternalSQLManifest, model: str, **kwargs):
-    return model in manifest.get_objects()['model']
+def has_model(context: Context, manifest: InternalSQLManifest, model: str, loaded: bool = False, **kwargs):
+    manifest = _get_manifest(context, manifest)
+    conn = _get_transaction_connection(context)
+    if model in manifest.get_objects()['model']:
+        return True
+    elif not loaded and conn is not None:
+        table = manifest.table
+        ns = conn.execute(
+            sa.select(table).where(
+                sa.and_(
+                    table.c.path == model,
+                    table.c.dim == 'model'
+                )
+            )
+        )
+        if any(ns):
+            return True
+    return False
 
 
 @commands.get_model.register(Context, InternalSQLManifest, str)
 def get_model(context: Context, manifest: InternalSQLManifest, model: str, **kwargs):
+    manifest = _get_manifest(context, manifest)
+    conn = _get_transaction_connection(context)
+    objects = manifest.get_objects()
     if has_model(context, manifest, model):
-        return manifest.get_objects()['model'][model]
+        if model in objects['model']:
+            m = objects['model'][model]
+            return m
+        elif conn is not None:
+            schemas = []
+            table = manifest.table
+            m = conn.execute(
+                select_full_table(table).where(
+                    sa.and_(
+                        table.c.path == model,
+                        table.c.dim == 'model'
+                    )
+                ).limit(1)
+            )
+            model_obj = None
+            props = []
+            for item in m:
+                model_obj = item
+                props = conn.execute(
+                    select_full_table(table).where(
+                        sa.and_(
+                            table.c.path.startswith(model),
+                            table.c.dim != 'model'
+                        )
+                    )
+                )
+
+            parent_id = model_obj['parent']
+            parent_dataset = None
+            parent_resource = None
+            parent_schemas = []
+            while parent_id is not None:
+                parent_obj = get_object_from_id(context, manifest, parent_id)
+                if parent_obj is None:
+                    break
+
+                if parent_obj['dim'] == 'dataset':
+                    parent_dataset = parent_obj['name']
+                    break
+                elif parent_obj['dim'] == 'resource' and not parent_resource:
+                    parent_resource = parent_obj['name']
+                parent_schemas.append(parent_obj)
+                parent_id = parent_obj['parent']
+
+            # Ensure dataset is created first
+            if parent_dataset:
+                dataset = commands.get_dataset(context, manifest, parent_dataset)
+                if parent_resource:
+                    get_dataset_resource(context, manifest, dataset, parent_resource)
+            schemas.extend(reversed(parent_schemas))
+            schemas.append(model_obj)
+            schemas.extend(props)
+            required_models = []
+
+            schemas = internal_to_schema(manifest, schemas)
+            schemas = update_schema_with_external(schemas, {
+                'dataset': parent_dataset,
+                'resource': parent_resource
+            })
+            schemas = load_required_models(context, manifest, schemas, required_models)
+            # for id_, schema in schemas:
+            #     print(schema)
+            load_internal_manifest_nodes(context, manifest, schemas, link=True)
+            if model in objects['model']:
+                return objects['model'][model]
+
     raise Exception("MODEL NOT FOUND")
 
 
@@ -36,12 +133,12 @@ def set_models(context: Context, manifest: InternalSQLManifest, models: Dict[str
 
 
 @commands.has_namespace.register(Context, InternalSQLManifest, str)
-def has_namespace(context: Context, manifest: InternalSQLManifest, namespace: str, check_only_loaded: bool = False, **kwargs):
-    manifest = context.get('request.manifest')
-    conn = context.get('transaction.manifest').connection
+def has_namespace(context: Context, manifest: InternalSQLManifest, namespace: str, loaded: bool = False, **kwargs):
+    manifest = _get_manifest(context, manifest)
+    conn = _get_transaction_connection(context)
     if namespace in manifest.get_objects()['ns']:
         return True
-    elif not check_only_loaded:
+    elif conn is not None and not loaded:
         table = manifest.table
         ns = conn.execute(
             sa.select(table).where(table.c.mpath.startswith(namespace)).limit(1)
@@ -53,18 +150,18 @@ def has_namespace(context: Context, manifest: InternalSQLManifest, namespace: st
 
 @commands.get_namespace.register(Context, InternalSQLManifest, str)
 def get_namespace(context: Context, manifest: InternalSQLManifest, namespace: str, **kwargs):
-    manifest = context.get('request.manifest')
-    conn = context.get('transaction.manifest').connection
+    manifest = _get_manifest(context, manifest)
+    conn = _get_transaction_connection(context)
     objects = manifest.get_objects()
 
     if has_namespace(context, manifest, namespace):
         if namespace in objects['ns']:
             ns = objects['ns'][namespace]
             return ns
-        else:
+        elif conn is not None:
             table = manifest.table
             ns = conn.execute(
-                sa.select(table).where(
+                select_full_table(table).where(
                     sa.and_(
                         table.c.name == namespace,
                         table.c.dim == 'ns'
@@ -72,7 +169,7 @@ def get_namespace(context: Context, manifest: InternalSQLManifest, namespace: st
                 )
             )
             schemas = internal_to_schema(manifest, ns)
-            load_internal_manifest_nodes(context, manifest, schemas)
+            load_internal_manifest_nodes(context, manifest, schemas, link=True)
             if namespace in objects['ns']:
                 return objects['ns'][namespace]
 
@@ -89,19 +186,107 @@ def get_namespaces(context: Context, manifest: InternalSQLManifest, **kwargs):
 
 @commands.set_namespace.register(Context, InternalSQLManifest, str, Namespace)
 def set_namespace(context: Context, manifest: InternalSQLManifest, namespace: str, ns: Namespace, **kwargs):
-    manifest = context.get('request.manifest')
+    manifest = _get_manifest(context, manifest)
     manifest.get_objects()['ns'][namespace] = ns
 
 
 @commands.has_dataset.register(Context, InternalSQLManifest, str)
-def has_dataset(context: Context, manifest: InternalSQLManifest, dataset: str, **kwargs):
-    return dataset in manifest.get_objects()['dataset']
+def has_dataset(context: Context, manifest: InternalSQLManifest, dataset: str, loaded: bool = False, **kwargs):
+    manifest = _get_manifest(context, manifest)
+    conn = _get_transaction_connection(context)
+    if dataset in manifest.get_objects()['dataset']:
+        return True
+    elif conn is not None and not loaded:
+        table = manifest.table
+        ds = conn.execute(
+            sa.select(table).where(
+                sa.and_(
+                    table.c.mpath == dataset,
+                    table.c.dim == 'dataset'
+                )
+
+            ).limit(1)
+        )
+        if any(ds):
+            return True
+    return False
+
+
+def has_dataset_resource(context: Context, manifest: InternalSQLManifest, dataset: Dataset, resource: str, **kwargs):
+    manifest = _get_manifest(context, manifest)
+    conn = _get_transaction_connection(context)
+    if resource in dataset.resources:
+        return True
+    elif conn is not None:
+        table = manifest.table
+        ds = conn.execute(
+            sa.select(table).where(
+                sa.and_(
+                    table.c.path == dataset.name,
+                    table.c.dim == 'resource',
+                    table.c.name == resource
+                )
+
+            ).limit(1)
+        )
+        if any(ds):
+            return True
+    return False
+
+
+def get_dataset_resource(context: Context, manifest: InternalSQLManifest, dataset: Dataset, resource: str, **kwargs):
+    manifest = _get_manifest(context, manifest)
+    conn = _get_transaction_connection(context)
+    if has_dataset_resource(context, manifest, dataset, resource, **kwargs):
+        if resource in dataset.resources:
+            return dataset.resources[resource]
+        elif conn is not None:
+            table = manifest.table
+            resources = conn.execute(
+                sa.select(table).where(
+                    sa.and_(
+                        table.c.path == dataset.name,
+                        sa.or_(
+                            sa.and_(
+                                table.c.name == resource,
+                                table.c.dim == 'resource'
+                            ),
+                            table.c.dim == 'dataset'
+                        )
+                    )
+                )
+            )
+            schemas = internal_to_schema(manifest, resources)
+            load_internal_manifest_nodes(context, manifest, schemas, link=True)
+            if resource in dataset.resources:
+                return dataset.resources[resource]
 
 
 @commands.get_dataset.register(Context, InternalSQLManifest, str)
 def get_dataset(context: Context, manifest: InternalSQLManifest, dataset: str, **kwargs):
+    manifest = _get_manifest(context, manifest)
+    conn = _get_transaction_connection(context)
+    objects = manifest.get_objects()
+
     if has_dataset(context, manifest, dataset):
-        return manifest.get_objects()['dataset'][dataset]
+        if dataset in objects['dataset']:
+            return objects['dataset'][dataset]
+        elif conn is not None:
+            table = manifest.table
+            ds = conn.execute(
+                select_full_table(table).where(
+                    sa.and_(
+                        table.c.path == dataset,
+                        table.c.dim != 'base',
+                        table.c.dim != 'resource',
+                    )
+                )
+            )
+            schemas = internal_to_schema(manifest, ds)
+            load_internal_manifest_nodes(context, manifest, schemas, link=True)
+            if dataset in objects['dataset']:
+                return objects['dataset'][dataset]
+
     raise Exception("DATASET NOT FOUND")
 
 

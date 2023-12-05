@@ -82,7 +82,7 @@ def inspect(
         require_auth(context, auth)
         store = load_manifest(context, ensure_config_dir=True)
         old = store.manifest
-
+        #commands.fully_initialize_manifest(context, old)
         if not resources:
             resources = []
             for ds in commands.get_datasets(context, old).values():

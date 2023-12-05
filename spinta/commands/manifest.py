@@ -43,28 +43,28 @@ def has_object_type(context: Context, manifest: Manifest, obj_type: str, **kwarg
 @commands.has_node.register(Context, Manifest, str, str)
 def has_object(context: Context, manifest: Manifest, obj_type: str, obj: str, **kwargs):
     if obj_type in NODE_FUNCTION_MAPPER:
-        return NODE_FUNCTION_MAPPER[obj_type]['has'](context, manifest, obj)
+        return NODE_FUNCTION_MAPPER[obj_type]['has'](context, manifest, obj, **kwargs)
     raise Exception("NODE NOT DEFINED")
 
 
 @commands.get_node.register(Context, Manifest, str, str)
 def get_node(context: Context, manifest: Manifest, obj_type: str, obj: str, **kwargs):
     if obj_type in NODE_FUNCTION_MAPPER:
-        return NODE_FUNCTION_MAPPER[obj_type]['get'](context, manifest, obj)
+        return NODE_FUNCTION_MAPPER[obj_type]['get'](context, manifest, obj, **kwargs)
     raise Exception("NODE NOT DEFINED")
 
 
 @commands.get_nodes.register(Context, Manifest, str)
 def get_nodes(context: Context, manifest: Manifest, obj_type: str, **kwargs):
     if obj_type in NODE_FUNCTION_MAPPER:
-        return NODE_FUNCTION_MAPPER[obj_type]['get_all'](context, manifest)
+        return NODE_FUNCTION_MAPPER[obj_type]['get_all'](context, manifest, **kwargs)
     raise Exception("NODE NOT DEFINED")
 
 
 @commands.set_node.register(Context, Manifest, str, str, Node)
 def set_node(context: Context, manifest: Manifest, obj_type: str, obj_name, obj: Node, **kwargs):
     if obj_type in NODE_FUNCTION_MAPPER:
-        return NODE_FUNCTION_MAPPER[obj_type]['set'](context, manifest, obj_name, obj)
+        return NODE_FUNCTION_MAPPER[obj_type]['set'](context, manifest, obj_name, obj, **kwargs)
     raise Exception("NODE NOT DEFINED")
 
 

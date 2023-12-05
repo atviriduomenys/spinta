@@ -97,6 +97,7 @@ def load(
     rename_duplicates: bool = False,
     # If True, load internal manifest, if not loaded.
     load_internal: bool = True,
+    full_load: bool = False
 ) -> None:
     """Load primitive data structures to python-native objects.
 
@@ -134,7 +135,18 @@ def load_for_request():
 
 
 @command()
-def initialize_missing_models():
+def fully_initialize_manifest(
+    context: Context,
+    manifest: Manifest
+):
+    pass
+
+
+@command()
+def create_request_manifest(
+    context: Context,
+    manifest: Manifest
+):
     pass
 
 

@@ -176,7 +176,7 @@ def link(context: Context, model: Model):
             raise KeymapNotSet(model)
 
     # Link model backend.
-    if model.backend:
+    if model.backend and isinstance(model.backend, str):
         if model.backend in model.manifest.backends:
             model.backend = model.manifest.backends[model.backend]
         else:

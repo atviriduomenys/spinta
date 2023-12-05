@@ -8,8 +8,11 @@ def load_for_request(context: Context, manifest: Manifest):
     pass
 
 
-@commands.initialize_missing_models.register(Context, Manifest)
-def initialize_missing_models(context: Context, manifest: Manifest):
+@commands.fully_initialize_manifest.register(Context, Manifest)
+def fully_initialize_manifest(context: Context, manifest: Manifest):
     pass
 
 
+@commands.create_request_manifest.register(Context, Manifest)
+def create_request_manifest(context: Context, manifest: Manifest):
+    pass

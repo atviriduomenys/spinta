@@ -86,18 +86,6 @@ def create_internal_manifest(context: Context, store: Store) -> InternalManifest
     return manifest
 
 
-def get_per_request_manifest(context: Context, store: Store) -> Manifest:
-    old = store.manifest
-    manifest = old.__class__()
-    rc = context.get('rc')
-    init_manifest(context, manifest, old.name)
-    _configure_manifest(
-        context, rc, store, manifest,
-        backend=store.manifest.backend.name if store.manifest.backend else None,
-    )
-    return manifest
-
-
 def _configure_manifest(
     context: Context,
     rc: RawConfig,
@@ -151,7 +139,7 @@ def load_manifest_nodes(
             if link:
                 to_link.append(node)
 
-    if not commands.has_namespace(context, manifest, '', check_only_loaded=True):
+    if not commands.has_namespace(context, manifest, '', loaded=True):
         # Root namespace must always be present in manifest event if manifest is
         # empty.
         load_namespace_from_name(context, manifest, '', drop=False)
@@ -165,8 +153,12 @@ def _load_manifest_backends(
     context: Context,
     manifest: Manifest,
     backends: Dict[str, Dict[str, str]],
+    reset: bool = True
 ) -> None:
-    manifest.backends = {}
+    if reset:
+        manifest.backends = {}
+    elif not manifest.backends:
+        manifest.backends = {}
     for name, data in backends.items():
         manifest.backends[name] = load_backend(
             context,
@@ -182,9 +174,10 @@ def _load_manifest(
     manifest: Manifest,
     data: Dict[str, Any],
     eid: EntryId,
+    reset: bool = True
 ) -> None:
     if 'backends' in data:
-        _load_manifest_backends(context, manifest, data['backends'])
+        _load_manifest_backends(context, manifest, data['backends'], reset=reset)
     if 'prefixes' in data:
         prefixes = load_prefixes(context, manifest, manifest, data['prefixes'])
         manifest.prefixes.update(prefixes)

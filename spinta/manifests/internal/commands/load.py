@@ -20,6 +20,7 @@ def load(
     freezed: bool = True,
     rename_duplicates: bool = False,
     load_internal: bool = True,
+    full_load=False
 ):
     if freezed:
         if into:
