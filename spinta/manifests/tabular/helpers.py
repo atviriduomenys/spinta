@@ -4,6 +4,7 @@ import csv
 import pathlib
 import logging
 import textwrap
+import uuid
 from operator import itemgetter
 from itertools import zip_longest
 from typing import Any
@@ -2478,7 +2479,10 @@ def render_tabular_manifest_rows(
 
     for row in rows:
         if ID in cols:
-            line = [row[ID][:2] if row[ID] else '  ']
+            value = row[ID]
+            if isinstance(value, uuid.UUID):
+                value = str(value)
+            line = [value[:2] if value else '  ']
         else:
             line = []
 

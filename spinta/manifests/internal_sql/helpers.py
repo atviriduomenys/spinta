@@ -36,17 +36,21 @@ from spinta.utils.schema import NotAvailable, NA
 from spinta.utils.types import is_str_uuid
 
 
-def select_full_table(table):
+def select_full_table(table, extra_cols=None):
+    if extra_cols is None:
+        extra_cols = []
+
     return sa.select([
         table,
-        sa.literal_column("prepare IS NULL").label("prepare_is_null")]
+        sa.literal_column("prepare IS NULL").label("prepare_is_null")],
+        *extra_cols
     )
 
 
 def read_initial_schema(context: Context, manifest: InternalSQLManifest):
     conn = context.get('transaction.manifest').connection
     table = manifest.table
-    stmt = select_full_table(table).where(table.c.path == None)
+    stmt = select_full_table(table).where(table.c.path == None).order_by(table.c.index)
     rows = conn.execute(stmt)
     yield from internal_to_schema(manifest, rows)
 
@@ -76,7 +80,6 @@ def get_object_from_id(context: Context, manifest: InternalSQLManifest, uid):
 def update_schema_with_external(schema, external: dict):
     for id_, item in schema:
         if item['type'] == 'model':
-            print(item)
             if external['dataset']:
                 item['name'] = f'{external["dataset"]}/{item["name"]}'
                 item['external']['dataset'] = external['dataset']
@@ -333,6 +336,7 @@ def get_table_structure(meta: sa.MetaData):
     table = sa.Table(
         '_manifest',
         meta,
+        sa.Column("index", sa.BIGINT),
         sa.Column("id", UUIDType, primary_key=True),
         sa.Column("parent", UUIDType),
         sa.Column("depth", sa.Integer),
@@ -348,7 +352,7 @@ def get_table_structure(meta: sa.MetaData):
         sa.Column("access", sa.String),
         sa.Column("uri", sa.String),
         sa.Column("title", sa.String),
-        sa.Column("description", sa.String)
+        sa.Column("description", sa.String),
     )
     return table
 
@@ -361,9 +365,9 @@ def _read_all_sql_manifest_rows(
 ):
     meta = sa.MetaData(conn)
     table = get_table_structure(meta)
-    stmt = sa.select([
-        table,
-        sa.literal_column("prepare IS NULL").label("prepare_is_null")]
+    full_table = select_full_table(table)
+    stmt = full_table.order_by(
+        table.c.index
     )
     rows = conn.execute(stmt)
     converted = convert_sql_to_tabular_rows(list(rows))
@@ -381,7 +385,10 @@ def write_internal_sql_manifest(context: Context, dsn: str, manifest: Manifest):
         else:
             table.create()
         rows = datasets_to_sql(context, manifest)
+        index = 0
         for row in rows:
+            row['index'] = index
+            index += 1
             conn.execute(table.insert().values(row))
 
 
@@ -389,6 +396,8 @@ def _handle_id(item_id: Any):
     if item_id:
         if is_str_uuid(item_id):
             return uuid.UUID(item_id, version=4)
+        elif isinstance(item_id, uuid.UUID):
+            return item_id
         else:
             raise Exception
     return uuid.uuid4()
@@ -410,7 +419,8 @@ def datasets_to_sql(
         manifest.enums,
         external=external,
         access=access,
-        order_by=order_by)
+        order_by=order_by,
+        )
 
     seen_datasets = set()
     dataset = {
@@ -487,7 +497,7 @@ def datasets_to_sql(
                         parent_id=parent_id,
                         path=path,
                         mpath=mpath,
-                        depth=depth
+                        depth=depth,
                     ):
                         yield item
                         if item["dim"] == "resource":
@@ -521,7 +531,7 @@ def datasets_to_sql(
                 parent_id=parent_id,
                 depth=depth,
                 path=path,
-                mpath=mpath
+                mpath=mpath,
             ):
                 yield item
                 if item["dim"] == "base":

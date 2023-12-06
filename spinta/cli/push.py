@@ -147,7 +147,7 @@ def push(
         stop_time = toseconds(stop_time)
 
     context = configure_context(ctx.obj, manifests, mode=mode)
-    store = prepare_manifest(context)
+    store = prepare_manifest(context, full_load=True)
     config: Config = context.get('config')
 
     if credentials:

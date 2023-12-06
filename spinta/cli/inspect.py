@@ -80,9 +80,8 @@ def inspect(
     )
     with context:
         require_auth(context, auth)
-        store = load_manifest(context, ensure_config_dir=True)
+        store = load_manifest(context, ensure_config_dir=True, full_load=True)
         old = store.manifest
-        #commands.fully_initialize_manifest(context, old)
         if not resources:
             resources = []
             for ds in commands.get_datasets(context, old).values():
@@ -124,7 +123,7 @@ def _merge(context: Context, manifest: Manifest, old: Manifest, resource: Resour
         context,
         manifests=[resource],
         mode=Mode.external)
-    store = load_manifest(new_context)
+    store = load_manifest(new_context, full_load=True)
     new = store.manifest
     commands.merge(new_context, manifest, old, new, has_manifest_priority)
 

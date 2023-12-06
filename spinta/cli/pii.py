@@ -216,7 +216,7 @@ def detect(
         context.set('rc', rc.fork(config))
 
     # Load manifest
-    store = prepare_manifest(context, verbose=False)
+    store = prepare_manifest(context, verbose=False, full_load=True)
     manifest = store.manifest
     with context:
         require_auth(context, auth)

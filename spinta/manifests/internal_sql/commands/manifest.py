@@ -21,6 +21,61 @@ def _get_transaction_connection(context: Context):
     return None
 
 
+def _get_model_name_list(context: Context, manifest: InternalSQLManifest, loaded: bool):
+    manifest = _get_manifest(context, manifest)
+    table = manifest.table
+    conn = _get_transaction_connection(context)
+    if conn is None or loaded:
+        objs = manifest.get_objects()
+        if 'model' and objs and objs['model']:
+            yield from objs['model'].keys()
+    else:
+        stmt = sa.select(table.c.path).where(
+            table.c.dim == 'model'
+        )
+        rows = conn.execute(stmt)
+        for row in rows:
+            yield row['path']
+
+
+def _get_namespace_name_list(context: Context, manifest: InternalSQLManifest, loaded: bool):
+    manifest = _get_manifest(context, manifest)
+    table = manifest.table
+    conn = _get_transaction_connection(context)
+    if conn is None or loaded:
+        objs = manifest.get_objects()
+        if 'ns' and objs and objs['ns']:
+            yield from objs['ns'].keys()
+    else:
+        stmt = sa.select(table.c.mpath).where(
+            sa.or_(
+                table.c.dim == 'namespace',
+                table.c.dim == 'dataset'
+            )
+        ).order_by(table.c.mpath)
+        rows = conn.execute(stmt)
+        for row in rows:
+            yield row['mpath']
+
+
+def _get_dataset_name_list(context: Context, manifest: InternalSQLManifest, loaded: bool):
+    manifest = _get_manifest(context, manifest)
+    table = manifest.table
+    conn = _get_transaction_connection(context)
+    if conn is None or loaded:
+        objs = manifest.get_objects()
+        if 'dataset' and objs and objs['dataset']:
+            yield from objs['dataset'].keys()
+    else:
+        stmt = sa.select(table.c.path).where(
+            table.c.dim == 'dataset'
+        ).order_by(table.c.path)
+        rows = conn.execute(stmt)
+        for row in rows:
+            yield row['path']
+
+
+
 @commands.has_model.register(Context, InternalSQLManifest, str)
 def has_model(context: Context, manifest: InternalSQLManifest, model: str, loaded: bool = False, **kwargs):
     manifest = _get_manifest(context, manifest)
@@ -72,7 +127,7 @@ def get_model(context: Context, manifest: InternalSQLManifest, model: str, **kwa
                             table.c.path.startswith(model),
                             table.c.dim != 'model'
                         )
-                    )
+                    ).order_by(table.c.index)
                 )
 
             parent_id = model_obj['parent']
@@ -108,8 +163,6 @@ def get_model(context: Context, manifest: InternalSQLManifest, model: str, **kwa
                 'resource': parent_resource
             })
             schemas = load_required_models(context, manifest, schemas, required_models)
-            # for id_, schema in schemas:
-            #     print(schema)
             load_internal_manifest_nodes(context, manifest, schemas, link=True)
             if model in objects['model']:
                 return objects['model'][model]
@@ -118,8 +171,14 @@ def get_model(context: Context, manifest: InternalSQLManifest, model: str, **kwa
 
 
 @commands.get_models.register(Context, InternalSQLManifest)
-def get_models(context: Context, manifest: InternalSQLManifest, **kwargs):
-    return manifest.get_objects()['model']
+def get_models(context: Context, manifest: InternalSQLManifest, loaded: bool = False, **kwargs):
+    model_names = _get_model_name_list(context, manifest, loaded)
+    objs = manifest.get_objects()
+    for name in model_names:
+        # get_model loads the model if it has not been loaded
+        if name not in objs['model']:
+            commands.get_model(context, manifest, name)
+    return objs['model']
 
 
 @commands.set_model.register(Context, InternalSQLManifest, str, Model)
@@ -180,8 +239,14 @@ def get_namespace(context: Context, manifest: InternalSQLManifest, namespace: st
 
 
 @commands.get_namespaces.register(Context, InternalSQLManifest)
-def get_namespaces(context: Context, manifest: InternalSQLManifest, **kwargs):
-    return manifest.get_objects()['ns']
+def get_namespaces(context: Context, manifest: InternalSQLManifest, loaded: bool = False, **kwargs):
+    ns_names = _get_namespace_name_list(context, manifest, loaded)
+    objs = manifest.get_objects()
+    for name in ns_names:
+        # get_namespace loads the namespace if it has not been loaded
+        if name not in objs['ns']:
+            commands.get_namespace(context, manifest, name)
+    return objs['ns']
 
 
 @commands.set_namespace.register(Context, InternalSQLManifest, str, Namespace)
@@ -291,8 +356,14 @@ def get_dataset(context: Context, manifest: InternalSQLManifest, dataset: str, *
 
 
 @commands.get_datasets.register(Context, InternalSQLManifest)
-def get_datasets(context: Context, manifest: InternalSQLManifest, **kwargs):
-    return manifest.get_objects()['dataset']
+def get_datasets(context: Context, manifest: InternalSQLManifest, loaded: bool = False, **kwargs):
+    dataset_names = _get_dataset_name_list(context, manifest, loaded)
+    objs = manifest.get_objects()
+    for name in dataset_names:
+        # get_dataset loads the dataset if it has not been loaded
+        if name not in objs['dataset']:
+            commands.get_dataset(context, manifest, name)
+    return objs['dataset']
 
 
 @commands.set_dataset.register(Context, InternalSQLManifest, str, Dataset)

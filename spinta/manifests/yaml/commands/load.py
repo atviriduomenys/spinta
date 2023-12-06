@@ -75,7 +75,7 @@ def load(
     freezed: bool = True,
     rename_duplicates: bool = False,
     load_internal: bool = True,
-    fully_load: bool = False
+    full_load: bool = False
 ):
     assert freezed, (
         "InlineManifest does not have unfreezed version of manifest."
@@ -112,5 +112,5 @@ def load(
             freezed=freezed,
             rename_duplicates=rename_duplicates,
             load_internal=load_internal,
-            full_load=fully_load
+            full_load=full_load
         )

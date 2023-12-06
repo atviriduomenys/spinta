@@ -24,7 +24,7 @@ def bootstrap(
     This will create tables and sync manifest to backends.
     """
     context = configure_context(ctx.obj, manifests)
-    store = prepare_manifest(context, ensure_config_dir=True)
+    store = prepare_manifest(context, ensure_config_dir=True, full_load=True)
 
     with context:
         require_auth(context)

@@ -97,6 +97,7 @@ def load_manifest(
     ensure_config_dir: bool = False,
     rename_duplicates: bool = False,
     load_internal: bool = True,
+    full_load: bool = False
 ) -> Store:
     if store is None:
         store = load_store(
@@ -120,6 +121,7 @@ def load_manifest(
         context, store.manifest,
         rename_duplicates=rename_duplicates,
         load_internal=load_internal,
+        full_load=full_load
     )
     commands.link(context, store.manifest)
     commands.check(context, store.manifest)
@@ -131,11 +133,13 @@ def prepare_manifest(
     *,
     verbose: bool = True,
     ensure_config_dir: bool = False,
+    full_load: bool = False
 ) -> Store:
     store = load_manifest(
         context,
         verbose=verbose,
         ensure_config_dir=ensure_config_dir,
+        full_load=full_load
     )
     commands.wait(context, store)
     commands.prepare(context, store.manifest)

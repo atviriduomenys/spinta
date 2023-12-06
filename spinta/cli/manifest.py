@@ -114,6 +114,7 @@ def _read_and_return_manifest(
         rename_duplicates=rename_duplicates,
         load_internal=False,
         verbose=verbose,
+        full_load=True
     )
 
     if format_names:
@@ -139,6 +140,7 @@ def _read_and_return_rows(
         rename_duplicates=rename_duplicates,
         load_internal=False,
         verbose=verbose,
+        full_load=True
     )
 
     if format_names:

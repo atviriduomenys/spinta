@@ -38,6 +38,7 @@ class Transaction:
         self.connection = connection
 
 
+INDEX: Final = 'index'
 ID: Final = 'id'
 PARENT: Final = 'parent'
 DEPTH: Final = 'depth'
@@ -55,6 +56,7 @@ URI: Final = 'uri'
 TITLE: Final = 'title'
 DESCRIPTION: Final = 'description'
 InternalManifestColumn = Literal[
+    'index',
     'id',
     'parent',
     'depth',
@@ -73,6 +75,7 @@ InternalManifestColumn = Literal[
     'description',
 ]
 INTERNAL_MANIFEST_COLUMNS: List[InternalManifestColumn] = [
+    INDEX,
     ID,
     PARENT,
     DEPTH,
