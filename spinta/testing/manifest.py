@@ -20,8 +20,10 @@ from spinta.testing.context import TestContext
 from spinta.testing.context import create_test_context
 
 
-def compare_manifest(context: Context, manifest: Manifest, expected: str) -> Tuple[str, str]:
+def compare_manifest(manifest: Manifest, expected: str, context: Context = None) -> Tuple[str, str]:
     expected = striptable(expected)
+    if not context:
+        context = Context('empty')
     if expected:
         header = expected.splitlines()[0]
         cols = normalizes_columns(header.split('|'))
@@ -38,6 +40,7 @@ def load_manifest_get_context(
     *,
     load_internal: bool = False,
     request: FixtureRequest = None,
+    full_load: bool = True,
     **kwargs,
 ) -> TestContext:
     if isinstance(manifest, pathlib.Path):
@@ -54,7 +57,7 @@ def load_manifest_get_context(
     rc = configure_rc(rc, manifests, **kwargs)
     context = create_test_context(rc, request)
     store = load_store(context, verbose=False, ensure_config_dir=False)
-    commands.load(context, store.manifest, load_internal=load_internal)
+    commands.load(context, store.manifest, load_internal=load_internal, full_load=full_load)
     commands.link(context, store.manifest)
     return context
 

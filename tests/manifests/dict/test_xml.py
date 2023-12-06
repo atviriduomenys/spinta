@@ -27,7 +27,7 @@ def test_xml_normal(rc: RawConfig, tmp_path: Path):
 
     context, manifest = load_manifest_and_context(rc, path)
     commands.get_dataset(context, manifest, "dataset").resources["resource"].external = "manifest.xml"
-    a, b = compare_manifest(context, manifest, f'''
+    a, b = compare_manifest(manifest, f'''
 d | r | model   | property     | type           | ref     | source
 dataset                  |                |         |
   | resource             | xml            |         | manifest.xml
@@ -38,7 +38,7 @@ dataset                  |                |         |
   |   |   | location_lon | integer unique |         | location/lon
   |   |   | location_lat | integer unique |         | location/lat
 
-''')
+''', context)
     assert a == b
 
 
@@ -72,7 +72,7 @@ def test_xml_blank_node(rc: RawConfig, tmp_path: Path):
 
     context, manifest = load_manifest_and_context(rc, path)
     commands.get_dataset(context, manifest, "dataset").resources["resource"].external = "manifest.xml"
-    a, b = compare_manifest(context, manifest, f'''
+    a, b = compare_manifest(manifest, f'''
 d | r | model   | property                        | type                    | ref    | source
 dataset                                     |                         |        |
   | resource                                | xml                     |        | manifest.xml
@@ -89,7 +89,7 @@ dataset                                     |                         |        |
   |   |   | location_lon                    | integer required unique |        | location/@lon
   |   |   | parent                          | ref                     | Model1 | ../../../../..
 
-''')
+''', context)
     assert a == b
 
 
@@ -114,7 +114,7 @@ def test_xml_allowed_namespace(rc: RawConfig, tmp_path: Path):
 
     context, manifest = load_manifest_and_context(rc, path)
     commands.get_dataset(context, manifest, "dataset").resources["resource"].external = "manifest.xml"
-    a, b = compare_manifest(context, manifest, f'''
+    a, b = compare_manifest(manifest, f'''
 d | r | model   | property     | type           | ref   | source                 | uri
 dataset                  |                |       |                        |
                          | prefix         | xsi   |                        | http://www.example.com/xmlns/xsi
@@ -130,7 +130,7 @@ dataset                  |                |       |                        |
   |   |   | location_lon | integer unique |       | location/test:lon      |
   |   |   | location_lat | integer unique |       | location/test:lat      |
 
-''')
+''', context)
     assert a == b
 
 
@@ -155,7 +155,7 @@ def test_xml_disallowed_namespace(rc: RawConfig, tmp_path: Path):
 
     context, manifest = load_manifest_and_context(rc, path)
     commands.get_dataset(context, manifest, "dataset").resources["resource"].external = "manifest.xml"
-    a, b = compare_manifest(context, manifest, f'''
+    a, b = compare_manifest(manifest, f'''
 d | r | model   | property      | type                | ref   | source                 | uri
 dataset                   |                     |       |                        |
                           | prefix              | xmlns |                        | http://www.example.com/xmlns
@@ -174,7 +174,7 @@ dataset                   |                     |       |                       
   |   |   | location_lat  | integer unique      |       | location/test:lat      |
   |   |   | parent        | ref                 | Model1 | ../..                  |
 
-''')
+''', context)
     assert a == b
 
 
@@ -216,7 +216,7 @@ def test_xml_inherit_nested(rc: RawConfig, tmp_path: Path):
 
     context, manifest = load_manifest_and_context(rc, path)
     commands.get_dataset(context, manifest, "dataset").resources["resource"].external = "manifest.xml"
-    a, b = compare_manifest(context, manifest, f'''
+    a, b = compare_manifest(manifest, f'''
 d | r | model   | property        | type                    | ref     | source
 dataset                     |                         |         |
   | resource                | xml                     |         | manifest.xml
@@ -239,5 +239,5 @@ dataset                     |                         |         |
   |   |   | name            | string required unique  |         | @name
   |   |   | location_coords[] | number                  |         | location/coords
   |   |   | country         | ref                     | Country | ../..
-''')
+''', context)
     assert a == b

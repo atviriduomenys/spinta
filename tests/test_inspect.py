@@ -158,7 +158,7 @@ def test_inspect_format(
     # Check what was detected.
     context, manifest = load_manifest_and_context(rc, tmp_path / 'manifest.csv')
     commands.get_dataset(context, manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
-    a, b = compare_manifest(context, manifest, f'''
+    a, b = compare_manifest(manifest, f'''
     d | r | b | m | property   | type    | ref     | source     | prepare
     dbsqlite                   |         |         |            |
       | resource1              | sql     |         | sqlite     |
@@ -171,7 +171,7 @@ def test_inspect_format(
       |   |   |   | code       | string  |         | CODE       |
       |   |   |   | id         | integer |         | ID         |
       |   |   |   | name       | string  |         | NAME       |
-    ''')
+    ''', context)
     assert a == b
 
 
@@ -383,7 +383,7 @@ def test_inspect_with_schema(
     # Check what was detected.
     context, manifest = load_manifest_and_context(rc, tmp_path / 'result.csv')
     commands.get_dataset(context, manifest, 'dataset').resources['schema'].external = 'sqlite'
-    a, b = compare_manifest(context, manifest, '''
+    a, b = compare_manifest(manifest, '''
     d | r | b | m | property | type    | ref | source | prepare
     dataset                  |         |     |        |
       | schema               | sql     |     | sqlite | connect(self, schema: null)
@@ -391,7 +391,7 @@ def test_inspect_with_schema(
       |   |   | City         |         | id  | CITY   |
       |   |   |   | id       | integer |     | ID     |
       |   |   |   | name     | string  |     | NAME   |
-    ''')
+    ''', context)
     assert a == b
 
 
@@ -435,7 +435,7 @@ def test_inspect_update_existing_manifest(
 
     # Check what was detected.
     context, manifest = load_manifest_and_context(rc, tmp_path / 'result.csv')
-    a, b = compare_manifest(context, manifest, '''
+    a, b = compare_manifest(manifest, '''
     d | r | b | m | property | type    | ref     | source  | prepare | access  | title
     datasets/gov/example     |         |         |         |         |         | Example
       | schema               | sql     | sql     |         |         |         |
@@ -448,7 +448,7 @@ def test_inspect_update_existing_manifest(
       |   |   | Country      |         | id      | COUNTRY |         |         |
       |   |   |   | id       | integer |         | ID      |         |         |
       |   |   |   | name     | string  |         | NAME    |         |         |
-    ''')
+    ''', context)
     assert a == b
 
 
@@ -495,7 +495,7 @@ def test_inspect_update_existing_ref_manifest_priority(
 
     # Check what was detected.
     context, manifest = load_manifest_and_context(rc, tmp_path / 'result.csv')
-    a, b = compare_manifest(context, manifest, '''
+    a, b = compare_manifest(manifest, '''
     d | r | b | m | property | type    | ref     | source  | prepare | access  | title
     datasets/gov/example     |         |         |         |         |         | Example
       | schema               | sql     | sql     |         |         |         |
@@ -508,7 +508,7 @@ def test_inspect_update_existing_ref_manifest_priority(
       |   |   |   | id       | integer |         | ID      |         | private |
       |   |   |   | name     | string  |         | NAME    | strip() | open    | City name
       |   |   |   | country  | integer |         | COUNTRY |         | open    | Country id
-    ''')
+    ''', context)
     assert a == b
 
 
@@ -556,7 +556,7 @@ def test_inspect_update_existing_ref_external_priority(
 
     # Check what was detected.
     context, manifest = load_manifest_and_context(rc, tmp_path / 'result.csv')
-    a, b = compare_manifest(context, manifest, '''
+    a, b = compare_manifest(manifest, '''
     d | r | b | m | property | type    | ref     | source  | prepare | access  | title
     datasets/gov/example     |         |         |         |         |         | Example
       | schema               | sql     | sql     |         |         |         |
@@ -569,7 +569,7 @@ def test_inspect_update_existing_ref_external_priority(
       |   |   |   | id       | integer |         | ID      |         | private |
       |   |   |   | name     | string  |         | NAME    | strip() | open    | City name
       |   |   |   | country  | ref     | Country | COUNTRY |         | open    | Country id
-    ''')
+    ''', context)
     assert a == b
 
 
@@ -721,7 +721,7 @@ def test_inspect_existing_duplicate_table_names(
     ])
     # Check what was detected.
     context, manifest = load_manifest_and_context(rc, result_file_path)
-    a, b = compare_manifest(context, manifest, f'''
+    a, b = compare_manifest(manifest, f'''
        d | r | m | property | type    | ref | source    | prepare | access  | title
        datasets/gov/example |         |     |           |         |         | Example
          | schema           | sql     | sql |           |         |         |
@@ -738,7 +738,7 @@ def test_inspect_existing_duplicate_table_names(
                             |         |     |           |         |         |
          |   | Country2     |         |     | __COUNTRY |         |         |
          |   |   | name     | string  |     | NAME      |         |         |
-       ''')
+       ''', context)
     assert a == b
 
 
@@ -775,7 +775,7 @@ def test_inspect_existing_duplicate_column_names(
     ])
     # Check what was detected.
     context, manifest = load_manifest_and_context(rc, result_file_path)
-    a, b = compare_manifest(context, manifest, f'''
+    a, b = compare_manifest(manifest, f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
          | schema           | sql     | sql |         |         |         |
@@ -785,7 +785,7 @@ def test_inspect_existing_duplicate_column_names(
          |   |   | name_2   | string  |     | NAME    |         |         |
          |   |   | name_1   | string  |     | _NAME   |         |         |
          |   |   | name_3   | string  |     | __NAME  |         |         |
-       ''')
+       ''', context)
     assert a == b
 
 
@@ -821,7 +821,7 @@ def test_inspect_insert_new_dataset(
     # Check what was detected.
     context, manifest = load_manifest_and_context(rc, result_file_path)
     commands.get_dataset(context, manifest, 'dbsqlite').resources['resource1'].external = "sqlite"
-    a, b = compare_manifest(context, manifest, f'''
+    a, b = compare_manifest(manifest, f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
                             |         |     |         |         |         |
@@ -832,7 +832,7 @@ def test_inspect_insert_new_dataset(
                             |         |     |         |         |         |
          |   | Country      |         |     | COUNTRY |         |         |
          |   |   | name     | string  |     | NAME    |         |         |
-''')
+''', context)
     assert a == b
 
 
@@ -867,7 +867,7 @@ def test_inspect_delete_model_source(
     ])
     # Check what was detected.
     context, manifest = load_manifest_and_context(rc, result_file_path)
-    a, b = compare_manifest(context, manifest, f'''
+    a, b = compare_manifest(manifest, f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
          | schema           | sql     | sql |         |         |         |
@@ -877,7 +877,7 @@ def test_inspect_delete_model_source(
                             |         |     |         |         |         |
          |   | Country      |         |     | COUNTRY |         |         |
          |   |   | name     | string  |     | NAME    |         |         |
-''')
+''', context)
     assert a == b
 
 
@@ -913,7 +913,7 @@ def test_inspect_delete_property_source(
     ])
     # Check what was detected.
     context, manifest = load_manifest_and_context(rc, result_file_path)
-    a, b = compare_manifest(context, manifest, f'''
+    a, b = compare_manifest(manifest, f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
          | schema           | sql     | sql |         |         |         |
@@ -921,7 +921,7 @@ def test_inspect_delete_property_source(
          |   | Country      |         |     | COUNTRY |         |         | Country
          |   |   | name     | string  |     | NAME    |         | open    | Country name
          |   |   | code     | string  |     |         |         | open    | Country code
-''')
+''', context)
     assert a == b
 
 
@@ -964,7 +964,7 @@ def test_inspect_multiple_resources_all_new(
     context, manifest = load_manifest_and_context(rc, result_file_path)
     commands.get_dataset(context, manifest, 'datasets/gov/example').resources['schema'].external = 'sqlite'
     commands.get_dataset(context, manifest, 'datasets/gov/example').resources['schema_1'].external = 'sqlite_new'
-    a, b = compare_manifest(context, manifest, f'''
+    a, b = compare_manifest(manifest, f'''
        d | r | m | property | type    | ref | source     | prepare | access  | title
        datasets/gov/example |         |     |            |         |         | Example
          | schema           | sql     |     | sqlite     |         |         |
@@ -976,7 +976,7 @@ def test_inspect_multiple_resources_all_new(
          |   | Country1     |         |     | COUNTRY    |         |         |
          |   |   | code     | string  |     | CODE       |         |         |
 
-''')
+''', context)
     assert a == b
 
 
@@ -1035,7 +1035,7 @@ def test_inspect_multiple_resources_specific(
     context, manifest = load_manifest_and_context(rc, result_file_path)
     commands.get_dataset(context, manifest, 'datasets/gov/example').resources['schema'].external = 'sqlite'
     commands.get_dataset(context, manifest, 'datasets/gov/example').resources['schema_1'].external = 'sqlite_new'
-    a, b = compare_manifest(context, manifest, f'''
+    a, b = compare_manifest(manifest, f'''
        d | r | m | property  | type    | ref       | source     | prepare | access  | title
        datasets/gov/example  |         |           |            |         |         | Example
          | schema            | sql     |           | sqlite     |         |         |
@@ -1053,7 +1053,7 @@ def test_inspect_multiple_resources_specific(
          |   |   | id        | integer |           | ID         |         |         |
          |   |   | name      | string  |           | NAME       |         |         |
 
-''')
+''', context)
     assert a == b
 
 
@@ -1130,7 +1130,7 @@ def test_inspect_multiple_resources_advanced(
     context, manifest = load_manifest_and_context(rc, result_file_path)
     commands.get_dataset(context, manifest, 'datasets/gov/example').resources['schema'].external = 'sqlite'
     commands.get_dataset(context, manifest, 'datasets/gov/example').resources['schema_1'].external = 'sqlite_new'
-    a, b = compare_manifest(context, manifest, f'''
+    a, b = compare_manifest(manifest, f'''
        d | r | m | property  | type    | ref       | source     | prepare | access  | title
        datasets/gov/example  |         |           |            |         |         | Example
                              |         |           |            |         |         |
@@ -1172,7 +1172,7 @@ def test_inspect_multiple_resources_advanced(
          |   |   | code      | string  |           | CODE       |         |         |
          |   |   | continent | ref     | Continent | CONTINENT  |         |         |
 
-''')
+''', context)
     assert a == b
 
 
@@ -1219,7 +1219,7 @@ def test_inspect_multiple_datasets(
     context, manifest = load_manifest_and_context(rc, result_file_path)
     commands.get_dataset(context, manifest, 'datasets/gov/example').resources['schema'].external = 'sqlite'
     commands.get_dataset(context, manifest, 'datasets/gov/loc').resources['schema'].external = 'sqlite'
-    a, b = compare_manifest(context, manifest, f'''
+    a, b = compare_manifest(manifest, f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
          | schema           | sql     |     | sqlite  |         |         |
@@ -1241,7 +1241,7 @@ def test_inspect_multiple_datasets(
          |   |   | name     | string  |     | NAME    |         |         |
 
 
-''')
+''', context)
     assert a == b
 
 
@@ -1294,7 +1294,7 @@ def test_inspect_multiple_datasets_advanced_manifest_priority(
     context, manifest = load_manifest_and_context(rc, result_file_path)
     commands.get_dataset(context, manifest, 'datasets/gov/example').resources['schema'].external = 'sqlite'
     commands.get_dataset(context, manifest, 'datasets/gov/loc').resources['schema'].external = 'sqlite'
-    a, b = compare_manifest(context, manifest, f'''
+    a, b = compare_manifest(manifest, f'''
        d | r | m | property  | type    | ref          | source    | prepare | access  | title
        datasets/gov/example  |         |              |           |         |         | Example
          | schema            | sql     |              | sqlite    |         |         |
@@ -1320,7 +1320,7 @@ def test_inspect_multiple_datasets_advanced_manifest_priority(
          |   |   | new_id    | string  |              | ID        |         |         |
          |   |   | code      | string  |              | CODE      |         |         |
          |   |   | name_1    | string  |              | NAME      |         |         |
-''')
+''', context)
     assert a == b
 
 
@@ -1374,7 +1374,7 @@ def test_inspect_multiple_datasets_advanced_external_priority(
     context, manifest = load_manifest_and_context(rc, result_file_path)
     commands.get_dataset(context, manifest, 'datasets/gov/example').resources['schema'].external = 'sqlite'
     commands.get_dataset(context, manifest, 'datasets/gov/loc').resources['schema'].external = 'sqlite'
-    a, b = compare_manifest(context, manifest, f'''
+    a, b = compare_manifest(manifest, f'''
        d | r | m | property  | type    | ref          | source    | prepare | access  | title
        datasets/gov/example  |         |              |           |         |         | Example
          | schema            | sql     |              | sqlite    |         |         |
@@ -1400,7 +1400,7 @@ def test_inspect_multiple_datasets_advanced_external_priority(
          |   |   | new_id    | integer |              | ID        |         |         |
          |   |   | code      | string  |              | CODE      |         |         |
          |   |   | name_1    | string  |              | NAME      |         |         |
-''')
+''', context)
     assert a == b
 
 
@@ -1456,7 +1456,7 @@ def test_inspect_multiple_datasets_different_resources(
     context, manifest = load_manifest_and_context(rc, result_file_path)
     commands.get_dataset(context, manifest, 'datasets/gov/car').resources['schema'].external = 'sqlite_new'
     commands.get_dataset(context, manifest, 'datasets/gov/loc').resources['schema'].external = 'sqlite'
-    a, b = compare_manifest(context, manifest, f'''
+    a, b = compare_manifest(manifest, f'''
        d | r | m | property  | type    | ref       | source     | prepare | access  | title
        datasets/gov/loc      |         |           |            |         |         | Example
          | schema            | sql     |           | sqlite     |         |         |
@@ -1481,7 +1481,7 @@ def test_inspect_multiple_datasets_different_resources(
          |   |   | id        | integer |           | ID         |         |         |
          |   |   | name      | string  |           | NAME       |         |         |
 
-''')
+''', context)
     assert a == b
 
 
@@ -1545,7 +1545,7 @@ def test_inspect_multiple_datasets_different_resources_specific(
     context, manifest = load_manifest_and_context(rc, result_file_path)
     commands.get_dataset(context, manifest, 'datasets/gov/car').resources['schema'].external = 'sqlite_new'
     commands.get_dataset(context, manifest, 'datasets/gov/loc').resources['schema'].external = 'sqlite'
-    a, b = compare_manifest(context, manifest, f'''
+    a, b = compare_manifest(manifest, f'''
        d | r | m | property | type    | ref    | source     | prepare | access  | title
        datasets/gov/loc     |         |        |            |         |         | Example
          | schema           | sql     |        | sqlite     |         |         |
@@ -1566,7 +1566,7 @@ def test_inspect_multiple_datasets_different_resources_specific(
          |   |   | code     | string  |        | CODE       |         |         |
          |   |   | id       | integer |        | ID         |         |         |
          |   |   | name     | string  |        | NAME       |         |         |
-''')
+''', context)
     assert a == b
 
 
@@ -1605,7 +1605,7 @@ def test_inspect_with_views(
     context, manifest = load_manifest_and_context(rc, result_file_path)
     commands.get_dataset(context, manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
     commands.get_dataset(context, manifest, 'dbsqlite/views').resources['resource1'].external = 'sqlite'
-    a, b = compare_manifest(context, manifest, f'''
+    a, b = compare_manifest(manifest, f'''
        d | r | m | property  | type    | ref       | source     | prepare | access  | title
        dbsqlite              |         |           |            |         |         |
          | resource1         | sql     |           | sqlite     |         |         |
@@ -1626,7 +1626,7 @@ def test_inspect_with_views(
          |   |   | continent | integer |           | CONTINENT  |         |         |
          |   |   | name      | string  |           | NAME       |         |         |
 
-''')
+''', context)
     assert a == b
 
 
@@ -1666,7 +1666,7 @@ def test_inspect_with_manifest_backends(
     # Check what was detected.
     context, manifest = load_manifest_and_context(rc, result_file_path)
     commands.get_dataset(context, manifest, 'datasets/gov/example').resources['test'].external = 'sqlite'
-    a, b = compare_manifest(context, manifest, f'''
+    a, b = compare_manifest(manifest, f'''
        d | r | m | property | type    | ref  | source  | prepare | access  | title
        datasets/gov/example |         |      |         |         |         | Example
          | test             | sql     |      | sqlite  |         |         |
@@ -1676,7 +1676,7 @@ def test_inspect_with_manifest_backends(
          |   | Country      |         |      | COUNTRY |         |         | Country
          |   |   | name     | string  |      | NAME    |         | open    | Country name
          |   |   | code     | string  |      |         |         | open    | Country code
-''')
+''', context)
     assert a == b
 
 
@@ -1750,7 +1750,7 @@ def test_inspect_json_model_ref_change(
     # Check what was detected.
     context, manifest = load_manifest_and_context(rc, result_file_path)
     commands.get_dataset(context, manifest, 'datasets/json/inspect').resources['resource'].external = 'resource.json'
-    a, b = compare_manifest(context, manifest, f'''
+    a, b = compare_manifest(manifest, f'''
 d | r | model  | property            | type                   | ref    | source
 datasets/json/inspect           |                        |        |
   | resource                    | json                   |        | resource.json
@@ -1766,7 +1766,7 @@ datasets/json/inspect           |                        |        |
   |   |   | weather_temperature | number unique          |        | weather.temperature
   |   |   | weather_wind_speed  | number unique          |        | weather.wind_speed
   |   |   | parent              | ref                    | Pos    | ..
-    ''')
+    ''', context)
     assert a == b
 
 
@@ -1828,7 +1828,7 @@ def test_inspect_xml_model_ref_change(
     # Check what was detected.
     context, manifest = load_manifest_and_context(rc, result_file_path)
     commands.get_dataset(context, manifest, 'datasets/xml/inspect').resources['resource'].external = 'resource.xml'
-    a, b = compare_manifest(context, manifest, f'''
+    a, b = compare_manifest(manifest, f'''
 d | r | model  | property            | type                   | ref    | source
 datasets/xml/inspect            |                        |        |
   | resource                    | xml                    |        | resource.xml
@@ -1844,5 +1844,5 @@ datasets/xml/inspect            |                        |        |
   |   |   | weather_temperature | number unique          |        | weather/temperature
   |   |   | weather_wind_speed  | number unique          |        | weather/wind_speed
   |   |   | country             | ref                    | Country | ..
-    ''')
+    ''', context)
     assert a == b

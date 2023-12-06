@@ -86,7 +86,7 @@ class Manifest(Component):
             # This uses pytest_assertrepr_compare hook and compare_manifest to
             # eventually compare manifests in ascii table form.
             from spinta.testing.manifest import compare_manifest
-            left, right = compare_manifest(Context('empty'), self, other)
+            left, right = compare_manifest(self, other)
             return left == right
         else:
             super().__eq__(other)
