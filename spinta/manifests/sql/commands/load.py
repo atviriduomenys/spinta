@@ -29,7 +29,7 @@ def load(
         target = into or manifest
         if not commands.has_model(context, target, '_schema'):
             store = context.get('store')
-            commands.load(context, store.internal, into=target)
+            commands.load(context, store.internal, into=target, full_load=full_load)
 
     schemas = read_schema(context, manifest.path, manifest.prepare)
 

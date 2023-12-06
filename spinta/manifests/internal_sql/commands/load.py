@@ -56,7 +56,7 @@ def load(
         target = into or manifest
         if '_schema' not in target.get_objects()['model']:
             store = context.get('store')
-            commands.load(context, store.internal, into=target)
+            commands.load(context, store.internal, into=target, full_load=full_load)
 
     if full_load:
         schemas = read_schema(manifest.path)
