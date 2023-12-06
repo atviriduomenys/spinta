@@ -15,4 +15,4 @@ def fully_initialize_manifest(context: Context, manifest: Manifest):
 
 @commands.create_request_manifest.register(Context, Manifest)
 def create_request_manifest(context: Context, manifest: Manifest):
-    pass
+    return manifest
