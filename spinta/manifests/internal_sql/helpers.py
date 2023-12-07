@@ -1072,7 +1072,7 @@ def _property_to_sql(
         'mpath': new_mpath,
         'dim': 'property',
         'name': prop.given.name,
-        'type': type_ or 'denorm',
+        'type': type_,
         'level': prop.level.value if prop.level else None,
         'access': prop.given.access,
         'uri': prop.uri,
