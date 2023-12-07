@@ -969,3 +969,39 @@ def create_exception(
     """
         Creates Spinta Exception from normal error
     """
+
+
+@overload
+def summary(
+    context: Context,
+    request: Request,
+    model: Model,
+    action: Action,
+    params: UrlParams,
+) -> Response:
+    pass
+
+
+@overload
+def summary(
+    context: Context,
+    model: Model,
+    backend: Backend,
+    **kwargs
+):
+    pass
+
+
+@overload
+def summary(
+    context: Context,
+    dtype: DataType,
+    backend: Backend,
+    **kwargs
+):
+    pass
+
+
+@command()
+def summary(*args) -> None:
+    """Create summary for property"""
