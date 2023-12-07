@@ -21,7 +21,7 @@ def test_gsheets(context, rc: RawConfig, tmp_path: Path, responses: RequestsMock
                              |             |           |            |         |       |        |     |         |
       |   |   | City         |             |           |            | name    |       | open   |     | City    |
       |   |   |   | name     | pavadinimas |           | string     |         | 3     | open   |     | Name    |
-      |   |   |   | country  | šalis       |           | ref        | country | 4     | open   |     | Country |
+      |   |   |   | country  | šalis       |           | ref        | Country | 4     | open   |     | Country |
     '''
     create_tabular_manifest(context, path, table)
 

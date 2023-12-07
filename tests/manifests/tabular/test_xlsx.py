@@ -17,7 +17,7 @@ def test_xlsx(context, rc: RawConfig, tmp_path: Path):
                              |             |           |            |         |       |        |     |         |
       |   |   | City         |             |           |            | name    |       | open   |     | City    |
       |   |   |   | name     | pavadinimas |           | string     |         | 3     | open   |     | Name    |
-      |   |   |   | country  | šalis       |           | ref        | country | 4     | open   |     | Country |
+      |   |   |   | country  | šalis       |           | ref        | Country | 4     | open   |     | Country |
     '''
     create_tabular_manifest(context, tmp_path / 'manifest.xlsx', table)
     manifest = load_manifest(rc, tmp_path / 'manifest.xlsx')

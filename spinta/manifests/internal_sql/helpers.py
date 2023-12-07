@@ -1063,6 +1063,7 @@ def _property_to_sql(
     item_id = _handle_id(prop.id)
     new_path = '/'.join([path, prop.name] if path else [prop.name])
     new_mpath = '/'.join([mpath, prop.name] if mpath else [prop.name])
+    type_ = _get_type_repr(prop.dtype)
     data = {
         'id': item_id,
         'parent': parent_id,
@@ -1070,8 +1071,8 @@ def _property_to_sql(
         'path': new_path,
         'mpath': new_mpath,
         'dim': 'property',
-        'name': prop.name,
-        'type': _get_type_repr(prop.dtype),
+        'name': prop.given.name,
+        'type': type_ or 'denorm',
         'level': prop.level.value if prop.level else None,
         'access': prop.given.access,
         'uri': prop.uri,
@@ -1141,7 +1142,8 @@ def _property_to_sql(
     elif prop.unit is not None:
         data['ref'] = prop.given.unit
 
-    yield to_row(INTERNAL_MANIFEST_COLUMNS, data)
+    if data['name']:
+        yield to_row(INTERNAL_MANIFEST_COLUMNS, data)
     yield from _comments_to_sql(prop.comments, access=access, parent_id=item_id, depth=depth + 1, path=new_path,
                                 mpath=new_mpath)
     yield from _lang_to_sql(prop.lang, parent_id=item_id, depth=depth + 1, path=new_path, mpath=new_mpath)
