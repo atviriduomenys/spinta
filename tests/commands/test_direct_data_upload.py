@@ -4,7 +4,6 @@ import os
 from pathlib import Path
 from spinta.core.config import RawConfig
 from spinta.components import Mode
-from spinta.testing.pytest import rc
 from spinta.testing.client import create_test_client
 from spinta.testing.manifest import prepare_manifest
 
@@ -39,7 +38,7 @@ def test_direct_data_upload_csv_via_form(
     app.authmodel('example/direct/data/City', ['getall', 'insert', 'post'])
     headers = {'Content-type': 'text/csv'}
 
-    with open(file_path, "rb") as file:
+    with open(file_path, "r+b") as file:
         response = app.post('/example/direct/data/City',
                             headers=headers,
                             files={'file': ('data.csv', file, 'text/csv')})

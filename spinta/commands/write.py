@@ -84,8 +84,7 @@ async def push(
             context, request, scope, action, stop_on_error,
         )
     else:
-        if is_direct_upload(content_type):
-            backend = detect_backend_from_content_type(context, content_type)
+        backend = detect_backend_from_content_type(context, content_type)
         if backend:
             rows = commands.getall(context, scope, backend)
             stream = get_stream_for_direct_upload(context, rows, request, params, content_type)
@@ -229,10 +228,6 @@ def get_content_type_from_request(request: Request):
 
 def is_streaming_request(content_type):
     return content_type in STREAMING_CONTENT_TYPES
-
-
-def is_direct_upload(content_type):
-    return content_type not in STREAMING_CONTENT_TYPES
 
 
 async def is_batch(request: Request, node: Node):

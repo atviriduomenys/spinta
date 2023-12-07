@@ -188,5 +188,3 @@ def get_response_type_as_format_class(context, request, params, content_type):
     raise ValueError(
         f"Can't find a matching response type for the given format type {params.fmt!r}"
     )
-
-
