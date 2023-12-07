@@ -346,10 +346,22 @@ def prepare(*args, **kwargs):
 @overload
 def prepare_for_write(
     context: Context,
+    prop: DataType,
+    backend: Backend,
+    patch_: Any,
+    params: UrlParams
+):
+    """prepare_for_write datatype wrapper to use UrlParams"""
+
+
+@overload
+def prepare_for_write(
+    context: Context,
     model: Model,
     backend: Backend,
     patch_: Dict[str, Any],
     action: Action,
+    params: UrlParams
 ):
     """Convert Python-native Model patch data to backend-native patch"""
 
@@ -360,6 +372,7 @@ def prepare_for_write(
     prop: Property,
     backend: Backend,
     patch_: Any,
+    params: UrlParams
 ):
     """Convert Python-native Property patch data to backend-native patch
 
@@ -617,6 +630,20 @@ def getall(
     backend: Backend,
     *,
     query: Expr = None,
+    **kwargs
+) -> Iterator[ObjectData]:
+    pass
+
+
+@overload
+def getall(
+    context: Context,
+    model: Model,
+    backend: Backend,
+    *,
+    query: Expr = None,
+    default_expand: bool = True,
+    **kwargs
 ) -> Iterator[ObjectData]:
     pass
 
@@ -628,6 +655,7 @@ def getall(
     backend: ExternalBackend,
     *,
     query: Expr = None,
+    **kwargs
 ) -> Iterator[ObjectData]:
     pass
 
@@ -641,6 +669,7 @@ def getall(
     action: Optional[Action] = None,
     dataset_: Optional[str] = None,
     resource: Optional[str] = None,
+    **kwargs
 ):
     pass
 
@@ -971,6 +1000,11 @@ def create_exception(
     """
 
 
+@command()
+def spinta_to_np_dtype(dtype: DataType):
+    """Converts Spinta dtype to np.dtype"""
+
+
 @overload
 def summary(
     context: Context,
@@ -987,7 +1021,7 @@ def summary(
     context: Context,
     model: Model,
     backend: Backend,
-    **kwargs
+    query: Expr
 ):
     pass
 
@@ -1005,3 +1039,64 @@ def summary(
 @command()
 def summary(*args) -> None:
     """Create summary for property"""
+
+
+@overload
+def find_backref_ref(
+    prop: Model,
+    backref_model: str,
+    given_ref: str
+):
+    pass
+
+
+@overload
+def find_backref_ref(
+    prop: Property,
+    backref_model: str,
+    given_ref: str
+):
+    pass
+
+
+@overload
+def find_backref_ref(
+    dtype: DataType,
+    backref_model: str,
+    given_ref: object
+):
+    pass
+
+
+@command()
+def find_backref_ref(
+    prop: Any,
+    backref_model: str,
+    given_ref: object
+):
+    pass
+
+
+@overload
+def get_column(
+    backend: Backend,
+    dtype: DataType,
+    **kwargs
+):
+    pass
+
+
+@overload
+def get_column(
+    backend: Backend,
+    prop: Property,
+    **kwargs
+):
+    pass
+
+
+@command()
+def get_column(
+    **kwargs
+):
+    pass

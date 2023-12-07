@@ -157,3 +157,73 @@ def test_csv_file_dtype(
         ['name', 'flag._id', 'flag._content_type'],
         ['Lithuania', 'file.txt', 'text/plain'],
     ]
+
+
+def test_csv_empty_ref(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, '''
+    d | r | b | m | property | type   | ref     | access
+    example/csv/ref          |        |         |
+      |   |   | Country      |        | name    |
+      |   |   |   | name     | string |         | open
+      |   |   | City         |        | name    |
+      |   |   |   | name     | string |         | open
+      |   |   |   | country  | ref    | Country | open
+    ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authorize(['spinta_set_meta_fields'])
+    app.authmodel('example/csv/ref', ['insert', 'search'])
+
+    # Add data
+    pushdata(app, '/example/csv/ref/City', {
+        'name': 'Vilnius'
+    })
+
+    assert parse_csv(app.get('/example/csv/ref/City/:format/csv?select(name,country)')) == [
+        ['name', 'country._id'],
+        ['Vilnius', ''],
+    ]
+
+
+def test_csv_mixed_ref(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, '''
+    d | r | b | m | property | type   | ref     | access
+    example/csv/ref          |        |         |
+      |   |   | Country      |        | name    |
+      |   |   |   | name     | string |         | open
+      |   |   | City         |        | name    |
+      |   |   |   | name     | string |         | open
+      |   |   |   | country  | ref    | Country | open
+    ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authorize(['spinta_set_meta_fields'])
+    app.authmodel('example/csv/ref', ['insert', 'search'])
+
+    # Add data
+    lithuania_id = "8b607509-4413-459c-b13e-b4e52a38d024"
+    pushdata(app, '/example/csv/ref/Country', {
+        '_id': lithuania_id,
+        'name': 'Lithuania',
+    })
+    pushdata(app, '/example/csv/ref/City', {
+        'name': 'Vilnius',
+        'country': {
+            '_id': lithuania_id
+        }
+    })
+    pushdata(app, '/example/csv/ref/City', {
+        'name': 'Ryga',
+    })
+
+    assert parse_csv(app.get('/example/csv/ref/City/:format/csv?select(name,country)')) == [
+        ['name', 'country._id'],
+        ['Ryga', ''],
+        ['Vilnius', lithuania_id],
+    ]

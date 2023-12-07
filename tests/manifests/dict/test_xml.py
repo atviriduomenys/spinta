@@ -224,7 +224,7 @@ dataset                     |                         |         |
   |   |   | name            | string required unique  |         | @name
   |   |   | code            | string required unique  |         | @code
   |   |   | location_test   | string unique           |         | location/@test
-  |   |   | location_coords | array                   |         | location/coords
+  |   |   | location_coords[] | number                  |         | location/coords
                             |                         |         |
   |   | Geo                 |                         |         | /countries/country/location/geos/geo
   |   |   | geo_test        | string required         |         | @geo_test
@@ -236,7 +236,7 @@ dataset                     |                         |         |
                             |                         |         |
   |   | City                |                         |         | /countries/country/cities/city
   |   |   | name            | string required unique  |         | @name
-  |   |   | location_coords | array                   |         | location/coords
+  |   |   | location_coords[] | number                  |         | location/coords
   |   |   | country         | ref                     | Country | ../..
 ''')
     assert a == b

@@ -4,11 +4,12 @@ from typing import Union
 from spinta.components import Context
 from spinta.components import Model
 from spinta.components import Property
-from spinta.core.ufuncs import Bind
+from spinta.core.ufuncs import Bind, asttoexpr
 from spinta.core.ufuncs import Expr
 from spinta.exceptions import PropertyNotFound
 from spinta.manifests.components import Manifest
 from spinta.naming.components import NameFormatter
+from spinta.spyna import parse
 from spinta.types.datatype import Ref
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.naming import to_model_name
@@ -73,6 +74,10 @@ def _format_expr(
 def _format_property_expr(context: Context, prop: Property) -> None:
     if prop.external and prop.external.prepare:
         prop.external.prepare = _format_expr(context, prop, prop.external.prepare)
+    if prop.given.prepare:
+        for item in prop.given.prepare:
+            if not item['appended']:
+                item['prepare'] = _format_expr(context, prop, asttoexpr(parse(item['prepare'])))
 
 
 def _format_model_expr(context: Context, model: Model) -> None:
@@ -95,6 +100,11 @@ def _format_property_name(prop: Property) -> str:
     return to_property_name(prop.name, is_ref)
 
 
+def _format_property_given_name(prop: Property) -> str:
+    is_ref = isinstance(prop.dtype, Ref)
+    return to_property_name(prop.given.name, is_ref)
+
+
 def _format_property_place(prop: Property) -> str:
     is_ref = isinstance(prop.dtype, Ref)
     place = prop.place.split('.')
@@ -110,6 +120,7 @@ def _format_property(prop: Property) -> Property:
     else:
         prop.name = _format_property_name(prop)
         prop.place = _format_property_place(prop)
+        prop.given.name = _format_property_given_name(prop)
         return prop
 
 

@@ -14,43 +14,93 @@ from sqlalchemy.dialects import oracle
 from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.types import TypeEngine
 
+from spinta import spyna
+from spinta.components import Context
+from spinta.core.ufuncs import asttoexpr
+from spinta.datasets.backends.sql.ufuncs.components import SqlResource, Engine
+from spinta.exceptions import UnexpectedFormulaResult
+from spinta.utils.imports import full_class_name
 from spinta.utils.naming import Deduplicator
 from spinta.utils.naming import to_dataset_name
 from spinta.utils.naming import to_model_name
 from spinta.utils.naming import to_property_name
 
 
-def read_schema(path: str):
+def read_schema(context: Context, path: str, prepare: str = None):
+    engine = sa.create_engine(path)
+    schema = None
+    if prepare:
+        env = SqlResource(context).init(path)
+        parsed = spyna.parse(prepare)
+        converted = asttoexpr(parsed)
+        engine = env.resolve(converted)
+        engine = env.execute(engine)
+        if not isinstance(engine, Engine):
+            raise UnexpectedFormulaResult(
+                formula=spyna.unparse(converted),
+                expected=full_class_name(Engine),
+                received=full_class_name(engine),
+            )
+
+        schema = engine.schema
+        engine = engine.create()
+
     url = sa.engine.make_url(path)
     dataset = to_dataset_name(url.database) if url.database else 'dataset1'
-    resource = 'resource1'
-    yield None, {
-        'type': 'dataset',
-        'name': dataset,
-        'resources': {
-            resource: {
-                'type': 'sql',
-                'external': str(url.set(password='')),
-            },
-        },
-    }
-
-    engine = sa.create_engine(path)
     insp = sa.inspect(engine)
-    mapping = _create_mapping(insp, dataset)
-    for table in sorted(mapping):
-        yield None, {
-            'type': 'model',
-            'name': mapping[table].model,
-            'external': {
-                'dataset': dataset,
-                'resource': resource,
-                'name': table,
-                'pk': _get_primary_key(insp, table, mapping),
-            },
-            'description': _get_table_comment(insp, table),
-            'properties': dict(_read_props(insp, table, mapping)),
+
+    table_mapper = [
+        {
+            "dataset": dataset,
+            "resource": 'resource1',
+            "mapping": _create_mapping(insp, insp.get_table_names(schema=schema), schema, dataset)
         }
+    ]
+
+    get_view_names = getattr(insp, "get_view_names", None)
+    get_materialized_view_names = getattr(insp, "get_materialized_view_names", None)
+    views = []
+    if callable(get_view_names):
+        views += insp.get_view_names(schema=schema)
+    if callable(get_materialized_view_names):
+        views += insp.get_materialized_view_names(schema=schema)
+
+    if views:
+        dataset = f'{dataset}/views'
+        table_mapper.append(
+            {
+                "dataset": dataset,
+                "resource": "resource1",
+                "mapping": _create_mapping(insp, views, schema, dataset)
+            }
+        )
+
+    for mapping_data in table_mapper:
+        yield None, {
+            'type': 'dataset',
+            'name': mapping_data["dataset"],
+            'resources': {
+                mapping_data["resource"]: {
+                    'type': 'sql',
+                    'external': str(url.set(password='')),
+                    'prepare': prepare
+                },
+            },
+        }
+
+        for table in sorted(mapping_data["mapping"]):
+            yield None, {
+                'type': 'model',
+                'name': mapping_data["mapping"][table].model,
+                'external': {
+                    'dataset': mapping_data["dataset"],
+                    'resource': mapping_data["resource"],
+                    'name': table,
+                    'pk': _get_primary_key(insp, table, schema, mapping_data["mapping"]),
+                },
+                'description': _get_table_comment(insp, schema, table),
+                'properties': dict(_read_props(insp, table, schema, mapping_data["mapping"])),
+            }
 
 
 class _TableMapping(NamedTuple):
@@ -67,15 +117,15 @@ _Mapping = Dict[
 ]
 
 
-def _create_mapping(insp: Inspector, dataset: str) -> _Mapping:
+def _create_mapping(insp: Inspector, tables: list, schema: str, dataset: str) -> _Mapping:
     dedup_model = Deduplicator('{}')
     mapping: _Mapping = {}
-    for table in sorted(insp.get_table_names()):
+    for table in sorted(tables):
         model = to_model_name(table)
         model = dedup_model(model)
         dedup_prop = Deduplicator('_{}')
         props = {}
-        for col in insp.get_columns(table):
+        for col in insp.get_columns(table, schema=schema):
             prop = to_property_name(col['name'])
             prop = dedup_prop(prop)
             props[col['name']] = prop
@@ -89,18 +139,19 @@ def _create_mapping(insp: Inspector, dataset: str) -> _Mapping:
 def _get_primary_key(
     insp: Inspector,
     table: str,
+    schema: str,
     mapping: _TableMapping,
 ) -> List[str]:
-    pk = insp.get_pk_constraint(table)
+    pk = insp.get_pk_constraint(table, schema=schema)
     return [
         mapping[table].props[col]
         for col in pk['constrained_columns']
     ]
 
 
-def _get_table_comment(insp: Inspector, table: str) -> str:
+def _get_table_comment(insp: Inspector, schema: str, table: str) -> str:
     try:
-        return insp.get_table_comment(table).get('text')
+        return insp.get_table_comment(table, schema=schema).get('text')
     except NotImplementedError:
         return ''
 
@@ -108,14 +159,15 @@ def _get_table_comment(insp: Inspector, table: str) -> str:
 def _read_props(
     insp: Inspector,
     table: str,
+    schema: str,
     mapping: _Mapping,
 ) -> Iterator[Tuple[
     str,
     Dict[str, Any],
 ]]:
-    fkeys, cfkeys = _get_fkeys(insp, table, mapping)
+    fkeys, cfkeys = _get_fkeys(insp, table, schema, mapping)
 
-    cols = insp.get_columns(table)
+    cols = insp.get_columns(table, schema=schema)
     cols = sorted(cols, key=itemgetter('name'))
     for col in cols:
         name = col['name']
@@ -171,6 +223,7 @@ TYPES = [
     (postgresql.JSON, 'object'),
     (postgresql.JSONB, 'object'),
     (postgresql.UUID, 'string'),
+    (postgresql.INTERVAL, 'integer'),  # total number of seconds
     (Geometry, 'geometry'),
     (oracle.ROWID, 'string'),
     (oracle.RAW, 'binary'),
@@ -193,6 +246,7 @@ class _Ref(NamedTuple):
 def _get_fkeys(
     insp: Inspector,
     table: str,
+    schema: str,
     mapping: _Mapping,
 ) -> Tuple[
     Dict[       # foreign keys
@@ -206,7 +260,7 @@ def _get_fkeys(
 ]:
     fkeys = {}
     cfkeys = {}
-    for fk in insp.get_foreign_keys(table):
+    for fk in insp.get_foreign_keys(table, schema=schema):
         composite = len(fk['constrained_columns']) > 1
 
         col = fk['constrained_columns'][0]

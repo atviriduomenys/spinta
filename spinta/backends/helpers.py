@@ -101,8 +101,7 @@ def get_select_prop_names(
             p.name
             for p in props.values() if (
                 not p.name.startswith('_') and
-                not p.hidden and
-                (not auth or authorized(context, p, action)) and
+                not p.hidden and (not auth or authorized(context, p, action)) and
                 (include_denorm_props or not isinstance(p.dtype, Denorm))
             )
         ]
@@ -284,15 +283,18 @@ def flat_select_to_nested(select: Optional[List[str]]) -> SelectTree:
     return res
 
 
-def get_model_reserved_props(action: Action) -> List[str]:
+def get_model_reserved_props(action: Action, model: Model) -> List[str]:
     if action == Action.GETALL:
-        return ['_type', '_id', '_revision']
+        reserved = ['_type', '_id', '_revision']
     elif action == Action.SEARCH:
-        return ['_type', '_id', '_revision', '_base']
+        reserved = ['_type', '_id', '_revision', '_base']
     elif action == Action.CHANGES:
         return ['_cid', '_created', '_op', '_id', '_txn', '_revision']
     else:
-        return ['_type', '_id', '_revision']
+        reserved = ['_type', '_id', '_revision']
+    if model.page.is_enabled:
+        reserved.append('_page')
+    return reserved
 
 
 def get_ns_reserved_props(action: Action) -> List[str]:
