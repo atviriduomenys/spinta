@@ -1,5 +1,6 @@
 import io
 import json
+import os
 import pathlib
 
 import numpy as np
@@ -9,11 +10,10 @@ from typing import Dict, Any, Iterator
 import dask
 import requests
 from dask.dataframe import DataFrame
-from dask.dataframe.utils import make_meta
 from lxml import etree
 
 from spinta import commands
-from spinta.components import Context, Property, Model, UrlParams
+from spinta.components import Context, Property, Model
 from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.dataframe.components import DaskBackend, Csv, Xml, Json
 from spinta.datasets.backends.dataframe.commands.query import DaskDataFrameQueryBuilder, Selected
@@ -408,6 +408,7 @@ def getall(
     backend: Csv,
     *,
     query: Expr = None,
+    file_path: pathlib.Path = None,
     **kwargs
 ) -> Iterator[ObjectData]:
     base = model.external.resource.external
@@ -417,12 +418,15 @@ def getall(
     builder = DaskDataFrameQueryBuilder(context)
     builder.update(model=model)
     for params in iterparams(context, model):
-        if base:
-            url = urllib.parse.urljoin(base, model.external.name)
+        if file_path and os.path.exists(file_path):
+            df = dask.dataframe.read_csv(file_path, sep=resource_builder.seperator)
         else:
-            url = model.external.name
-        url = url.format(**params)
-        df = dask.dataframe.read_csv(url, sep=resource_builder.seperator)
+            if base:
+                url = urllib.parse.urljoin(base, model.external.name)
+            else:
+                url = model.external.name
+            url = url.format(**params)
+            df = dask.dataframe.read_csv(url, sep=resource_builder.seperator)
         yield from _dask_get_all(context, query, df, backend, model, builder)
 
 

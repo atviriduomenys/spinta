@@ -735,3 +735,7 @@ class DuplicateRdfPrefixMissmatch(UserError):
 
 class InvalidName(UserError):
     template = 'Invalid {name!r} {type} code name.'
+
+
+class NoMatchingBackendDetected(UserError):
+    template = "Can't find a matching external backend for the given content type {content_type!r}"

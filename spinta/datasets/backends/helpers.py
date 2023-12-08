@@ -8,7 +8,7 @@ from spinta.components import Property, Context
 from spinta.datasets.backends.notimpl.components import BackendNotImplemented
 from spinta.datasets.components import ExternalBackend
 from spinta.datasets.keymaps.components import KeyMap
-from spinta.exceptions import GivenValueCountMissmatch
+from spinta.exceptions import GivenValueCountMissmatch, NoMatchingBackendDetected
 from spinta.types.datatype import Ref, Array
 from spinta.formats.helpers import get_response_type_as_format_class
 
@@ -94,9 +94,7 @@ def detect_backend_from_content_type(context, content_type):
         if issubclass(backend, ExternalBackend) and not issubclass(backend, BackendNotImplemented):
             if backend.accept_types and content_type in backend.accept_types:
                 return backend()
-    raise ValueError(
-        f"Can't find a matching external backend for the given content type {content_type!r}"
-    )
+    raise NoMatchingBackendDetected
 
 
 def get_stream_for_direct_upload(

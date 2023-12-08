@@ -1,6 +1,7 @@
 import cgi
+import os
+import tempfile
 import typing
-
 import itertools
 import json
 import pathlib
@@ -10,10 +11,8 @@ from typing import AsyncIterator, Union, Optional
 from typing import overload
 from typing import Dict
 from typing import Iterator
-
 from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 
-from starlette.datastructures import URL, Headers
 from starlette.requests import Request
 from starlette.responses import Response
 
@@ -23,12 +22,9 @@ from spinta import exceptions
 from spinta.accesslog import AccessLog
 from spinta.accesslog import log_async_response
 from spinta.auth import check_scope
-from spinta.backends import check_type_value
 from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
 from spinta.backends.components import Backend, BackendFeatures
-from spinta.cli.helpers.store import prepare_manifest
-from spinta.commands import getall
 from spinta.components import Context, Node, UrlParams, Action, DataItem, Namespace, Model, Property, DataStream, DataSubItem
 from spinta.datasets.backends.helpers import detect_backend_from_content_type, get_stream_for_direct_upload
 from spinta.renderer import render
@@ -43,7 +39,6 @@ from spinta.utils.data import take
 from spinta.types.namespace import traverse_ns_models
 from spinta.core.ufuncs import asttoexpr
 from spinta.formats.components import Format
-from spinta.types.text.components import Text
 
 if typing.TYPE_CHECKING:
     from spinta.backends.postgresql.components import WriteTransaction
@@ -79,6 +74,8 @@ async def push(
 
     stop_on_error = not params.fault_tolerant
     content_type = get_content_type_from_request(request)
+    temp_file = tempfile.NamedTemporaryFile(delete=False)
+    context.attach('uploaded_file', temp_file)
     if is_streaming_request(content_type):
         stream = _read_request_stream(
             context, request, scope, action, stop_on_error,
@@ -86,7 +83,9 @@ async def push(
     else:
         backend = detect_backend_from_content_type(context, content_type)
         if backend:
-            rows = commands.getall(context, scope, backend)
+            async for line in request.stream():
+                temp_file.write(line)
+            rows = commands.getall(context, scope, backend, file_path=temp_file.name)
             stream = get_stream_for_direct_upload(context, rows, request, params, content_type)
         else:
             stream = _read_request_body(
@@ -113,6 +112,8 @@ async def push(
             dstream,
         )
     headers = prepare_headers(context, scope, response, action, is_batch=batch)
+    if temp_file:
+        os.unlink(temp_file.name)
     return render(context, request, scope, params, response,
                   action=action, status_code=status_code, headers=headers)
 
