@@ -70,7 +70,7 @@ def getall(
         accesslog = context.get('accesslog')
 
         prepare_data_for_response_kwargs = {}
-        for model in traverse_ns_models(context, ns, action, internal=True):
+        for model in traverse_ns_models(context, ns, manifest, action, internal=True):
             commands.authorize(context, action, model)
             select_tree = get_select_tree(context, action, params.select)
             prop_names = get_select_prop_names(
@@ -89,7 +89,7 @@ def getall(
         rows = (
             commands.prepare_data_for_response(
                 context,
-                commands.get_model(context, ns.manifest, row['_type']),
+                commands.get_model(context, manifest, row['_type']),
                 params.fmt,
                 row,
                 action=action,
