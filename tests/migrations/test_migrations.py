@@ -25,7 +25,7 @@ def test_create_table(rc, cli: SpintaCliRunner, tmp_path):
     create_manifest_files(tmp_path, {
         'country.yml': {
             'type': 'model',
-            'name': 'country',
+            'name': 'Country',
             'properties': {
                 'name': {'type': 'string'},
             },
@@ -46,12 +46,12 @@ def test_create_table(rc, cli: SpintaCliRunner, tmp_path):
                 'type': 'schema',
                 'upgrade':
                     "create_table(\n"
-                    "    'country',\n"
+                    "    'Country',\n"
                     "    column('_id', pk()),\n"
                     "    column('_revision', string()),\n"
                     "    column('name', string())\n"
                     ")",
-                'downgrade': "drop_table('country')",
+                'downgrade': "drop_table('Country')",
             },
         ],
     }
@@ -62,7 +62,7 @@ def test_add_column(rc, cli: SpintaCliRunner, tmp_path):
     create_manifest_files(tmp_path, {
         'country.yml': {
             'type': 'model',
-            'name': 'country',
+            'name': 'Country',
             'properties': {
                 'name': {'type': 'string'},
             },
@@ -94,10 +94,10 @@ def test_add_column(rc, cli: SpintaCliRunner, tmp_path):
                 'type': 'schema',
                 'upgrade':
                     "add_column(\n"
-                    "    'country',\n"
+                    "    'Country',\n"
                     "    column('code', string())\n"
                     ")",
-                'downgrade': "drop_column('country', 'code')",
+                'downgrade': "drop_column('Country', 'code')",
             },
         ],
     }
@@ -108,7 +108,7 @@ def test_alter_column(rc, cli: SpintaCliRunner, tmp_path):
     create_manifest_files(tmp_path, {
         'country.yml': {
             'type': 'model',
-            'name': 'country',
+            'name': 'Country',
             'properties': {
                 'name': {'type': 'string'},
                 'area': {'type': 'integer'},
@@ -140,7 +140,7 @@ def test_schema_with_multiple_head_nodes(rc, cli: SpintaCliRunner, tmp_path):
     create_manifest_files(tmp_path, {
         'country.yml': {
             'type': 'model',
-            'name': 'country',
+            'name': 'Country',
             'properties': {
                 'title': {'type': 'string'},
                 'area': {'type': 'number'},
@@ -182,25 +182,25 @@ def test_build_schema_relation_graph(rc, cli: SpintaCliRunner, tmp_path):
     create_manifest_files(tmp_path, {
         'country.yml': {
             'type': 'model',
-            'name': 'country',
+            'name': 'Country',
             'properties': {
                 'title': {'type': 'string'},
             },
         },
         'org.yml': {
             'type': 'model',
-            'name': 'org',
+            'name': 'Org',
             'properties': {
                 'title': {'type': 'string'},
-                'country': {'type': 'ref', 'model': 'country'},
+                'country': {'type': 'ref', 'model': 'Country'},
             }
         },
         'report.yml': {
             'type': 'model',
-            'name': 'report',
+            'name': 'Report',
             'properties': {
                 'title': {'type': 'string'},
-                'org': {'type': 'ref', 'model': 'org'},
+                'org': {'type': 'ref', 'model': 'Org'},
             },
         }
     })
