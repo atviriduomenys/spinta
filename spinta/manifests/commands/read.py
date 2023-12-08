@@ -56,8 +56,8 @@ def getall(
 ):
     if params.all and params.ns:
 
-        # for model in traverse_ns_models(context, ns, action, internal=True):
-        #     commands.authorize(context, action, model)
+        for model in commands.traverse_ns_models(context, ns, manifest, action, internal=True):
+            commands.authorize(context, action, model)
         return _get_ns_content(
             context,
             request,
@@ -70,7 +70,7 @@ def getall(
         accesslog = context.get('accesslog')
 
         prepare_data_for_response_kwargs = {}
-        for model in traverse_ns_models(context, ns, manifest, action, internal=True):
+        for model in commands.traverse_ns_models(context, ns, manifest, action, internal=True):
             commands.authorize(context, action, model)
             select_tree = get_select_tree(context, action, params.select)
             prop_names = get_select_prop_names(

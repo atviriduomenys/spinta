@@ -293,9 +293,10 @@ async def _stream_namespace(
     data
 ):
     namespaces = []
-    models = traverse_ns_models(
+    models = commands.traverse_ns_models(
         context,
         ns,
+        ns.manifest,
         action,
         internal=True,
     )
