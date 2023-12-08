@@ -935,6 +935,7 @@ def _base_to_sql(
         'mpath': new_mpath,
         'dim': 'base',
         'name': base.name,
+        'level': base.level.value if base.level else None,
         'prepare': _handle_prepare(NA)
     }
     if base.pk:
