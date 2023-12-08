@@ -13,6 +13,8 @@ from spinta.components import Context
 from spinta.components import Model
 from spinta.components import UrlParams
 from spinta.types.datatype import Array, ArrayBackRef, BackRef
+from spinta.formats.components import Format
+from spinta.formats.json.components import Json
 from spinta.types.datatype import Inherit
 from spinta.types.datatype import ExternalRef
 from spinta.types.datatype import DataType
@@ -20,6 +22,7 @@ from spinta.types.datatype import Object
 from spinta.types.datatype import File
 from spinta.types.datatype import Ref
 from spinta.types.text.components import Text
+from spinta.urlparams import get_response_type
 from spinta.utils.data import take
 
 
@@ -174,3 +177,14 @@ def get_model_tabular_header(
             )
         header = list(_get_model_header(model, names, select, reserved))
     return header
+
+
+def get_response_type_as_format_class(context, request, params, content_type):
+    response_type = get_response_type(context, request, params)
+    if isinstance(response_type, Format):
+        return response_type
+    elif response_type == 'json':
+        return Json
+    raise ValueError(
+        f"Can't find a matching response type for the given format type {params.fmt!r}"
+    )

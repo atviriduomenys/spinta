@@ -676,7 +676,7 @@ def getall(
 
 @command()
 def getall():
-    """Find multiple records in the databse."""
+    """Find multiple records in the database."""
 
 
 @command()

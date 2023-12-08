@@ -1,18 +1,18 @@
 import cgi
+import os
+import tempfile
 import typing
-from typing import Any
-from typing import AsyncIterator, Union, Optional
-from typing import overload
-
 import itertools
 import json
 import pathlib
+
+from typing import Any
+from typing import AsyncIterator, Union, Optional
+from typing import overload
 from typing import Dict
 from typing import Iterator
-
 from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 
-from starlette.datastructures import URL, Headers
 from starlette.requests import Request
 from starlette.responses import Response
 
@@ -22,16 +22,15 @@ from spinta import exceptions
 from spinta.accesslog import AccessLog
 from spinta.accesslog import log_async_response
 from spinta.auth import check_scope
-from spinta.backends import check_type_value
 from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
 from spinta.backends.components import Backend, BackendFeatures
 from spinta.components import Context, Node, UrlParams, Action, DataItem, Namespace, Model, Property, DataStream, DataSubItem
+from spinta.datasets.backends.helpers import detect_backend_from_content_type, get_stream_for_direct_upload
 from spinta.renderer import render
 from spinta.types.datatype import DataType, Object, Array, File, Ref, ExternalRef, Denorm, Inherit, BackRef
 from spinta.urlparams import get_model_by_name
-from spinta.utils.aiotools import agroupby
-from spinta.utils.aiotools import aslice, alist, aiter
+from spinta.utils.aiotools import agroupby, aslice, alist, aiter
 from spinta.utils.errors import report_error
 from spinta.utils.nestedstruct import flatten_value
 from spinta.utils.streams import splitlines
@@ -40,7 +39,6 @@ from spinta.utils.data import take
 from spinta.types.namespace import traverse_ns_models
 from spinta.core.ufuncs import asttoexpr
 from spinta.formats.components import Format
-from spinta.types.text.components import Text
 
 if typing.TYPE_CHECKING:
     from spinta.backends.postgresql.components import WriteTransaction
@@ -49,6 +47,7 @@ if typing.TYPE_CHECKING:
 STREAMING_CONTENT_TYPES = [
     'application/x-jsonlines',
     'application/x-ndjson',
+    'application/json'
 ]
 
 
@@ -74,20 +73,28 @@ async def push(
         scope = scope.prop
 
     stop_on_error = not params.fault_tolerant
-    if is_streaming_request(request):
+    content_type = get_content_type_from_request(request)
+    temp_file = tempfile.NamedTemporaryFile(delete=False)
+    context.attach('uploaded_file', temp_file)
+    if is_streaming_request(content_type):
         stream = _read_request_stream(
             context, request, scope, action, stop_on_error,
         )
     else:
-        stream = _read_request_body(
-            context, request, scope, action, params, stop_on_error,
-        )
+        backend = detect_backend_from_content_type(context, content_type)
+        if backend:
+            async for line in request.stream():
+                temp_file.write(line)
+            rows = commands.getall(context, scope, backend, file_path=temp_file.name)
+            stream = get_stream_for_direct_upload(context, rows, request, params, content_type)
+        else:
+            stream = _read_request_body(
+                context, request, scope, action, params, stop_on_error,
+            )
     dstream = push_stream(context, stream,
                           stop_on_error=stop_on_error,
                           params=params)
-
     dstream = log_async_response(context, dstream)
-
     batch = False
     if params.summary:
         status_code, response = await _summary_response(context, dstream)
@@ -105,6 +112,8 @@ async def push(
             dstream,
         )
     headers = prepare_headers(context, scope, response, action, is_batch=batch)
+    if temp_file:
+        os.unlink(temp_file.name)
     return render(context, request, scope, params, response,
                   action=action, status_code=status_code, headers=headers)
 
@@ -140,7 +149,7 @@ async def push_stream(
     context: Context,
     stream: AsyncIterator[DataItem],
     stop_on_error: bool = True,
-    params: UrlParams = None
+    params: UrlParams = None,
 ) -> AsyncIterator[DataItem]:
 
     cmds = {
@@ -211,15 +220,20 @@ def _stream_group_key(data: DataItem):
     return data.model, data.prop, data.backend, data.action
 
 
-def is_streaming_request(request: Request):
+def get_content_type_from_request(request: Request):
     content_type = request.headers.get('content-type')
     if content_type:
         content_type = cgi.parse_header(content_type)[0]
+    return content_type
+
+
+def is_streaming_request(content_type):
     return content_type in STREAMING_CONTENT_TYPES
 
 
 async def is_batch(request: Request, node: Node):
-    if is_streaming_request(request):
+    content_type = get_content_type_from_request(request)
+    if is_streaming_request(content_type):
         return True
 
     ct = request.headers.get('content-type')

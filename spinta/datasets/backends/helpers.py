@@ -1,11 +1,16 @@
 from typing import Any
 
-from spinta.components import Property, Model
+from spinta.components import Model
 from spinta.core.ufuncs import Env
 from spinta.datasets.enums import Level
+from spinta.cli.helpers.store import prepare_manifest
+from spinta.components import Property, Context
+from spinta.datasets.backends.notimpl.components import BackendNotImplemented
+from spinta.datasets.components import ExternalBackend
 from spinta.datasets.keymaps.components import KeyMap
-from spinta.exceptions import GivenValueCountMissmatch
+from spinta.exceptions import GivenValueCountMissmatch, NoMatchingBackendDetected
 from spinta.types.datatype import Ref, Array
+from spinta.formats.helpers import get_response_type_as_format_class
 
 
 def handle_ref_key_assignment(keymap: KeyMap, env: Env, value: Any, ref: Ref) -> dict:
@@ -80,3 +85,29 @@ def extract_values_from_row(row: Any, model: Model, keys: list):
     if len(return_list) == 1:
         return_list = return_list[0]
     return return_list
+
+
+def detect_backend_from_content_type(context, content_type):
+    config = context.get('config')
+    backends = config.components['backends']
+    for backend in backends.values():
+        if issubclass(backend, ExternalBackend) and not issubclass(backend, BackendNotImplemented):
+            if backend.accept_types and content_type in backend.accept_types:
+                return backend()
+    raise NoMatchingBackendDetected
+
+
+def get_stream_for_direct_upload(
+    context: Context,
+    rows,
+    request,
+    params,
+    content_type
+):
+    from spinta.commands.write import write
+    store = prepare_manifest(context)
+    manifest = store.manifest
+    root = manifest.objects['ns']['']
+    fmt = get_response_type_as_format_class(context, request, params, content_type)
+    stream = write(context, root, rows, changed=True, fmt=fmt)
+    return stream

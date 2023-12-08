@@ -94,6 +94,7 @@ class Dataset(MetaData):
 class ExternalBackend(Backend):
     engine: Engine = None
     schema: sa.MetaData = None
+    accept_types: set = set()
 
 
 class External(Node):
