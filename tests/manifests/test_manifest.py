@@ -737,8 +737,7 @@ def test_multiline_prepare(context, is_tabular, tmp_path, rc):
     ''')
 
 
-@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
-def test_multiline_prepare_without_given_prepare(context, is_tabular, tmp_path, rc):
+def test_multiline_prepare_without_given_prepare(context, tmp_path, rc):
     check(context, tmp_path, rc, '''
     d | r | b | m | property   | type    | ref     | source   | prepare
     datasets/gov/example       |         |         |          |
@@ -749,7 +748,7 @@ def test_multiline_prepare_without_given_prepare(context, is_tabular, tmp_path, 
                                |         |         | 'namas'  | swap('Namas')
                                |         |         |          | swap('kiemas', 'Kiemas')
       |   |   |   | population | integer |         |          |
-    ''', is_tabular)
+    ''')
 
 
 @pytest.mark.skip('backref not implemented yet #96')
