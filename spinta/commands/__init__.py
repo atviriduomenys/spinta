@@ -151,6 +151,16 @@ def create_request_manifest(
 
 
 @command()
+def traverse_ns_models(
+    context: Context,
+    ns: Namespace,
+    manifest: Manifest,
+    **kwargs
+):
+    pass
+
+
+@command()
 def decode():
     """Decode given value from source backend format into target backend format.
 

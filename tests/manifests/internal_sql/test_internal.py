@@ -355,7 +355,7 @@ def test_internal_store_properties_rows(
         [13, 13, 3, 2, 'datasets/gov/example/New/new_file', 'datasets/gov/example/New/new_file', 'property', 'new_file', 'file', None, None, {"name": "file", "args": []}, None, None, None, None, None],
         [14, 14, 3, 2, 'datasets/gov/example/New/new_ref', 'datasets/gov/example/New/new_ref', 'property', 'new_ref', 'ref', 'Test', None, None, None, None, None, None, None],
         [15, 15, 3, 2, 'datasets/gov/example/New/new_url', 'datasets/gov/example/New/new_url', 'property', 'new_url', 'url', None, None, None, None, None, None, None, None],
-        [16, 16, 3, 2, 'datasets/gov/example/New/new_uri', 'datasets/gov/example/New/new_uri', 'property', 'new_uri', 'uri', None, None, None, None, None, None, None, None]
+        [16, 16, 3, 2, 'datasets/gov/example/New/new_uri', 'datasets/gov/example/New/new_uri', 'property', 'new_uri', 'uri unique', None, None, None, None, None, None, None, None]
     ]
 
     engine = sa.create_engine(dsn)

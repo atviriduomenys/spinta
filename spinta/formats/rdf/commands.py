@@ -30,7 +30,6 @@ from spinta.types.datatype import Date
 from spinta.types.datatype import Time
 from spinta.types.datatype import DateTime
 from spinta.types.datatype import Number
-from spinta.types.namespace import traverse_ns_models
 from spinta.utils.encoding import encode_page_values
 from spinta.utils.schema import NotAvailable
 

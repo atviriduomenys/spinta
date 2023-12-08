@@ -37,7 +37,6 @@ from spinta.utils.nestedstruct import flatten_value
 from spinta.utils.streams import splitlines
 from spinta.utils.schema import NotAvailable, NA
 from spinta.utils.data import take
-from spinta.types.namespace import traverse_ns_models
 from spinta.core.ufuncs import asttoexpr
 from spinta.formats.components import Format
 from spinta.types.text.components import Text

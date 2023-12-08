@@ -176,16 +176,12 @@ def get_namespace_partial_data(
 
     results = conn.execute(select_full_table(table).where(
         sa.and_(
-            sa.and_(
-                table.c.mpath.startswith(namespace),
-                table.c.mpath != namespace
-            ),
+            table.c.mpath.startswith(namespace),
+            table.c.mpath != namespace,
             sa.or_(
                 table.c.dim == 'ns',
-                sa.or_(
-                    table.c.dim == 'dataset',
-                    table.c.dim == 'model'
-                )
+                table.c.dim == 'dataset',
+                table.c.dim == 'model'
             )
         )
     ).order_by(table.c.mpath))

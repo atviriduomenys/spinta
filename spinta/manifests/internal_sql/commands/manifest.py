@@ -21,41 +21,96 @@ def _get_transaction_connection(context: Context):
     return None
 
 
-def _get_model_name_list(context: Context, manifest: InternalSQLManifest, loaded: bool):
+def get_model_name_list(context: Context, manifest: InternalSQLManifest, loaded: bool, namespace: str = None):
     manifest = _get_manifest(context, manifest)
     table = manifest.table
     conn = _get_transaction_connection(context)
     if conn is None or loaded:
         objs = manifest.get_objects()
         if 'model' and objs and objs['model']:
-            yield from objs['model'].keys()
+            if namespace:
+                for model_name, model in objs['model'].items():
+                    if model.ns.name == namespace:
+                        yield model_name
+            else:
+                yield from objs['model'].keys()
     else:
-        stmt = sa.select(table.c.path).where(
-            table.c.dim == 'model'
-        )
+        if namespace:
+            stmt = sa.select(table.c.path).where(
+                sa.and_(
+                    table.c.path.startswith(namespace),
+                    table.c.dim == 'model'
+                )
+            )
+        else:
+            stmt = sa.select(table.c.path).where(
+                table.c.dim == 'model'
+            )
         rows = conn.execute(stmt)
         for row in rows:
-            yield row['path']
+            if namespace:
+                # Check if path is actually right after ns,
+                # ex: namespace = 'dataset/test'
+                # models: 'dataset/test/gov/Model', 'dataset/test/Model'
+                # This will filter out first model, since it belongs to gov namespace
+                fixed_path = row['path'].replace(namespace, '')
+                if fixed_path.startswith('/'):
+                    fixed_path = fixed_path[1:]
+                if len(fixed_path.split('/')) == 1:
+                    yield row['path']
+            else:
+                yield row['path']
 
 
-def _get_namespace_name_list(context: Context, manifest: InternalSQLManifest, loaded: bool):
+def get_namespace_name_list(context: Context, manifest: InternalSQLManifest, loaded: bool, namespace: str = None):
     manifest = _get_manifest(context, manifest)
     table = manifest.table
     conn = _get_transaction_connection(context)
     if conn is None or loaded:
         objs = manifest.get_objects()
         if 'ns' and objs and objs['ns']:
-            yield from objs['ns'].keys()
+            if namespace:
+                for ns_name, ns in objs['ns'].items():
+                    if ns.parent and isinstance(ns.parent, Namespace) and ns.parent.name == namespace:
+                        yield ns_name
+            else:
+                yield from objs['ns'].keys()
     else:
-        stmt = sa.select(table.c.mpath).where(
-            sa.or_(
-                table.c.dim == 'namespace',
-                table.c.dim == 'dataset'
-            )
-        ).order_by(table.c.mpath)
+        if namespace:
+            stmt = sa.select(table.c.mpath).where(
+                sa.or_(
+                    table.c.dim == 'namespace',
+                    table.c.dim == 'dataset'
+                )
+            ).order_by(table.c.mpath)
+        else:
+            stmt = sa.select(table.c.mpath).where(
+                sa.and_(
+                    table.c.mpath.startswith(namespace),
+                    table.c.mpath != namespace,
+                    sa.or_(
+                        table.c.dim == 'namespace',
+                        table.c.dim == 'dataset'
+                    )
+                )
+
+            ).order_by(table.c.mpath)
         rows = conn.execute(stmt)
+        yielded = []
         for row in rows:
-            yield row['mpath']
+            if namespace:
+                # Fix namespace path, ex given namespace is 'dataset/test'
+                # Fetched namespaces are: 'dataset/test/gov', 'dataset/test/other/gov'
+                # it will return 'dataset/test/gov' and 'dataset/test/other'
+                fixed_path = row['mpath'].replace(namespace, '')
+                if fixed_path.startswith('/'):
+                    fixed_path = fixed_path[1:]
+                fixed_path = f'{namespace}/{fixed_path.split("/")[0]}'
+                if fixed_path not in yielded:
+                    yielded.append(fixed_path)
+                    yield fixed_path
+            else:
+                yield row['mpath']
 
 
 def _get_dataset_name_list(context: Context, manifest: InternalSQLManifest, loaded: bool):
@@ -73,7 +128,6 @@ def _get_dataset_name_list(context: Context, manifest: InternalSQLManifest, load
         rows = conn.execute(stmt)
         for row in rows:
             yield row['path']
-
 
 
 @commands.has_model.register(Context, InternalSQLManifest, str)
@@ -172,7 +226,7 @@ def get_model(context: Context, manifest: InternalSQLManifest, model: str, **kwa
 
 @commands.get_models.register(Context, InternalSQLManifest)
 def get_models(context: Context, manifest: InternalSQLManifest, loaded: bool = False, **kwargs):
-    model_names = _get_model_name_list(context, manifest, loaded)
+    model_names = get_model_name_list(context, manifest, loaded)
     objs = manifest.get_objects()
     for name in model_names:
         # get_model loads the model if it has not been loaded
@@ -240,7 +294,7 @@ def get_namespace(context: Context, manifest: InternalSQLManifest, namespace: st
 
 @commands.get_namespaces.register(Context, InternalSQLManifest)
 def get_namespaces(context: Context, manifest: InternalSQLManifest, loaded: bool = False, **kwargs):
-    ns_names = _get_namespace_name_list(context, manifest, loaded)
+    ns_names = get_namespace_name_list(context, manifest, loaded)
     objs = manifest.get_objects()
     for name in ns_names:
         # get_namespace loads the namespace if it has not been loaded

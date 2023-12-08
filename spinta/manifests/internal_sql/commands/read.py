@@ -1,12 +1,55 @@
+from typing import Optional
+
 from starlette.requests import Request
 from starlette.responses import Response
 from spinta import commands
 from spinta.accesslog import log_response
 from spinta.backends.helpers import get_select_tree, get_select_prop_names
+from spinta.compat import urlparams_to_expr
+from spinta.manifests.internal_sql.commands.manifest import get_model_name_list, get_namespace_name_list
 from spinta.renderer import render
 from spinta.components import Context, Namespace, Action, UrlParams
 from spinta.manifests.internal_sql.components import InternalSQLManifest
 from spinta.manifests.internal_sql.helpers import get_namespace_partial_data
+from spinta.types.namespace import check_if_model_has_backend_and_source, _model_matches_params
+
+
+@commands.traverse_ns_models.register(Context, Namespace, InternalSQLManifest)
+def traverse_ns_models(
+    context: Context,
+    ns: Namespace,
+    manifest: InternalSQLManifest,
+    action: Action,
+    dataset_: Optional[str] = None,
+    resource: Optional[str] = None,
+    internal: bool = False,
+    source_check: bool = False,
+    loaded: bool = False,
+    **kwargs
+):
+    models = get_model_name_list(context, manifest, loaded, namespace=ns.name)
+    for model_name in models:
+        model = commands.get_model(context, manifest, model_name)
+        if not (source_check and not check_if_model_has_backend_and_source(model)):
+            if _model_matches_params(context, model, action, dataset_, resource, internal):
+                yield model
+
+    namespaces = get_namespace_name_list(context, manifest, loaded, namespace=ns.name)
+    for ns_name in namespaces:
+        ns_ = commands.get_namespace(context, manifest, ns_name)
+        if not internal and ns_.name.startswith('_'):
+            continue
+        yield from commands.traverse_ns_models(
+            context,
+            ns_,
+            manifest,
+            action,
+            dataset_,
+            resource,
+            internal=internal,
+            source_check=source_check,
+            loaded=loaded
+        )
 
 
 @commands.getall.register(Context, Namespace, Request, InternalSQLManifest)
@@ -32,39 +75,38 @@ def getall(
             recursive=True
         )
     elif params.all:
-        # accesslog = context.get('accesslog')
-        #
-        # prepare_data_for_response_kwargs = {}
-        # for model in traverse_ns_models(context, ns, action, internal=True):
-        #     commands.authorize(context, action, model)
-        #     select_tree = get_select_tree(context, action, params.select)
-        #     prop_names = get_select_prop_names(
-        #         context,
-        #         model,
-        #         model.properties,
-        #         action,
-        #         select_tree,
-        #     )
-        #     prepare_data_for_response_kwargs[model.model_type()] = {
-        #         'select': select_tree,
-        #         'prop_names': prop_names,
-        #     }
-        # expr = urlparams_to_expr(params)
-        # rows = getall(context, ns, action=action, query=expr)
-        # rows = (
-        #     commands.prepare_data_for_response(
-        #         context,
-        #         commands.get_model(context, ns.manifest, row['_type']),
-        #         params.fmt,
-        #         row,
-        #         action=action,
-        #         **prepare_data_for_response_kwargs[row['_type']],
-        #     )
-        #     for row in rows
-        # )
-        # rows = log_response(context, rows)
-        # return render(context, request, ns, params, rows, action=action)
-        pass
+        accesslog = context.get('accesslog')
+
+        prepare_data_for_response_kwargs = {}
+        for model in commands.traverse_ns_models(context, ns, manifest, action, internal=True):
+            commands.authorize(context, action, model)
+            select_tree = get_select_tree(context, action, params.select)
+            prop_names = get_select_prop_names(
+                context,
+                model,
+                model.properties,
+                action,
+                select_tree,
+            )
+            prepare_data_for_response_kwargs[model.model_type()] = {
+                'select': select_tree,
+                'prop_names': prop_names,
+            }
+        expr = urlparams_to_expr(params)
+        rows = commands.getall(context, ns, action=action, query=expr)
+        rows = (
+            commands.prepare_data_for_response(
+                context,
+                commands.get_model(context, manifest, row['_type']),
+                params.fmt,
+                row,
+                action=action,
+                **prepare_data_for_response_kwargs[row['_type']],
+            )
+            for row in rows
+        )
+        rows = log_response(context, rows)
+        return render(context, request, ns, params, rows, action=action)
     else:
         return _get_internal_ns_content(
             context,

@@ -8,8 +8,40 @@ from spinta.renderer import render
 from spinta.compat import urlparams_to_expr
 from spinta.components import Context, Namespace, Action, UrlParams, Model
 from spinta.manifests.components import Manifest
-from spinta.types.namespace import traverse_ns_models, _model_matches_params
+from spinta.types.namespace import _model_matches_params, check_if_model_has_backend_and_source
 from spinta.utils import itertools
+
+
+@commands.traverse_ns_models.register(Context, Namespace, Manifest)
+def traverse_ns_models(
+    context: Context,
+    ns: Namespace,
+    manifest: Manifest,
+    action: Action,
+    dataset_: Optional[str] = None,
+    resource: Optional[str] = None,
+    internal: bool = False,
+    source_check: bool = False,
+    **kwargs
+):
+    models = (ns.models or {})
+    for model in models.values():
+        if not (source_check and not check_if_model_has_backend_and_source(model)):
+            if _model_matches_params(context, model, action, dataset_, resource, internal):
+                yield model
+    for ns_ in ns.names.values():
+        if not internal and ns_.name.startswith('_'):
+            continue
+        yield from commands.traverse_ns_models(
+            context,
+            ns_,
+            manifest,
+            action,
+            dataset_,
+            resource,
+            internal=internal,
+            source_check=source_check
+        )
 
 
 @commands.getall.register(Context, Namespace, Request, Manifest)
@@ -53,7 +85,7 @@ def getall(
                 'prop_names': prop_names,
             }
         expr = urlparams_to_expr(params)
-        rows = getall(context, ns, action=action, query=expr)
+        rows = commands.getall(context, ns, action=action, query=expr)
         rows = (
             commands.prepare_data_for_response(
                 context,

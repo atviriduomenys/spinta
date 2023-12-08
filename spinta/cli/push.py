@@ -189,9 +189,7 @@ def push(
         _attach_keymaps(context, store)
         error_counter = ErrorCounter(max_count=max_error_count)
 
-        from spinta.types.namespace import traverse_ns_models
-
-        models = traverse_ns_models(context, ns, Action.SEARCH, dataset, source_check=True)
+        models = commands.traverse_ns_models(context, ns, manifest, Action.SEARCH, dataset, source_check=True)
         models = sort_models_by_ref_and_base(list(models))
 
         if state:

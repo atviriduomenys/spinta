@@ -189,9 +189,10 @@ def _query_data(
     resource: Optional[str] = None,
     **kwargs,
 ):
-    models = traverse_ns_models(
+    models = commands.traverse_ns_models(
         context,
         ns,
+        ns.manifest,
         action,
         dataset_,
         resource,
@@ -203,35 +204,6 @@ def _query_data(
 
 def check_if_model_has_backend_and_source(model: Model):
     return not isinstance(model.backend, NoBackend) and (model.external and model.external.name)
-
-
-def traverse_ns_models(
-    context: Context,
-    ns: Namespace,
-    action: Action,
-    dataset_: Optional[str] = None,
-    resource: Optional[str] = None,
-    *,
-    internal: bool = False,
-    source_check: bool = False
-):
-    models = (ns.models or {})
-    for model in models.values():
-        if not (source_check and not check_if_model_has_backend_and_source(model)):
-            if _model_matches_params(context, model, action, dataset_, resource, internal):
-                yield model
-    for ns_ in ns.names.values():
-        if not internal and ns_.name.startswith('_'):
-            continue
-        yield from traverse_ns_models(
-            context,
-            ns_,
-            action,
-            dataset_,
-            resource,
-            internal=internal,
-            source_check=source_check
-        )
 
 
 def _model_matches_params(
@@ -307,7 +279,7 @@ def in_namespace(node: Node, parent: Node) -> bool:  # noqa
 @commands.wipe.register(Context, Namespace, type(None))
 def wipe(context: Context, ns: Namespace, backend: type(None)):
     commands.authorize(context, Action.WIPE, ns)
-    models = traverse_ns_models(context, ns, Action.WIPE, internal=True)
+    models = commands.traverse_ns_models(context, ns, ns.manifest, Action.WIPE, internal=True)
     models = sort_models_by_refs(models)
     for model in models:
         if BackendFeatures.WRITE in model.backend.features:

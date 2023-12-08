@@ -236,10 +236,8 @@ def detect(
         for keymap in store.keymaps.values():
             context.attach(f'keymap.{keymap.name}', lambda: keymap)
 
-        from spinta.types.namespace import traverse_ns_models
-
         ns = commands.get_namespace(context, manifest, '')
-        models = traverse_ns_models(context, ns, Action.SEARCH)
+        models = commands.traverse_ns_models(context, ns, manifest, Action.SEARCH)
         models = sort_models_by_refs(models)
         models = list(reversed(list(models)))
         counts = count_rows(context, models, limit=limit)
