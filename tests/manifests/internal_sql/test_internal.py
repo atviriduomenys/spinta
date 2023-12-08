@@ -27,18 +27,17 @@ def extract_integers_in_brackets(input_string):
 def compare_sql_to_required(sql_rows: list, required_rows: list):
     for i, row in enumerate(sql_rows):
         converted_row = required_rows[i]
-        if isinstance(converted_row[0], int):
-            converted_row[0] = sql_rows[converted_row[0]][0]
         if isinstance(converted_row[1], int):
-            converted_row[1] = sql_rows[converted_row[1]][0]
+            converted_row[1] = sql_rows[converted_row[1]][1]
+        if isinstance(converted_row[2], int):
+            converted_row[2] = sql_rows[converted_row[2]][1]
 
-        if "{" in converted_row[4]:
-            new_mpath = converted_row[4]
-            values = extract_integers_in_brackets(converted_row[4])
+        if "{" in converted_row[5]:
+            new_mpath = converted_row[5]
+            values = extract_integers_in_brackets(converted_row[5])
             for value in values:
-                new_mpath = new_mpath.replace("{" + str(value) + "}", str(sql_rows[value][0]))
-            converted_row[4] = new_mpath
-
+                new_mpath = new_mpath.replace("{" + str(value) + "}", str(sql_rows[value][1]))
+            converted_row[5] = new_mpath
         assert row == converted_row
 
 
@@ -76,15 +75,15 @@ def test_internal_store_meta_rows(
         write_internal_sql_manifest(context, dsn, tabular_manifest)
 
     compare_rows = [
-        [0, None, 0, None, 'locn', 'prefix', 'locn', 'prefix', 'locn', None, None, None, None, 'http://www.w3.org/ns/locn#', None, None],
-        [1, None, 0, None, 'ogc', 'prefix', 'ogc', 'prefix', 'ogc', None, None, None, None, 'http://www.opengis.net/rdf#', None, None],
-        [2, None, 0, None, 'default', 'resource', 'default', 'sql', None, f'sqlite:///{tmp_path}/db', None, None, None, None, None, None],
-        [3, None, 0, None, 'datasets', 'ns', 'datasets', 'ns', 'datasets', None, None, None, None, None, 'All datasets', 'All external datasets.'],
-        [4, None, 0, None, 'datasets/gov', 'ns', 'datasets/gov', 'ns', 'datasets/gov', None, None, None, None, None, 'Government datasets', 'All government datasets.'],
-        [5, None, 0, None, 'datasets/gov/example', 'ns', 'datasets/gov/example', 'ns', 'datasets/gov/example', None, None, None, None, None, 'Example', None],
-        [6, None, 0, None, 'side', 'enum', 'side', 'enum', 'side', None, None, None, None, None, None, None],
-        [7, 6, 1, None, 'side/{7}', 'enum.item', None, None, None, 'l', 'left', None, 'open', None, 'Left', 'Left side.'],
-        [8, 6, 1, None, 'side/{8}', 'enum.item', None, None, None, 'r', 'right', None, 'open', None, 'Right', 'Right side.']
+        [0, 0, None, 0, None, 'locn', 'prefix', 'locn', 'prefix', 'locn', None, None, None, None, 'http://www.w3.org/ns/locn#', None, None],
+        [1, 1, None, 0, None, 'ogc', 'prefix', 'ogc', 'prefix', 'ogc', None, None, None, None, 'http://www.opengis.net/rdf#', None, None],
+        [2, 2, None, 0, None, 'default', 'resource', 'default', 'sql', None, f'sqlite:///{tmp_path}/db', None, None, None, None, None, None],
+        [3, 3, None, 0, None, 'datasets', 'ns', 'datasets', 'ns', 'datasets', None, None, None, None, None, 'All datasets', 'All external datasets.'],
+        [4, 4, None, 0, None, 'datasets/gov', 'ns', 'datasets/gov', 'ns', 'datasets/gov', None, None, None, None, None, 'Government datasets', 'All government datasets.'],
+        [5, 5, None, 0, None, 'datasets/gov/example', 'ns', 'datasets/gov/example', 'ns', 'datasets/gov/example', None, None, None, None, None, 'Example', None],
+        [6, 6, None, 0, None, 'side', 'enum', 'side', 'enum', 'side', None, None, None, None, None, None, None],
+        [7, 7, 6, 1, None, 'side/{7}', 'enum.item', None, None, None, 'l', 'left', None, 'open', None, 'Left', 'Left side.'],
+        [8, 8, 6, 1, None, 'side/{8}', 'enum.item', None, None, None, 'r', 'right', None, 'open', None, 'Right', 'Right side.']
     ]
 
     engine = sa.create_engine(dsn)
@@ -141,17 +140,17 @@ def test_internal_store_dataset_rows(
         write_internal_sql_manifest(context, dsn, tabular_manifest)
 
     compare_rows = [
-        [0, None, 0, 'datasets/gov/example', 'datasets/gov/example', 'dataset', 'datasets/gov/example', None, None, None, None, None, None, None, None, None],
-        [1, 0, 1, 'datasets/gov/example', 'datasets/gov/example/lt', 'lang', 'lt', 'lang', 'lt', None, None, None, None, None, 'Pavyzdys', 'Pavyzdinis duomenų rinkinys.'],
-        [2, 0, 1, 'datasets/gov/example', 'datasets/gov/example/locn', 'prefix', 'locn', 'prefix', 'locn', None, None, None, None, 'http://www.w3.org/ns/locn#', None, None],
-        [3, 0, 1, 'datasets/gov/example', 'datasets/gov/example/ogc', 'prefix', 'ogc', 'prefix', 'ogc', None, None, None, None, 'http://www.opengis.net/rdf#', None, None],
-        [4, 0, 1, 'datasets/gov/example/Test', 'datasets/gov/example/Test', 'model', 'Test', None, None, None, None, None, None, None, None, None],
-        [5, 4, 2, 'datasets/gov/example/Test/integer', 'datasets/gov/example/Test/integer', 'property', 'integer', 'integer', None, None, None, None, None, None, None, None],
-        [6, None, 0, 'datasets/gov/new', 'datasets/gov/new', 'dataset', 'datasets/gov/new', None, None, None, None, None, None, None, None, None],
-        [7, 6, 1, 'datasets/gov/new/New', 'datasets/gov/new/New', 'model', 'New', None, None, None, None, None, None, None, None, None],
-        [8, 7, 2, 'datasets/gov/new/New/new_str', 'datasets/gov/new/New/new_str', 'property', 'new_str', 'string', None, None, None, None, None, None, None, None],
-        [9, None, 0, 'One', 'One', 'model', 'One', None, None, None, None, None, None, None, None, None],
-        [10, 9, 1, 'One/one_str', 'One/one_str', 'property', 'one_str', 'string', None, None, None, None, None, None, None, None]
+        [0, 0, None, 0, 'datasets/gov/example', 'datasets/gov/example', 'dataset', 'datasets/gov/example', None, None, None, None, None, None, None, None, None],
+        [1, 1, 0, 1, 'datasets/gov/example', 'datasets/gov/example/lt', 'lang', 'lt', 'lang', 'lt', None, None, None, None, None, 'Pavyzdys', 'Pavyzdinis duomenų rinkinys.'],
+        [2, 2, 0, 1, 'datasets/gov/example', 'datasets/gov/example/locn', 'prefix', 'locn', 'prefix', 'locn', None, None, None, None, 'http://www.w3.org/ns/locn#', None, None],
+        [3, 3, 0, 1, 'datasets/gov/example', 'datasets/gov/example/ogc', 'prefix', 'ogc', 'prefix', 'ogc', None, None, None, None, 'http://www.opengis.net/rdf#', None, None],
+        [4, 4, 0, 1, 'datasets/gov/example/Test', 'datasets/gov/example/Test', 'model', 'Test', None, None, None, None, None, None, None, None, None],
+        [5, 5, 4, 2, 'datasets/gov/example/Test/integer', 'datasets/gov/example/Test/integer', 'property', 'integer', 'integer', None, None, None, None, None, None, None, None],
+        [6, 6, None, 0, 'datasets/gov/new', 'datasets/gov/new', 'dataset', 'datasets/gov/new', None, None, None, None, None, None, None, None, None],
+        [7, 7, 6, 1, 'datasets/gov/new/New', 'datasets/gov/new/New', 'model', 'New', None, None, None, None, None, None, None, None, None],
+        [8, 8, 7, 2, 'datasets/gov/new/New/new_str', 'datasets/gov/new/New/new_str', 'property', 'new_str', 'string', None, None, None, None, None, None, None, None],
+        [9, 9, None, 0, 'One', 'One', 'model', 'One', None, None, None, None, None, None, None, None, None],
+        [10, 10, 9, 1, 'One/one_str', 'One/one_str', 'property', 'one_str', 'string', None, None, None, None, None, None, None, None]
     ]
 
     engine = sa.create_engine(dsn)
@@ -207,17 +206,17 @@ def test_internal_store_resource_rows(
         write_internal_sql_manifest(context, dsn, tabular_manifest)
 
     compare_rows = [
-        [0, None, 0, 'datasets/gov/example', 'datasets/gov/example', 'dataset', 'datasets/gov/example', None, None, None, None, None, None, None, None, None],
-        [1, 0, 1, 'datasets/gov/example', 'datasets/gov/example/default', 'resource', 'default', 'sql', None, f'sqlite:///{tmp_path}/db', None, None, None, None, None, None],
-        [2, 1, 2, 'datasets/gov/example', 'datasets/gov/example/default/lt', 'lang', 'lt', 'lang', 'lt', None, None, None, None, None, None, None],
-        [3, 1, 2, 'datasets/gov/example/Test', 'datasets/gov/example/default/Test', 'model', 'Test', None, None, None, None, None, None, None, None, None],
-        [4, 3, 3, 'datasets/gov/example/Test/integer', 'datasets/gov/example/default/Test/integer', 'property', 'integer', 'integer', None, None, None, None, None, None, None, None],
-        [5, 0, 1, 'datasets/gov/example/New', 'datasets/gov/example/New', 'model', 'New', None, None, None, None, None, None, None, None, None],
-        [6, 5, 2, 'datasets/gov/example/New/new_str', 'datasets/gov/example/New/new_str', 'property', 'new_str', 'string', None, None, None, None, None, None, None, None],
-        [7, 0, 1, 'datasets/gov/example', 'datasets/gov/example/res', 'resource', 'res', 'sql', None, f'sqlite:///{tmp_path}/res', None, None, None, None, None, None],
-        [8, 7, 2, 'datasets/gov/example', 'datasets/gov/example/res/{8}', 'comment', 'NEW', 'comment', 'NEW', None, None, None, None, None, 'NEW', 'TEST'],
-        [9, 7, 2, 'datasets/gov/example/One', 'datasets/gov/example/res/One', 'model', 'One', None, None, None, None, None, None, None, None, None],
-        [10, 9, 3, 'datasets/gov/example/One/one_str', 'datasets/gov/example/res/One/one_str', 'property', 'one_str', 'string', None, None, None, None, None, None, None, None]
+        [0, 0, None, 0, 'datasets/gov/example', 'datasets/gov/example', 'dataset', 'datasets/gov/example', None, None, None, None, None, None, None, None, None],
+        [1, 1, 0, 1, 'datasets/gov/example', 'datasets/gov/example/default', 'resource', 'default', 'sql', None, f'sqlite:///{tmp_path}/db', None, None, None, None, None, None],
+        [2, 2, 1, 2, 'datasets/gov/example', 'datasets/gov/example/default/lt', 'lang', 'lt', 'lang', 'lt', None, None, None, None, None, None, None],
+        [3, 3, 1, 2, 'datasets/gov/example/Test', 'datasets/gov/example/default/Test', 'model', 'Test', None, None, None, None, None, None, None, None, None],
+        [4, 4, 3, 3, 'datasets/gov/example/Test/integer', 'datasets/gov/example/default/Test/integer', 'property', 'integer', 'integer', None, None, None, None, None, None, None, None],
+        [5, 5, 0, 1, 'datasets/gov/example/New', 'datasets/gov/example/New', 'model', 'New', None, None, None, None, None, None, None, None, None],
+        [6, 6, 5, 2, 'datasets/gov/example/New/new_str', 'datasets/gov/example/New/new_str', 'property', 'new_str', 'string', None, None, None, None, None, None, None, None],
+        [7, 7, 0, 1, 'datasets/gov/example', 'datasets/gov/example/res', 'resource', 'res', 'sql', None, f'sqlite:///{tmp_path}/res', None, None, None, None, None, None],
+        [8, 8, 7, 2, 'datasets/gov/example', 'datasets/gov/example/res/{8}', 'comment', 'NEW', 'comment', 'NEW', None, None, None, None, None, 'NEW', 'TEST'],
+        [9, 9, 7, 2, 'datasets/gov/example/One', 'datasets/gov/example/res/One', 'model', 'One', None, None, None, None, None, None, None, None, None],
+        [10, 10, 9, 3, 'datasets/gov/example/One/one_str', 'datasets/gov/example/res/One/one_str', 'property', 'one_str', 'string', None, None, None, None, None, None, None, None]
     ]
 
     engine = sa.create_engine(dsn)
@@ -272,18 +271,18 @@ def test_internal_store_base_rows(
         write_internal_sql_manifest(context, dsn, tabular_manifest)
 
     compare_rows = [
-        [0, None, 0, 'datasets/gov/example', 'datasets/gov/example', 'dataset', 'datasets/gov/example', None, None, None, None, None, None, None, None, None],
-        [1, 0, 1, 'datasets/gov/example/Test', 'datasets/gov/example/Test', 'model', 'Test', None, None, None, None, None, None, None, None, None],
-        [2, 1, 2, 'datasets/gov/example/Test/integer', 'datasets/gov/example/Test/integer', 'property', 'integer', 'integer', None, None, None, None, None, None, None, None],
-        [3, 0, 1, 'datasets/gov/example/Test', 'datasets/gov/example/Test', 'base', 'Test', None, None, None, None, None, None, None, None, None],
-        [4, 3, 2, 'datasets/gov/example/New', 'datasets/gov/example/Test/New', 'model', 'New', None, None, None, None, None, None, None, None, None],
-        [5, 4, 3, 'datasets/gov/example/New/new_str', 'datasets/gov/example/Test/New/new_str', 'property', 'new_str', 'string', None, None, None, None, None, None, None, None],
-        [6, 4, 3, 'datasets/gov/example/New/integer', 'datasets/gov/example/Test/New/integer', 'property', 'integer', None, None, None, None, None, None, None, None, None],
-        [7, 0, 1, 'datasets/gov/example/New', 'datasets/gov/example/New', 'base', 'New', None, None, None, None, None, None, None, None, None],
-        [8, 7, 2, 'datasets/gov/example/One', 'datasets/gov/example/New/One', 'model', 'One', None, None, None, None, None, None, None, None, None],
-        [9, 8, 3, 'datasets/gov/example/One/one_str', 'datasets/gov/example/New/One/one_str', 'property', 'one_str', 'string', None, None, None, None, None, None, None, None],
-        [10, 0, 1, 'datasets/gov/example/Two', 'datasets/gov/example/Two', 'model', 'Two', None, None, None, None, None, None, None, None, None],
-        [11, 10, 2, 'datasets/gov/example/Two/one_str', 'datasets/gov/example/Two/one_str', 'property', 'one_str', 'string', None, None, None, None, None, None, None, None]
+        [0, 0, None, 0, 'datasets/gov/example', 'datasets/gov/example', 'dataset', 'datasets/gov/example', None, None, None, None, None, None, None, None, None],
+        [1, 1, 0, 1, 'datasets/gov/example/Test', 'datasets/gov/example/Test', 'model', 'Test', None, None, None, None, None, None, None, None, None],
+        [2, 2, 1, 2, 'datasets/gov/example/Test/integer', 'datasets/gov/example/Test/integer', 'property', 'integer', 'integer', None, None, None, None, None, None, None, None],
+        [3, 3, 0, 1, 'datasets/gov/example/Test', 'datasets/gov/example/Test', 'base', 'Test', None, None, None, None, None, None, None, None, None],
+        [4, 4, 3, 2, 'datasets/gov/example/New', 'datasets/gov/example/Test/New', 'model', 'New', None, None, None, None, None, None, None, None, None],
+        [5, 5, 4, 3, 'datasets/gov/example/New/new_str', 'datasets/gov/example/Test/New/new_str', 'property', 'new_str', 'string', None, None, None, None, None, None, None, None],
+        [6, 6, 4, 3, 'datasets/gov/example/New/integer', 'datasets/gov/example/Test/New/integer', 'property', 'integer', None, None, None, None, None, None, None, None, None],
+        [7, 7, 0, 1, 'datasets/gov/example/New', 'datasets/gov/example/New', 'base', 'New', None, None, None, None, None, None, None, None, None],
+        [8, 8, 7, 2, 'datasets/gov/example/One', 'datasets/gov/example/New/One', 'model', 'One', None, None, None, None, None, None, None, None, None],
+        [9, 9, 8, 3, 'datasets/gov/example/One/one_str', 'datasets/gov/example/New/One/one_str', 'property', 'one_str', 'string', None, None, None, None, None, None, None, None],
+        [10, 10, 0, 1, 'datasets/gov/example/Two', 'datasets/gov/example/Two', 'model', 'Two', None, None, None, None, None, None, None, None, None],
+        [11, 11, 10, 2, 'datasets/gov/example/Two/one_str', 'datasets/gov/example/Two/one_str', 'property', 'one_str', 'string', None, None, None, None, None, None, None, None]
     ]
 
     engine = sa.create_engine(dsn)
@@ -340,23 +339,23 @@ def test_internal_store_properties_rows(
         write_internal_sql_manifest(context, dsn, tabular_manifest)
 
     compare_rows = [
-        [0, None, 0, 'datasets/gov/example', 'datasets/gov/example', 'dataset', 'datasets/gov/example', None, None, None, None, None, None, None, None, None],
-        [1, 0, 1, 'datasets/gov/example/Test', 'datasets/gov/example/Test', 'model', 'Test', None, None, None, None, None, None, None, None, None],
-        [2, 1, 2, 'datasets/gov/example/Test/integer', 'datasets/gov/example/Test/integer', 'property', 'integer', 'integer', None, None, None, None, None, None, None, None],
-        [3, 0, 1, 'datasets/gov/example/New', 'datasets/gov/example/New', 'model', 'New', None, None, None, None, None, None, None, None, None],
-        [4, 3, 2, 'datasets/gov/example/New/new_str', 'datasets/gov/example/New/new_str', 'property', 'new_str', 'string', None, None, None, None, None, None, None, None],
-        [5, 3, 2, 'datasets/gov/example/New/new_int', 'datasets/gov/example/New/new_int', 'property', 'new_int', 'integer', None, None, None, None, None, None, None, None],
-        [6, 3, 2, 'datasets/gov/example/New/new_float', 'datasets/gov/example/New/new_float', 'property', 'new_float', 'number', None, None, None, None, None, None, None, None],
-        [7, 3, 2, 'datasets/gov/example/New/new_time', 'datasets/gov/example/New/new_time', 'property', 'new_time', 'time', None, None, None, None, None, None, None, None],
-        [8, 3, 2, 'datasets/gov/example/New/new_date', 'datasets/gov/example/New/new_date', 'property', 'new_date', 'date', None, None, None, None, None, None, None, None],
-        [9, 3, 2, 'datasets/gov/example/New/new_datetime', 'datasets/gov/example/New/new_datetime', 'property', 'new_datetime', 'datetime', None, None, None, None, None, None, None, None],
-        [10, 3, 2, 'datasets/gov/example/New/new_bool', 'datasets/gov/example/New/new_bool', 'property', 'new_bool', 'boolean', None, None, None, None, None, None, None, None],
-        [11, 3, 2, 'datasets/gov/example/New/new_bin', 'datasets/gov/example/New/new_bin', 'property', 'new_bin', 'binary', None, None, None, None, None, None, None, None],
-        [12, 3, 2, 'datasets/gov/example/New/new_geo', 'datasets/gov/example/New/new_geo', 'property', 'new_geo', 'geometry', None, None, None, None, None, None, None, None],
-        [13, 3, 2, 'datasets/gov/example/New/new_file', 'datasets/gov/example/New/new_file', 'property', 'new_file', 'file', None, None, {"name": "file", "args": []}, None, None, None, None, None],
-        [14, 3, 2, 'datasets/gov/example/New/new_ref', 'datasets/gov/example/New/new_ref', 'property', 'new_ref', 'ref', 'Test', None, None, None, None, None, None, None],
-        [15, 3, 2, 'datasets/gov/example/New/new_url', 'datasets/gov/example/New/new_url', 'property', 'new_url', 'url', None, None, None, None, None, None, None, None],
-        [16, 3, 2, 'datasets/gov/example/New/new_uri', 'datasets/gov/example/New/new_uri', 'property', 'new_uri', 'uri', None, None, None, None, None, None, None, None]
+        [0, 0, None, 0, 'datasets/gov/example', 'datasets/gov/example', 'dataset', 'datasets/gov/example', None, None, None, None, None, None, None, None, None],
+        [1, 1, 0, 1, 'datasets/gov/example/Test', 'datasets/gov/example/Test', 'model', 'Test', None, None, None, None, None, None, None, None, None],
+        [2, 2, 1, 2, 'datasets/gov/example/Test/integer', 'datasets/gov/example/Test/integer', 'property', 'integer', 'integer', None, None, None, None, None, None, None, None],
+        [3, 3, 0, 1, 'datasets/gov/example/New', 'datasets/gov/example/New', 'model', 'New', None, None, None, None, None, None, None, None, None],
+        [4, 4, 3, 2, 'datasets/gov/example/New/new_str', 'datasets/gov/example/New/new_str', 'property', 'new_str', 'string', None, None, None, None, None, None, None, None],
+        [5, 5, 3, 2, 'datasets/gov/example/New/new_int', 'datasets/gov/example/New/new_int', 'property', 'new_int', 'integer', None, None, None, None, None, None, None, None],
+        [6, 6, 3, 2, 'datasets/gov/example/New/new_float', 'datasets/gov/example/New/new_float', 'property', 'new_float', 'number', None, None, None, None, None, None, None, None],
+        [7, 7, 3, 2, 'datasets/gov/example/New/new_time', 'datasets/gov/example/New/new_time', 'property', 'new_time', 'time', None, None, None, None, None, None, None, None],
+        [8, 8, 3, 2, 'datasets/gov/example/New/new_date', 'datasets/gov/example/New/new_date', 'property', 'new_date', 'date', None, None, None, None, None, None, None, None],
+        [9, 9, 3, 2, 'datasets/gov/example/New/new_datetime', 'datasets/gov/example/New/new_datetime', 'property', 'new_datetime', 'datetime', None, None, None, None, None, None, None, None],
+        [10, 10, 3, 2, 'datasets/gov/example/New/new_bool', 'datasets/gov/example/New/new_bool', 'property', 'new_bool', 'boolean', None, None, None, None, None, None, None, None],
+        [11, 11, 3, 2, 'datasets/gov/example/New/new_bin', 'datasets/gov/example/New/new_bin', 'property', 'new_bin', 'binary', None, None, None, None, None, None, None, None],
+        [12, 12, 3, 2, 'datasets/gov/example/New/new_geo', 'datasets/gov/example/New/new_geo', 'property', 'new_geo', 'geometry', None, None, None, None, None, None, None, None],
+        [13, 13, 3, 2, 'datasets/gov/example/New/new_file', 'datasets/gov/example/New/new_file', 'property', 'new_file', 'file', None, None, {"name": "file", "args": []}, None, None, None, None, None],
+        [14, 14, 3, 2, 'datasets/gov/example/New/new_ref', 'datasets/gov/example/New/new_ref', 'property', 'new_ref', 'ref', 'Test', None, None, None, None, None, None, None],
+        [15, 15, 3, 2, 'datasets/gov/example/New/new_url', 'datasets/gov/example/New/new_url', 'property', 'new_url', 'url', None, None, None, None, None, None, None, None],
+        [16, 16, 3, 2, 'datasets/gov/example/New/new_uri', 'datasets/gov/example/New/new_uri', 'property', 'new_uri', 'uri', None, None, None, None, None, None, None, None]
     ]
 
     engine = sa.create_engine(dsn)
@@ -397,10 +396,10 @@ def test_internal_store_json_null_rows(
         write_internal_sql_manifest(context, dsn, tabular_manifest)
 
     compare_rows = [
-        [0, None, 0, None, 'side', 'enum', 'side', 'enum', 'side', None, None, None, None, None, None, None, 1],
-        [1, 0, 1, None, 'side/{1}', 'enum.item', None, None, None, None, None, None, None, None, None, None, 0],
-        [2, 0, 1, None, 'side/{2}', 'enum.item', None, None, None, 'l', 'left', None, None, None, None, None, 0],
-        [3, 0, 1, None, 'side/{3}', 'enum.item', None, None, None, 'r', 'right', None, None, None, None, None, 0],
+        [0, 0, None, 0, None, 'side', 'enum', 'side', 'enum', 'side', None, None, None, None, None, None, None, 1],
+        [1, 1, 0, 1, None, 'side/{1}', 'enum.item', None, None, None, None, None, None, None, None, None, None, 0],
+        [2, 2, 0, 1, None, 'side/{2}', 'enum.item', None, None, None, 'l', 'left', None, None, None, None, None, 0],
+        [3, 3, 0, 1, None, 'side/{3}', 'enum.item', None, None, None, 'r', 'right', None, None, None, None, None, 0],
 
     ]
 
@@ -476,22 +475,22 @@ def test_internal_store_old_ids(
         write_internal_sql_manifest(context, dsn, tabular_manifest)
 
     compare_rows = [
-        [namespace_item_0_id, None, 0, None, 'datasets', 'ns', 'datasets', 'ns', 'datasets', None, None, None, None, None, 'All datasets', 'All external datasets.'],
-        [namespace_item_1_id, None, 0, None, 'datasets/gov', 'ns', 'datasets/gov', 'ns', 'datasets/gov', None, None, None, None, None, 'Government datasets', 'All government datasets.'],
-        [2, None, 0, None, 'side', 'enum', 'side', 'enum', 'side', None, None, None, None, None, None, None],
-        [enum_item_0_id, 2, 1, None, f'side/{enum_item_0_id}', 'enum.item', None, None, None, 'l', 'left', None, None, None, 'Left', 'Left side.'],
-        [enum_item_1_id, 2, 1, None, f'side/{enum_item_1_id}', 'enum.item', None, None, None, 'r', 'right', None, None, None, 'Right', 'Right side.'],
-        [dataset_id, None, 0, 'data', 'data', 'dataset', 'data', None, None, None, None, None, None, None, None, None],
-        [lang_id, dataset_id, 1, 'data', 'data/lt', 'lang', 'lt', 'lang', 'lt', None, None, None, None, None, 'Pavyzdys', 'Pavyzdinis duomenų rinkinys.'],
-        [prefix_item_0_id, dataset_id, 1, 'data', 'data/locn', 'prefix', 'locn', 'prefix', 'locn', None, None, None, None, 'http://www.w3.org/ns/locn#', None, None],
-        [prefix_item_1_id, dataset_id, 1, 'data', 'data/ogc', 'prefix', 'ogc', 'prefix', 'ogc', None, None, None, None, 'http://www.opengis.net/rdf#', None, None],
-        [resource_id, dataset_id, 1, 'data', 'data/res', 'resource', 'res', 'sql', None, f'sqlite:///{tmp_path}/db', None, None, None, None, None, None],
-        [model_0_id, resource_id, 2, 'data/Test', 'data/res/Test', 'model', 'Test', None, None, None, None, None, None, None, None, None],
-        [property_0_id, model_0_id, 3, 'data/Test/num', 'data/res/Test/num', 'property', 'num', 'number', None, None, None, None, None, None, None, None],
-        [base_id, resource_id, 2, 'data/Test', 'data/res/Test', 'base', 'Test', None, None, None, None, None, None, None, None, None],
-        [model_1_id, base_id, 3, 'data/New', 'data/res/Test/New', 'model', 'New', None, None, None, None, None, None, None, None, None],
-        [comment_id, model_1_id, 4, 'data/New', f'data/res/Test/New/{comment_id}', 'comment', 'TEXT', 'comment', 'TEXT', None, None, None, None, None, 'Example', 'Comment'],
-        [property_1_id, model_1_id, 4, 'data/New/text', 'data/res/Test/New/text', 'property', 'text', 'string', None, None, None, None, None, None, None, None],
+        [0, namespace_item_0_id, None, 0, None, 'datasets', 'ns', 'datasets', 'ns', 'datasets', None, None, None, None, None, 'All datasets', 'All external datasets.'],
+        [1, namespace_item_1_id, None, 0, None, 'datasets/gov', 'ns', 'datasets/gov', 'ns', 'datasets/gov', None, None, None, None, None, 'Government datasets', 'All government datasets.'],
+        [2, 2, None, 0, None, 'side', 'enum', 'side', 'enum', 'side', None, None, None, None, None, None, None],
+        [3, enum_item_0_id, 2, 1, None, f'side/{enum_item_0_id}', 'enum.item', None, None, None, 'l', 'left', None, None, None, 'Left', 'Left side.'],
+        [4, enum_item_1_id, 2, 1, None, f'side/{enum_item_1_id}', 'enum.item', None, None, None, 'r', 'right', None, None, None, 'Right', 'Right side.'],
+        [5, dataset_id, None, 0, 'data', 'data', 'dataset', 'data', None, None, None, None, None, None, None, None, None],
+        [6, lang_id, dataset_id, 1, 'data', 'data/lt', 'lang', 'lt', 'lang', 'lt', None, None, None, None, None, 'Pavyzdys', 'Pavyzdinis duomenų rinkinys.'],
+        [7, prefix_item_0_id, dataset_id, 1, 'data', 'data/locn', 'prefix', 'locn', 'prefix', 'locn', None, None, None, None, 'http://www.w3.org/ns/locn#', None, None],
+        [8, prefix_item_1_id, dataset_id, 1, 'data', 'data/ogc', 'prefix', 'ogc', 'prefix', 'ogc', None, None, None, None, 'http://www.opengis.net/rdf#', None, None],
+        [9, resource_id, dataset_id, 1, 'data', 'data/res', 'resource', 'res', 'sql', None, f'sqlite:///{tmp_path}/db', None, None, None, None, None, None],
+        [10, model_0_id, resource_id, 2, 'data/Test', 'data/res/Test', 'model', 'Test', None, None, None, None, None, None, None, None, None],
+        [11, property_0_id, model_0_id, 3, 'data/Test/num', 'data/res/Test/num', 'property', 'num', 'number', None, None, None, None, None, None, None, None],
+        [12, base_id, resource_id, 2, 'data/Test', 'data/res/Test', 'base', 'Test', None, None, None, None, None, None, None, None, None],
+        [13, model_1_id, base_id, 3, 'data/New', 'data/res/Test/New', 'model', 'New', None, None, None, None, None, None, None, None, None],
+        [14, comment_id, model_1_id, 4, 'data/New', f'data/res/Test/New/{comment_id}', 'comment', 'TEXT', 'comment', 'TEXT', None, None, None, None, None, 'Example', 'Comment'],
+        [15, property_1_id, model_1_id, 4, 'data/New/text', 'data/res/Test/New/text', 'property', 'text', 'string', None, None, None, None, None, None, None, None],
     ]
 
     engine = sa.create_engine(dsn)
