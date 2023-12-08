@@ -12,7 +12,7 @@ from spinta.types.namespace import _model_matches_params, check_if_model_has_bac
 from spinta.utils import itertools
 
 
-@commands.traverse_ns_models.register(Context, Namespace, Manifest)
+@commands.traverse_ns_models.register(Context, Namespace, Manifest, Action)
 def traverse_ns_models(
     context: Context,
     ns: Namespace,
@@ -37,8 +37,8 @@ def traverse_ns_models(
             ns_,
             manifest,
             action,
-            dataset_,
-            resource,
+            dataset_=dataset_,
+            resource=resource,
             internal=internal,
             source_check=source_check
         )

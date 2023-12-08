@@ -155,6 +155,7 @@ def traverse_ns_models(
     context: Context,
     ns: Namespace,
     manifest: Manifest,
+    action: Action,
     **kwargs
 ):
     pass

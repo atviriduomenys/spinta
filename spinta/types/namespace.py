@@ -194,8 +194,8 @@ def _query_data(
         ns,
         ns.manifest,
         action,
-        dataset_,
-        resource,
+        dataset_=dataset_,
+        resource=resource,
         internal=True,
     )
     for model in models:

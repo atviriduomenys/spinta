@@ -14,7 +14,7 @@ from spinta.manifests.internal_sql.helpers import get_namespace_partial_data
 from spinta.types.namespace import check_if_model_has_backend_and_source, _model_matches_params
 
 
-@commands.traverse_ns_models.register(Context, Namespace, InternalSQLManifest)
+@commands.traverse_ns_models.register(Context, Namespace, InternalSQLManifest, Action)
 def traverse_ns_models(
     context: Context,
     ns: Namespace,
@@ -44,8 +44,8 @@ def traverse_ns_models(
             ns_,
             manifest,
             action,
-            dataset_,
-            resource,
+            dataset_=dataset_,
+            resource=resource,
             internal=internal,
             source_check=source_check,
             loaded=loaded
