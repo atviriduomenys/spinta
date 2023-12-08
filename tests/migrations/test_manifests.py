@@ -125,8 +125,8 @@ def test_new_version_with_changes(rc, cli: SpintaCliRunner, tmp_path):
     assert freezed['migrate'] == [
         {
             'type': 'schema',
-            'upgrade': "add_column('report', column('status', integer()))",
-            'downgrade': "drop_column('report', 'status')",
+            'upgrade': "add_column('Report', column('status', integer()))",
+            'downgrade': "drop_column('Report', 'status')",
         }
     ]
 
@@ -169,7 +169,7 @@ def test_new_version_branching_versions(rc, cli: SpintaCliRunner, tmp_path):
                     'upgrade': [
                         {
                             'create_table': {
-                                'name': 'report',
+                                'name': 'Report',
                                 'columns': [
                                     {'name': '_id', 'type': 'pk'},
                                     {'name': '_revision', 'type': 'string'},
@@ -179,7 +179,7 @@ def test_new_version_branching_versions(rc, cli: SpintaCliRunner, tmp_path):
                         },
                     ],
                     'downgrade': [
-                        {'drop_table': {'name': 'report'}},
+                        {'drop_table': {'name': 'Report'}},
                     ],
                 },
             },
@@ -201,13 +201,13 @@ def test_new_version_branching_versions(rc, cli: SpintaCliRunner, tmp_path):
                         {
                             'add_column': {
                                 'name': 'status',
-                                'table': 'report',
+                                'table': 'Report',
                                 'type': 'integer',
                             },
                         },
                     ],
                     'downgrade': [
-                        {'drop_column': {'name': 'status', 'table': 'report'}},
+                        {'drop_column': {'name': 'status', 'table': 'Report'}},
                     ],
                 },
             },
@@ -229,13 +229,13 @@ def test_new_version_branching_versions(rc, cli: SpintaCliRunner, tmp_path):
                         {
                             'add_column': {
                                 'name': 'report_type',
-                                'table': 'report',
+                                'table': 'Report',
                                 'type': 'string',
                             },
                         },
                     ],
                     'downgrade': [
-                        {'drop_column': {'name': 'report_type', 'table': 'report'}},
+                        {'drop_column': {'name': 'report_type', 'table': 'Report'}},
                     ],
                 },
             },
@@ -264,14 +264,14 @@ def test_new_version_w_foreign_key(rc, cli: SpintaCliRunner, tmp_path):
                 },
                 'properties': {
                     'title': {'type': 'string'},
-                    'country': {'type': 'ref', 'model': 'country'},
+                    'country': {'type': 'ref', 'model': 'Country'},
                 }
             }
         ],
         'models/country.yml': [
             {
                 'type': 'model',
-                'name': 'country',
+                'name': 'Country',
                 'version': {
                     'id': '0cffc369-308a-4093-8a08-92dbddb64a56',
                     'date': '2020-03-14 15:26:53'
