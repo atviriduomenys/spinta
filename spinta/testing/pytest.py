@@ -155,6 +155,12 @@ def pytest_addoption(parser):
         default=[],
         help="run tests only for particular model ['postgres', 'mongo', 'postgres/datasets']",
     )
+    parser.addoption(
+        "--manifest_type",
+        action="append",
+        default=[],
+        help="run tests only for particular manifest ['internal_sql', 'csv', 'ascii']",
+    )
 
 
 def pytest_configure(config):
@@ -162,27 +168,44 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "models(*models): mark test to run multiple times with each model specified"
     )
+    config.addinivalue_line(
+        "markers", "manifests(*manifests): mark test to run multiple times with each manifest type specified"
+    )
 
 
 def pytest_generate_tests(metafunc):
     # Get model markers from test, if markers are set - leave test as is
     models = metafunc.definition.get_closest_marker('models')
-    if not models:
-        return
+    if models:
+        # If there are markers, get them, together with model CLI options
+        models = set(models.args)
+        model_cli_options = set(metafunc.config.getoption('model'))
 
-    # If there are markers, get them, together with model CLI options
-    models = set(models.args)
-    model_cli_options = set(metafunc.config.getoption('model'))
+        # If model CLI options are not empty
+        # then get common markers from test and CLI options
+        if model_cli_options:
+            models = models.intersection(model_cli_options)
 
-    # If model CLI options are not empty
-    # then get common markers from test and CLI options
-    if model_cli_options:
-        models = models.intersection(model_cli_options)
+        # Parametrize our test with calculated models.
+        # If we pass to CLI model option, which does not have a test marker,
+        # then pytest will skip the test all together.
+        metafunc.parametrize('model', models)
 
-    # Parametrize our test with calculated models.
-    # If we pass to CLI model option, which does not have a test marker,
-    # then pytest will skip the test all together.
-    metafunc.parametrize('model', models)
+    manifests = metafunc.definition.get_closest_marker('manifests')
+    if manifests:
+        # If there are markers, get them, together with manifest CLI options
+        manifests = set(manifests.args)
+        manifest_cli_options = set(metafunc.config.getoption('manifest_type'))
+
+        # If model CLI options are not empty
+        # then get common markers from test and CLI options
+        if manifest_cli_options:
+            manifests = manifests.intersection(manifest_cli_options)
+
+        # Parametrize our test with calculated manifests.
+        # If we pass to CLI model option, which does not have a test marker,
+        # then pytest will skip the test all together.
+        metafunc.parametrize('manifest_type', manifests)
 
 
 def _diff_line(line: str) -> str:
