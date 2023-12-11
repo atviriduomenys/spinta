@@ -1,47 +1,18 @@
-import pathlib
-
 import pytest
 
-from spinta.components import Context
-from spinta.exceptions import InvalidManifestFile, NoRefPropertyForDenormProperty, ReferencedPropertyNotFound, ModelReferenceNotFound, PartialTypeNotFound, DataTypeCannotBeUsedForNesting, NestedDataTypeMissmatch
-from spinta.manifests.components import Manifest
-from spinta.manifests.internal_sql.helpers import write_internal_sql_manifest
-from spinta.testing.datasets import Sqlite
-from spinta.testing.tabular import create_tabular_manifest
+from spinta.exceptions import InvalidManifestFile, ReferencedPropertyNotFound, PartialTypeNotFound, DataTypeCannotBeUsedForNesting, NestedDataTypeMissmatch
 from spinta.testing.manifest import load_manifest
 from spinta.manifests.tabular.helpers import TabularManifestError
 
 
-def create_sql_manifest(
-    context: Context,
-    manifest: Manifest,
-    path: pathlib.Path
-):
-    db = Sqlite('sqlite:///' + str(path))
-    with db.engine.connect():
-        write_internal_sql_manifest(context, db.dsn, manifest)
-
-
-def setup_tabular_manifest(context, rc, tmp_path, table):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', table)
-    return load_manifest(rc, tmp_path / 'manifest.csv')
-
-
-def setup_internal_manifest(context, rc, tmp_path, manifest):
-    create_sql_manifest(context, manifest, tmp_path / 'db.sqlite')
-    return load_manifest(rc, 'sqlite:///' + str(tmp_path / 'db.sqlite'))
-
-
-def check(context, tmp_path, rc, table, manifest_type: str = 'csv'):
-    manifest = setup_tabular_manifest(context, rc, tmp_path, table)
-    if manifest_type == 'internal_sql':
-        manifest = setup_internal_manifest(context, rc, tmp_path, manifest)
+def check(tmp_path, rc, table, manifest_type: str = 'csv'):
+    manifest = load_manifest(rc, manifest=table, manifest_type=manifest_type, tmp_path=tmp_path)
     assert manifest == table
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_loading(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_loading(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
      d | r | b | m | property | source      | prepare   | type       | ref     | level | access | uri | title   | description
      datasets/gov/example     |             |           |            |         |       | open   |     | Example |
        | data                 |             |           | postgresql | default |       | open   |     | Data    |
@@ -57,8 +28,8 @@ def test_loading(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_uri(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_uri(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property | type       | ref     | uri
     datasets/gov/example     |            |         |
                              | prefix     | locn    | http://www.w3.org/ns/locn#
@@ -77,8 +48,8 @@ def test_uri(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_backends(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, f'''
+def test_backends(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, f'''
     d | r | b | m | property | type | ref | source
       | default              | sql  |     | sqlite:///{tmp_path}/db
                              |      |     |
@@ -86,8 +57,8 @@ def test_backends(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_backends_with_models(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, f'''
+def test_backends_with_models(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, f'''
     d | r | b | m | property | type   | ref | source
       | default              | sql    |     | sqlite:///{tmp_path}/db
                              |        |     |
@@ -98,8 +69,8 @@ def test_backends_with_models(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_ns(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_ns(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property | type | ref                  | title               | description
                              | ns   | datasets             | All datasets        | All external datasets.
                              |      | datasets/gov         | Government datasets | All government datasets.
@@ -109,8 +80,8 @@ def test_ns(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_ns_with_models(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_ns_with_models(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property | type   | ref                  | title               | description
                              | ns     | datasets             | All datasets        | All external datasets.
                              |        | datasets/gov         | Government datasets | All government datasets.
@@ -125,8 +96,8 @@ def test_ns_with_models(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_enum(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_enum(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property     | type   | source | prepare | access  | title | description
     datasets/gov/example         |        |        |         |         |       |
       | data                     |        |        |         |         |       |
@@ -140,8 +111,8 @@ def test_enum(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_enum_ref(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_enum_ref(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property     | type   | ref     | source | prepare | access  | title | description
                                  | enum   | side    | l      | 'left'  | open    | Left  | Left side.
                                  |        |         | r      | 'right' | private | Right | Right side.
@@ -156,8 +127,8 @@ def test_enum_ref(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_lang(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_lang(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property | type   | ref     | prepare | title       | description
     datasets/gov/example     |        |         |         | Example     | Example dataset.
                              | lang   | lt      |         | Pavyzdys    | Pavyzdinis duomenų rinkinys.
@@ -177,8 +148,8 @@ def test_lang(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_enum_negative(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_enum_negative(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property | type    | prepare | title
     datasets/gov/example     |         |         |
                              |         |         |
@@ -190,8 +161,8 @@ def test_enum_negative(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_units(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_units(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property | type    | ref
     datasets/gov/example     |         |
                              |         |
@@ -201,8 +172,8 @@ def test_units(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_boolean_enum(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_boolean_enum(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property | type    | ref   | source | prepare
     datasets/gov/example     |         |       |        |
                              | enum    | bool  |        | null
@@ -215,8 +186,8 @@ def test_boolean_enum(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_enum_with_unit_name(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_enum_with_unit_name(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property | type    | ref   | source | prepare
     datasets/gov/example     |         |       |        |
                              | enum    | m     | no     | 0
@@ -228,8 +199,8 @@ def test_enum_with_unit_name(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_comment(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_comment(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property | type    | source | prepare | access  | title      | description
     datasets/gov/example     |         |        |         |         |            |
                              | enum    | no     | 0       |         |            |
@@ -245,9 +216,9 @@ def test_comment(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_prop_type_not_given(manifest_type, context, tmp_path, rc):
+def test_prop_type_not_given(manifest_type, tmp_path, rc):
     with pytest.raises(InvalidManifestFile) as e:
-        check(context, tmp_path, rc, '''
+        check(tmp_path, rc, '''
         d | r | b | m | property | type
         datasets/gov/example     |
           |   |   | Bool         |
@@ -260,8 +231,8 @@ def test_prop_type_not_given(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_prop_type_required(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_prop_type_required(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property | type
     example                  |
                              |
@@ -272,8 +243,8 @@ def test_prop_type_required(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_time_type(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_time_type(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property | type
     example                  |
                              |
@@ -283,8 +254,8 @@ def test_time_type(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_explicit_ref(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_explicit_ref(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property | type       | ref
     datasets/gov/example     |            |
       | data                 | postgresql | default
@@ -301,8 +272,8 @@ def test_explicit_ref(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_property_unique_add(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_property_unique_add(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property            | type
     example                             |
                                         |
@@ -313,9 +284,9 @@ def test_property_unique_add(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_property_unique_add_wrong_type(manifest_type, context, tmp_path, rc):
+def test_property_unique_add_wrong_type(manifest_type, tmp_path, rc):
     with pytest.raises(TabularManifestError) as e:
-        check(context, tmp_path, rc, '''
+        check(tmp_path, rc, '''
         d | r | b | m | property | type
         datasets/gov/example     |
           |   |   | City         |
@@ -325,8 +296,8 @@ def test_property_unique_add_wrong_type(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_property_with_ref_unique(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_property_with_ref_unique(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property | type               | ref                  | uri
     datasets/gov/example     |                    |                      |
                              | prefix             | locn                 | http://www.w3.org/ns/locn#
@@ -345,8 +316,8 @@ def test_property_with_ref_unique(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_property_with_multi_ref_unique(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_property_with_multi_ref_unique(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property | type               | ref                  | uri
     datasets/gov/example     |                    |                      |
                              | prefix             | locn                 | http://www.w3.org/ns/locn#
@@ -369,8 +340,8 @@ def test_property_with_multi_ref_unique(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_property_with_ref_with_unique(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_property_with_ref_with_unique(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property | type               | ref                  | uri
     datasets/gov/example     |                    |                      |
                              | prefix             | locn                 | http://www.w3.org/ns/locn#
@@ -389,7 +360,7 @@ def test_property_with_ref_with_unique(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_unique_prop_remove_when_model_ref_single(manifest_type, context, tmp_path, rc):
+def test_unique_prop_remove_when_model_ref_single(manifest_type, tmp_path, rc):
     table = '''
     d | r | b | m | property | type               | ref                  | uri
     datasets/gov/example     |                    |                      |
@@ -404,9 +375,7 @@ def test_unique_prop_remove_when_model_ref_single(manifest_type, context, tmp_pa
       |   |   |   | name     | string             |                      |
       |   |   |   | country  | ref                | Country              |
     '''
-    manifest = setup_tabular_manifest(context, rc, tmp_path, table)
-    if manifest_type == 'internal_sql':
-        manifest = setup_internal_manifest(context, rc, tmp_path, manifest)
+    manifest = load_manifest(rc, manifest=table, manifest_type=manifest_type, tmp_path=tmp_path)
     assert manifest == '''
     d | r | b | m | property | type               | ref                  | uri
     datasets/gov/example     |                    |                      |
@@ -423,7 +392,7 @@ def test_unique_prop_remove_when_model_ref_single(manifest_type, context, tmp_pa
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_unique_prop_remove_when_model_ref_multi(manifest_type, context, tmp_path, rc):
+def test_unique_prop_remove_when_model_ref_multi(manifest_type, tmp_path, rc):
     table = '''
     d | r | b | m | property | type               | ref                  | uri
     datasets/gov/example     |                    |                      |
@@ -442,9 +411,7 @@ def test_unique_prop_remove_when_model_ref_multi(manifest_type, context, tmp_pat
       |   |   |   | id       | string             |                      |
       |   |   |   | country  | ref                | Country              |
     '''
-    manifest = setup_tabular_manifest(context, rc, tmp_path, table)
-    if manifest_type == 'internal_sql':
-        manifest = setup_internal_manifest(context, rc, tmp_path, manifest)
+    manifest = load_manifest(rc, manifest=table, manifest_type=manifest_type, tmp_path=tmp_path)
     assert manifest == '''
     d | r | b | m | property | type               | ref                  | uri
     datasets/gov/example     |                    |                      |
@@ -464,8 +431,8 @@ def test_unique_prop_remove_when_model_ref_multi(manifest_type, context, tmp_pat
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_with_denormalized_data(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_with_denormalized_data(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property               | type   | ref       | access
     example                                |        |           |
                                            |        |           |
@@ -485,9 +452,9 @@ def test_with_denormalized_data(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_with_denormalized_data_ref_error(manifest_type, context, tmp_path, rc):
+def test_with_denormalized_data_ref_error(manifest_type, tmp_path, rc):
     with pytest.raises(PartialTypeNotFound) as e:
-        check(context, tmp_path, rc, '''
+        check(tmp_path, rc, '''
         d | r | b | m | property               | type   | ref       | access
         example                                |        |           |
                                                |        |           |
@@ -501,9 +468,9 @@ def test_with_denormalized_data_ref_error(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_with_denormalized_data_undefined_error(manifest_type, context, tmp_path, rc):
+def test_with_denormalized_data_undefined_error(manifest_type, tmp_path, rc):
     with pytest.raises(ReferencedPropertyNotFound) as e:
-        check(context, tmp_path, rc, '''
+        check(tmp_path, rc, '''
         d | r | b | m | property               | type   | ref       | access
         example                                |        |           |
                                                |        |           |
@@ -527,8 +494,8 @@ def test_with_denormalized_data_undefined_error(manifest_type, context, tmp_path
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_with_base(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_with_base(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property   | type    | ref
     datasets/gov/example       |         |
                                |         |
@@ -562,8 +529,8 @@ def test_with_base(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_end_marker(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_end_marker(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property   | type    | ref
     datasets/gov/example       |         |
       | resource1              | sql     |
@@ -595,8 +562,8 @@ def test_end_marker(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_with_same_base(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_with_same_base(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property   | type    | ref      | level
     datasets/gov/example       |         |          |
                                |         |          |
@@ -624,8 +591,8 @@ def test_with_same_base(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_model_param_list(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_model_param_list(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property   | type    | ref     | source | prepare
     datasets/gov/example       |         |         |        |
                                |         |         |        |
@@ -640,8 +607,8 @@ def test_model_param_list(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_model_param_list_with_source(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_model_param_list_with_source(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property   | type    | ref     | source | prepare
     datasets/gov/example       |         |         |        |
                                |         |         |        |
@@ -657,8 +624,8 @@ def test_model_param_list_with_source(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_model_param_multiple(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_model_param_multiple(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property   | type    | ref     | source   | prepare
     datasets/gov/example       |         |         |          |
                                |         |         |          |
@@ -675,8 +642,8 @@ def test_model_param_multiple(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_resource_param(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_resource_param(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property   | type    | ref     | source   | prepare
     datasets/gov/example       |         |         |          |
       | resource1              |         | default |          | sql
@@ -695,8 +662,8 @@ def test_resource_param(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_resource_param_multiple(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_resource_param_multiple(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property   | type    | ref     | source   | prepare
     datasets/gov/example       |         |         |          |
       | resource1              |         | default |          | sql
@@ -716,8 +683,8 @@ def test_resource_param_multiple(manifest_type, context, tmp_path, rc):
     ''', manifest_type)
 
 
-def test_multiline_prepare(context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_multiline_prepare(tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property   | type    | ref     | source   | prepare
     datasets/gov/example       |         |         |          |
                                |         |         |          |
@@ -730,8 +697,8 @@ def test_multiline_prepare(context, tmp_path, rc):
     ''')
 
 
-def test_multiline_prepare_without_given_prepare(context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_multiline_prepare_without_given_prepare(tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property   | type    | ref     | source   | prepare
     datasets/gov/example       |         |         |          |
                                |         |         |          |
@@ -745,8 +712,8 @@ def test_multiline_prepare_without_given_prepare(context, tmp_path, rc):
 
 
 @pytest.mark.skip('backref not implemented yet #96')
-def test_prop_array_backref(context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_prop_array_backref(tmp_path, rc):
+    check(tmp_path, rc, '''
         d | r | b | m | property    | type    | ref      | access
         example                     |         |          |
                                     |         |          |
@@ -761,8 +728,8 @@ def test_prop_array_backref(context, tmp_path, rc):
 
 
 @pytest.mark.skip('backref not implemented yet #96')
-def test_prop_array_with_custom_backref(context, rc, tmp_path):
-    check(context, tmp_path, rc, '''
+def test_prop_array_with_custom_backref(rc, tmp_path):
+    check(tmp_path, rc, '''
         d | r | b | m | property    | type                                       | ref
         example                     |                                            |
                                     |                                            |
@@ -782,8 +749,8 @@ def test_prop_array_with_custom_backref(context, rc, tmp_path):
 
 
 @pytest.mark.skip('backref not implemented yet #96')
-def test_prop_array_with_custom_without_properties_backref(context, rc, tmp_path):
-    check(context, tmp_path, rc, '''
+def test_prop_array_with_custom_without_properties_backref(rc, tmp_path):
+    check(tmp_path, rc, '''
         d | r | b | m | property    | type                                       | ref
         example                     |                                            |
                                     |                                            |
@@ -803,8 +770,8 @@ def test_prop_array_with_custom_without_properties_backref(context, rc, tmp_path
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_prop_array_simple_type(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_prop_array_simple_type(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
         d | r | b | m | property    | type    | ref      | access
         example                     |         |          |
                                     |         |          |
@@ -815,8 +782,8 @@ def test_prop_array_simple_type(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_prop_array_ref_type(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_prop_array_ref_type(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
         d | r | b | m | property    | type    | ref      | access
         example                     |         |          |
                                     |         |          |
@@ -830,8 +797,8 @@ def test_prop_array_ref_type(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_prop_array_customize_type(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_prop_array_customize_type(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
         d | r | b | m | property    | type    | ref      | access | title
         example                     |         |          |        |
                                     |         |          |        |
@@ -843,8 +810,8 @@ def test_prop_array_customize_type(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_prop_multi_array(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_prop_multi_array(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
         d | r | b | m | property        | type    | ref      | access | title
         example                         |         |          |        |
                                         |         |          |        |
@@ -855,8 +822,8 @@ def test_prop_multi_array(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_prop_multi_array_specific(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_prop_multi_array_specific(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
         d | r | b | m | property        | type    | ref      | access | title
         example                         |         |          |        |
                                         |         |          |        |
@@ -870,8 +837,8 @@ def test_prop_multi_array_specific(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_prop_nested_denorm(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_prop_nested_denorm(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
         d | r | b | m | property        | type    | ref      | access | title
         example                         |         |          |        |
                                         |         |          |        |
@@ -886,8 +853,8 @@ def test_prop_nested_denorm(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_prop_multi_nested_denorm(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_prop_multi_nested_denorm(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
         d | r | b | m | property          | type    | ref      | access | title
         example                           |         |          |        |
                                           |         |          |        |
@@ -904,9 +871,9 @@ def test_prop_multi_nested_denorm(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_prop_multi_nested_error_partial(manifest_type, context, tmp_path, rc):
+def test_prop_multi_nested_error_partial(manifest_type, tmp_path, rc):
     with pytest.raises(PartialTypeNotFound) as e:
-        check(context, tmp_path, rc, '''
+        check(tmp_path, rc, '''
             d | r | b | m | property          | type    | ref      | access | title
             example                           |         |          |        |
                                               |         |          |        |
@@ -921,8 +888,8 @@ def test_prop_multi_nested_error_partial(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_prop_multi_nested_multi_models(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_prop_multi_nested_multi_models(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
         d | r | b | m | property               | type    | ref       | access | title
         example                                |         |           |        |
                                                |         |           |        |
@@ -946,8 +913,8 @@ def test_prop_multi_nested_multi_models(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_prop_multi_nested(manifest_type, context, tmp_path, rc):
-    check(context, tmp_path, rc, '''
+def test_prop_multi_nested(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
             d | r | b | m | property                       | type    | ref      | access | title
             example                                        |         |          |        |
                                                            |         |          |        |
@@ -972,9 +939,9 @@ def test_prop_multi_nested(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_multi_nested_incorrect(manifest_type, context, tmp_path, rc):
+def test_multi_nested_incorrect(manifest_type, tmp_path, rc):
     with pytest.raises(DataTypeCannotBeUsedForNesting) as e:
-        check(context, tmp_path, rc, '''
+        check(tmp_path, rc, '''
                 d | r | b | m | property                       | type    | ref      | access | title
                 example                                        |         |          |        |
                                                                |         |          |        |
@@ -986,9 +953,9 @@ def test_multi_nested_incorrect(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_multi_nested_incorrect_reversed_order(manifest_type, context, tmp_path, rc):
+def test_multi_nested_incorrect_reversed_order(manifest_type, tmp_path, rc):
     with pytest.raises(DataTypeCannotBeUsedForNesting) as e:
-        check(context, tmp_path, rc, '''
+        check(tmp_path, rc, '''
                 d | r | b | m | property                       | type    | ref      | access | title
                 example                                        |         |          |        |
                                                                |         |          |        |
@@ -1000,9 +967,9 @@ def test_multi_nested_incorrect_reversed_order(manifest_type, context, tmp_path,
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_multi_nested_incorrect_deep(manifest_type, context, tmp_path, rc):
+def test_multi_nested_incorrect_deep(manifest_type, tmp_path, rc):
     with pytest.raises(DataTypeCannotBeUsedForNesting) as e:
-        check(context, tmp_path, rc, '''
+        check(tmp_path, rc, '''
                 d | r | b | m | property                       | type    | ref      | access | title
                 example                                        |         |          |        |
                                                                |         |          |        |
@@ -1015,9 +982,9 @@ def test_multi_nested_incorrect_deep(manifest_type, context, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_multi_nested_incorrect_with_array(manifest_type, context, tmp_path, rc):
+def test_multi_nested_incorrect_with_array(manifest_type, tmp_path, rc):
     with pytest.raises(DataTypeCannotBeUsedForNesting) as e:
-        check(context, tmp_path, rc, '''
+        check(tmp_path, rc, '''
                 d | r | b | m | property                       | type    | ref      | access | title
                 example                                        |         |          |        |
                                                                |         |          |        |
@@ -1030,9 +997,9 @@ def test_multi_nested_incorrect_with_array(manifest_type, context, tmp_path, rc)
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_multi_nested_type_missmatch_with_array(manifest_type, context, tmp_path, rc):
+def test_multi_nested_type_missmatch_with_array(manifest_type, tmp_path, rc):
     with pytest.raises(NestedDataTypeMissmatch) as e:
-        check(context, tmp_path, rc, '''
+        check(tmp_path, rc, '''
                 d | r | b | m | property                       | type    | ref      | access | title
                 example                                        |         |          |        |
                                                                |         |          |        |
@@ -1045,9 +1012,9 @@ def test_multi_nested_type_missmatch_with_array(manifest_type, context, tmp_path
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_multi_nested_type_missmatch_with_partial(manifest_type, context, tmp_path, rc):
+def test_multi_nested_type_missmatch_with_partial(manifest_type, tmp_path, rc):
     with pytest.raises(NestedDataTypeMissmatch) as e:
-        check(context, tmp_path, rc, '''
+        check(tmp_path, rc, '''
                 d | r | b | m | property                       | type    | ref      | access | title
                 example                                        |         |          |        |
                                                                |         |          |        |

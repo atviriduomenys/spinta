@@ -7,12 +7,14 @@ from pytest import FixtureRequest
 
 from spinta import commands
 from spinta.cli.helpers.store import load_store
+from spinta.cli.manifest import copy_manifest
 from spinta.components import Context
 from spinta.components import Store
 from spinta.core.config import RawConfig
 from spinta.core.config import configure_rc
 from spinta.manifests.components import Manifest
 from spinta.manifests.components import ManifestPath
+from spinta.manifests.helpers import detect_manifest_from_path
 from spinta.manifests.tabular.helpers import normalizes_columns
 from spinta.manifests.tabular.helpers import render_tabular_manifest
 from spinta.manifests.tabular.helpers import striptable
@@ -34,23 +36,65 @@ def compare_manifest(manifest: Manifest, expected: str, context: Context = None)
     return actual, expected
 
 
+def _create_file_path_for_type(tmp_path: pathlib.Path, file_name: str, manifest_type: str):
+    if manifest_type != 'internal_sql' and tmp_path is None:
+        raise Exception(f"TMP_PATH IS REQUIRED FOR {manifest_type} MANIFEST")
+
+    if manifest_type == 'internal_sql':
+        return 'sqlite:///' + str(tmp_path / f'{file_name}.sqlite')
+    elif manifest_type in ['csv', 'xml', 'xlsx', 'yaml']:
+        return str(tmp_path / f'{file_name}.{manifest_type}')
+    elif manifest_type in ['ascii', 'tabular']:
+        return str(tmp_path / f'{file_name}.txt')
+    else:
+        raise Exception(f"NO SUPPORT FOR {manifest_type} MANIFEST")
+
+
 def load_manifest_get_context(
     rc: RawConfig,
     manifest: Union[pathlib.Path, str] = None,
     *,
     load_internal: bool = False,
     request: FixtureRequest = None,
+    manifest_type: str = '',
+    tmp_path: pathlib.Path = None,
     full_load: bool = True,
     **kwargs,
 ) -> TestContext:
-    if isinstance(manifest, pathlib.Path):
-        manifests = [str(manifest)]
-    elif isinstance(manifest, str) and '|' in manifest:
-        manifests = [ManifestPath(
-            type='ascii',
-            file=StringIO(manifest),
-        )]
+    temp_rc = configure_rc(rc, None, **kwargs)
+    context = create_test_context(temp_rc, request)
+
+    if isinstance(manifest, str) and '|' in manifest:
+        if manifest_type and manifest_type != 'ascii':
+            ascii_file = _create_file_path_for_type(tmp_path, '_temp_ascii_manifest', 'ascii')
+            output_file = _create_file_path_for_type(tmp_path, '_temp_manifest', manifest_type)
+            with open(ascii_file, 'w') as f:
+                f.write(manifest)
+            copy_manifest(
+                context,
+                manifests=[ascii_file],
+                output=output_file,
+                output_type=manifest_type
+            )
+            manifests = [output_file]
+        else:
+            manifests = [ManifestPath(
+                type='ascii',
+                file=StringIO(manifest),
+            )]
     elif manifest:
+        if isinstance(manifest, pathlib.Path):
+            manifest = str(manifest)
+        manifest_ = detect_manifest_from_path(rc, manifest)
+        if manifest_type and manifest_.type != manifest_type:
+            output_path = _create_file_path_for_type(tmp_path, '_temp_manifest', manifest_type)
+            copy_manifest(
+                context,
+                manifests=[manifest],
+                output=output_path,
+                output_type=manifest_type
+            )
+            manifest = output_path
         manifests = [manifest]
     else:
         manifests = manifest

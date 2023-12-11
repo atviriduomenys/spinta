@@ -58,14 +58,46 @@ def copy(
 ):
     """Copy models from CSV manifest files into another CSV manifest file"""
     context: Context = ctx.obj
+    copy_manifest(
+        context,
+        source=source,
+        access=access,
+        format_names=format_names,
+        output=output,
+        columns=columns,
+        order_by=order_by,
+        rename_duplicates=rename_duplicates,
+        manifests=manifests
+    )
+
+
+def copy_manifest(
+    context: Context,
+    source: bool = True,
+    access: str = 'private',
+    format_names: bool = False,
+    output: Optional[str] = None,
+    columns: Optional[str] = None,
+    order_by: Optional[str] = None,
+    rename_duplicates: bool = False,
+    manifests: List[str] = None,
+    output_type: Optional[str] = None
+):
+    """Copy models from CSV manifest files into another CSV manifest file"""
     access = get_enum_by_name(Access, access)
     cols = normalizes_columns(columns.split(',')) if columns else None
-
+    internal = False
     verbose = True
     if not output:
         verbose = False
-    internal = InternalSQLManifest.detect_from_path(output)
-    if output and internal:
+    else:
+        if output_type:
+            if output_type == 'internal_sql':
+                internal = True
+        else:
+            internal = InternalSQLManifest.detect_from_path(output)
+
+    if internal:
         rows = _read_and_return_manifest(
             context,
             manifests,

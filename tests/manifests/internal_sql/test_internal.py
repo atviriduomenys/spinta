@@ -7,7 +7,7 @@ import pytest
 from spinta.core.config import RawConfig
 from spinta.manifests.internal_sql.helpers import write_internal_sql_manifest, get_table_structure
 from spinta.testing.datasets import Sqlite
-from tests.manifests.test_manifest import setup_tabular_manifest
+from spinta.testing.manifest import load_manifest
 
 import sqlalchemy as sa
 
@@ -64,7 +64,7 @@ def test_internal_store_meta_rows(
       |          |   |   |          |        | ogc                  |                         |         |        | http://www.opengis.net/rdf# |                     |
 
     '''
-    tabular_manifest = setup_tabular_manifest(context, rc, tmp_path, table)
+    tabular_manifest = load_manifest(rc, manifest=table, tmp_path=tmp_path, manifest_type='csv')
     if db_type == "sqlite":
         dsn = 'sqlite:///' + str(tmp_path / 'db.sqlite')
         db = Sqlite(dsn)
@@ -129,7 +129,7 @@ def test_internal_store_dataset_rows(
                          |   |   |      | one_str  | string  |      |                             |          |
 
     '''
-    tabular_manifest = setup_tabular_manifest(context, rc, tmp_path, table)
+    tabular_manifest = load_manifest(rc, manifest=table, tmp_path=tmp_path, manifest_type='csv')
     if db_type == "sqlite":
         dsn = 'sqlite:///' + str(tmp_path / 'db.sqlite')
         db = Sqlite(dsn)
@@ -195,7 +195,7 @@ def test_internal_store_resource_rows(
                          |         |   |      | one_str  | string  |     |                          |       |
 
     '''
-    tabular_manifest = setup_tabular_manifest(context, rc, tmp_path, table)
+    tabular_manifest = load_manifest(rc, manifest=table, tmp_path=tmp_path, manifest_type='csv')
     if db_type == "sqlite":
         dsn = 'sqlite:///' + str(tmp_path / 'db.sqlite')
         db = Sqlite(dsn)
@@ -260,7 +260,7 @@ def test_internal_store_base_rows(
                          |   |      |      | one_str  | string  |     |                          |       |
 
     '''
-    tabular_manifest = setup_tabular_manifest(context, rc, tmp_path, table)
+    tabular_manifest = load_manifest(rc, manifest=table, tmp_path=tmp_path, manifest_type='csv')
     if db_type == "sqlite":
         dsn = 'sqlite:///' + str(tmp_path / 'db.sqlite')
         db = Sqlite(dsn)
@@ -328,7 +328,7 @@ def test_internal_store_properties_rows(
                          |   |   |      | new_url      | url      |      |
                          |   |   |      | new_uri      | uri      |      |
     '''
-    tabular_manifest = setup_tabular_manifest(context, rc, tmp_path, table)
+    tabular_manifest = load_manifest(rc, manifest=table, tmp_path=tmp_path, manifest_type='csv')
     if db_type == "sqlite":
         dsn = 'sqlite:///' + str(tmp_path / 'db.sqlite')
         db = Sqlite(dsn)
@@ -385,7 +385,7 @@ def test_internal_store_json_null_rows(
       |   |   |   |          |        |      | l      | 'left'
       |   |   |   |          |        |      | r      | 'right'
     '''
-    tabular_manifest = setup_tabular_manifest(context, rc, tmp_path, table)
+    tabular_manifest = load_manifest(rc, manifest=table, tmp_path=tmp_path, manifest_type='csv')
     if db_type == "sqlite":
         dsn = 'sqlite:///' + str(tmp_path / 'db.sqlite')
         db = Sqlite(dsn)
@@ -464,7 +464,7 @@ def test_internal_store_old_ids(
     {comment_id}          |         |          |      |       |          | comment | TEXT         |                         |         |                             | Example             | Comment
     {property_1_id}       |         |          |      |       | text     | string  |              |                         |         |                             |                     |
     '''
-    tabular_manifest = setup_tabular_manifest(context, rc, tmp_path, table)
+    tabular_manifest = load_manifest(rc, manifest=table, tmp_path=tmp_path, manifest_type='csv')
     if db_type == "sqlite":
         dsn = 'sqlite:///' + str(tmp_path / 'db.sqlite')
         db = Sqlite(dsn)
