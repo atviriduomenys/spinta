@@ -62,7 +62,7 @@ def load_manifest_get_context(
     **kwargs,
 ) -> TestContext:
     temp_rc = configure_rc(rc, None, **kwargs)
-    context = create_test_context(temp_rc, request)
+    context = create_test_context(temp_rc)
 
     if isinstance(manifest, str) and '|' in manifest:
         if manifest_type and manifest_type != 'ascii':
@@ -165,4 +165,5 @@ def bootstrap_manifest(
     commands.prepare(context, store.manifest)
     commands.bootstrap(context, store.manifest)
     context.loaded = True
+    print(store.manifest.__dict__)
     return context
