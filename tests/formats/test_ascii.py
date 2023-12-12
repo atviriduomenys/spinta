@@ -1,6 +1,7 @@
 import base64
 import datetime
 import hashlib
+from pathlib import Path
 
 import pytest
 from _pytest.fixtures import FixtureRequest
@@ -77,8 +78,12 @@ def test_export_ascii(app, mocker):
     assert data == changes
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 @pytest.mark.asyncio
-async def test_export_multiple_types(rc: RawConfig):
+async def test_export_multiple_types(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig):
     context, manifest = load_manifest_and_context(rc, '''
     d | r | b | m | property | type    | ref   | access
     example                  |         |       |
@@ -89,7 +94,7 @@ async def test_export_multiple_types(rc: RawConfig):
       |   |   | C            |         | value |
       |   |   |   | value    | integer |       | open
 
-    ''')
+    ''', manifest_type=manifest_type, tmp_path=tmp_path)
     rows = [
         {'_type': 'example/A', 'value': 1},
         {'_type': 'example/A', 'value': 2},
@@ -164,12 +169,16 @@ def test_export_ascii_params(app, mocker):
     )
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_ascii_ref_dtype(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property | type   | ref     | access
     example/ascii/ref        |        |         |
       |   |   | Country      |        | name    |
@@ -177,7 +186,13 @@ def test_ascii_ref_dtype(
       |   |   | City         |        | name    |
       |   |   |   | name     | string |         | open
       |   |   |   | country  | ref    | Country | open
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authmodel('example/ascii/ref', ['insert', 'search'])
 
@@ -196,18 +211,28 @@ def test_ascii_ref_dtype(
     )
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_ascii_file_dtype(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property | type   | ref  | access
     example/ascii/file       |        |      |
       |   |   | Country      |        | name |
       |   |   |   | name     | string |      | open
       |   |   |   | flag     | file   |      | open
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authmodel('example/ascii/file', ['insert', 'search'])
 
@@ -229,8 +254,11 @@ def test_ascii_file_dtype(
     )
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 @pytest.mark.asyncio
 async def test_ascii_getone(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
 ):
     context, manifest = load_manifest_and_context(rc, '''
@@ -238,7 +266,7 @@ async def test_ascii_getone(
     example                  |        |      |
       |   |   | City         |        | name |
       |   |   |   | name     | string |      | open
-    ''')
+    ''', manifest_type=manifest_type, tmp_path=tmp_path)
 
     _id = '19e4f199-93c5-40e5-b04e-a575e81ac373'
     result = render_data(
@@ -264,18 +292,28 @@ async def test_ascii_getone(
     ]
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_ascii_params(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property   | type    | ref  | access
     example/ascii/params       |         |      |
       |   |   | Country        |         | name |
       |   |   |   | name       | string  |      | open
       |   |   |   | capital    | string  |      | open
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authmodel('example/ascii/params', ['insert', 'search'])
 
@@ -308,18 +346,28 @@ def test_ascii_params(
     )
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_ascii_multiline(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property   | type    | ref  | access
     example/ascii/params       |         |      |
       |   |   | Country        |         | name |
       |   |   |   | name       | string  |      | open
       |   |   |   | capital    | string  |      | open
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authmodel('example/ascii/params', ['insert', 'search'])
 

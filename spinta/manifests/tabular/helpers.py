@@ -863,12 +863,11 @@ def _text_datatype_handler(reader: PropertyReader, row: dict):
         'access': row['access'],
     }))
     temp_data['type'] = 'string'
-    temp_data['external'] = new_data['external']
     if result:
         new_data['langs'] = result['langs']
         if new_data['level'] and int(new_data['level']) <= 3:
             new_data['langs']['C'] = temp_data
-            if new_data['external']:
+            if 'external' in new_data and new_data['external']:
                 new_data['external'] = {}
         result.update(new_data)
         return result
@@ -877,7 +876,7 @@ def _text_datatype_handler(reader: PropertyReader, row: dict):
             new_data['langs'] = {
                 'C': temp_data
             }
-            if new_data['external']:
+            if 'external' in new_data and new_data['external']:
                 new_data['external'] = {}
         return new_data
 
@@ -1782,6 +1781,8 @@ def get_relative_model_name(dataset: [str, dict], name: str) -> str:
         return name.replace(dataset, '')
     if name.startswith('/'):
         return name[1:]
+    elif '/' in name:
+        return name
     elif dataset is None:
         return name
     else:
@@ -2214,8 +2215,6 @@ def _property_to_tabular(
         else:
             data['ref'] = prop.dtype.model.name
 
-        for denorm_prop in prop.dtype.properties.values():
-            yield_rows.append(denorm_prop)
     elif isinstance(prop.dtype, Object):
         for obj_prop in prop.dtype.properties.values():
             yield_rows.append(obj_prop)

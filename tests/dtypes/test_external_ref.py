@@ -9,34 +9,39 @@ from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.manifest import load_manifest
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.utils import get_error_codes
+import pytest
 
 
-def test_load(context, tmp_path: Path, rc: RawConfig):
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_load(manifest_type, tmp_path: Path, rc: RawConfig):
     table = '''
-    d | r | b | m | property   | type   | ref                | source       | level | access
-    dataset/1                  |        |                    |              |       |
-      | external               | sql    |                    | sqlite://    |       |
-                               |        |                    |              |       |
-      |   |   | Country        |        | code               |              |       |
-      |   |   |   | code       | string |                    |              |       | open
-      |   |   |   | name       | string |                    |              |       | open
-    dataset/2                  |        |                    |              |       |
-                               |        |                    |              |       |
-      |   |   | City           |        |                    |              |       |
-      |   |   |   | name       | string |                    |              |       | open
-      |   |   |   | country    | ref    | /dataset/1/Country |              | 3     | open
+    d | r | b | m | property   | type   | ref                  | source       | level | access
+    dataset/one                |        |                      |              |       |
+      | external               | sql    |                      | sqlite://    |       |
+                               |        |                      |              |       |
+      |   |   | Country        |        | code                 |              |       |
+      |   |   |   | code       | string |                      |              |       | open
+      |   |   |   | name       | string |                      |              |       | open
+    dataset/two                |        |                      |              |       |
+                               |        |                      |              |       |
+      |   |   | City           |        |                      |              |       |
+      |   |   |   | name       | string |                      |              |       | open
+      |   |   |   | country    | ref    | /dataset/one/Country |              | 3     | open
     '''
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', table)
-    manifest = load_manifest(rc, tmp_path / 'manifest.csv')
+    manifest = load_manifest(rc, table, manifest_type=manifest_type, tmp_path=tmp_path)
     assert manifest == table
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_external_ref(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property | type   | ref                           | source       | level | access
     datasets/externalref     |        |                               |              |       |
       | external             | sql    |                               | sqlite://    |       |
@@ -47,7 +52,13 @@ def test_external_ref(
       |   |   | City         |        |                               |              |       |
       |   |   |   | name     | string |                               |              |       | open
       |   |   |   | country  | ref    | /datasets/externalref/Country |              | 3     | open
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
 
     app = create_test_client(context)
     app.authmodel('datasets/internal/City', [
@@ -78,12 +89,16 @@ def test_external_ref(
     ]
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_external_ref_without_primary_key(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property | type   | ref                           | source       | level | access
     datasets/externalref     |        |                               |              |       |
       | external             | sql    |                               | sqlite://    |       |
@@ -94,7 +109,13 @@ def test_external_ref_without_primary_key(
       |   |   | City         |        |                               |              |       |
       |   |   |   | name     | string |                               |              |       | open
       |   |   |   | country  | ref    | /datasets/externalref/Country |              | 3     | open
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
 
     app = create_test_client(context)
     app.authmodel('datasets/internal/pk/City', [
@@ -126,12 +147,16 @@ def test_external_ref_without_primary_key(
     ]
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_external_ref_with_explicit_key(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property | type   | ref                               | source       | level | access
     datasets/external/ref    |        |                                   |              |       |
       | external             | sql    |                                   | sqlite://    |       |
@@ -142,7 +167,13 @@ def test_external_ref_with_explicit_key(
       |   |   | City         |        |                                   |              |       |
       |   |   |   | name     | string |                                   |              |       | open
       |   |   |   | country  | ref    | /datasets/external/ref/Country[id]|              | 3     | open
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
 
     app = create_test_client(context)
     app.authmodel('datasets/explicit/ref/City', [

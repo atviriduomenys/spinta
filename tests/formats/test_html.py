@@ -1,5 +1,7 @@
 import base64
 import hashlib
+from pathlib import Path
+
 from lxml import html
 from typing import Any
 from typing import Dict
@@ -246,18 +248,27 @@ def test_current_location_with_root(
 
 
 def _prep_file_type(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ) -> Tuple[TestClient, str]:
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property | type   | access
     example/html/file        |        |
       | resource             |        |
       |   |   | Country      |        |
       |   |   |   | name     | string | open
       |   |   |   | flag     | image  | open
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authmodel('example/html/file', [
         'insert',
@@ -300,12 +311,15 @@ def _table_with_header(
     ]
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_file_type_list(
-    postgresql: str,
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
+    postgresql: str,
     request: FixtureRequest,
 ):
-    app, _id = _prep_file_type(rc, postgresql, request)
+    app, _id = _prep_file_type(manifest_type, tmp_path, rc, postgresql, request)
     resp = app.get('/example/html/file/Country', headers={
         'Accept': 'text/html',
     })
@@ -341,12 +355,15 @@ def _row(row: List[Tuple[str, Cell]]) -> List[Tuple[str, Dict[str, Any]]]:
     ]
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_file_type_details(
-    postgresql: str,
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
+    postgresql: str,
     request: FixtureRequest,
 ):
-    app, _id = _prep_file_type(rc, postgresql, request)
+    app, _id = _prep_file_type(manifest_type, tmp_path, rc, postgresql, request)
     resp = app.get(f'/example/html/file/Country/{_id}', headers={
         'Accept': 'text/html',
     })
@@ -362,12 +379,15 @@ def test_file_type_details(
     ]
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_file_type_changes(
-    postgresql: str,
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
+    postgresql: str,
     request: FixtureRequest,
 ):
-    app, _id = _prep_file_type(rc, postgresql, request)
+    app, _id = _prep_file_type(manifest_type, tmp_path, rc, postgresql, request)
     resp = app.get('/example/html/file/Country/:changes', headers={
         'Accept': 'text/html',
     })
@@ -385,12 +405,15 @@ def test_file_type_changes(
     ]
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_file_type_changes_single_object(
-    postgresql: str,
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
+    postgresql: str,
     request: FixtureRequest,
 ):
-    app, _id = _prep_file_type(rc, postgresql, request)
+    app, _id = _prep_file_type(manifest_type, tmp_path, rc, postgresql, request)
     resp = app.get(f'/example/html/file/Country/{_id}/:changes', headers={
         'Accept': 'text/html',
     })
@@ -408,12 +431,15 @@ def test_file_type_changes_single_object(
     ]
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_file_type_no_pk(
-    postgresql: str,
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
+    postgresql: str,
     request: FixtureRequest,
 ):
-    app, _id = _prep_file_type(rc, postgresql, request)
+    app, _id = _prep_file_type(manifest_type, tmp_path, rc, postgresql, request)
     resp = app.get('/example/html/file/Country?select(name, flag)', headers={
         'Accept': 'text/html',
     })
@@ -447,7 +473,12 @@ def test_limit_iter(limit, exhausted, result):
     assert it.exhausted is exhausted
 
 
-def test_prepare_ref_for_response(rc: RawConfig):
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_prepare_ref_for_response(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+):
     context, manifest = load_manifest_and_context(rc, '''
     d | r | b | m | property   | type    | ref     | access
     example                    |         |         |
@@ -456,7 +487,7 @@ def test_prepare_ref_for_response(rc: RawConfig):
       |   |   | City           |         | name    |
       |   |   |   | name       | string  |         | open
       |   |   |   | country    | ref     | Country | open
-    ''')
+    ''', manifest_type=manifest_type, tmp_path=tmp_path)
     fmt = Html()
     value = {'_id': 'c634dbd8-416f-457d-8bda-5a6c35bbd5d6'}
     cell = Cell('c634dbd8', link='/example/Country/c634dbd8-416f-457d-8bda-5a6c35bbd5d6')
@@ -477,7 +508,12 @@ def test_prepare_ref_for_response(rc: RawConfig):
     assert result['_id'].link == cell.link
 
 
-def test_prepare_ref_for_response_empty(rc: RawConfig):
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_prepare_ref_for_response_empty(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+):
     context, manifest = load_manifest_and_context(rc, '''
     d | r | b | m | property   | type    | ref     | access
     example                    |         |         |
@@ -486,7 +522,7 @@ def test_prepare_ref_for_response_empty(rc: RawConfig):
       |   |   | City           |         | name    |
       |   |   |   | name       | string  |         | open
       |   |   |   | country    | ref     | Country | open
-    ''')
+    ''', manifest_type=manifest_type, tmp_path=tmp_path)
     fmt = Html()
     value = None
     cell = Cell('', link=None, color=Color.null)
@@ -506,13 +542,18 @@ def test_prepare_ref_for_response_empty(rc: RawConfig):
     assert result.link == cell.link
 
 
-def test_select_id(rc: RawConfig):
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_select_id(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+):
     context, manifest = load_manifest_and_context(rc, '''
     d | r | b | m | property   | type    | ref     | access
     example                    |         |         |
       |   |   | City           |         | name    |
       |   |   |   | name       | string  |         | open
-    ''')
+    ''', manifest_type=manifest_type, tmp_path=tmp_path)
     result = render_data(
         context, manifest,
         'example/City',
@@ -532,7 +573,12 @@ def test_select_id(rc: RawConfig):
     }
 
 
-def test_select_join(rc: RawConfig):
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_select_join(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+):
     context, manifest = load_manifest_and_context(rc, '''
     d | r | b | m | property   | type    | ref     | access
     example                    |         |         |
@@ -541,7 +587,7 @@ def test_select_join(rc: RawConfig):
       |   |   | City           |         |         |
       |   |   |   | name       | string  |         | open
       |   |   |   | country    | ref     | Country | open
-    ''')
+    ''', manifest_type=manifest_type, tmp_path=tmp_path)
     result = render_data(
         context, manifest,
         'example/City',
@@ -563,8 +609,14 @@ def test_select_join(rc: RawConfig):
     }
 
 
-def test_select_join_multiple_props(rc: RawConfig):
-    context, manifest = load_manifest_and_context(rc, '''
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_select_join_multiple_props(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+):
+    context, manifest = load_manifest_and_context(
+        rc, '''
     d | r | b | m | property   | type    | ref     | access
     example                    |         |         |
       |   |   | Country        |         |         |
@@ -572,7 +624,7 @@ def test_select_join_multiple_props(rc: RawConfig):
       |   |   | City           |         |         |
       |   |   |   | name       | string  |         | open
       |   |   |   | country    | ref     | Country | open
-    ''')
+    ''', manifest_type=manifest_type, tmp_path=tmp_path)
     result = render_data(
         context, manifest,
         'example/City',
@@ -602,14 +654,19 @@ def test_select_join_multiple_props(rc: RawConfig):
     }
 
 
-def test_recursive_refs(rc: RawConfig):
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_recursive_refs(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+):
     context, manifest = load_manifest_and_context(rc, '''
     d | r | b | m | property | type    | ref      | access
     example                  |         |          |
       |   |   | Category     |         |          |
       |   |   |   | name     | string  |          | open
       |   |   |   | parent   | ref     | Category | open
-    ''')
+    ''', manifest_type=manifest_type, tmp_path=tmp_path)
     result = render_data(
         context, manifest,
         'example/Category/262f6c72-4284-4d26-b9b0-e282bfe46a46',
@@ -654,19 +711,29 @@ def test_recursive_refs(rc: RawConfig):
     }
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_show_single_object(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ) -> Tuple[TestClient, str]:
 
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
         d | r | b | m | property    | type    | ref     | access
         example                     |         |         |
           |   |   | City            |         | id      |
           |   |   |   | id          | integer |         | open
           |   |   |   | name        | string  |         | open
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authorize(['spinta_set_meta_fields'])
     app.authmodel('example/City', [

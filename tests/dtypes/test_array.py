@@ -1,10 +1,13 @@
 from spinta.testing.client import create_test_client
 from spinta.testing.manifest import bootstrap_manifest
 from _pytest.fixtures import FixtureRequest
+import pytest
 
 
-def test_getall_level4(rc, postgresql: str, request: FixtureRequest):
-    context = bootstrap_manifest(rc, '''
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_getall_level4(manifest_type, rc, tmp_path, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property | type    | ref     | access | level
     example/lvl4             |         |         |        |
       |   |   | Country      |         |         |        |
@@ -12,7 +15,13 @@ def test_getall_level4(rc, postgresql: str, request: FixtureRequest):
       |   |   |   | cities[] | ref     | City    | open   | 4
       |   |   | City         |         | name    |        |
       |   |   |   | name     | string  |         | open   |
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authorize(['spinta_set_meta_fields', 'spinta_getone'])
     app.authmodel('example/lvl4/City', ['insert'])
@@ -54,8 +63,11 @@ def test_getall_level4(rc, postgresql: str, request: FixtureRequest):
     ]
 
 
-def test_getall_level3(rc, postgresql: str, request: FixtureRequest):
-    context = bootstrap_manifest(rc, '''
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_getall_level3(manifest_type, rc, tmp_path, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(
+        rc,
+        '''
     d | r | b | m | property | type    | ref     | access | level
     example/lvl3             |         |         |        |
       |   |   | Country      |         |         |        |
@@ -63,7 +75,13 @@ def test_getall_level3(rc, postgresql: str, request: FixtureRequest):
       |   |   |   | cities[] | ref     | City    | open   | 3
       |   |   | City         |         | name    |        |
       |   |   |   | name     | string  |         | open   |
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authorize(['spinta_set_meta_fields', 'spinta_getone'])
     app.authmodel('example/lvl3/City', ['insert'])
@@ -105,14 +123,23 @@ def test_getall_level3(rc, postgresql: str, request: FixtureRequest):
     ]
 
 
-def test_getall_simple_type(rc, postgresql: str, request: FixtureRequest):
-    context = bootstrap_manifest(rc, '''
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_getall_simple_type(manifest_type, rc, tmp_path, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(
+        rc,
+        '''
     d | r | b | m | property | type    | ref     | access | level
     example/simple           |         |         |        |
       |   |   | Country      |         |         |        |
       |   |   |   | name     | string  |         | open   |
       |   |   |   | cities[] | string  |         | open   |
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authorize(['spinta_set_meta_fields', 'spinta_getone'])
 
@@ -134,8 +161,11 @@ def test_getall_simple_type(rc, postgresql: str, request: FixtureRequest):
     ]
 
 
-def test_array_shortcut_inherit_access_open(rc, postgresql: str, request: FixtureRequest):
-    context = bootstrap_manifest(rc, '''
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_array_shortcut_inherit_access_open(manifest_type, rc, tmp_path, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(
+        rc,
+        '''
     d | r | b | m | property    | type    | ref      | access
     example/dtypes/array/open        |         |          |
                                 |         |          |
@@ -145,7 +175,13 @@ def test_array_shortcut_inherit_access_open(rc, postgresql: str, request: Fixtur
       |   |   | Country         |         |          |
       |   |   |   | name        | string  |          | open
       |   |   |   | languages[] | ref     | Language | open
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authorize(['spinta_set_meta_fields'])
     app.authmodel('example/dtypes/array/open', ['insert', 'getone', 'getall'])
@@ -179,8 +215,11 @@ def test_array_shortcut_inherit_access_open(rc, postgresql: str, request: Fixtur
     ]
 
 
-def test_array_shortcut_inherit_access_private(rc, postgresql: str, request: FixtureRequest):
-    context = bootstrap_manifest(rc, '''
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_array_shortcut_inherit_access_private(manifest_type, rc, tmp_path, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(
+        rc,
+        '''
     d | r | b | m | property    | type    | ref      | access
     example/dtypes/array/private        |         |          |
                                 |         |          |
@@ -190,7 +229,13 @@ def test_array_shortcut_inherit_access_private(rc, postgresql: str, request: Fix
       |   |   | Country         |         |          |
       |   |   |   | name        | string  |          | open
       |   |   |   | languages[] | ref     | Language | private
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authorize(['spinta_set_meta_fields'])
     app.authmodel('example/dtypes/array/private', ['insert', 'getone', 'getall'])

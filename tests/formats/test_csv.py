@@ -1,5 +1,6 @@
 import base64
-
+from pathlib import Path
+import pytest
 from _pytest.fixtures import FixtureRequest
 
 from spinta.core.config import RawConfig
@@ -128,18 +129,28 @@ def test_csv_ref_dtype(
     ]
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_csv_file_dtype(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property | type   | ref  | access
     example/csv/file         |        |      |
       |   |   | Country      |        | name |
       |   |   |   | name     | string |      | open
       |   |   |   | flag     | file   |      | open
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authmodel('example/csv/file', ['insert', 'search'])
 
@@ -159,12 +170,16 @@ def test_csv_file_dtype(
     ]
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_csv_empty_ref(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property | type   | ref     | access
     example/csv/ref          |        |         |
       |   |   | Country      |        | name    |
@@ -172,7 +187,13 @@ def test_csv_empty_ref(
       |   |   | City         |        | name    |
       |   |   |   | name     | string |         | open
       |   |   |   | country  | ref    | Country | open
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authorize(['spinta_set_meta_fields'])
     app.authmodel('example/csv/ref', ['insert', 'search'])
@@ -188,12 +209,16 @@ def test_csv_empty_ref(
     ]
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_csv_mixed_ref(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property | type   | ref     | access
     example/csv/ref          |        |         |
       |   |   | Country      |        | name    |
@@ -201,7 +226,13 @@ def test_csv_mixed_ref(
       |   |   | City         |        | name    |
       |   |   |   | name     | string |         | open
       |   |   |   | country  | ref    | Country | open
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authorize(['spinta_set_meta_fields'])
     app.authmodel('example/csv/ref', ['insert', 'search'])

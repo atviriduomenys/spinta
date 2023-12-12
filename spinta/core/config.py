@@ -589,6 +589,7 @@ def configure_rc(
     check_names: Optional[bool] = None,
     backend: str = None,
     resources: List[ResourceTuple] = None,
+    manifest_type: str = 'inline'
 ) -> RawConfig:
 
     config: Dict[str, Any] = {}
@@ -619,22 +620,6 @@ def configure_rc(
     if manifests or resources:
         sync = []
         inline = []
-
-        if manifests:
-            for i, path in enumerate(manifests):
-                manifest_name = f'manifest{i}'
-                manifest = _parse_manifest_path(rc, path)
-                config[f'manifests.{manifest_name}'] = {
-                    'type': manifest.type,
-                    'path': manifest.path,
-                    'file': manifest.file,
-                }
-                if isinstance(path, ResourceTuple) and path.prepare:
-                    parsed = spyna.parse(path.prepare)
-                    converted = asttoexpr(parsed)
-                    config[f'manifests.{manifest_name}']['prepare'] = converted
-                sync.append(manifest_name)
-
         if resources:
             inline.append({
                 'type': 'dataset',
@@ -645,14 +630,42 @@ def configure_rc(
                 },
             })
 
-        config['manifests.default'] = {
-            'type': 'inline',
-            'backend': 'default',
-            'keymap': 'default',
-            'mode': mode.value,
-            'sync': sync,
-            'manifest': inline,
-        }
+        if manifest_type != 'inline':
+            manifest = _parse_manifest_path(rc, manifests[0])
+            config['manifests.default'] = {
+                'type': manifest_type,
+                'backend': 'default',
+                'keymap': 'default',
+                'mode': mode.value,
+                'path': manifest.path,
+                'file': manifest.file,
+                'manifest': inline
+            }
+        else:
+            if manifests:
+                for i, path in enumerate(manifests):
+                    manifest_name = f'manifest{i}'
+                    manifest = _parse_manifest_path(rc, path)
+                    config[f'manifests.{manifest_name}'] = {
+                        'type': manifest.type,
+                        'path': manifest.path,
+                        'file': manifest.file,
+                    }
+                    if isinstance(path, ResourceTuple) and path.prepare:
+                        parsed = spyna.parse(path.prepare)
+                        converted = asttoexpr(parsed)
+                        config[f'manifests.{manifest_name}']['prepare'] = converted
+                    sync.append(manifest_name)
+
+            config['manifests.default'] = {
+                'type': manifest_type,
+                'backend': 'default',
+                'keymap': 'default',
+                'mode': mode.value,
+                'sync': sync,
+                'manifest': inline,
+            }
+
         config['manifest'] = 'default'
 
         if check_names is not None:

@@ -98,7 +98,8 @@ def load_manifest_get_context(
         manifests = [manifest]
     else:
         manifests = manifest
-    rc = configure_rc(rc, manifests, **kwargs)
+    manifest_type = manifest_type if manifest_type != 'internal_sql' else 'internal'
+    rc = configure_rc(rc, manifests, manifest_type='inline' if manifest_type != 'internal' else manifest_type, **kwargs)
     context = create_test_context(rc, request)
     store = load_store(context, verbose=False, ensure_config_dir=False)
     commands.load(context, store.manifest, load_internal=load_internal, full_load=full_load)
@@ -152,12 +153,14 @@ def bootstrap_manifest(
     *,
     request: FixtureRequest = None,
     load_internal: bool = True,
+    full_load: bool = True,
     **kwargs,
 ) -> TestContext:
     context = load_manifest_get_context(
         rc, manifest,
         request=request,
         load_internal=load_internal,
+        full_load=full_load,
         **kwargs,
     )
     store: Store = context.get('store')
@@ -165,5 +168,4 @@ def bootstrap_manifest(
     commands.prepare(context, store.manifest)
     commands.bootstrap(context, store.manifest)
     context.loaded = True
-    print(store.manifest.__dict__)
     return context

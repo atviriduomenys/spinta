@@ -72,7 +72,7 @@ def get_node(
                     prop='name',
                 )
 
-            if commands.has_node(context, manifest, ctype, data['name']):
+            if commands.has_node(context, manifest, ctype, data['name'], loaded=True):
                 name = data['name']
                 other = commands.get_node(context, manifest, ctype, name).eid
                 raise exceptions.InvalidManifestFile(

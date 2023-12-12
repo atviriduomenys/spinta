@@ -4,10 +4,11 @@ import uuid
 
 import pytest
 
+from spinta import commands
 from spinta.core.config import RawConfig
 from spinta.manifests.internal_sql.helpers import write_internal_sql_manifest, get_table_structure
 from spinta.testing.datasets import Sqlite
-from spinta.testing.manifest import load_manifest
+from spinta.testing.manifest import load_manifest, load_manifest_and_context
 
 import sqlalchemy as sa
 
@@ -504,3 +505,83 @@ def test_internal_store_old_ids(
         for item in rows:
             result_rows.append(list(item))
         compare_sql_to_required(result_rows, compare_rows)
+
+
+def test_internal_partial_load(rc, tmp_path):
+    table = f'''
+    dataset              | r | base | m    | property | type    | ref  | source                   | title |description
+    datasets/gov/example |   |      |      |          |         |      |                          |       |
+                         |   |      |      |          |         |      |                          |       |
+                         |   |      | Test |          |         |      |                          |       |
+                         |   |      |      | integer  | integer |      |                          |       |
+                         |   |      |      |          |         |      |                          |       |
+                         |   |      | Yaml |          |         |      |                          |       |
+                         |   |      |      | integer  | integer |      |                          |       |
+                         |   |      |      |          |         |      |                          |       |
+                         |   | Test |      |          |         |      |                          |       |
+                         |   |      | New  |          |         |      |                          |       |
+                         |   |      |      | new_str  | string  |      |                          |       |
+                         |   |      |      | integer  |         |      |                          |       |
+                         |   |      |      |          |         |      |                          |       |
+                         |   | New  |      |          |         |      |                          |       |
+                         |   |      | One  |          |         |      |                          |       |
+                         |   |      |      | one_str  | string  |      |                          |       |
+                         |   | /    |      |          |         |      |                          |       |
+                         |   |      | Two  |          |         |      |                          |       |
+                         |   |      |      | one_str  | string  |      |                          |       |
+                         |   |      |      | test     | ref     | Test |                          |       |
+    '''
+    context, manifest = load_manifest_and_context(rc, table, manifest_type='internal_sql', tmp_path=tmp_path, full_load=False)
+    with context:
+        manifest = commands.create_request_manifest(context, manifest)
+        context.set('request.manifest', manifest)
+        commands.load_for_request(context, manifest)
+
+        models = manifest.get_objects()['model']
+
+        assert set(models.keys()) == {'_ns', '_schema', '_schema/Version', '_txn'}
+
+        commands.get_model(context, manifest, 'datasets/gov/example/Test')
+        assert set(models.keys()) == {'_ns', '_schema', '_schema/Version', '_txn', 'datasets/gov/example/Test'}
+
+        commands.get_model(context, manifest, 'datasets/gov/example/Yaml')
+        assert set(models.keys()) == {'_ns', '_schema', '_schema/Version', '_txn', 'datasets/gov/example/Test', 'datasets/gov/example/Yaml'}
+
+    # Check if load was not saved, load level 1 base
+    with context:
+        manifest = commands.create_request_manifest(context, manifest)
+        context.set('request.manifest', manifest)
+        commands.load_for_request(context, manifest)
+
+        models = manifest.get_objects()['model']
+
+        assert set(models.keys()) == {'_ns', '_schema', '_schema/Version', '_txn'}
+
+        commands.get_model(context, manifest, 'datasets/gov/example/New')
+        assert set(models.keys()) == {'_ns', '_schema', '_schema/Version', '_txn', 'datasets/gov/example/Test', 'datasets/gov/example/New'}
+
+    # Check if load was not saved, load level 2 base
+    with context:
+        manifest = commands.create_request_manifest(context, manifest)
+        context.set('request.manifest', manifest)
+        commands.load_for_request(context, manifest)
+
+        models = manifest.get_objects()['model']
+
+        assert set(models.keys()) == {'_ns', '_schema', '_schema/Version', '_txn'}
+
+        commands.get_model(context, manifest, 'datasets/gov/example/One')
+        assert set(models.keys()) == {'_ns', '_schema', '_schema/Version', '_txn', 'datasets/gov/example/Test', 'datasets/gov/example/New', 'datasets/gov/example/One'}
+
+    # Check if load was not saved, load ref
+    with context:
+        manifest = commands.create_request_manifest(context, manifest)
+        context.set('request.manifest', manifest)
+        commands.load_for_request(context, manifest)
+
+        models = manifest.get_objects()['model']
+
+        assert set(models.keys()) == {'_ns', '_schema', '_schema/Version', '_txn'}
+
+        commands.get_model(context, manifest, 'datasets/gov/example/Two')
+        assert set(models.keys()) == {'_ns', '_schema', '_schema/Version', '_txn', 'datasets/gov/example/Two', 'datasets/gov/example/Test'}

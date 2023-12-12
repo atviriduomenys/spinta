@@ -1,3 +1,5 @@
+import pathlib
+
 import pytest
 
 from pytest import FixtureRequest
@@ -11,12 +13,17 @@ from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.utils import error
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_backref_one_to_one_level_4(
+    manifest_type: str,
+    tmp_path: pathlib.Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc,
+        '''
     d | r | b | m | property    | type    | ref      | access | level
     example/dtypes/backref/oto/level4  |         |          |        |
                                 |         |          |        |
@@ -29,7 +36,13 @@ def test_backref_one_to_one_level_4(
       |   |   |   | id          | integer |          | open   |
       |   |   |   | name        | string  |          | open   |
       |   |   |   | leader      | ref     | Leader   | open   | 4
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
 
     app = create_test_client(context)
     app.authorize(['spinta_set_meta_fields'])
@@ -79,12 +92,16 @@ def test_backref_one_to_one_level_4(
     }
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_backref_one_to_one_level_3(
+    manifest_type: str,
+    tmp_path: pathlib.Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property    | type    | ref      | access | level
     example/dtypes/backref/oto/level3  |         |          |        |
                                 |         |          |        |
@@ -97,7 +114,13 @@ def test_backref_one_to_one_level_3(
       |   |   |   | id          | integer |          | open   |
       |   |   |   | name        | string  |          | open   |
       |   |   |   | leader      | ref     | Leader   | open   | 3
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
 
     app = create_test_client(context)
     app.authorize(['spinta_set_meta_fields'])
@@ -152,12 +175,16 @@ def test_backref_one_to_one_level_3(
     }
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_backref_many_to_one_level_4(
+    manifest_type: str,
+    tmp_path: pathlib.Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property    | type    | ref      | access | level
     example/dtypes/backref/mto/level4  |         |          |        |
                                 |         |          |        |
@@ -170,7 +197,13 @@ def test_backref_many_to_one_level_4(
       |   |   |   | id          | integer |          | open   |
       |   |   |   | name        | string  |          | open   |
       |   |   |   | language    | ref     | Language | open   | 4
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
 
     app = create_test_client(context)
     app.authorize(['spinta_set_meta_fields'])
@@ -241,12 +274,16 @@ def test_backref_many_to_one_level_4(
     assert result_json[2]['country'] == []
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_backref_many_to_one_level_3(
+    manifest_type: str,
+    tmp_path: pathlib.Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property    | type    | ref      | access | level
     example/dtypes/backref/mto/level3  |         |          |        |
                                 |         |          |        |
@@ -259,7 +296,13 @@ def test_backref_many_to_one_level_3(
       |   |   |   | id          | integer |          | open   |
       |   |   |   | name        | string  |          | open   |
       |   |   |   | language    | ref     | Language | open   | 3
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
 
     app = create_test_client(context)
     app.authorize(['spinta_set_meta_fields'])
@@ -336,12 +379,16 @@ def test_backref_many_to_one_level_3(
     assert result_json[2]['country'] == []
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_backref_many_to_many_level_4(
+    manifest_type: str,
+    tmp_path: pathlib.Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property    | type    | ref      | access | level
     example/dtypes/backref/mtm/level4  |         |          |        |
                                 |         |          |        |
@@ -354,7 +401,13 @@ def test_backref_many_to_many_level_4(
       |   |   |   | id          | integer |          | open   |
       |   |   |   | name        | string  |          | open   |
       |   |   |   | language[]  | ref     | Language | open   | 4
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
 
     app = create_test_client(context)
     app.authorize(['spinta_set_meta_fields'])
@@ -438,12 +491,16 @@ def test_backref_many_to_many_level_4(
     assert result_json[3]['country'] == []
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_backref_many_to_many_level_3(
+    manifest_type: str,
+    tmp_path: pathlib.Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property    | type    | ref      | access | level
     example/dtypes/backref/mtm/level3  |         |          |        |
                                 |         |          |        |
@@ -456,7 +513,13 @@ def test_backref_many_to_many_level_3(
       |   |   |   | id          | integer |          | open   |
       |   |   |   | name        | string  |          | open   |
       |   |   |   | language[]  | ref     | Language | open   | 3
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
 
     app = create_test_client(context)
     app.authorize(['spinta_set_meta_fields'])
@@ -548,12 +611,16 @@ def test_backref_many_to_many_level_3(
     assert result_json[3]['country'] == []
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_backref_x_to_many_expand(
+    manifest_type: str,
+    tmp_path: pathlib.Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property    | type    | ref      | access | level
     example/dtypes/backref/xtm/expand |         |          |        |
                                 |         |          |        |
@@ -566,7 +633,13 @@ def test_backref_x_to_many_expand(
       |   |   |   | id          | integer |          | open   |
       |   |   |   | name        | string  |          | open   |
       |   |   |   | language[]  | ref     | Language | open   |
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
 
     app = create_test_client(context)
     app.authorize(['spinta_set_meta_fields'])
@@ -650,12 +723,16 @@ def test_backref_x_to_many_expand(
     ])
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_backref_error_modify_backref_insert(
+    manifest_type: str,
+    tmp_path: pathlib.Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property    | type    | ref      | access | level
     example/dtypes/backref/error/modify/insert |         |          |        |
                                 |         |          |        |
@@ -668,7 +745,13 @@ def test_backref_error_modify_backref_insert(
       |   |   |   | id          | integer |          | open   |
       |   |   |   | name        | string  |          | open   |
       |   |   |   | language[]  | ref     | Language | open   |
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
 
     app = create_test_client(context)
     app.authorize(['spinta_set_meta_fields'])
@@ -687,12 +770,16 @@ def test_backref_error_modify_backref_insert(
     }
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_backref_error_modify_backref_put(
+    manifest_type: str,
+    tmp_path: pathlib.Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property    | type    | ref      | access | level
     example/dtypes/backref/error/modify/put |         |          |        |
                                 |         |          |        |
@@ -705,7 +792,13 @@ def test_backref_error_modify_backref_put(
       |   |   |   | id          | integer |          | open   |
       |   |   |   | name        | string  |          | open   |
       |   |   |   | language[]  | ref     | Language | open   |
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
 
     app = create_test_client(context)
     app.authorize(['spinta_set_meta_fields'])
@@ -731,12 +824,16 @@ def test_backref_error_modify_backref_put(
     }
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_backref_error_modify_backref_patch(
+    manifest_type: str,
+    tmp_path: pathlib.Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property    | type    | ref      | access | level
     example/dtypes/backref/error/modify/patch |         |          |        |
                                 |         |          |        |
@@ -749,7 +846,13 @@ def test_backref_error_modify_backref_patch(
       |   |   |   | id          | integer |          | open   |
       |   |   |   | name        | string  |          | open   |
       |   |   |   | language[]  | ref     | Language | open   |
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
 
     app = create_test_client(context)
     app.authorize(['spinta_set_meta_fields'])
@@ -775,12 +878,16 @@ def test_backref_error_modify_backref_patch(
     }
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_backref_multiple_same(
+    manifest_type: str,
+    tmp_path: pathlib.Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property    | type    | ref      | access | level
     example/dtypes/backref/multiple/same |         |          |        |
                                         |         |                             |        |
@@ -795,7 +902,13 @@ def test_backref_multiple_same(
       |   |   |   | name                | string  |                             | open   |
       |   |   |   | language_primary    | ref     | Language                    | open   |
       |   |   |   | language_secondary  | ref     | Language                    | open   |
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
 
     app = create_test_client(context)
     app.authorize(['spinta_set_meta_fields'])
@@ -874,12 +987,16 @@ def test_backref_multiple_same(
     ])
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_backref_multiple_all_types(
+    manifest_type: str,
+    tmp_path: pathlib.Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property    | type    | ref      | access | level
     example/dtypes/backref/multiple/all |         |          |        |
                                         |         |                             |        |
@@ -896,7 +1013,13 @@ def test_backref_multiple_all_types(
       |   |   |   | language_0          | ref     | Language                    | open   |
       |   |   |   | language_1          | ref     | Language                    | open   |
       |   |   |   | language_array[]    | ref     | Language                    | open   |
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
 
     app = create_test_client(context)
     app.authorize(['spinta_set_meta_fields'])
@@ -1077,12 +1200,16 @@ def test_backref_multiple_all_types(
     assert result_json[3]['country_array'] == []
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_backref_error_no_ref(
+    manifest_type: str,
+    tmp_path: pathlib.Path,
     rc: RawConfig,
     postgresql: str,
 ):
     with pytest.raises(NoBackRefReferencesFound):
-        bootstrap_manifest(rc, '''
+        bootstrap_manifest(
+            rc, '''
         d | r | b | m | property    | type    | ref      | access | level
         example/dtypes/backref/error/no_ref |         |          |        |
                                     |         |          |        |
@@ -1094,15 +1221,24 @@ def test_backref_error_no_ref(
           |   |   | Country         |         | id       |        |
           |   |   |   | id          | integer |          | open   |
           |   |   |   | name        | string  |          | open   |
-        ''', backend=postgresql)
+        ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        full_load=True
+    )
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_backref_error_invalid_ref(
+    manifest_type: str,
+    tmp_path: pathlib.Path,
     rc: RawConfig,
-    postgresql: str
+    postgresql: str,
 ):
     with pytest.raises(NoReferencesFound):
-        bootstrap_manifest(rc, '''
+        bootstrap_manifest(
+            rc, '''
         d | r | b | m | property    | type    | ref      | access | level
         example/dtypes/backref/error/no_ref |         |          |        |
                                     |         |          |        |
@@ -1115,15 +1251,24 @@ def test_backref_error_invalid_ref(
           |   |   |   | id          | integer |          | open   |
           |   |   |   | name        | string  |          | open   |
           |   |   |   | language    | ref     | Language | open   |
-        ''', backend=postgresql)
+        ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        full_load=True
+    )
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_backref_error_multiple_ref(
+    manifest_type: str,
+    tmp_path: pathlib.Path,
     rc: RawConfig,
-    postgresql: str
+    postgresql: str,
 ):
     with pytest.raises(MultipleBackRefReferencesFound):
-        bootstrap_manifest(rc, '''
+        bootstrap_manifest(
+            rc, '''
         d | r | b | m | property    | type    | ref      | access | level
         example/dtypes/backref/error/no_ref |         |          |        |
                                     |         |          |        |
@@ -1137,15 +1282,24 @@ def test_backref_error_multiple_ref(
           |   |   |   | name        | string  |          | open   |
           |   |   |   | language    | ref     | Language | open   |
           |   |   |   | language0   | ref     | Language | open   |
-        ''', backend=postgresql)
+        ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        full_load=True
+    )
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_backref_error_one_to_many(
+    manifest_type: str,
+    tmp_path: pathlib.Path,
     rc: RawConfig,
-    postgresql: str
+    postgresql: str,
 ):
     with pytest.raises(OneToManyBackRefNotSupported):
-        bootstrap_manifest(rc, '''
+        bootstrap_manifest(
+            rc, '''
         d | r | b | m | property    | type    | ref      | access | level
         example/dtypes/backref/otm/level4  |         |          |        |
                                     |         |          |        |
@@ -1158,4 +1312,9 @@ def test_backref_error_one_to_many(
           |   |   |   | id          | integer |          | open   |
           |   |   |   | name        | string  |          | open   |
           |   |   |   | language[]  | ref     | Language | open   | 4
-        ''', backend=postgresql)
+        ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        full_load=True
+    )

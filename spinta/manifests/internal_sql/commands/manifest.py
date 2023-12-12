@@ -69,14 +69,14 @@ def get_namespace_name_list(context: Context, manifest: InternalSQLManifest, loa
     if conn is None or loaded:
         objs = manifest.get_objects()
         if 'ns' and objs and objs['ns']:
-            if namespace:
+            if namespace is not None:
                 for ns_name, ns in objs['ns'].items():
                     if ns.parent and isinstance(ns.parent, Namespace) and ns.parent.name == namespace:
                         yield ns_name
             else:
                 yield from objs['ns'].keys()
     else:
-        if namespace:
+        if not namespace:
             stmt = sa.select(table.c.mpath).where(
                 sa.or_(
                     table.c.dim == 'namespace',
@@ -94,7 +94,7 @@ def get_namespace_name_list(context: Context, manifest: InternalSQLManifest, loa
                     )
                 )
 
-            ).order_by(table.c.mpath)
+            ).order_by(table.c.index)
         rows = conn.execute(stmt)
         yielded = []
         for row in rows:
@@ -193,23 +193,22 @@ def get_model(context: Context, manifest: InternalSQLManifest, model: str, **kwa
                 if parent_obj is None:
                     break
 
-                if parent_obj['dim'] == 'dataset':
-                    parent_dataset = parent_obj['name']
-                    break
-                elif parent_obj['dim'] == 'resource' and not parent_resource:
-                    parent_resource = parent_obj['name']
                 parent_schemas.append(parent_obj)
                 parent_id = parent_obj['parent']
 
-            # Ensure dataset is created first
-            if parent_dataset:
-                dataset = commands.get_dataset(context, manifest, parent_dataset)
-                if parent_resource:
-                    get_dataset_resource(context, manifest, dataset, parent_resource)
+                if parent_obj['dim'] == 'dataset':
+                    parent_dataset = parent_obj['name']
+                    dataset = commands.get_dataset(context, manifest, parent_dataset)
+                    if parent_resource:
+                        get_dataset_resource(context, manifest, dataset, parent_resource)
+                    break
+                elif parent_obj['dim'] == 'resource' and not parent_resource:
+                    parent_resource = parent_obj['name']
+
             schemas.extend(reversed(parent_schemas))
             schemas.append(model_obj)
             schemas.extend(props)
-            required_models = []
+            required_models = [model]
 
             schemas = internal_to_schema(manifest, schemas)
             schemas = update_schema_with_external(schemas, {
@@ -217,10 +216,9 @@ def get_model(context: Context, manifest: InternalSQLManifest, model: str, **kwa
                 'resource': parent_resource
             })
             schemas = load_required_models(context, manifest, schemas, required_models)
-            load_internal_manifest_nodes(context, manifest, schemas, link=True)
+            load_internal_manifest_nodes(context, manifest, schemas, link=True, ignore_types=['dataset', 'resource'])
             if model in objects['model']:
                 return objects['model'][model]
-
     raise Exception("MODEL NOT FOUND")
 
 

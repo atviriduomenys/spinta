@@ -10,6 +10,7 @@ ischema_names['geometry'] = Geometry
 
 
 class utcnow(FunctionElement):
+    inherit_cache = True
     type = sa.DateTime()
 
 

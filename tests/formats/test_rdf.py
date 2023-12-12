@@ -1,4 +1,5 @@
 import base64
+from pathlib import Path
 
 from _pytest.fixtures import FixtureRequest
 
@@ -6,14 +7,19 @@ from spinta.core.config import RawConfig
 from spinta.testing.client import create_test_client
 from spinta.testing.data import pushdata, encode_page_values_manually
 from spinta.testing.manifest import bootstrap_manifest
+import pytest
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_rdf_get_all_without_uri(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property | type   | ref     | access  | uri
     example/rdf              |        |         |         |
       |   |   |   |          | prefix | rdf     |         | http://www.rdf.com
@@ -23,7 +29,13 @@ def test_rdf_get_all_without_uri(
       |   |   | City         |        | name    |         | 
       |   |   |   | name     | string |         | open    |
       |   |   |   | country  | ref    | Country | open    | 
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authmodel('example/rdf', ['insert', 'getall'])
 
@@ -58,12 +70,16 @@ def test_rdf_get_all_without_uri(
                   f'</rdf:RDF>\n'
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_rdf_get_all_with_uri(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property | type   | ref     | access  | uri
     example/rdf              |        |         |         |
       |   |   |   |          | prefix | rdf     |         | http://www.rdf.com
@@ -75,7 +91,13 @@ def test_rdf_get_all_with_uri(
       |   |   | City         |        | name    |         | dcat:city
       |   |   |   | name     | string |         | open    | dct:name
       |   |   |   | country  | ref    | Country | open    | dct:country
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authmodel('example/rdf', ['insert', 'getall'])
 
@@ -112,12 +134,16 @@ def test_rdf_get_all_with_uri(
                   f'</rdf:RDF>\n'
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_rdf_get_one(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property | type   | ref     | access  | uri
     example/rdf              |        |         |         |
       |   |   |   |          | prefix | rdf     |         | http://www.rdf.com
@@ -129,7 +155,13 @@ def test_rdf_get_one(
       |   |   | City         |        | name    |         | dcat:city
       |   |   |   | name     | string |         | open    | dct:name
       |   |   |   | country  | ref    | Country | open    | dct:country
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authmodel('example/rdf', ['insert', 'getone'])
 
@@ -155,12 +187,16 @@ def test_rdf_get_one(
                   f'</rdf:RDF>\n'
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_rdf_with_file(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property | type   | ref     | access  | uri
     example/rdf/file         |        |         |         |
       |   |   |   |          | prefix | rdf     |         | http://www.rdf.com
@@ -170,7 +206,13 @@ def test_rdf_with_file(
       |   |   | Country      |        | name    |         | dcat:country
       |   |   |   | name     | string |         | open    | dct:name
       |   |   |   | flag     | file   |         | open    | dct:flag
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authmodel('example/rdf/file', ['insert', 'getone'])
 
@@ -200,12 +242,16 @@ def test_rdf_with_file(
                   f'</rdf:RDF>\n'
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_rdf_get_with_uri_model_rename(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property | type   | ref     | access  | uri
     example/rdf/rename              |        |         |         |
       |   |   |   |          | prefix | rdf     |         | http://www.rdf.com
@@ -215,7 +261,13 @@ def test_rdf_get_with_uri_model_rename(
       |   |   | Country      |        | name    |         | dcat:country
       |   |   |   | name     | string |         | open    | dct:name
       |   |   |   | country  | uri    |         | open    | dcat:country
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authmodel('example/rdf', ['insert', 'getall'])
 
@@ -241,12 +293,16 @@ def test_rdf_get_with_uri_model_rename(
                   f'</rdf:RDF>\n'
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_rdf_get_with_uri_ref_rename(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property | type   | ref     | access  | uri
     example/rdf/rename              |        |         |         |
       |   |   |   |          | prefix | rdf     |         | http://www.rdf.com
@@ -259,7 +315,13 @@ def test_rdf_get_with_uri_ref_rename(
       |   |   | City         |        | name    |         | dcat:city
       |   |   |   | name     | string |         | open    | dct:name
       |   |   |   | country  | ref    | Country | open    | dct:country
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authmodel('example/rdf', ['insert', 'getall'])
 
@@ -289,12 +351,16 @@ def test_rdf_get_with_uri_ref_rename(
                   f'</rdf:RDF>\n'
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_rdf_empty_ref(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property | type   | ref     | access  | uri
     example/rdf/ref              |        |         |         |
       |   |   |   |          | prefix | rdf     |         | http://www.rdf.com
@@ -306,7 +372,13 @@ def test_rdf_empty_ref(
       |   |   | City         |        | name    |         | dcat:city
       |   |   |   | name     | string |         | open    | dct:name
       |   |   |   | country  | ref    | Country | open    | 
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authmodel('example/rdf', ['insert', 'getall'])
 
@@ -330,12 +402,16 @@ def test_rdf_empty_ref(
                   f'</rdf:RDF>\n'
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_rdf_mixed_ref(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property | type   | ref     | access  | uri
     example/rdf/ref/multi              |        |         |         |
       |   |   |   |          | prefix | rdf     |         | http://www.rdf.com
@@ -347,7 +423,13 @@ def test_rdf_mixed_ref(
       |   |   | City         |        | name    |         | dcat:city
       |   |   |   | name     | string |         | open    | dct:name
       |   |   |   | country  | ref    | Country | open    | 
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authmodel('example/rdf', ['insert', 'getall'])
 
@@ -384,12 +466,16 @@ def test_rdf_mixed_ref(
                   f'</rdf:RDF>\n'
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_rdf_namespace_all(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property | type   | ref     | access  | uri
     example/rdf/ref/simple   |        |         |         |
       |   |   |   |          | prefix | rdf     |         | http://www.rdf.com
@@ -412,7 +498,13 @@ def test_rdf_namespace_all(
       |   |   | City         |        | name    |         | dcat:city
       |   |   |   | name     | string |         | open    | dct:name
       |   |   |   | country  | ref    | Country | open    | 
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authmodel('example/rdf', ['insert', 'getall'])
 
@@ -439,7 +531,6 @@ def test_rdf_namespace_all(
     })
 
     res = app.get("/example/rdf/ref/:all/:format/rdf").text
-    print(res)
     assert res == f'<?xml version="1.0" encoding="UTF-8"?>\n'\
                   f'<rdf:RDF\n' \
                   f' xmlns:rdf="http://www.rdf.com"\n' \

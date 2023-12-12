@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import List
 
 import pytest
@@ -13,6 +14,7 @@ from spinta.components import Version
 from spinta.core.config import RawConfig
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 @pytest.mark.parametrize('query, header', [
     ('', ['_type', '_id', '_revision', '_page', 'name', 'country._id']),
     ('count()', ['count()']),
@@ -21,7 +23,12 @@ from spinta.core.config import RawConfig
     ('select(_id, country._id)', ['_id', 'country._id']),
     ('select(_id, country._id, country.name)', ['_id', 'country._id', 'country.name']),
 ])
-def test_get_model_tabular_header(rc: RawConfig, query: str, header: List[str]):
+def test_get_model_tabular_header(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    query: str,
+    header: List[str]):
     context, manifest = load_manifest_and_context(rc, '''
     d | r | b | m | property   | type    | ref     | access
     example                    |         |         |
@@ -30,7 +37,7 @@ def test_get_model_tabular_header(rc: RawConfig, query: str, header: List[str]):
       |   |   | City           |         |         |
       |   |   |   | name       | string  |         | open
       |   |   |   | country    | ref     | Country | open
-    ''')
+    ''', manifest_type=manifest_type, tmp_path=tmp_path)
     context.set('auth.token', AdminToken())
     model = commands.get_model(context, manifest, 'example/City')
     request = make_get_request(model.name, query)

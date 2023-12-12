@@ -1,6 +1,6 @@
 import uuid
 from operator import itemgetter
-from typing import Optional, List, Iterator, Dict, Any, Tuple, Text, Iterable
+from typing import Optional, List, Iterator, Dict, Any, Tuple, Iterable
 
 import sqlalchemy as sa
 from sqlalchemy.sql.elements import Null
@@ -29,7 +29,7 @@ from sqlalchemy_utils import UUIDType
 from spinta.nodes import get_node
 from spinta.spyna import unparse
 from spinta.types.datatype import Ref, Array, BackRef, Object
-from spinta.types.namespace import load_namespace_from_name
+from spinta.types.text.components import Text
 from spinta.utils.data import take
 from spinta.utils.enums import get_enum_by_name
 from spinta.utils.schema import NotAvailable, NA
@@ -81,7 +81,8 @@ def update_schema_with_external(schema, external: dict):
     for id_, item in schema:
         if item['type'] == 'model':
             if external['dataset']:
-                item['name'] = f'{external["dataset"]}/{item["name"]}'
+                if '/' not in item['name']:
+                    item['name'] = f'{external["dataset"]}/{item["name"]}'
                 item['external']['dataset'] = external['dataset']
             if external['resource']:
                 item['external']['resource'] = external['resource']
@@ -98,15 +99,31 @@ def update_schema_with_external(schema, external: dict):
         yield id_, item
 
 
+def _traverse_properties(prop: dict, ds: str):
+    if prop['type'] not in ['backref', 'array_backref']:
+        if 'model' in prop:
+            model_name = prop['model']
+            if '/' in model_name or not ds:
+                yield model_name
+            else:
+                yield f'{ds}/{model_name}'
+        elif 'items' in prop:
+            yield from _traverse_properties(prop['items'], ds)
+        elif 'properties' in prop and isinstance(prop['properties'], dict):
+            for prop_ in prop['properties'].values():
+                yield from _traverse_properties(prop_, ds)
+
+
 def load_required_models(context: Context, manifest: InternalSQLManifest, schema, model_list: list):
     for id_, item in schema:
         if item['type'] == 'model':
+            ds = item['external']['dataset'] if item['external'] and item['external']['dataset'] else None
             if item['properties']:
-                for prop in item['properties']:
-                    if 'model' in prop:
-                        if prop['model'] not in model_list:
-                            model_list.append(prop['model'])
-                            commands.get_model(context, manifest, prop['model'])
+                for prop in item['properties'].values():
+                    for model_prop in _traverse_properties(prop, ds):
+                        if model_prop not in model_list:
+                            model_list.append(model_prop)
+                            commands.get_model(context, manifest, model_prop)
             if item['base']:
                 if item['base']['parent'] not in model_list:
                     model_list.append(item['base']['parent'])
@@ -245,6 +262,7 @@ def load_internal_manifest_nodes(
     schemas: Iterable[ManifestSchema],
     *,
     link: bool = False,
+    ignore_types: list = []
 ) -> None:
     to_link = []
     config = context.get('config')
@@ -253,9 +271,10 @@ def load_internal_manifest_nodes(
             _load_manifest(context, manifest, schema, eid, reset=False)
         else:
             node = _load_internal_manifest_node(context, config, manifest, None, eid, schema)
-            commands.set_node(context, manifest, node.type, node.name, node)
-            if link:
-                to_link.append(node)
+            if node.type not in ignore_types:
+                commands.set_node(context, manifest, node.type, node.name, node)
+                if link:
+                    to_link.append(node)
 
     if to_link:
         for node in to_link:
@@ -1054,7 +1073,7 @@ def _property_to_sql(
     if prop.name.startswith('_'):
         return
 
-    if prop.access < access:
+    if prop.access and prop.access < access:
         return
 
     item_id = _handle_id(prop.id)
@@ -1097,10 +1116,7 @@ def _property_to_sql(
     if isinstance(prop.dtype, Ref):
         model = prop.model
         if model.external and model.external.dataset:
-            data['ref'] = to_relative_model_name(
-                prop.dtype.model,
-                model.external.dataset,
-            )
+            data['ref'] = prop.dtype.model.name
             pkeys = prop.dtype.model.external.pkeys
             rkeys = prop.dtype.refprops
             if rkeys and pkeys != rkeys:
@@ -1115,18 +1131,12 @@ def _property_to_sql(
     elif isinstance(prop.dtype, BackRef):
         model = prop.model
         if model.external and model.external.dataset:
-            data['ref'] = to_relative_model_name(
-                prop.dtype.model,
-                model.external.dataset,
-            )
+            data['ref'] = prop.dtype.model.name
             rkey = prop.dtype.refprop.place
             if prop.dtype.explicit:
                 data['ref'] += f'[{rkey}]'
         else:
             data['ref'] = prop.dtype.model.name
-
-        for denorm_prop in prop.dtype.properties.values():
-            yield_rows.append(denorm_prop)
     elif isinstance(prop.dtype, Object):
         for obj_prop in prop.dtype.properties.values():
             yield_rows.append(obj_prop)
