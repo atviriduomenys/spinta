@@ -36,6 +36,37 @@ from spinta.utils.schema import NotAvailable, NA
 from spinta.utils.types import is_str_uuid
 
 
+def get_manifest(context: Context, manifest: InternalSQLManifest):
+    if context.has('request.manifest'):
+        return context.get('request.manifest')
+    return manifest
+
+
+def get_transaction_connection(context: Context):
+    if context.has('transaction.manifest'):
+        return context.get('transaction.manifest').connection
+    return None
+
+
+def can_return_namespace_data(context: Context, manifest: InternalSQLManifest, full_name: str, item, parents: list, action: Action):
+    if full_name.startswith('_'):
+        return False
+    if not internal_authorized(
+        context,
+        full_name,
+        get_namespace_highest_access(
+            context,
+            manifest,
+            full_name
+        ),
+        action,
+        parents
+    ):
+        return False
+
+    return True
+
+
 def select_full_table(table, extra_cols=None):
     if extra_cols is None:
         extra_cols = []
@@ -129,26 +160,6 @@ def load_required_models(context: Context, manifest: InternalSQLManifest, schema
                     model_list.append(item['base']['parent'])
                     commands.get_model(context, manifest, item['base']['parent'])
         yield id_, item
-
-
-def can_return_namespace_data(context: Context, manifest: InternalSQLManifest, full_name: str, item, parents: list, action: Action):
-    if full_name.startswith('_'):
-        return False
-
-    if not internal_authorized(
-        context,
-        full_name,
-        get_namespace_highest_access(
-            context,
-            manifest,
-            full_name
-        ),
-        action,
-        parents
-    ):
-        return False
-
-    return True
 
 
 def get_namespace_partial_data(

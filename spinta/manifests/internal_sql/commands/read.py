@@ -34,23 +34,6 @@ def traverse_ns_models(
             if _model_matches_params(context, model, action, dataset_, resource, internal):
                 yield model
 
-    namespaces = get_namespace_name_list(context, manifest, loaded, namespace=ns.name)
-    for ns_name in namespaces:
-        ns_ = commands.get_namespace(context, manifest, ns_name)
-        if not internal and ns_.name.startswith('_'):
-            continue
-        yield from commands.traverse_ns_models(
-            context,
-            ns_,
-            manifest,
-            action,
-            dataset_=dataset_,
-            resource=resource,
-            internal=internal,
-            source_check=source_check,
-            loaded=loaded
-        )
-
 
 @commands.getall.register(Context, Namespace, Request, InternalSQLManifest)
 def getall(

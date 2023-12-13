@@ -5,28 +5,22 @@ from spinta.components import Model, Namespace, Context
 from spinta.datasets.components import Dataset
 from spinta.manifests.internal_sql.components import InternalSQLManifest
 from spinta.manifests.internal_sql.helpers import internal_to_schema, load_internal_manifest_nodes, get_object_from_id, \
-    select_full_table, update_schema_with_external, load_required_models
+    select_full_table, update_schema_with_external, load_required_models, get_manifest, get_transaction_connection
 from spinta.types.namespace import load_namespace_from_name
 
 
-def _get_manifest(context: Context, manifest: InternalSQLManifest):
-    if context.has('request.manifest'):
-        return context.get('request.manifest')
-    return manifest
-
-
-def _get_transaction_connection(context: Context):
-    if context.has('transaction.manifest'):
-        return context.get('transaction.manifest').connection
-    return None
-
-
 def get_model_name_list(context: Context, manifest: InternalSQLManifest, loaded: bool, namespace: str = None):
-    manifest = _get_manifest(context, manifest)
+    manifest = get_manifest(context, manifest)
     table = manifest.table
-    conn = _get_transaction_connection(context)
+    conn = get_transaction_connection(context)
+    objs = manifest.get_objects()
+    if namespace == '':
+        for model in objs['model'].values():
+            if model.name.startswith('_'):
+                yield model.name
+
     if conn is None or loaded:
-        objs = manifest.get_objects()
+
         if 'model' and objs and objs['model']:
             if namespace:
                 for model_name, model in objs['model'].items():
@@ -63,9 +57,9 @@ def get_model_name_list(context: Context, manifest: InternalSQLManifest, loaded:
 
 
 def get_namespace_name_list(context: Context, manifest: InternalSQLManifest, loaded: bool, namespace: str = None):
-    manifest = _get_manifest(context, manifest)
+    manifest = get_manifest(context, manifest)
     table = manifest.table
-    conn = _get_transaction_connection(context)
+    conn = get_transaction_connection(context)
     if conn is None or loaded:
         objs = manifest.get_objects()
         if 'ns' and objs and objs['ns']:
@@ -114,9 +108,9 @@ def get_namespace_name_list(context: Context, manifest: InternalSQLManifest, loa
 
 
 def _get_dataset_name_list(context: Context, manifest: InternalSQLManifest, loaded: bool):
-    manifest = _get_manifest(context, manifest)
+    manifest = get_manifest(context, manifest)
     table = manifest.table
-    conn = _get_transaction_connection(context)
+    conn = get_transaction_connection(context)
     if conn is None or loaded:
         objs = manifest.get_objects()
         if 'dataset' and objs and objs['dataset']:
@@ -132,8 +126,8 @@ def _get_dataset_name_list(context: Context, manifest: InternalSQLManifest, load
 
 @commands.has_model.register(Context, InternalSQLManifest, str)
 def has_model(context: Context, manifest: InternalSQLManifest, model: str, loaded: bool = False, **kwargs):
-    manifest = _get_manifest(context, manifest)
-    conn = _get_transaction_connection(context)
+    manifest = get_manifest(context, manifest)
+    conn = get_transaction_connection(context)
     if model in manifest.get_objects()['model']:
         return True
     elif not loaded and conn is not None:
@@ -153,8 +147,8 @@ def has_model(context: Context, manifest: InternalSQLManifest, model: str, loade
 
 @commands.get_model.register(Context, InternalSQLManifest, str)
 def get_model(context: Context, manifest: InternalSQLManifest, model: str, **kwargs):
-    manifest = _get_manifest(context, manifest)
-    conn = _get_transaction_connection(context)
+    manifest = get_manifest(context, manifest)
+    conn = get_transaction_connection(context)
     objects = manifest.get_objects()
     if has_model(context, manifest, model):
         if model in objects['model']:
@@ -245,8 +239,8 @@ def set_models(context: Context, manifest: InternalSQLManifest, models: Dict[str
 
 @commands.has_namespace.register(Context, InternalSQLManifest, str)
 def has_namespace(context: Context, manifest: InternalSQLManifest, namespace: str, loaded: bool = False, **kwargs):
-    manifest = _get_manifest(context, manifest)
-    conn = _get_transaction_connection(context)
+    manifest = get_manifest(context, manifest)
+    conn = get_transaction_connection(context)
     if namespace in manifest.get_objects()['ns']:
         return True
     elif conn is not None and not loaded:
@@ -261,8 +255,8 @@ def has_namespace(context: Context, manifest: InternalSQLManifest, namespace: st
 
 @commands.get_namespace.register(Context, InternalSQLManifest, str)
 def get_namespace(context: Context, manifest: InternalSQLManifest, namespace: str, **kwargs):
-    manifest = _get_manifest(context, manifest)
-    conn = _get_transaction_connection(context)
+    manifest = get_manifest(context, manifest)
+    conn = get_transaction_connection(context)
     objects = manifest.get_objects()
 
     if has_namespace(context, manifest, namespace):
@@ -303,14 +297,14 @@ def get_namespaces(context: Context, manifest: InternalSQLManifest, loaded: bool
 
 @commands.set_namespace.register(Context, InternalSQLManifest, str, Namespace)
 def set_namespace(context: Context, manifest: InternalSQLManifest, namespace: str, ns: Namespace, **kwargs):
-    manifest = _get_manifest(context, manifest)
+    manifest = get_manifest(context, manifest)
     manifest.get_objects()['ns'][namespace] = ns
 
 
 @commands.has_dataset.register(Context, InternalSQLManifest, str)
 def has_dataset(context: Context, manifest: InternalSQLManifest, dataset: str, loaded: bool = False, **kwargs):
-    manifest = _get_manifest(context, manifest)
-    conn = _get_transaction_connection(context)
+    manifest = get_manifest(context, manifest)
+    conn = get_transaction_connection(context)
     if dataset in manifest.get_objects()['dataset']:
         return True
     elif conn is not None and not loaded:
@@ -330,8 +324,8 @@ def has_dataset(context: Context, manifest: InternalSQLManifest, dataset: str, l
 
 
 def has_dataset_resource(context: Context, manifest: InternalSQLManifest, dataset: Dataset, resource: str, **kwargs):
-    manifest = _get_manifest(context, manifest)
-    conn = _get_transaction_connection(context)
+    manifest = get_manifest(context, manifest)
+    conn = get_transaction_connection(context)
     if resource in dataset.resources:
         return True
     elif conn is not None:
@@ -352,8 +346,8 @@ def has_dataset_resource(context: Context, manifest: InternalSQLManifest, datase
 
 
 def get_dataset_resource(context: Context, manifest: InternalSQLManifest, dataset: Dataset, resource: str, **kwargs):
-    manifest = _get_manifest(context, manifest)
-    conn = _get_transaction_connection(context)
+    manifest = get_manifest(context, manifest)
+    conn = get_transaction_connection(context)
     if has_dataset_resource(context, manifest, dataset, resource, **kwargs):
         if resource in dataset.resources:
             return dataset.resources[resource]
@@ -381,8 +375,8 @@ def get_dataset_resource(context: Context, manifest: InternalSQLManifest, datase
 
 @commands.get_dataset.register(Context, InternalSQLManifest, str)
 def get_dataset(context: Context, manifest: InternalSQLManifest, dataset: str, **kwargs):
-    manifest = _get_manifest(context, manifest)
-    conn = _get_transaction_connection(context)
+    manifest = get_manifest(context, manifest)
+    conn = get_transaction_connection(context)
     objects = manifest.get_objects()
 
     if has_dataset(context, manifest, dataset):

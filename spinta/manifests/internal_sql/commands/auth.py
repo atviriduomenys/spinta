@@ -11,31 +11,39 @@ from spinta.utils.enums import get_enum_by_name
 from spinta.utils.scopes import name_to_scope
 
 
+def get_transaction_connection(context: Context):
+    if context.has('transaction.manifest'):
+        return context.get('transaction.manifest').connection
+    return None
+
+
 def get_namespace_highest_access(context: Context, manifest: InternalSQLManifest, namespace: str):
-    conn = context.get('transaction.manifest').connection
-    table = manifest.table
-    results = conn.execute(sa.select(table.c.access, sa.func.min(table.c.mpath).label('mpath')).where(
-        sa.and_(
-            table.c.mpath.startswith(namespace),
-            sa.or_(
-                table.c.dim == 'ns',
-                table.c.dim == 'dataset',
-                table.c.dim == 'model',
-                table.c.dim == 'property'
-            ),
-        )
-    ).group_by(table.c.access))
+    conn = get_transaction_connection(context)
     highest = None
-    null_name = ''
-    for result in results:
-        if result['access'] is not None:
-            enum = get_enum_by_name(Access, result['access'])
-            if highest is None or enum > highest:
-                highest = enum
-        else:
-            if highest is None:
-                null_name = result['mpath']
-    return highest if highest is not None else Access.private if null_name != namespace else manifest.access
+    if conn is not None:
+        table = manifest.table
+        results = conn.execute(sa.select(table.c.access, sa.func.min(table.c.mpath).label('mpath')).where(
+            sa.and_(
+                table.c.mpath.startswith(namespace),
+                sa.or_(
+                    table.c.dim == 'ns',
+                    table.c.dim == 'dataset',
+                    table.c.dim == 'model',
+                    table.c.dim == 'property'
+                ),
+            )
+        ).group_by(table.c.access))
+
+        for result in results:
+            if result['access'] is not None:
+                enum = get_enum_by_name(Access, result['access'])
+                if highest is None or enum > highest:
+                    highest = enum
+    else:
+        objs = manifest.get_objects()
+        if namespace in objs['ns']:
+            highest = objs['ns'][namespace].access
+    return highest if highest is not None else manifest.access
 
 
 def internal_authorized(

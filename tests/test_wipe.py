@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import List
 from typing import Tuple
 
@@ -287,43 +288,53 @@ def test_wipe_row_access(model, app):
     ]
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_wipe_with_long_names(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property                 | type     | ref
     backends/postgres/very/long/name/models  |          |
       |   |   | ModelWithVeryVeryVeryLongName|          |
       |   |   |   | status                   | string   |
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        full_load=True,
+        request=request
+    )
+    with context:
+        app = create_test_client(context)
+        app.authorize(['spinta_insert', 'spinta_getall', 'spinta_wipe'])
 
-    app = create_test_client(context)
-    app.authorize(['spinta_insert', 'spinta_getall', 'spinta_wipe'])
+        # Create some data
+        resp = app.post('/', json={'_data': [
+            {
+                '_op': 'insert',
+                '_type': 'backends/postgres/very/long/name/models/ModelWithVeryVeryVeryLongName',
+                'status': 'ok'
+            },
+        ]})
+        assert resp.status_code == 200, resp.json()
 
-    # Create some data
-    resp = app.post('/', json={'_data': [
-        {
-            '_op': 'insert',
-            '_type': 'backends/postgres/very/long/name/models/ModelWithVeryVeryVeryLongName',
-            'status': 'ok'
-        },
-    ]})
-    assert resp.status_code == 200, resp.json()
+        # Get data from all models
+        resp = app.get('/:all')
+        assert listdata(resp, '_type', 'status') == [
+            ('_txn', NA),
+            ('backends/postgres/very/long/name/models/ModelWithVeryVeryVeryLongName', 'ok')
+        ]
 
-    # Get data from all models
-    resp = app.get('/:all')
-    assert listdata(resp, '_type', 'status') == [
-        ('_txn', NA),
-        ('backends/postgres/very/long/name/models/ModelWithVeryVeryVeryLongName', 'ok')
-    ]
+        # Wipe all data
+        resp = app.delete('/:wipe')
+        assert resp.status_code == 200, resp.json()
 
-    # Wipe all data
-    resp = app.delete('/:wipe')
-    assert resp.status_code == 200, resp.json()
-
-    # Check what data again
-    resp = app.get('/:all')
-    assert resp.status_code == 200, resp.json()
-    assert len(resp.json()['_data']) == 0
+        # Check what data again
+        resp = app.get('/:all')
+        assert resp.status_code == 200, resp.json()
+        assert len(resp.json()['_data']) == 0
