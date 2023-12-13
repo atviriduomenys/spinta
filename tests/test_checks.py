@@ -4,7 +4,7 @@ from pathlib import Path
 
 from spinta import commands
 from spinta.core.config import RawConfig
-from spinta.testing.manifest import load_manifest_and_context
+from spinta.testing.manifest import load_manifest_and_context, load_manifest
 from spinta.testing.manifest import load_manifest_get_context
 from spinta.manifests.tabular.helpers import TabularManifestError
 from spinta.exceptions import InvalidValue
@@ -19,7 +19,7 @@ def test_enum_level(
     rc: RawConfig,
 ):
     with pytest.raises(TabularManifestError) as e:
-        context, manifest = load_manifest_and_context(rc, '''
+        load_manifest(rc, '''
         d | r | b | m | property | type    | prepare | level | title
         datasets/gov/example     |         |         |       |
                                  |         |         |       |
@@ -28,8 +28,8 @@ def test_enum_level(
                                  | enum    | 1       | 3     | Positive
                                  |         | 2       | 3     | Negative
         ''', manifest_type=manifest_type, tmp_path=tmp_path)
-    assert str(e.value) == (
-        "None:6: Enum's do not have a level, but level '3' is given."
+    assert str(e.value).endswith(
+        ":6: Enum's do not have a level, but level '3' is given."
     )
 
 
@@ -39,17 +39,16 @@ def test_enum_type_integer(
     tmp_path: Path,
     rc: RawConfig,
 ):
-    context, manifest = load_manifest_and_context(rc, '''
-    d | r | b | m | property | type    | prepare
-    datasets/gov/example     |         |
-                             |         |
-      |   |   | Data         |         |
-      |   |   |   | value    | integer |
-                             | enum    | "1"
-                             |         | "2"
-    ''', manifest_type=manifest_type, tmp_path=tmp_path)
     with pytest.raises(InvalidValue) as e:
-        commands.check(context, manifest)
+        load_manifest(rc, '''
+        d | r | b | m | property | type    | prepare
+        datasets/gov/example     |         |
+                                 |         |
+          |   |   | Data         |         |
+          |   |   |   | value    | integer |
+                                 | enum    | "1"
+                                 |         | "2"
+        ''', manifest_type=manifest_type, tmp_path=tmp_path)
     assert str(e.value.context['error']) == (
         "Given enum value 1 of <class 'str'> type does not match property "
         "type, which is 'integer'."
@@ -62,17 +61,16 @@ def test_enum_type_string(
     tmp_path: Path,
     rc: RawConfig,
 ):
-    context, manifest = load_manifest_and_context(rc, '''
-    d | r | b | m | property | type    | prepare
-    datasets/gov/example     |         |
-                             |         |
-      |   |   | Data         |         |
-      |   |   |   | value    | string  |
-                             | enum    | 1
-                             |         | 2
-    ''', manifest_type=manifest_type, tmp_path=tmp_path)
     with pytest.raises(InvalidValue) as e:
-        commands.check(context, manifest)
+        load_manifest(rc, '''
+        d | r | b | m | property | type    | prepare
+        datasets/gov/example     |         |
+                                 |         |
+          |   |   | Data         |         |
+          |   |   |   | value    | string  |
+                                 | enum    | 1
+                                 |         | 2
+        ''', manifest_type=manifest_type, tmp_path=tmp_path)
     assert str(e.value.context['error']) == (
         "Given enum value 1 of <class 'int'> type does not match property "
         "type, which is 'string'."
