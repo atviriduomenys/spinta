@@ -1796,9 +1796,8 @@ def to_relative_model_name(model: Model, dataset: Dataset = None) -> str:
     """Convert absolute model `name` to relative."""
     if dataset is None:
         return model.name
-    if model.name.startswith(dataset.name):
-        prefix = dataset.name
-        return model.name[len(prefix) + 1:]
+    if model.name == f'{dataset.name}/{model.basename}':
+        return model.basename
     else:
         return '/' + model.name
 
