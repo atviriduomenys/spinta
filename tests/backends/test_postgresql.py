@@ -202,7 +202,7 @@ def test_patch(app):
     assert resp_data['_revision'] == revision
 
 
-@pytest.mark.manifests('internal_sql', 'csv')
+@pytest.mark.manifests('internal_sql', 'ascii')
 def test_exceptions_unique_constraint_single_column(
     manifest_type: str,
     tmp_path: Path,
@@ -249,7 +249,7 @@ def test_exceptions_unique_constraint_single_column(
     }
 
 
-@pytest.mark.manifests('internal_sql', 'csv')
+@pytest.mark.manifests('internal_sql', 'ascii')
 def test_exceptions_unique_constraint_multiple_columns(
     manifest_type: str,
     tmp_path: Path,
