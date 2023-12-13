@@ -9,18 +9,12 @@ from spinta.manifests.internal_sql.helpers import internal_to_schema, load_inter
 from spinta.types.namespace import load_namespace_from_name
 
 
-def get_model_name_list(context: Context, manifest: InternalSQLManifest, loaded: bool, namespace: str = None):
+def get_model_name_list(context: Context, manifest: InternalSQLManifest, loaded: bool, namespace: str = None, recursive: bool = False):
     manifest = get_manifest(context, manifest)
     table = manifest.table
     conn = get_transaction_connection(context)
     objs = manifest.get_objects()
-    if namespace == '':
-        for model in objs['model'].values():
-            if model.name.startswith('_'):
-                yield model.name
-
     if conn is None or loaded:
-
         if 'model' and objs and objs['model']:
             if namespace:
                 for model_name, model in objs['model'].items():
@@ -29,6 +23,11 @@ def get_model_name_list(context: Context, manifest: InternalSQLManifest, loaded:
             else:
                 yield from objs['model'].keys()
     else:
+        if namespace == '':
+            for model in objs['model'].values():
+                if model.name.startswith('_'):
+                    yield model.name
+
         if namespace:
             stmt = sa.select(table.c.path).where(
                 sa.and_(
@@ -42,7 +41,7 @@ def get_model_name_list(context: Context, manifest: InternalSQLManifest, loaded:
             )
         rows = conn.execute(stmt)
         for row in rows:
-            if namespace:
+            if not recursive and namespace:
                 # Check if path is actually right after ns,
                 # ex: namespace = 'dataset/test'
                 # models: 'dataset/test/gov/Model', 'dataset/test/Model'

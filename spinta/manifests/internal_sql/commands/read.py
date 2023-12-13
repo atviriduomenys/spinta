@@ -27,7 +27,7 @@ def traverse_ns_models(
     loaded: bool = False,
     **kwargs
 ):
-    models = get_model_name_list(context, manifest, loaded, namespace=ns.name)
+    models = get_model_name_list(context, manifest, loaded, namespace=ns.name, recursive=True)
     for model_name in models:
         model = commands.get_model(context, manifest, model_name)
         if not (source_check and not check_if_model_has_backend_and_source(model)):
