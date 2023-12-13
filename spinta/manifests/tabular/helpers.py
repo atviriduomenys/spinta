@@ -863,6 +863,7 @@ def _text_datatype_handler(reader: PropertyReader, row: dict):
         'access': row['access'],
     }))
     temp_data['type'] = 'string'
+    temp_data['external'] = new_data['external'] if 'external' in new_data else {}
     if result:
         new_data['langs'] = result['langs']
         if new_data['level'] and int(new_data['level']) <= 3:

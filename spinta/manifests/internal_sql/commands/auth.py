@@ -1,10 +1,41 @@
 from typing import List
+import sqlalchemy as sa
 
+from spinta import commands
 from spinta.auth import get_client_id_from_name, get_clients_path
-from spinta.components import Context, Action, Config
+from spinta.components import Context, Action, Config, Namespace
 from spinta.core.enums import Access
 from spinta.exceptions import AuthorizedClientsOnly
+from spinta.manifests.internal_sql.components import InternalSQLManifest
+from spinta.utils.enums import get_enum_by_name
 from spinta.utils.scopes import name_to_scope
+
+
+def get_namespace_highest_access(context: Context, manifest: InternalSQLManifest, namespace: str):
+    conn = context.get('transaction.manifest').connection
+    table = manifest.table
+    results = conn.execute(sa.select(table.c.access, sa.func.min(table.c.mpath).label('mpath')).where(
+        sa.and_(
+            table.c.mpath.startswith(namespace),
+            sa.or_(
+                table.c.dim == 'ns',
+                table.c.dim == 'dataset',
+                table.c.dim == 'model',
+                table.c.dim == 'property'
+            ),
+        )
+    ).group_by(table.c.access))
+    highest = None
+    null_name = ''
+    for result in results:
+        if result['access'] is not None:
+            enum = get_enum_by_name(Access, result['access'])
+            if highest is None or enum > highest:
+                highest = enum
+        else:
+            if highest is None:
+                null_name = result['mpath']
+    return highest if highest is not None else Access.private if null_name != namespace else manifest.access
 
 
 def internal_authorized(
@@ -66,4 +97,21 @@ def internal_scope_formatter(
             'prefix': config.scope_prefix,
             'action': action.value,
         },
+    )
+
+
+@commands.authorize.register(Context, Action, Namespace, InternalSQLManifest)
+def authorize(context: Context, action: Action, ns: Namespace, manifest: InternalSQLManifest):
+    parents = [parent.name for parent in ns.parents()]
+    return internal_authorized(
+        context,
+        ns.name,
+        get_namespace_highest_access(
+            context,
+            manifest,
+            ns.name
+        ),
+        action,
+        parents,
+        throw=True
     )

@@ -18,7 +18,7 @@ from spinta.dimensions.lang.components import LangData
 from spinta.dimensions.prefix.components import UriPrefix
 from spinta.manifests.components import Manifest, ManifestSchema
 from spinta.manifests.helpers import _load_manifest
-from spinta.manifests.internal_sql.commands.auth import internal_authorized
+from spinta.manifests.internal_sql.commands.auth import internal_authorized, get_namespace_highest_access
 from spinta.manifests.internal_sql.components import InternalManifestRow, INTERNAL_MANIFEST_COLUMNS, \
     InternalManifestColumn, InternalSQLManifest
 from spinta.manifests.tabular.components import ManifestRow, MANIFEST_COLUMNS
@@ -131,33 +131,6 @@ def load_required_models(context: Context, manifest: InternalSQLManifest, schema
         yield id_, item
 
 
-def get_namespace_highest_access(context: Context, manifest: InternalSQLManifest, namespace: str):
-    conn = context.get('transaction.manifest').connection
-    table = manifest.table
-    results = conn.execute(sa.select(table.c.access, sa.func.min(table.c.mpath).label('mpath')).where(
-        sa.and_(
-            table.c.mpath.startswith(namespace),
-            sa.or_(
-                table.c.dim == 'ns',
-                table.c.dim == 'dataset',
-                table.c.dim == 'model',
-                table.c.dim == 'property'
-            ),
-        )
-    ).group_by(table.c.access))
-    highest = None
-    null_name = ''
-    for result in results:
-        if result['access'] is not None:
-            enum = get_enum_by_name(Access, result['access'])
-            if highest is None or enum > highest:
-                highest = enum
-        else:
-            if highest is None:
-                null_name = result['mpath']
-    return highest if highest is not None else Access.private if null_name != namespace else manifest.access
-
-
 def can_return_namespace_data(context: Context, manifest: InternalSQLManifest, full_name: str, item, parents: list, action: Action):
     if full_name.startswith('_'):
         return False
@@ -229,8 +202,8 @@ def get_namespace_partial_data(
                 yield {
                     '_type': type_,
                     'name': f'{full_name}/:ns' if type_ == 'ns' else full_name,
-                    'title': item['title'],
-                    'description': item['description']
+                    'title': item['title'] or '',
+                    'description': item['description'] or ''
                 }
         elif split[0] not in result:
             result.append(split[0])
@@ -240,8 +213,8 @@ def get_namespace_partial_data(
                 yield {
                     '_type': 'ns',
                     'name': f'{full_name}/:ns',
-                    'title': None,
-                    'description': None
+                    'title': '',
+                    'description': ''
                 }
 
     if recursive and recursive_list:

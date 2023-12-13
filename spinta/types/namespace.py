@@ -138,7 +138,7 @@ def check(context: Context, ns: Namespace):
 
 @commands.authorize.register(Context, Action, Namespace)
 def authorize(context: Context, action: Action, ns: Namespace):
-    authorized(context, ns, action, throw=True)
+    commands.authorize(context, action, ns, ns.manifest)
 
 
 @commands.getall.register(Context, Namespace, Request)
