@@ -1990,6 +1990,7 @@ def _lang_to_tabular(
     first = True
     for name, data in sorted(lang.items(), key=itemgetter(0)):
         yield torow(DATASET, {
+            'id': data['id'],
             'type': 'lang' if first else '',
             'ref': name if first else '',
             'title': data['title'],
@@ -2005,6 +2006,7 @@ def _text_to_tabular(
         return
     for lang in prop.dtype.langs:
         yield torow(DATASET, {
+            'id': prop.id,
             'property': prop.name + '@' + lang,
             'type': prop.dtype.name,
             'level': prop.level.value if prop.level is not None else '',

@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Any
 from typing import Dict
 from typing import List
@@ -13,7 +14,7 @@ from spinta.testing.manifest import prepare_manifest, bootstrap_manifest
 from spinta.core.config import RawConfig
 from spinta.core.ufuncs import asttoexpr
 from _pytest.fixtures import FixtureRequest
-
+import pytest
 
 def _prep_context(context: Context):
     context.set('auth.token', AdminToken())
@@ -73,13 +74,27 @@ def test_getall(rc: RawConfig):
     ]
 
 
-def test_getall_pagination_disabled(rc: RawConfig, postgresql: str, request: FixtureRequest):
-    context = bootstrap_manifest(rc, '''
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_getall_pagination_disabled(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
             d | r | b | m | property | type    | ref     | access  | uri
             example/getall/test      |         |         |         |
               |   |   | Test         |         | value   |         | 
               |   |   |   | value    | integer |         | open    | 
-            ''', backend=postgresql, request=request)
+            ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authmodel('example/getall/test', ['insert', 'getall', 'search'])
     app.post('/example/getall/test/Test', json={'value': 0})
@@ -97,13 +112,27 @@ def test_getall_pagination_disabled(rc: RawConfig, postgresql: str, request: Fix
     assert len(json_response["_data"]) == 5
 
 
-def test_getall_pagination_enabled(rc: RawConfig, postgresql: str, request: FixtureRequest):
-    context = bootstrap_manifest(rc, '''
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_getall_pagination_enabled(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
             d | r | b | m | property | type    | ref     | access  | uri
             example/getall/test      |         |         |         |
               |   |   | Test         |         | value   |         | 
               |   |   |   | value    | integer |         | open    | 
-            ''', backend=postgresql, request=request)
+            ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authmodel('example/getall/test', ['insert', 'getall', 'search'])
     app.post('/example/getall/test/Test', json={'value': 0})
@@ -121,13 +150,27 @@ def test_getall_pagination_enabled(rc: RawConfig, postgresql: str, request: Fixt
     assert len(json_response["_data"]) == 2
 
 
-def test_get_date(rc: RawConfig, postgresql: str, request: FixtureRequest):
-    context = bootstrap_manifest(rc, '''
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_get_date(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
             d | r | b | m | property | type    | ref     | access  | uri
             example/date/test      |         |         |         |
               |   |   | Test         |         | date   |         | 
               |   |   |   | date    | date |         | open    | 
-            ''', backend=postgresql, request=request)
+            ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authmodel('example/date/test', ['insert', 'getall', 'search'])
     app.post('/example/date/test/Test', json={'date': '2020-01-01'})
@@ -137,13 +180,27 @@ def test_get_date(rc: RawConfig, postgresql: str, request: FixtureRequest):
     assert json_response['_data'][0]['date'] == '2020-01-01'
 
 
-def test_get_datetime(rc: RawConfig, postgresql: str, request: FixtureRequest):
-    context = bootstrap_manifest(rc, '''
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_get_datetime(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
             d | r | b | m | property | type    | ref     | access  | uri
             example/datetime/test      |         |         |         |
               |   |   | Test         |         | date   |         | 
               |   |   |   | date    | datetime |         | open    | 
-            ''', backend=postgresql, request=request)
+            ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authmodel('example/datetime/test', ['insert', 'getall', 'search'])
     app.post('/example/datetime/test/Test', json={'date': '2020-01-01T10:00:10'})
@@ -153,13 +210,27 @@ def test_get_datetime(rc: RawConfig, postgresql: str, request: FixtureRequest):
     assert json_response['_data'][0]['date'] == '2020-01-01T10:00:10'
 
 
-def test_get_time(rc: RawConfig, postgresql: str, request: FixtureRequest):
-    context = bootstrap_manifest(rc, '''
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_get_time(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
             d | r | b | m | property | type    | ref     | access  | uri
             example/time/test      |         |         |         |
               |   |   | Test         |         | date   |         | 
               |   |   |   | date    | time |         | open    | 
-            ''', backend=postgresql, request=request)
+            ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authmodel('example/time/test', ['insert', 'getall', 'search'])
     app.post('/example/time/test/Test', json={'date': '10:00:10'})

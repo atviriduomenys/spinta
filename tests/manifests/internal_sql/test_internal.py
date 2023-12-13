@@ -111,7 +111,7 @@ def test_internal_store_dataset_rows(
     table = f'''
     dataset              | r | b | m    | property | type    | ref  | uri                         | title    | description
     datasets/gov/example |   |   |      |          |         |      |                             |          |
-                         |   |   |      |          | lang    | lt   |                             | Pavyzdys | Pavyzdinis duomenų rinkinys.
+                         |   |   |      |          | lang    | lt   |                             | Pavyzdys | Pavyzdinis duomenu rinkinys.
                          |   |   |      |          |         |      |                             |          |  
                          |   |   |      |          | prefix  | locn | http://www.w3.org/ns/locn#  |          |
                          |   |   |      |          |         | ogc  | http://www.opengis.net/rdf# |          |
@@ -142,7 +142,7 @@ def test_internal_store_dataset_rows(
 
     compare_rows = [
         [0, 0, None, 0, 'datasets/gov/example', 'datasets/gov/example', 'dataset', 'datasets/gov/example', None, None, None, None, None, None, None, None, None],
-        [1, 1, 0, 1, 'datasets/gov/example', 'datasets/gov/example/lt', 'lang', 'lt', 'lang', 'lt', None, None, None, None, None, 'Pavyzdys', 'Pavyzdinis duomenų rinkinys.'],
+        [1, 1, 0, 1, 'datasets/gov/example', 'datasets/gov/example/lt', 'lang', 'lt', 'lang', 'lt', None, None, None, None, None, 'Pavyzdys', 'Pavyzdinis duomenu rinkinys.'],
         [2, 2, 0, 1, 'datasets/gov/example', 'datasets/gov/example/locn', 'prefix', 'locn', 'prefix', 'locn', None, None, None, None, 'http://www.w3.org/ns/locn#', None, None],
         [3, 3, 0, 1, 'datasets/gov/example', 'datasets/gov/example/ogc', 'prefix', 'ogc', 'prefix', 'ogc', None, None, None, None, 'http://www.opengis.net/rdf#', None, None],
         [4, 4, 0, 1, 'datasets/gov/example/Test', 'datasets/gov/example/Test', 'model', 'Test', None, None, None, None, None, None, None, None, None],
@@ -354,7 +354,7 @@ def test_internal_store_properties_rows(
         [11, 11, 3, 2, 'datasets/gov/example/New/new_bin', 'datasets/gov/example/New/new_bin', 'property', 'new_bin', 'binary', None, None, None, None, None, None, None, None],
         [12, 12, 3, 2, 'datasets/gov/example/New/new_geo', 'datasets/gov/example/New/new_geo', 'property', 'new_geo', 'geometry', None, None, None, None, None, None, None, None],
         [13, 13, 3, 2, 'datasets/gov/example/New/new_file', 'datasets/gov/example/New/new_file', 'property', 'new_file', 'file', None, None, {"name": "file", "args": []}, None, None, None, None, None],
-        [14, 14, 3, 2, 'datasets/gov/example/New/new_ref', 'datasets/gov/example/New/new_ref', 'property', 'new_ref', 'ref', 'Test', None, None, None, None, None, None, None],
+        [14, 14, 3, 2, 'datasets/gov/example/New/new_ref', 'datasets/gov/example/New/new_ref', 'property', 'new_ref', 'ref', 'datasets/gov/example/Test', None, None, None, None, None, None, None],
         [15, 15, 3, 2, 'datasets/gov/example/New/new_url', 'datasets/gov/example/New/new_url', 'property', 'new_url', 'url', None, None, None, None, None, None, None, None],
         [16, 16, 3, 2, 'datasets/gov/example/New/new_uri', 'datasets/gov/example/New/new_uri', 'property', 'new_uri', 'uri unique', None, None, None, None, None, None, None, None]
     ]
@@ -452,7 +452,7 @@ def test_internal_store_old_ids(
     {enum_item_0_id}      |         |          |      |       |          | enum    | side         | l                       | 'left'  |                             | Left                | Left side.
     {enum_item_1_id}      |         |          |      |       |          |         |              | r                       | 'right' |                             | Right               | Right side.  
     {dataset_id}          | data    |          |      |       |          |         |              |                         |         |                             |                     |
-    {lang_id}             |         |          |      |       |          | lang    | lt           |                         |         |                             | Pavyzdys            | Pavyzdinis duomenų rinkinys.
+    {lang_id}             |         |          |      |       |          | lang    | lt           |                         |         |                             | Pavyzdys            | Pavyzdinis duomenu rinkinys.
                           |         |          |      |       |          |         |              |                         |         |                             |                     |
     {prefix_item_0_id}    |         |          |      |       |          | prefix  | locn         |                         |         | http://www.w3.org/ns/locn#  |                     |
     {prefix_item_1_id}    |         |          |      |       |          |         | ogc          |                         |         | http://www.opengis.net/rdf# |                     |
@@ -482,7 +482,7 @@ def test_internal_store_old_ids(
         [3, enum_item_0_id, 2, 1, None, f'side/{enum_item_0_id}', 'enum.item', None, None, None, 'l', 'left', None, None, None, 'Left', 'Left side.'],
         [4, enum_item_1_id, 2, 1, None, f'side/{enum_item_1_id}', 'enum.item', None, None, None, 'r', 'right', None, None, None, 'Right', 'Right side.'],
         [5, dataset_id, None, 0, 'data', 'data', 'dataset', 'data', None, None, None, None, None, None, None, None, None],
-        [6, lang_id, dataset_id, 1, 'data', 'data/lt', 'lang', 'lt', 'lang', 'lt', None, None, None, None, None, 'Pavyzdys', 'Pavyzdinis duomenų rinkinys.'],
+        [6, lang_id, dataset_id, 1, 'data', 'data/lt', 'lang', 'lt', 'lang', 'lt', None, None, None, None, None, 'Pavyzdys', 'Pavyzdinis duomenu rinkinys.'],
         [7, prefix_item_0_id, dataset_id, 1, 'data', 'data/locn', 'prefix', 'locn', 'prefix', 'locn', None, None, None, None, 'http://www.w3.org/ns/locn#', None, None],
         [8, prefix_item_1_id, dataset_id, 1, 'data', 'data/ogc', 'prefix', 'ogc', 'prefix', 'ogc', None, None, None, None, 'http://www.opengis.net/rdf#', None, None],
         [9, resource_id, dataset_id, 1, 'data', 'data/res', 'resource', 'res', 'sql', None, f'sqlite:///{tmp_path}/db', None, None, None, None, None, None],

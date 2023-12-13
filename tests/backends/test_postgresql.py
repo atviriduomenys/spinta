@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from spinta.components import Model, Property
@@ -200,17 +202,27 @@ def test_patch(app):
     assert resp_data['_revision'] == revision
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_exceptions_unique_constraint_single_column(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
         d | r | b | m | property | type   | ref     | access  | uri
         example/unique/single    |        |         |         |
           |   |   | Country      |        | name    |         | 
           |   |   |   | name     | string |         | open    | 
-        ''', backend=postgresql, request=request)
+        ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authmodel('example/unique/single', ['insert'])
 
@@ -237,18 +249,28 @@ def test_exceptions_unique_constraint_single_column(
     }
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_exceptions_unique_constraint_multiple_columns(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
         d | r | b | m | property | type    | ref      | access  | uri
         example/unique/multiple  |         |          |         |
           |   |   | Country      |         | name, id |         | 
           |   |   |   | name     | string  |          | open    | 
           |   |   |   | id       | integer |          | open    | 
-        ''', backend=postgresql, request=request)
+        ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authmodel('example/unique/multiple', ['insert'])
 
