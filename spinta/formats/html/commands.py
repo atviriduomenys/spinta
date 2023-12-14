@@ -563,8 +563,9 @@ def prepare_dtype_for_response(
             select,
         )
     else:
-        names = value.keys()
-
+        names = list(value.keys())
+    if not isinstance(names, list):
+        names = list(names)
     data = {}
     for prop, val, sel in select_props(
         dtype.model,
