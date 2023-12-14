@@ -3,6 +3,7 @@ from typing import TypedDict, Callable, Dict
 from spinta import commands
 from spinta.components import Namespace, Model, Node, Context
 from spinta.datasets.components import Dataset
+from spinta.exceptions import DatasetNotFound, NamespaceNotFound, ModelNotFound, ManifestObjectNotDefined
 from spinta.manifests.components import Manifest
 
 
@@ -44,28 +45,28 @@ def has_object_type(context: Context, manifest: Manifest, obj_type: str, **kwarg
 def has_object(context: Context, manifest: Manifest, obj_type: str, obj: str, **kwargs):
     if obj_type in NODE_FUNCTION_MAPPER:
         return NODE_FUNCTION_MAPPER[obj_type]['has'](context, manifest, obj, **kwargs)
-    raise Exception("NODE NOT DEFINED")
+    raise ManifestObjectNotDefined(obj=obj_type)
 
 
 @commands.get_node.register(Context, Manifest, str, str)
 def get_node(context: Context, manifest: Manifest, obj_type: str, obj: str, **kwargs):
     if obj_type in NODE_FUNCTION_MAPPER:
         return NODE_FUNCTION_MAPPER[obj_type]['get'](context, manifest, obj, **kwargs)
-    raise Exception("NODE NOT DEFINED")
+    raise ManifestObjectNotDefined(obj=obj_type)
 
 
 @commands.get_nodes.register(Context, Manifest, str)
 def get_nodes(context: Context, manifest: Manifest, obj_type: str, **kwargs):
     if obj_type in NODE_FUNCTION_MAPPER:
         return NODE_FUNCTION_MAPPER[obj_type]['get_all'](context, manifest, **kwargs)
-    raise Exception("NODE NOT DEFINED")
+    raise ManifestObjectNotDefined(obj=obj_type)
 
 
 @commands.set_node.register(Context, Manifest, str, str, Node)
 def set_node(context: Context, manifest: Manifest, obj_type: str, obj_name, obj: Node, **kwargs):
     if obj_type in NODE_FUNCTION_MAPPER:
         return NODE_FUNCTION_MAPPER[obj_type]['set'](context, manifest, obj_name, obj, **kwargs)
-    raise Exception("NODE NOT DEFINED")
+    raise ManifestObjectNotDefined(obj=obj_type)
 
 
 @commands.has_model.register(Context, Manifest, str)
@@ -77,7 +78,7 @@ def has_model(context: Context, manifest: Manifest, model: str, **kwargs):
 def get_model(context: Context, manifest: Manifest, model: str, **kwargs):
     if has_model(context, manifest, model):
         return manifest.get_objects()['model'][model]
-    raise Exception("MODEL NOT FOUND")
+    raise ModelNotFound(model=model)
 
 
 @commands.get_models.register(Context, Manifest)
@@ -104,7 +105,7 @@ def has_namespace(context: Context, manifest: Manifest, namespace: str, **kwargs
 def get_namespace(context: Context, manifest: Manifest, namespace: str, **kwargs):
     if has_namespace(context, manifest, namespace):
         return manifest.get_objects()['ns'][namespace]
-    raise Exception("NAMESPACE NOT FOUND")
+    raise NamespaceNotFound(namespace=namespace)
 
 
 @commands.get_namespaces.register(Context, Manifest)
@@ -126,7 +127,7 @@ def has_dataset(context: Context, manifest: Manifest, dataset: str, **kwargs):
 def get_dataset(context: Context, manifest: Manifest, dataset: str, **kwargs):
     if has_dataset(context, manifest, dataset):
         return manifest.get_objects()['dataset'][dataset]
-    raise Exception("DATASET NOT FOUND")
+    raise DatasetNotFound(dataset=dataset)
 
 
 @commands.get_datasets.register(Context, Manifest)

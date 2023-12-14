@@ -33,14 +33,6 @@ def load_for_request(context: Context, manifest: InternalSQLManifest):
     load_internal_manifest_nodes(context, manifest, schemas, link=True)
 
 
-# @commands.fully_initialize_manifest.register(Context, InternalSQLManifest)
-# def fully_initialize_manifest(context: Context, manifest: InternalSQLManifest):
-#     schemas = read_schema(manifest.path)
-#     load_manifest_nodes(context, manifest, schemas)
-#     commands.link(context, manifest)
-#     commands.check(context, manifest)
-
-
 @commands.load.register(Context, InternalSQLManifest)
 def load(
     context: Context,

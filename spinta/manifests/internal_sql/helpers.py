@@ -16,6 +16,7 @@ from spinta.dimensions.comments.components import Comment
 from spinta.dimensions.enum.components import Enums
 from spinta.dimensions.lang.components import LangData
 from spinta.dimensions.prefix.components import UriPrefix
+from spinta.exceptions import InvalidIdType
 from spinta.manifests.components import Manifest, ManifestSchema
 from spinta.manifests.helpers import _load_manifest
 from spinta.manifests.internal_sql.commands.auth import internal_authorized, get_namespace_highest_access
@@ -398,7 +399,7 @@ def _handle_id(item_id: Any):
         elif isinstance(item_id, uuid.UUID):
             return item_id
         else:
-            raise Exception
+            raise InvalidIdType(id=item_id, id_type=type(item_id))
     return uuid.uuid4()
 
 
@@ -419,7 +420,7 @@ def datasets_to_sql(
         external=external,
         access=access,
         order_by=order_by,
-        )
+    )
 
     seen_datasets = set()
     dataset = {

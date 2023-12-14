@@ -3,6 +3,7 @@ import sqlalchemy as sa
 from spinta import commands
 from spinta.components import Model, Namespace, Context
 from spinta.datasets.components import Dataset
+from spinta.exceptions import ModelNotFound, NamespaceNotFound, DatasetNotFound
 from spinta.manifests.internal_sql.components import InternalSQLManifest
 from spinta.manifests.internal_sql.helpers import internal_to_schema, load_internal_manifest_nodes, get_object_from_id, \
     select_full_table, update_schema_with_external, load_required_models, get_manifest, get_transaction_connection
@@ -212,7 +213,7 @@ def get_model(context: Context, manifest: InternalSQLManifest, model: str, **kwa
             load_internal_manifest_nodes(context, manifest, schemas, link=True, ignore_types=['dataset', 'resource'])
             if model in objects['model']:
                 return objects['model'][model]
-    raise Exception("MODEL NOT FOUND")
+    raise ModelNotFound(model=model)
 
 
 @commands.get_models.register(Context, InternalSQLManifest)
@@ -280,7 +281,7 @@ def get_namespace(context: Context, manifest: InternalSQLManifest, namespace: st
             ns = load_namespace_from_name(context, manifest, namespace, drop=False)
             return ns
 
-    raise Exception("NAMESPACE NOT FOUND")
+    raise NamespaceNotFound(namespace=namespace)
 
 
 @commands.get_namespaces.register(Context, InternalSQLManifest)
@@ -397,7 +398,7 @@ def get_dataset(context: Context, manifest: InternalSQLManifest, dataset: str, *
             if dataset in objects['dataset']:
                 return objects['dataset'][dataset]
 
-    raise Exception("DATASET NOT FOUND")
+    raise DatasetNotFound(dataset=dataset)
 
 
 @commands.get_datasets.register(Context, InternalSQLManifest)
