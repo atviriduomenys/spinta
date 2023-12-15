@@ -174,3 +174,8 @@ def get_model_tabular_header(
             )
         header = list(_get_model_header(model, names, select, reserved))
     return header
+
+
+def rename_page_col(rows):
+    for row in rows:
+        yield {'_page.next' if k == '_page' else k: v for k, v in row.items()}
