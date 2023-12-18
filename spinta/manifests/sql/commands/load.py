@@ -31,7 +31,7 @@ def load(
             commands.load(context, store.internal, into=target)
 
     dataset_name = context.get("rc").get("given_dataset_name")
-    schemas = read_schema(manifest, dataset_name)
+    schemas = read_schema(context, manifest.path, manifest.prepare, dataset_name)
 
     if into:
         log.info(

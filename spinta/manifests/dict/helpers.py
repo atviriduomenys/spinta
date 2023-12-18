@@ -1,18 +1,17 @@
 import pathlib
 import json
+from copy import deepcopy
 
 import requests
 import xmltodict
 from typing import List, Dict, Union, TypedDict, Any, Tuple, Callable
 
-from spinta.manifests.dict.components import DictFormat, DictManifest
+from spinta.manifests.dict.components import DictFormat
 from spinta.manifests.helpers import TypeDetector
 from spinta.utils.naming import Deduplicator, to_model_name, to_property_name
 
 
-def read_schema(manifest: DictManifest, dataset_name: str):
-    manifest_type: DictFormat = manifest.format
-    path: str = manifest.path
+def read_schema(manifest_type: DictFormat, path: str, dataset_name: str):
     if path.startswith(('http://', 'https://')):
         value = requests.get(path).text
     else:
@@ -63,7 +62,7 @@ def read_schema(manifest: DictManifest, dataset_name: str):
         "resource": "resource",
         "models": {}
     }
-    mapping_meta["is_blank_node"] = _is_blank_node(converted)
+    mapping_meta["is_blank_node"] = is_blank_node(converted)
     create_type_detectors(dataset_structure, converted, mapping_meta)
 
     yield None, {
@@ -100,7 +99,8 @@ def read_schema(manifest: DictManifest, dataset_name: str):
                 new_prop = dedup_prop(new_prop)
                 extra = {}
                 type_detector = prop["type_detector"]
-                if type_detector.get_type() == "ref":
+                prop_type = type_detector.get_type()
+                if prop_type == "ref":
                     if prop['name'] in dataset_structure["models"].keys():
                         model_name = _name_without_namespace(mapped_models[prop['name'], prop['extra']], mapping_meta, prefixes)
                         ref_model = f'{dataset_structure["dataset"]}/{model_name}'
@@ -110,7 +110,7 @@ def read_schema(manifest: DictManifest, dataset_name: str):
                         'model': ref_model
                     }
                 converted_props[new_prop] = {
-                    'type': type_detector.get_type(),
+                    'type': prop_type,
                     'external': {
                         'name': prop["source"]
                     },
@@ -119,6 +119,13 @@ def read_schema(manifest: DictManifest, dataset_name: str):
                     'unique': type_detector.unique,
                     **extra
                 }
+                if type_detector.array:
+                    copied = deepcopy(converted_props[new_prop])
+                    converted_props[new_prop]['type'] = 'array'
+                    converted_props[new_prop]['explicitly_given'] = False
+                    copied['given_name'] = f'{new_prop}[]'
+                    converted_props[new_prop]['items'] = copied
+
             fixed_external_source = m["source"]
             if mapping_meta["remove_array_suffix"]:
                 fixed_external_source = fixed_external_source.replace("[]", "")
@@ -187,7 +194,7 @@ def _name_without_namespace(name: str, mapping_meta: _MappingMeta, prefixes: dic
 
 
 def is_model(data):
-    if isinstance(data, list) and _is_list_of_dicts(data):
+    if isinstance(data, list) and is_list_of_dicts(data):
         return True
     return False
 
@@ -227,7 +234,7 @@ def nested_prop_names(new_values: list, values: dict, root: str, seperator: str)
         if isinstance(value, dict):
             nested_prop_names(new_values, value, f'{root}{seperator}{key}', seperator)
         elif isinstance(value, list):
-            if not _is_list_of_dicts(value):
+            if not is_list_of_dicts(value):
                 new_values.append(f'{root}{seperator}{key}')
         else:
             new_values.append(f'{root}{seperator}{key}')
@@ -254,7 +261,7 @@ def check_missing_prop_required(dataset: _MappedDataset, values: dict, mapping_s
             if isinstance(v, dict):
                 nested_prop_names(key_values, v, new_val, mapping_meta['seperator'])
             elif isinstance(v, list):
-                if not _is_list_of_dicts(v):
+                if not is_list_of_dicts(v):
                     key_values.append(new_val)
             else:
                 key_values.append(new_val)
@@ -325,7 +332,7 @@ def _detect_type(dataset: _MappedDataset, mapping_scope: _MappingScope, mapping_
     dataset["models"][model_name][model_source]["properties"][prop_name]["type_detector"].detect(value)
 
 
-def _is_list_of_dicts(lst: List) -> bool:
+def is_list_of_dicts(lst: List) -> bool:
     for item in lst:
         if not isinstance(item, dict):
             return False
@@ -402,7 +409,7 @@ def create_type_detectors(dataset: _MappedDataset, values: Any, mapping_meta: _M
     run_type_detectors(dataset, values, mapping_scope, mapping_meta)
 
 
-def _is_blank_node(values: Union[list, dict]) -> bool:
+def is_blank_node(values: Union[list, dict]) -> bool:
     if isinstance(values, list):
         return True
     if isinstance(values, dict):
@@ -496,7 +503,7 @@ def set_type_detector(dataset: _MappedDataset, mapping_scope: _MappingScope, map
 
         type_detector = dataset["models"][model_name][model_source]["properties"][prop_name]["type_detector"]
         if is_array:
-            type_detector.type = 'array'
+            type_detector.array = True
             type_detector.unique = False
             type_detector.required = False
         if is_ref:

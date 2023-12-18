@@ -1,13 +1,13 @@
 from typing import overload
-
 import sqlalchemy as sa
 
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from spinta import commands
 from spinta.components import Context, Model
+from spinta.core.enums import Access
 from spinta.manifests.components import Manifest
-from spinta.types.datatype import DataType, PrimaryKey, Ref
+from spinta.types.datatype import DataType, PrimaryKey, Ref, BackRef
 from spinta.backends.constants import TableType
 from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.constants import UNSUPPORTED_TYPES
@@ -36,7 +36,9 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
         #        should bet received from get_primary_key_type() command.
         if prop.name.startswith('_') and prop.name not in ('_id', '_revision'):
             continue
+
         column = commands.prepare(context, backend, prop)
+
         if isinstance(column, list):
             columns.extend(column)
         elif column is not None:
@@ -50,9 +52,10 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
                 if isinstance(prop.dtype, Ref):
                     if prop.level is None or prop.level > Level.open:
                         name = f'{name}._id'
-                    else:
+                    elif prop.dtype:
                         name = f'{name}.{prop.dtype.refprops[0].name}'
                 prop_list.append(name)
+
             columns.append(sa.UniqueConstraint(*prop_list))
 
     # Create main table.
@@ -65,8 +68,9 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
         sa.Column('_updated', sa.DateTime),
         *columns,
     )
+    if main_table_name == 'country':
+        pp(model.manifest.path)
     backend.add_table(main_table, model)
-
     # Create changes table.
     changelog_table = get_changes_table(context, backend, model)
     backend.add_table(changelog_table, model, TableType.CHANGELOG)
@@ -81,6 +85,7 @@ def prepare(context: Context, backend: PostgreSQL, dtype: DataType):
     name = get_column_name(prop)
     types = {
         'string': sa.Text,
+        'text': JSONB,
         'date': sa.Date,
         'time': sa.Time,
         'datetime': sa.DateTime,
@@ -115,13 +120,13 @@ def get_primary_key_type(context: Context, backend: PostgreSQL):
 @commands.prepare.register(Context, PostgreSQL, PrimaryKey)
 def prepare(context: Context, backend: PostgreSQL, dtype: PrimaryKey):
     pkey_type = commands.get_primary_key_type(context, backend)
-    if dtype.prop.model.base:
+    base = dtype.prop.model.base
+    if base and (base.level and base.level >= Level.identifiable or not base.level):
         return [
             sa.Column('_id', pkey_type, primary_key=True),
             sa.ForeignKeyConstraint(
-                ['_id'], [f'{get_pg_name(get_table_name(dtype.prop.model.base.parent))}._id'],
-                name=get_pg_name(f'fk_{dtype.prop.model.base.parent.name}_id'),
+                ['_id'], [f'{get_pg_name(get_table_name(base.parent))}._id'],
+                name=get_pg_name(f'fk_{base.parent.name}_id'),
             )
         ]
-    else:
-        return sa.Column('_id', pkey_type, primary_key=True)
+    return sa.Column('_id', pkey_type, primary_key=True)

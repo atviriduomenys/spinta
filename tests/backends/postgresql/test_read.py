@@ -7,9 +7,12 @@ from spinta import commands
 from spinta import spyna
 from spinta.components import Context
 from spinta.auth import AdminToken
-from spinta.testing.manifest import prepare_manifest
+from spinta.testing.client import create_test_client
+from spinta.testing.data import encode_page_values_manually
+from spinta.testing.manifest import prepare_manifest, bootstrap_manifest
 from spinta.core.config import RawConfig
 from spinta.core.ufuncs import asttoexpr
+from _pytest.fixtures import FixtureRequest
 
 
 def _prep_context(context: Context):
@@ -58,12 +61,109 @@ def test_getall(rc: RawConfig):
         'LEFT OUTER JOIN "example/Country" AS "example/Country_1"'
         ' ON "example/City"."country._id" = "example/Country_1"._id'
     )
-
+    page = rows[0]['_page']
     assert rows == [
         {
             '_id': '3aed7394-18da-4c17-ac29-d501d5dd0ed7',
+            '_page': page,
             '_revision': '9f308d61-5401-4bc2-a9da-bc9de85ad91d',
             '_type': 'example/City',
             'country': {'name': 'Lithuania'},
         },
     ]
+
+
+def test_getall_pagination_disabled(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(rc, '''
+            d | r | b | m | property | type    | ref     | access  | uri
+            example/getall/test      |         |         |         |
+              |   |   | Test         |         | value   |         | 
+              |   |   |   | value    | integer |         | open    | 
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/getall/test', ['insert', 'getall', 'search'])
+    app.post('/example/getall/test/Test', json={'value': 0})
+    app.post('/example/getall/test/Test', json={'value': 3})
+    resp_2 = app.post('/example/getall/test/Test', json={'value': 410}).json()
+    app.post('/example/getall/test/Test', json={'value': 707})
+    app.post('/example/getall/test/Test', json={'value': 1000})
+    encoded_page = {
+        "value": resp_2["value"],
+        "_id": resp_2["_id"]
+    }
+    encoded_page = encode_page_values_manually(encoded_page)
+    response = app.get(f'/example/getall/test/Test?page({encoded_page}, disable: true)')
+    json_response = response.json()
+    assert len(json_response["_data"]) == 5
+
+
+def test_getall_pagination_enabled(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(rc, '''
+            d | r | b | m | property | type    | ref     | access  | uri
+            example/getall/test      |         |         |         |
+              |   |   | Test         |         | value   |         | 
+              |   |   |   | value    | integer |         | open    | 
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/getall/test', ['insert', 'getall', 'search'])
+    app.post('/example/getall/test/Test', json={'value': 0})
+    app.post('/example/getall/test/Test', json={'value': 3})
+    resp_2 = app.post('/example/getall/test/Test', json={'value': 410}).json()
+    app.post('/example/getall/test/Test', json={'value': 707})
+    app.post('/example/getall/test/Test', json={'value': 1000})
+    encoded_page = {
+        "value": resp_2["value"],
+        "_id": resp_2["_id"]
+    }
+    encoded_page = encode_page_values_manually(encoded_page)
+    response = app.get(f'/example/getall/test/Test?page("{encoded_page}")')
+    json_response = response.json()
+    assert len(json_response["_data"]) == 2
+
+
+def test_get_date(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(rc, '''
+            d | r | b | m | property | type    | ref     | access  | uri
+            example/date/test      |         |         |         |
+              |   |   | Test         |         | date   |         | 
+              |   |   |   | date    | date |         | open    | 
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/date/test', ['insert', 'getall', 'search'])
+    app.post('/example/date/test/Test', json={'date': '2020-01-01'})
+    response = app.get(f'/example/date/test/Test')
+    json_response = response.json()
+    assert len(json_response['_data']) == 1
+    assert json_response['_data'][0]['date'] == '2020-01-01'
+
+
+def test_get_datetime(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(rc, '''
+            d | r | b | m | property | type    | ref     | access  | uri
+            example/datetime/test      |         |         |         |
+              |   |   | Test         |         | date   |         | 
+              |   |   |   | date    | datetime |         | open    | 
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/datetime/test', ['insert', 'getall', 'search'])
+    app.post('/example/datetime/test/Test', json={'date': '2020-01-01T10:00:10'})
+    response = app.get(f'/example/datetime/test/Test')
+    json_response = response.json()
+    assert len(json_response['_data']) == 1
+    assert json_response['_data'][0]['date'] == '2020-01-01T10:00:10'
+
+
+def test_get_time(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(rc, '''
+            d | r | b | m | property | type    | ref     | access  | uri
+            example/time/test      |         |         |         |
+              |   |   | Test         |         | date   |         | 
+              |   |   |   | date    | time |         | open    | 
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/time/test', ['insert', 'getall', 'search'])
+    app.post('/example/time/test/Test', json={'date': '10:00:10'})
+    response = app.get(f'/example/time/test/Test')
+    json_response = response.json()
+    assert len(json_response['_data']) == 1
+    assert json_response['_data'][0]['date'] == '10:00:10'
