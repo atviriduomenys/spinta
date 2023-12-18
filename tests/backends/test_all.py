@@ -122,7 +122,7 @@ def test_update_get(model, app):
     resp = app.get(f'/{model}')
     data = resp.json()
     page = None
-    if '_page' in data[0]:
+    if '_page' in data:
         page = data['_page']['next']
     result = {
         '_type': model,
