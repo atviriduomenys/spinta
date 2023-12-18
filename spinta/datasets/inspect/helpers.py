@@ -94,14 +94,13 @@ def create_manifest_from_inspect(
 
 
 def _merge(context: Context, manifest: Manifest, old: Manifest, resource: ResourceTuple, has_manifest_priority: bool, dataset: str = None):
-    new_context = configure_context(
-        context,
-        manifests=[resource],
-        dataset=dataset,
-        mode=Mode.external)
-    store = load_manifest(new_context)
+    rc: RawConfig = context.get('rc')
+    manifest_ = get_manifest_from_type(rc, resource.type)
+    path = ManifestPath(type=manifest_.type, path=resource.external)
+    context = configure_context(context, [path], mode=Mode.external, dataset=dataset)
+    store = load_manifest(context)
     new = store.manifest
-    commands.merge(new_context, manifest, old, new, has_manifest_priority)
+    commands.merge(context, manifest, old, new, has_manifest_priority)
 
 
 @commands.merge.register(Context, Manifest, Manifest, Manifest, bool)
