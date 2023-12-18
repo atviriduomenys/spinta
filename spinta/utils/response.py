@@ -118,7 +118,7 @@ async def create_http_response(
         context.attach('transaction', manifest.backend.transaction)
 
         if params.changes:
-            _enforce_limit(context, params)
+            #_enforce_limit(context, params)
             return await commands.changes(
                 context,
                 params.model,
@@ -149,7 +149,7 @@ async def create_http_response(
                 params=params
             )
         else:
-            _enforce_limit(context, params)
+            #_enforce_limit(context, params)
             action = params.action
             model = params.model
             backend = model.backend
@@ -225,15 +225,15 @@ async def create_http_response(
                 )
 
 
-def _enforce_limit(context: Context, params: UrlParams):
-    config = context.get('config')
-    fmt: Format = config.exporters[params.format]
-    # XXX: I think this is not the best way to enforce limit, maybe simply
-    #      an error should be raised?
-    # XXX: Max resource count should be configurable.
-    if not fmt.streamable and (params.limit is None or params.limit > 100):
-        params.limit = params.limit_enforced_to + 1
-        params.limit_enforced = True
+# def _enforce_limit(context: Context, params: UrlParams):
+#     config = context.get('config')
+#     fmt: Format = config.exporters[params.format]
+#     # XXX: I think this is not the best way to enforce limit, maybe simply
+#     #      an error should be raised?
+#     # XXX: Max resource count should be configurable.
+#     if not fmt.streamable and (params.limit is None or params.limit > 100):
+#         params.limit = params.limit_enforced_to + 1
+#         params.limit_enforced = True
 
 
 def peek_and_stream(stream):
