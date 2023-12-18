@@ -161,7 +161,7 @@ class _LimitIter(Generic[T]):
         self._counter = count(1)
         self.limit = limit
         self.params = params
-        if '_page' in header:
+        if header and '_page' in header:
             self.header_page_id = header.index('_page')
 
     def __iter__(self) -> Iterator[T]:

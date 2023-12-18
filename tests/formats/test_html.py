@@ -316,11 +316,6 @@ def test_file_type_list(
                 'value': short_id(_id),
             },
             {
-                'value': encode_page_values_manually({
-                    '_id': _id
-                }),
-            },
-            {
                 'value': 'Lithuania',
             },
             {
