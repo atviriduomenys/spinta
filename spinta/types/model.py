@@ -66,6 +66,7 @@ def _load_namespace_from_model(context: Context, manifest: Manifest, model: Mode
     ns.models[model.model_type()] = model
     model.ns = ns
 
+
 @load.register(Context, Model, dict, Manifest)
 def load(
     context: Context,
@@ -315,7 +316,6 @@ def load(
         prop.unit = unit
     else:
         prop.given.enum = unit
-    prop.given.name = prop.given_name if prop.given_name else prop.name
     prop.given.explicit = prop.explicitly_given if prop.explicitly_given is not None else True
     return prop
 

@@ -2137,7 +2137,7 @@ def _property_to_tabular(
         return
 
     data = {
-        'property': prop.given.name,
+        'property': prop.given.name or prop.name,
         'type': _get_type_repr(prop.dtype),
         'level': prop.level.value if prop.level else "",
         'access': prop.given.access,

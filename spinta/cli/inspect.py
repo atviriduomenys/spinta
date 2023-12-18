@@ -723,121 +723,121 @@ def inspect(
 #         for o, n in res:
 #             commands.merge(context, manifest, o, n)
 
-
-TItem = TypeVar('TItem')
-
-
-def zipitems(
-    a: TItem,
-    b: TItem,
-    key: Callable[[TItem], Hashable],
-) -> Iterator[List[Tuple[TItem, TItem]]]:
-
-    res: Dict[
-        Hashable,  # key
-        List[
-            Tuple[
-                Any,   # a
-                Any,   # b
-            ]
-        ]
-        ,
-    ] = {}
-
-    for v in a:
-        k = key(v)
-        if isinstance(k, Tuple):
-            for keys in res.keys():
-                if set(k) == set(keys):
-                    res[keys].append([v, NA])
-                    break
-            else:
-                res[k] = [[v, NA]]
-        else:
-            if k not in res.keys():
-                res[k] = []
-            res[k].append([v, NA])
-    for v in b:
-        k = key(v)
-        if isinstance(k, Tuple):
-            found = False
-            for keys in res.keys():
-                if set(k).issubset(set(keys)):
-                    found = True
-                    additional = []
-                    for item in res[keys]:
-                        if item[1] is NA:
-                            item[1] = v
-                        else:
-                            additional.append([item[0], v])
-                    res[keys] += additional
-            if not found:
-                res[k] = [[NA, v]]
-        else:
-            if k in res:
-                additional = []
-                for item in res[k]:
-                    if item[1] is NA:
-                        item[1] = v
-                    else:
-                        additional.append([item[0], v])
-                res[k] += additional
-            else:
-                res[k] = [[NA, v]]
-    yield from res.values()
-
-
-def coalesce(*args: Any) -> Any:
-    for arg in args:
-        if arg:
-            return arg
-    return arg
-
-
-def _name_key(node: Node) -> str:
-    return node.name
-
-
-def _dataset_resource_source_key(dataset: Dataset) -> Tuple:
-    keys = []
-    for resource in dataset.resources.values():
-        keys.append(_resource_source_key(resource))
-    return tuple(keys)
-
-
-def _property_source_key(prop: Property) -> str:
-    if prop.external and prop.external.name:
-        return prop.external.name
-    else:
-        return prop.name
-
-
-def _resource_source_key(resource: Resource) -> str:
-    result = resource.name
-    manifest = resource.dataset.manifest
-    if resource.external:
-        result = resource.external
-    else:
-        if manifest.backends:
-            if resource.backend.name in manifest.backends:
-                result = manifest.backends[resource.backend.name].config['dsn']
-        elif manifest.store.backends:
-            if resource.backend.name in manifest.store.backends:
-                result = manifest.store.backends[resource.backend.name].config['dsn']
-    if "@" in result:
-        result = result.split("@")[1]
-    return result
-
-
-def _backend_dsn(backend: ExternalBackend) -> str:
-    dsn = backend.config['dsn']
-    if "@" in dsn:
-        dsn = dsn.split("@")[1]
-    return dsn
-
-
-def _model_source_key(model: Model) -> str:
-    if model.external and model.external.name:
-        return f'{_resource_source_key(model.external.resource)}/{model.external.name}'
-    else:
-        return model.name
+#
+# TItem = TypeVar('TItem')
+#
+#
+# def zipitems(
+#     a: TItem,
+#     b: TItem,
+#     key: Callable[[TItem], Hashable],
+# ) -> Iterator[List[Tuple[TItem, TItem]]]:
+#
+#     res: Dict[
+#         Hashable,  # key
+#         List[
+#             Tuple[
+#                 Any,   # a
+#                 Any,   # b
+#             ]
+#         ]
+#         ,
+#     ] = {}
+#
+#     for v in a:
+#         k = key(v)
+#         if isinstance(k, Tuple):
+#             for keys in res.keys():
+#                 if set(k) == set(keys):
+#                     res[keys].append([v, NA])
+#                     break
+#             else:
+#                 res[k] = [[v, NA]]
+#         else:
+#             if k not in res.keys():
+#                 res[k] = []
+#             res[k].append([v, NA])
+#     for v in b:
+#         k = key(v)
+#         if isinstance(k, Tuple):
+#             found = False
+#             for keys in res.keys():
+#                 if set(k).issubset(set(keys)):
+#                     found = True
+#                     additional = []
+#                     for item in res[keys]:
+#                         if item[1] is NA:
+#                             item[1] = v
+#                         else:
+#                             additional.append([item[0], v])
+#                     res[keys] += additional
+#             if not found:
+#                 res[k] = [[NA, v]]
+#         else:
+#             if k in res:
+#                 additional = []
+#                 for item in res[k]:
+#                     if item[1] is NA:
+#                         item[1] = v
+#                     else:
+#                         additional.append([item[0], v])
+#                 res[k] += additional
+#             else:
+#                 res[k] = [[NA, v]]
+#     yield from res.values()
+#
+#
+# def coalesce(*args: Any) -> Any:
+#     for arg in args:
+#         if arg:
+#             return arg
+#     return arg
+#
+#
+# def _name_key(node: Node) -> str:
+#     return node.name
+#
+#
+# def _dataset_resource_source_key(dataset: Dataset) -> Tuple:
+#     keys = []
+#     for resource in dataset.resources.values():
+#         keys.append(_resource_source_key(resource))
+#     return tuple(keys)
+#
+#
+# def _property_source_key(prop: Property) -> str:
+#     if prop.external and prop.external.name:
+#         return prop.external.name
+#     else:
+#         return prop.name
+#
+#
+# def _resource_source_key(resource: Resource) -> str:
+#     result = resource.name
+#     manifest = resource.dataset.manifest
+#     if resource.external:
+#         result = resource.external
+#     else:
+#         if manifest.backends:
+#             if resource.backend.name in manifest.backends:
+#                 result = manifest.backends[resource.backend.name].config['dsn']
+#         elif manifest.store.backends:
+#             if resource.backend.name in manifest.store.backends:
+#                 result = manifest.store.backends[resource.backend.name].config['dsn']
+#     if "@" in result:
+#         result = result.split("@")[1]
+#     return result
+#
+#
+# def _backend_dsn(backend: ExternalBackend) -> str:
+#     dsn = backend.config['dsn']
+#     if "@" in dsn:
+#         dsn = dsn.split("@")[1]
+#     return dsn
+#
+#
+# def _model_source_key(model: Model) -> str:
+#     if model.external and model.external.name:
+#         return f'{_resource_source_key(model.external.resource)}/{model.external.name}'
+#     else:
+#         return model.name
