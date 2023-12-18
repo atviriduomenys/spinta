@@ -8,6 +8,7 @@ from typing import Tuple
 from typing import TypeVar
 
 from spinta import commands
+from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.store import load_manifest
 from spinta.components import Context, Property, Node, Namespace
 from spinta.components import Mode
@@ -53,60 +54,58 @@ def create_manifest_from_inspect(
         mode=Mode.external,
         backend=backend
     )
-    store = load_manifest(context, ensure_config_dir=True)
-    old = store.manifest
-    manifest = Manifest()
-    init_manifest(context, manifest, 'inspect')
-    commands.merge(context, manifest, manifest, old, has_manifest_priority)
+    with context:
+        require_auth(context, auth)
+        store = load_manifest(context, ensure_config_dir=True)
+        old = store.manifest
+        manifest = Manifest()
+        init_manifest(context, manifest, 'inspect')
+        commands.merge(context, manifest, manifest, old, has_manifest_priority)
 
-    if not resources:
-        resources = []
-        for ds in old.datasets.values():
-            for resource in ds.resources.values():
-                external = resource.external
-                if external == '' and resource.backend:
-                    external = resource.backend.config['dsn']
-                if not any(res.external == external for res in resources):
-                    if only_url and not ("http://" in external or "https://" in external):
-                        raise InvalidResourceSource(source=external)
-                    resources.append(ResourceTuple(type=resource.type, external=external, prepare=resource.prepare))
+        if not resources:
+            resources = []
+            for ds in old.datasets.values():
+                for resource in ds.resources.values():
+                    external = resource.external
+                    if external == '' and resource.backend:
+                        external = resource.backend.config['dsn']
+                    if not any(res.external == external for res in resources):
+                        if only_url and not ("http://" in external or "https://" in external):
+                            raise InvalidResourceSource(source=external)
+                        resources.append(ResourceTuple(type=resource.type, external=external, prepare=resource.prepare))
 
-    if resources:
-        for resource in resources:
-            _merge(context, manifest, manifest, resource, has_manifest_priority, dataset)
+        if resources:
+            for resource in resources:
+                _merge(context, manifest, manifest, resource, has_manifest_priority, dataset)
 
-    # Sort models for render
-    sorted_models = {}
-    for key, model in manifest.models.items():
-        if key not in sorted_models.keys():
-            if model.external and model.external.resource:
-                resource = model.external.resource
-                for resource_key, resource_model in resource.models.items():
-                    if resource_key not in sorted_models.keys():
-                        sorted_models[resource_key] = resource_model
-            else:
-                sorted_models[key] = model
-    manifest.objects['model'] = sorted_models
+        # Sort models for render
+        sorted_models = {}
+        for key, model in manifest.models.items():
+            if key not in sorted_models.keys():
+                if model.external and model.external.resource:
+                    resource = model.external.resource
+                    for resource_key, resource_model in resource.models.items():
+                        if resource_key not in sorted_models.keys():
+                            sorted_models[resource_key] = resource_model
+                else:
+                    sorted_models[key] = model
+        manifest.objects['model'] = sorted_models
     return context, manifest
 
 
 def _merge(context: Context, manifest: Manifest, old: Manifest, resource: ResourceTuple, has_manifest_priority: bool, dataset: str = None):
-    rc: RawConfig = context.get('rc')
-    manifest_ = get_manifest_from_type(rc, resource.type)
-    path = ManifestPath(type=manifest_.type, path=resource.external)
-    context = configure_context(context, [path], mode=Mode.external, dataset=dataset)
-    store = load_manifest(context)
+    new_context = configure_context(
+        context,
+        manifests=[resource],
+        dataset=dataset,
+        mode=Mode.external)
+    store = load_manifest(new_context)
     new = store.manifest
-    commands.merge(context, manifest, old, new, has_manifest_priority)
+    commands.merge(new_context, manifest, old, new, has_manifest_priority)
 
 
 @commands.merge.register(Context, Manifest, Manifest, Manifest, bool)
 def merge(context: Context, manifest: Manifest, old: Manifest, new: Manifest, has_manifest_priority: bool) -> None:
-    resource_list = []
-    for ds in new.datasets.values():
-        for res in ds.resources.values():
-            resource_list.append(_resource_source_key(res))
-
     backends = zipitems(
         old.backends.values(),
         new.backends.values(),

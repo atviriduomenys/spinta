@@ -361,8 +361,6 @@ def get_response_type(
             if media_type in formats:
                 return formats[media_type]
 
-    return 'json'
-
 
 ACCEPT_LANGUAGE_HEADER_MAX_LENGTH = 500
 accept_language_re = re.compile(
