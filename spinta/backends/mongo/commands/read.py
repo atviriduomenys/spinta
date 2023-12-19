@@ -4,7 +4,7 @@ from typing import overload
 from spinta.typing import ObjectData
 from spinta.typing import FileObjectData
 from spinta import commands
-from spinta.components import Context
+from spinta.components import Context, UrlParams
 from spinta.components import Model
 from spinta.components import Property
 from spinta.core.ufuncs import Expr
@@ -12,6 +12,7 @@ from spinta.types.datatype import File, Object
 from spinta.exceptions import ItemDoesNotExist
 from spinta.backends.mongo.components import Mongo
 from spinta.backends.mongo.commands.query import MongoQueryBuilder
+from spinta.ufuncs.basequerybuilder.components import get_page_values
 
 
 @overload
@@ -106,6 +107,7 @@ def getall(
     backend: Mongo,
     *,
     query: Expr = None,
+    **kwargs
 ) -> Iterator[ObjectData]:
     builder = MongoQueryBuilder(context)
     builder.update(model=model)
@@ -118,4 +120,6 @@ def getall(
         if '__id' in row:
             row['_id'] = row.pop('__id')
         row['_type'] = model.model_type()
+        if model.page.is_enabled:
+            row['_page'] = get_page_values(env, row)
         yield commands.cast_backend_to_python(context, model, backend, row)

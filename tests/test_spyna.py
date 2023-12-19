@@ -174,3 +174,11 @@ def test_true_expr():
 def test_null_expr():
     ast = parse('null')
     assert ast is None
+
+
+def test_escale_quotes_one():
+    check("swap('TEST', '\"TEST\" \\\'TEST\\\'')")
+
+
+def test_escale_quotes_both():
+    check("swap('\\\'TEST\\\' \"TEST\"', '\"TEST\" \\\'TEST\\\'')")

@@ -20,3 +20,12 @@ class JsonManifest(DictManifest):
     @staticmethod
     def detect_from_path(path: str) -> bool:
         return path.endswith('.json')
+
+
+class XmlManifest(DictManifest):
+    type = 'xml'
+    format: DictFormat = DictFormat.XML
+
+    @staticmethod
+    def detect_from_path(path: str) -> bool:
+        return path.endswith('.xml')

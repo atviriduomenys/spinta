@@ -5,6 +5,8 @@ from spinta.components import Context
 from spinta.core.access import link_access_param
 from spinta.datasets.components import Dataset, Resource, Entity, Attribute
 from spinta.exceptions import MissingReference
+from spinta.types.datatype import Partial, Ref
+from spinta.components import Property
 
 
 @commands.link.register(Context, Dataset)

@@ -13,7 +13,7 @@ from typer import Typer
 from typer import echo
 
 from spinta import commands
-from spinta.auth import KeyFileExists
+from spinta.auth import KeyFileExists, get_clients_path
 from spinta.auth import KeyType
 from spinta.auth import create_client_file
 from spinta.auth import gen_auth_server_keys
@@ -138,12 +138,15 @@ def client_add(
             config = context.get('config')
             commands.load(context, config)
 
-            path = config.config_path / 'clients'
+            path = get_clients_path(config)
             path.mkdir(exist_ok=True)
         else:
             path = pathlib.Path(path)
+            if not str(path).endswith('clients'):
+                path = get_clients_path(path)
 
-        name = name or str(uuid.uuid4())
+        client_id = str(uuid.uuid4())
+        name = name or client_id
 
         if scope == '-':
             scope = click.get_text_stream('stdin').read()
@@ -155,6 +158,7 @@ def client_add(
         client_file, client_ = create_client_file(
             path,
             name,
+            client_id,
             secret,
             scope,
             add_secret=add_secret,

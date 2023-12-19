@@ -14,21 +14,24 @@ from spinta import commands
 from spinta.backends.components import SelectTree
 from spinta.backends.helpers import get_model_reserved_props
 from spinta.backends.helpers import select_model_props
-from spinta.components import Action
+from spinta.components import Action, Namespace
 from spinta.components import Context
 from spinta.components import Model
 from spinta.components import UrlParams
 from spinta.dimensions.prefix.components import UriPrefix
+from spinta.exceptions import DuplicateRdfPrefixMissmatch
 from spinta.formats.components import Format
 from spinta.formats.html.helpers import get_model_link
 from spinta.formats.rdf.components import Rdf
-from spinta.types.datatype import DataType
+from spinta.types.datatype import DataType, PageType
 from spinta.types.datatype import File
 from spinta.types.datatype import Ref
 from spinta.types.datatype import Date
 from spinta.types.datatype import Time
 from spinta.types.datatype import DateTime
 from spinta.types.datatype import Number
+from spinta.types.namespace import traverse_ns_models
+from spinta.utils.encoding import encode_page_values
 from spinta.utils.schema import NotAvailable
 
 RDF = "rdf"
@@ -37,12 +40,35 @@ DESCRIPTION = "Description"
 
 
 def _get_available_prefixes(model: Model) -> dict:
-    prefixes = {}
+    prefixes = {
+        RDF: "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+        PAV: "http://purl.org/pav/"
+    }
     if model.manifest.datasets.get(model.ns.name):
-        prefixes = model.manifest.datasets.get(model.ns.name).prefixes
-        for key, val in prefixes.items():
+        manifest_prefixes = model.manifest.datasets.get(model.ns.name).prefixes
+        for key, val in manifest_prefixes.items():
             if isinstance(val, UriPrefix):
                 prefixes[key] = val.uri
+    return prefixes
+
+
+def _get_update_prefixes(prefixes: dict, used_datasets: list, model: Model) -> dict:
+    if model.external and model.external.dataset and model.external.dataset.name not in used_datasets:
+        manifest_prefixes = model.external.dataset.prefixes
+        for key, val in manifest_prefixes.items():
+            if isinstance(val, UriPrefix):
+                if key in prefixes and prefixes[key] != val.uri:
+                    raise DuplicateRdfPrefixMissmatch(model.external.dataset, prefix=key, old_value=prefixes[key], new_value=val.uri)
+                prefixes[key] = val.uri
+        used_datasets.append(model.external.dataset.name)
+    return prefixes
+
+
+def _update_required_prefixes(prefixes: dict) -> dict:
+    if RDF not in prefixes:
+        prefixes[RDF] = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+    if PAV not in prefixes:
+        prefixes[PAV] = "http://purl.org/pav/"
     return prefixes
 
 
@@ -66,9 +92,17 @@ def _get_attributes(
     revision_name: Union[str, QName],
 ) -> Tuple[dict, dict]:
     attributes = {}
+    uri_prop = model.uri_prop
+    about_uri = False
+    if uri_prop is not None:
+        if uri_prop.name in data:
+            uri = data.pop(uri_prop.name)
+            if uri is not None and uri.text:
+                attributes[about_name] = uri.text
+                about_uri = True
     if '_id' in data:
         _id = data.pop('_id')
-        if _id is not None and _id.text:
+        if not about_uri and _id is not None and _id.text:
             attributes[about_name] = get_model_link(model, pk=_id.text)
     if '_type' in data:
         _type = data.pop('_type')
@@ -86,6 +120,8 @@ def _get_prefix_and_name(uri: str) -> Tuple[str, str]:
     if uri and ':' in uri:
         prefix = uri.split(':')[0]
         name = uri.split(':')[1]
+    elif uri:
+        name = uri
     return prefix, name
 
 
@@ -121,9 +157,9 @@ def _create_element(
 
 def _create_model_element(
     model: Model,
+    prefixes: dict,
     data: dict
 ) -> Element:
-    prefixes = _get_available_prefixes(model)
     about_name = _get_attribute_name('about', RDF, prefixes)
     type_name = _get_attribute_name('type', RDF, prefixes)
     revision_name = _get_attribute_name('version', PAV, prefixes)
@@ -154,9 +190,10 @@ def _create_model_element(
 
 def _prepare_for_print(
     model: Model,
+    prefixes: dict,
     data: dict
 ) -> str:
-    elem = _create_model_element(model, data)
+    elem = _create_model_element(model, prefixes, data)
     res = etree.tostring(elem, encoding="unicode", pretty_print=True)
     for key, val in elem.nsmap.items():
         res = res.replace(f'xmlns:{key}="{val}" ', "")
@@ -192,6 +229,35 @@ def render(
     )
 
 
+@commands.render.register(Context, Request, Namespace, Rdf)
+def render(
+    context: Context,
+    request: Request,
+    ns: Namespace,
+    fmt: Rdf,
+    *,
+    action: Action,
+    params: UrlParams,
+    data,
+    status_code: int = 200,
+    headers: Optional[dict] = None,
+):
+    headers = headers or {}
+    headers['Content-Disposition'] = f'attachment; filename="{ns.basename}.rdf"'
+    return StreamingResponse(
+        _stream_namespace(
+            context,
+            request,
+            ns,
+            action,
+            data
+        ),
+        status_code=status_code,
+        media_type=fmt.content_type,
+        headers=headers,
+    )
+
+
 async def _stream(
     request: Request,
     model: Model,
@@ -200,21 +266,69 @@ async def _stream(
 ):
     namespaces = []
     prefixes = _get_available_prefixes(model)
-    root_name = _get_attribute_name(RDF.capitalize(), RDF, prefixes)
+    root_name = _get_attribute_name(RDF.upper(), RDF, prefixes)
     for key, val in prefixes.items():
         namespaces.append(f'xmlns:{key}="{val}"')
     if request.base_url:
-        namespaces.append(f'xml:base="{str(request.base_url)}"')
+        namespaces.append(f'xmlns="{str(request.base_url)}"')
     if isinstance(root_name, QName):
         root_name = f"{RDF}:{root_name.localname}"
     namespaces = "\n ".join(namespaces)
 
     yield f'<?xml version="1.0" encoding="UTF-8"?>\n<{root_name}\n {namespaces}>\n'
     if action == Action.GETONE:
-        yield _prepare_for_print(model, data)
+        yield _prepare_for_print(model, prefixes, data)
     else:
         for row in data:
-            yield _prepare_for_print(model, row)
+            yield _prepare_for_print(model, prefixes, row)
+    yield f"</{root_name}>\n"
+
+
+async def _stream_namespace(
+    context: Context,
+    request: Request,
+    ns: Namespace,
+    action: Action,
+    data
+):
+    namespaces = []
+    models = traverse_ns_models(
+        context,
+        ns,
+        action,
+        internal=True,
+    )
+    prefixes = {}
+    used_datasets = []
+    model_mapper = {}
+    for model in models:
+        prefixes = _get_update_prefixes(prefixes, used_datasets, model)
+        model_mapper[model.name] = model
+    prefixes = _update_required_prefixes(prefixes)
+
+    root_name = _get_attribute_name(RDF.upper(), RDF, prefixes)
+    for key, val in prefixes.items():
+        namespaces.append(f'xmlns:{key}="{val}"')
+    if request.base_url:
+        namespaces.append(f'xmlns="{str(request.base_url)}"')
+    if isinstance(root_name, QName):
+        root_name = f"{RDF}:{root_name.localname}"
+    namespaces = "\n ".join(namespaces)
+
+    yield f'<?xml version="1.0" encoding="UTF-8"?>\n<{root_name}\n {namespaces}>\n'
+
+    # TODO: Temporarily disabled page return, because page does not work with namespace/:all
+    if action == Action.GETONE:
+        model = model_mapper[data['_type'].text]
+        if '_page' in data:
+            data.pop('_page')
+        yield _prepare_for_print(model, prefixes, data)
+    else:
+        for row in data:
+            if '_page' in row:
+                row.pop('_page')
+            model = model_mapper[row['_type'].text]
+            yield _prepare_for_print(model, prefixes, row)
     yield f"</{root_name}>\n"
 
 
@@ -230,7 +344,7 @@ def prepare_data_for_response(
     prop_names: List[str],
 ) -> dict:
     value = value.copy()
-    reserved = get_model_reserved_props(action)
+    reserved = get_model_reserved_props(action, model)
 
     available_prefixes = _get_available_prefixes(model)
 
@@ -295,6 +409,23 @@ def prepare_dtype_for_response(
     return _create_element(
         name=data['_elem_name'],
         text=str(value)
+    )
+
+
+@commands.prepare_dtype_for_response.register(Context, Rdf, PageType, list)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Rdf,
+    dtype: PageType,
+    value: list,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None
+):
+    return _create_element(
+        name=data['_elem_name'],
+        text=encode_page_values(value).decode('ascii')
     )
 
 
@@ -370,7 +501,7 @@ def prepare_dtype_for_response(
 def prepare_dtype_for_response(
     context: Context,
     fmt: Rdf,
-    dtype: File,
+    dtype: Ref,
     value,
     *,
     data: Dict[str, Any],
@@ -382,9 +513,13 @@ def prepare_dtype_for_response(
     prefixes = data['_available_prefixes']
     attributes = {}
     children = []
+    if data_dict is None:
+        return None
 
-    if len(data_dict) == 1 and '_id' in data_dict:
-        if data_dict['_id'] is not None and data_dict['_id'].text:
+    if len(data_dict) == 1 and '_id' in data_dict or '_uri' in data_dict:
+        if '_uri' in data_dict:
+            attributes[data['_resource_name']] = data_dict['_uri'].text
+        else:
             attributes[data['_resource_name']] = get_model_link(
                 dtype.model,
                 pk=data_dict['_id'].text

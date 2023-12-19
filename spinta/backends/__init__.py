@@ -3,12 +3,16 @@ import datetime
 import decimal
 import pathlib
 import uuid
+import dateutil
 from typing import Any
 from typing import AsyncIterator
 from typing import Dict
 from typing import Iterable
 from typing import List
 from typing import Optional
+
+import shapely.geometry.base
+from shapely import wkt
 
 from spinta import commands
 from spinta import exceptions
@@ -25,17 +29,18 @@ from spinta.commands import gen_object_id
 from spinta.commands import is_object_id
 from spinta.commands import load_operator_value
 from spinta.commands import prepare
-from spinta.components import Action
+from spinta.components import Action, UrlParams
 from spinta.components import Context
 from spinta.components import DataItem
 from spinta.components import Model
 from spinta.components import Namespace
 from spinta.components import Node
 from spinta.components import Property
-from spinta.exceptions import ConflictingValue, RequiredProperty
+from spinta.exceptions import ConflictingValue, RequiredProperty, LangNotDeclared, TooManyLangsGiven, \
+    UnableToDetermineRequiredLang
 from spinta.exceptions import NoItemRevision
 from spinta.formats.components import Format
-from spinta.types.datatype import Array, ExternalRef, Denorm, Inherit
+from spinta.types.datatype import Array, ExternalRef, Denorm, Inherit, PageType, BackRef, ArrayBackRef, Integer, Boolean
 from spinta.types.datatype import Binary
 from spinta.types.datatype import DataType
 from spinta.types.datatype import Date
@@ -48,10 +53,16 @@ from spinta.types.datatype import Object
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.types.datatype import String
+from spinta.types.geometry.components import Geometry
+from spinta.utils.config import asbool
 from spinta.utils.data import take
+from spinta.utils.encoding import encode_page_values
 from spinta.utils.nestedstruct import flatten_value
 from spinta.utils.schema import NA
 from spinta.utils.schema import NotAvailable
+from spinta.types.text.components import Text
+from spinta.exceptions import UserError
+from spinta.utils.errors import report_error
 
 
 @commands.prepare_for_write.register(Context, Model, Backend, dict)
@@ -62,6 +73,7 @@ def prepare_for_write(
     patch: Dict[str, Any],
     *,
     action: Action,
+    params: UrlParams = None
 ) -> dict:
     # prepares model's data for storing in a backend
     backend = model.backend
@@ -69,7 +81,10 @@ def prepare_for_write(
     for name, value in patch.items():
         if not name.startswith('_'):
             prop = model.properties[name]
-            value = commands.prepare_for_write(context, prop.dtype, backend, value)
+            if params:
+                value = commands.prepare_for_write(context, prop.dtype, backend, value, params)
+            else:
+                value = commands.prepare_for_write(context, prop.dtype, backend, value)
         result[name] = value
     return result
 
@@ -82,6 +97,7 @@ def prepare_for_write(
     value: Any,
     *,
     action: Action,
+    params: UrlParams = None
 ) -> Any:
     if prop.name in value:
         value[prop.name] = commands.prepare_for_write(
@@ -89,8 +105,22 @@ def prepare_for_write(
             prop.dtype,
             prop.dtype.backend,
             value[prop.name],
+            params
         )
     return value
+
+
+@commands.prepare_for_write.register(Context, DataType, Backend, object, UrlParams)
+def prepare_for_write(
+    context: Context,
+    dtype: DataType,
+    backend: Backend,
+    value: Any,
+    params: UrlParams
+) -> Any:
+    executor = commands.prepare_for_write[Context, type(dtype), type(backend), type(value)]
+    result = executor(context, dtype, backend, value)
+    return result
 
 
 @commands.prepare_for_write.register(Context, DataType, Backend, object)
@@ -133,6 +163,48 @@ def prepare_for_write(
         prop = dtype.properties[k]
         prepped[k] = commands.prepare_for_write(context, prop.dtype, backend, v)
     return prepped
+
+
+@commands.prepare_for_write.register(Context, Text, Backend, str, UrlParams)
+def prepare_for_write(
+    context: Context,
+    dtype: Text,
+    backend: Backend,
+    value: str,
+    params: UrlParams
+) -> Any:
+    default_langs = context.get('config').languages
+    preferred_lang = None
+    # First Step: Check Content-Language if lang exists in the property
+    if params.content_langs:
+        if len(params.content_langs) > 1:
+            raise TooManyLangsGiven(dtype, amount=len(params.content_langs))
+
+        if params.content_langs[0] not in dtype.langs:
+            raise LangNotDeclared(dtype, lang=params.content_langs[0])
+
+        preferred_lang = dtype.langs[params.content_langs[0]]
+
+    # Second Step: if Content-Language not given check default languages
+    if not preferred_lang:
+        for lang in default_langs:
+            if lang in dtype.langs:
+                preferred_lang = dtype.langs[lang]
+                break
+
+    # Third Step: if Content-Language and default language does not exist, check for C language (unknown)
+    if not preferred_lang:
+        if dtype.prop.level and dtype.prop.level <= 3 and 'C' in dtype.langs:
+            preferred_lang = dtype.langs['C']
+
+    # Fourth Step: if nothing works raise Exception that language was not determined
+    if not preferred_lang:
+        raise UnableToDetermineRequiredLang()
+
+    value = {preferred_lang.name: value}
+    executor = commands.prepare_for_write[Context, Text, type(backend), dict]
+    result = executor(context, dtype, backend, value)
+    return result
 
 
 @prepare.register(Context, Backend, Property)
@@ -223,18 +295,33 @@ def simple_data_check(
         simple_data_check(context, data, prop.dtype, prop, prop.dtype.backend, v)
 
 
-@commands.simple_data_check.register(Context, DataItem, Array, Property, Backend, list)
+@commands.simple_data_check.register(Context, DataItem, Object, Property, Backend, dict)
 def simple_data_check(
     context: Context,
     data: DataItem,
-    dtype: Array,
+    dtype: Object,
     prop: Property,
     backend: Backend,
-    value: list,
+    value: Dict[str, Any],
 ) -> None:
-    dtype = dtype.items.dtype
-    for v in value:
-        simple_data_check(context, data, dtype, prop, dtype.backend, v)
+    for prop in dtype.properties.values():
+        v = value.get(prop.name, NA)
+        simple_data_check(context, data, prop.dtype, prop, prop.dtype.backend, v)
+
+
+@commands.simple_data_check.register(Context, DataItem, Text, Property, Backend, dict)
+def simple_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: Text,
+    prop: Property,
+    backend: Backend,
+    value: dict,
+) -> None:
+    langs = dtype.langs
+    for lang, val in value.items():
+        if lang not in langs:
+            raise LangNotDeclared(dtype, lang=lang)
 
 
 @commands.simple_data_check.register(Context, DataItem, ExternalRef, Property, Backend, dict)
@@ -290,6 +377,17 @@ def simple_data_check(
         raise exceptions.NotImplementedFeature(prop, feature="Ability to indirectly modify base parameters")
 
 
+@commands.simple_data_check.register(Context, DataItem, BackRef, Property, Backend, object)
+def simple_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: BackRef,
+    prop: Property,
+    backend: Backend,
+    value: object,
+) -> None:
+    if value is not NA:
+        raise exceptions.CannotModifyBackRefProp(dtype)
 
 
 @commands.complex_data_check.register(Context, DataItem, Model, Backend)
@@ -481,7 +579,7 @@ def prepare_data_for_response(
             prop_names,
             value,
             select,
-            get_model_reserved_props(action),
+            get_model_reserved_props(action, model),
         )
     }
 
@@ -593,7 +691,7 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    assert isinstance(value, (str, int, float, bool, type(None))), (
+    assert isinstance(value, (str, int, float, bool, type(None), list, dict)), (
         f"prepare_dtype_for_response must return only primitive, json "
         f"serializable types, {type(value)} is not a primitive data type, "
         f"model={dtype.prop.model!r}, dtype={dtype!r}"
@@ -731,6 +829,34 @@ def prepare_dtype_for_response(
     return base64.b64encode(value).decode('ascii')
 
 
+@commands.prepare_dtype_for_response.register(Context, Format, Geometry, shapely.geometry.base.BaseGeometry)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: Geometry,
+    value: shapely.geometry.base.BaseGeometry,
+    data: Dict[str, Any],
+    *,
+    action: Action,
+    select: dict = None,
+):
+    return value.wkt
+
+
+@commands.prepare_dtype_for_response.register(Context, Format, PageType, list)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: PageType,
+    value: list,
+    data: Dict[str, Any],
+    *,
+    action: Action,
+    select: dict = None,
+):
+    return encode_page_values(value).decode('ascii')
+
+
 @commands.prepare_dtype_for_response.register(Context, Format, Ref, (dict, type(None)))
 def prepare_dtype_for_response(
     context: Context,
@@ -742,8 +868,8 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    if value is None:
-        value = {'_id': None}
+    if value is None or all(val is None for val in value.values()):
+        return None
 
     if select and select != {'*': {}}:
         names = get_select_prop_names(
@@ -806,8 +932,8 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    if value is None:
-        return {}
+    if value is None or all(val is None for val in value.values()):
+        return None
 
     if select and select != {'*': {}}:
         names = get_select_prop_names(
@@ -923,6 +1049,20 @@ def prepare_dtype_for_response(
         action,
         select,
     )
+
+
+@commands.prepare_dtype_for_response.register(Context, Format, DateTime, datetime.datetime)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: DateTime,
+    value: datetime.datetime,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    return value.isoformat()
 
 
 def _prepare_array_for_response(
@@ -1069,6 +1209,131 @@ def prepare_dtype_for_response(
                 })
         return data
     return {}
+
+
+@commands.prepare_dtype_for_response.register(Context, Format, ArrayBackRef, (list, tuple))
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: ArrayBackRef,
+    rows: Iterable,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+) -> list:
+    return_values = []
+    for value in rows:
+        if value is None or all(val is None for val in value.values()):
+            continue
+
+        if select and select != {'*': {}}:
+            names = get_select_prop_names(
+                context,
+                dtype,
+                dtype.model.properties,
+                action,
+                select,
+                reserved=['_id'],
+            )
+        else:
+            names = value.keys()
+
+        data = {
+            prop.name: commands.prepare_dtype_for_response(
+                context,
+                fmt,
+                prop.dtype,
+                val,
+                data=data,
+                action=action,
+                select=sel,
+            )
+            for prop, val, sel in select_props(
+                dtype.model,
+                names,
+                dtype.model.properties,
+                value,
+                select,
+            )
+        }
+        return_values.append(data)
+    return return_values
+
+
+@commands.prepare_dtype_for_response.register(Context, Format, ArrayBackRef, type(None))
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: ArrayBackRef,
+    value: type(None),
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    return []
+
+
+@commands.prepare_dtype_for_response.register(Context, Format, BackRef, (dict, type(None)))
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: BackRef,
+    value: Optional[Dict[str, Any]],
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    if value is None or all(val is None for val in value.values()):
+        return None
+
+    if select and select != {'*': {}}:
+        names = get_select_prop_names(
+            context,
+            dtype,
+            dtype.model.properties,
+            action,
+            select,
+            reserved=['_id'],
+        )
+    else:
+        names = value.keys()
+
+    data = {
+        prop.name: commands.prepare_dtype_for_response(
+            context,
+            fmt,
+            prop.dtype,
+            val,
+            data=data,
+            action=action,
+            select=sel,
+        )
+        for prop, val, sel in select_props(
+            dtype.model,
+            names,
+            dtype.model.properties,
+            value,
+            select,
+        )
+    }
+
+    return data
+
+
+@commands.prepare_dtype_for_response.register(Context, Format, BackRef, str)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: BackRef,
+    value: str,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    return {'_id': value}
 
 
 def get_property_base_model(model: Model, name: str):
@@ -1255,6 +1520,184 @@ def cast_backend_to_python(
     backend: Backend,
     data: Any,
 ) -> Any:
+    if _check_if_nan(data):
+        return None
+    return data
+
+
+@commands.cast_backend_to_python.register(Context, DateTime, Backend, object)
+def cast_backend_to_python(
+    context: Context,
+    dtype: DateTime,
+    backend: Backend,
+    data: Any,
+) -> Any:
+    if _check_if_nan(data):
+        return None
+    if isinstance(data, str):
+        try:
+            return dateutil.parser.isoparse(data)
+        except:
+            return data
+    return data
+
+
+@commands.cast_backend_to_python.register(Context, Time, Backend, object)
+def cast_backend_to_python(
+    context: Context,
+    dtype: Time,
+    backend: Backend,
+    data: Any,
+) -> Any:
+    if _check_if_nan(data):
+        return None
+    if isinstance(data, str) and ":" in data:
+        try:
+            isoparser = dateutil.parser.isoparser()
+            return isoparser.parse_isotime(data)
+        except:
+            return data
+    return data
+
+
+@commands.cast_backend_to_python.register(Context, Date, Backend, object)
+def cast_backend_to_python(
+    context: Context,
+    dtype: Date,
+    backend: Backend,
+    data: Any,
+) -> Any:
+    if _check_if_nan(data):
+        return None
+    if isinstance(data, str):
+        try:
+            isoparser = dateutil.parser.isoparser()
+            return isoparser.parse_isodate(data)
+        except:
+            return data
+    return data
+
+
+@commands.cast_backend_to_python.register(Context, Integer, Backend, object)
+def cast_backend_to_python(
+    context: Context,
+    dtype: Integer,
+    backend: Backend,
+    data: Any,
+) -> Any:
+    if _check_if_nan(data):
+        return None
+    if isinstance(data, str):
+        try:
+            new = data
+            if "," in data and "." not in data and data.count(",") == 1:
+                new = data.replace(",", ".")
+            elif "," in data:
+                new = data.replace(",", "")
+            return int(new)
+        except:
+            return data
+    return data
+
+
+@commands.cast_backend_to_python.register(Context, Number, Backend, object)
+def cast_backend_to_python(
+    context: Context,
+    dtype: Number,
+    backend: Backend,
+    data: Any,
+) -> Any:
+    if _check_if_nan(data):
+        return None
+    if isinstance(data, str):
+        try:
+            new = data
+            if "," in data and "." not in data and data.count(",") == 1:
+                new = data.replace(",", ".")
+            elif "," in data:
+                new = data.replace(",", "")
+            return float(new)
+        except:
+            return data
+    return data
+
+
+@commands.cast_backend_to_python.register(Context, Binary, Backend, str)
+def cast_backend_to_python(
+    context: Context,
+    dtype: Binary,
+    backend: Backend,
+    data: str,
+) -> Any:
+    if _check_if_nan(data):
+        return None
+    if isinstance(data, str):
+        try:
+            return base64.b64decode(data)
+        except Exception as e:
+            return data
+    return data
+
+
+@commands.cast_backend_to_python.register(Context, Boolean, Backend, str)
+def cast_backend_to_python(
+    context: Context,
+    dtype: Boolean,
+    backend: Backend,
+    data: str,
+) -> Any:
+    if _check_if_nan(data):
+        return None
+    if isinstance(data, str):
+        try:
+            return asbool(data)
+        except:
+            return data
+    return data
+
+
+@commands.cast_backend_to_python.register(Context, Geometry, Backend, str)
+def cast_backend_to_python(
+    context: Context,
+    dtype: Geometry,
+    backend: Backend,
+    data: str,
+) -> Any:
+    if _check_if_nan(data):
+        return None
+    if isinstance(data, str):
+        try:
+            return wkt.loads(data)
+        except:
+            return data
+    return data
+
+
+@commands.cast_backend_to_python.register(Context, Ref, Backend, object)
+def cast_backend_to_python(
+    context: Context,
+    dtype: Ref,
+    backend: Backend,
+    data: Dict[str, Any],
+) -> Any:
+    if data:
+        result = {}
+        for key, value in data.items():
+            converted = value
+            new_type = None
+            for item in dtype.refprops:
+                if item.name == key:
+                    new_type = item.dtype
+                    break
+            if new_type:
+                converted = commands.cast_backend_to_python(
+                    context,
+                    new_type,
+                    backend,
+                    value
+                )
+            result[key] = converted
+        return result
     return data
 
 
@@ -1265,15 +1708,17 @@ def cast_backend_to_python(
     backend: Backend,
     data: Dict[str, Any],
 ) -> Dict[str, Any]:
-    return {
-        k: commands.cast_backend_to_python(
-            context,
-            dtype.properties[k].dtype,
-            backend,
-            v,
-        ) if k in dtype.properties else v
-        for k, v in data.items()
-    }
+    if data:
+        return {
+            k: commands.cast_backend_to_python(
+                context,
+                dtype.properties[k].dtype,
+                backend,
+                v,
+            ) if k in dtype.properties else v
+            for k, v in data.items()
+        }
+    return data
 
 
 @commands.cast_backend_to_python.register(Context, Array, Backend, list)
@@ -1283,22 +1728,21 @@ def cast_backend_to_python(
     backend: Backend,
     data: List[Any],
 ) -> List[Any]:
-    return [
-        commands.cast_backend_to_python(
-            context,
-            dtype.items.dtype,
-            backend,
-            v,
-        )
-        for v in data
-    ]
+    if data:
+        return [
+            commands.cast_backend_to_python(
+                context,
+                dtype.items.dtype,
+                backend,
+                v,
+            )
+            for v in data
+        ]
+    return data
 
 
-@commands.cast_backend_to_python.register(Context, Binary, Backend, str)
-def cast_backend_to_python(
-    context: Context,
-    dtype: Binary,
-    backend: Backend,
-    data: str,
-) -> bytes:
-    return base64.b64decode(data)
+def _check_if_nan(value: Any) -> bool:
+    # Check for nan values, IEEE 754 defines that comparing with nan always returns false
+    if value != value:
+        return True
+    return False

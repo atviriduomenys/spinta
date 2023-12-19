@@ -15,7 +15,9 @@ from typing import NamedTuple
 from ruamel.yaml import YAML
 import pkg_resources as pres
 
+from spinta import spyna
 from spinta.components import Mode
+from spinta.core.ufuncs import asttoexpr
 from spinta.utils.imports import importstr
 from spinta.utils.schema import NA
 
@@ -546,12 +548,14 @@ def parse_resource_args(
 
 def _parse_manifest_path(
     rc: RawConfig,
-    path: Union[str, ManifestPath],
+    path: Union[str, ManifestPath, ResourceTuple],
 ) -> ManifestPath:
     from spinta.manifests.components import ManifestPath
     if isinstance(path, ManifestPath):
         return path
     from spinta.manifests.helpers import detect_manifest_from_path
+    if isinstance(path, ResourceTuple):
+        path = path.external
     Manifest_ = detect_manifest_from_path(rc, path)
     return ManifestPath(type=Manifest_.type, path=path)
 
@@ -579,9 +583,10 @@ def _get_resource_config(
 
 def configure_rc(
     rc: RawConfig,
-    manifests: List[Union[str, ManifestPath]] = None,
+    manifests: List[Union[str, ManifestPath, ResourceTuple]] = None,
     *,
     mode: Mode = Mode.internal,
+    check_names: Optional[bool] = None,
     backend: str = None,
     resources: List[ResourceTuple] = None,
 ) -> RawConfig:
@@ -624,6 +629,10 @@ def configure_rc(
                     'path': manifest.path,
                     'file': manifest.file,
                 }
+                if isinstance(path, ResourceTuple) and path.prepare:
+                    parsed = spyna.parse(path.prepare)
+                    converted = asttoexpr(parsed)
+                    config[f'manifests.{manifest_name}']['prepare'] = converted
                 sync.append(manifest_name)
 
         if resources:
@@ -645,6 +654,9 @@ def configure_rc(
             'manifest': inline,
         }
         config['manifest'] = 'default'
+
+        if check_names is not None:
+            config['check.names'] = check_names
 
     if config:
         rc = rc.fork(config)

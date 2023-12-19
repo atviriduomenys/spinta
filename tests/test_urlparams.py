@@ -1,7 +1,10 @@
+import pytest
+
 from spinta.components import Context
 from spinta.components import UrlParams
 from spinta.components import Version
 from spinta.commands import prepare
+from spinta.exceptions import InvalidValue
 from spinta.testing.request import make_get_request
 
 
@@ -22,3 +25,11 @@ def test_format(context):
     assert _parse(context, 'format(csv,width(42))').formatparams == {
         'width': 42,
     }
+
+
+def test_limit(context):
+    assert _parse(context, 'limit(1)').limit == 1
+    with pytest.raises(InvalidValue):
+        _parse(context, 'limit(0)')
+    with pytest.raises(InvalidValue):
+        _parse(context, 'limit(-1)')

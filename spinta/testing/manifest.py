@@ -51,7 +51,6 @@ def load_manifest_get_context(
         manifests = [manifest]
     else:
         manifests = manifest
-
     rc = configure_rc(rc, manifests, **kwargs)
     context = create_test_context(rc, request)
     store = load_store(context, verbose=False, ensure_config_dir=False)
