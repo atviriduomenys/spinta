@@ -31,16 +31,6 @@ def get_osm_link(value: WKBElement, srid: Optional[int]) -> Optional[str]:
     centroid = shape.centroid
     lat, lon = centroid.x, centroid.y
     params = urlencode({'mlat': lat, 'mlon': lon})
-    if srid and srid != WGS84:
-        if 'bbox' in transformer.to_json_dict():
-            south_lat = transformer.to_json_dict().get('bbox')['south_latitude']
-            north_lat = transformer.to_json_dict().get('bbox')['north_latitude']
-            east_lon = transformer.to_json_dict().get('bbox')['east_longitude']
-            west_lon = transformer.to_json_dict().get('bbox')['west_longitude']
-            if not south_lat < lat < north_lat:
-                raise LatitudeOutOfRange
-            if not west_lon < lon < east_lon:
-                raise LongitudeOutOfRange
 
     return f'https://www.openstreetmap.org/?{params}#map=19/{lat}/{lon}'
 

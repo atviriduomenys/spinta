@@ -312,6 +312,10 @@ class LongitudeOutOfRange(BaseError):
     template = "Longitude coordinates is out of range"
 
 
+class CoordinatesOutOfRange(UserError):
+    template = 'Given coordinates: {given!r} ar not within the {srid!r} available bounds: {bounds} (west, south, east, north).'
+
+
 class ManifestFileDoesNotExist(BaseError):
     template = "Manifest file {path} does not exist."
 

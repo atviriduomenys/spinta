@@ -13,6 +13,7 @@ from typing import Optional
 
 import shapely.geometry.base
 from shapely import wkt
+from pyproj.crs import CRS
 
 from spinta import commands
 from spinta import exceptions
@@ -37,7 +38,7 @@ from spinta.components import Namespace
 from spinta.components import Node
 from spinta.components import Property
 from spinta.exceptions import ConflictingValue, RequiredProperty, LangNotDeclared, TooManyLangsGiven, \
-    UnableToDetermineRequiredLang
+    UnableToDetermineRequiredLang, CoordinatesOutOfRange
 from spinta.exceptions import NoItemRevision
 from spinta.formats.components import Format
 from spinta.types.datatype import Array, ExternalRef, Denorm, Inherit, PageType, BackRef, ArrayBackRef, Integer, Boolean
@@ -54,6 +55,7 @@ from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.types.datatype import String
 from spinta.types.geometry.components import Geometry
+from spinta.types.geometry.constants import WGS84
 from spinta.utils.config import asbool
 from spinta.utils.data import take
 from spinta.utils.encoding import encode_page_values
@@ -388,6 +390,31 @@ def simple_data_check(
 ) -> None:
     if value is not NA:
         raise exceptions.CannotModifyBackRefProp(dtype)
+
+
+@commands.simple_data_check.register(Context, DataItem, Geometry, Property, Backend, object)
+def simple_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: Geometry,
+    prop: Property,
+    backend: Backend,
+    value: object,
+) -> None:
+    if value:
+        shape = shapely.wkt.loads(value)
+
+        srid = dtype.srid or WGS84
+        crs = CRS.from_user_input(srid)
+        area = crs.area_of_use
+        bounding_area = shapely.geometry.box(
+            minx=area.west,
+            maxx=area.east,
+            miny=area.south,
+            maxy=area.north
+        )
+        if not bounding_area.contains(shape):
+            raise CoordinatesOutOfRange(dtype, given=value, srid=crs, bounds=crs.area_of_use.bounds)
 
 
 @commands.complex_data_check.register(Context, DataItem, Model, Backend)
