@@ -11,7 +11,6 @@ from shapely.ops import transform
 from shapely.geometry import Point
 
 from spinta.types.geometry.constants import WGS84
-from spinta.exceptions import LatitudeOutOfRange, LongitudeOutOfRange
 
 
 def get_osm_link(value: WKBElement, srid: Optional[int]) -> Optional[str]:

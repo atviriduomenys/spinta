@@ -304,14 +304,6 @@ class InvalidManifestFile(BaseError):
     template = "Error while parsing {eid!r} manifest entry: {error}"
 
 
-class LatitudeOutOfRange(BaseError):
-    template = "Latitude coordinates is out of range"
-
-
-class LongitudeOutOfRange(BaseError):
-    template = "Longitude coordinates is out of range"
-
-
 class CoordinatesOutOfRange(UserError):
     template = 'Given coordinates: {given!r} ar not within the {srid!r} available bounds: {bounds} (west, south, east, north).'
 
