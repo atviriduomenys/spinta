@@ -268,7 +268,6 @@ def load(
         [prop.model, prop.model.ns],
         prop.model.ns.parents(),
     ))
-    prop.given.name = data.get("given_name", None)
     load_access_param(prop, prop.access, parents)
     prop.enums = load_enums(context, [prop] + parents, prop.enums)
     prop.lang = load_lang_data(context, prop.lang)
@@ -317,6 +316,7 @@ def load(
     else:
         prop.given.enum = unit
     prop.given.explicit = prop.explicitly_given if prop.explicitly_given is not None else True
+    prop.given.name = prop.given_name
     return prop
 
 
