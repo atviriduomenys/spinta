@@ -392,17 +392,20 @@ def simple_data_check(
         raise exceptions.CannotModifyBackRefProp(dtype)
 
 
-@commands.simple_data_check.register(Context, DataItem, Geometry, Property, Backend, object)
+@commands.simple_data_check.register(Context, DataItem, Geometry, Property, Backend, str)
 def simple_data_check(
     context: Context,
     data: DataItem,
     dtype: Geometry,
     prop: Property,
     backend: Backend,
-    value: object,
+    value: str,
 ) -> None:
     if value:
-        shape = shapely.wkt.loads(value)
+        if ';' in value:
+            shape = shapely.wkt.loads(value.split(';', 1)[1])
+        else:
+            shape = shapely.wkt.loads(value)
 
         srid = dtype.srid or WGS84
         crs = CRS.from_user_input(srid)

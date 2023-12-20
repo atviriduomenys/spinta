@@ -138,7 +138,7 @@ def test_geometry_params_srid(
     # Write data
     resp = app.post(f'/{model}', json={
         'name': "Vilnius",
-        'coordinates': 'SRID=3346;POINT(582710 6061887)',
+        'coordinates': 'SRID=3346;POINT(19.05 55)',
     })
     assert resp.status_code == 201
 
@@ -316,7 +316,7 @@ def test_geometry_params_with_srid_without_srid(
     ])
 
     resp = app.post(f'/{model}', json={
-        'point': 'POINT(582710 6061887)',
+        'point': 'POINT(19.05 54)',
     })
     assert resp.status_code == 201
 
@@ -333,7 +333,7 @@ def test_geometry_params_with_srid_without_srid(
     ])
 
     resp = app.post(f'/{model}', json={
-        'point': 'POINT(582710 6061887)',
+        'point': 'POINT(0 0)',
     })
     assert resp.status_code == 201
 
