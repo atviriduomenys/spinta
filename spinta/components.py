@@ -497,11 +497,13 @@ class Page:
     is_enabled: bool
     by: Dict[str, PageBy]
     size: int
+    filter_only: bool
 
     def __init__(self):
         self.by = {}
         self.size = None
         self.is_enabled = True
+        self.filter_only = False
 
     def __deepcopy__(self, memo):
         cls = self.__class__
@@ -509,6 +511,7 @@ class Page:
         result.is_enabled = self.is_enabled
         result.size = self.size
         result.by = {}
+        result.filter_only = self.filter_only
         for by, page_by in self.by.items():
             result.by[by] = PageBy(page_by.prop, page_by.value)
         return result
@@ -651,6 +654,7 @@ class PropertyGiven:
     enum: str = None
     unit: str = None
     name: str = None
+    explicit: bool = True
     prepare: List[PrepareGiven] = []
 
 
@@ -704,6 +708,7 @@ class Property(Node):
         'lang': {'type': 'object'},
         'comments': {},
         'given_name': {'type': 'string'},
+        'explicitly_given': {'type': 'boolean'},
         'prepare_given': {'required': False},
     }
 
@@ -842,6 +847,9 @@ class UrlParams:
     page: Optional[ParamsPage] = None
 
     expand: Optional[List[str]] = None
+
+    accept_langs: Optional[List[str]] = None
+    content_langs: Optional[List[str]] = None
 
     def changed_parsetree(self, change):
         ptree = {x['name']: x['args'] for x in (self.parsetree or [])}
@@ -1010,6 +1018,8 @@ class Config:
     AccessLog: Type[AccessLog]
     exporters: Dict[str, Format]
     push_page_size: int = None
+    languages: List[str]
+    check_names: bool = False
 
     def __init__(self):
         self.commands = _CommandsConfig()

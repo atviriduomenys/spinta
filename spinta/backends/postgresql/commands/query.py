@@ -19,11 +19,12 @@ from spinta.core.ufuncs import ufunc
 from spinta.core.ufuncs import Bind, Negative as Negative_
 from spinta.core.ufuncs import Expr
 from spinta.datasets.enums import Level
-from spinta.exceptions import EmptyStringSearch, PropertyNotFound
+from spinta.exceptions import EmptyStringSearch, PropertyNotFound, LangNotDeclared
 from spinta.exceptions import UnknownMethod
 from spinta.exceptions import FieldNotInResource
-from spinta.components import Model, Property, Action, Page
-from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, merge_with_page_sort, merge_with_page_limit, merge_with_page_selected_list
+from spinta.components import Model, Property, Action, Page, UrlParams
+from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, merge_with_page_sort, \
+    merge_with_page_limit, merge_with_page_selected_list, QueryParams
 from spinta.utils.data import take
 from spinta.types.datatype import DataType, ExternalRef, Inherit, BackRef, Time, ArrayBackRef
 from spinta.types.datatype import Array
@@ -36,6 +37,7 @@ from spinta.types.datatype import Number
 from spinta.types.datatype import DateTime
 from spinta.types.datatype import Date
 from spinta.types.datatype import PrimaryKey
+from spinta.types.text.components import Text
 from spinta.backends.constants import TableType
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.components import BackendFeatures
@@ -44,8 +46,8 @@ from spinta.backends.postgresql.components import BackendFeatures
 class PgQueryBuilder(BaseQueryBuilder):
     backend: PostgreSQL
 
-    def init(self, backend: PostgreSQL, table: sa.Table):
-        return self(
+    def init(self, backend: PostgreSQL, table: sa.Table, params: QueryParams = None):
+        result = self(
             backend=backend,
             table=table,
             # TODO: Select list must be taken from params.select.
@@ -57,8 +59,10 @@ class PgQueryBuilder(BaseQueryBuilder):
             offset=None,
             aggregate=False,
             page=QueryPage(),
-            group_by=[]
+            group_by=[],
         )
+        result.init_query_params(params)
+        return result
 
     def build(self, where):
         if self.select is None:
@@ -83,8 +87,8 @@ class PgQueryBuilder(BaseQueryBuilder):
                 for item in items:
                     if item is not None and item not in select:
                         select.append(item)
-        qry = sa.select(select)
 
+        qry = sa.select(select)
         qry = qry.select_from(self.from_)
 
         if where is not None:
@@ -246,6 +250,15 @@ class PgQueryBuilder(BaseQueryBuilder):
         return self.joins[base_model.name]
 
 
+def _gather_selected_properties(env: PgQueryBuilder):
+    result = []
+    if env.select:
+        for selected in env.select.values():
+            if selected and selected.prop:
+                result.append(selected.prop)
+    return result
+
+
 class ForeignProperty:
 
     def __init__(
@@ -389,6 +402,15 @@ def getattr_(env, dtype, attr):
     return dtype
 
 
+@ufunc.resolver(PgQueryBuilder, Text, Bind, name='getattr')
+def getattr_(env, dtype, bind):
+    if dtype.prop.name in env.model.properties:
+        prop = env.model.properties[dtype.prop.name]
+        if bind.name in prop.dtype.langs:
+            return prop.dtype.langs[bind.name].dtype
+        raise LangNotDeclared(dtype, lang=bind.name)
+
+
 @ufunc.resolver(PgQueryBuilder, Expr)
 def select(env, expr):
     keys = [str(k) for k in expr.args]
@@ -462,6 +484,26 @@ def select(env, dtype):
     return Selected(column, dtype.prop)
 
 
+@ufunc.resolver(PgQueryBuilder, String)
+def select(env, dtype):
+    env.call('validate_dtype_for_select', dtype, _gather_selected_properties(env))
+    if dtype.prop.list is None:
+        column = env.backend.get_column(env.table, dtype.prop)
+    else:
+        column = env.backend.get_column(env.table, dtype.prop.list)
+    return Selected(column, dtype.prop)
+
+
+@ufunc.resolver(PgQueryBuilder, Text)
+def select(env, dtype):
+    env.call('validate_dtype_for_select', dtype, _gather_selected_properties(env))
+    if dtype.prop.list is None:
+        column = _get_column_with_extra(env, dtype.prop)
+    else:
+        column = env.backend.get_column(env.table, dtype.prop.list)
+    return Selected(column, dtype.prop)
+
+
 @ufunc.resolver(PgQueryBuilder, Object)
 def select(env, dtype):
     columns = []
@@ -510,7 +552,7 @@ def select(env, dtype, leaf):
 @ufunc.resolver(PgQueryBuilder, Ref)
 def select(env, dtype):
     uri = dtype.model.uri_prop
-    if env.prioritize_uri and uri is not None:
+    if env.query_params.prioritize_uri and uri is not None:
         fpr = ForeignProperty(None, dtype.prop, dtype.model.properties['_id'])
         table = env.get_joined_table(fpr)
         column = table.c[uri.place]
@@ -817,6 +859,13 @@ def eq(env, dtype, value):
     return _prepare_condition(env, dtype.prop, cond)
 
 
+@ufunc.resolver(PgQueryBuilder, Text, (str, Bind, type(None)))
+def eq(env, dtype, value):
+    column = _get_column_with_extra(env, dtype.prop)
+    cond = _sa_compare('eq', column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
+
 @ufunc.resolver(PgQueryBuilder, ForeignProperty, DataType, type(None))
 def eq(
     env: PgQueryBuilder,
@@ -930,13 +979,19 @@ def lower(env, recurse):
 def compare(env, op, fn, value):
     if op in ('startswith', 'contains'):
         _ensure_non_empty(op, value)
-    column = env.backend.get_column(env.table, fn.dtype.prop)
+    column = _get_column_with_extra(env, fn.dtype.prop)
     column = sa.func.lower(column)
     cond = _sa_compare(op, column, value)
     return _prepare_condition(env, fn.dtype.prop, cond)
 
 
 def _sa_compare(op, column, value):
+    # Convert JSONB value from -> to ->> with astext
+    if isinstance(column.type, sa.JSON):
+        if not isinstance(column, sa.Column):
+            column = column.element
+        column = column.astext
+
     if op == 'eq':
         return column == value
 
@@ -965,6 +1020,7 @@ def _sa_compare(op, column, value):
 
 
 def _prepare_condition(env: PgQueryBuilder, prop: Property, cond):
+
     if prop.list is None:
         return cond
 
@@ -1006,6 +1062,12 @@ def ne(
 @ufunc.resolver(PgQueryBuilder, String, str)
 def ne(env, dtype, value):
     column = env.backend.get_column(env.table, dtype.prop)
+    return _ne_compare(env, dtype.prop, column, value)
+
+
+@ufunc.resolver(PgQueryBuilder, Text, str)
+def ne(env, dtype, value):
+    column = _get_column_with_extra(env, dtype.prop)
     return _ne_compare(env, dtype.prop, column, value)
 
 
@@ -1092,7 +1154,7 @@ def compare(env, op, dtype, value):
 
 @ufunc.resolver(PgQueryBuilder, Lower, str)
 def ne(env, fn, value):
-    column = env.backend.get_column(env.table, fn.dtype.prop)
+    column = _get_column_with_extra(env, fn.dtype.prop)
     column = sa.func.lower(column)
     return _ne_compare(env, fn.dtype.prop, column, value)
 
@@ -1208,6 +1270,11 @@ def sort(env, field):
     return env.call('asc', prop.dtype)
 
 
+@ufunc.resolver(PgQueryBuilder, DataType)
+def sort(env, dtype):
+    return env.call('asc', dtype)
+
+
 @ufunc.resolver(PgQueryBuilder, Negative_)
 def sort(env, field):
     prop = _get_from_flatprops(env.model, field.name)
@@ -1270,8 +1337,14 @@ def sort(env, name, dtype: Array):
     return env.call(name, dtype.items.dtype)
 
 
+def _get_column_with_extra(env: PgQueryBuilder, prop: Property):
+    default_langs = env.context.get('config').languages
+    column = env.backend.get_column(env.table, prop, langs=env.query_params.lang_priority, push=env.query_params.push, default_langs=default_langs)
+    return column
+
+
 def _get_sort_column(env: PgQueryBuilder, prop: Property):
-    column = env.backend.get_column(env.table, prop)
+    column = _get_column_with_extra(env, prop)
 
     if prop.list is None:
         return column

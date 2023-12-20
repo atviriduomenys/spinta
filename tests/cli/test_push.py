@@ -1,13 +1,14 @@
 import pytest
 import sqlalchemy as sa
+import sqlalchemy_utils as su
 
 from spinta.exceptions import UnauthorizedKeymapSync
 from spinta.manifests.tabular.helpers import striptable
 from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
-from spinta.testing.client import create_client, create_rc, configure_remote_server
+from spinta.testing.client import create_client, create_rc, configure_remote_server, create_test_client
 from spinta.testing.data import listdata
-from spinta.testing.datasets import create_sqlite_db
+from spinta.testing.datasets import create_sqlite_db, Sqlite
 from spinta.testing.tabular import create_tabular_manifest
 
 
@@ -33,6 +34,33 @@ def base_geodb():
         ])
         db.write('city', [
             {'id': 2, 'name': 'Ryga', 'code': 'lv', 'location': 'Latvia'},
+        ])
+        yield db
+
+
+@pytest.fixture(scope='function')
+def text_geodb():
+    with create_sqlite_db({
+        'city': [
+            sa.Column('id', sa.Integer, primary_key=True),
+            sa.Column('name', sa.Text),
+            sa.Column('name_lt', sa.Text),
+            sa.Column('name_pl', sa.Text),
+            sa.Column('country', sa.Integer),
+        ],
+        'country': [
+            sa.Column('id', sa.Integer, primary_key=True),
+            sa.Column('name_lt', sa.Text),
+            sa.Column('name_en', sa.Text),
+        ],
+    }) as db:
+        db.write('country', [
+            {'name_lt': 'Lietuva', 'name_en': None, 'id': 1},
+            {'name_lt': None, 'name_en': 'Latvia', 'id': 2},
+            {'name_lt': 'Lenkija', 'name_en': 'Poland', 'id': 3},
+        ])
+        db.write('city', [
+            {'id': 1, 'name': 'VLN', 'name_lt': 'Vilnius', 'name_pl': 'Vilna', 'country': 1},
         ])
         yield db
 
@@ -976,6 +1004,7 @@ def test_push_sync(
     assert listdata(resp_city, '_id', 'id', 'name', 'country')[0] == (city_id, 1, 'Vilnius', {'_id': country_id})
 
 
+@pytest.mark.skip("Private now sends warning that model has been skipped syncing rather throwing exception")
 def test_push_sync_to_private_error(
     postgresql,
     rc: RawConfig,
@@ -1063,3 +1092,162 @@ def test_push_sync_private_no_error(
         '--no-progress-bar',
     ], fail=False)
     assert result.exception is None
+
+
+def test_push_with_text(
+    postgresql,
+    rc,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    request,
+    text_geodb
+):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    d | r | b | m | property | type     | ref      | source      | level | access
+    textnormal               |          |          |             |       |
+      | db                   | sql      |          |             |       |
+      |   |   | Country      |          | id       | country     | 4     |
+      |   |   |   | id       | integer  |          | id          | 4     | open
+      |   |   |   | name@lt  | string   |          | name_lt     | 4     | open
+      |   |   |   | name@en  | string   |          | name_en     | 4     | open
+    '''))
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, text_geodb)
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    result = cli.invoke(localrc, [
+        'push',
+        '-d', 'textnormal',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--no-progress-bar',
+    ])
+
+    assert result.exit_code == 0
+    remote.app.authmodel('textnormal/Country', ['getall', 'search'])
+    countries = remote.app.get('textnormal/Country?select(id,name@lt,name@en)')
+    assert countries.status_code == 200
+    assert listdata(countries, 'id', 'name', sort=True) == [
+        (1, {'en': None, 'lt': 'Lietuva'}),
+        (2, {'en': 'Latvia', 'lt': None}),
+        (3, {'en': 'Poland', 'lt': 'Lenkija'})
+    ]
+
+
+def test_push_with_text_unknown(
+    postgresql,
+    rc,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    request,
+    text_geodb
+):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    d | r | b | m | property | type     | ref      | source      | level | access
+    textunknown              |          |          |             |       |
+      | db                   | sql      |          |             |       |
+      |   |   | City         |          | id       | city        | 4     |
+      |   |   |   | id       | integer  |          | id          | 4     | open
+      |   |   |   | name@lt  | string   |          | name_lt     | 4     | open
+      |   |   |   | name@pl  | string   |          | name_pl     | 4     | open
+      |   |   |   | name     | text     |          | name        | 2     | open
+    '''))
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, text_geodb)
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    result = cli.invoke(localrc, [
+        'push',
+        '-d', 'textunknown',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--no-progress-bar',
+    ])
+
+    assert result.exit_code == 0
+    remote.app.authmodel('textunknown/City', ['getall', 'search'])
+    countries = remote.app.get('textunknown/City?select(id,name@lt,name@pl,name@C)')
+    assert countries.status_code == 200
+    assert listdata(countries, 'id', 'name', sort=True) == [
+        (1, {'C': 'VLN', 'lt': 'Vilnius', 'pl': 'Vilna'}),
+    ]
+
+
+def test_push_postgresql(
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    request,
+    geodb,
+):
+    db = f'{postgresql}/push_db'
+    if su.database_exists(db):
+        su.drop_database(db)
+    su.create_database(db)
+    engine = sa.create_engine(db)
+    with engine.connect() as conn:
+        meta = sa.MetaData(conn)
+        table = sa.Table(
+            'cities',
+            meta,
+            sa.Column('id', sa.Integer),
+            sa.Column('name', sa.Text)
+        )
+        meta.create_all()
+        conn.execute(
+            table.insert((0, "Test"))
+        )
+        conn.execute(
+            table.insert((1, "Test1"))
+        )
+    table = f'''
+        d | r | b | m | property | type    | ref                             | source         | level | access
+        postgrespush              |         |                                |                |       |
+          | db                   | sql     |                                 | {db}           |       |
+          |   |   | City         |         | id                              | cities         | 4     |
+          |   |   |   | id       | integer |                                 | id             | 4     | open
+          |   |   |   | name     | string  |                                 | name           | 2     | open
+        '''
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable(table))
+
+    # Configure local server with SQL backend
+    tmp = Sqlite(db)
+    localrc = create_rc(rc, tmp_path, tmp)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    result = cli.invoke(localrc, [
+        'push',
+        '-o', remote.url,
+        '--credentials', remote.credsfile
+    ], fail=False)
+    assert result.exit_code == 0
+    assert 'PUSH: 100%|##########| 2/2' in result.stderr
+
+    result = cli.invoke(localrc, [
+        'push',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '-i'
+    ], fail=False)
+    assert result.exit_code == 0
+    assert 'PUSH: 100%|##########| 2/2' not in result.stderr
+    su.drop_database(db)

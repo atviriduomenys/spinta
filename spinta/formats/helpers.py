@@ -19,6 +19,7 @@ from spinta.types.datatype import DataType
 from spinta.types.datatype import Object
 from spinta.types.datatype import File
 from spinta.types.datatype import Ref
+from spinta.types.text.components import Text
 from spinta.utils.data import take
 
 
@@ -49,8 +50,8 @@ def _get_dtype_header(
         yield from _get_dtype_header(dtype.refprop.dtype, select, name)
 
     elif isinstance(dtype, File):
-        yield name + '._id'
-        yield name + '._content_type'
+        yield f'{name}._id'
+        yield f'{name}._content_type'
 
     elif isinstance(dtype, ExternalRef):
         if select is None or select == {'*': {}}:
@@ -78,6 +79,18 @@ def _get_dtype_header(
                 dtype.prop,
                 dtype.model.properties.keys(),
                 dtype.model.properties,
+                select,
+            ):
+                name_ = name + '.' + prop.name
+                yield from _get_dtype_header(prop.dtype, sel, name_)
+    elif isinstance(dtype, Text):
+        if select is None or select == {'*': {}}:
+            yield name
+        else:
+            for prop, sel in select_only_props(
+                dtype.prop,
+                dtype.langs.keys(),
+                dtype.langs,
                 select,
             ):
                 name_ = name + '.' + prop.name

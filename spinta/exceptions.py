@@ -228,6 +228,10 @@ class InvalidValue(UserError):
     template = "Invalid value."
 
 
+class InvalidPropertyType(UserError):
+    template = "Invalid property type, expected {expected}, got {type}.."
+
+
 class ValueNotInEnum(UserError):
     template = "Given value {value} is not defined in enum."
 
@@ -557,6 +561,9 @@ class RemoteClientScopesNotGiven(RemoteClientError):
         "{credentials} file."
     )
 
+class DupicateProperty(UserError):
+    template = "Duplicate property {name}."
+
 
 class RequiredProperty(UserError):
     template = "Property is required."
@@ -584,6 +591,32 @@ class CompositeUniqueConstraint(UserError):
 
 class SourceCannotBeList(BaseError):
     template = "Source can't be a list, use prepare instead."
+
+
+class InsufficientPermission(UserError):
+    status_code = 403
+    template = "You need to have {scope!r} in order to access this API endpoint."
+
+
+class InsufficientPermissionForUpdate(UserError):
+    status_code = 403
+    template = "You do not have a permission to update '{field}' field."
+
+
+class UnknownPropertyInRequest(UserError):
+    template = "Property '{property}' is not part of allowed properties: '{properties}'"
+
+
+class ClientWithNameAlreadyExists(UserError):
+    template = "Client with name '{client_name}' already exists."
+
+
+class ClientAlreadyExists(UserError):
+    template = "Client '{client_id}' already exists."
+
+
+class EmptyPassword(UserError):
+    template = "Client password cannot be empty."
 
 
 class UnknownRequestQuery(UserError):
@@ -678,3 +711,27 @@ class DataTypeCannotBeUsedForNesting(UserError):
 
 class NestedDataTypeMissmatch(UserError):
     template = "While nesting, {initial!r} type cannot be cast to {required!r} type."
+
+
+class LangNotDeclared(UserError):
+    template = "Language {lang!r} has not been declared."
+
+
+class TooManyLangsGiven(UserError):
+    template = "Too many languages given in 'content-language' header, expected only one, but were given {amount}."
+
+
+class UnableToDetermineRequiredLang(UserError):
+    template = "Unable to determine required language."
+
+
+class CannotSelectTextAndSpecifiedLang(UserError):
+    template = "Cannot select undisclosed language Text at the same time when disclosed language Text is selected."
+
+    
+class DuplicateRdfPrefixMissmatch(UserError):
+    template = "Currently system does not support prefix missmatch. Prefix {prefix!r} has {old_value!r} and {new_value!r} values given."
+
+
+class InvalidName(UserError):
+    template = 'Invalid {name!r} {type} code name.'

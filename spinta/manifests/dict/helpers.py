@@ -120,7 +120,8 @@ def read_schema(manifest_type: DictFormat, path: str):
                 }
                 if type_detector.array:
                     copied = deepcopy(converted_props[new_prop])
-                    converted_props[new_prop]['type'] = 'partial_array'
+                    converted_props[new_prop]['type'] = 'array'
+                    converted_props[new_prop]['explicitly_given'] = False
                     copied['given_name'] = f'{new_prop}[]'
                     converted_props[new_prop]['items'] = copied
 

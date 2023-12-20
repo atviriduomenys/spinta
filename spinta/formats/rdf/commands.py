@@ -14,11 +14,12 @@ from spinta import commands
 from spinta.backends.components import SelectTree
 from spinta.backends.helpers import get_model_reserved_props
 from spinta.backends.helpers import select_model_props
-from spinta.components import Action
+from spinta.components import Action, Namespace
 from spinta.components import Context
 from spinta.components import Model
 from spinta.components import UrlParams
 from spinta.dimensions.prefix.components import UriPrefix
+from spinta.exceptions import DuplicateRdfPrefixMissmatch
 from spinta.formats.components import Format
 from spinta.formats.html.helpers import get_model_link
 from spinta.formats.rdf.components import Rdf
@@ -29,6 +30,7 @@ from spinta.types.datatype import Date
 from spinta.types.datatype import Time
 from spinta.types.datatype import DateTime
 from spinta.types.datatype import Number
+from spinta.types.namespace import traverse_ns_models
 from spinta.utils.encoding import encode_page_values
 from spinta.utils.schema import NotAvailable
 
@@ -47,6 +49,26 @@ def _get_available_prefixes(model: Model) -> dict:
         for key, val in manifest_prefixes.items():
             if isinstance(val, UriPrefix):
                 prefixes[key] = val.uri
+    return prefixes
+
+
+def _get_update_prefixes(prefixes: dict, used_datasets: list, model: Model) -> dict:
+    if model.external and model.external.dataset and model.external.dataset.name not in used_datasets:
+        manifest_prefixes = model.external.dataset.prefixes
+        for key, val in manifest_prefixes.items():
+            if isinstance(val, UriPrefix):
+                if key in prefixes and prefixes[key] != val.uri:
+                    raise DuplicateRdfPrefixMissmatch(model.external.dataset, prefix=key, old_value=prefixes[key], new_value=val.uri)
+                prefixes[key] = val.uri
+        used_datasets.append(model.external.dataset.name)
+    return prefixes
+
+
+def _update_required_prefixes(prefixes: dict) -> dict:
+    if RDF not in prefixes:
+        prefixes[RDF] = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+    if PAV not in prefixes:
+        prefixes[PAV] = "http://purl.org/pav/"
     return prefixes
 
 
@@ -135,9 +157,9 @@ def _create_element(
 
 def _create_model_element(
     model: Model,
+    prefixes: dict,
     data: dict
 ) -> Element:
-    prefixes = _get_available_prefixes(model)
     about_name = _get_attribute_name('about', RDF, prefixes)
     type_name = _get_attribute_name('type', RDF, prefixes)
     revision_name = _get_attribute_name('version', PAV, prefixes)
@@ -168,9 +190,10 @@ def _create_model_element(
 
 def _prepare_for_print(
     model: Model,
+    prefixes: dict,
     data: dict
 ) -> str:
-    elem = _create_model_element(model, data)
+    elem = _create_model_element(model, prefixes, data)
     res = etree.tostring(elem, encoding="unicode", pretty_print=True)
     for key, val in elem.nsmap.items():
         res = res.replace(f'xmlns:{key}="{val}" ', "")
@@ -206,6 +229,35 @@ def render(
     )
 
 
+@commands.render.register(Context, Request, Namespace, Rdf)
+def render(
+    context: Context,
+    request: Request,
+    ns: Namespace,
+    fmt: Rdf,
+    *,
+    action: Action,
+    params: UrlParams,
+    data,
+    status_code: int = 200,
+    headers: Optional[dict] = None,
+):
+    headers = headers or {}
+    headers['Content-Disposition'] = f'attachment; filename="{ns.basename}.rdf"'
+    return StreamingResponse(
+        _stream_namespace(
+            context,
+            request,
+            ns,
+            action,
+            data
+        ),
+        status_code=status_code,
+        media_type=fmt.content_type,
+        headers=headers,
+    )
+
+
 async def _stream(
     request: Request,
     model: Model,
@@ -225,10 +277,58 @@ async def _stream(
 
     yield f'<?xml version="1.0" encoding="UTF-8"?>\n<{root_name}\n {namespaces}>\n'
     if action == Action.GETONE:
-        yield _prepare_for_print(model, data)
+        yield _prepare_for_print(model, prefixes, data)
     else:
         for row in data:
-            yield _prepare_for_print(model, row)
+            yield _prepare_for_print(model, prefixes, row)
+    yield f"</{root_name}>\n"
+
+
+async def _stream_namespace(
+    context: Context,
+    request: Request,
+    ns: Namespace,
+    action: Action,
+    data
+):
+    namespaces = []
+    models = traverse_ns_models(
+        context,
+        ns,
+        action,
+        internal=True,
+    )
+    prefixes = {}
+    used_datasets = []
+    model_mapper = {}
+    for model in models:
+        prefixes = _get_update_prefixes(prefixes, used_datasets, model)
+        model_mapper[model.name] = model
+    prefixes = _update_required_prefixes(prefixes)
+
+    root_name = _get_attribute_name(RDF.upper(), RDF, prefixes)
+    for key, val in prefixes.items():
+        namespaces.append(f'xmlns:{key}="{val}"')
+    if request.base_url:
+        namespaces.append(f'xmlns="{str(request.base_url)}"')
+    if isinstance(root_name, QName):
+        root_name = f"{RDF}:{root_name.localname}"
+    namespaces = "\n ".join(namespaces)
+
+    yield f'<?xml version="1.0" encoding="UTF-8"?>\n<{root_name}\n {namespaces}>\n'
+
+    # TODO: Temporarily disabled page return, because page does not work with namespace/:all
+    if action == Action.GETONE:
+        model = model_mapper[data['_type'].text]
+        if '_page' in data:
+            data.pop('_page')
+        yield _prepare_for_print(model, prefixes, data)
+    else:
+        for row in data:
+            if '_page' in row:
+                row.pop('_page')
+            model = model_mapper[row['_type'].text]
+            yield _prepare_for_print(model, prefixes, row)
     yield f"</{root_name}>\n"
 
 

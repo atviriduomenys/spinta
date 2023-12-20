@@ -32,7 +32,7 @@ arglist: argument ("," argument)*  [","]
 ?argument: test | kwarg
 kwarg: NAME ":" test
 filter: test ("," test)* [","]
-attr: "." NAME
+attr: "." NAME | "@" NAME
 name: NAME
 value: NULL | BOOL | INT | FLOAT | STRING | ALL
 

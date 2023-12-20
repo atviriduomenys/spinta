@@ -1,3 +1,4 @@
+import re
 import uuid
 import collections
 from typing import NamedTuple
@@ -34,11 +35,19 @@ from spinta.components import Namespace
 from spinta.components import Node
 from spinta.components import UrlParams
 from spinta.datasets.enums import Level
+from spinta.exceptions import InvalidName
 from spinta.manifests.components import Manifest
 from spinta.nodes import load_node
 from spinta.renderer import render
 from spinta.types.datatype import Ref
 from spinta.accesslog import log_response
+
+
+namespace_is_lowercase = re.compile(r'^([a-z][a-z0-9]*)+(/[a-z][a-z0-9]*)+|([a-z][a-z0-9]*)$')
+
+RESERVED_NAMES = {
+    '_schema',
+}
 
 
 class NamespaceData(TypedDict):
@@ -119,7 +128,13 @@ def link(context: Context, ns: Namespace):
 
 @commands.check.register(Context, Namespace)
 def check(context: Context, ns: Namespace):
-    pass
+    config: Config = context.get('config')
+
+    if config.check_names:
+        name = ns.name
+        if name and name not in RESERVED_NAMES:
+            if namespace_is_lowercase.match(name) is None:
+                raise InvalidName(ns, name=name, type='namespace')
 
 
 @commands.authorize.register(Context, Action, Namespace)
@@ -135,6 +150,7 @@ async def getall(
     *,
     action: Action,
     params: UrlParams,
+    **kwargs
 ) -> Response:
     config: Config = context.get('config')
     if config.root and ns.is_root():

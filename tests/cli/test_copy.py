@@ -92,8 +92,8 @@ def test_copy_global_enum(rc, cli: SpintaCliRunner, tmp_path):
     create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | type    | ref       | source      | prepare | access
     datasets/gov/example     |         |           |             |         |
-                             | enum    | direction | l           | 0       |     
-                             |         |           | r           | 1       |     
+                             | enum    | direction | l           | 0       |
+                             |         |           | r           | 1       |
       | data                 | sql     |           |             |         |
                              |         |           |             |         |
       |   |   | Country      |         | name      | salis       |         |

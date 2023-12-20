@@ -1,20 +1,12 @@
-from typing import Union
+from typing import Union, List
 
 from spinta.components import Page, Property, PageBy
 from spinta.core.ufuncs import ufunc, Expr, asttoexpr, Negative, Bind, Positive, Pair, Env
-from spinta.exceptions import FieldNotInResource, InvalidArgumentInExpression
+from spinta.exceptions import FieldNotInResource, InvalidArgumentInExpression, CannotSelectTextAndSpecifiedLang
+from spinta.types.datatype import DataType, String
+from spinta.types.text.components import Text
 from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, LoadBuilder
 from spinta.ufuncs.helpers import merge_formulas
-
-
-@ufunc.resolver(Env, Expr, name='prioritize_uri')
-def prioritize_uri(env, expr):
-    pass
-
-
-@ufunc.resolver(BaseQueryBuilder, Expr, name='prioritize_uri')
-def prioritize_uri(env, expr):
-    env.prioritize_uri = True
 
 
 @ufunc.resolver(BaseQueryBuilder, Expr, name='paginate')
@@ -24,12 +16,13 @@ def paginate(env, expr):
     page = expr.args[0]
     if isinstance(page, Page):
         if page.is_enabled:
-            for by, page_by in page.by.items():
-                sorted_ = env.call('sort', Negative(page_by.prop.name) if by.startswith("-") else Bind(page_by.prop.name))
-                if sorted_ is not None:
-                    env.page.sort.append(sorted_)
+            if not page.filter_only:
+                env.page.select = env.call('select', page)
+                for by, page_by in page.by.items():
+                    sorted_ = env.call('sort', Negative(page_by.prop.name) if by.startswith("-") else Bind(page_by.prop.name))
+                    if sorted_ is not None:
+                        env.page.sort.append(sorted_)
             env.page.page_ = page
-            env.page.select = env.call('select', page)
             env.page.size = page.size
             return env.resolve(_get_pagination_compare_query(page))
     else:
@@ -110,10 +103,31 @@ def or_(env, expr):
     return args
 
 
+@ufunc.resolver(BaseQueryBuilder, DataType, list)
+def validate_dtype_for_select(env, dtype: DataType, selected_props: List[Property]):
+    raise NotImplemented(f"validate_dtype_for_select with {dtype.name} is not implemented")
+
+
+@ufunc.resolver(BaseQueryBuilder, Text, list)
+def validate_dtype_for_select(env, dtype: Text, selected_props: List[Property]):
+    for prop in selected_props:
+        if dtype.prop.name == prop.name or prop.parent == dtype.prop:
+            raise CannotSelectTextAndSpecifiedLang(dtype)
+
+
+@ufunc.resolver(BaseQueryBuilder, String, list)
+def validate_dtype_for_select(env, dtype: String, selected_props: List[Property]):
+    if dtype.prop.parent and isinstance(dtype.prop.parent.dtype, Text):
+        parent = dtype.prop.parent
+        for prop in selected_props:
+            if parent.name == prop.name or prop == dtype.prop:
+                raise CannotSelectTextAndSpecifiedLang(parent.dtype)
+
+
 def filter_page_values(page: Page):
     new_page = Page()
     for by, page_by in page.by.items():
-        if page_by.value:
+        if page_by.value is not None:
             new_page.by[by] = page_by
     return new_page
 
@@ -127,7 +141,7 @@ def _get_pagination_compare_query(
     for i in range(item_count):
         where_list.append([])
     for i, (by, page_by) in enumerate(filtered.by.items()):
-        if page_by.value:
+        if page_by.value is not None:
             for n in range(item_count):
                 if n >= i:
                     if n == i:

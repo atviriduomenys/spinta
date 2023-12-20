@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Tuple
+import uuid
+from typing import Any
 from typing import Dict
 from typing import Optional, List, Union
 
@@ -29,7 +30,7 @@ from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.testing.context import TestContext
 from spinta.testing.context import create_test_context
-from spinta.auth import create_client_file
+from spinta.auth import create_client_file, get_clients_path
 from spinta.testing.config import create_config_path
 from spinta.testing.datasets import Sqlite
 
@@ -100,14 +101,15 @@ def create_remote_server(
 
     if scopes:
         client_file, client = create_client_file(
-            confdir / 'clients',
-            client=client,
+            get_clients_path(confdir),
+            client_id=str(uuid.uuid4()),
+            name=client,
             secret=secret,
             scopes=scopes,
             add_secret=True,
         )
         secret = client['client_secret']
-        client = client['client_id']
+        client = client['client_name']
 
     if credsfile:
         if credsfile is True:
@@ -165,9 +167,12 @@ class TestClient(starlette.testclient.TestClient):
         scopes = commands.get_model_scopes(self.context, model, actions)
         self.authorize(scopes, creds=creds)
 
-    def authorize(self, scopes: Optional[list] = None, creds=None):
-        # Calling `authorize` multiple times, will preserve previous scopes.
-        self._scopes += [s for s in (scopes or []) if s not in self._scopes]
+    def authorize(self, scopes: Optional[list] = None, creds=None, strict_set: bool = False):
+        # Calling `authorize` multiple times, will preserve previous scopes if strict_set is False.
+        if strict_set:
+            self._scopes = scopes if scopes is not None else []
+        else:
+            self._scopes += [s for s in (scopes or []) if s not in self._scopes]
 
         if creds:
             # Request access token using /auth/token endpoint.

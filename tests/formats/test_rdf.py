@@ -382,3 +382,96 @@ def test_rdf_mixed_ref(
                   f'  <country rdf:resource="/example/rdf/ref/multi/Country/{country["_id"]}"/>\n' \
                   f'</dcat:city>\n' \
                   f'</rdf:RDF>\n'
+
+
+def test_rdf_namespace_all(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, '''
+    d | r | b | m | property | type   | ref     | access  | uri
+    example/rdf/ref/simple   |        |         |         |
+      |   |   |   |          | prefix | rdf     |         | http://www.rdf.com
+      |   |   |   |          |        | pav     |         | http://purl.org/pav/
+      |   |   |   |          |        | dcat    |         | http://www.dcat.com
+      |   |   |   |          |        | dct     |         | http://dct.com
+      |   |   |   |          |        | test    |         | http://test.com
+      |   |   | Country      |        | name    |         | 
+      |   |   |   | name     | string |         | open    |
+      |   |   | City         |        | name    |         |
+      |   |   |   | name     | string |         | open    |
+      |   |   |   | country  | ref    | Country | open    | 
+    example/rdf/ref/multi              |        |         |         |
+      |   |   |   |          | prefix | rdf     |         | http://www.rdf.com
+      |   |   |   |          |        | pav     |         | http://purl.org/pav/
+      |   |   |   |          |        | dcat    |         | http://www.dcat.com
+      |   |   |   |          |        | dct     |         | http://dct.com
+      |   |   | Country      |        | name    |         | dcat:country
+      |   |   |   | name     | string |         | open    | dct:name
+      |   |   | City         |        | name    |         | dcat:city
+      |   |   |   | name     | string |         | open    | dct:name
+      |   |   |   | country  | ref    | Country | open    | 
+    ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/rdf', ['insert', 'getall'])
+
+    country_mix = pushdata(app, '/example/rdf/ref/multi/Country', {
+        'name': 'Lithuania'
+    })
+    vilnius_mix = pushdata(app, '/example/rdf/ref/multi/City', {
+        'name': 'Vilnius',
+        'country': {'_id': country_mix.get('_id')}
+    })
+    ryga_mix = pushdata(app, '/example/rdf/ref/multi/City', {
+        'name': 'Ryga',
+    })
+
+    country_simple = pushdata(app, '/example/rdf/ref/simple/Country', {
+        'name': 'Lithuania'
+    })
+    vilnius_simple = pushdata(app, '/example/rdf/ref/simple/City', {
+        'name': 'Vilnius',
+        'country': {'_id': country_simple.get('_id')}
+    })
+    ryga_simple = pushdata(app, '/example/rdf/ref/simple/City', {
+        'name': 'Ryga',
+    })
+
+    res = app.get("/example/rdf/ref/:all/:format/rdf").text
+    print(res)
+    assert res == f'<?xml version="1.0" encoding="UTF-8"?>\n'\
+                  f'<rdf:RDF\n' \
+                  f' xmlns:rdf="http://www.rdf.com"\n' \
+                  f' xmlns:pav="http://purl.org/pav/"\n' \
+                  f' xmlns:dcat="http://www.dcat.com"\n' \
+                  f' xmlns:dct="http://dct.com"\n' \
+                  f' xmlns:test="http://test.com"\n' \
+                  f' xmlns="https://testserver/">\n' \
+                  f'<rdf:Description rdf:about="/example/rdf/ref/simple/Country/{country_simple["_id"]}" rdf:type="example/rdf/ref/simple/Country" ' \
+                  f'pav:version="{country_simple["_revision"]}">\n' \
+                  f'  <name>{country_simple["name"]}</name>\n' \
+                  f'</rdf:Description>\n' \
+                  f'<rdf:Description rdf:about="/example/rdf/ref/simple/City/{vilnius_simple["_id"]}" rdf:type="example/rdf/ref/simple/City" ' \
+                  f'pav:version="{vilnius_simple["_revision"]}">\n' \
+                  f'  <name>{vilnius_simple["name"]}</name>\n' \
+                  f'  <country rdf:resource="/example/rdf/ref/simple/Country/{country_simple["_id"]}"/>\n' \
+                  f'</rdf:Description>\n' \
+                  f'<rdf:Description rdf:about="/example/rdf/ref/simple/City/{ryga_simple["_id"]}" rdf:type="example/rdf/ref/simple/City" ' \
+                  f'pav:version="{ryga_simple["_revision"]}">\n' \
+                  f'  <name>{ryga_simple["name"]}</name>\n' \
+                  f'</rdf:Description>\n' \
+                  f'<dcat:country rdf:about="/example/rdf/ref/multi/Country/{country_mix["_id"]}" rdf:type="example/rdf/ref/multi/Country" ' \
+                  f'pav:version="{country_mix["_revision"]}">\n' \
+                  f'  <dct:name>{country_mix["name"]}</dct:name>\n' \
+                  f'</dcat:country>\n' \
+                  f'<dcat:city rdf:about="/example/rdf/ref/multi/City/{vilnius_mix["_id"]}" rdf:type="example/rdf/ref/multi/City" ' \
+                  f'pav:version="{vilnius_mix["_revision"]}">\n' \
+                  f'  <dct:name>{vilnius_mix["name"]}</dct:name>\n' \
+                  f'  <country rdf:resource="/example/rdf/ref/multi/Country/{country_mix["_id"]}"/>\n' \
+                  f'</dcat:city>\n' \
+                  f'<dcat:city rdf:about="/example/rdf/ref/multi/City/{ryga_mix["_id"]}" rdf:type="example/rdf/ref/multi/City" ' \
+                  f'pav:version="{ryga_mix["_revision"]}">\n' \
+                  f'  <dct:name>{ryga_mix["name"]}</dct:name>\n' \
+                  f'</dcat:city>\n' \
+                  f'</rdf:RDF>\n'

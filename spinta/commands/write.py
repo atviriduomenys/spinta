@@ -40,6 +40,7 @@ from spinta.utils.data import take
 from spinta.types.namespace import traverse_ns_models
 from spinta.core.ufuncs import asttoexpr
 from spinta.formats.components import Format
+from spinta.types.text.components import Text
 
 if typing.TYPE_CHECKING:
     from spinta.backends.postgresql.components import WriteTransaction
@@ -83,8 +84,7 @@ async def push(
         )
     dstream = push_stream(context, stream,
                           stop_on_error=stop_on_error,
-                          url=request.url,
-                          headers=request.headers)
+                          params=params)
 
     dstream = log_async_response(context, dstream)
 
@@ -140,8 +140,7 @@ async def push_stream(
     context: Context,
     stream: AsyncIterator[DataItem],
     stop_on_error: bool = True,
-    url: URL = URL(),
-    headers: Headers = Headers(),
+    params: UrlParams = None
 ) -> AsyncIterator[DataItem]:
 
     cmds = {
@@ -170,7 +169,7 @@ async def push_stream(
         dstream = read_existing_data(context, dstream)
         dstream = validate_data(context, dstream)
         dstream = prepare_patch(context, dstream)
-        dstream = prepare_data_for_write(context, dstream)
+        dstream = prepare_data_for_write(context, dstream, params)
         if prop:
             dstream = cmds[action](
                 context, prop, prop.dtype, prop.dtype.backend or model.backend, dstream=dstream,
@@ -641,6 +640,19 @@ async def validate_data(
         yield data
 
 
+def _prepare_text_properties(data_patch, data_payload):
+    lang_list = list(set([lang.split('@')[1] for lang in list(data_payload.keys()) if '@' in lang]))
+    text_key_for_patch = [key for key in data_patch if key == data_patch[key]]
+    if text_key_for_patch:
+        for key in text_key_for_patch:
+            temp = {}
+            for lang in lang_list:
+                if str(key + '@' + lang) in list(data_payload.keys()):
+                    temp[lang] = data_payload[str(key + '@' + lang)]
+            data_patch[key] = temp
+        return data_patch
+
+
 async def prepare_patch(
     context: Context,
     dstream: AsyncIterator[DataItem],
@@ -672,8 +684,10 @@ async def prepare_patch(
 
         if data.action == Action.DELETE or data.patch:
             data.patch['_revision'] = commands.gen_object_id(
-                context, data.model.backend, data.model
-            )
+                context, data.model.backend, data.model)
+
+        # if [key for key in list(data.given.keys()) if '@' in key]:
+        #     data.patch = _prepare_text_properties(data.patch, data.payload)
 
         yield data
 
@@ -697,7 +711,10 @@ def build_data_patch_for_write(
             if not (prop.name.startswith('_') or prop.hidden)
         )
     else:
-        props = (model.properties[k] for k in given)
+        if [key for key in list(given.keys()) if '@' in key]:
+            props = (model.properties[k.split('@')[0]] for k in given)
+        else:
+            props = (model.properties[k] for k in given)
 
     patch = {}
     for prop in props:
@@ -870,6 +887,7 @@ def build_data_patch_for_write(
 async def prepare_data_for_write(
     context: Context,
     dstream: AsyncIterator[DataItem],
+    params: UrlParams
 ) -> AsyncIterator[DataItem]:
     async for data in dstream:
         if data.prop:
@@ -879,6 +897,7 @@ async def prepare_data_for_write(
                 data.backend,
                 data.patch,
                 action=data.action,
+                params=params
             )
         else:
             data.patch = commands.prepare_for_write(
@@ -887,6 +906,7 @@ async def prepare_data_for_write(
                 data.model.backend,
                 data.patch,
                 action=data.action,
+                params=params
             )
         yield data
 

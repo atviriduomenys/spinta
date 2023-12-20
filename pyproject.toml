@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "spinta"
-version = "0.1.59.dev0"
+version = "0.1.61.dev0"
 description = "A platform for describing, extracting, transforming, loading and serving open data."
 authors = ["Mantas Zimnickas <sirexas@gmail.com>"]
 license = "MIT"
@@ -51,7 +51,7 @@ requests = "^2.28.1"
 #        setuptools>=58
 setuptools = "^65.4.1"
 setuptools-scm = "^7.0.5"
-starlette = "^0.21.0"
+starlette = "^0.22.0"
 toposort = "^1.7"
 tqdm = "^4.64.1"
 ujson = "^5.5.0"
