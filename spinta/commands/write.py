@@ -1140,7 +1140,7 @@ def before_write(
 ) -> dict:
     patch = flatten_value(data.patch)
     return {
-        f'{dtype.prop.place}.{k}': v for k, v in patch.items()
+        f'{dtype.prop.place}.{k}': v for k, v in patch.items() if k
     }
 
 
