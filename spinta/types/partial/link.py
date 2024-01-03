@@ -15,7 +15,7 @@ def link(context: Context, dtype: Partial):
             prop.dtype = copy(prop.parent.dtype.model.properties[prop.name].dtype)
             prop.dtype.properties = props
             prop.given.name = ''
-
+            prop.dtype.prop = prop
             for partial_prop in props.values():
                 partial_prop.model = prop.parent.dtype.model
                 commands.link(context, partial_prop)

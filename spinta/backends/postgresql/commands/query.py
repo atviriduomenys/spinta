@@ -26,7 +26,7 @@ from spinta.components import Model, Property, Action, Page, UrlParams
 from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, merge_with_page_sort, \
     merge_with_page_limit, merge_with_page_selected_list, QueryParams
 from spinta.utils.data import take
-from spinta.types.datatype import DataType, ExternalRef, Inherit, BackRef, Time, ArrayBackRef
+from spinta.types.datatype import DataType, ExternalRef, Inherit, BackRef, Time, ArrayBackRef, Denorm
 from spinta.types.datatype import Array
 from spinta.types.datatype import File
 from spinta.types.datatype import Object
@@ -129,6 +129,38 @@ class PgQueryBuilder(BaseQueryBuilder):
             self.joins[fpr.name] = rtable
             self.from_ = self.from_.outerjoin(rtable, condition)
 
+        return self.joins[fpr.name]
+
+    def get_joined_table_from_ref(self, prop: ForeignProperty) -> sa.Table:
+        for fpr in prop.chain:
+            if fpr.name in self.joins:
+                continue
+
+            if len(fpr.chain) > 1:
+                ltable = self.joins[fpr.chain[-2].name]
+            else:
+                ltable = self.backend.get_table(fpr.left.model)
+            lrkey = self.backend.get_column(ltable, fpr.left)
+            rmodel = fpr.right.model
+            rtable = self.backend.get_table(rmodel).alias()
+            rpkey = self.backend.get_refprop_columns(rtable, fpr.left, rmodel)
+            if type(lrkey) != type(rpkey):
+                raise Exception("COUNT DONT MATCH")
+
+            if not isinstance(lrkey, list):
+                lrkey = [lrkey]
+            if not isinstance(rpkey, list):
+                rpkey = [rpkey]
+
+            condition = None
+            for left, right in zip(lrkey, rpkey):
+                if condition is None:
+                    condition = left == right
+                else:
+                    condition = sa.and_(condition, left == right)
+            self.joins[fpr.name] = rtable
+            if condition is not None:
+                self.from_ = self.from_.outerjoin(rtable, condition)
         return self.joins[fpr.name]
 
     def generate_backref_select(self, left: Property, right: Property, required_columns: List[Tuple[str, str]], aggregate: bool = False):
@@ -552,28 +584,46 @@ def select(env, dtype, leaf):
 @ufunc.resolver(PgQueryBuilder, Ref)
 def select(env, dtype):
     uri = dtype.model.uri_prop
-    if env.query_params.prioritize_uri and uri is not None:
-        fpr = ForeignProperty(None, dtype.prop, dtype.model.properties['_id'])
-        table = env.get_joined_table(fpr)
-        column = table.c[uri.place]
-        column = column.label(dtype.prop.place + '._uri')
-    else:
-        table = env.backend.get_table(env.model)
-        column = table.c[dtype.prop.place + '._id']
-    return Selected(column, dtype.prop)
+    columns = []
+    if dtype.prop.given.explicit:
+        if env.query_params.prioritize_uri and uri is not None:
+            fpr = ForeignProperty(None, dtype.prop, dtype.model.properties['_id'])
+            table = env.get_joined_table(fpr)
+            column = table.c[uri.place]
+            column = column.label(dtype.prop.place + '._uri')
+        else:
+            table = env.backend.get_table(env.model)
+            column = table.c[dtype.prop.place + '._id']
+        columns = [column]
+    for prop in dtype.properties.values():
+        sel = env.call('select', prop.dtype)
+        if sel is not None:
+            if isinstance(sel.item, list):
+                columns += sel.item
+            else:
+                columns += [sel.item]
+    return Selected(columns, dtype.prop)
 
 
 @ufunc.resolver(PgQueryBuilder, ExternalRef)
 def select(env, dtype):
-    table = env.backend.get_table(env.model)
     columns = []
-    if dtype.model.given.pkeys or dtype.explicit:
-        props = dtype.refprops
-    else:
-        props = [dtype.model.properties['_id']]
-    for prop in props:
-        column = table.c[f"{dtype.prop.place}.{prop.place}"]
-        columns.append(column)
+    if dtype.prop.given.explicit:
+        table = env.backend.get_table(env.model)
+        if dtype.model.given.pkeys or dtype.explicit:
+            props = dtype.refprops
+        else:
+            props = [dtype.model.properties['_id']]
+        for prop in props:
+            column = table.c[f"{dtype.prop.place}.{prop.place}"]
+            columns.append(column)
+    for prop in dtype.properties.values():
+        sel = env.call('select', prop.dtype)
+        if sel is not None:
+            if isinstance(sel.item, list):
+                columns += sel.item
+            else:
+                columns += [sel.item]
     return Selected(columns, dtype.prop)
 
 
@@ -656,6 +706,28 @@ def select(env, dtype):
     column = table.c[dtype.prop_name]
     column = column.label(f"{dtype.base_prop.name}.{dtype.prop_name}")
     return Selected(column, dtype.base_prop)
+
+
+@ufunc.resolver(PgQueryBuilder, Denorm)
+def select(env, dtype):
+    ref = dtype.prop.parent
+    if isinstance(ref.dtype, Ref):
+        fpr = None
+        if not ref.given.explicit:
+            root_ref_parent = ref.parent
+
+            while root_ref_parent and isinstance(root_ref_parent, Property) and isinstance(root_ref_parent.dtype, Ref):
+                fpr = ForeignProperty(fpr, root_ref_parent, root_ref_parent.dtype.model.properties['_id'])
+
+                if root_ref_parent.given.explicit:
+                    break
+                root_ref_parent = root_ref_parent.parent
+
+        fpr = ForeignProperty(fpr, ref, ref.dtype.model.properties['_id'])
+        table = env.get_joined_table_from_ref(fpr)
+        column = table.c[dtype.rel_prop.place]
+        column = column.label(dtype.prop.place)
+        return Selected(column, dtype.prop)
 
 
 @ufunc.resolver(PgQueryBuilder, Page)

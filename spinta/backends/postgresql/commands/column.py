@@ -4,10 +4,10 @@ from spinta import commands
 from spinta.backends.constants import TableType
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_column_name as gcn
-from spinta.components import Property
+from spinta.components import Property, Model
 from spinta.datasets.enums import Level
 from spinta.exceptions import PropertyNotFound
-from spinta.types.datatype import DataType, Ref, BackRef, String
+from spinta.types.datatype import DataType, Ref, BackRef, String, ExternalRef
 import sqlalchemy as sa
 
 from spinta.types.text.components import Text
@@ -96,24 +96,31 @@ def get_column(backend: PostgreSQL, dtype: Text, table: sa.Table = None, langs: 
 
 @commands.get_column.register(PostgreSQL, Ref)
 def get_column(backend: PostgreSQL, dtype: Ref, table: sa.Table = None, **kwargs):
-    column = gcn(dtype.prop)
+    column = gcn(dtype.prop, replace=not dtype.prop.given.explicit)
+    prop = dtype.prop
+    if table is None:
+        table = get_table(backend, prop)
+    if prop.list is not None:
+        column = '_id'
+    else:
+        column += '._id'
+    return convert_str_to_column(table, prop, column)
+
+
+@commands.get_column.register(PostgreSQL, ExternalRef)
+def get_column(backend: PostgreSQL, dtype: Ref, table: sa.Table = None, **kwargs):
+    column = gcn(dtype.prop, replace=not dtype.prop.given.explicit)
     prop = dtype.prop
     columns = []
     if table is None:
         table = get_table(backend, prop)
-    if prop.level is None or prop.level > Level.open:
+
+    for refprop in prop.dtype.refprops:
         if prop.list is not None:
-            column = '_id'
+            columns.append(refprop.name)
         else:
-            column += '._id'
-        return convert_str_to_column(table, prop, column)
-    else:
-        for refprop in prop.dtype.refprops:
-            if prop.list is not None:
-                columns.append(refprop.name)
-            else:
-                columns.append(f'{column}.{refprop.name}')
-        return convert_str_to_columns(table, prop, columns)
+            columns.append(f'{column}.{refprop.name}')
+    return convert_str_to_columns(table, prop, columns)
 
 
 @commands.get_column.register(PostgreSQL, BackRef)
@@ -130,3 +137,50 @@ def get_column(backend: PostgreSQL, dtype: BackRef, table: sa.Table = None, **kw
         for refprop in r_prop.dtype.refprops:
             columns.append(refprop.name)
         return convert_str_to_columns(table, prop, columns)
+
+
+@commands.get_column.register(PostgreSQL, Property, Model)
+def get_column(backend: PostgreSQL, prop: Property, model: Model, table: sa.Table = None, **kwargs):
+    return commands.get_column(backend, prop.dtype, model, table=table, **kwargs)
+
+
+@commands.get_column.register(PostgreSQL, DataType, Model)
+def get_column(backend: PostgreSQL, prop: Property, model: Model, table: sa.Table = None, **kwargs):
+    return None
+
+
+@commands.get_column.register(PostgreSQL, Ref, Model)
+def get_column(backend: PostgreSQL, dtype: Ref, model: Model, table: sa.Table = None, **kwargs):
+    prop = dtype.prop
+    if table is None:
+        table = backend.get_table(model)
+    column = '_id'
+    return convert_str_to_column(table, prop, column)
+
+
+@commands.get_column.register(PostgreSQL, ExternalRef, Model)
+def get_column(backend: PostgreSQL, dtype: ExternalRef, model: Model, table: sa.Table = None, **kwargs):
+    prop = dtype.prop
+    if table is None:
+        table = backend.get_table(model)
+
+    columns = []
+    for refprop in prop.dtype.refprops:
+        columns.append(refprop.name)
+    return convert_str_to_columns(table, prop, columns)
+
+
+@commands.get_column.register(PostgreSQL, ExternalRef)
+def get_column(backend: PostgreSQL, dtype: Ref, table: sa.Table = None, **kwargs):
+    column = gcn(dtype.prop, replace=not dtype.prop.given.explicit)
+    prop = dtype.prop
+    columns = []
+    if table is None:
+        table = get_table(backend, prop)
+
+    for refprop in prop.dtype.refprops:
+        if prop.list is not None:
+            columns.append(refprop.name)
+        else:
+            columns.append(f'{column}.{refprop.name}')
+    return convert_str_to_columns(table, prop, columns)
