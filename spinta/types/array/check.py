@@ -5,4 +5,5 @@ from spinta.types.datatype import Array
 
 @commands.check.register(Context, Array)
 def check(context: Context, dtype: Array):
-    commands.check(context, dtype.items)
+    if dtype.items is not None:
+        commands.check(context, dtype.items)
