@@ -27,7 +27,6 @@ def prepare(context: Context, backend: PostgreSQL, dtype: Ref):
         )
     for key, value in dtype.properties.items():
         res = commands.prepare(context, backend, value)
-        print(res)
         if res is not None:
             if isinstance(res, list):
                 columns.extend(res)

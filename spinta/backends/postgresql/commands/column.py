@@ -65,7 +65,8 @@ def get_column(backend: PostgreSQL, dtype: String, table: sa.Table = None, **kwa
 
 
 @commands.get_column.register(PostgreSQL, Text)
-def get_column(backend: PostgreSQL, dtype: Text, table: sa.Table = None, langs: list = [], default_langs: list = [], push: bool = False, **kwargs):
+def get_column(backend: PostgreSQL, dtype: Text, table: sa.Table = None, langs: list = [], default_langs: list = [],
+               push: bool = False, **kwargs):
     prop = dtype.prop
     column_name = gcn(dtype.prop)
     if table is None:
@@ -174,13 +175,18 @@ def get_column(backend: PostgreSQL, dtype: ExternalRef, model: Model, table: sa.
 def get_column(backend: PostgreSQL, dtype: Ref, table: sa.Table = None, **kwargs):
     column = gcn(dtype.prop, replace=not dtype.prop.given.explicit)
     prop = dtype.prop
-    columns = []
     if table is None:
         table = get_table(backend, prop)
 
-    for refprop in prop.dtype.refprops:
-        if prop.list is not None:
-            columns.append(refprop.name)
-        else:
-            columns.append(f'{column}.{refprop.name}')
-    return convert_str_to_columns(table, prop, columns)
+    result = []
+    for refprop in dtype.refprops:
+        r_prop = refprop
+        t = table
+        c = f'{column}.{refprop.name}'
+        if refprop.name in dtype.properties:
+            if isinstance(refprop.dtype, type(dtype.properties[refprop.name].dtype)):
+                r_prop = dtype.properties[refprop.name]
+                t = get_table(backend, r_prop)
+                c = r_prop.place
+        result.append(convert_str_to_column(t, r_prop, c))
+    return result

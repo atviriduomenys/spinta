@@ -121,7 +121,7 @@ class PgQueryBuilder(BaseQueryBuilder):
                 ltable = self.backend.get_table(fpr.left.model)
             lrkey = self.backend.get_column(ltable, fpr.left)
 
-            rmodel = fpr.right.model
+            rmodel = fpr.right.model if not isinstance(fpr.right.dtype, Denorm) else fpr.right.dtype.rel_prop.model
             rtable = self.backend.get_table(rmodel).alias()
             rpkey = self.backend.get_column(rtable, rmodel.properties['_id'])
 
@@ -140,10 +140,10 @@ class PgQueryBuilder(BaseQueryBuilder):
                 ltable = self.joins[fpr.chain[-2].name]
             else:
                 ltable = self.backend.get_table(fpr.left.model)
-            lrkey = self.backend.get_column(ltable, fpr.left)
             rmodel = fpr.right.model
             rtable = self.backend.get_table(rmodel).alias()
             rpkey = self.backend.get_refprop_columns(rtable, fpr.left, rmodel)
+            lrkey = self.backend.get_column(ltable, fpr.left)
             if type(lrkey) != type(rpkey):
                 raise Exception("COUNT DONT MATCH")
 
@@ -318,9 +318,12 @@ class ForeignProperty:
 
     @property
     def place(self):
+        fixed_name = self.right.place
+        if fixed_name.startswith(f'{self.left.place}.'):
+            fixed_name = fixed_name.replace(f'{self.left.place}.', '', 1)
         return '.'.join(
             [fpr.left.place for fpr in self.chain] +
-            [self.right.place]
+            [fixed_name]
         )
 
 
@@ -408,8 +411,17 @@ def getattr_(env, dtype, attr):
 
 @ufunc.resolver(PgQueryBuilder, Ref, Bind, name='getattr')
 def getattr_(env, dtype, attr):
-    prop = dtype.model.properties[attr.name]
-    return ForeignProperty(None, dtype.prop, prop)
+    properties = dtype.properties
+    if attr.name in properties:
+        return properties[attr.name].dtype
+    else:
+        properties = dtype.model.properties
+        if attr.name in properties:
+            prop = properties[attr.name]
+            return ForeignProperty(None, dtype.prop, prop)
+
+        else:
+            raise PropertyNotFound(f'{dtype.prop.place}.{attr.name}')
 
 
 @ufunc.resolver(PgQueryBuilder, BackRef, Bind, name='getattr')
@@ -427,11 +439,6 @@ def getattr_(env, fpr, attr):
 @ufunc.resolver(PgQueryBuilder, Inherit, Bind, name='getattr')
 def getattr_(env, dtype, attr):
     return InheritForeignProperty(dtype.prop.model, attr.name, dtype.prop)
-
-
-@ufunc.resolver(PgQueryBuilder, ExternalRef, Bind, name='getattr')
-def getattr_(env, dtype, attr):
-    return dtype
 
 
 @ufunc.resolver(PgQueryBuilder, Text, Bind, name='getattr')
@@ -687,7 +694,10 @@ def select(env, dtype):
 @ufunc.resolver(PgQueryBuilder, ForeignProperty)
 def select(env: PgQueryBuilder, fpr: ForeignProperty):
     table = env.get_joined_table(fpr)
-    column = table.c[fpr.right.place]
+    fixed_name = fpr.right.place
+    if fixed_name.startswith(f'{fpr.left.place}.'):
+        fixed_name = fixed_name.replace(f'{fpr.left.place}.', '', 1)
+    column = table.c[fixed_name]
     column = column.label(fpr.place)
     return Selected(column, fpr.right)
 

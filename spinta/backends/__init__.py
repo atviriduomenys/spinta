@@ -876,20 +876,20 @@ def prepare_dtype_for_response(
     if value is None or all(val is None for val in value.values()):
         return None
 
+    properties = dtype.model.properties.copy()
+    properties.update(dtype.properties)
+
     if select and select != {'*': {}}:
         names = get_select_prop_names(
             context,
             dtype,
-            dtype.model.properties,
+            properties,
             action,
             select,
             reserved=['_id'],
         )
     else:
         names = value.keys()
-
-    props = dtype.properties.copy()
-    props.update(dtype.model.properties)
 
     result = {
         prop.name: commands.prepare_dtype_for_response(
@@ -904,7 +904,7 @@ def prepare_dtype_for_response(
         for prop, val, sel in select_props(
             dtype.model,
             names,
-            props,
+            properties,
             value,
             select,
         )
