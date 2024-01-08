@@ -125,6 +125,10 @@ class PgQueryBuilder(BaseQueryBuilder):
             rtable = self.backend.get_table(rmodel).alias()
             rpkey = self.backend.get_column(rtable, rmodel.properties['_id'])
 
+            if isinstance(lrkey, list) and not isinstance(rpkey, list):
+                if len(lrkey) == 1:
+                    lrkey = lrkey[0]
+
             condition = lrkey == rpkey
             self.joins[fpr.name] = rtable
             self.from_ = self.from_.outerjoin(rtable, condition)
@@ -419,9 +423,17 @@ def getattr_(env, dtype, attr):
         if attr.name in properties:
             prop = properties[attr.name]
             return ForeignProperty(None, dtype.prop, prop)
-
         else:
             raise PropertyNotFound(f'{dtype.prop.place}.{attr.name}')
+
+
+@ufunc.resolver(PgQueryBuilder, ExternalRef, Bind, name='getattr')
+def getattr_(env, dtype, attr):
+    properties = dtype.properties
+    if attr.name in properties:
+        return properties[attr.name].dtype
+    else:
+        return dtype
 
 
 @ufunc.resolver(PgQueryBuilder, BackRef, Bind, name='getattr')
