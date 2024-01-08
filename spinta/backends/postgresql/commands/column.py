@@ -110,18 +110,25 @@ def get_column(backend: PostgreSQL, dtype: Ref, table: sa.Table = None, **kwargs
 
 @commands.get_column.register(PostgreSQL, ExternalRef)
 def get_column(backend: PostgreSQL, dtype: Ref, table: sa.Table = None, **kwargs):
-    column = gcn(dtype.prop, replace=not dtype.prop.given.explicit)
+    column_prefix = gcn(dtype.prop, replace=not dtype.prop.given.explicit)
     prop = dtype.prop
-    columns = []
     if table is None:
         table = get_table(backend, prop)
 
-    for refprop in prop.dtype.refprops:
-        if prop.list is not None:
-            columns.append(refprop.name)
-        else:
-            columns.append(f'{column}.{refprop.name}')
-    return convert_str_to_columns(table, prop, columns)
+    result = []
+    for ref_prop in dtype.refprops:
+        ref_prop_ = ref_prop
+        table_ = table
+        column = ref_prop.name
+        if prop.list is None:
+            column = f'{column_prefix}.{ref_prop.name}'
+        if ref_prop.name in dtype.properties:
+            if isinstance(ref_prop.dtype, type(dtype.properties[ref_prop.name].dtype)):
+                ref_prop_ = dtype.properties[ref_prop.name]
+                table_ = get_table(backend, ref_prop_)
+                column = ref_prop_.place
+        result.append(convert_str_to_column(table_, ref_prop_, column))
+    return result
 
 
 @commands.get_column.register(PostgreSQL, BackRef)
@@ -171,22 +178,4 @@ def get_column(backend: PostgreSQL, dtype: ExternalRef, model: Model, table: sa.
     return convert_str_to_columns(table, prop, columns)
 
 
-@commands.get_column.register(PostgreSQL, ExternalRef)
-def get_column(backend: PostgreSQL, dtype: Ref, table: sa.Table = None, **kwargs):
-    column = gcn(dtype.prop, replace=not dtype.prop.given.explicit)
-    prop = dtype.prop
-    if table is None:
-        table = get_table(backend, prop)
 
-    result = []
-    for refprop in dtype.refprops:
-        r_prop = refprop
-        t = table
-        c = f'{column}.{refprop.name}'
-        if refprop.name in dtype.properties:
-            if isinstance(refprop.dtype, type(dtype.properties[refprop.name].dtype)):
-                r_prop = dtype.properties[refprop.name]
-                t = get_table(backend, r_prop)
-                c = r_prop.place
-        result.append(convert_str_to_column(t, r_prop, c))
-    return result
