@@ -588,8 +588,9 @@ def select(env: SqlQueryBuilder, expr: Expr):
     if args:
         for key, arg in args:
             selected = env.call('select', arg)
-            if selected is not None and selected.prop.given.explicit:
-                env.selected[key] = selected
+            if selected is not None:
+                if selected.prop is None or selected.prop is not None and selected.prop.given.explicit:
+                    env.selected[key] = selected
     else:
         for prop in take(['_id', all], env.model.properties).values():
             if authorized(env.context, prop, Action.GETALL):
