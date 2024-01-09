@@ -595,7 +595,7 @@ def select(env: SqlQueryBuilder, expr: Expr):
         for prop in take(['_id', all], env.model.properties).values():
             if authorized(env.context, prop, Action.GETALL):
                 processed = env.call('select', prop)
-                if prop.given.explicit:
+                if prop.given.explicit or processed.prep is not None:
                     env.selected[prop.place] = processed
 
     if not (len(args) == 1 and args[0][0] == '_page'):
@@ -711,7 +711,7 @@ def select(env: SqlQueryBuilder, dtype: Ref) -> Selected:
 
     for prop in dtype.properties.values():
         processed = env.call("select", prop)
-        if prop.given.explicit:
+        if prop.given.explicit or processed.prep is not None:
             env.selected[prop.place] = processed
 
     if column is not None and dtype.prop.given.explicit:
@@ -767,7 +767,7 @@ def select(env, dtype: Denorm):
                             parent = root_parent.dtype.model.properties[fixed_name]
                     fpr = ForeignProperty(fpr, root_parent.dtype, parent.dtype)
                     root_parent = parent
-        fpr = ForeignProperty(fpr, root_parent.dtype, ref.dtype.model.properties[dtype.prop.name].dtype)
+        fpr = ForeignProperty(fpr, root_parent.dtype, dtype.rel_prop.dtype)
         return env.call("select", fpr)
 
 
