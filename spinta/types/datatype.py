@@ -292,6 +292,7 @@ class JSON(DataType):
 class Denorm(DataType):
     rel_prop: Property
     inherited = True
+    requires_source = False
 
     def get_type_repr(self):
         return ""

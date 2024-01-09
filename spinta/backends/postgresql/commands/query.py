@@ -733,7 +733,7 @@ def select(env, dtype):
 @ufunc.resolver(PgQueryBuilder, Denorm)
 def select(env, dtype):
     ref = dtype.prop.parent
-    if isinstance(ref.dtype, Ref):
+    if isinstance(ref, Property) and isinstance(ref.dtype, Ref):
         fpr = None
         if not ref.given.explicit:
             root_ref_parent = ref.parent
