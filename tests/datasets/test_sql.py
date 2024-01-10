@@ -2858,27 +2858,27 @@ def test_swap_multi_escape_source(rc, tmp_path, geodb):
 
 def test_advanced_denorm(rc, tmp_path, geodb_denorm):
     create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
-    d | r | m | property            | type    | ref                     | source       | prepare                 | access
-    datasets/denorm                 |         |                         |              |                         |
-      | rs                          | sql     |                         |              |                         |
-      |   | Planet                  |         | code                    | PLANET       |                         | open
-      |   |   | code                | string  |                         | code         |                         |
-      |   |   | name                | string  |                         | name         |                         |
-      |   | Country                 |         | code                    | COUNTRY      |                         | open
-      |   |   | code                | string  |                         | code         |                         |
-      |   |   | name                | string  |                         | name         |                         |
-      |   |   | planet              | ref     | Planet                  | planet       |                         |
-      |   |   | planet.name         |         |                         |              |                         |
-      |   | City                    |         | code                    | CITY         |                         | open
-      |   |   | code                | string  |                         | code         |                         |
-      |   |   | name                | string  |                         | name         |                         |
-      |   |   | country             | ref     | Country                 | country      |                         |
-      |   |   | country.code        | string  |                         | countryName  |                         |
-      |   |   | country.name        |         |                         |              |                         |
-      |   |   | country.year        | integer |                         | countryYear  |                         |
-      |   |   | country.planet.name |         |                         |              |                         |
-      |   |   | country.planet.code | string  |                         | planetName   |                         |
-    '''))
+        d | r | m | property            | type    | ref     | source       | prepare | access
+    datasets/denorm                 |         |         |              |         |
+      | rs                          | sql     |         |              |         |
+      |   | Planet                  |         | code    | PLANET       |         | open
+      |   |   | code                | string  |         | code         |         |
+      |   |   | name                | string  |         | name         |         |
+      |   | Country                 |         | code    | COUNTRY      |         | open
+      |   |   | code                | string  |         | code         |         |
+      |   |   | name                | string  |         | name         |         |
+      |   |   | planet              | ref     | Planet  | planet       |         |
+      |   |   | planet.name         |         |         |              |         |
+      |   | City                    |         | code    | CITY         |         | open
+      |   |   | code                | string  |         | code         |         |
+      |   |   | name                | string  |         | name         |         |
+      |   |   | country             | ref     | Country | country      |         |
+      |   |   | country.code        | string  |         | countryName  |         |
+      |   |   | country.name        |         |         |              |         |
+      |   |   | country.year        | integer |         | countryYear  |         |
+      |   |   | country.planet.name |         |         |              |         |
+      |   |   | country.planet.code | string  |         | planetName   |         |
+      '''))
 
     app = create_client(rc, tmp_path, geodb_denorm)
 
@@ -2946,4 +2946,92 @@ def test_advanced_denorm(rc, tmp_path, geodb_denorm):
         'country.year': 1204,
         'country.planet.name': 'Earth',
         'country.planet.code': 'Zeme'
+    }]
+
+
+def test_advanced_denorm_lvl_3(rc, tmp_path, geodb_denorm):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    d | r | m | property            | type    | ref     | source       | prepare | access | level
+    datasets/denorm/lvl3            |         |         |              |         |        |
+      | rs                          | sql     |         |              |         |        |
+      |   | Planet                  |         | code    | PLANET       |         | open   |
+      |   |   | code                | string  |         | code         |         |        |
+      |   |   | name                | string  |         | name         |         |        |
+      |   | Country                 |         | code    | COUNTRY      |         | open   |
+      |   |   | code                | string  |         | code         |         |        |
+      |   |   | name                | string  |         | name         |         |        |
+      |   |   | planet              | ref     | Planet  | planet       |         |        | 3
+      |   |   | planet.name         |         |         |              |         |        |
+      |   | City                    |         | code    | CITY         |         | open   |
+      |   |   | code                | string  |         | code         |         |        |
+      |   |   | name                | string  |         | name         |         |        |
+      |   |   | country             | ref     | Country | country      |         |        | 3
+      |   |   | country.name        |         |         | countryName  |         |        |
+      |   |   | country.year        | integer |         | countryYear  |         |        |
+      |   |   | country.planet.name | string  |         | planetName   |         |        |
+    '''))
+
+    app = create_client(rc, tmp_path, geodb_denorm)
+
+    resp = app.get('/datasets/denorm/lvl3/Planet')
+    assert listdata(resp, sort='code', full=True) == [{
+        'code': 'ER',
+        'name': 'Earth'
+    }, {
+        'code': 'JP',
+        'name': 'Jupyter'
+    }, {
+        'code': 'MR',
+        'name': 'Mars'
+    }]
+
+    resp = app.get('/datasets/denorm/lvl3/Country')
+    assert listdata(resp, 'code', 'name', 'planet.name', sort='code', full=True) == [{
+        'code': 'EE',
+        'name': 'Estonia',
+        'planet.name': 'Jupyter'
+    }, {
+        'code': 'LT',
+        'name': 'Lithuania',
+        'planet.name': 'Earth'
+
+    }, {
+        'code': 'LV',
+        'name': 'Latvia',
+        'planet.name': 'Mars'
+    }]
+
+    resp = app.get('/datasets/denorm/lvl3/City')
+    assert listdata(
+        resp,
+        'code',
+        'name',
+        'country.name',
+        'country.code',
+        'country.year',
+        'country.planet.name',
+        'country.planet.code',
+        sort='code',
+        full=True
+    ) == [{
+        'code': 'RYG',
+        'name': 'Ryga',
+        'country.name': 'Latvia',
+        'country.code': 'LV',
+        'country.year': 1408,
+        'country.planet.name': 'Marsas',
+    }, {
+        'code': 'TLN',
+        'name': 'Talin',
+        'country.name': 'Estonia',
+        'country.code': 'EE',
+        'country.year': 1784,
+        'country.planet.name': 'Jupiteris',
+    }, {
+        'code': 'VLN',
+        'name': 'Vilnius',
+        'country.name': 'Lithuania',
+        'country.code': 'LT',
+        'country.year': 1204,
+        'country.planet.name': 'Zeme',
     }]
