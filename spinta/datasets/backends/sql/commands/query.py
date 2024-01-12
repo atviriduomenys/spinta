@@ -1038,25 +1038,25 @@ def sort(env, field):
 @ufunc.resolver(SqlQueryBuilder, DataType)
 def asc(env, dtype):
     column = env.backend.get_column(env.table, dtype.prop)
-    return column.asc()
+    return sa.sql.expression.nullslast(column.asc())
 
 
 @ufunc.resolver(SqlQueryBuilder, Text)
 def asc(env, dtype):
     column = _get_column_with_extra(env, dtype.prop)
-    return column.asc()
+    return sa.sql.expression.nullslast(column.asc())
 
 
 @ufunc.resolver(SqlQueryBuilder, DataType)
 def desc(env, dtype):
     column = env.backend.get_column(env.table, dtype.prop)
-    return column.desc()
+    return sa.sql.expression.nullsfirst(column.asc())
 
 
 @ufunc.resolver(SqlQueryBuilder, Text)
 def desc(env, dtype):
     column = _get_column_with_extra(env, dtype.prop)
-    return column.desc()
+    return sa.sql.expression.nullsfirst(column.asc())
 
 
 def _get_from_flatprops(model: Model, prop: str):

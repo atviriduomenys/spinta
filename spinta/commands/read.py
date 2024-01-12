@@ -13,7 +13,7 @@ from spinta.backends.helpers import get_select_tree
 from spinta.backends.components import Backend
 from spinta.backends.nobackend.components import NoBackend
 from spinta.compat import urlparams_to_expr
-from spinta.components import Context, Node, Action, UrlParams, Page, PageBy
+from spinta.components import Context, Node, Action, UrlParams, Page, PageBy, get_page_size
 from spinta.components import Model
 from spinta.components import Property
 from spinta.core.ufuncs import Expr
@@ -24,7 +24,7 @@ from spinta.types.datatype import Object
 from spinta.types.datatype import File
 from spinta.accesslog import AccessLog
 from spinta.accesslog import log_response
-from spinta.exceptions import UnavailableSubresource, InfiniteLoopWithPagination, DuplicateRowWhilePaginating, BackendNotGiven
+from spinta.exceptions import UnavailableSubresource, InfiniteLoopWithPagination, BackendNotGiven, TooShortPageSize
 from spinta.exceptions import ItemDoesNotExist
 from spinta.types.datatype import DataType
 from spinta.typing import ObjectData
@@ -32,7 +32,6 @@ from spinta.ufuncs.basequerybuilder.components import get_allowed_page_property_
     update_query_with_url_params
 from spinta.ufuncs.basequerybuilder.ufuncs import add_page_expr
 from spinta.utils.data import take
-from spinta.utils.encoding import encode_page_values
 
 
 @commands.getall.register(Context, Model, Request)
@@ -208,12 +207,11 @@ def get_page(
     params: QueryParams = None,
 ) -> Iterator[ObjectData]:
     config = context.get('config')
-    page_size = config.push_page_size
-    model_page.size = model_page.size or page_size or 1000
-
+    size = get_page_size(config, model)
+    model_page.size = size + 1
     true_count = 0
 
-    last_value = None
+    prev_first_value = None
     while True:
         finished = True
         query = add_page_expr(expr, model_page)
@@ -221,13 +219,19 @@ def get_page(
             rows = commands.getall(context, model, backend, params=params, query=query, default_expand=default_expand)
         else:
             rows = commands.getall(context, model, backend, params=params, query=query)
-        first_value = None
+        current_first_value = None
         previous_value = None
-        for row in rows:
-            if previous_value is not None:
-                if previous_value == row:
-                    raise DuplicateRowWhilePaginating(key=encode_page_values(row['_page']))
-            previous_value = row
+        for i, row in enumerate(rows):
+            if i > size - 1:
+                if row == previous_value:
+                    raise TooShortPageSize(
+                        model_page,
+                        page_size=size,
+                        page_values=previous_value
+                    )
+                break
+
+            previous_value = row.copy()
             if finished:
                 finished = False
 
@@ -235,12 +239,15 @@ def get_page(
                 finished = True
                 break
 
-            if first_value is None:
-                first_value = row
-                if first_value == last_value:
-                    raise InfiniteLoopWithPagination()
-                else:
-                    last_value = first_value
+            if current_first_value is None:
+                current_first_value = row
+                if current_first_value == prev_first_value:
+                    raise InfiniteLoopWithPagination(
+                        model_page,
+                        page_size=size,
+                        page_values=current_first_value
+                    )
+                prev_first_value = current_first_value
 
             true_count += 1
             if '_page' in row:
