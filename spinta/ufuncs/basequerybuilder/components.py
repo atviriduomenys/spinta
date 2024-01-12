@@ -105,6 +105,7 @@ class LoadBuilder(Env):
                 page.is_enabled = False
                 break
         self.model.page = page
+        page.model = self.model
 
 
 def get_allowed_page_property_types():

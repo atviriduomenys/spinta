@@ -48,7 +48,7 @@ def test_getall_paginate_null_check_value(rc, tmp_path, geodb_null_check):
        |   | data                 |                 | sql     |         |        |
        |   |   |                  |                 |         |         |        |
        |   |   |   | City         | cities          |         | id      | open   |
-       |   |   |   |   | id       | id              | integer |       s  |        |
+       |   |   |   |   | id       | id              | integer |         |        |
        |   |   |   |   | name     | name            | string  |         |        | 
     '''))
 

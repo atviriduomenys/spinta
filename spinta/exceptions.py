@@ -639,8 +639,22 @@ class InvalidPageKey(UserError):
     template = "Given '{key}' page key is invalid."
 
 
-class InfiniteLoopWithPagination(BaseError):
-    template = "Pagination values has cause infinite loop while fetching data."
+class InfiniteLoopWithPagination(UserError):
+    template = '''
+    Pagination values has cause infinite loop while fetching data.
+    Page of size: {page_size}, first value is the same as previous page's last value, which is:
+    {page_values}
+    '''
+
+
+class TooShortPageSize(UserError):
+    template = '''
+    Page of size: {page_size} is too small, some duplicate values do not fit in a single page.
+    Which can cause either loss of data, or cause infinite loop while paginating.
+    Affected row: {page_values}
+    
+    To fix this, please either increase page size in the manifest, or 'push_page_size' value in the configs.
+    '''
 
 
 class DuplicateRowWhilePaginating(BaseError):
