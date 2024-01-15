@@ -1050,13 +1050,13 @@ def asc(env, dtype):
 @ufunc.resolver(SqlQueryBuilder, DataType)
 def desc(env, dtype):
     column = env.backend.get_column(env.table, dtype.prop)
-    return sa.sql.expression.nullsfirst(column.asc())
+    return sa.sql.expression.nullsfirst(column.desc())
 
 
 @ufunc.resolver(SqlQueryBuilder, Text)
 def desc(env, dtype):
     column = _get_column_with_extra(env, dtype.prop)
-    return sa.sql.expression.nullsfirst(column.asc())
+    return sa.sql.expression.nullsfirst(column.desc())
 
 
 def _get_from_flatprops(model: Model, prop: str):
