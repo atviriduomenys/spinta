@@ -524,6 +524,12 @@ class Page:
         self.by[by] = PageBy(prop, value)
 
     def update_value(self, by: str, prop: Property, value: Any):
+        cleaned_up = by[1:] if by.startswith('-') else by
+
+        if cleaned_up != by and cleaned_up in self.by:
+            renamed_dict = {by if key == cleaned_up else key:value for key, value in self.by.items()}
+            self.by = renamed_dict
+
         if by not in self.by:
             self.by[by] = PageBy(prop)
         self.by[by].value = value
