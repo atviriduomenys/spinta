@@ -749,3 +749,7 @@ class DuplicateRdfPrefixMissmatch(UserError):
 
 class InvalidName(UserError):
     template = 'Invalid {name!r} {type} code name.'
+
+
+class NoneValueComparison(UserError):
+    template = "None values can only be compared using 'eq' or 'ne' operands, {op!r} was given."
