@@ -8,7 +8,7 @@ from spinta import spyna
 from spinta.components import Context
 from spinta.auth import AdminToken
 from spinta.testing.client import create_test_client
-from spinta.testing.data import encode_page_values_manually
+from spinta.testing.data import encode_page_values_manually, listdata
 from spinta.testing.manifest import prepare_manifest, bootstrap_manifest
 from spinta.core.config import RawConfig
 from spinta.core.ufuncs import asttoexpr
@@ -167,3 +167,158 @@ def test_get_time(rc: RawConfig, postgresql: str, request: FixtureRequest):
     json_response = response.json()
     assert len(json_response['_data']) == 1
     assert json_response['_data'][0]['date'] == '10:00:10'
+
+
+def test_get_paginate_with_none_simple(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(rc, '''
+            d | r | b | m | property | type    | ref     | access  | uri
+            example/page/null/simple |         |         |         |
+              |   |   | Test         |         | id      | open    | 
+              |   |   |   | id       | integer |         |         | 
+              |   |   |   | name     | string  |         |         |
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/page/null/simple', ['insert', 'getall', 'search'])
+    app.post('/example/page/null/simple/Test', json={
+        'id': 0,
+        'name': 'Test0'
+    })
+    app.post('/example/page/null/simple/Test', json={
+        'id': None,
+        'name': 'Test1'
+    })
+    app.post('/example/page/null/simple/Test', json={
+        'id': 1,
+        'name': 'Test2'
+    })
+    app.post('/example/page/null/simple/Test', json={
+        'id': 2,
+        'name': 'Test3'
+    })
+
+    response = app.get(f'/example/page/null/simple/Test?page(size:1)')
+    json_response = response.json()
+    assert len(json_response['_data']) == 4
+    assert listdata(response, 'id', 'name') == [
+        (0, 'Test0'),
+        (1, 'Test2'),
+        (2, 'Test3'),
+        (None, 'Test1'),
+    ]
+
+    response = app.get(f'/example/page/null/simple/Test?page(size:2)')
+    json_response = response.json()
+    assert len(json_response['_data']) == 4
+    assert listdata(response, 'id', 'name') == [
+        (0, 'Test0'),
+        (1, 'Test2'),
+        (2, 'Test3'),
+        (None, 'Test1'),
+    ]
+
+    response = app.get(f'/example/page/null/simple/Test?page(size:100)')
+    json_response = response.json()
+    assert len(json_response['_data']) == 4
+    assert listdata(response, 'id', 'name') == [
+        (0, 'Test0'),
+        (1, 'Test2'),
+        (2, 'Test3'),
+        (None, 'Test1'),
+    ]
+
+    response = app.get(f'/example/page/null/simple/Test?sort(id, name)&page(size:100)')
+    json_response = response.json()
+    assert len(json_response['_data']) == 4
+    assert listdata(response, 'id', 'name') == [
+        (0, 'Test0'),
+        (1, 'Test2'),
+        (2, 'Test3'),
+        (None, 'Test1'),
+    ]
+
+
+def test_get_paginate_with_none_multi_key(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(rc, '''
+            d | r | b | m | property | type    | ref      | access  | uri
+            example/page/null/multi  |         |          |         |
+              |   |   | Test         |         | id, name | open    | 
+              |   |   |   | id       | integer |          |         | 
+              |   |   |   | name     | string  |          |         |
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/page/null/multi', ['insert', 'getall', 'search'])
+    app.post('/example/page/null/multi/Test', json={
+        'id': 0,
+        'name': 'Test0'
+    })
+    app.post('/example/page/null/multi/Test', json={
+        'id': 0,
+        'name': 'Test1'
+    })
+    app.post('/example/page/null/multi/Test', json={
+        'id': 0,
+        'name': None
+    })
+    app.post('/example/page/null/multi/Test', json={
+        'id': 1,
+        'name': 'Test2'
+    })
+    app.post('/example/page/null/multi/Test', json={
+        'id': 2,
+        'name': 'Test3'
+    })
+    app.post('/example/page/null/multi/Test', json={
+        'id': None,
+        'name': 'Test'
+    })
+    app.post('/example/page/null/multi/Test', json={
+        'id': None,
+        'name': 'Test1'
+    })
+    app.post('/example/page/null/multi/Test', json={
+        'id': None,
+        'name': None
+    })
+
+    response = app.get(f'/example/page/null/multi/Test?page(size:1)')
+    json_response = response.json()
+    assert len(json_response['_data']) == 8
+    assert listdata(response, 'id', 'name') == [
+        (0, 'Test0'),
+        (0, 'Test1'),
+        (0, None),
+        (1, 'Test2'),
+        (2, 'Test3'),
+        (None, 'Test'),
+        (None, 'Test1'),
+        (None, None),
+    ]
+
+    response = app.get(f'/example/page/null/multi/Test?page(size:3)')
+    json_response = response.json()
+    assert len(json_response['_data']) == 8
+    assert listdata(response, 'id', 'name') == [
+        (0, 'Test0'),
+        (0, 'Test1'),
+        (0, None),
+        (1, 'Test2'),
+        (2, 'Test3'),
+        (None, 'Test'),
+        (None, 'Test1'),
+        (None, None),
+    ]
+
+    response = app.get(f'/example/page/null/multi/Test?sort(-id,-name)&page(size:3)')
+    json_response = response.json()
+    assert len(json_response['_data']) == 8
+    assert listdata(response, 'id', 'name') == [
+        (0, 'Test0'),
+        (0, 'Test1'),
+        (0, None),
+        (1, 'Test2'),
+        (2, 'Test3'),
+        (None, 'Test'),
+        (None, 'Test1'),
+        (None, None),
+    ]
+
