@@ -1,6 +1,7 @@
 import uuid
 from copy import deepcopy
-from typing import overload, Optional, Iterator, List, Tuple
+from dataclasses import dataclass
+from typing import overload, Optional, Iterator, List, Tuple, Callable, TypedDict
 from pathlib import Path
 
 from starlette.requests import Request
@@ -24,7 +25,8 @@ from spinta.types.datatype import Object
 from spinta.types.datatype import File
 from spinta.accesslog import AccessLog
 from spinta.accesslog import log_response
-from spinta.exceptions import UnavailableSubresource, InfiniteLoopWithPagination, BackendNotGiven, TooShortPageSize
+from spinta.exceptions import UnavailableSubresource, InfiniteLoopWithPagination, BackendNotGiven, TooShortPageSize, \
+    TooShortPageSizeKeyRepetition
 from spinta.exceptions import ItemDoesNotExist
 from spinta.types.datatype import DataType
 from spinta.typing import ObjectData
@@ -196,6 +198,14 @@ def prepare_page_for_get_all(context: Context, model: Model, params: UrlParams):
         return copied
 
 
+def _is_iter_last_real_value(it: int, total: int, added_size: int = 1):
+    return it > (total - 1 - added_size)
+
+
+def _is_iter_last_potential_value(it: int, total: int):
+    return it > (total - 1)
+
+
 def get_page(
     context: Context,
     model: Model,
@@ -207,55 +217,111 @@ def get_page(
     params: QueryParams = None,
 ) -> Iterator[ObjectData]:
     config = context.get('config')
-    size = get_page_size(config, model)
-    model_page.size = size + 1
-    true_count = 0
+    size = get_page_size(config, model, model_page)
 
-    prev_first_value = None
-    while True:
-        finished = True
+    # Add 1 to see future value (to see if it finished, check for infinite loops and page size miss matches).
+    model_page.size = size + 1
+
+    page_meta = PaginationMetaData(
+        page_size=size,
+        limit=limit
+    )
+    while not page_meta.is_finished:
+        page_meta.is_finished = True
         query = add_page_expr(expr, model_page)
         if backend.support_expand:
             rows = commands.getall(context, model, backend, params=params, query=query, default_expand=default_expand)
         else:
             rows = commands.getall(context, model, backend, params=params, query=query)
-        current_first_value = None
-        previous_value = None
-        for i, row in enumerate(rows):
-            if i > size - 1:
-                if row == previous_value:
-                    raise TooShortPageSize(
-                        model_page,
-                        page_size=size,
-                        page_values=previous_value
-                    )
-                break
 
-            previous_value = row.copy()
-            if finished:
-                finished = False
+        yield from get_paginated_values(model_page, page_meta, rows)
 
-            if limit and true_count >= limit:
-                finished = True
-                break
 
-            if current_first_value is None:
-                current_first_value = row
-                if current_first_value == prev_first_value:
-                    raise InfiniteLoopWithPagination(
-                        model_page,
-                        page_size=size,
-                        page_values=current_first_value
-                    )
-                prev_first_value = current_first_value
+@dataclass
+class PaginationMetaData:
+    page_size: int
+    previous_first_value = None
+    is_first_iter = True
+    is_finished = False
+    true_count = 0
+    limit: int = None
 
-            true_count += 1
-            if '_page' in row:
-                model_page.update_values_from_list(row['_page'])
-            yield row
+    def handle_count(self) -> bool:
+        if self.limit:
+            if self.true_count >= self.limit:
+                self.is_finished = True
+                return True
+            self.true_count += 1
+        return False
 
-        if finished:
+
+def get_paginated_values(model_page: Page, meta: PaginationMetaData, rows):
+    size = meta.page_size
+
+    print(meta.is_first_iter, [val.value for val in model_page.by.values()])
+    if model_page.first_time != meta.is_first_iter:
+        model_page.first_time = meta.is_first_iter
+    if meta.is_first_iter:
+        meta.is_first_iter = False
+
+    initial_key = [val.value for val in model_page.by.values()]
+    current_first_value = None
+    previous_value = None
+    key_repetition = [[], 0]
+    flag_for_potential_key_repetition = False
+    for i, row in enumerate(rows):
+        # Check if future value is not the same as last value
+        print(i, row)
+        if '_page' in row:
+            previous_key = row['_page'].copy()
+            if key_repetition[0] == previous_key:
+                key_repetition[1] += 1
+            else:
+                key_repetition = [previous_key, 0]
+
+        if _is_iter_last_potential_value(i, size):
+            meta.is_finished = False
+            if flag_for_potential_key_repetition:
+                raise TooShortPageSize(
+                    model_page,
+                    page_size=size,
+                    page_values=previous_value
+                )
+            if key_repetition[1] > 0:
+                raise TooShortPageSizeKeyRepetition(
+                    model_page,
+                    page_size=size,
+                    page_values=previous_value,
+                )
             break
+
+        previous_value = row.copy()
+
+        limit_result = meta.handle_count()
+        if limit_result:
+            break
+
+        # Check if row is completely the same as previous page first row
+        if current_first_value is None:
+            current_first_value = row
+            if current_first_value == meta.previous_first_value:
+                raise InfiniteLoopWithPagination(
+                    model_page,
+                    page_size=size,
+                    page_values=current_first_value
+                )
+            meta.previous_first_value = current_first_value
+
+        if '_page' in row:
+            model_page.update_values_from_list(row['_page'])
+
+            # Check if initial key is the same as last key
+            if _is_iter_last_real_value(i, size):
+                last_key = row['_page'].copy()
+                if initial_key == last_key:
+                    flag_for_potential_key_repetition = True
+
+        yield row
 
 
 def _update_expr_args(

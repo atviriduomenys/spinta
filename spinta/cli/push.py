@@ -44,7 +44,7 @@ from spinta.cli.helpers.errors import ErrorCounter
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.client import get_access_token
 from spinta.client import get_client_credentials
-from spinta.commands.read import get_page
+from spinta.commands.read import get_page, PaginationMetaData, get_paginated_values
 from spinta.components import Action, Page, get_page_size
 from spinta.components import Config
 from spinta.components import Context
@@ -838,9 +838,13 @@ def _get_state_rows(
             order_by.append(sa.sql.expression.nullsfirst(sa.desc(table.c[f"page.{page_by.prop.name}"])))
         else:
             order_by.append(sa.sql.expression.nullslast(sa.asc(table.c[f"page.{page_by.prop.name}"])))
-    last_value = None
-    while True:
-        finished = True
+
+    page_meta = PaginationMetaData(
+        page_size=size,
+    )
+
+    while not page_meta.is_finished:
+        page_meta.is_finished = True
         from_cond = _construct_where_condition_from_page(model_page, table)
 
         if from_cond is not None:
@@ -855,38 +859,8 @@ def _get_state_rows(
             rows = conn.execute(
                 stmt
             )
-        first_value = None
-        previous_value = None
-        for i, row in enumerate(rows):
-            if i > size - 1:
-                if row == previous_value:
-                    raise TooShortPageSize(
-                        model_page,
-                        page_size=size,
-                        page_values=previous_value
-                    )
-                break
-            previous_value = row
-            if finished:
-                finished = False
 
-            if first_value is None:
-                first_value = row
-                if first_value == last_value:
-                    raise InfiniteLoopWithPagination(
-                        model_page,
-                        page_size=size,
-                        page_values=first_value
-                    )
-                else:
-                    last_value = first_value
-
-            for by, page_by in model_page.by.items():
-                model_page.update_value(by, page_by.prop, row[f"page.{page_by.prop.name}"])
-            yield row
-
-        if finished:
-            break
+        yield from get_paginated_values(model_page, page_meta, rows)
 
 
 def _prepare_rows_for_push(rows: Iterable[_PushRow]) -> Iterator[_PushRow]:
@@ -1725,15 +1699,21 @@ def _get_deleted_rows_with_page(
         table.c.pushed.is_(None),
         table.c.error.is_(False)
     )
-    last_value = None
-    while True:
-        finished = True
+
+    page_meta = PaginationMetaData(
+        page_size=size
+    )
+
+    while not page_meta.is_finished:
+        page_meta.is_finished = True
+
         from_cond = _construct_where_condition_from_page(from_page, table)
         to_cond = _construct_where_condition_to_page(model_page, table)
-
         where_cond = None
+
         if from_cond is not None:
             where_cond = from_cond
+
         if to_cond is not None:
             if where_cond is not None:
                 sa.and_(
@@ -1751,44 +1731,14 @@ def _get_deleted_rows_with_page(
         else:
             where_cond = required_where_cond
 
-        deleted_rows = conn.execute(
+        rows = conn.execute(
             sa.select([table]).
             where(
                 where_cond
             ).order_by(*order_by).limit(size)
         )
-        first_value = None
-        previous_value = None
-        for i, row in enumerate(deleted_rows):
-            if i > size - 1:
-                if row == previous_value:
-                    raise TooShortPageSize(
-                        from_page,
-                        page_size=size,
-                        page_values=previous_value
-                    )
-                break
-            previous_value = row
-            if finished:
-                finished = False
 
-            if first_value is None:
-                first_value = row
-                if first_value == last_value:
-                    raise InfiniteLoopWithPagination(
-                        from_page,
-                        page_size=size,
-                        page_values=first_value
-                    )
-                else:
-                    last_value = first_value
-
-            for by, page_by in from_page.by.items():
-                from_page.update_value(by, page_by.prop, row[f"page.{page_by.prop.name}"])
-            yield row
-
-        if finished:
-            break
+        yield from get_paginated_values(from_page, page_meta, rows)
 
 
 def _prepare_deleted_row(

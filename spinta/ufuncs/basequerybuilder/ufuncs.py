@@ -180,7 +180,7 @@ def _get_pagination_compare_query(
     where_list = []
     for i in range(item_count):
         where_list.append([])
-    if not filtered.all_none():
+    if not filtered.all_none() or not filtered.first_time:
         for i, (by, page_by) in enumerate(filtered.by.items()):
             for n in range(item_count):
                 if n >= i:

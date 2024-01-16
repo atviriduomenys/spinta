@@ -500,6 +500,7 @@ class Page:
     by: Dict[str, PageBy]
     size: int
     filter_only: bool
+    first_time: bool
 
     def __init__(self):
         self.by = {}
@@ -507,6 +508,7 @@ class Page:
         self.is_enabled = True
         self.filter_only = False
         self.model = None
+        self.first_time = True
 
     def __deepcopy__(self, memo):
         cls = self.__class__
@@ -516,6 +518,7 @@ class Page:
         result.by = {}
         result.model = self.model
         result.filter_only = self.filter_only
+        result.first_time = self.first_time
         for by, page_by in self.by.items():
             result.by[by] = PageBy(page_by.prop, page_by.value)
         return result
@@ -580,8 +583,9 @@ def decode_page_values(encoded: Any):
     return json.loads(decoded)
 
 
-def get_page_size(config: Config, model: Model):
-    return model.page.size or config.push_page_size
+def get_page_size(config: Config, model: Model, page: Page = None):
+    page_size = page.size if page is not None else None
+    return page_size or model.page.size or config.push_page_size
 
 
 class ParamsPage:
@@ -591,6 +595,7 @@ class ParamsPage:
 
     def __init__(self):
         self.key = []
+        self.values = None
         self.size = None
         self.is_enabled = True
 

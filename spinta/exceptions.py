@@ -654,7 +654,20 @@ class TooShortPageSize(UserError):
     Affected row: {page_values}
     
     To fix this, please either increase page size in the manifest, or 'push_page_size' value in the configs.
+    Alternatively make page's structure more complex, by adding more properties to it.
     '''
+
+
+class TooShortPageSizeKeyRepetition(TooShortPageSize):
+
+    def __init__(self, *args, **kwargs):
+        super(TooShortPageSize, self).__init__(*args, **kwargs)
+        self.template = f'''
+        {self.template}
+        Error has been triggered because:
+        New page's key has been encountered multiple times in the previous page and it is the same for the future value.
+        This will cause the same data to be fetched multiple times.
+        '''
 
 
 class DuplicateRowWhilePaginating(BaseError):
