@@ -258,7 +258,6 @@ class PaginationMetaData:
 def get_paginated_values(model_page: Page, meta: PaginationMetaData, rows):
     size = meta.page_size
 
-    print(meta.is_first_iter, [val.value for val in model_page.by.values()])
     if model_page.first_time != meta.is_first_iter:
         model_page.first_time = meta.is_first_iter
     if meta.is_first_iter:
@@ -271,7 +270,6 @@ def get_paginated_values(model_page: Page, meta: PaginationMetaData, rows):
     flag_for_potential_key_repetition = False
     for i, row in enumerate(rows):
         # Check if future value is not the same as last value
-        print(i, row)
         if '_page' in row:
             previous_key = row['_page'].copy()
             if key_repetition[0] == previous_key:
@@ -295,7 +293,7 @@ def get_paginated_values(model_page: Page, meta: PaginationMetaData, rows):
                 )
             break
 
-        previous_value = row.copy()
+        previous_value = row
 
         limit_result = meta.handle_count()
         if limit_result:
