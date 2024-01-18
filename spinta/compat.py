@@ -48,6 +48,15 @@ def urlparams_to_expr(
     if params.count and add_count:
         ast.append({'name': 'count', 'args': []})
 
+    if params.expand is not None:
+        ast.append({'name': 'expand', 'args': [
+            arg if isinstance(arg, dict) else {'name': 'bind', 'args': [arg]}
+            for arg in params.expand
+        ]})
+
+    if params.bbox is not None:
+        ast.append({'name': 'bbox', 'args': params.bbox})
+
     if len(ast) == 0:
         ast = {
             'name': 'select',

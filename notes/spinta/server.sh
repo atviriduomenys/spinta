@@ -77,10 +77,12 @@ spinta_update
 spinta_patch
 spinta_delete
 spinta_wipe
+spinta_auth_clients
 EOF
 
 
 # Run server
+
 poetry run spinta run &>> $BASEDIR/spinta.log &
 PID=$!
 tail -50 $BASEDIR/spinta.log

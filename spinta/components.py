@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import json
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -14,6 +16,7 @@ import pathlib
 from typing import Type
 from typing import TypedDict
 
+from spinta.exceptions import InvalidPageKey, InvalidPushWithPageParameterCount
 from spinta import exceptions
 from spinta.dimensions.lang.components import LangData
 from spinta.units.components import Unit
@@ -457,6 +460,7 @@ class Base(Node):
     parent: Model       # a.base.b - here `parent` is `a`
     pk: List[Property]  # a.base.b - list of properties of `a` model
     lang: LangData = None
+    level: Level
 
     schema = {
         'name': {},
@@ -467,12 +471,102 @@ class Base(Node):
             'items': {'type': 'object'},
         },
         'lang': {'type': 'object'},
+        'level': {
+            'type': 'integer',
+            'choices': Level,
+            'inherit': 'external.resource.level',
+        },
     }
 
 
 class ModelGiven:
     access: str = None
     pkeys: list[str] = None
+
+
+class PageBy:
+    prop: Property
+    value: Any
+
+    def __init__(self, prop: Property, value: Any = None):
+        self.prop = prop
+        self.value = value
+
+
+class Page:
+    is_enabled: bool
+    by: Dict[str, PageBy]
+    size: int
+    filter_only: bool
+
+    def __init__(self):
+        self.by = {}
+        self.size = None
+        self.is_enabled = True
+        self.filter_only = False
+
+    def __deepcopy__(self, memo):
+        cls = self.__class__
+        result = cls.__new__(cls)
+        result.is_enabled = self.is_enabled
+        result.size = self.size
+        result.by = {}
+        result.filter_only = self.filter_only
+        for by, page_by in self.by.items():
+            result.by[by] = PageBy(page_by.prop, page_by.value)
+        return result
+
+    def add_prop(self, by: str, prop: Property, value: Any = None):
+        self.by[by] = PageBy(prop, value)
+
+    def update_value(self, by: str, prop: Property, value: Any):
+        if by not in self.by:
+            self.by[by] = PageBy(prop)
+        self.by[by].value = value
+
+    def clear(self):
+        for item in self.by.values():
+            item.value = None
+
+    def clear_till_depth(self, depth: int):
+        for i, item in enumerate(reversed(self.by.values())):
+            if i < depth:
+                item.value = None
+
+    def update_values_from_page_key(self, key: str):
+        loaded = decode_page_values(key)
+        if len(loaded) != len(self.by):
+            raise InvalidPageKey(key=key)
+        for i, (by, page_by) in enumerate(self.by.items()):
+            self.update_value(by, page_by.prop, loaded[i])
+
+    def update_values_from_list(self, values: list):
+        if len(values) != len(self.by.values()):
+            raise InvalidPushWithPageParameterCount(properties=list(self.by.keys()))
+
+        for i, (by, page_by) in enumerate(self.by.items()):
+            self.update_value(by, page_by.prop, values[i])
+
+    def update_values_from_page(self, page: Page):
+        self.clear()
+        for by, page_by in page.by.items():
+            self.update_value(by, page_by.prop, page_by.value)
+
+
+def decode_page_values(encoded: Any):
+    decoded = base64.urlsafe_b64decode(encoded)
+    return json.loads(decoded)
+
+
+class ParamsPage:
+    values: List[Any]
+    size: int
+    is_enabled: bool
+
+    def __init__(self):
+        self.key = []
+        self.size = None
+        self.is_enabled = True
 
 
 class Model(MetaData):
@@ -491,6 +585,10 @@ class Model(MetaData):
     comments: List[Comment] = None
     base: Base = None
     uri: str = None
+    uri_prop: Property = None
+    page: Page = None
+
+    required_keymap_properties = []
 
     schema = {
         'keymap': {'type': 'string'},
@@ -532,6 +630,9 @@ class Model(MetaData):
         self.leafprops = {}
         self.given = ModelGiven()
         self.params = {}
+        self.required_keymap_properties = []
+        self.page = Page()
+        self.uri_prop = None
 
     def model_type(self):
         return self.name
@@ -542,11 +643,25 @@ class Model(MetaData):
         else:
             return self.name
 
+    def add_keymap_property_combination(self, given_props: List[Property]):
+        extract_names = list([prop.name for prop in given_props])
+        if extract_names not in self.required_keymap_properties:
+            self.required_keymap_properties.append(extract_names)
+
 
 class PropertyGiven:
     access: str = None
     enum: str = None
     unit: str = None
+    name: str = None
+    explicit: bool = True
+    prepare: List[PrepareGiven] = []
+
+
+class PrepareGiven(TypedDict):
+    appended: bool
+    source: str
+    prepare: str
 
 
 class Property(Node):
@@ -592,6 +707,9 @@ class Property(Node):
         'units': {'type': 'string'},
         'lang': {'type': 'object'},
         'comments': {},
+        'given_name': {'type': 'string'},
+        'explicitly_given': {'type': 'boolean'},
+        'prepare_given': {'required': False},
     }
 
     def __init__(self):
@@ -714,6 +832,7 @@ class UrlParams:
     count: bool = False
     # In batch requests, return summary of what was done.
     summary: bool = False
+    bbox: Optional[List[float]] = None
     # In batch requests, continue execution even if some actions fail.
     fault_tolerant: bool = False
 
@@ -724,6 +843,13 @@ class UrlParams:
     head: bool = False
 
     query: List[Dict[str, Any]] = None
+
+    page: Optional[ParamsPage] = None
+
+    expand: Optional[List[str]] = None
+
+    accept_langs: Optional[List[str]] = None
+    content_langs: Optional[List[str]] = None
 
     def changed_parsetree(self, change):
         ptree = {x['name']: x['args'] for x in (self.parsetree or [])}
@@ -891,6 +1017,9 @@ class Config:
     data_path: pathlib.Path
     AccessLog: Type[AccessLog]
     exporters: Dict[str, Format]
+    push_page_size: int = None
+    languages: List[str]
+    check_names: bool = False
 
     def __init__(self):
         self.commands = _CommandsConfig()

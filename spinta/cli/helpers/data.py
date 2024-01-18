@@ -1,6 +1,7 @@
 import logging
 import pathlib
 import types
+from copy import deepcopy
 from typing import Any
 from typing import Dict
 from typing import Iterable
@@ -19,6 +20,9 @@ from spinta.components import Context
 from spinta.components import DataStream
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
+from spinta.ufuncs.basequerybuilder.components import QueryParams
+from spinta.ufuncs.basequerybuilder.ufuncs import add_page_expr
+from spinta.types.datatype import Inherit
 from spinta.utils.aiotools import alist
 from spinta.utils.itertools import peek
 
@@ -32,6 +36,10 @@ def _get_row_count(
     model: components.Model,
 ) -> int:
     query = Expr('select', Expr('count'))
+    if model.page.is_enabled:
+        copied = deepcopy(model.page)
+        copied.filter_only = True
+        query = add_page_expr(query, copied)
     stream = commands.getall(context, model, model.backend, query=query)
     for data in stream:
         return data['count()']
@@ -65,11 +73,12 @@ def count_rows(
     return counts
 
 
-def _read_model_data(
+def read_model_data(
     context: components.Context,
     model: components.Model,
     limit: int = None,
     stop_on_error: bool = False,
+    params: QueryParams = None
 ) -> Iterable[Dict[str, Any]]:
 
     if limit is None:
@@ -77,7 +86,7 @@ def _read_model_data(
     else:
         query = Expr('limit', limit)
 
-    stream = commands.getall(context, model, model.backend, query=query)
+    stream = commands.getall(context, model, model.backend, query=query, params=params)
 
     if stop_on_error:
         stream = peek(stream)
@@ -88,7 +97,30 @@ def _read_model_data(
             log.exception(f"Error when reading data from model {model.name}")
             return
 
-    yield from stream
+    prop_filer, needs_filtering = filter_allowed_props_for_model(model)
+    for item in stream:
+        if needs_filtering:
+            item = filter_dict_by_keys(prop_filer, item)
+        yield item
+
+
+def filter_allowed_props_for_model(model: Model) -> (dict, bool):
+    if model.base:
+        allowed_props = model.properties
+        for name, prop in model.base.parent.properties.items():
+            if not name.startswith('_'):
+                if name in allowed_props and isinstance(allowed_props[name].dtype, Inherit):
+                    allowed_props.pop(name)
+        return allowed_props, True
+    return model.properties, False
+
+
+def filter_dict_by_keys(dict1: dict, dict2: dict) -> dict:
+    result = {}
+    for key in dict1:
+        if key in dict2:
+            result[key] = dict2[key]
+    return result
 
 
 def iter_model_rows(
@@ -101,7 +133,7 @@ def iter_model_rows(
     no_progress_bar: bool = False,
 ) -> Iterator[ModelRow]:
     for model in models:
-        rows = _read_model_data(context, model, limit, stop_on_error)
+        rows = read_model_data(context, model, limit, stop_on_error)
         if not no_progress_bar:
             count = counts.get(model.name)
             rows = tqdm.tqdm(rows, model.name, ascii=True, total=count, leave=False)
