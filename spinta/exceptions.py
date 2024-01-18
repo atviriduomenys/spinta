@@ -735,3 +735,7 @@ class DuplicateRdfPrefixMissmatch(UserError):
 
 class InvalidName(UserError):
     template = 'Invalid {name!r} {type} code name.'
+
+
+class InheritPropertyValueMissmatch(UserError):
+    template = 'Expected {expected!r} value, but got {given!r}.'

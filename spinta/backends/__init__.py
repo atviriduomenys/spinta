@@ -364,19 +364,6 @@ def simple_data_check(
         raise exceptions.InvalidRefValue(prop, value=value)
 
 
-@commands.simple_data_check.register(Context, DataItem, Inherit, Property, Backend, object)
-def simple_data_check(
-    context: Context,
-    data: DataItem,
-    dtype: Inherit,
-    prop: Property,
-    backend: Backend,
-    value: object,
-) -> None:
-    if prop.name in data.given.keys():
-        raise exceptions.NotImplementedFeature(prop, feature="Ability to indirectly modify base parameters")
-
-
 @commands.simple_data_check.register(Context, DataItem, BackRef, Property, Backend, object)
 def simple_data_check(
     context: Context,
@@ -420,6 +407,23 @@ def complex_model_properties_check(
     backend: Backend,
     data: DataItem,
 ) -> None:
+    base_data = {}
+    if model.base and any(isinstance(prop.dtype, Inherit) for prop in model.properties.values()):
+        id_ = data.given.get('_id', None)
+        if id_ is not None:
+            where = {
+                'name': 'eq',
+                'args': [
+                    {'name': 'bind', 'args': ['_id']},
+                    id_,
+                ]
+            }
+            query = asttoexpr(where)
+            result = commands.getall(context, model.base.parent, backend, query=query)
+            for row in result:
+                base_data = row
+                break
+
     for name, prop in model.properties.items():
         # For datasets, property type is optional.
         # XXX: But I think, it should be mandatory.
@@ -442,6 +446,7 @@ def complex_model_properties_check(
                 prop,
                 data.backend,
                 given,
+                base_data=base_data
             )
 
 
@@ -453,6 +458,7 @@ def complex_data_check(
     prop: Property,
     backend: Backend,
     value: object,
+    **kwargs
 ):
     if data.action in (Action.UPDATE, Action.PATCH, Action.DELETE):
         for k in ('_type', '_revision'):
@@ -462,6 +468,32 @@ def complex_data_check(
                     given=data.given[k],
                     expected=data.saved[k],
                 )
+
+
+@complex_data_check.register(Context, DataItem, Inherit, Property, Backend, object)
+def complex_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: Inherit,
+    prop: Property,
+    backend: Backend,
+    value: object,
+    base_data: dict,
+    **kwargs
+):
+    if data.action in (Action.UPDATE, Action.PATCH, Action.DELETE):
+        for k in ('_type', '_revision'):
+            if k in data.given and data.saved[k] != data.given[k]:
+                raise ConflictingValue(
+                    dtype,
+                    given=data.given[k],
+                    expected=data.saved[k],
+                )
+
+    if value is not NA and dtype.prop.name in base_data:
+        inherited_value = base_data[dtype.prop.name]
+        if inherited_value != value:
+            raise InheritPropertyValueMissmatch(dtype, expected=inherited_value, given=value)
 
 
 def check_type_value(dtype: DataType, value: object, action: Action):

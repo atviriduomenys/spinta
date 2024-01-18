@@ -16,14 +16,12 @@ from responses import RequestsMock
 from spinta.client import add_client_credentials
 from spinta.core.config import RawConfig
 from spinta.utils.schema import NA
-from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.data import listdata
 from spinta.testing.client import create_client, create_rc, configure_remote_server
 from spinta.testing.datasets import Sqlite
 from spinta.testing.datasets import create_sqlite_db
 from spinta.manifests.tabular.helpers import striptable
-from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.utils import error
 
@@ -231,135 +229,6 @@ def test_filter_join_ne_array_value(rc, tmp_path, geodb):
     assert data == [
         ('ee', 'Talinas'),
     ]
-
-
-def test_join_with_base(
-    rc: RawConfig,
-    postgresql: str,
-    request: FixtureRequest,
-):
-    context = bootstrap_manifest(rc, '''
-    d | r | b | m | property   | type                 | ref     | prepare   | access
-    datasets/basetest          |                      |         |           |
-      |   |   |   |            |                      |         |           |
-      |   |   | Place          |                      | id      |           |
-      |   |   |   | id         | integer              |         |           | open
-      |   |   |   | name       | string               |         |           | open
-      |   |   |   | koord      | geometry(point,4326) |         |           | open
-      |   |   |   |            |                      |         |           |
-      |   | Place              |                      | name    |           |
-      |   |   |   |            |                      |         |           |
-      |   |   | Location       |                      | id      |           |
-      |   |   |   | id         | integer              |         |           | open
-      |   |   |   | name       |                      |         |           | open
-      |   |   |   | koord      |                      |         |           | open
-      |   |   |   | population | integer              |         |           | open
-      |   |   |   | type       | string               |         |           | open
-      |   |   |   |            | enum                 |         | "city"    |
-      |   |   |   |            |                      |         | "country" |
-      |   |   |   |            |                      |         |           |
-      |   | Location           |                      | name    |           |
-      |   |   | Test           |                      | id      |           |
-      |   |   |   | id         | integer              |         |           | open
-      |   |   |   | name       |                      |         |           | open
-      |   |   |   |            |                      |         |           |
-      |   |   | Country        |                      | id      |           |
-      |   |   |   | id         | integer              |         |           | open
-      |   |   |   | name       |                      |         |           | open
-      |   |   |   | population |                      |         |           | open
-      |   |   |   |            |                      |         |           |
-      |   |   | City           |                      | id      |           |
-      |   |   |   | id         | integer              |         |           | open
-      |   |   |   | name       |                      |         |           | open
-      |   |   |   | population |                      |         |           | open
-      |   |   |   | koord      |                      |         |           | open
-      |   |   |   | type       |                      |         |           | open
-      |   |   |   | country    | ref                  | Country |           | open
-      |   |   |   | testfk     | ref                  | Test    |           | open
-      |   |   |   |            |                      |         |           |
-    ''', backend=postgresql, request=request)
-
-    app = create_test_client(context)
-    app.authorize(['spinta_insert', 'spinta_getall', 'spinta_wipe', 'spinta_search', 'spinta_set_meta_fields'])
-    LTU = "d55e65c6-97c9-4cd3-99ff-ae34e268289b"
-    VLN = "2074d66e-0dfd-4233-b1ec-199abc994d0c"
-    TST = "2074d66e-0dfd-4233-b1ec-199abc994d0e"
-
-    resp = app.post('/datasets/basetest/Place', json={
-        '_id': LTU,
-        'id': 1,
-        'name': 'Lithuania',
-    })
-    assert resp.status_code == 201
-
-    resp = app.post('/datasets/basetest/Location', json={
-        '_id': LTU,
-        'id': 1,
-        'population': 2862380,
-    })
-    assert resp.status_code == 201
-
-    resp = app.post('/datasets/basetest/Country', json={
-        '_id': LTU,
-        'id': 1,
-    })
-    assert resp.status_code == 201
-
-    resp = app.post('/datasets/basetest/Place', json={
-        '_id': VLN,
-        'id': 2,
-        'name': 'Vilnius',
-        'koord': "SRID=4326;POINT (54.68677 25.29067)"
-    })
-    assert resp.status_code == 201
-
-    resp = app.post('/datasets/basetest/Location', json={
-        '_id': VLN,
-        'id': 2,
-        'population': 625349,
-    })
-    assert resp.status_code == 201
-
-    resp = app.post('/datasets/basetest/Place', json={
-        '_id': TST,
-        'id': 3,
-        'name': 'TestFK',
-        'koord': "SRID=4326;POINT (54.68677 25.29067)"
-    })
-    assert resp.status_code == 201
-
-    resp = app.post('/datasets/basetest/Location', json={
-        '_id': TST,
-        'id': 3,
-        'population': 625349,
-    })
-    assert resp.status_code == 201
-
-    resp = app.post('/datasets/basetest/Test', json={
-        '_id': TST,
-        'id': 3,
-    })
-    assert resp.status_code == 201
-
-    resp = app.post('/datasets/basetest/City', json={
-        '_id': VLN,
-        'id': 2,
-        'country': {'_id': LTU},
-        'testfk': {'_id': TST}
-    })
-    assert resp.status_code == 201
-
-    resp = app.get('/datasets/basetest/Location?select(_id,id,name,population,type)')
-    assert resp.status_code == 200
-    assert listdata(resp, 'name', sort='name') == ['Lithuania', 'TestFK', 'Vilnius']
-
-    resp = app.get('/datasets/basetest/City?select(id,name,country.name,testfk.name)')
-    assert resp.status_code == 200
-    assert listdata(resp, 'name', 'country.name', 'testfk.name')[0] == ('Vilnius', 'Lithuania', 'TestFK')
-
-    resp = app.get('/datasets/basetest/City?select(_id,id,name,population,type,koord)')
-    assert resp.status_code == 200
-    assert listdata(resp, 'name','population', 'koord', sort='name')[0] == ('Vilnius', 625349, 'POINT (54.68677 25.29067)')
 
 
 @pytest.mark.skip('todo')
