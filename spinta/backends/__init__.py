@@ -36,8 +36,9 @@ from spinta.components import Model
 from spinta.components import Namespace
 from spinta.components import Node
 from spinta.components import Property
+from spinta.core.ufuncs import asttoexpr
 from spinta.exceptions import ConflictingValue, RequiredProperty, LangNotDeclared, TooManyLangsGiven, \
-    UnableToDetermineRequiredLang
+    UnableToDetermineRequiredLang, InheritPropertyValueMissmatch
 from spinta.exceptions import NoItemRevision
 from spinta.formats.components import Format
 from spinta.types.datatype import Array, ExternalRef, Denorm, Inherit, PageType, BackRef, ArrayBackRef, Integer, Boolean
