@@ -479,7 +479,7 @@ def complex_data_check(
     prop: Property,
     backend: Backend,
     value: object,
-    base_data: dict,
+    base_data: dict = {},
     **kwargs
 ):
     if data.action in (Action.UPDATE, Action.PATCH, Action.DELETE):

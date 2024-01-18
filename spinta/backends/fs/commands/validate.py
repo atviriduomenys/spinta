@@ -31,6 +31,7 @@ def complex_data_check(
     prop: Property,
     backend: Backend,
     given: dict,
+    **kwargs
 ):
     complex_data_check[
         type(context),
@@ -39,7 +40,7 @@ def complex_data_check(
         Property,
         Backend,
         dict,
-    ](context, data, dtype, prop, backend, given)
+    ](context, data, dtype, prop, backend, given, **kwargs)
     if isinstance(dtype.backend, FileSystem):
         _validate_path(given['_id'], dtype.backend, dtype)
         path = dtype.backend.path / given['_id']
@@ -55,6 +56,7 @@ def complex_data_check(
     prop: Property,
     backend: FileSystem,
     value: dict,
+    **kwargs
 ):
     # TODO: revision check for files
     if data.action in (Action.UPDATE, Action.PATCH, Action.DELETE):

@@ -236,7 +236,7 @@ def simple_data_check():
 
 
 @command()
-def complex_data_check():
+def complex_data_check(*args, **kwargs):
     """Run a complex data check.
 
     At this point, simple data check is already done and data is passed simple
