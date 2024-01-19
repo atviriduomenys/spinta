@@ -1,7 +1,4 @@
-import os
-import shutil
 import uuid
-import ruamel.yaml
 from typing import Type
 
 import pkg_resources as pres
@@ -12,7 +9,8 @@ from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 
 from spinta import components, commands
 from spinta.auth import AuthorizationServer, check_scope, query_client, get_clients_list, \
-    client_exists, create_client_file, delete_client_file, update_client_file, get_clients_path
+    client_exists, create_client_file, delete_client_file, update_client_file, get_clients_path, get_auth_request, \
+    get_auth_token, ResourceProtector, BearerTokenValidator
 from spinta.commands import prepare, get_version
 from spinta.components import Context
 from spinta.exceptions import BaseError, MultipleErrors, error_response, InsufficientPermission, \
