@@ -10,4 +10,6 @@ from spinta.manifests.sql.components import SqlManifest
 def configure(context: Context, manifest: SqlManifest):
     rc: RawConfig = context.get('rc')
     path: Optional[str] = rc.get('manifests', manifest.name, 'path')
+    prepare: Optional[str] = rc.get('manifests', manifest.name, 'prepare')
+    manifest.prepare = prepare
     manifest.path = path

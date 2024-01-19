@@ -3,8 +3,286 @@
 Changes
 #######
 
-0.1.53 (unreleased)
+0.1.61 (unreleased)
 ===================
+
+
+0.1.60 (2023-11-21)
+===================
+
+New features:
+
+- Add new `text` type (`#204`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/204
+
+Bug fixes:
+
+- Fix client files migration issue (`#544`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/544
+
+- Fix pagination infinite loop error (`#542`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/542
+
+- Do not sync keymap on models not required for push operation (`#541`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/541
+
+- Fix `/:all` on RDF format (`#543`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/543
+
+
+0.1.59 (2023-11-14)
+===================
+
+Backwards incompatible changes:
+
+- With addition of new API for client management, structure how client files
+  are stored, was changed.
+
+  Previously clients were stored in `SPINTA_CONFIG_PATH` like this::
+
+    clients/
+    └── myclient.yml
+
+  Where `myclient` was usually a client name if given, if not given it was
+  an UUID.
+
+  Client file content looked like this:
+
+  .. code-block:: yaml
+
+      client_id: myclient
+      client_secret: secret
+      client_secret_hash: pbkdf2$sha256$346842$yLpG_ganZxGDuwzIsED4_Q$PBAqfikg6rvXzg2_s74zIPlGGilA5MZpyCyTjlEuzfI
+      scopes:
+        - spinta_getall
+        - spinta_getone
+
+  Now `clients/` folder structure looks like this::
+
+    ├── helpers/
+    │   └── keymap.yml
+    └── id/
+        └── 7e/
+            └── 1c/
+                └── 0625-fd42-4215-bd86-f0ddff04fda1.yml
+
+  In the new structure, all clients are stored under `id/` folder and client
+  files are named after client_id uuid form.
+
+  In the example above `7e1c0625-fd42-4215-bd86-f0ddff04fda1` is a `client_id`.
+
+  `client_id` now a clear meaning ant now it is just a client id in UUID form.
+  Client name is stored in `client_name`. If client name is not given, then
+  `client_name` is the same as `client_id`.
+
+  There is another file called `helpers/keymap.yml`, that looks like this:
+
+  .. code-block:: yaml
+
+      myclient: 7e1c0625-fd42-4215-bd86-f0ddff04fda1
+
+  This file, stores a mapping of client names as an index to help locating
+  clients by name faster.
+
+  Client names can change, but id can't.
+
+  Structure of client file mostly stays the same, except `client_id` is not
+  only id in UUID form and a new option `client_name` was added to store
+  client name. For example content of
+  `id/7e/1c/0625-fd42-4215-bd86-f0ddff04fda1.yml` now looks like this:
+
+  .. code-block:: yaml
+
+      client_id: 7e1c0625-fd42-4215-bd86-f0ddff04fda1
+      client_name: myclient
+      client_secret: secret
+      client_secret_hash: pbkdf2$sha256$346842$yLpG_ganZxGDuwzIsED4_Q$PBAqfikg6rvXzg2_s74zIPlGGilA5MZpyCyTjlEuzfI
+      scopes:
+        - spinta_getall
+        - spinta_getone
+
+
+New features:
+
+- Add possibility to manage clients via API (`#122`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/122
+
+
+Improvements:
+
+- Add better support for denormalized properties (`#397`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/397
+
+
+Bug fixes:
+
+- Fix error on object counting when running `spinta push` (`#535`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/535
+
+- Restore recognition of views in `spinta inspect` (`#476`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/476
+
+- Fix single object change list rendering in HTML format (`#459`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/459
+
+
+0.1.58 (2023-10-31)
+===================
+
+Bug fixes:
+
+- Fix error in CSV containing NULL data (`#528`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/528
+
+- Fix `swap()` containing quotes (`#508`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/508
+
+- Fix `UnauthorizedKeymapSync` error on `spinta push` command (`#532`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/532
+
+
+0.1.57 (2023-10-24)
+===================
+
+New features:
+
+- Add support for array type (`#161`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/161
+
+- Add support for backref type (`#96`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/96
+
+- Add support for XML resources (`#217`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/217
+
+- Add support for JSON resources (`#256`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/256
+
+- Add support for CSV resources (`#268`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/268
+
+
+Improvements:
+
+- Add support for custom subject URI in RDF/XML format (`#512`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/512
+
+
+Bug fixes:
+
+- Fixed pagination error with date types (`#516`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/516
+
+- Fix issue with old SQLite versions used for keymaps (`#518`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/518
+
+- Fix summary bbox function with negative values (`#523`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/523
+
+
+0.1.56 (2023-09-30)
+===================
+
+New features:
+
+- Pagination, this should enable possibility to push large amounts of data
+  (`#366`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/366
+
+- Push models using bases (`#346`__, `#391`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/346
+  __ https://github.com/atviriduomenys/spinta/issues/391
+
+- Sync push state from push target (`#289`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/289
+
+- Add support for non-primary key refs in push (`#345`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/345
+
+- Push models with external dependencies (`#394`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/394
+
+- `swap()` function (`#508`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/508
+
+
+0.1.55 (2023-08-18)
+===================
+
+New features:
+
+- Summary for numeric and date types (`#452`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/452
+
+- Summary for geometry types (`#451`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/451
+
+Bug fixes:
+
+- Fixed error on `_id>"UUID"` (`#490`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/490
+
+
+- Fixed an error with unique constraints (`#500`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/500
+
+
+0.1.53 (2023-08-01)
+===================
+
+New features:
+
+- Add support for RDF as manifest format (`#336`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/336
+
+- Add support for XML as manifest format (`#89`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/89
+
+Improvements:
+
+- Delete push target objects in correct order (`#458`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/458
+
+Bug fixes:
+
+- Add support for Oracle RAW type (`#493`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/493
 
 
 0.1.52 (2023-06-21)
@@ -1029,7 +1307,7 @@ Backwards incompatible features:
   manifest types `internal` and `yaml`.
 
   `internal` manifest is stored in `manifests..backend` database, in `_schema`
-  and `_schema/version` models.
+  and `_schema/Version` models.
 
   `yaml` manifest is same manifest as was used previously.
 
@@ -1139,7 +1417,7 @@ New features:
   `spinta bootstrap` - this command does same thing as previously did `spinta
   migrate` it simply creates all missing tables from scratch and upates all
   migration versions as applied. With `internal` manifest `bootstrap` does
-  nothing if it finds that `_schema/version` table is created. But with `yaml`
+  nothing if it finds that `_schema/Version` table is created. But with `yaml`
   manifest `bootstrap` always tries to create all missing tables.
 
   `spinta sync` - this command updates default manifest from list of other
@@ -1379,7 +1657,7 @@ Internal changes:
         client = create_test_client(context)
         client.authmodel('_version', ['getall', 'search'])
 
-        data = client.get('/_schema/version').json()
+        data = client.get('/_schema/Version').json()
 
 - There is no longer separate `internal` manifest. Since now there is only one
   manifest, `internal` manifest does not exist as a separate manifest, but it

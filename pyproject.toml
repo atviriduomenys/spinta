@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "spinta"
-version = "0.1.53.dev0"
+version = "0.1.61.dev0"
 description = "A platform for describing, extracting, transforming, loading and serving open data."
 authors = ["Mantas Zimnickas <sirexas@gmail.com>"]
 license = "MIT"
@@ -47,13 +47,14 @@ rdflib = '^6.3.2'
 jsonpatch = "^1.32"
 objprint = "^0.2.2"
 toml = "^0.10.2"
+numpy = '1.24.4'
 
 #HTTP
 [tool.poetry.group.http]
 optional = true
 
 [tool.poetry.group.http.dependencies]
-starlette = "^0.21.0"
+starlette = "^0.22.0"
 gunicorn = "^20.1.0"
 uvicorn = "^0.18.3"
 authlib = "~0.11"
@@ -127,6 +128,7 @@ optional = true
 alembic = "^1.8.1"
 asyncpg = "^0.22.0"
 psycopg2-binary = "^2.9.3"
+sqlean-py = "^0.21.8.4"
 sqlalchemy = "~1.4"
 # FIXME: https://github.com/python-poetry/poetry/issues/4402
 
@@ -155,6 +157,7 @@ optional = true
 
 [tool.poetry.group.xml.dependencies]
 lxml = "^4.9.1"
+xmltodict = "^0.13.0"
 
 # Export formats
 

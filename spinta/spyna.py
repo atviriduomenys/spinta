@@ -32,7 +32,7 @@ arglist: argument ("," argument)*  [","]
 ?argument: test | kwarg
 kwarg: NAME ":" test
 filter: test ("," test)* [","]
-attr: "." NAME
+attr: "." NAME | "@" NAME
 name: NAME
 value: NULL | BOOL | INT | FLOAT | STRING | ALL
 
@@ -163,7 +163,7 @@ class Visitor:
 
     def value(self, node, token):
         if token.type == 'STRING':
-            return token.value[1:-1]
+            return token.value[1:-1].encode().decode("unicode_escape")
         if token.type == 'INT':
             return int(token.value)
         if token.type == 'FLOAT':

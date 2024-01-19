@@ -1088,10 +1088,10 @@ def test_inspect_multiple_resources_advanced(
                             |         |     |         |         |         |
          |   | NewRemoved   |         |     | NEWREMOVED |         |         |
          |   |   | name     | string  |     | NAME |         |         |
-                            |         |     |         |         |         |       
+                            |         |     |         |         |         |
          |   | City         |         |     | CITY |         |         |
          |   |   | name     | string  |     | NAME |         |         |
-         |   |   | removed  | string  |     | REMOVED |         |         |   
+         |   |   | removed  | string  |     | REMOVED |         |         |
                             |         |     |         |         |         |
          | /          |      |     |  |         |         |
          |   | InBetween    |         |     |         |         |         |
@@ -1186,7 +1186,7 @@ def test_inspect_multiple_datasets(
                             |         |     |         |         |         |
          |   | Country      |         |     | COUNTRY |         |         |
          |   |   | name     | string  |     | NAME    |         |         |
-                            |         |     |         |         |         |     
+                            |         |     |         |         |         |
        datasets/gov/loc     |         |     |         |         |         | Example
          | schema           | sql     |     | {sqlite.dsn} |         |         |
                             |         |     |         |         |         |
@@ -1256,7 +1256,7 @@ def test_inspect_multiple_datasets_advanced_manifest_priority(
                             |         |     |         |         |         |
          |   | NewCountry   |         |     | COUNTRY |         |         |
          |   |   | name     | string  |     | NAME    |         |         |
-                            |         |     |         |         |         |     
+                            |         |     |         |         |         |
        datasets/gov/loc     |         |     |         |         |         | Example
          | schema           | sql     |     | {sqlite.dsn} |         |         |
                             |         |     |         |         |         |
@@ -1334,7 +1334,7 @@ def test_inspect_multiple_datasets_advanced_external_priority(
                             |         |     |         |         |         |
          |   | NewCountry   |         |     | COUNTRY |         |         |
          |   |   | name     | string  |     | NAME    |         |         |
-                            |         |     |         |         |         |     
+                            |         |     |         |         |         |
        datasets/gov/loc     |         |     |         |         |         | Example
          | schema           | sql     |     | {sqlite.dsn} |         |         |
                             |         |     |         |         |         |
@@ -1549,6 +1549,66 @@ def test_inspect_multiple_datasets_different_resources_specific(
     assert a == b
 
 
+def test_inspect_with_views(
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path,
+    sqlite: Sqlite
+):
+    # Prepare source data.
+    sqlite.init({
+        'COUNTRY': [
+            sa.Column('CODE', sa.Text),
+            sa.Column('CONTINENT', sa.Integer, sa.ForeignKey("CONTINENT.ID")),
+        ],
+        'CONTINENT': [
+            sa.Column('ID', sa.Integer, primary_key=True),
+            sa.Column('NAME', sa.Text),
+            sa.Column('CODE', sa.Text),
+        ],
+    })
+    sqlite.engine.execute('''
+        CREATE VIEW TestView
+        AS SELECT a.CODE, a.CONTINENT, b.NAME FROM COUNTRY a, CONTINENT b
+        WHERE a.CODE = b.CODE;
+    ''')
+
+    result_file_path = tmp_path / 'result.csv'
+    # Configure Spinta.
+    cli.invoke(rc, [
+        'inspect',
+        '-r', 'sql', sqlite.dsn,
+        '-o', tmp_path / 'result.csv',
+    ])
+    # Check what was detected.
+    manifest = load_manifest(rc, result_file_path)
+    manifest.datasets['dbsqlite'].resources['resource1'].external = 'sqlite'
+    manifest.datasets['dbsqlite/views'].resources['resource1'].external = 'sqlite'
+    a, b = compare_manifest(manifest, f'''
+       d | r | m | property  | type    | ref       | source     | prepare | access  | title
+       dbsqlite              |         |           |            |         |         |
+         | resource1         | sql     |           | sqlite     |         |         |
+                             |         |           |            |         |         |
+         |   | Continent     |         | id        | CONTINENT  |         |         |
+         |   |   | code      | string  |           | CODE       |         |         |
+         |   |   | id        | integer |           | ID         |         |         |
+         |   |   | name      | string  |           | NAME       |         |         |
+                             |         |           |            |         |         |
+         |   | Country       |         |           | COUNTRY    |         |         |
+         |   |   | code      | string  |           | CODE       |         |         |
+         |   |   | continent | ref     | Continent | CONTINENT  |         |         |
+       dbsqlite/views        |         |           |            |         |         |
+         | resource1         | sql     |           | sqlite     |         |         |
+                             |         |           |            |         |         |
+         |   | TestView      |         |           | TestView   |         |         |
+         |   |   | code      | string  |           | CODE       |         |         |
+         |   |   | continent | integer |           | CONTINENT  |         |         |
+         |   |   | name      | string  |           | NAME       |         |         |
+
+''')
+    assert a == b
+
+
 @pytest.mark.skip(reason="Requires #440 task")
 def test_inspect_with_manifest_backends(
     rc: RawConfig,
@@ -1683,5 +1743,82 @@ datasets/json/inspect           |                        |        |
   |   |   | weather_temperature | number unique          |        | weather.temperature
   |   |   | weather_wind_speed  | number unique          |        | weather.wind_speed
   |   |   | parent              | ref                    | Pos    | ..
+    ''')
+    assert a == b
+
+
+def test_inspect_xml_model_ref_change(
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path):
+    xml = '''
+    <countries>
+        <country name="Lithuania" code="LT">
+            <location latitude="54.5" longitude="12.6"/>
+            <city name="Vilnius">
+                <weather>
+                    <temperature>24.7</temperature>
+                    <wind_speed>12.4</wind_speed>
+                </weather>
+            </city>
+            <city name="Kaunas">
+                <weather>
+                    <temperature>29.7</temperature>
+                    <wind_speed>11.4</wind_speed>
+                </weather>
+            </city>
+        </country>
+        <country name="Latvia" code="LV">
+            <city name="Riga"/>
+            <city name="Test"/>
+        </country>
+    </countries>
+'''
+    path = tmp_path / 'manifest.xml'
+    path.write_text(xml)
+
+    result_file_path = tmp_path / 'result.csv'
+    # Configure Spinta.
+    rc = configure(rc, None, tmp_path / 'manifest.csv', f'''
+           d | r | m      | property             | type                   | ref    | source              
+           datasets/xml/inspect                  |                        |        |
+             | resource                          | xml                    |        | {path}
+                                                 |                        |        |
+             |   | Country |                     |                        | code   | /countries/country
+             |   |         | name                | string required unique |        | @name
+             |   |         | code                | string required unique |        | @code
+             |   |         | location_latitude   | number unique          |        | location/@latitude
+             |   |         | location_longitude  | number unique          |        | location/@longitude
+                                                 |                        |        |
+             |   | City    |                     |                        |        | /countries/country/city
+             |   |         | name                | string required unique |        | @name
+             |   |         | weather_temperature | number unique          |        | weather/temperature
+             |   |         | weather_wind_speed  | number unique          |        | weather/wind_speed
+           ''')
+
+    cli.invoke(rc, [
+        'inspect',
+        tmp_path / 'manifest.csv',
+        '-o', tmp_path / 'result.csv',
+    ])
+    # Check what was detected.
+    manifest = load_manifest(rc, result_file_path)
+    manifest.datasets['datasets/xml/inspect'].resources['resource'].external = 'resource.xml'
+    a, b = compare_manifest(manifest, f'''
+d | r | model  | property            | type                   | ref    | source
+datasets/xml/inspect            |                        |        |
+  | resource                    | xml                    |        | resource.xml
+                                |                        |        |
+  |   | Country                 |                        | code   | /countries/country
+  |   |   | name                | string required unique |        | @name
+  |   |   | code                | string required        |        | @code
+  |   |   | location_latitude   | number unique          |        | location/@latitude
+  |   |   | location_longitude  | number unique          |        | location/@longitude
+                                |                        |        |
+  |   | City                    |                        |        | /countries/country/city
+  |   |   | name                | string required unique |        | @name
+  |   |   | weather_temperature | number unique          |        | weather/temperature
+  |   |   | weather_wind_speed  | number unique          |        | weather/wind_speed
+  |   |   | country             | ref                    | Country | ..
     ''')
     assert a == b

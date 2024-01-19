@@ -34,7 +34,7 @@ from spinta.formats.html.helpers import get_model_link
 from spinta.formats.html.helpers import get_output_formats
 from spinta.formats.html.helpers import get_template_context
 from spinta.formats.html.helpers import short_id
-from spinta.types.datatype import Array, ExternalRef
+from spinta.types.datatype import Array, ExternalRef, PageType, BackRef, ArrayBackRef
 from spinta.types.datatype import DataType
 from spinta.types.datatype import File
 from spinta.types.datatype import Object
@@ -47,6 +47,8 @@ from spinta.types.datatype import Number
 from spinta.types.datatype import Binary
 from spinta.types.datatype import JSON
 from spinta.types.datatype import Inherit
+from spinta.types.text.components import Text
+from spinta.utils.encoding import is_url_safe_base64, encode_page_values
 from spinta.utils.imports import use
 from spinta.utils.nestedstruct import flatten
 from spinta.utils.schema import NotAvailable
@@ -55,13 +57,16 @@ Request = use('http', 'starlette.requests', 'Request')
 Jinja2Templates = use('http', 'starlette.templating', 'Jinja2Templates')
 
 
-def _get_model_reserved_props(action: Action) -> List[str]:
+def _get_model_reserved_props(action: Action, model: Model) -> List[str]:
     if action == Action.GETALL:
-        return ['_id']
+        reserved = ['_id']
     elif action == action.SEARCH:
-        return ['_id', '_base']
+        reserved = ['_id', '_base']
     else:
-        return get_model_reserved_props(action)
+        return get_model_reserved_props(action, model)
+    if model.page.is_enabled:
+        reserved.append('_page')
+    return reserved
 
 
 def _render_check(request: Request, data: Dict[str, Any] = None):
@@ -197,7 +202,7 @@ def _get_model_tabular_header(
     if model.name == '_ns':
         reserved = get_ns_reserved_props(action)
     else:
-        reserved = _get_model_reserved_props(action)
+        reserved = _get_model_reserved_props(action, model)
     return get_model_tabular_header(
         context,
         model,
@@ -302,7 +307,7 @@ def prepare_data_for_response(
         else:
             value['name'] = _ModelName(value['name'])
 
-    reserved = _get_model_reserved_props(action)
+    reserved = _get_model_reserved_props(action, model)
 
     data = {
         prop.name: commands.prepare_dtype_for_response(
@@ -455,6 +460,23 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
+    if is_url_safe_base64(value):
+        value = value.decode('ascii')
+    return Cell(value)
+
+
+@commands.prepare_dtype_for_response.register(Context, Html, PageType, list)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: PageType,
+    value: list,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    value = encode_page_values(value).decode('ascii')
     return Cell(value)
 
 
@@ -514,7 +536,10 @@ def prepare_dtype_for_response(
     select: dict = None,
 ):
     super_ = commands.prepare_dtype_for_response[Context, Format, Ref, dict]
-    return super_(context, fmt, dtype, value, data=data, action=action, select=select)
+    value = super_(context, fmt, dtype, value, data=data, action=action, select=select)
+    if value is None:
+        return Cell('', color=Color.null)
+    return value
 
 
 @commands.prepare_dtype_for_response.register(Context, Html, ExternalRef, (dict, str, type(None)))
@@ -529,7 +554,7 @@ def prepare_dtype_for_response(
     select: dict = None,
 ):
     if value is None:
-        return {}
+        return Cell('', color=Color.null)
 
     if select and select != {'*': {}}:
         names = get_select_prop_names(
@@ -675,3 +700,97 @@ def prepare_dtype_for_response(
         select=select,
     )
     return res
+
+
+@commands.prepare_dtype_for_response.register(Context, Html, ArrayBackRef, tuple)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: ArrayBackRef,
+    value: tuple,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    super_ = commands.prepare_dtype_for_response[Context, Format, ArrayBackRef, tuple]
+    return super_(context, fmt, dtype, value, data=data, action=action, select=select)
+
+
+@commands.prepare_dtype_for_response.register(Context, Html, ArrayBackRef, list)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: ArrayBackRef,
+    value: list,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    super_ = commands.prepare_dtype_for_response[Context, Format, ArrayBackRef, list]
+    return super_(context, fmt, dtype, value, data=data, action=action, select=select)
+
+
+@commands.prepare_dtype_for_response.register(Context, Html, ArrayBackRef, type(None))
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: ArrayBackRef,
+    value: type(None),
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    super_ = commands.prepare_dtype_for_response[Context, Format, ArrayBackRef, type(None)]
+    return super_(context, fmt, dtype, value, data=data, action=action, select=select)
+
+
+@commands.prepare_dtype_for_response.register(Context, Html, BackRef, dict)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: BackRef,
+    value: dict,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    super_ = commands.prepare_dtype_for_response[Context, Format, BackRef, dict]
+    value = super_(context, fmt, dtype, value, data=data, action=action, select=select)
+    if value is None:
+        return Cell('', color=Color.null)
+    return value
+
+
+@commands.prepare_dtype_for_response.register(Context, Html, BackRef, type(None))
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: BackRef,
+    value: type(None),
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    return Cell('', color=Color.null)
+
+
+@commands.prepare_dtype_for_response.register(Context, Html, Text, dict)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: Text,
+    value: Dict[str, str],
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    return {
+        k: Cell(v) if v is not None else Cell('', color=Color.null)
+        for k, v in value.items()
+    }

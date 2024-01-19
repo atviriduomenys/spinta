@@ -1,19 +1,22 @@
+import os
+import shutil
+import uuid
+import ruamel.yaml
 from typing import Type
 
 import pkg_resources as pres
 import logging
 
 from authlib.common.errors import AuthlibHTTPError
+from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 
-from spinta import components
-from spinta.auth import AuthorizationServer
-from spinta.auth import ResourceProtector
-from spinta.auth import BearerTokenValidator
-from spinta.auth import get_auth_request
-from spinta.auth import get_auth_token
+from spinta import components, commands
+from spinta.auth import AuthorizationServer, check_scope, query_client, get_clients_list, \
+    client_exists, create_client_file, delete_client_file, update_client_file, get_clients_path
 from spinta.commands import prepare, get_version
 from spinta.components import Context
-from spinta.exceptions import BaseError, MultipleErrors, error_response
+from spinta.exceptions import BaseError, MultipleErrors, error_response, InsufficientPermission, \
+    UnknownPropertyInRequest, InsufficientPermissionForUpdate, EmptyPassword
 from spinta.middlewares import ContextMiddleware
 from spinta.urlparams import Version
 from spinta.urlparams import get_response_type
@@ -70,6 +73,173 @@ async def auth_token(request: Request):
         })
     else:
         raise NoAuthServer()
+
+
+def _auth_client_context(request: Request) -> Context:
+    context: Context = request.state.context
+    context.set('auth.request', get_auth_request({
+        'method': request.method,
+        'url': str(request.url.replace(query='')),
+        'body': None,
+        'headers': request.headers,
+    }))
+    context.set('auth.token', get_auth_token(context))
+    context.attach('accesslog', create_accesslog, context, loaders=(
+        context.get('store'),
+        context.get("auth.token"),
+    ))
+    return context
+
+
+async def auth_clients_add(request: Request):
+    try:
+        context = _auth_client_context(request)
+        check_scope(context, 'auth_clients')
+        config = context.get('config')
+        commands.load(context, config)
+
+        path = get_clients_path(config)
+        data = await request.json()
+        for key in data.keys():
+            if key not in ('client_name', 'secret', 'scopes'):
+                raise UnknownPropertyInRequest(property=key, properties=('client_name', 'secret', 'scopes'))
+        client_id = str(uuid.uuid4())
+        name = data["client_name"] if ("client_name" in data.keys() and data["client_name"]) else client_id
+
+        while client_exists(path, client_id):
+            client_id = str(uuid.uuid4())
+
+        if "secret" in data.keys() and not data["secret"] or "secret" not in data.keys():
+            raise EmptyPassword
+
+        client_file, client_ = create_client_file(
+            path,
+            name,
+            client_id,
+            data["secret"],
+            data["scopes"] if "scopes" in data.keys() else None,
+        )
+
+        return JSONResponse({
+            "client_id": client_["client_id"],
+            "client_name": name,
+            "scopes": client_["scopes"]
+        })
+
+    except InsufficientScopeError:
+        raise InsufficientPermission(scope='auth_clients')
+
+
+async def auth_clients_get_all(request: Request):
+    try:
+        context = _auth_client_context(request)
+        check_scope(context, 'auth_clients')
+        config = context.get('config')
+        commands.load(context, config)
+
+        path = get_clients_path(config)
+        ids = get_clients_list(path)
+        return_values = []
+        for client_path in ids:
+            client = query_client(path, client_path)
+            return_values.append({
+                "client_id": client.id,
+                "client_name": client.name
+            })
+        return JSONResponse(return_values)
+
+    except InsufficientScopeError:
+        raise InsufficientPermission(scope='auth_clients')
+
+
+async def auth_clients_get_specific(request: Request):
+    try:
+        context = _auth_client_context(request)
+        token = context.get('auth.token')
+        config = context.get('config')
+        commands.load(context, config)
+
+        client_id = request.path_params["client"]
+        if client_id != token.get_client_id():
+            check_scope(context, 'auth_clients')
+
+        path = get_clients_path(config)
+        client = query_client(path, client_id)
+        return_value = {
+            "client_id": client.id,
+            "client_name": client.name,
+            "scopes": list(client.scopes)
+        }
+        return JSONResponse(return_value)
+
+    except InsufficientScopeError:
+        raise InsufficientPermission(scope='auth_clients')
+
+
+async def auth_clients_delete_specific(request: Request):
+    try:
+        context = _auth_client_context(request)
+        client_id = request.path_params["client"]
+        check_scope(context, 'auth_clients')
+        config = context.get('config')
+        commands.load(context, config)
+
+        path = get_clients_path(config)
+        delete_client_file(path, client_id)
+        return Response(status_code=204)
+
+    except InsufficientScopeError:
+        raise InsufficientPermission(scope='auth_clients')
+
+
+async def auth_clients_patch_specific(request: Request):
+    try:
+        context = _auth_client_context(request)
+        token = context.get('auth.token')
+        client_id = request.path_params["client"]
+
+        config = context.get('config')
+        commands.load(context, config)
+        path = get_clients_path(config)
+
+        has_permission = True
+        try:
+            check_scope(context, 'auth_clients')
+        except InsufficientScopeError:
+            has_permission = False
+        if client_id != token.get_client_id() and not has_permission:
+            raise InsufficientScopeError
+
+        data = await request.json()
+        for key in data.keys():
+            if key not in ('client_name', 'secret', 'scopes'):
+                properties = ('secret')
+                if has_permission:
+                    properties = ('client_name', 'secret', 'scopes')
+                raise UnknownPropertyInRequest(property=key, properties=properties)
+            elif key != 'secret' and not has_permission:
+                raise InsufficientPermissionForUpdate(field=key)
+
+        if "secret" in data.keys() and not data["secret"]:
+            raise EmptyPassword
+
+        new_data = update_client_file(
+            context,
+            path,
+            client_id,
+            name=data["client_name"] if "client_name" in data.keys() and data["client_name"] else None,
+            secret=data["secret"] if "secret" in data.keys() and data["secret"] else None,
+            scopes=data["scopes"] if "scopes" in data.keys() and data["scopes"] is not None else None,
+        )
+        return_value = {
+            "client_id": new_data["client_id"],
+            "client_name": new_data["client_name"],
+            "scopes": list(new_data["scopes"])
+        }
+        return JSONResponse(return_value)
+
+    except InsufficientScopeError:
+        raise InsufficientPermission(scope='auth_clients')
 
 
 async def homepage(request: Request):
@@ -191,6 +361,11 @@ def init(context: Context):
         Route('/version', version, methods=['GET']),
         Route('/auth/token', auth_token, methods=['POST']),
         Route('/_srid/{srid:int}/{x:float}/{y:float}', srid_check, methods=['GET']),
+        Route('/auth/clients', auth_clients_get_all, methods=['GET']),
+        Route('/auth/clients', auth_clients_add, methods=['POST']),
+        Route('/auth/clients/{client}', auth_clients_get_specific, methods=['GET']),
+        Route('/auth/clients/{client}', auth_clients_delete_specific, methods=['DELETE']),
+        Route('/auth/clients/{client}', auth_clients_patch_specific, methods=['PATCH'])
     ]
 
     if config.docs_path:
