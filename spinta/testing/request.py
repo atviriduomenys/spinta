@@ -3,8 +3,6 @@ from typing import Dict
 from typing import Optional
 from typing import Iterable
 
-from starlette.requests import Request
-
 from spinta.typing import ObjectData
 from spinta import commands
 from spinta.components import Context
@@ -19,6 +17,9 @@ from spinta.backends.helpers import get_select_tree
 from spinta.renderer import render
 from spinta.formats.html.commands import build_template_context
 from spinta.formats.html.components import Cell
+from spinta.utils.imports import use
+
+Request = use('http', 'starlette.requests', 'Request')
 
 
 def make_get_request(

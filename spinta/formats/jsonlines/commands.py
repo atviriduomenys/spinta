@@ -2,13 +2,14 @@ import ujson as json
 
 from typing import Optional
 
-from starlette.requests import Request
-from starlette.responses import StreamingResponse
-
 from spinta.components import Context, Action, UrlParams, Model, Node
 from spinta import commands
 from spinta.formats.jsonlines.components import JsonLines
+from spinta.utils.imports import use
 from spinta.utils.response import aiter, peek_and_stream
+
+Request = use('http', 'starlette.requests', 'Request')
+StreamingResponse = use('http', 'starlette.responses', 'StreamingResponse')
 
 
 @commands.render.register(Context, Request, Model, JsonLines)

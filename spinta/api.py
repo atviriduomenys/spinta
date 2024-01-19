@@ -1,7 +1,4 @@
-import os
-import shutil
 import uuid
-import ruamel.yaml
 from typing import Type
 
 import pkg_resources as pres
@@ -10,23 +7,10 @@ import logging
 from authlib.common.errors import AuthlibHTTPError
 from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 
-from starlette.applications import Starlette
-from starlette.exceptions import HTTPException
-from starlette.requests import Request
-from starlette.responses import Response, JSONResponse
-from starlette.responses import RedirectResponse
-from starlette.templating import Jinja2Templates
-from starlette.staticfiles import StaticFiles
-from starlette.routing import Route, Mount
-from starlette.middleware import Middleware
-
 from spinta import components, commands
 from spinta.auth import AuthorizationServer, check_scope, query_client, get_clients_list, \
-    client_exists, create_client_file, delete_client_file, update_client_file, get_clients_path
-from spinta.auth import ResourceProtector
-from spinta.auth import BearerTokenValidator
-from spinta.auth import get_auth_request
-from spinta.auth import get_auth_token
+    client_exists, create_client_file, delete_client_file, update_client_file, get_clients_path, get_auth_request, \
+    get_auth_token, ResourceProtector, BearerTokenValidator
 from spinta.commands import prepare, get_version
 from spinta.components import Context
 from spinta.exceptions import BaseError, MultipleErrors, error_response, InsufficientPermission, \
@@ -34,9 +18,22 @@ from spinta.exceptions import BaseError, MultipleErrors, error_response, Insuffi
 from spinta.middlewares import ContextMiddleware
 from spinta.urlparams import Version
 from spinta.urlparams import get_response_type
+from spinta.utils.imports import use
 from spinta.utils.response import create_http_response
 from spinta.accesslog import create_accesslog
 from spinta.exceptions import NoAuthServer
+
+Starlette = use('http', 'starlette.applications', 'Starlette')
+HTTPException = use('http', 'starlette.exceptions', 'HTTPException')
+JSONResponse = use('http', 'starlette.responses', 'JSONResponse')
+Request = use('http', 'starlette.requests', 'Request')
+Response = use('http', 'starlette.responses', 'Response')
+RedirectResponse = use('http', 'starlette.responses', 'RedirectResponse')
+Jinja2Templates = use('http', 'starlette.templating', 'Jinja2Templates')
+StaticFiles = use('http', 'starlette.staticfiles', 'StaticFiles')
+Route = use('http', 'starlette.routing', 'Route')
+Mount = use('http', 'starlette.routing', 'Mount')
+Middleware = use('http', 'starlette.middleware', 'Middleware')
 
 log = logging.getLogger(__name__)
 

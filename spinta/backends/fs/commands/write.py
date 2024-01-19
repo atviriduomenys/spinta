@@ -2,9 +2,6 @@ import cgi
 import pathlib
 import typing
 
-from starlette.exceptions import HTTPException
-from starlette.requests import Request
-
 from spinta import commands
 from spinta.accesslog import AccessLog
 from spinta.accesslog import log_async_response
@@ -15,9 +12,13 @@ from spinta.components import Context, Action, UrlParams, DataItem
 from spinta.commands.write import prepare_patch, simple_response, validate_data
 from spinta.types.datatype import File
 from spinta.backends.fs.components import FileSystem
+from spinta.utils.imports import use
 
 if typing.TYPE_CHECKING:
     from spinta.backends.postgresql.components import WriteTransaction
+
+HTTPException = use('http', 'starlette.exceptions', 'HTTPException')
+Request = use('http', 'starlette.requests', 'Request')
 
 
 @commands.push.register()

@@ -3,13 +3,14 @@ import sys
 
 from typing import Optional
 
-from starlette.requests import Request
-from starlette.responses import StreamingResponse
-
 from spinta.formats.ascii.components import Ascii
 from spinta.components import Context, Action, UrlParams, Model
 from spinta import commands
+from spinta.utils.imports import use
 from spinta.utils.response import aiter, peek_and_stream
+
+Request = use('http', 'starlette.requests', 'Request')
+StreamingResponse = use('http', 'starlette.responses', 'StreamingResponse')
 
 
 @commands.render.register(Context, Request, Model, Ascii)

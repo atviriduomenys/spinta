@@ -3,10 +3,6 @@ from copy import deepcopy
 from typing import overload, Optional, Iterator, List, Tuple
 from pathlib import Path
 
-from starlette.requests import Request
-from starlette.responses import Response
-from starlette.responses import FileResponse
-
 from spinta import commands
 from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
@@ -32,7 +28,13 @@ from spinta.ufuncs.basequerybuilder.components import get_allowed_page_property_
     update_query_with_url_params
 from spinta.ufuncs.basequerybuilder.ufuncs import add_page_expr
 from spinta.utils.data import take
+from spinta.utils.imports import use
 from spinta.utils.encoding import encode_page_values
+
+Request = use('http', 'starlette.requests', 'Request')
+Response = use('http', 'starlette.responses', 'Response')
+FileResponse = use('http', 'starlette.responses', 'FileResponse')
+
 
 
 @commands.getall.register(Context, Model, Request)

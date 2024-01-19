@@ -8,8 +8,6 @@ from typing import Union
 import itertools
 import urllib.parse
 
-from starlette.requests import Request
-
 from spinta.commands import prepare
 from spinta.components import Action, ParamsPage, decode_page_values
 from spinta.components import Config
@@ -22,9 +20,13 @@ from spinta.components import UrlParams, Version
 from spinta.commands import is_object_id
 from spinta import exceptions
 from spinta import spyna
+from spinta.exceptions import ModelNotFound
+from spinta.utils.imports import use
 from spinta.exceptions import ModelNotFound, InvalidPageParameterCount, InvalidPageKey
 from spinta.utils.config import asbool
 from spinta.utils.encoding import is_url_safe_base64
+
+Request = use('http', 'starlette.requests', 'Request')
 
 
 @prepare.register(Context, UrlParams, Version, Request)

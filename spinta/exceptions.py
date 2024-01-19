@@ -589,6 +589,15 @@ class CompositeUniqueConstraint(UserError):
     template = "Given values for composition of properties ({properties}) already exist."
 
 
+class PackageMissing(UserError):
+    template = "You are missing {module} module. In order to use {feature} functionality you need to install additional packages:\n " \
+               "please use the following command: poetry install --with {feature}"
+
+
+class ModuleNotInGroup(UserError):
+    template = "The module {module} does not belong to the group {group}."
+
+
 class SourceCannotBeList(BaseError):
     template = "Source can't be a list, use prepare instead."
 
@@ -728,7 +737,7 @@ class UnableToDetermineRequiredLang(UserError):
 class CannotSelectTextAndSpecifiedLang(UserError):
     template = "Cannot select undisclosed language Text at the same time when disclosed language Text is selected."
 
-    
+
 class DuplicateRdfPrefixMissmatch(UserError):
     template = "Currently system does not support prefix missmatch. Prefix {prefix!r} has {old_value!r} and {new_value!r} values given."
 

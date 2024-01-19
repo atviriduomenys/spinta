@@ -12,10 +12,10 @@ import enum
 import sys
 from typing import NamedTuple
 
-from ruamel.yaml import YAML
 import pkg_resources as pres
 
 from spinta import spyna
+from ruamel.yaml import YAML
 from spinta.components import Mode
 from spinta.core.ufuncs import asttoexpr
 from spinta.utils.imports import importstr

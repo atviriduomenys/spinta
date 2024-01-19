@@ -47,7 +47,8 @@ jobs:
         pip install poetry
         poetry --version
         poetry install -vv
-        
+        poetry install --with test
+
     - name: Test with pytest
       env:
         SPINTA_BACKENDS__DEFAULT__DSN: postgresql://ci:secret@localhost/spinta

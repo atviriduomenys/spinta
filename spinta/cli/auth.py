@@ -3,15 +3,6 @@ import pathlib
 import sys
 import uuid
 
-import click
-from authlib.jose import jwt
-from typer import Argument
-from typer import Context as TyperContext
-from typer import Exit
-from typer import Option
-from typer import Typer
-from typer import echo
-
 from spinta import commands
 from spinta.auth import KeyFileExists, get_clients_path
 from spinta.auth import KeyType
@@ -24,6 +15,16 @@ from spinta.client import get_access_token
 from spinta.client import get_client_credentials
 from spinta.components import Context
 from spinta.core.context import configure_context
+from spinta.utils.imports import use
+
+TyperContext = use('cli', 'typer', 'Context')
+Argument = use('cli', 'typer', 'Argument')
+Option = use('cli', 'typer', 'Option')
+Typer = use('cli', 'typer', 'Typer')
+Exit = use('cli', 'typer', 'Exit')
+click = use('cli', 'click')
+jwt = use('http', 'authlib.jose', 'jwt')
+echo = use('cli', 'typer', 'echo')
 
 
 def genkeys(
