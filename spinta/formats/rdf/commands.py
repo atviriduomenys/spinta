@@ -30,8 +30,8 @@ from spinta.types.datatype import Number
 from spinta.utils.imports import use
 from spinta.utils.schema import NotAvailable
 
-Request = use('http', 'starlette.requests', 'Request').Request
-StreamingResponse = use('http', 'starlette.responses', 'StreamingResponse').StreamingResponse
+Request = use('http', 'starlette.requests', 'Request')
+StreamingResponse = use('http', 'starlette.responses', 'StreamingResponse')
 
 RDF = "rdf"
 PAV = "pav"

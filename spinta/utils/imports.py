@@ -8,6 +8,113 @@ from typing import Type
 from spinta.exceptions import PackageMissing, ModuleNotInGroup
 
 
+DEPENDENCIES = {
+    'http': ['spinta[http]'],
+    'log': ['spinta[log]'],
+    'pii': ['spinta[pii]'],
+    'cli': ['spinta[cli]'],
+    'yaml': ['spinta[yaml]'],
+    'sql': ['spinta[sql]'],
+    'excel': ['spinta[excel]'],
+    'postgres': ['spinta[postgres]'],
+    'mongo': ['spinta[mongo]'],
+    'datasets': ['spinta[datasets]'],
+    'xml': ['spinta[xml]'],
+    'html': ['spinta[html]'],
+    'json': ['spinta[json]'],
+    'ascii': ['spinta[ascii]'],
+    'rdf': ['spinta[rdf]'],
+    'geometry': ['spinta[geometry]'],
+    'test': ['spinta[test]'],
+    'docs': ['spinta[docs]']
+}
+
+PACKAGES = {
+    'http': {
+        'starlette': 'http',
+        'gunicorn': 'http',
+        'uvicorn': 'http',
+        'authlib': 'http',
+        'python-multipart': 'http',
+        'httpx': 'http',
+        'aiohttp': 'http',
+        'aiofiles': 'http',
+    },
+    'log': {
+        'psutil': 'log'
+    },
+    'pii': {
+        'phonenumbers': 'pii'
+    },
+    'cli': {
+        'click': 'cli',
+        'typer': 'cli'
+    },
+    'yaml': {
+        'ruamel': 'yaml'
+    },
+    'sql': {
+        'sqlparse': 'sql'
+    },
+    'excel': {
+        'xlrd': 'excel',
+        'XlsxWriter': 'excel',
+        'openpyxl': 'excel',
+    },
+    'postgres': {
+        'alembic': 'postgres',
+        'asyncpg': 'postgres',
+        'psycopg2-binary': 'postgres',
+        'sqlalchemy': 'postgres',
+    },
+    'mongo': {
+        'pymongo': 'mongo',
+    },
+    'datasets': {
+        'msgpack': 'datasets',
+        'requests': 'datasets',
+        'fsspec': 'datasets',
+        'dask': 'datasets',
+        'tqdm': 'datasets',
+    },
+    'xml': {
+        'lxml': 'xml'
+    },
+    'html': {
+        'jinja2': 'html'
+    },
+    'json': {
+        'ujson': 'json'
+    },
+    'ascii': {
+        'tabulate': 'ascii'
+    },
+    'rdf': {
+        'lxml': 'rdf'
+    },
+    'geometry': {
+        'GeoAlchemy2': 'geometry',
+        'Shapely': 'geometry',
+        'pyproj': 'geometry',
+    },
+    'test': {
+        'pytz': 'test',
+    },
+    'docs': {
+        'sphinx': 'docs',
+        'sphinx-autobuild': 'docs',
+        'sphinxcontrib-httpdomain': 'docs',
+        'memory-profiler': 'docs',
+        'mypy': 'docs',
+        'cssselect': 'docs',
+        'objprint': 'docs',
+        'sphinx-rtd-theme': 'docs',
+        'sqlalchemy-stubs': 'docs',
+    }
+
+}
+
+
 def importstr(path):
     if ':' not in path:
         raise Exception(
@@ -30,118 +137,17 @@ def full_class_name(obj: Any) -> str:
 
 
 def use(group_name, module_name, package=None):
-    DEPENDENCIES = {
-        'http': ['spinta[http]'],
-        'log': ['spinta[log]'],
-        'pii': ['spinta[pii]'],
-        'cli': ['spinta[cli]'],
-        'yaml': ['spinta[yaml]'],
-        'sql': ['spinta[sql]'],
-        'excel': ['spinta[excel]'],
-        'postgres': ['spinta[postgres]'],
-        'mongo': ['spinta[mongo]'],
-        'datasets': ['spinta[datasets]'],
-        'xml': ['spinta[xml]'],
-        'html': ['spinta[html]'],
-        'json': ['spinta[json]'],
-        'ascii': ['spinta[ascii]'],
-        'rdf': ['spinta[rdf]'],
-        'geometry': ['spinta[geometry]'],
-        'test': ['spinta[test]'],
-        'docs': ['spinta[docs]']
-    }
-
-    PACKAGES = {
-        'http': {
-            'starlette': 'http',
-            'gunicorn': 'http',
-            'uvicorn': 'http',
-            'authlib': 'http',
-            'python-multipart': 'http',
-            'httpx': 'http',
-            'aiohttp': 'http',
-            'aiofiles': 'http',
-        },
-        'log': {
-            'psutil': 'log'
-        },
-        'pii': {
-            'phonenumbers': 'pii'
-        },
-        'cli': {
-            'click': 'cli',
-            'typer': 'cli'
-        },
-        'yaml': {
-            'ruamel': 'yaml'
-        },
-        'sql': {
-            'sqlparse': 'sql'
-        },
-        'excel': {
-            'xlrd': 'excel',
-            'XlsxWriter': 'excel',
-            'openpyxl': 'excel',
-        },
-        'postgres': {
-            'alembic': 'postgres',
-            'asyncpg': 'postgres',
-            'psycopg2-binary': 'postgres',
-            'sqlalchemy': 'postgres',
-        },
-        'mongo': {
-            'pymongo': 'mongo',
-        },
-        'datasets': {
-            'msgpack': 'datasets',
-            'requests': 'datasets',
-            'fsspec': 'datasets',
-            'dask': 'datasets',
-            'tqdm': 'datasets',
-        },
-        'xml': {
-            'lxml': 'xml'
-        },
-        'html': {
-            'jinja2': 'html'
-        },
-        'json': {
-            'ujson': 'json'
-        },
-        'ascii': {
-            'tabulate': 'ascii'
-        },
-        'rdf': {
-            'lxml': 'rdf'
-        },
-        'geometry': {
-            'GeoAlchemy2': 'geometry',
-            'Shapely': 'geometry',
-            'pyproj': 'geometry',
-        },
-        'test': {
-            'pytz': 'test',
-        },
-        'docs': {
-            'sphinx': 'docs',
-            'sphinx-autobuild': 'docs',
-            'sphinxcontrib-httpdomain': 'docs',
-            'memory-profiler': 'docs',
-            'mypy': 'docs',
-            'cssselect': 'docs',
-            'objprint': 'docs',
-            'sphinx-rtd-theme': 'docs',
-            'sqlalchemy-stubs': 'docs',
-        }
-
-    }
-
     needed_modules = PACKAGES[group_name]
     dependency = DEPENDENCIES[group_name]
 
     absolute_name = importlib.util.resolve_name(module_name, package)
     if absolute_name.split('.')[0] in needed_modules:
         try:
+            module = sys.modules[absolute_name]
+            if package is not None:
+                if hasattr(module, package):
+                    return getattr(module, package)
+                raise Exception("PACKAGE NOT FOUND")
             return sys.modules[absolute_name]
         except KeyError:
             pass
@@ -159,8 +165,15 @@ def use(group_name, module_name, package=None):
         module = importlib.util.module_from_spec(spec)
         sys.modules[absolute_name] = module
         spec.loader.exec_module(module)
+
         if path is not None:
             setattr(parent_module, child_name, module)
+
+        if package is not None:
+            if hasattr(module, package):
+                return getattr(module, package)
+            raise Exception("PACKAGE NOT FOUND")
+
         return module
     else:
         raise ModuleNotInGroup(module=module_name, group=group_name)

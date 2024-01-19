@@ -17,8 +17,8 @@ from spinta.utils.imports import use
 if typing.TYPE_CHECKING:
     from spinta.backends.postgresql.components import WriteTransaction
 
-HTTPException = use('http', 'starlette.exceptions', 'HTTPException').HTTPException
-Request = use('http', 'starlette.requests', 'Request').Request
+HTTPException = use('http', 'starlette.exceptions', 'HTTPException')
+Request = use('http', 'starlette.requests', 'Request')
 
 
 @commands.push.register()

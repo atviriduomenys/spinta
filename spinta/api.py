@@ -22,17 +22,17 @@ from spinta.utils.response import create_http_response
 from spinta.accesslog import create_accesslog
 from spinta.exceptions import NoAuthServer
 
-Starlette = use('http', 'starlette.applications', 'Starlette').Starlette
-HTTPException = use('http', 'starlette.exceptions', 'HTTPException').HTTPException
-JSONResponse = use('http', 'starlette.responses', 'JSONResponse').JSONResponse
-Request = use('http', 'starlette.requests', 'Request').Request
-Response = use('http', 'starlette.responses', 'Response').Response
-RedirectResponse = use('http', 'starlette.responses', 'RedirectResponse').RedirectResponse
-Jinja2Templates = use('http', 'starlette.templating', 'Jinja2Templates').Jinja2Templates
-StaticFiles = use('http', 'starlette.staticfiles', 'StaticFiles').StaticFiles
-Route = use('http', 'starlette.routing', 'Route').Route
-Mount = use('http', 'starlette.routing', 'Mount').Mount
-Middleware = use('http', 'starlette.middleware', 'Middleware').Middleware
+Starlette = use('http', 'starlette.applications', 'Starlette')
+HTTPException = use('http', 'starlette.exceptions', 'HTTPException')
+JSONResponse = use('http', 'starlette.responses', 'JSONResponse')
+Request = use('http', 'starlette.requests', 'Request')
+Response = use('http', 'starlette.responses', 'Response')
+RedirectResponse = use('http', 'starlette.responses', 'RedirectResponse')
+Jinja2Templates = use('http', 'starlette.templating', 'Jinja2Templates')
+StaticFiles = use('http', 'starlette.staticfiles', 'StaticFiles')
+Route = use('http', 'starlette.routing', 'Route')
+Mount = use('http', 'starlette.routing', 'Mount')
+Middleware = use('http', 'starlette.middleware', 'Middleware')
 
 log = logging.getLogger(__name__)
 

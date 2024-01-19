@@ -11,7 +11,7 @@ from spinta.accesslog import AccessLog
 from spinta.components import Context, Config, Store
 from spinta.utils.imports import use
 
-Request = use('http', 'starlette.requests', 'Request').Request
+Request = use('http', 'starlette.requests', 'Request')
 
 
 class FileAccessLog(AccessLog):

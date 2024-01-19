@@ -6,8 +6,8 @@ from spinta.components import Context, Action, UrlParams, Node
 from spinta import commands
 from spinta.utils.imports import use
 
-Request = use('http', 'starlette.requests', 'Request').Request
-Response = use('http', 'starlette.responses', 'Response').Response
+Request = use('http', 'starlette.requests', 'Request')
+Response = use('http', 'starlette.responses', 'Response')
 
 
 def render(

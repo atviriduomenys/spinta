@@ -32,11 +32,11 @@ phonenumbers = use('pii', 'phonenumbers')
 tqdm = use('datasets', 'tqdm')
 echo = use('cli', 'typer', 'echo')
 
-NumberParseException = use('pii', 'phonenumbers', 'NumberParseException').NumberParseException
-TyperContext = use('cli', 'typer', 'Context').Context
-Argument = use('cli', 'typer', 'Argument').Argument
-Option = use('cli', 'typer', 'Option').Option
-Typer = use('cli', 'typer', 'Typer').Typer
+NumberParseException = use('pii', 'phonenumbers', 'NumberParseException')
+TyperContext = use('cli', 'typer', 'Context')
+Argument = use('cli', 'typer', 'Argument')
+Option = use('cli', 'typer', 'Option')
+Typer = use('cli', 'typer', 'Typer')
 app = Typer()
 
 

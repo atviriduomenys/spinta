@@ -19,7 +19,7 @@ from spinta.formats.html.commands import build_template_context
 from spinta.formats.html.components import Cell
 from spinta.utils.imports import use
 
-Request = use('http', 'starlette.requests', 'Request').Request
+Request = use('http', 'starlette.requests', 'Request')
 
 
 def make_get_request(

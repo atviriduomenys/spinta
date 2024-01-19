@@ -40,10 +40,10 @@ from spinta.formats.components import Format
 if typing.TYPE_CHECKING:
     from spinta.backends.postgresql.components import WriteTransaction
 
-URL = use('http', 'starlette.datastructures', 'URL').URL
-Headers = use('http', 'starlette.datastructures', 'Headers').Headers
-Request = use('http', 'starlette.requests', 'Request').Request
-Response = use('http', 'starlette.responses', 'Response').Response
+URL = use('http', 'starlette.datastructures', 'URL')
+Headers = use('http', 'starlette.datastructures', 'Headers')
+Request = use('http', 'starlette.requests', 'Request')
+Response = use('http', 'starlette.responses', 'Response')
 
 
 STREAMING_CONTENT_TYPES = [
