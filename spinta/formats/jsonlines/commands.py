@@ -44,15 +44,9 @@ def render(
 
 
 def _render(fmt: JsonLines, data, status_code: int, headers: dict):
-    stream = _stream(data)
     return StreamingResponse(
-        aiter(peek_and_stream(stream)),
+        aiter(peek_and_stream(fmt(data))),
         status_code=status_code,
         media_type=fmt.content_type,
         headers=headers
     )
-
-
-def _stream(data):
-    for row in data:
-        yield json.dumps(row, ensure_ascii=False) + '\n'

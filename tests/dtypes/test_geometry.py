@@ -170,9 +170,6 @@ def test_geometry_html(rc: RawConfig):
             link='/example/City/19e4f199-93c5-40e5-b04e-a575e81ac373',
             color=None,
         ),
-        '_page': Cell(
-            value=b'encoded'
-        ),
         'name': Cell(
             value='Vilnius',
         ),

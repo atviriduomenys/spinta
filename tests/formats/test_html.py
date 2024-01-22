@@ -316,11 +316,6 @@ def test_file_type_list(
                 'value': short_id(_id),
             },
             {
-                'value': encode_page_values_manually({
-                    '_id': _id
-                }),
-            },
-            {
                 'value': 'Lithuania',
             },
             {
@@ -641,9 +636,6 @@ def test_recursive_refs(rc: RawConfig):
             value='example/Category',
             link=None,
             color=None,
-        ),
-        '_page': Cell(
-            value=b'encoded'
         ),
         'name': Cell(value='Leaf', link=None, color=None),
         'parent._id': Cell(

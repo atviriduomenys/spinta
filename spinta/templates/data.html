@@ -74,6 +74,14 @@
 
     {% if not data.exhausted %}
         <p>Number of rows is limited up to {{ data.limit }} rows.</p>
+
+
+    {% endif %}
+    {% if data.last_page %}
+        <div class="container">
+            <a href="{{ data.last_page }}">next page</a>
+        </div>
+
     {% endif %}
 {% endif %}
 
