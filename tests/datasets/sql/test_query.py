@@ -258,7 +258,7 @@ def test_paginate_none_values(rc: RawConfig):
       "PLANET"."ID",
       "PLANET"."CODE",
       "PLANET"."NAME"
-    FROM "PLANET" ORDER BY "PLANET"."ID" ASC
+    FROM "PLANET" ORDER BY "PLANET"."ID" ASC NULLS LAST
     '''
 
 
@@ -300,7 +300,7 @@ def test_paginate_given_values_page_not_given(rc: RawConfig):
       "PLANET"."ID",
       "PLANET"."CODE"
     FROM "PLANET"
-    WHERE "PLANET"."NAME" > :NAME_1 ORDER BY "PLANET"."NAME" ASC
+    WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL ORDER BY "PLANET"."NAME" ASC NULLS LAST
     '''
 
 
@@ -322,7 +322,7 @@ def test_paginate_given_values_size_given(rc: RawConfig):
       "PLANET"."ID",
       "PLANET"."CODE"
     FROM "PLANET"
-    WHERE "PLANET"."NAME" > :NAME_1 ORDER BY "PLANET"."NAME" ASC
+    WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL ORDER BY "PLANET"."NAME" ASC NULLS LAST
      LIMIT :param_1
     '''
 
@@ -346,8 +346,8 @@ def test_paginate_given_values_private(rc: RawConfig):
       "PLANET"."ID",
       "PLANET"."CODE"
     FROM "PLANET"
-    WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" = :NAME_2
-      AND "PLANET"."CODE" > :CODE_1 ORDER BY "PLANET"."NAME" ASC, "PLANET"."CODE" ASC
+    WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL OR "PLANET"."NAME" = :NAME_2
+      AND ("PLANET"."CODE" > :CODE_1 OR "PLANET"."CODE" IS NULL) ORDER BY "PLANET"."NAME" ASC NULLS LAST, "PLANET"."CODE" ASC NULLS LAST
     '''
 
 
@@ -370,8 +370,8 @@ def test_paginate_given_values_two_keys(rc: RawConfig):
       "PLANET"."ID",
       "PLANET"."CODE"
     FROM "PLANET"
-    WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" = :NAME_2
-      AND "PLANET"."CODE" > :CODE_1 ORDER BY "PLANET"."NAME" ASC, "PLANET"."CODE" ASC
+    WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL OR "PLANET"."NAME" = :NAME_2
+      AND ("PLANET"."CODE" > :CODE_1 OR "PLANET"."CODE" IS NULL) ORDER BY "PLANET"."NAME" ASC NULLS LAST, "PLANET"."CODE" ASC NULLS LAST
     '''
 
 
@@ -394,8 +394,8 @@ def test_paginate_given_values_two_keys_ref_not_given(rc: RawConfig):
       "PLANET"."ID",
       "PLANET"."NAME"
     FROM "PLANET"
-    WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" = :NAME_2
-      AND "PLANET"."CODE" > :CODE_1 ORDER BY "PLANET"."NAME" ASC, "PLANET"."CODE" ASC
+    WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL OR "PLANET"."NAME" = :NAME_2
+      AND ("PLANET"."CODE" > :CODE_1 OR "PLANET"."CODE" IS NULL) ORDER BY "PLANET"."NAME" ASC NULLS LAST, "PLANET"."CODE" ASC NULLS LAST
     '''
 
 
@@ -418,8 +418,8 @@ def test_paginate_desc(rc: RawConfig):
       "PLANET"."ID",
       "PLANET"."NAME"
     FROM "PLANET"
-    WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" = :NAME_2
-      AND "PLANET"."CODE" < :CODE_1 ORDER BY "PLANET"."NAME" ASC, "PLANET"."CODE" DESC
+    WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL OR "PLANET"."NAME" = :NAME_2
+      AND "PLANET"."CODE" < :CODE_1 ORDER BY "PLANET"."NAME" ASC NULLS LAST, "PLANET"."CODE" DESC NULLS FIRST
     '''
 
 

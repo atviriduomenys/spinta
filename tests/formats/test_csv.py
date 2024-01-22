@@ -7,7 +7,7 @@ from spinta.testing.client import TestClient
 from spinta.testing.client import create_test_client
 from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.csv import parse_csv
-from spinta.testing.data import pushdata
+from spinta.testing.data import pushdata, encode_page_values_manually
 
 
 def test_export_csv(app):
@@ -226,4 +226,34 @@ def test_csv_mixed_ref(
         ['name', 'country._id'],
         ['Ryga', ''],
         ['Vilnius', lithuania_id],
+    ]
+
+
+def test_csv_last_page(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, '''
+    d | r | b | m | property | type   | ref     | access
+    example/csv/page         |        |         |
+      |   |   | City         |        | name    |
+      |   |   |   | name     | string |         | open
+    ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authorize(['spinta_set_meta_fields'])
+    app.authmodel('example/csv/page', ['insert', 'search'])
+
+    # Add data
+    result = pushdata(app, '/example/csv/page/City', {
+        'name': 'Vilnius'
+    })
+    pushdata(app, '/example/csv/page/City', {
+        'name': 'Kaunas'
+    })
+
+    assert parse_csv(app.get('/example/csv/page/City/:format/csv?select(name,_page)')) == [
+        ['name', '_page.next'],
+        ['Kaunas', ''],
+        ['Vilnius', encode_page_values_manually({'name': 'Vilnius', '_id': result['_id']})],
     ]

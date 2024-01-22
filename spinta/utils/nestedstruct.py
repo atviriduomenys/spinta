@@ -78,7 +78,11 @@ def flat_dicts_to_nested(value):
             if name not in vref:
                 vref[name] = {}
             vref = vref[name]
-        vref[names[-1]] = v
+        if names[-1] in vref:
+            target_dict = vref[names[-1]]
+            target_dict.update(v)
+        else:
+            vref[names[-1]] = v
     return res
 
 

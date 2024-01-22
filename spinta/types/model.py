@@ -20,7 +20,7 @@ from spinta.auth import authorized
 from spinta.commands import authorize
 from spinta.commands import check
 from spinta.commands import load
-from spinta.components import Action, Component, PageBy
+from spinta.components import Action, Component, PageBy, Page
 from spinta.components import Base
 from spinta.components import Context
 from spinta.components import Mode
@@ -65,6 +65,7 @@ def _load_namespace_from_model(context: Context, manifest: Manifest, model: Mode
     ns = load_namespace_from_name(context, manifest, model.name)
     ns.models[model.model_type()] = model
     model.ns = ns
+
 
 @load.register(Context, Model, dict, Manifest)
 def load(
@@ -277,9 +278,8 @@ def load(
 
     if data['type'] is None:
         raise UnknownPropertyType(prop, type=data['type'])
-    if data['type'] == 'ref' and prop.level and prop.level < 4:
+    if data['type'] == 'ref' and prop.level is not None and prop.level < 4:
         data['type'] = '_external_ref'
-
     prop.dtype = get_node(
         config,
         manifest,
@@ -474,6 +474,8 @@ def check(context: Context, prop: Property):
         for value, item in prop.enum.items():
             commands.check(context, item, prop.dtype, item.prepare)
 
+    commands.check(context, prop.dtype)
+
 
 @authorize.register(Context, Action, Model)
 def authorize(context: Context, action: Action, model: Model):
@@ -504,4 +506,12 @@ def get_error_context(prop: Property, *, prefix='this') -> Dict[str, str]:
     context = commands.get_error_context(prop.model, prefix=f'{prefix}.model')
     context['property'] = f'{prefix}.place'
     context['attribute'] = f'{prefix}.external.name'
+    return context
+
+
+@overload
+@commands.get_error_context.register(Page)
+def get_error_context(prop: Page, *, prefix='this') -> Dict[str, str]:
+    context = commands.get_error_context(prop.model, prefix=f'{prefix}.model')
+    context['page'] = f'{prefix}.get_repr_for_error()'
     return context

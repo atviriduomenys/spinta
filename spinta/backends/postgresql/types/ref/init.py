@@ -16,12 +16,23 @@ from spinta.backends.postgresql.helpers import get_column_name
 @commands.prepare.register(Context, PostgreSQL, Ref)
 def prepare(context: Context, backend: PostgreSQL, dtype: Ref):
     pkey_type = commands.get_primary_key_type(context, backend)
-    return get_pg_foreign_key(
-        dtype.prop,
-        table_name=get_pg_name(get_table_name(dtype.model)),
-        model_name=dtype.prop.model.name,
-        column_type=pkey_type,
-    )
+    columns = []
+
+    if dtype.prop.given.explicit:
+        columns = get_pg_foreign_key(
+            dtype.prop,
+            table_name=get_pg_name(get_table_name(dtype.model)),
+            model_name=dtype.prop.model.name,
+            column_type=pkey_type,
+        )
+    for key, value in dtype.properties.items():
+        res = commands.prepare(context, backend, value)
+        if res is not None:
+            if isinstance(res, list):
+                columns.extend(res)
+            else:
+                columns.append(res)
+    return columns
 
 
 def get_pg_foreign_key(

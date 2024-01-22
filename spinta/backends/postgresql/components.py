@@ -114,6 +114,10 @@ class PostgreSQL(Backend):
         column = commands.get_column(self, prop, table=table, **kwargs)
         return column
 
+    def get_refprop_columns(self, table: sa.Table, prop: Property, model: Model, *, select=False, override_table: bool = True, **kwargs ) -> Union[sa.Column, List[sa.Column]]:
+        columns = commands.get_column(self, prop, model, table=table, **kwargs)
+        return columns
+
     def query_nodes(self):
         return []
 

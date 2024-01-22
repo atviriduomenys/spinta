@@ -304,6 +304,10 @@ class InvalidManifestFile(BaseError):
     template = "Error while parsing {eid!r} manifest entry: {error}"
 
 
+class CoordinatesOutOfRange(UserError):
+    template = 'Given coordinates: {given!r} ar not within the {srid!r} available bounds: {bounds} (west, south, east, north).'
+
+
 class ManifestFileDoesNotExist(BaseError):
     template = "Manifest file {path} does not exist."
 
@@ -639,8 +643,35 @@ class InvalidPageKey(UserError):
     template = "Given '{key}' page key is invalid."
 
 
-class InfiniteLoopWithPagination(BaseError):
-    template = "Pagination values has cause infinite loop while fetching data."
+class InfiniteLoopWithPagination(UserError):
+    template = '''
+    Pagination values has cause infinite loop while fetching data.
+    Page of size: {page_size}, first value is the same as previous page's last value, which is:
+    {page_values}
+    '''
+
+
+class TooShortPageSize(UserError):
+    template = '''
+    Page of size: {page_size} is too small, some duplicate values do not fit in a single page.
+    Which can cause either loss of data, or cause infinite loop while paginating.
+    Affected row: {page_values}
+    
+    To fix this, please either increase page size in the manifest, or 'push_page_size' value in the configs.
+    Alternatively make page's structure more complex, by adding more properties to it.
+    '''
+
+
+class TooShortPageSizeKeyRepetition(TooShortPageSize):
+
+    def __init__(self, *args, **kwargs):
+        super(TooShortPageSize, self).__init__(*args, **kwargs)
+        self.template = f'''
+        {self.template}
+        Error has been triggered because:
+        New page's key has been encountered multiple times in the previous page and it is the same for the future value.
+        This will cause the same data to be fetched multiple times.
+        '''
 
 
 class DuplicateRowWhilePaginating(BaseError):
@@ -735,6 +766,18 @@ class DuplicateRdfPrefixMissmatch(UserError):
 
 class InvalidName(UserError):
     template = 'Invalid {name!r} {type} code name.'
+
+
+class NoneValueComparison(UserError):
+    template = "None values can only be compared using 'eq' or 'ne' operands, {op!r} was given."
+
+
+class InvalidDenormProperty(UserError):
+    template = 'Cannot create Denorm property {denorm!r}, because it is part of {ref!r} refprops: {refprops}.'
+
+
+class RefPropTypeMissmatch(UserError):
+    template = 'Refprop {refprop!r} requires {required_type!r} type, but was given {given_type!r}.'
 
 
 class InheritPropertyValueMissmatch(UserError):

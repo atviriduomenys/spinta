@@ -13,6 +13,7 @@ from typing import Optional
 
 import shapely.geometry.base
 from shapely import wkt
+from pyproj.crs import CRS
 
 from spinta import commands
 from spinta import exceptions
@@ -38,7 +39,7 @@ from spinta.components import Node
 from spinta.components import Property
 from spinta.core.ufuncs import asttoexpr
 from spinta.exceptions import ConflictingValue, RequiredProperty, LangNotDeclared, TooManyLangsGiven, \
-    UnableToDetermineRequiredLang, InheritPropertyValueMissmatch
+    UnableToDetermineRequiredLang, CoordinatesOutOfRange, InheritPropertyValueMissmatch
 from spinta.exceptions import NoItemRevision
 from spinta.formats.components import Format
 from spinta.types.datatype import Array, ExternalRef, Denorm, Inherit, PageType, BackRef, ArrayBackRef, Integer, Boolean
@@ -55,6 +56,7 @@ from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.types.datatype import String
 from spinta.types.geometry.components import Geometry
+from spinta.types.geometry.constants import WGS84
 from spinta.utils.config import asbool
 from spinta.utils.data import take
 from spinta.utils.encoding import encode_page_values
@@ -335,21 +337,26 @@ def simple_data_check(
     value: dict,
 ) -> None:
     denorm_prop_keys = [
-        p.name.split('.', maxsplit=1)[-1]
-        for p in prop.model.properties.values() if (
-            isinstance(p.dtype, Denorm) and
-            p.name.split('.')[0] == prop.name
-        )
+        key for key in dtype.properties.keys()
     ]
+
     if dtype.model.given.pkeys or dtype.explicit:
         allowed_keys = [prop.name for prop in dtype.refprops]
     else:
         allowed_keys = ['_id']
     allowed_keys.extend(denorm_prop_keys)
-    value = flatten_value(value)
     for key in value.keys():
         if key not in allowed_keys:
             raise exceptions.FieldNotInResource(prop, property=key)
+        elif key in denorm_prop_keys:
+            commands.simple_data_check(
+                context,
+                data,
+                dtype.properties[key].dtype,
+                dtype.properties[key],
+                backend,
+                value[key]
+            )
 
 
 @commands.simple_data_check.register(Context, DataItem, Ref, Property, Backend, object)
@@ -376,6 +383,34 @@ def simple_data_check(
 ) -> None:
     if value is not NA:
         raise exceptions.CannotModifyBackRefProp(dtype)
+
+
+@commands.simple_data_check.register(Context, DataItem, Geometry, Property, Backend, str)
+def simple_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: Geometry,
+    prop: Property,
+    backend: Backend,
+    value: str,
+) -> None:
+    if value:
+        if ';' in value:
+            shape = shapely.wkt.loads(value.split(';', 1)[1])
+        else:
+            shape = shapely.wkt.loads(value)
+
+        srid = dtype.srid or WGS84
+        crs = CRS.from_user_input(srid)
+        area = crs.area_of_use
+        bounding_area = shapely.geometry.box(
+            minx=area.west,
+            maxx=area.east,
+            miny=area.south,
+            maxy=area.north
+        )
+        if not bounding_area.contains(shape):
+            raise CoordinatesOutOfRange(dtype, given=value, srid=crs, bounds=crs.area_of_use.bounds)
 
 
 @commands.complex_data_check.register(Context, DataItem, Model, Backend)
@@ -904,11 +939,14 @@ def prepare_dtype_for_response(
     if value is None or all(val is None for val in value.values()):
         return None
 
+    properties = dtype.model.properties.copy()
+    properties.update(dtype.properties)
+
     if select and select != {'*': {}}:
         names = get_select_prop_names(
             context,
             dtype,
-            dtype.model.properties,
+            properties,
             action,
             select,
             reserved=['_id'],
@@ -916,7 +954,7 @@ def prepare_dtype_for_response(
     else:
         names = value.keys()
 
-    data = {
+    result = {
         prop.name: commands.prepare_dtype_for_response(
             context,
             fmt,
@@ -929,13 +967,13 @@ def prepare_dtype_for_response(
         for prop, val, sel in select_props(
             dtype.model,
             names,
-            dtype.model.properties,
+            properties,
             value,
             select,
         )
     }
 
-    return data
+    return result
 
 
 @commands.prepare_dtype_for_response.register(Context, Format, Ref, str)
@@ -980,10 +1018,13 @@ def prepare_dtype_for_response(
         names = value.keys()
 
     data = {}
+    props = dtype.properties.copy()
+    props.update(dtype.model.properties)
+
     for prop, val, sel in select_props(
         dtype.model,
         names,
-        dtype.model.properties,
+        props,
         value,
         select,
     ):

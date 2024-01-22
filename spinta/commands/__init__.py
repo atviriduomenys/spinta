@@ -1095,6 +1095,26 @@ def get_column(
     pass
 
 
+@overload
+def get_column(
+    backend: Backend,
+    prop: Property,
+    model: Model,
+    **kwargs
+):
+    pass
+
+
+@overload
+def get_column(
+    backend: Backend,
+    prop: DataType,
+    model: Model,
+    **kwargs
+):
+    pass
+
+
 @command()
 def get_column(
     **kwargs
