@@ -59,8 +59,15 @@ def _get_dtype_header(
                 props = dtype.refprops
             else:
                 props = [dtype.model.properties['_id']]
+            processed_props = []
             for prop in props:
-                yield name + '.' + prop.place
+                processed_props.append(name + '.' + prop.place)
+
+            for key, prop in dtype.properties.items():
+                for processed_name in _get_dtype_header(prop.dtype, select, name + '.' + key):
+                    if processed_name not in processed_props:
+                        processed_props.append(processed_name)
+            yield from processed_props
         else:
             for prop, sel in select_only_props(
                 dtype.prop,
@@ -73,7 +80,10 @@ def _get_dtype_header(
 
     elif isinstance(dtype, Ref):
         if select is None or select == {'*': {}}:
-            yield name + '._id'
+            if dtype.prop.given.explicit:
+                yield name + '._id'
+            for key, prop in dtype.properties.items():
+                yield from _get_dtype_header(prop.dtype, select, name + '.' + key)
         else:
             for prop, sel in select_only_props(
                 dtype.prop,

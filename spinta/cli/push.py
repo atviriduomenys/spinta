@@ -751,9 +751,9 @@ def _read_rows_by_pages(
                 update_counter = False
 
         if update_counter:
-            if push_counter:
+            if push_counter is not None:
                 push_counter.update(1)
-            if model_push_counter:
+            if model_push_counter is not None:
                 model_push_counter.update(1)
 
 

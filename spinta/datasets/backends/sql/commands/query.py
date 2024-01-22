@@ -32,7 +32,7 @@ from spinta.dimensions.param.components import ResolvedParams
 from spinta.exceptions import PropertyNotFound, SourceCannotBeList, FieldNotInResource, LangNotDeclared
 from spinta.exceptions import UnknownMethod
 from spinta.exceptions import UnableToCast
-from spinta.types.datatype import DataType
+from spinta.types.datatype import DataType, Denorm
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.types.datatype import String
@@ -589,11 +589,14 @@ def select(env: SqlQueryBuilder, expr: Expr):
         for key, arg in args:
             selected = env.call('select', arg)
             if selected is not None:
-                env.selected[key] = selected
+                if selected.prop is None or selected.prop is not None and selected.prop.given.explicit:
+                    env.selected[key] = selected
     else:
         for prop in take(['_id', all], env.model.properties).values():
             if authorized(env.context, prop, Action.GETALL):
-                env.selected[prop.place] = env.call('select', prop)
+                processed = env.call('select', prop)
+                if prop.given.explicit or processed.prep is not None:
+                    env.selected[prop.place] = processed
 
     if not (len(args) == 1 and args[0][0] == '_page'):
         if not env.columns:
@@ -678,6 +681,11 @@ def select(env: SqlQueryBuilder, prop: Property) -> Selected:
         elif not prop.dtype.requires_source:
             # Some DataTypes might have children that have source instead of themselves, like: Text
             result = env.call('select', prop.dtype)
+        elif not prop.given.explicit:
+            # Some DataTypes might be inherited, or hidden, so we need to go through them in case they can be joined
+            result = env.call('select', prop.dtype)
+            if not isinstance(result, Selected):
+                result = Selected(prop=prop, prep=None)
         else:
             # If `source` is not given, return None.
             result = Selected(prop=prop, prep=None)
@@ -694,6 +702,23 @@ def select(env: SqlQueryBuilder, dtype: DataType) -> Selected:
         item=env.add_column(column),
         prop=dtype.prop,
     )
+
+
+@ufunc.resolver(SqlQueryBuilder, Ref)
+def select(env: SqlQueryBuilder, dtype: Ref) -> Selected:
+    table = env.backend.get_table(env.model)
+    column = env.backend.get_column(table, dtype.prop, select=True)
+
+    for prop in dtype.properties.values():
+        processed = env.call("select", prop)
+        if prop.given.explicit or processed.prep is not None:
+            env.selected[prop.place] = processed
+
+    if column is not None and dtype.prop.given.explicit:
+        return Selected(
+            item=env.add_column(column),
+            prop=dtype.prop,
+        )
 
 
 @ufunc.resolver(SqlQueryBuilder, String)
@@ -715,6 +740,35 @@ def select(env, dtype):
     else:
         column = _get_column_with_extra(env, dtype.prop)
         return Selected(env.add_column(column), dtype.prop)
+
+
+@ufunc.resolver(SqlQueryBuilder, Denorm)
+def select(env, dtype: Denorm):
+    ref = dtype.prop.parent
+    root_parent = ref
+    if isinstance(ref, Property) and isinstance(ref.dtype, Ref):
+        fpr = None
+        if not ref.given.explicit:
+            parent_list = []
+            root_ref_parent = ref
+            while root_ref_parent and isinstance(root_ref_parent, Property) and isinstance(root_ref_parent.dtype, Ref):
+                parent_list.append(root_ref_parent)
+                if root_ref_parent.given.explicit:
+                    break
+                root_ref_parent = root_ref_parent.parent
+
+            if parent_list:
+                parent_list = list(reversed(parent_list))
+                root_parent = parent_list[0]
+                for parent in parent_list[1:]:
+                    if parent.place.startswith(f'{root_parent.place}.'):
+                        fixed_name = parent.place.replace(f'{root_parent.place}.', '', 1)
+                        if fixed_name in root_parent.dtype.model.properties:
+                            parent = root_parent.dtype.model.properties[fixed_name]
+                    fpr = ForeignProperty(fpr, root_parent.dtype, parent.dtype)
+                    root_parent = parent
+        fpr = ForeignProperty(fpr, root_parent.dtype, dtype.rel_prop.dtype)
+        return env.call("select", fpr)
 
 
 @ufunc.resolver(SqlQueryBuilder, Page)
