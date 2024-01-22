@@ -759,7 +759,7 @@ class UnableToDetermineRequiredLang(UserError):
 class CannotSelectTextAndSpecifiedLang(UserError):
     template = "Cannot select undisclosed language Text at the same time when disclosed language Text is selected."
 
-    
+
 class DuplicateRdfPrefixMissmatch(UserError):
     template = "Currently system does not support prefix missmatch. Prefix {prefix!r} has {old_value!r} and {new_value!r} values given."
 
@@ -782,3 +782,7 @@ class RefPropTypeMissmatch(UserError):
 
 class InheritPropertyValueMissmatch(UserError):
     template = 'Expected {expected!r} value, but got {given!r}.'
+
+
+class OutOfMemoryMigrate(UserError):
+    template = "Ran out of shared memory while migrating. Use '--autocommit' tag, or increase 'max_locks_per_transaction'."

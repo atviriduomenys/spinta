@@ -743,9 +743,6 @@ def test_show_external_ref(
             link=None,
             color=None,
         ),
-        '_page': Cell(
-            value=b'encoded'
-        ),
         'id': Cell(value='0', link=None, color=None),
         'name': Cell(value='Vilnius', link=None, color=None),
         'country._id': Cell(

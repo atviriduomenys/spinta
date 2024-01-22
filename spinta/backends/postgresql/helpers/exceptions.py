@@ -1,8 +1,11 @@
 from spinta import commands, exceptions
 import spinta.backends.postgresql.helpers.extractors as extractor
 from spinta.components import DataItem, Action
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 import psycopg2.errors as psy_errors
+
+from spinta.exceptions import OutOfMemoryMigrate
+from spinta.manifests.components import Manifest
 
 
 @commands.create_exception.register(DataItem, IntegrityError)
@@ -46,4 +49,19 @@ def create_exception(item: DataItem, error: psy_errors.UniqueViolation):
 
 @commands.create_exception.register(DataItem, Exception)
 def create_exception(item: DataItem, error: Exception):
+    raise error
+
+
+@commands.create_exception.register(Manifest, OperationalError)
+def create_exception(manifest: Manifest, error: OperationalError):
+    return create_exception(manifest, error.orig)
+
+
+@commands.create_exception.register(Manifest, psy_errors.OutOfMemory)
+def create_exception(manifest: Manifest, error: psy_errors.OutOfMemory):
+    return OutOfMemoryMigrate(manifest)
+
+
+@commands.create_exception.register(Manifest, Exception)
+def create_exception(manifest: Manifest, error: Exception):
     raise error

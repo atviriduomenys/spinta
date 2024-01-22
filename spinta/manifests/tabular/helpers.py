@@ -521,7 +521,7 @@ def _get_type_repr(dtype: [DataType, str]):
         unique = ' unique' if dtype.unique else ''
 
         model = dtype.prop.model
-        if model.external.unknown_primary_key is False:
+        if model.external and model.external.unknown_primary_key is False:
             if len(model.external.pkeys) == 1 and dtype.prop in model.external.pkeys:
                 unique = ''
         if dtype.type_args:
@@ -697,9 +697,8 @@ def _datatype_handler(reader: PropertyReader, row: dict, initial_data_loader: Ca
     new_data = initial_data_loader(given_name, dtype, row)
     dataset = reader.state.dataset.data if reader.state.dataset else None
 
-    custom_data = new_data
     if row['prepare']:
-        custom_data['prepare_given'].append(
+        new_data['prepare_given'].append(
             PrepareGiven(
                 appended=False,
                 source='',
@@ -709,22 +708,21 @@ def _datatype_handler(reader: PropertyReader, row: dict, initial_data_loader: Ca
     if row['ref']:
         if dtype['type'] in ('ref', 'backref', 'generic'):
             ref_model, ref_props = _parse_property_ref(row['ref'])
-            custom_data['model'] = get_relative_model_name(dataset, ref_model)
+            new_data['model'] = get_relative_model_name(dataset, ref_model)
             if dtype['type'] == 'backref':
                 if len(ref_props) > 1:
                     raise InvalidBackRefReferenceAmount(backref=reader.name)
                 if len(ref_props) == 1:
-                    custom_data['refprop'] = ref_props[0]
+                    new_data['refprop'] = ref_props[0]
             else:
-                custom_data['refprops'] = ref_props
+                new_data['refprops'] = ref_props
         else:
             # TODO: Detect if ref is a unit or an enum.
-            custom_data['enum'] = row['ref']
+            new_data['enum'] = row['ref']
     if dataset or row['source']:
-        custom_data['external'] = {
+        new_data['external'] = {
             'name': row['source'],
         }
-
     return new_data
 
 
