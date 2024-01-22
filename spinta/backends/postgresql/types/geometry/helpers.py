@@ -27,7 +27,6 @@ def get_osm_link(value: WKBElement, srid: Optional[int]) -> Optional[str]:
             crs_to=CRS(f'EPSG:{WGS84}'),
         )
         shape = transform(transformer.transform, shape)
-
     centroid = shape.centroid
     lat, lon = centroid.x, centroid.y
     params = urlencode({'mlat': lat, 'mlon': lon})

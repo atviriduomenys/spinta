@@ -13,6 +13,7 @@ from typing import Optional
 
 import shapely.geometry.base
 from shapely import wkt
+from pyproj.crs import CRS
 
 from spinta import commands
 from spinta import exceptions
@@ -36,8 +37,9 @@ from spinta.components import Model
 from spinta.components import Namespace
 from spinta.components import Node
 from spinta.components import Property
+from spinta.core.ufuncs import asttoexpr
 from spinta.exceptions import ConflictingValue, RequiredProperty, LangNotDeclared, TooManyLangsGiven, \
-    UnableToDetermineRequiredLang
+    UnableToDetermineRequiredLang, CoordinatesOutOfRange, InheritPropertyValueMissmatch
 from spinta.exceptions import NoItemRevision
 from spinta.formats.components import Format
 from spinta.types.datatype import Array, ExternalRef, Denorm, Inherit, PageType, BackRef, ArrayBackRef, Integer, Boolean
@@ -54,6 +56,7 @@ from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.types.datatype import String
 from spinta.types.geometry.components import Geometry
+from spinta.types.geometry.constants import WGS84
 from spinta.utils.config import asbool
 from spinta.utils.data import take
 from spinta.utils.encoding import encode_page_values
@@ -334,21 +337,26 @@ def simple_data_check(
     value: dict,
 ) -> None:
     denorm_prop_keys = [
-        p.name.split('.', maxsplit=1)[-1]
-        for p in prop.model.properties.values() if (
-            isinstance(p.dtype, Denorm) and
-            p.name.split('.')[0] == prop.name
-        )
+        key for key in dtype.properties.keys()
     ]
+
     if dtype.model.given.pkeys or dtype.explicit:
         allowed_keys = [prop.name for prop in dtype.refprops]
     else:
         allowed_keys = ['_id']
     allowed_keys.extend(denorm_prop_keys)
-    value = flatten_value(value)
     for key in value.keys():
         if key not in allowed_keys:
             raise exceptions.FieldNotInResource(prop, property=key)
+        elif key in denorm_prop_keys:
+            commands.simple_data_check(
+                context,
+                data,
+                dtype.properties[key].dtype,
+                dtype.properties[key],
+                backend,
+                value[key]
+            )
 
 
 @commands.simple_data_check.register(Context, DataItem, Ref, Property, Backend, object)
@@ -364,19 +372,6 @@ def simple_data_check(
         raise exceptions.InvalidRefValue(prop, value=value)
 
 
-@commands.simple_data_check.register(Context, DataItem, Inherit, Property, Backend, object)
-def simple_data_check(
-    context: Context,
-    data: DataItem,
-    dtype: Inherit,
-    prop: Property,
-    backend: Backend,
-    value: object,
-) -> None:
-    if prop.name in data.given.keys():
-        raise exceptions.NotImplementedFeature(prop, feature="Ability to indirectly modify base parameters")
-
-
 @commands.simple_data_check.register(Context, DataItem, BackRef, Property, Backend, object)
 def simple_data_check(
     context: Context,
@@ -388,6 +383,34 @@ def simple_data_check(
 ) -> None:
     if value is not NA:
         raise exceptions.CannotModifyBackRefProp(dtype)
+
+
+@commands.simple_data_check.register(Context, DataItem, Geometry, Property, Backend, str)
+def simple_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: Geometry,
+    prop: Property,
+    backend: Backend,
+    value: str,
+) -> None:
+    if value:
+        if ';' in value:
+            shape = shapely.wkt.loads(value.split(';', 1)[1])
+        else:
+            shape = shapely.wkt.loads(value)
+
+        srid = dtype.srid or WGS84
+        crs = CRS.from_user_input(srid)
+        area = crs.area_of_use
+        bounding_area = shapely.geometry.box(
+            minx=area.west,
+            maxx=area.east,
+            miny=area.south,
+            maxy=area.north
+        )
+        if not bounding_area.contains(shape):
+            raise CoordinatesOutOfRange(dtype, given=value, srid=crs, bounds=crs.area_of_use.bounds)
 
 
 @commands.complex_data_check.register(Context, DataItem, Model, Backend)
@@ -420,6 +443,23 @@ def complex_model_properties_check(
     backend: Backend,
     data: DataItem,
 ) -> None:
+    base_data = {}
+    if model.base and any(isinstance(prop.dtype, Inherit) for prop in model.properties.values()):
+        id_ = data.given.get('_id', None)
+        if id_ is not None:
+            where = {
+                'name': 'eq',
+                'args': [
+                    {'name': 'bind', 'args': ['_id']},
+                    id_,
+                ]
+            }
+            query = asttoexpr(where)
+            result = commands.getall(context, model.base.parent, backend, query=query)
+            for row in result:
+                base_data = row
+                break
+
     for name, prop in model.properties.items():
         # For datasets, property type is optional.
         # XXX: But I think, it should be mandatory.
@@ -442,6 +482,7 @@ def complex_model_properties_check(
                 prop,
                 data.backend,
                 given,
+                base_data=base_data
             )
 
 
@@ -453,6 +494,7 @@ def complex_data_check(
     prop: Property,
     backend: Backend,
     value: object,
+    **kwargs
 ):
     if data.action in (Action.UPDATE, Action.PATCH, Action.DELETE):
         for k in ('_type', '_revision'):
@@ -462,6 +504,32 @@ def complex_data_check(
                     given=data.given[k],
                     expected=data.saved[k],
                 )
+
+
+@complex_data_check.register(Context, DataItem, Inherit, Property, Backend, object)
+def complex_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: Inherit,
+    prop: Property,
+    backend: Backend,
+    value: object,
+    base_data: dict = {},
+    **kwargs
+):
+    if data.action in (Action.UPDATE, Action.PATCH, Action.DELETE):
+        for k in ('_type', '_revision'):
+            if k in data.given and data.saved[k] != data.given[k]:
+                raise ConflictingValue(
+                    dtype,
+                    given=data.given[k],
+                    expected=data.saved[k],
+                )
+
+    if value is not NA and dtype.prop.name in base_data:
+        inherited_value = base_data[dtype.prop.name]
+        if inherited_value != value:
+            raise InheritPropertyValueMissmatch(dtype, expected=inherited_value, given=value)
 
 
 def check_type_value(dtype: DataType, value: object, action: Action):
@@ -871,11 +939,14 @@ def prepare_dtype_for_response(
     if value is None or all(val is None for val in value.values()):
         return None
 
+    properties = dtype.model.properties.copy()
+    properties.update(dtype.properties)
+
     if select and select != {'*': {}}:
         names = get_select_prop_names(
             context,
             dtype,
-            dtype.model.properties,
+            properties,
             action,
             select,
             reserved=['_id'],
@@ -883,7 +954,7 @@ def prepare_dtype_for_response(
     else:
         names = value.keys()
 
-    data = {
+    result = {
         prop.name: commands.prepare_dtype_for_response(
             context,
             fmt,
@@ -896,13 +967,13 @@ def prepare_dtype_for_response(
         for prop, val, sel in select_props(
             dtype.model,
             names,
-            dtype.model.properties,
+            properties,
             value,
             select,
         )
     }
 
-    return data
+    return result
 
 
 @commands.prepare_dtype_for_response.register(Context, Format, Ref, str)
@@ -947,10 +1018,13 @@ def prepare_dtype_for_response(
         names = value.keys()
 
     data = {}
+    props = dtype.properties.copy()
+    props.update(dtype.model.properties)
+
     for prop, val, sel in select_props(
         dtype.model,
         names,
-        dtype.model.properties,
+        props,
         value,
         select,
     ):

@@ -2,7 +2,7 @@ from spinta import commands
 from spinta.components import Property
 from spinta.datasets.backends.sql.components import Sql
 from spinta.exceptions import NoExternalName, PropertyNotFound
-from spinta.types.datatype import DataType
+from spinta.types.datatype import DataType, Ref
 from spinta.types.text.components import Text
 import sqlalchemy as sa
 
@@ -24,6 +24,22 @@ def get_column(backend: Sql, dtype: DataType, table: sa.Table, **kwargs):
             external=prop.external.name,
         )
     return table.c[prop.external.name]
+
+
+@commands.get_column.register(Sql, Ref)
+def get_column(backend: Sql, dtype: Ref, table: sa.Table, **kwargs):
+    prop = dtype.prop
+    if prop.external is None or not prop.external.name and prop.given.explicit:
+        raise NoExternalName(prop)
+
+    if prop.external.name:
+        if prop.external.name not in table.c:
+            raise PropertyNotFound(
+                prop.model,
+                property=prop.name,
+                external=prop.external.name,
+            )
+        return table.c[prop.external.name]
 
 
 @commands.get_column.register(Sql, Text)

@@ -236,7 +236,7 @@ def simple_data_check():
 
 
 @command()
-def complex_data_check():
+def complex_data_check(*args, **kwargs):
     """Run a complex data check.
 
     At this point, simple data check is already done and data is passed simple
@@ -1010,11 +1010,26 @@ def merge(*args) -> None:
     """Merge new manifest into old."""
 
 
-@command()
+@overload
 def create_exception(
     data_item: DataItem,
     error: Exception
 ) -> BaseError:
+    pass
+
+
+@overload
+def create_exception(
+    manifest: Manifest,
+    error: Exception
+) -> BaseError:
+    pass
+
+
+@command()
+def create_exception(
+    **kwargs
+):
     """
         Creates Spinta Exception from normal error
     """
@@ -1110,6 +1125,26 @@ def get_column(
 def get_column(
     backend: Backend,
     prop: Property,
+    **kwargs
+):
+    pass
+
+
+@overload
+def get_column(
+    backend: Backend,
+    prop: Property,
+    model: Model,
+    **kwargs
+):
+    pass
+
+
+@overload
+def get_column(
+    backend: Backend,
+    prop: DataType,
+    model: Model,
     **kwargs
 ):
     pass
