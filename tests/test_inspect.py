@@ -413,13 +413,13 @@ def test_inspect_update_existing_manifest(
 
     # Configure Spinta.
     rc_new = configure(rc_new, sqlite, tmp_path / 'manifest.csv', f'''
-    d | r | m | property | type    | ref | source | prepare | access  | title
-    datasets/gov/example |         |     |        |         |         | Example
-      | schema           | sql     | sql |        |         |         |
-                         |         |     |        |         |         |
-      |   | City         |         | id  | CITY   | id > 1  |         | City
-      |   |   | id       | integer |     | ID     |         | private |
-      |   |   | name     | string  |     | NAME   | strip() | open    | City name
+    d | r | m | property | type    | ref | source       | prepare | access  | title
+    datasets/gov/example |         |     |              |         |         | Example
+      | schema           | sql     |     | {sqlite.dsn} |         |         |
+                         |         |     |              |         |         |
+      |   | City         |         | id  | CITY         | id > 1  |         | City
+      |   |   | id       | integer |     | ID           |         | private |
+      |   |   | name     | string  |     | NAME         | strip() | open    | City name
     ''')
 
     cli.invoke(rc_new, [
@@ -470,7 +470,7 @@ def test_inspect_update_existing_ref_manifest_priority(
     rc_new = configure(rc_new, sqlite, tmp_path / 'manifest.csv', f'''
     d | r | m | property | type    | ref | source  | prepare | access  | title
     datasets/gov/example |         |     |         |         |         | Example
-      | schema           | sql     | sql |         |         |         |
+      | schema           | sql     |     | {sqlite.dsn} |         |         |
                          |         |     |         |         |         |
       |   | Country      |         | id  | COUNTRY |         |         | Country
       |   |   | id       | integer |     | ID      |         | private | Primary key
@@ -489,10 +489,11 @@ def test_inspect_update_existing_ref_manifest_priority(
 
     # Check what was detected.
     manifest = load_manifest(rc_new, tmp_path / 'result.csv')
+    manifest.datasets['datasets/gov/example'].resources['schema'].external = 'sqlite'
     a, b = compare_manifest(manifest, '''
     d | r | b | m | property | type    | ref     | source  | prepare | access  | title
     datasets/gov/example     |         |         |         |         |         | Example
-      | schema               | sql     | sql     |         |         |         |
+      | schema               | sql     |         | sqlite  |         |         |
                              |         |         |         |         |         |
       |   |   | Country      |         | id      | COUNTRY |         |         | Country
       |   |   |   | id       | integer |         | ID      |         | private | Primary key
@@ -700,7 +701,7 @@ def test_inspect_existing_duplicate_table_names(
     rc_new = configure(rc_new, sqlite, tmp_path / 'manifest.csv', f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
-         | schema           | sql     | sql |         |         |         |
+         | schema           | sql     |     | {sqlite.dsn} |         |         |
                             |         |     |         |         |         |
          |   | Country      |         | id  |         |         |         | Country
          |   |   | id       | integer |     |         |         | private | Primary key
@@ -713,10 +714,11 @@ def test_inspect_existing_duplicate_table_names(
     ])
     # Check what was detected.
     manifest = load_manifest(rc_new, result_file_path)
+    manifest.datasets['datasets/gov/example'].resources['schema'].external = 'sqlite'
     a, b = compare_manifest(manifest, f'''
        d | r | m | property | type    | ref | source    | prepare | access  | title
        datasets/gov/example |         |     |           |         |         | Example
-         | schema           | sql     | sql |           |         |         |
+         | schema           | sql     |     | sqlite    |         |         |
                             |         |     |           |         |         |
          |   | Country      |         | id  |           |         |         | Country
          |   |   | id       | integer |     |           |         | private | Primary key
@@ -844,7 +846,7 @@ def test_inspect_delete_model_source(
     rc_new = configure(rc_new, sqlite, tmp_path / 'manifest.csv', f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
-         | schema           | sql     | sql |         |         |         |
+         | schema           | sql     |     | {sqlite.dsn} |         |         |
                             |         |     |         |         |         |
          |   | City         |         |     | CITY    |         |         | City
          |   |   | name     | string  |     | NAME    |         | open    | City name
@@ -856,10 +858,11 @@ def test_inspect_delete_model_source(
     ])
     # Check what was detected.
     manifest = load_manifest(rc_new, result_file_path)
+    manifest.datasets['datasets/gov/example'].resources['schema'].external = 'sqlite'
     a, b = compare_manifest(manifest, f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
-         | schema           | sql     | sql |         |         |         |
+         | schema           | sql     |     | sqlite  |         |         |
                             |         |     |         |         |         |
          |   | City         |         |     |         |         |         | City
          |   |   | name     | string  |     |         |         | open    | City name
@@ -888,7 +891,7 @@ def test_inspect_delete_property_source(
     rc_new = configure(rc_new, sqlite, tmp_path / 'manifest.csv', f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
-         | schema           | sql     | sql |         |         |         |
+         | schema           | sql     |     | {sqlite.dsn} |         |         |
                             |         |     |         |         |         |
          |   | Country      |         |     | COUNTRY |         |         | Country
          |   |   | name     | string  |     | NAME    |         | open    | Country name
@@ -901,10 +904,11 @@ def test_inspect_delete_property_source(
     ])
     # Check what was detected.
     manifest = load_manifest(rc_new, result_file_path)
+    manifest.datasets['datasets/gov/example'].resources['schema'].external = 'sqlite'
     a, b = compare_manifest(manifest, f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
-         | schema           | sql     | sql |         |         |         |
+         | schema           | sql     |     | sqlite  |         |         |
                             |         |     |         |         |         |
          |   | Country      |         |     | COUNTRY |         |         | Country
          |   |   | name     | string  |     | NAME    |         | open    | Country name
