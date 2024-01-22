@@ -20,7 +20,7 @@ from spinta.auth import authorized
 from spinta.commands import authorize
 from spinta.commands import check
 from spinta.commands import load
-from spinta.components import Action, Component, PageBy
+from spinta.components import Action, Component, PageBy, Page
 from spinta.components import Base
 from spinta.components import Context
 from spinta.components import Mode
@@ -506,4 +506,12 @@ def get_error_context(prop: Property, *, prefix='this') -> Dict[str, str]:
     context = commands.get_error_context(prop.model, prefix=f'{prefix}.model')
     context['property'] = f'{prefix}.place'
     context['attribute'] = f'{prefix}.external.name'
+    return context
+
+
+@overload
+@commands.get_error_context.register(Page)
+def get_error_context(prop: Page, *, prefix='this') -> Dict[str, str]:
+    context = commands.get_error_context(prop.model, prefix=f'{prefix}.model')
+    context['page'] = f'{prefix}.get_repr_for_error()'
     return context

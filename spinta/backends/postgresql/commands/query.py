@@ -19,7 +19,7 @@ from spinta.core.ufuncs import ufunc
 from spinta.core.ufuncs import Bind, Negative as Negative_
 from spinta.core.ufuncs import Expr
 from spinta.datasets.enums import Level
-from spinta.exceptions import EmptyStringSearch, PropertyNotFound, LangNotDeclared
+from spinta.exceptions import EmptyStringSearch, PropertyNotFound, LangNotDeclared, NoneValueComparison
 from spinta.exceptions import UnknownMethod
 from spinta.exceptions import FieldNotInResource
 from spinta.components import Model, Property, Action, Page, UrlParams
@@ -858,12 +858,19 @@ def compare(env, op: str, fpr: ForeignProperty, value: Any):
 
 @ufunc.resolver(PgQueryBuilder, PrimaryKey, object, names=COMPARE)
 def compare(env, op, dtype, value):
-    value = str(value)
+    str_value = str(value)
     try:
-        uuid.UUID(value)
+        uuid.UUID(str_value)
     except ValueError:
         raise exceptions.InvalidValue(dtype, op=op, arg=type(value).__name__)
 
+    column = env.backend.get_column(env.table, dtype.prop)
+    cond = _sa_compare(op, column, str_value)
+    return _prepare_condition(env, dtype.prop, cond)
+
+
+@ufunc.resolver(PgQueryBuilder, PrimaryKey, type(None), names=COMPARE)
+def compare(env, op, dtype, value):
     column = env.backend.get_column(env.table, dtype.prop)
     cond = _sa_compare(op, column, value)
     return _prepare_condition(env, dtype.prop, cond)
@@ -1080,6 +1087,9 @@ def compare(env, op, fn, value):
 
 
 def _sa_compare(op, column, value):
+    if value is None and op not in ['eq', 'ne']:
+        raise NoneValueComparison(op=op)
+
     # Convert JSONB value from -> to ->> with astext
     if isinstance(column.type, sa.JSON):
         if not isinstance(column, sa.Column):
