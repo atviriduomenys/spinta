@@ -138,7 +138,7 @@ def test_geometry_params_srid(
     # Write data
     resp = app.post(f'/{model}', json={
         'name': "Vilnius",
-        'coordinates': 'SRID=3346;POINT(582710 6061887)',
+        'coordinates': 'SRID=3346;POINT(19.05 55)',
     })
     assert resp.status_code == 201
 
@@ -316,7 +316,7 @@ def test_geometry_params_with_srid_without_srid(
     ])
 
     resp = app.post(f'/{model}', json={
-        'point': 'POINT(582710 6061887)',
+        'point': 'POINT(19.05 54)',
     })
     assert resp.status_code == 201
 
@@ -333,7 +333,7 @@ def test_geometry_params_with_srid_without_srid(
     ])
 
     resp = app.post(f'/{model}', json={
-        'point': 'POINT(582710 6061887)',
+        'point': 'POINT(0 0)',
     })
     assert resp.status_code == 201
 
@@ -470,3 +470,42 @@ def test_geometry_update_without_geometry(
         "number": 2
     })
     assert resp.status_code == 200
+
+
+def test_geometry_write_out_of_bounds(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, f'''
+        d | r | b | m | property                | type           | access
+        backends/postgres/dtypes/geometry/bounds  |                | 
+          |   |   | Point                       |                | 
+          |   |   |   | point                   | geometry(3346)       | open
+          |   |   |   | point_1                 | geometry       | open
+          |   |   |   | number                  | integer        | open
+    ''', backend=postgresql, request=request)
+
+    ns: str = 'backends/postgres/dtypes/geometry/bounds'
+    model: str = f'{ns}/Point'
+
+    app = create_test_client(context)
+    app.authmodel(model, [
+        'insert',
+        'update',
+        'patch'
+    ])
+
+    resp = app.post(f'/{model}', json={
+        "number": 0,
+        "point": "Point(0 0)"
+    })
+    assert resp.status_code == 400
+    assert resp.json()['errors'][0]['code'] == 'CoordinatesOutOfRange'
+
+    resp = app.post(f'/{model}', json={
+        "number": 0,
+        "point_1": "Point(-181 0)"
+    })
+    assert resp.status_code == 400
+    assert resp.json()['errors'][0]['code'] == 'CoordinatesOutOfRange'

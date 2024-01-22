@@ -1462,28 +1462,28 @@ def test_summary_geometry_with_srid(rc: RawConfig, postgresql: str, request: Fix
             ''', backend=postgresql, request=request)
     app = create_test_client(context)
     app.authmodel('example/summary/geometry_srid', ['insert', 'getall', 'search'])
-    app.post('/example/summary/geometry_srid/Test', json={'value': 'POINT(0 0)'})
-    app.post('/example/summary/geometry_srid/Test', json={'value': 'POINT(0 0)'})
-    resp_10_20 = app.post('/example/summary/geometry_srid/Test', json={'value': 'POINT(10 20)'})
-    resp_40_80 = app.post('/example/summary/geometry_srid/Test', json={'value': 'POINT(40 80)'})
+    app.post('/example/summary/geometry_srid/Test', json={'value': 'POINT(19.05 53.90)'})
+    app.post('/example/summary/geometry_srid/Test', json={'value': 'POINT(19.05 53.90)'})
+    resp_10_20 = app.post('/example/summary/geometry_srid/Test', json={'value': 'POINT(22.10 54.00)'})
+    resp_40_80 = app.post('/example/summary/geometry_srid/Test', json={'value': 'POINT(26.00 56.00)'})
     response = app.get('/example/summary/geometry_srid/Test/:summary/value')
     json_response = response.json()
 
     assert len(json_response["_data"]) == 3
     assert dict_equals(json_response["_data"][0], {
         'cluster': 2,
-        'centroid': 'POINT(0 0)',
+        'centroid': 'POINT(19.05 53.9)',
         '_type': 'example/summary/geometry_srid/Test'
     })
     assert dict_equals(json_response["_data"][1], {
         'cluster': 1,
-        'centroid': 'POINT(10 20)',
+        'centroid': 'POINT(22.1 54)',
         "_id": resp_10_20.json()["_id"],
         '_type': 'example/summary/geometry_srid/Test'
     })
     assert dict_equals(json_response["_data"][2], {
         'cluster': 1,
-        'centroid': 'POINT(40 80)',
+        'centroid': 'POINT(26 56)',
         "_id": resp_40_80.json()["_id"],
         '_type': 'example/summary/geometry_srid/Test'
     })
@@ -1498,21 +1498,21 @@ def test_summary_geometry_linestring(rc: RawConfig, postgresql: str, request: Fi
             ''', backend=postgresql, request=request)
     app = create_test_client(context)
     app.authmodel('example/summary/geometry', ['insert', 'getall', 'search'])
-    app.post('/example/summary/geometry/Test', json={'value': 'LINESTRING(0 0, 100 100)'})
-    app.post('/example/summary/geometry/Test', json={'value': 'LINESTRING(0 100, 100 0)'})
-    resp = app.post('/example/summary/geometry/Test', json={'value': 'LINESTRING(0 0, 0 100)'})
+    app.post('/example/summary/geometry/Test', json={'value': 'LINESTRING(0 0, 90 90)'})
+    app.post('/example/summary/geometry/Test', json={'value': 'LINESTRING(0 90, 90 0)'})
+    resp = app.post('/example/summary/geometry/Test', json={'value': 'LINESTRING(0 0, 0 90)'})
     response = app.get('/example/summary/geometry/Test/:summary/value')
     json_response = response.json()
 
     assert len(json_response["_data"]) == 2
     assert dict_equals(json_response["_data"][0], {
         'cluster': 2,
-        'centroid': 'POINT(50 50)',
+        'centroid': 'POINT(45 45)',
         '_type': 'example/summary/geometry/Test'
     })
     assert dict_equals(json_response["_data"][1], {
         'cluster': 1,
-        'centroid': 'POINT(0 50)',
+        'centroid': 'POINT(0 45)',
         '_id': resp.json()["_id"],
         '_type': 'example/summary/geometry/Test'
     })
@@ -1527,21 +1527,21 @@ def test_summary_geometry_polygon(rc: RawConfig, postgresql: str, request: Fixtu
             ''', backend=postgresql, request=request)
     app = create_test_client(context)
     app.authmodel('example/summary/geometry', ['insert', 'getall', 'search'])
-    app.post('/example/summary/geometry/Test', json={'value': 'POLYGON((0 0, 100 0, 100 100, 0 100, 0 0))'})
-    app.post('/example/summary/geometry/Test', json={'value': 'POLYGON((25 25, 75 25, 75 75, 25 75, 25 25))'})
-    resp = app.post('/example/summary/geometry/Test', json={'value': 'POLYGON((0 0, 0 90, 90 0, 0 0))'})
+    app.post('/example/summary/geometry/Test', json={'value': 'POLYGON((-90 -90, 90 -90, 90 90, -90 90, -90 -90))'})
+    app.post('/example/summary/geometry/Test', json={'value': 'POLYGON((-25 -25, -25 25, 25 25, 25 -25, -25 -25))'})
+    resp = app.post('/example/summary/geometry/Test', json={'value': 'POLYGON((-90 90, -90 -90, 90 -90, -90 90))'})
     response = app.get('/example/summary/geometry/Test/:summary/value')
     json_response = response.json()
 
     assert len(json_response["_data"]) == 2
     assert dict_equals(json_response["_data"][0], {
         'cluster': 2,
-        'centroid': 'POINT(50 50)',
+        'centroid': 'POINT(0 0)',
         '_type': 'example/summary/geometry/Test'
     })
     assert dict_equals(json_response["_data"][1], {
         'cluster': 1,
-        'centroid': 'POINT(30 30)',
+        'centroid': 'POINT(-30 -30)',
         '_id': resp.json()["_id"],
         '_type': 'example/summary/geometry/Test'
     })
@@ -1679,28 +1679,28 @@ def test_summary_geometry_bbox_with_srid(rc: RawConfig, postgresql: str, request
             ''', backend=postgresql, request=request)
     app = create_test_client(context)
     app.authmodel('example/summary/geometry', ['insert', 'getall', 'search'])
-    app.post('/example/summary/geometry/Test', json={'value': 'POINT(0 0)'})
-    app.post('/example/summary/geometry/Test', json={'value': 'POINT(0 0)'})
-    resp_10_20 = app.post('/example/summary/geometry/Test', json={'value': 'POINT(10 20)'})
-    resp_40_80 = app.post('/example/summary/geometry/Test', json={'value': 'POINT(40 80)'})
+    app.post('/example/summary/geometry/Test', json={'value': 'POINT(19.5 53.9)'})
+    app.post('/example/summary/geometry/Test', json={'value': 'POINT(19.5 53.9)'})
+    resp_10_20 = app.post('/example/summary/geometry/Test', json={'value': 'POINT(20 55)'})
+    resp_40_80 = app.post('/example/summary/geometry/Test', json={'value': 'POINT(22 55.5)'})
     response = app.get('/example/summary/geometry/Test/:summary/value?bbox(0, 0, 100, 100)')
     json_response = response.json()
 
     assert len(json_response["_data"]) == 3
     assert dict_equals(json_response["_data"][0], {
         'cluster': 2,
-        'centroid': 'POINT(0 0)',
+        'centroid': 'POINT(19.5 53.9)',
         '_type': 'example/summary/geometry/Test'
     })
     assert dict_equals(json_response["_data"][1], {
         'cluster': 1,
-        'centroid': 'POINT(10 20)',
+        'centroid': 'POINT(20 55)',
         "_id": resp_10_20.json()["_id"],
         '_type': 'example/summary/geometry/Test'
     })
     assert dict_equals(json_response["_data"][2], {
         'cluster': 1,
-        'centroid': 'POINT(40 80)',
+        'centroid': 'POINT(22 55.5)',
         "_id": resp_40_80.json()["_id"],
         '_type': 'example/summary/geometry/Test'
     })
