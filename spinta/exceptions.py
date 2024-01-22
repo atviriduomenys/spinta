@@ -771,10 +771,14 @@ class InvalidName(UserError):
 class NoneValueComparison(UserError):
     template = "None values can only be compared using 'eq' or 'ne' operands, {op!r} was given."
 
-    
+
 class InvalidDenormProperty(UserError):
     template = 'Cannot create Denorm property {denorm!r}, because it is part of {ref!r} refprops: {refprops}.'
 
 
 class RefPropTypeMissmatch(UserError):
     template = 'Refprop {refprop!r} requires {required_type!r} type, but was given {given_type!r}.'
+
+
+class InheritPropertyValueMissmatch(UserError):
+    template = 'Expected {expected!r} value, but got {given!r}.'

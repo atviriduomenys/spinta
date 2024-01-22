@@ -452,7 +452,16 @@ def sort_models_by_refs(models: Iterable[Model]) -> Iterator[Model]:
     models = {model.model_type(): model for model in models}
     graph = collections.defaultdict(set)
     for name, model in models.items():
-        graph[''].add(name)
+        if model.base is None:
+            graph[''].add(name)
+        if model.base:
+            base_model = model.base
+            while base_model:
+                graph[base_model.parent.name].add(name)
+                if base_model.parent.base:
+                    base_model = base_model.parent.base
+                else:
+                    base_model = None
         for dtype in iter_model_refs(model):
             ref = dtype.model.model_type()
             if ref in models:

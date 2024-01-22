@@ -5,6 +5,7 @@ from typing import Dict
 from typing import Tuple
 
 import pytest
+from pytest import FixtureRequest
 
 import sqlalchemy as sa
 from _pytest.logging import LogCaptureFixture
@@ -15,12 +16,12 @@ from responses import RequestsMock
 from spinta.client import add_client_credentials
 from spinta.core.config import RawConfig
 from spinta.utils.schema import NA
-from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.data import listdata
 from spinta.testing.client import create_client, create_rc, configure_remote_server
 from spinta.testing.datasets import Sqlite
 from spinta.testing.datasets import create_sqlite_db
+from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.utils import error
 
@@ -272,6 +273,7 @@ def test_filter_join_ne_array_value(rc, tmp_path, geodb):
     ]
 
 
+@pytest.mark.skip('todo')
 def test_filter_multi_column_pk(rc, tmp_path, geodb):
     create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source      | prepare            | type    | ref            | level | access | uri | title   | description

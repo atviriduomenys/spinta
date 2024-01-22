@@ -122,7 +122,11 @@ class PgQueryBuilder(BaseQueryBuilder):
             lrkey = self.backend.get_column(ltable, fpr.left)
 
             rmodel = fpr.right.model if not isinstance(fpr.right.dtype, Denorm) else fpr.right.dtype.rel_prop.model
-            rtable = self.backend.get_table(rmodel).alias()
+            if rmodel.base:
+                rtable = self.get_joined_base_table(rmodel, prop.right.basename, from_Fk=True)
+            else:
+                rtable = self.backend.get_table(rmodel).alias()
+
             rpkey = self.backend.get_column(rtable, rmodel.properties['_id'])
 
             if isinstance(lrkey, list) and not isinstance(rpkey, list):
@@ -263,15 +267,12 @@ class PgQueryBuilder(BaseQueryBuilder):
             self.from_ = self.from_.outerjoin(selector, condition)
         return self.joins[fpr.name]
 
-    def get_joined_base_table(self, model: Model, prop: str):
+    def get_joined_base_table(self, model: Model, prop: str, from_Fk = False):
         inherit_model = model
         base_model = get_property_base_model(inherit_model, prop)
 
         if not base_model:
             raise PropertyNotFound(prop)
-
-        if base_model.name in self.joins:
-            return self.joins[base_model.name]
 
         ltable = self.backend.get_table(inherit_model)
         lrkey = self.backend.get_column(ltable, inherit_model.properties['_id'])
@@ -279,9 +280,14 @@ class PgQueryBuilder(BaseQueryBuilder):
         rtable = self.backend.get_table(base_model).alias()
         rpkey = self.backend.get_column(rtable, base_model.properties['_id'])
 
+        if base_model.name in self.joins:
+            if self.joins[base_model.name] == rtable:
+                return self.joins[base_model.name]
+
         condition = lrkey == rpkey
         self.joins[base_model.name] = rtable
-        self.from_ = self.from_.outerjoin(rtable, condition)
+        if not from_Fk:
+            self.from_ = self.from_.outerjoin(rtable, condition)
 
         return self.joins[base_model.name]
 

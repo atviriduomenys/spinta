@@ -14,6 +14,8 @@ from spinta.core.config import RawConfig
 from spinta.core.ufuncs import asttoexpr
 from _pytest.fixtures import FixtureRequest
 
+from spinta.testing.utils import get_error_codes
+
 
 def _prep_context(context: Context):
     context.set('auth.token', AdminToken())
@@ -322,3 +324,194 @@ def test_get_paginate_with_none_multi_key(rc: RawConfig, postgresql: str, reques
         (None, None),
     ]
 
+
+def test_join_with_base(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, '''
+    d | r | b | m | property   | type                 | ref     | prepare   | access
+    datasets/basetest          |                      |         |           |
+      |   |   |   |            |                      |         |           |
+      |   |   | Place          |                      | id      |           |
+      |   |   |   | id         | integer              |         |           | open
+      |   |   |   | name       | string               |         |           | open
+      |   |   |   | koord      | geometry(point,4326) |         |           | open
+      |   |   |   |            |                      |         |           |
+      |   | Place              |                      | name    |           |
+      |   |   |   |            |                      |         |           |
+      |   |   | Location       |                      | id      |           |
+      |   |   |   | id         | integer              |         |           | open
+      |   |   |   | name       |                      |         |           | open
+      |   |   |   | koord      |                      |         |           | open
+      |   |   |   | population | integer              |         |           | open
+      |   |   |   | type       | string               |         |           | open
+      |   |   |   |            | enum                 |         | "city"    |
+      |   |   |   |            |                      |         | "country" |
+      |   |   |   |            |                      |         |           |
+      |   | Location           |                      | name    |           |
+      |   |   | Test           |                      | id      |           |
+      |   |   |   | id         | integer              |         |           | open
+      |   |   |   | name       |                      |         |           | open
+      |   |   |   |            |                      |         |           |
+      |   |   | Country        |                      | id      |           |
+      |   |   |   | id         | integer              |         |           | open
+      |   |   |   | name       |                      |         |           | open
+      |   |   |   | population |                      |         |           | open
+      |   |   |   |            |                      |         |           |
+      |   |   | City           |                      | id      |           |
+      |   |   |   | id         | integer              |         |           | open
+      |   |   |   | name       |                      |         |           | open
+      |   |   |   | population |                      |         |           | open
+      |   |   |   | koord      |                      |         |           | open
+      |   |   |   | type       |                      |         |           | open
+      |   |   |   | country    | ref                  | Country |           | open
+      |   |   |   | testfk     | ref                  | Test    |           | open
+      |   |   |   |            |                      |         |           |
+    ''', backend=postgresql, request=request)
+
+    app = create_test_client(context)
+    app.authorize(['spinta_insert', 'spinta_getall', 'spinta_wipe', 'spinta_search', 'spinta_set_meta_fields'])
+    LTU = "d55e65c6-97c9-4cd3-99ff-ae34e268289b"
+    VLN = "2074d66e-0dfd-4233-b1ec-199abc994d0c"
+    TST = "2074d66e-0dfd-4233-b1ec-199abc994d0e"
+
+    resp = app.post('/datasets/basetest/Place', json={
+        '_id': LTU,
+        'id': 1,
+        'name': 'Lithuania',
+    })
+    assert resp.status_code == 201
+
+    resp = app.post('/datasets/basetest/Location', json={
+        '_id': LTU,
+        'id': 1,
+        'population': 2862380,
+    })
+    assert resp.status_code == 201
+
+    resp = app.post('/datasets/basetest/Country', json={
+        '_id': LTU,
+        'id': 1,
+    })
+    assert resp.status_code == 201
+
+    resp = app.post('/datasets/basetest/Place', json={
+        '_id': VLN,
+        'id': 2,
+        'name': 'Vilnius',
+        'koord': "SRID=4326;POINT (54.68677 25.29067)"
+    })
+    assert resp.status_code == 201
+
+    resp = app.post('/datasets/basetest/Location', json={
+        '_id': VLN,
+        'id': 2,
+        'population': 625349,
+    })
+    assert resp.status_code == 201
+
+    resp = app.post('/datasets/basetest/Place', json={
+        '_id': TST,
+        'id': 3,
+        'name': 'TestFK',
+        'koord': "SRID=4326;POINT (54.68677 25.29067)"
+    })
+    assert resp.status_code == 201
+
+    resp = app.post('/datasets/basetest/Location', json={
+        '_id': TST,
+        'id': 3,
+        'population': 625349,
+    })
+    assert resp.status_code == 201
+
+    resp = app.post('/datasets/basetest/Test', json={
+        '_id': TST,
+        'id': 3,
+    })
+    assert resp.status_code == 201
+
+    resp = app.post('/datasets/basetest/City', json={
+        '_id': VLN,
+        'id': 2,
+        'country': {'_id': LTU},
+        'testfk': {'_id': TST}
+    })
+    assert resp.status_code == 201
+
+    resp = app.get('/datasets/basetest/Location?select(_id,id,name,population,type)')
+    assert resp.status_code == 200
+    assert listdata(resp, 'name', sort='name') == ['Lithuania', 'TestFK', 'Vilnius']
+
+    resp = app.get('/datasets/basetest/City?select(id,name,country.name,testfk.name)')
+    assert resp.status_code == 200
+    assert listdata(resp, 'name', 'country.name', 'testfk.name')[0] == ('Vilnius', 'Lithuania', 'TestFK')
+
+    resp = app.get('/datasets/basetest/City?select(_id,id,name,population,type,koord)')
+    assert resp.status_code == 200
+    assert listdata(resp, 'name','population', 'koord', sort='name')[0] == ('Vilnius', 625349, 'POINT (54.68677 25.29067)')
+
+
+def test_invalid_inherit_check(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, '''
+    d | r | b | m | property   | type                 | ref     | prepare   | access
+    datasets/invalid/base          |                      |         |           |
+      |   |   |   |            |                      |         |           |
+      |   |   | Place          |                      | id      |           |
+      |   |   |   | id         | integer              |         |           | open
+      |   |   |   | name       | string               |         |           | open
+      |   |   |   | koord      | geometry(point,4326) |         |           | open
+      |   |   |   |            |                      |         |           |
+      |   | Place              |                      | name    |           |
+      |   |   |   |            |                      |         |           |
+      |   |   | Location       |                      | id      |           |
+      |   |   |   | id         | integer              |         |           | open
+      |   |   |   | name       |                      |         |           | open
+      |   |   |   | population | integer              |         |           | open
+      |   |   |   |            |                      |         |           |
+      |   | Location           |                      | name    |           |
+      |   |   |   |            |                      |         |           |
+      |   |   | Country        |                      | id      |           |
+      |   |   |   | id         | integer              |         |           | open
+      |   |   |   | name       |                      |         |           | open
+      |   |   |   | population |                      |         |           | open
+    ''', backend=postgresql, request=request)
+
+    app = create_test_client(context)
+    app.authorize(['spinta_insert', 'spinta_getall', 'spinta_wipe', 'spinta_search', 'spinta_set_meta_fields'])
+    LTU = "d55e65c6-97c9-4cd3-99ff-ae34e268289b"
+
+    resp = app.post('/datasets/invalid/base/Place', json={
+        '_id': LTU,
+        'id': 1,
+        'name': 'Lithuania',
+    })
+    assert resp.status_code == 201
+
+    resp = app.post('/datasets/invalid/base/Location', json={
+        '_id': LTU,
+        'id': 1,
+        'population': 2862380,
+    })
+    assert resp.status_code == 201
+
+    resp = app.post('/datasets/invalid/base/Country', json={
+        '_id': LTU,
+        'id': 1,
+        'name': 'Lietuva'
+    })
+    assert resp.status_code == 400
+    assert get_error_codes(resp.json()) == ["InheritPropertyValueMissmatch"]
+
+    resp = app.post('/datasets/invalid/base/Country', json={
+        '_id': LTU,
+        'id': 1,
+        'name': 'Lithuania'
+    })
+    assert resp.status_code == 201
