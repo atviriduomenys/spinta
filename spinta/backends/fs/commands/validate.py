@@ -1,6 +1,6 @@
-import pathlib
 import os
 
+from pathlib import Path
 from spinta import commands
 from spinta.components import Context, Action, Property, DataItem
 from spinta.backends.components import Backend
@@ -69,11 +69,11 @@ def complex_data_check(
                 )
         if value.get('_id'):
             if isinstance(dtype.backend, FileSystem):
-                filename = pathlib.PosixPath(value['_id'])
+                filename = Path(value['_id'])
                 _validate_path(filename, dtype.backend, dtype)
 
 
-def _validate_path(filename: pathlib.PosixPath(), fs: FileSystem, dtype: File):
+def _validate_path(filename: Path, fs: FileSystem, dtype: File):
     commonpath = os.path.commonpath([
         fs.path.resolve(),
         (fs.path / filename).resolve(),
