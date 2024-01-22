@@ -278,7 +278,7 @@ def load(
 
     if data['type'] is None:
         raise UnknownPropertyType(prop, type=data['type'])
-    if data['type'] == 'ref' and prop.level and prop.level < 4:
+    if data['type'] == 'ref' and prop.level is not None and prop.level < 4:
         data['type'] = '_external_ref'
     prop.dtype = get_node(
         config,
