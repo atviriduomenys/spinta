@@ -1138,27 +1138,9 @@ def before_write(
     *,
     data: DataSubItem,
 ) -> dict:
-    patch = take(['_id'], data.patch)
+    patch = flatten_value(data.patch)
     return {
-        f'{dtype.prop.place}.{k}': v for k, v in patch.items()
-    }
-
-
-@commands.before_write.register(Context, ExternalRef, Backend)
-def before_write(
-    context: Context,
-    dtype: ExternalRef,
-    backend: Backend,
-    *,
-    data: DataSubItem,
-) -> dict:
-    if dtype.model.given.pkeys or dtype.explicit:
-        props = dtype.refprops
-    else:
-        props = [dtype.model.properties['_id']]
-    patch = take([prop.place for prop in props], data.patch)
-    return {
-        f'{dtype.prop.place}.{k}': v for k, v in patch.items()
+        f'{dtype.prop.place}.{k}': v for k, v in patch.items() if k
     }
 
 

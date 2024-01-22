@@ -735,3 +735,11 @@ class DuplicateRdfPrefixMissmatch(UserError):
 
 class InvalidName(UserError):
     template = 'Invalid {name!r} {type} code name.'
+
+
+class InvalidDenormProperty(UserError):
+    template = 'Cannot create Denorm property {denorm!r}, because it is part of {ref!r} refprops: {refprops}.'
+
+
+class RefPropTypeMissmatch(UserError):
+    template = 'Refprop {refprop!r} requires {required_type!r} type, but was given {given_type!r}.'

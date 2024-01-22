@@ -554,11 +554,14 @@ def prepare_dtype_for_response(
     if value is None:
         return Cell('', color=Color.null)
 
+    props = dtype.properties.copy()
+    props.update(dtype.model.properties)
+
     if select and select != {'*': {}}:
         names = get_select_prop_names(
             context,
             dtype,
-            dtype.model.properties,
+            props,
             action,
             select,
         )
@@ -569,7 +572,7 @@ def prepare_dtype_for_response(
     for prop, val, sel in select_props(
         dtype.model,
         names,
-        dtype.model.properties,
+        props,
         value,
         select,
     ):

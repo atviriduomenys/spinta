@@ -334,21 +334,26 @@ def simple_data_check(
     value: dict,
 ) -> None:
     denorm_prop_keys = [
-        p.name.split('.', maxsplit=1)[-1]
-        for p in prop.model.properties.values() if (
-            isinstance(p.dtype, Denorm) and
-            p.name.split('.')[0] == prop.name
-        )
+        key for key in dtype.properties.keys()
     ]
+
     if dtype.model.given.pkeys or dtype.explicit:
         allowed_keys = [prop.name for prop in dtype.refprops]
     else:
         allowed_keys = ['_id']
     allowed_keys.extend(denorm_prop_keys)
-    value = flatten_value(value)
     for key in value.keys():
         if key not in allowed_keys:
             raise exceptions.FieldNotInResource(prop, property=key)
+        elif key in denorm_prop_keys:
+            commands.simple_data_check(
+                context,
+                data,
+                dtype.properties[key].dtype,
+                dtype.properties[key],
+                backend,
+                value[key]
+            )
 
 
 @commands.simple_data_check.register(Context, DataItem, Ref, Property, Backend, object)
@@ -871,11 +876,14 @@ def prepare_dtype_for_response(
     if value is None or all(val is None for val in value.values()):
         return None
 
+    properties = dtype.model.properties.copy()
+    properties.update(dtype.properties)
+
     if select and select != {'*': {}}:
         names = get_select_prop_names(
             context,
             dtype,
-            dtype.model.properties,
+            properties,
             action,
             select,
             reserved=['_id'],
@@ -883,7 +891,7 @@ def prepare_dtype_for_response(
     else:
         names = value.keys()
 
-    data = {
+    result = {
         prop.name: commands.prepare_dtype_for_response(
             context,
             fmt,
@@ -896,13 +904,13 @@ def prepare_dtype_for_response(
         for prop, val, sel in select_props(
             dtype.model,
             names,
-            dtype.model.properties,
+            properties,
             value,
             select,
         )
     }
 
-    return data
+    return result
 
 
 @commands.prepare_dtype_for_response.register(Context, Format, Ref, str)
@@ -947,10 +955,13 @@ def prepare_dtype_for_response(
         names = value.keys()
 
     data = {}
+    props = dtype.properties.copy()
+    props.update(dtype.model.properties)
+
     for prop, val, sel in select_props(
         dtype.model,
         names,
-        dtype.model.properties,
+        props,
         value,
         select,
     ):

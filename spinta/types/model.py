@@ -66,6 +66,7 @@ def _load_namespace_from_model(context: Context, manifest: Manifest, model: Mode
     ns.models[model.model_type()] = model
     model.ns = ns
 
+
 @load.register(Context, Model, dict, Manifest)
 def load(
     context: Context,
@@ -279,7 +280,6 @@ def load(
         raise UnknownPropertyType(prop, type=data['type'])
     if data['type'] == 'ref' and prop.level and prop.level < 4:
         data['type'] = '_external_ref'
-
     prop.dtype = get_node(
         config,
         manifest,
@@ -473,6 +473,8 @@ def check(context: Context, prop: Property):
     if prop.enum:
         for value, item in prop.enum.items():
             commands.check(context, item, prop.dtype, item.prepare)
+
+    commands.check(context, prop.dtype)
 
 
 @authorize.register(Context, Action, Model)
