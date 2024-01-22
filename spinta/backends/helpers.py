@@ -101,8 +101,7 @@ def get_select_prop_names(
             p.name
             for p in props.values() if (
                 not p.name.startswith('_') and
-                not p.hidden and
-                (not auth or authorized(context, p, action)) and
+                not p.hidden and (not auth or authorized(context, p, action)) and
                 (include_denorm_props or not isinstance(p.dtype, Denorm))
             )
         ]

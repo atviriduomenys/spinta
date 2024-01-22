@@ -33,17 +33,28 @@ def get_keys_for_row(keys, row: dict):
 
 
 def listdata(
-    resp: Union[requests.Response, List[Dict[str, Any]]],
+    resp: Union[httpx.Response, List[Dict[str, Any]]],
     *keys: Union[str, Callable[[], bool]],
     sort: Union[bool, str] = True,
     full: bool = False,  # returns dicts instead of tuples
 ) -> List[tuple]:
-    """Return data from a given requests.Response object.
+    """Return data from a given Response object.
 
     Only non reserved fields are returned.
 
-    By default data are converted to List[Tuple[Any]], but if `full` is True,
-    then List[Dict[str, Any] is returned.
+    This function returns:
+
+        List[Tuple[Any]]
+            This is returned by default.
+
+        List[Any]
+            This is returned if one `keys` key is given.
+
+        List[Dict[str, Any]]
+            This is returned if `full` is True.
+
+        List[Dict[str, Any]] (flattened)
+            This is returned if `full` is True and `keys` are given.
 
     Usage:
 
@@ -111,6 +122,7 @@ def listdata(
             data = data['_data']
 
         keys = get_keys_for_row(old_keys, data)
+
 
     # Clean data
     if full:

@@ -69,7 +69,7 @@ async def run_migrations(context: Context, manifest: BackendManifest):
             await write(context, model, [
                 {
                     '_op': 'patch',
-                    '_type': '_schema/version',
+                    '_type': '_schema/Version',
                     '_where': '_id="%s"' % version['id'],
                     'applied': datetime.datetime.now(datetime.timezone.utc),
                 },
@@ -90,7 +90,7 @@ def read_unapplied_versions(
     context: Context,
     manifest: Manifest,
 ):
-    model = manifest.objects['model']['_schema/version']
+    model = manifest.objects['model']['_schema/Version']
     query = Expr(
         'and',
         Expr('select', bind('id'), bind('_id'), bind('parents')),
@@ -119,7 +119,7 @@ async def versions_to_dstream(
     applied: bool = False,
 ) -> AsyncIterator[DataItem]:
     now = datetime.datetime.now(datetime.timezone.utc)
-    model = manifest.objects['model']['_schema/version']
+    model = manifest.objects['model']['_schema/Version']
     for version in versions:
         payload = {
             '_op': 'upsert',
@@ -160,7 +160,7 @@ def list_sorted_unapplied_versions(
     context: Context,
     manifest: Manifest,
 ) -> Iterator[Tuple[str, str]]:
-    model = manifest.objects['model']['_schema/version']
+    model = manifest.objects['model']['_schema/Version']
     query = {
         'select': ['id', '_id', 'parents'],
         'query': [
@@ -182,7 +182,7 @@ def read_lastest_version_schemas(
     context: Context,
     manifest: Manifest,
 ) -> Iterator[Tuple[str, str]]:
-    model = manifest.objects['model']['_schema/version']
+    model = manifest.objects['model']['_schema/Version']
     query = Expr(
         'and',
         Expr('select', bind('id'), bind('_id'), bind('parents')),
@@ -204,7 +204,7 @@ def get_last_version_eid(
     manifest: Manifest,
     schema_eid: str,
 ) -> Iterator[Tuple[str, str]]:
-    model = manifest.objects['model']['_schema/version']
+    model = manifest.objects['model']['_schema/Version']
     query = Expr(
         'and',
         Expr('select', bind('_id'), bind('parents')),
@@ -224,7 +224,7 @@ def get_version_schema(
     manifest: Manifest,
     version_eid: str,
 ) -> Iterator[Tuple[str, str]]:
-    model = manifest.objects['model']['_schema/version']
+    model = manifest.objects['model']['_schema/Version']
     version = commands.getone(context, model, model.backend, id_=version_eid)
     return version['schema']
 

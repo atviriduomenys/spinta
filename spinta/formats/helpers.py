@@ -19,6 +19,7 @@ from spinta.types.datatype import DataType
 from spinta.types.datatype import Object
 from spinta.types.datatype import File
 from spinta.types.datatype import Ref
+from spinta.types.text.components import Text
 from spinta.utils.data import take
 
 
@@ -49,8 +50,8 @@ def _get_dtype_header(
         yield from _get_dtype_header(dtype.refprop.dtype, select, name)
 
     elif isinstance(dtype, File):
-        yield name + '._id'
-        yield name + '._content_type'
+        yield f'{name}._id'
+        yield f'{name}._content_type'
 
     elif isinstance(dtype, ExternalRef):
         if select is None or select == {'*': {}}:
@@ -58,8 +59,15 @@ def _get_dtype_header(
                 props = dtype.refprops
             else:
                 props = [dtype.model.properties['_id']]
+            processed_props = []
             for prop in props:
-                yield name + '.' + prop.place
+                processed_props.append(name + '.' + prop.place)
+
+            for key, prop in dtype.properties.items():
+                for processed_name in _get_dtype_header(prop.dtype, select, name + '.' + key):
+                    if processed_name not in processed_props:
+                        processed_props.append(processed_name)
+            yield from processed_props
         else:
             for prop, sel in select_only_props(
                 dtype.prop,
@@ -72,12 +80,27 @@ def _get_dtype_header(
 
     elif isinstance(dtype, Ref):
         if select is None or select == {'*': {}}:
-            yield name + '._id'
+            if dtype.prop.given.explicit:
+                yield name + '._id'
+            for key, prop in dtype.properties.items():
+                yield from _get_dtype_header(prop.dtype, select, name + '.' + key)
         else:
             for prop, sel in select_only_props(
                 dtype.prop,
                 dtype.model.properties.keys(),
                 dtype.model.properties,
+                select,
+            ):
+                name_ = name + '.' + prop.name
+                yield from _get_dtype_header(prop.dtype, sel, name_)
+    elif isinstance(dtype, Text):
+        if select is None or select == {'*': {}}:
+            yield name
+        else:
+            for prop, sel in select_only_props(
+                dtype.prop,
+                dtype.langs.keys(),
+                dtype.langs,
                 select,
             ):
                 name_ = name + '.' + prop.name
@@ -161,3 +184,8 @@ def get_model_tabular_header(
             )
         header = list(_get_model_header(model, names, select, reserved))
     return header
+
+
+def rename_page_col(rows):
+    for row in rows:
+        yield {'_page.next' if k == '_page' else k: v for k, v in row.items()}

@@ -39,6 +39,33 @@ def base_geodb():
 
 
 @pytest.fixture(scope='function')
+def text_geodb():
+    with create_sqlite_db({
+        'city': [
+            sa.Column('id', sa.Integer, primary_key=True),
+            sa.Column('name', sa.Text),
+            sa.Column('name_lt', sa.Text),
+            sa.Column('name_pl', sa.Text),
+            sa.Column('country', sa.Integer),
+        ],
+        'country': [
+            sa.Column('id', sa.Integer, primary_key=True),
+            sa.Column('name_lt', sa.Text),
+            sa.Column('name_en', sa.Text),
+        ],
+    }) as db:
+        db.write('country', [
+            {'name_lt': 'Lietuva', 'name_en': None, 'id': 1},
+            {'name_lt': None, 'name_en': 'Latvia', 'id': 2},
+            {'name_lt': 'Lenkija', 'name_en': 'Poland', 'id': 3},
+        ])
+        db.write('city', [
+            {'id': 1, 'name': 'VLN', 'name_lt': 'Vilnius', 'name_pl': 'Vilna', 'country': 1},
+        ])
+        yield db
+
+
+@pytest.fixture(scope='function')
 def geodb():
     with create_sqlite_db({
         'salis': [
@@ -50,6 +77,11 @@ def geodb():
             sa.Column('id', sa.Integer, primary_key=True),
             sa.Column('name', sa.Text),
             sa.Column('country', sa.Integer),
+        ],
+        'nullable': [
+            sa.Column('id', sa.Integer),
+            sa.Column('name', sa.Text),
+            sa.Column('code', sa.Text)
         ]
     }) as db:
         db.write('salis', [
@@ -59,6 +91,18 @@ def geodb():
         ])
         db.write('cities', [
             {'name': 'Vilnius', 'country': 2},
+        ])
+        db.write('nullable', [
+            {'id': 0, 'name': 'Test', 'code': '0'},
+            {'id': 0, 'name': 'Test', 'code': '1'},
+            {'id': 0, 'name': 'Test0', 'code': None},
+            {'id': 0, 'name': None, 'code': '0'},
+            {'id': 0, 'name': None, 'code': None},
+            {'id': 1, 'name': 'Test', 'code': None},
+            {'id': 1, 'name': None, 'code': None},
+            {'id': None, 'name': 'Test', 'code': None},
+            {'id': None, 'name': 'Test', 'code': '0'},
+
         ])
         yield db
 
@@ -1067,6 +1111,97 @@ def test_push_sync_private_no_error(
     assert result.exception is None
 
 
+def test_push_with_text(
+    postgresql,
+    rc,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    request,
+    text_geodb
+):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    d | r | b | m | property | type     | ref      | source      | level | access
+    textnormal               |          |          |             |       |
+      | db                   | sql      |          |             |       |
+      |   |   | Country      |          | id       | country     | 4     |
+      |   |   |   | id       | integer  |          | id          | 4     | open
+      |   |   |   | name@lt  | string   |          | name_lt     | 4     | open
+      |   |   |   | name@en  | string   |          | name_en     | 4     | open
+    '''))
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, text_geodb)
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    result = cli.invoke(localrc, [
+        'push',
+        '-d', 'textnormal',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--no-progress-bar',
+    ])
+
+    assert result.exit_code == 0
+    remote.app.authmodel('textnormal/Country', ['getall', 'search'])
+    countries = remote.app.get('textnormal/Country?select(id,name@lt,name@en)')
+    assert countries.status_code == 200
+    assert listdata(countries, 'id', 'name', sort=True) == [
+        (1, {'en': None, 'lt': 'Lietuva'}),
+        (2, {'en': 'Latvia', 'lt': None}),
+        (3, {'en': 'Poland', 'lt': 'Lenkija'})
+    ]
+
+
+def test_push_with_text_unknown(
+    postgresql,
+    rc,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    request,
+    text_geodb
+):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    d | r | b | m | property | type     | ref      | source      | level | access
+    textunknown              |          |          |             |       |
+      | db                   | sql      |          |             |       |
+      |   |   | City         |          | id       | city        | 4     |
+      |   |   |   | id       | integer  |          | id          | 4     | open
+      |   |   |   | name@lt  | string   |          | name_lt     | 4     | open
+      |   |   |   | name@pl  | string   |          | name_pl     | 4     | open
+      |   |   |   | name     | text     |          | name        | 2     | open
+    '''))
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, text_geodb)
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    result = cli.invoke(localrc, [
+        'push',
+        '-d', 'textunknown',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--no-progress-bar',
+    ])
+
+    assert result.exit_code == 0
+    remote.app.authmodel('textunknown/City', ['getall', 'search'])
+    countries = remote.app.get('textunknown/City?select(id,name@lt,name@pl,name@C)')
+    assert countries.status_code == 200
+    assert listdata(countries, 'id', 'name', sort=True) == [
+        (1, {'C': 'VLN', 'lt': 'Vilnius', 'pl': 'Vilna'}),
+    ]
+
+
 def test_push_postgresql(
     postgresql,
     rc: RawConfig,
@@ -1133,3 +1268,58 @@ def test_push_postgresql(
     assert result.exit_code == 0
     assert 'PUSH: 100%|##########| 2/2' not in result.stderr
     su.drop_database(db)
+
+
+def test_push_with_nulls(
+    postgresql,
+    rc,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    geodb,
+    request
+):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    d | r | b | m | property | type     | ref            | source      | level | access
+    nullpush                 |          |                |             |       |
+      | db                   | sql      |                |             |       |
+      |   |   | Nullable     |          | id, name, code | nullable    | 4     |
+      |   |   |   | id       | integer  |                | id          | 4     | open
+      |   |   |   | name     | string   |                | name        | 4     | open
+      |   |   |   | code     | string   |                | code        | 4     | open
+    '''))
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, geodb)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    result = cli.invoke(localrc, [
+        'push',
+        '-d', 'nullpush',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--no-progress-bar',
+    ])
+    assert result.exit_code == 0
+
+    remote.app.authmodel('nullpush/Nullable', ['getall', 'search'])
+    resp_city = remote.app.get('nullpush/Nullable')
+
+    assert resp_city.status_code == 200
+    assert listdata(resp_city, 'id', 'name', 'code') == [
+        (0, 'Test', '0'),
+        (0, 'Test', '1'),
+        (0, 'Test0', None),
+        (0, None, '0'),
+        (0, None, None),
+        (1, 'Test', None),
+        (1, None, None),
+        (None, 'Test', '0'),
+        (None, 'Test', None),
+    ]
+    assert len(listdata(resp_city, 'id', 'name', 'country')) == 9

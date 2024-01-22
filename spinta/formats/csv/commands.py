@@ -3,7 +3,6 @@ from typing import Any
 from typing import Dict
 from typing import Iterator
 
-import itertools
 from starlette.requests import Request
 from starlette.responses import Response
 from starlette.responses import StreamingResponse
@@ -15,7 +14,7 @@ from spinta.components import Model
 from spinta.components import UrlParams
 from spinta.formats.csv.components import Csv
 from spinta.formats.csv.components import IterableFile
-from spinta.formats.helpers import get_model_tabular_header
+from spinta.formats.helpers import get_model_tabular_header, rename_page_col
 from spinta.utils.nestedstruct import flatten
 from spinta.utils.response import aiter
 
@@ -51,11 +50,18 @@ def _render_csv(
     data: Iterator[Dict[str, Any]],
 ):
     rows = flatten(data)
+    # Rename _page to _page.next
+    rows = rename_page_col(rows)
     cols = get_model_tabular_header(context, model, action, params)
-
+    cols = [col if col != '_page' else '_page.next' for col in cols]
     stream = IterableFile()
     writer = csv.DictWriter(stream, fieldnames=cols)
     writer.writeheader()
+    memory = next(rows)
     for row in rows:
-        writer.writerow(row)
+        writer.writerow({k: v for k, v in memory.items() if k != '_page.next'})
         yield from stream
+        memory = row
+
+    writer.writerow(memory)
+    yield from stream

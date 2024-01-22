@@ -13,6 +13,7 @@ from typing import Optional
 
 import shapely.geometry.base
 from shapely import wkt
+from pyproj.crs import CRS
 
 from spinta import commands
 from spinta import exceptions
@@ -29,14 +30,16 @@ from spinta.commands import gen_object_id
 from spinta.commands import is_object_id
 from spinta.commands import load_operator_value
 from spinta.commands import prepare
-from spinta.components import Action
+from spinta.components import Action, UrlParams
 from spinta.components import Context
 from spinta.components import DataItem
 from spinta.components import Model
 from spinta.components import Namespace
 from spinta.components import Node
 from spinta.components import Property
-from spinta.exceptions import ConflictingValue, RequiredProperty
+from spinta.core.ufuncs import asttoexpr
+from spinta.exceptions import ConflictingValue, RequiredProperty, LangNotDeclared, TooManyLangsGiven, \
+    UnableToDetermineRequiredLang, CoordinatesOutOfRange, InheritPropertyValueMissmatch
 from spinta.exceptions import NoItemRevision
 from spinta.formats.components import Format
 from spinta.types.datatype import Array, ExternalRef, Denorm, Inherit, PageType, BackRef, ArrayBackRef, Integer, Boolean
@@ -53,12 +56,16 @@ from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.types.datatype import String
 from spinta.types.geometry.components import Geometry
+from spinta.types.geometry.constants import WGS84
 from spinta.utils.config import asbool
 from spinta.utils.data import take
 from spinta.utils.encoding import encode_page_values
 from spinta.utils.nestedstruct import flatten_value
 from spinta.utils.schema import NA
 from spinta.utils.schema import NotAvailable
+from spinta.types.text.components import Text
+from spinta.exceptions import UserError
+from spinta.utils.errors import report_error
 
 
 @commands.prepare_for_write.register(Context, Model, Backend, dict)
@@ -69,6 +76,7 @@ def prepare_for_write(
     patch: Dict[str, Any],
     *,
     action: Action,
+    params: UrlParams = None
 ) -> dict:
     # prepares model's data for storing in a backend
     backend = model.backend
@@ -76,7 +84,10 @@ def prepare_for_write(
     for name, value in patch.items():
         if not name.startswith('_'):
             prop = model.properties[name]
-            value = commands.prepare_for_write(context, prop.dtype, backend, value)
+            if params:
+                value = commands.prepare_for_write(context, prop.dtype, backend, value, params)
+            else:
+                value = commands.prepare_for_write(context, prop.dtype, backend, value)
         result[name] = value
     return result
 
@@ -89,6 +100,7 @@ def prepare_for_write(
     value: Any,
     *,
     action: Action,
+    params: UrlParams = None
 ) -> Any:
     if prop.name in value:
         value[prop.name] = commands.prepare_for_write(
@@ -96,8 +108,22 @@ def prepare_for_write(
             prop.dtype,
             prop.dtype.backend,
             value[prop.name],
+            params
         )
     return value
+
+
+@commands.prepare_for_write.register(Context, DataType, Backend, object, UrlParams)
+def prepare_for_write(
+    context: Context,
+    dtype: DataType,
+    backend: Backend,
+    value: Any,
+    params: UrlParams
+) -> Any:
+    executor = commands.prepare_for_write[Context, type(dtype), type(backend), type(value)]
+    result = executor(context, dtype, backend, value)
+    return result
 
 
 @commands.prepare_for_write.register(Context, DataType, Backend, object)
@@ -140,6 +166,48 @@ def prepare_for_write(
         prop = dtype.properties[k]
         prepped[k] = commands.prepare_for_write(context, prop.dtype, backend, v)
     return prepped
+
+
+@commands.prepare_for_write.register(Context, Text, Backend, str, UrlParams)
+def prepare_for_write(
+    context: Context,
+    dtype: Text,
+    backend: Backend,
+    value: str,
+    params: UrlParams
+) -> Any:
+    default_langs = context.get('config').languages
+    preferred_lang = None
+    # First Step: Check Content-Language if lang exists in the property
+    if params.content_langs:
+        if len(params.content_langs) > 1:
+            raise TooManyLangsGiven(dtype, amount=len(params.content_langs))
+
+        if params.content_langs[0] not in dtype.langs:
+            raise LangNotDeclared(dtype, lang=params.content_langs[0])
+
+        preferred_lang = dtype.langs[params.content_langs[0]]
+
+    # Second Step: if Content-Language not given check default languages
+    if not preferred_lang:
+        for lang in default_langs:
+            if lang in dtype.langs:
+                preferred_lang = dtype.langs[lang]
+                break
+
+    # Third Step: if Content-Language and default language does not exist, check for C language (unknown)
+    if not preferred_lang:
+        if dtype.prop.level and dtype.prop.level <= 3 and 'C' in dtype.langs:
+            preferred_lang = dtype.langs['C']
+
+    # Fourth Step: if nothing works raise Exception that language was not determined
+    if not preferred_lang:
+        raise UnableToDetermineRequiredLang()
+
+    value = {preferred_lang.name: value}
+    executor = commands.prepare_for_write[Context, Text, type(backend), dict]
+    result = executor(context, dtype, backend, value)
+    return result
 
 
 @prepare.register(Context, Backend, Property)
@@ -230,18 +298,33 @@ def simple_data_check(
         simple_data_check(context, data, prop.dtype, prop, prop.dtype.backend, v)
 
 
-@commands.simple_data_check.register(Context, DataItem, Array, Property, Backend, list)
+@commands.simple_data_check.register(Context, DataItem, Object, Property, Backend, dict)
 def simple_data_check(
     context: Context,
     data: DataItem,
-    dtype: Array,
+    dtype: Object,
     prop: Property,
     backend: Backend,
-    value: list,
+    value: Dict[str, Any],
 ) -> None:
-    dtype = dtype.items.dtype
-    for v in value:
-        simple_data_check(context, data, dtype, prop, dtype.backend, v)
+    for prop in dtype.properties.values():
+        v = value.get(prop.name, NA)
+        simple_data_check(context, data, prop.dtype, prop, prop.dtype.backend, v)
+
+
+@commands.simple_data_check.register(Context, DataItem, Text, Property, Backend, dict)
+def simple_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: Text,
+    prop: Property,
+    backend: Backend,
+    value: dict,
+) -> None:
+    langs = dtype.langs
+    for lang, val in value.items():
+        if lang not in langs:
+            raise LangNotDeclared(dtype, lang=lang)
 
 
 @commands.simple_data_check.register(Context, DataItem, ExternalRef, Property, Backend, dict)
@@ -254,21 +337,26 @@ def simple_data_check(
     value: dict,
 ) -> None:
     denorm_prop_keys = [
-        p.name.split('.', maxsplit=1)[-1]
-        for p in prop.model.properties.values() if (
-            isinstance(p.dtype, Denorm) and
-            p.name.split('.')[0] == prop.name
-        )
+        key for key in dtype.properties.keys()
     ]
+
     if dtype.model.given.pkeys or dtype.explicit:
         allowed_keys = [prop.name for prop in dtype.refprops]
     else:
         allowed_keys = ['_id']
     allowed_keys.extend(denorm_prop_keys)
-    value = flatten_value(value)
     for key in value.keys():
         if key not in allowed_keys:
             raise exceptions.FieldNotInResource(prop, property=key)
+        elif key in denorm_prop_keys:
+            commands.simple_data_check(
+                context,
+                data,
+                dtype.properties[key].dtype,
+                dtype.properties[key],
+                backend,
+                value[key]
+            )
 
 
 @commands.simple_data_check.register(Context, DataItem, Ref, Property, Backend, object)
@@ -284,19 +372,6 @@ def simple_data_check(
         raise exceptions.InvalidRefValue(prop, value=value)
 
 
-@commands.simple_data_check.register(Context, DataItem, Inherit, Property, Backend, object)
-def simple_data_check(
-    context: Context,
-    data: DataItem,
-    dtype: Inherit,
-    prop: Property,
-    backend: Backend,
-    value: object,
-) -> None:
-    if prop.name in data.given.keys():
-        raise exceptions.NotImplementedFeature(prop, feature="Ability to indirectly modify base parameters")
-
-
 @commands.simple_data_check.register(Context, DataItem, BackRef, Property, Backend, object)
 def simple_data_check(
     context: Context,
@@ -308,6 +383,34 @@ def simple_data_check(
 ) -> None:
     if value is not NA:
         raise exceptions.CannotModifyBackRefProp(dtype)
+
+
+@commands.simple_data_check.register(Context, DataItem, Geometry, Property, Backend, str)
+def simple_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: Geometry,
+    prop: Property,
+    backend: Backend,
+    value: str,
+) -> None:
+    if value:
+        if ';' in value:
+            shape = shapely.wkt.loads(value.split(';', 1)[1])
+        else:
+            shape = shapely.wkt.loads(value)
+
+        srid = dtype.srid or WGS84
+        crs = CRS.from_user_input(srid)
+        area = crs.area_of_use
+        bounding_area = shapely.geometry.box(
+            minx=area.west,
+            maxx=area.east,
+            miny=area.south,
+            maxy=area.north
+        )
+        if not bounding_area.contains(shape):
+            raise CoordinatesOutOfRange(dtype, given=value, srid=crs, bounds=crs.area_of_use.bounds)
 
 
 @commands.complex_data_check.register(Context, DataItem, Model, Backend)
@@ -340,6 +443,23 @@ def complex_model_properties_check(
     backend: Backend,
     data: DataItem,
 ) -> None:
+    base_data = {}
+    if model.base and any(isinstance(prop.dtype, Inherit) for prop in model.properties.values()):
+        id_ = data.given.get('_id', None)
+        if id_ is not None:
+            where = {
+                'name': 'eq',
+                'args': [
+                    {'name': 'bind', 'args': ['_id']},
+                    id_,
+                ]
+            }
+            query = asttoexpr(where)
+            result = commands.getall(context, model.base.parent, backend, query=query)
+            for row in result:
+                base_data = row
+                break
+
     for name, prop in model.properties.items():
         # For datasets, property type is optional.
         # XXX: But I think, it should be mandatory.
@@ -362,6 +482,7 @@ def complex_model_properties_check(
                 prop,
                 data.backend,
                 given,
+                base_data=base_data
             )
 
 
@@ -373,6 +494,7 @@ def complex_data_check(
     prop: Property,
     backend: Backend,
     value: object,
+    **kwargs
 ):
     if data.action in (Action.UPDATE, Action.PATCH, Action.DELETE):
         for k in ('_type', '_revision'):
@@ -382,6 +504,32 @@ def complex_data_check(
                     given=data.given[k],
                     expected=data.saved[k],
                 )
+
+
+@complex_data_check.register(Context, DataItem, Inherit, Property, Backend, object)
+def complex_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: Inherit,
+    prop: Property,
+    backend: Backend,
+    value: object,
+    base_data: dict = {},
+    **kwargs
+):
+    if data.action in (Action.UPDATE, Action.PATCH, Action.DELETE):
+        for k in ('_type', '_revision'):
+            if k in data.given and data.saved[k] != data.given[k]:
+                raise ConflictingValue(
+                    dtype,
+                    given=data.given[k],
+                    expected=data.saved[k],
+                )
+
+    if value is not NA and dtype.prop.name in base_data:
+        inherited_value = base_data[dtype.prop.name]
+        if inherited_value != value:
+            raise InheritPropertyValueMissmatch(dtype, expected=inherited_value, given=value)
 
 
 def check_type_value(dtype: DataType, value: object, action: Action):
@@ -611,7 +759,7 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    assert isinstance(value, (str, int, float, bool, type(None), list)), (
+    assert isinstance(value, (str, int, float, bool, type(None), list, dict)), (
         f"prepare_dtype_for_response must return only primitive, json "
         f"serializable types, {type(value)} is not a primitive data type, "
         f"model={dtype.prop.model!r}, dtype={dtype!r}"
@@ -791,11 +939,14 @@ def prepare_dtype_for_response(
     if value is None or all(val is None for val in value.values()):
         return None
 
+    properties = dtype.model.properties.copy()
+    properties.update(dtype.properties)
+
     if select and select != {'*': {}}:
         names = get_select_prop_names(
             context,
             dtype,
-            dtype.model.properties,
+            properties,
             action,
             select,
             reserved=['_id'],
@@ -803,7 +954,7 @@ def prepare_dtype_for_response(
     else:
         names = value.keys()
 
-    data = {
+    result = {
         prop.name: commands.prepare_dtype_for_response(
             context,
             fmt,
@@ -816,13 +967,13 @@ def prepare_dtype_for_response(
         for prop, val, sel in select_props(
             dtype.model,
             names,
-            dtype.model.properties,
+            properties,
             value,
             select,
         )
     }
 
-    return data
+    return result
 
 
 @commands.prepare_dtype_for_response.register(Context, Format, Ref, str)
@@ -867,10 +1018,13 @@ def prepare_dtype_for_response(
         names = value.keys()
 
     data = {}
+    props = dtype.properties.copy()
+    props.update(dtype.model.properties)
+
     for prop, val, sel in select_props(
         dtype.model,
         names,
-        dtype.model.properties,
+        props,
         value,
         select,
     ):
@@ -969,6 +1123,20 @@ def prepare_dtype_for_response(
         action,
         select,
     )
+
+
+@commands.prepare_dtype_for_response.register(Context, Format, DateTime, datetime.datetime)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: DateTime,
+    value: datetime.datetime,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    return value.isoformat()
 
 
 def _prepare_array_for_response(

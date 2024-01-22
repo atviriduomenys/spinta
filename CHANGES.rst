@@ -3,8 +3,36 @@
 Changes
 #######
 
-0.1.60 (unreleased)
+0.1.61 (unreleased)
 ===================
+
+
+0.1.60 (2023-11-21)
+===================
+
+New features:
+
+- Add new `text` type (`#204`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/204
+
+Bug fixes:
+
+- Fix client files migration issue (`#544`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/544
+
+- Fix pagination infinite loop error (`#542`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/542
+
+- Do not sync keymap on models not required for push operation (`#541`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/541
+
+- Fix `/:all` on RDF format (`#543`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/543
 
 
 0.1.59 (2023-11-14)
@@ -1279,7 +1307,7 @@ Backwards incompatible features:
   manifest types `internal` and `yaml`.
 
   `internal` manifest is stored in `manifests..backend` database, in `_schema`
-  and `_schema/version` models.
+  and `_schema/Version` models.
 
   `yaml` manifest is same manifest as was used previously.
 
@@ -1389,7 +1417,7 @@ New features:
   `spinta bootstrap` - this command does same thing as previously did `spinta
   migrate` it simply creates all missing tables from scratch and upates all
   migration versions as applied. With `internal` manifest `bootstrap` does
-  nothing if it finds that `_schema/version` table is created. But with `yaml`
+  nothing if it finds that `_schema/Version` table is created. But with `yaml`
   manifest `bootstrap` always tries to create all missing tables.
 
   `spinta sync` - this command updates default manifest from list of other
@@ -1629,7 +1657,7 @@ Internal changes:
         client = create_test_client(context)
         client.authmodel('_version', ['getall', 'search'])
 
-        data = client.get('/_schema/version').json()
+        data = client.get('/_schema/Version').json()
 
 - There is no longer separate `internal` manifest. Since now there is only one
   manifest, `internal` manifest does not exist as a separate manifest, but it

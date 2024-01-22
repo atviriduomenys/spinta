@@ -48,6 +48,8 @@ class DataType(Component):
     backend: Backend = None
     prop: Property = None
     expandable: bool = False
+    requires_source: bool = True
+    inherited: bool = False
 
     def __repr__(self):
         return f'<{self.prop.name}:{self.name}>'
@@ -289,6 +291,8 @@ class JSON(DataType):
 
 class Denorm(DataType):
     rel_prop: Property
+    inherited = True
+    requires_source = False
 
     def get_type_repr(self):
         return ""
@@ -300,6 +304,8 @@ class ExternalRef(Ref):
 
 
 class Inherit(DataType):
+    inherited = True
+
     def get_type_repr(self):
         return ""
 
@@ -309,6 +315,11 @@ class PartialArray(Array):
 
 
 class PageType(DataType):
+    pass
+
+
+@commands.check.register(Context, DataType)
+def check(context: Context, dtype: DataType):
     pass
 
 
@@ -487,11 +498,11 @@ def load(context: Context, dtype: Object, value: object) -> dict:
 def load(context: Context, dtype: Ref, value: object) -> dict:
     loaded_obj = dtype.load(value)
     # TODO: add better support for dtype.properties load
-    if isinstance(value, dict):
-        dtype.properties = {
-            name: load(context, Property(), prop)
-            for name, prop in value.get('properties', {}).items()
-        }
+    # if isinstance(value, dict):
+    #     dtype.properties = {
+    #         name: load(context, Property(), prop)
+    #         for name, prop in value.get('properties', {}).items()
+    #     }
     return loaded_obj
 
 
@@ -515,7 +526,11 @@ def rename_metadata(context: Context, data: dict) -> dict:
 
 @load.register(Context, Partial, dict)
 def load(context: Context, dtype: Partial, data: dict):
-    dtype.properties = {
-        name: load(context, Property(), prop)
-        for name, prop in data.get('properties', {}).items()
-    }
+    loaded_obj = dtype.load(value)
+    # TODO: add better support for dtype.properties load
+    # if isinstance(value, dict):
+    #     dtype.properties = {
+    #         name: load(context, Property(), prop)
+    #         for name, prop in value.get('properties', {}).items()
+    #     }
+    return loaded_obj

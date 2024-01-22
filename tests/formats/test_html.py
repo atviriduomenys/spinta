@@ -316,11 +316,6 @@ def test_file_type_list(
                 'value': short_id(_id),
             },
             {
-                'value': encode_page_values_manually({
-                    '_id': _id
-                }),
-            },
-            {
                 'value': 'Lithuania',
             },
             {
@@ -642,9 +637,6 @@ def test_recursive_refs(rc: RawConfig):
             link=None,
             color=None,
         ),
-        '_page': Cell(
-            value=b'encoded'
-        ),
         'name': Cell(value='Leaf', link=None, color=None),
         'parent._id': Cell(
             value='19e4f199',
@@ -700,3 +692,65 @@ def test_show_single_object(
 
     result = resp_html_tree.xpath('//table//thead')
     assert result != []
+
+
+def test_show_external_ref(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+) -> Tuple[TestClient, str]:
+    context, manifest = load_manifest_and_context(rc, '''
+        d | r | b | m | property    | type    | ref     | access | level
+        example/show                |         |         |        |
+          |   |   | Country         |         |         |        |
+          |   |   |   | id          | integer |         | open   |
+          |   |   |   | name        | string  |         | open   |
+          |   |   | City            |         |         |        |
+          |   |   |   | id          | integer |         | open   |
+          |   |   |   | name        | string  |         | open   |
+          |   |   |   | country     | ref     | Country | open   | 0
+    ''')
+    result = render_data(
+        context, manifest,
+        'example/show/City/262f6c72-4284-4d26-b9b0-e282bfe46a46',
+        query=None,
+        accept='text/html',
+        data={
+            '_id': '262f6c72-4284-4d26-b9b0-e282bfe46a46',
+            '_revision': 'b6197bb7-3592-4cdb-a61c-5a618f44950c',
+            '_type': 'example/show/City',
+            '_page': b'encoded',
+            'id': '0',
+            'name': 'Vilnius',
+            'country': {
+                '_id': None,
+            },
+        },
+    )
+    assert result == {
+        '_id': Cell(
+            value='262f6c72',
+            link='/example/show/City/262f6c72-4284-4d26-b9b0-e282bfe46a46',
+            color=None,
+        ),
+        '_revision': Cell(
+            value='b6197bb7-3592-4cdb-a61c-5a618f44950c',
+            link=None,
+            color=None,
+        ),
+        '_type': Cell(
+            value='example/show/City',
+            link=None,
+            color=None,
+        ),
+        '_page': Cell(
+            value=b'encoded'
+        ),
+        'id': Cell(value='0', link=None, color=None),
+        'name': Cell(value='Vilnius', link=None, color=None),
+        'country._id': Cell(
+            value='',
+            link=None,
+            color=Color.null,
+        ),
+    }

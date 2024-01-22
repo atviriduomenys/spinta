@@ -228,6 +228,10 @@ class InvalidValue(UserError):
     template = "Invalid value."
 
 
+class InvalidPropertyType(UserError):
+    template = "Invalid property type, expected {expected}, got {type}.."
+
+
 class ValueNotInEnum(UserError):
     template = "Given value {value} is not defined in enum."
 
@@ -298,6 +302,10 @@ class SourceNotSet(UserError):
 
 class InvalidManifestFile(BaseError):
     template = "Error while parsing {eid!r} manifest entry: {error}"
+
+
+class CoordinatesOutOfRange(UserError):
+    template = 'Given coordinates: {given!r} ar not within the {srid!r} available bounds: {bounds} (west, south, east, north).'
 
 
 class ManifestFileDoesNotExist(BaseError):
@@ -557,6 +565,9 @@ class RemoteClientScopesNotGiven(RemoteClientError):
         "{credentials} file."
     )
 
+class DupicateProperty(UserError):
+    template = "Duplicate property {name}."
+
 
 class RequiredProperty(UserError):
     template = "Property is required."
@@ -632,8 +643,35 @@ class InvalidPageKey(UserError):
     template = "Given '{key}' page key is invalid."
 
 
-class InfiniteLoopWithPagination(BaseError):
-    template = "Pagination values has cause infinite loop while fetching data."
+class InfiniteLoopWithPagination(UserError):
+    template = '''
+    Pagination values has cause infinite loop while fetching data.
+    Page of size: {page_size}, first value is the same as previous page's last value, which is:
+    {page_values}
+    '''
+
+
+class TooShortPageSize(UserError):
+    template = '''
+    Page of size: {page_size} is too small, some duplicate values do not fit in a single page.
+    Which can cause either loss of data, or cause infinite loop while paginating.
+    Affected row: {page_values}
+    
+    To fix this, please either increase page size in the manifest, or 'push_page_size' value in the configs.
+    Alternatively make page's structure more complex, by adding more properties to it.
+    '''
+
+
+class TooShortPageSizeKeyRepetition(TooShortPageSize):
+
+    def __init__(self, *args, **kwargs):
+        super(TooShortPageSize, self).__init__(*args, **kwargs)
+        self.template = f'''
+        {self.template}
+        Error has been triggered because:
+        New page's key has been encountered multiple times in the previous page and it is the same for the future value.
+        This will cause the same data to be fetched multiple times.
+        '''
 
 
 class DuplicateRowWhilePaginating(BaseError):
@@ -706,8 +744,44 @@ class NestedDataTypeMissmatch(UserError):
     template = "While nesting, {initial!r} type cannot be cast to {required!r} type."
 
 
+class LangNotDeclared(UserError):
+    template = "Language {lang!r} has not been declared."
+
+
+class TooManyLangsGiven(UserError):
+    template = "Too many languages given in 'content-language' header, expected only one, but were given {amount}."
+
+
+class UnableToDetermineRequiredLang(UserError):
+    template = "Unable to determine required language."
+
+
+class CannotSelectTextAndSpecifiedLang(UserError):
+    template = "Cannot select undisclosed language Text at the same time when disclosed language Text is selected."
+
+
 class DuplicateRdfPrefixMissmatch(UserError):
     template = "Currently system does not support prefix missmatch. Prefix {prefix!r} has {old_value!r} and {new_value!r} values given."
+
+
+class InvalidName(UserError):
+    template = 'Invalid {name!r} {type} code name.'
+
+
+class NoneValueComparison(UserError):
+    template = "None values can only be compared using 'eq' or 'ne' operands, {op!r} was given."
+
+
+class InvalidDenormProperty(UserError):
+    template = 'Cannot create Denorm property {denorm!r}, because it is part of {ref!r} refprops: {refprops}.'
+
+
+class RefPropTypeMissmatch(UserError):
+    template = 'Refprop {refprop!r} requires {required_type!r} type, but was given {given_type!r}.'
+
+
+class InheritPropertyValueMissmatch(UserError):
+    template = 'Expected {expected!r} value, but got {given!r}.'
 
 
 class OutOfMemoryMigrate(UserError):

@@ -12,13 +12,15 @@ from typing import Dict
 from typing import TYPE_CHECKING
 from typing import cast
 
+import requests.api
+
 from spinta import commands
 from spinta import exceptions
 from spinta.auth import authorized
 from spinta.commands import authorize
 from spinta.commands import check
 from spinta.commands import load
-from spinta.components import Action, Component, PageBy
+from spinta.components import Action, Component, PageBy, Page
 from spinta.components import Base
 from spinta.components import Context
 from spinta.components import Mode
@@ -37,16 +39,20 @@ from spinta.dimensions.lang.helpers import load_lang_data
 from spinta.exceptions import KeymapNotSet, InvalidLevel
 from spinta.exceptions import UndefinedEnum
 from spinta.exceptions import UnknownPropertyType
+from spinta.exceptions import PropertyNotFound
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.components import PropertyRow
 from spinta.nodes import get_node
 from spinta.nodes import load_model_properties
 from spinta.nodes import load_node
+from spinta.types.helpers import check_model_name
+from spinta.types.helpers import check_property_name
 from spinta.types.namespace import load_namespace_from_name
 from spinta.ufuncs.basequerybuilder.components import LoadBuilder
 from spinta.units.helpers import is_unit
 from spinta.utils.enums import enum_by_value
 from spinta.utils.schema import NA
+from spinta.types.text.components import Text
 from spinta.types.datatype import Ref
 from spinta.backends.nobackend.components import NoBackend
 from spinta.datasets.components import ExternalBackend
@@ -117,6 +123,8 @@ def load(
             for prop_name in unique_set:
                 if "." in prop_name:
                     prop_name = prop_name.split(".")[0]
+                if prop_name not in model.properties:
+                    raise PropertyNotFound(model, property=prop_name)
                 prop_set.append(model.properties[prop_name])
             if prop_set:
                 unique_properties.append(prop_set)
@@ -256,8 +264,6 @@ def load(
     prop, data = load_node(context, prop, data, mixed=True)
     prop = cast(Property, prop)
 
-    if 'prepare_given' in data and data['prepare_given']:
-        prop.given.prepare = data['prepare_given']
     parents = list(itertools.chain(
         [prop.model, prop.model.ns],
         prop.model.ns.parents(),
@@ -272,9 +278,8 @@ def load(
 
     if data['type'] is None:
         raise UnknownPropertyType(prop, type=data['type'])
-    if data['type'] == 'ref' and prop.level and prop.level < 4:
+    if data['type'] == 'ref' and prop.level is not None and prop.level < 4:
         data['type'] = '_external_ref'
-
     prop.dtype = get_node(
         config,
         manifest,
@@ -310,6 +315,7 @@ def load(
     else:
         prop.given.enum = unit
     prop.given.name = prop.given_name if prop.given_name else prop.name
+    prop.given.explicit = prop.explicitly_given if prop.explicitly_given is not None else True
     return prop
 
 
@@ -453,6 +459,7 @@ def _prepare_prop_data(name: str, data: dict):
 
 @check.register(Context, Model)
 def check(context: Context, model: Model):
+    check_model_name(context, model)
     if '_id' not in model.properties:
         raise exceptions.MissingRequiredProperty(model, prop='_id')
 
@@ -462,9 +469,12 @@ def check(context: Context, model: Model):
 
 @check.register(Context, Property)
 def check(context: Context, prop: Property):
+    check_property_name(context, prop)
     if prop.enum:
         for value, item in prop.enum.items():
             commands.check(context, item, prop.dtype, item.prepare)
+
+    commands.check(context, prop.dtype)
 
 
 @authorize.register(Context, Action, Model)
@@ -496,4 +506,12 @@ def get_error_context(prop: Property, *, prefix='this') -> Dict[str, str]:
     context = commands.get_error_context(prop.model, prefix=f'{prefix}.model')
     context['property'] = f'{prefix}.place'
     context['attribute'] = f'{prefix}.external.name'
+    return context
+
+
+@overload
+@commands.get_error_context.register(Page)
+def get_error_context(prop: Page, *, prefix='this') -> Dict[str, str]:
+    context = commands.get_error_context(prop.model, prefix=f'{prefix}.model')
+    context['page'] = f'{prefix}.get_repr_for_error()'
     return context

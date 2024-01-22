@@ -49,9 +49,11 @@ from spinta.types.datatype import Number
 from spinta.types.datatype import Binary
 from spinta.types.datatype import JSON
 from spinta.types.datatype import Inherit
+from spinta.types.text.components import Text
 from spinta.utils.encoding import is_url_safe_base64, encode_page_values
 from spinta.utils.nestedstruct import flatten
 from spinta.utils.schema import NotAvailable
+from spinta.utils.url import build_url_path
 
 
 def _get_model_reserved_props(action: Action, model: Model) -> List[str]:
@@ -150,11 +152,17 @@ class _LimitIter(Generic[T]):
     _iterator: Iterator[T]
     limit: Optional[int]
     exhausted: bool = False
+    last_page: Any = None
+    header_page_id: int = None
+    params: UrlParams = None
 
-    def __init__(self, limit: Optional[int], it: Iterable[T]) -> None:
+    def __init__(self, limit: Optional[int], it: Iterable[T], header: list = None, params: UrlParams = None) -> None:
         self._iterator = iter(it)
         self._counter = count(1)
         self.limit = limit
+        self.params = params
+        if header and '_page' in header:
+            self.header_page_id = header.index('_page')
 
     def __iter__(self) -> Iterator[T]:
         return self
@@ -167,6 +175,14 @@ class _LimitIter(Generic[T]):
             raise
         if self.limit is not None and next(self._counter) > self.limit:
             raise StopIteration
+        if self.header_page_id is not None and self.params is not None:
+            page = value[self.header_page_id]
+            self.last_page = '/' + build_url_path(
+                self.params.changed_parsetree({
+                    "page": [page.value]
+                })
+            )
+            value.remove(page)
         return value
 
 
@@ -223,9 +239,14 @@ def build_template_context(
     rows = _iter_values(header, rows)
 
     if model.name.startswith('_'):
-        rows = _LimitIter(None, rows)
+        rows = _LimitIter(None, rows, header, params)
     else:
-        rows = _LimitIter(params.limit_enforced_to, rows)
+        rows = _LimitIter(params.limit_enforced_to, rows, header, params)
+
+    # Remove page from header, since it now works as next page link
+    if '_page' in header:
+        header = header.copy()
+        header.remove('_page')
 
     return {
         'header': header,
@@ -553,22 +574,26 @@ def prepare_dtype_for_response(
     if value is None:
         return Cell('', color=Color.null)
 
+    props = dtype.properties.copy()
+    props.update(dtype.model.properties)
+
     if select and select != {'*': {}}:
         names = get_select_prop_names(
             context,
             dtype,
-            dtype.model.properties,
+            props,
             action,
             select,
         )
     else:
-        names = value.keys()
-
+        names = list(value.keys())
+    if not isinstance(names, list):
+        names = list(names)
     data = {}
     for prop, val, sel in select_props(
         dtype.model,
         names,
-        dtype.model.properties,
+        props,
         value,
         select,
     ):
@@ -775,3 +800,19 @@ def prepare_dtype_for_response(
 ):
     return Cell('', color=Color.null)
 
+
+@commands.prepare_dtype_for_response.register(Context, Html, Text, dict)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: Text,
+    value: Dict[str, str],
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    return {
+        k: Cell(v) if v is not None else Cell('', color=Color.null)
+        for k, v in value.items()
+    }

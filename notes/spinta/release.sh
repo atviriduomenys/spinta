@@ -4,9 +4,9 @@ git checkout master
 git pull
 
 git tag -l -n1 | sort -h | tail -n5
-export CURRENT_VERSION=0.1.58
-export NEW_VERSION=0.1.59
-export FUTURE_VERSION=0.1.60
+export CURRENT_VERSION=0.1.59
+export NEW_VERSION=0.1.60
+export FUTURE_VERSION=0.1.61
 
 head CHANGES.rst
 
@@ -32,7 +32,7 @@ COMMIT;
 EOF
 
 poetry run pytest -vvx --tb=short tests
-#| 1537 passed, 39 skipped, 113 warnings in 294.19s (0:04:54)
+#| 1553 passed, 41 skipped, 117 warnings in 305.24s (0:05:05)
 
 poetry run rst2html.py CHANGES.rst var/changes.html
 xdg-open var/changes.html
@@ -95,7 +95,8 @@ psql -h localhost -p 54321 -U admin postgres -c 'DROP DATABASE spinta_external'
 psql -h localhost -p 54321 -U admin postgres -c 'CREATE DATABASE spinta_external'
 psql -h localhost -p 54321 -U admin spinta_external <<EOF
 CREATE TABLE formos (
-    kodas integer primary key,
+    id integer primary key,
+    kodas integer,
     pavadinimas text,
     pav_ilgas text,
     name varchar(255),
@@ -103,9 +104,9 @@ CREATE TABLE formos (
     type varchar(255)
 );
 INSERT INTO formos
-    (kodas, pavadinimas, pav_ilgas, name, tipas, type)
+    (id, kodas, pavadinimas, pav_ilgas, name, tipas, type)
     VALUES 
-    (950, 'Biudžetinė įstaiga', 'Biudžetinė įstaiga', 'Budget Institution', 'Viešasis', 'Public');
+    (1, 950, 'Biudžetinė įstaiga', 'Biudžetinė įstaiga', 'Budget Institution', 'Viešasis', 'Public');
 
 CREATE TABLE statusai (
     kodas integer primary key,
@@ -115,7 +116,7 @@ CREATE TABLE statusai (
 INSERT INTO statusai
     (kodas, pavadinimas, name)
     VALUES 
-    (1, 'Biudžetinė įstaiga', 'No legal proceedings');
+    (0, 'Biudžetinė įstaiga', 'No legal proceedings');
 
 CREATE TABLE iregistruoti (
     ja_kodas integer primary key,
@@ -130,7 +131,7 @@ CREATE TABLE iregistruoti (
 INSERT INTO iregistruoti
     (ja_kodas, ja_pavadinimas, pilnas_adresas, reg_data, stat_data, forma_id, statusas_id, adreso_kodas)
     VALUES 
-    (188772433, 'Informacinės visuomenės plėtros komitetas', 'Vilnius, Konstitucijos pr. 15-89', '2001-08-01', '2001-08-01', 950, 1, 190557457);
+    (188772433, 'Informacinės visuomenės plėtros komitetas', 'Vilnius, Konstitucijos pr. 15-89', '2001-08-01', '2001-08-01', 1, 0, 190557457);
 EOF
 psql -h localhost -p 54321 -U admin spinta_external -c '\dt public.*'
 psql -h localhost -p 54321 -U admin spinta_external -c 'select * from formos;'
@@ -153,7 +154,8 @@ datasets/gov/rc/ar/adresai          |         |                                 
                                     |         |                                               |                |         |       |
 datasets/gov/rc/jar/formos_statusai |         |                                               |                |         |       |
   | db                              | sql     | external                                      |                |         |       |
-  |   |   | Forma                   |         | kodas                                         | formos         |         | 4     |
+  |   |   | Forma                   |         | id                                            | formos         |         | 4     |
+  |   |   |   | id                  | integer |                                               | id             |         | 4     | protected
   |   |   |   | kodas               | integer |                                               | kodas          |         | 4     | open
   |   |   |   | pavadinimas         | string  |                                               | pavadinimas    |         | 3     | open
   |   |   |   | pav_ilgas           | string  |                                               | pav_ilgas      |         | 3     | open
@@ -209,7 +211,7 @@ spinta bootstrap
 
 export PAGER="cat"
 psql -h localhost -p 54321 -U admin spinta -c '\dt public.*'
-#| (2074 rows)
+#| (2080 rows)
 
 # Run server
 test -n "$PID" && kill $PID
@@ -256,26 +258,6 @@ http POST :8000/datasets/gov/rc/ar/adresai/Adresas $AUTH <<EOF
     "aob_kodas": 190557457,
     "aob_data_nuo": "2018-12-07"
 }
-EOF
-
-cat ~/.config/spinta/credentials.cfg
-cat >> ~/.config/spinta/credentials.cfg <<EOF
-[test@localhost]
-client = $CLIENT
-secret = $SECRET
-server = http://localhost:8000
-scopes =
-  spinta_set_meta_fields
-  spinta_getone
-  spinta_getall
-  spinta_search
-  spinta_changes
-  spinta_insert
-  spinta_upsert
-  spinta_update
-  spinta_patch
-  spinta_delete
-  spinta_wipe
 EOF
 
 test -f $BASEDIR/keymap.db && rm $BASEDIR/keymap.db

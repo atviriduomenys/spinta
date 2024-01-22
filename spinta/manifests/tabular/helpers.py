@@ -48,7 +48,7 @@ from spinta.exceptions import MultipleErrors, InvalidBackRefReferenceAmount, Dat
 from spinta.exceptions import PropertyNotFound
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
-from spinta.manifests.tabular.components import ACCESS
+from spinta.manifests.tabular.components import ACCESS, URI
 from spinta.manifests.tabular.components import BackendRow
 from spinta.manifests.tabular.components import BaseRow
 from spinta.manifests.tabular.components import CommentData
@@ -79,6 +79,7 @@ from spinta.types.datatype import Ref, DataType, Denorm, Inherit, ExternalRef, B
 from spinta.utils.data import take
 from spinta.utils.schema import NA
 from spinta.utils.schema import NotAvailable
+from spinta.types.text.components import Text
 
 log = logging.getLogger(__name__)
 
@@ -560,7 +561,8 @@ class PropertyReader(TabularReader):
     def read(self, row: Dict[str, str]) -> None:
         full_prop, parent_prop, prop_name = _get_parent_data(self, row, row['property'])
         prop_data = _handle_datatype(self, row)
-        prop_name = _combine_parent_with_prop(prop_name, prop_data, parent_prop, full_prop)
+        if prop_data:
+            prop_name = _combine_parent_with_prop(prop_name, prop_data, parent_prop, full_prop)
         self.name = prop_name
         self.data = full_prop
         self.state.model.data['properties'][prop_name] = self.data
@@ -630,16 +632,17 @@ def _initial_normal_property_schema(given_name: str, dtype: dict, row: dict):
     return {
         'type': dtype['type'],
         'type_args': dtype['type_args'],
-        'prepare': row[PREPARE],
-        'level': row['level'],
-        'access': row['access'],
-        'uri': row['uri'],
-        'title': row['title'],
-        'description': row['description'],
+        'prepare': row.get(PREPARE),
+        'level': row.get(LEVEL),
+        'access': row.get(ACCESS),
+        'uri': row.get(URI),
+        'title': row.get(TITLE),
+        'description': row.get(DESCRIPTION),
         'required': dtype['required'],
         'unique': dtype['unique'],
         'given_name': given_name,
         'prepare_given': [],
+        'explicitly_given': True
     }
 
 
@@ -659,6 +662,12 @@ def _initial_backref_property_schema(given_name: str, dtype: dict, row: dict):
     result = _initial_normal_property_schema(given_name, dtype, row)
     if given_name.endswith('[]'):
         result['type'] = 'array_backref'
+    return result
+
+
+def _initial_text_property_schema(given_name: str, dtype: dict, row: dict):
+    result = _initial_normal_property_schema(given_name, dtype, row)
+    result['langs'] = {}
     return result
 
 
@@ -717,6 +726,146 @@ def _datatype_handler(reader: PropertyReader, row: dict, initial_data_loader: Ca
     return new_data
 
 
+def _string_datatype_handler(reader: PropertyReader, row: dict):
+    given_name = row['property']
+    reader.name = _clean_up_prop_name(row['property'].split('.')[-1])
+
+    if reader.state.model is None:
+        context = reader.state.stack[-1]
+        reader.error(
+            f"Property {reader.name!r} must be defined in a model context. "
+            f"Now it is defined in {context.name!r} {context.type} context."
+        )
+    existing_data = _check_if_property_already_set(reader, row, given_name)
+    if row['type'] == 'text' and existing_data:
+        reader.error(
+            f"Property {reader.name!r} with the same name is already "
+            f"defined for this {reader.state.model.name!r} model."
+        )
+
+    dtype = _get_type_repr(row['type'])
+    dtype = _parse_dtype_string(dtype)
+    if dtype['error']:
+        reader.error(
+            dtype['error']
+        )
+
+    new_data = _initial_normal_property_schema(given_name, dtype, row)
+    dataset = reader.state.dataset.data if reader.state.dataset else None
+
+    if row['prepare']:
+        new_data['prepare_given'].append(
+            PrepareGiven(
+                appended=False,
+                source='',
+                prepare=row['prepare']
+            )
+        )
+    if row['ref']:
+        new_data['enum'] = row['ref']
+    if dataset or row['source']:
+        new_data['external'] = {
+            'name': row['source'],
+        }
+
+    lang = None
+    if '@' in given_name:
+        lang = given_name.split('@', 1)[-1]
+    should_return = True
+    if existing_data:
+        if existing_data['type'] == 'text':
+            should_return = False
+            if lang and lang in existing_data['langs']:
+                reader.error(
+                    f"Language {lang} has already been set for the {existing_data['given_name']} property."
+                )
+            elif not lang:
+                existing_data['langs']['C'] = new_data
+            else:
+                existing_data['langs'][lang] = new_data
+        else:
+            reader.error(
+                f"Language can only be added to Text type properties."
+            )
+    elif lang and not existing_data:
+        copy = new_data.copy()
+        new_data = _initial_text_property_schema(given_name, dtype, {
+            'property': row['property'],
+            'access': row['access']
+        })
+        new_data['type'] = 'text'
+        new_data['explicitly_given'] = False
+        new_data['langs'] = {
+            lang: copy
+        }
+    if should_return:
+        return new_data
+
+
+def _text_datatype_handler(reader: PropertyReader, row: dict):
+    given_name = row['property']
+    reader.name = _clean_up_prop_name(row['property'].split('.')[-1])
+
+    if reader.state.model is None:
+        context = reader.state.stack[-1]
+        reader.error(
+            f"Property {reader.name!r} must be defined in a model context. "
+            f"Now it is defined in {context.name!r} {context.type} context."
+        )
+    result = _check_if_property_already_set(reader, row, given_name)
+    if not (result and result['explicitly_given'] is False and result['type'] == 'text' or not result):
+        reader.error(
+            f"Property {reader.name!r} with the same name is already "
+            f"defined for this {reader.state.model.name!r} model."
+        )
+    dtype = _get_type_repr(row['type'])
+    dtype = _parse_dtype_string(dtype)
+    if dtype['error']:
+        reader.error(
+            dtype['error']
+        )
+
+    new_data = _initial_text_property_schema(given_name, dtype, row)
+    dataset = reader.state.dataset.data if reader.state.dataset else None
+
+    if row['prepare']:
+        new_data['prepare_given'].append(
+            PrepareGiven(
+                appended=False,
+                source='',
+                prepare=row['prepare']
+            )
+        )
+    if row['ref']:
+        new_data['enum'] = row['ref']
+    if dataset or row['source']:
+        new_data['external'] = {
+            'name': row['source'],
+        }
+    temp_data = _empty_property(_initial_normal_property_schema(given_name, dtype, {
+        'property': row['property'],
+        'access': row['access'],
+    }))
+    temp_data['type'] = 'string'
+    temp_data['external'] = new_data['external']
+    if result:
+        new_data['langs'] = result['langs']
+        if new_data['level'] and int(new_data['level']) <= 3:
+            new_data['langs']['C'] = temp_data
+            if new_data['external']:
+                new_data['external'] = {}
+        result.update(new_data)
+        return result
+    else:
+        if new_data['level'] and int(new_data['level']) <= 3:
+            new_data['langs'] = {
+                'C': temp_data
+            }
+            if new_data['external']:
+                new_data['external'] = {}
+        return new_data
+
+
 def _default_datatype_handler(reader: PropertyReader, row: dict):
     return _datatype_handler(reader, row, _initial_normal_property_schema)
 
@@ -749,6 +898,8 @@ DATATYPE_HANDLERS = {
     "partial": _partial_datatype_handler,
     "ref": _partial_datatype_handler,
     "backref": _backref_datatype_handler,
+    "text": _text_datatype_handler,
+    "string": _string_datatype_handler
 }
 
 
@@ -759,7 +910,7 @@ def _get_root_prop(reader: PropertyReader, name: str):
 
 
 def _clean_up_prop_name(name: str):
-    return name.replace('[]', '')
+    return name.replace('[]', '').split('@', 1)[0]
 
 
 def _combine_previous_data(prop: dict, existing_prop: dict):
@@ -801,6 +952,11 @@ def _combine_parent_with_prop(prop_name: str, prop: dict, parent_prop: dict, ful
     return return_name
 
 
+def _empty_property(data: dict):
+    data['explicitly_given'] = False
+    return data
+
+
 def _get_parent_data_array(reader: PropertyReader, given_row: dict, full_name: str, current_parent: dict):
     name = full_name.split('.')[-1]
     count = name.count('[]')
@@ -811,20 +967,20 @@ def _get_parent_data_array(reader: PropertyReader, given_row: dict, full_name: s
         'access': given_row['access'],
     })
     if not current_parent:
-        current_parent.update(_array_datatype_handler(reader, empty_array_row))
+        current_parent.update(_empty_property(_array_datatype_handler(reader, empty_array_row)))
     adjustment = 1 if current_parent['type'] in ALLOWED_ARRAY_TYPES else 0
     for i in range(count - adjustment):
         if current_parent['type'] in ALLOWED_ARRAY_TYPES:
             if current_parent['items'] and current_parent['items']['type'] not in ALLOWED_ARRAY_TYPES:
                 raise NestedDataTypeMissmatch(initial=current_parent['type'], required='array')
             elif not current_parent['items']:
-                current_parent['items'].update(_handle_datatype(reader, empty_array_row))
+                current_parent['items'].update(_empty_property(_array_datatype_handler(reader, empty_array_row)))
             current_parent = current_parent['items']
         elif current_parent['type'] in ALLOWED_PARTIAL_TYPES:
             if root_name in current_parent['properties'] and current_parent['properties'][root_name]['type'] not in ALLOWED_ARRAY_TYPES:
                 raise NestedDataTypeMissmatch(initial=current_parent['type'], required='array')
             elif root_name not in current_parent['properties']:
-                current_parent['properties'][root_name] = _handle_datatype(reader, empty_array_row)
+                current_parent['properties'][root_name] = _empty_property(_array_datatype_handler(reader, empty_array_row))
             current_parent = current_parent['properties'][root_name]
     return current_parent
 
@@ -837,19 +993,19 @@ def _get_parent_data_partial(reader: PropertyReader, given_row: dict, full_name:
     })
     name = _clean_up_prop_name(full_name.split('.')[-1])
     if not current_parent:
-        current_parent.update(_handle_datatype(reader, empty_partial_row))
+        current_parent.update(_empty_property(_partial_datatype_handler(reader, empty_partial_row)))
     else:
         if current_parent['type'] in ALLOWED_ARRAY_TYPES:
             if current_parent['items'] and current_parent['items']['type'] not in ALLOWED_PARTIAL_TYPES:
                 raise NestedDataTypeMissmatch(initial=current_parent['type'], required='partial')
             elif not current_parent['items']:
-                current_parent['items'].update(_handle_datatype(reader, empty_partial_row))
+                current_parent['items'].update(_empty_property(_partial_datatype_handler(reader, empty_partial_row)))
             current_parent = current_parent['items']
         elif current_parent['type'] in ALLOWED_PARTIAL_TYPES:
             if name in current_parent['properties'] and current_parent['properties'][name]['type'] not in ALLOWED_PARTIAL_TYPES:
                 raise NestedDataTypeMissmatch(initial=current_parent['type'], required='partial')
             elif name not in current_parent['properties']:
-                current_parent['properties'][name] = _handle_datatype(reader, empty_partial_row)
+                current_parent['properties'][name] = _empty_property(_partial_datatype_handler(reader, empty_partial_row))
             current_parent = current_parent['properties'][name]
     return current_parent
 
@@ -887,7 +1043,7 @@ def _check_if_property_already_set(reader: PropertyReader, given_row: dict, full
     base = {}
     if base_name in reader.state.model.data['properties']:
         base = reader.state.model.data['properties'][base_name]
-        if base_name == full_name and base['type'] != 'partial' and base['type'] != 'partial_array':
+        if base_name == full_name and base['type'] != 'partial' and base['type'] != 'partial_array' and (base['type'] == 'text' and given_row['type'] != 'string') and base['explicitly_given']:
             reader.error(
                 f"Property {reader.name!r} with the same name is already "
                 f"defined for this {reader.state.model.name!r} model."
@@ -923,6 +1079,8 @@ def _check_if_property_already_set(reader: PropertyReader, given_row: dict, full
     if base:
         if (base['type'] in ALLOWED_PARTIAL_TYPES and given_row['type'] not in ALLOWED_PARTIAL_TYPES) or (base['type'] in ALLOWED_ARRAY_TYPES and given_row['type'] not in ALLOWED_ARRAY_TYPES):
             raise DataTypeCannotBeUsedForNesting(dtype=given_row['type'])
+
+    return base
 
 
 class AppendReader(TabularReader):
@@ -1817,6 +1975,20 @@ def _lang_to_tabular(
         first = False
 
 
+def _text_to_tabular(
+    prop
+):
+    if not isinstance(prop.dtype, Text):
+        return
+    for lang in prop.dtype.langs:
+        yield torow(DATASET, {
+            'property': prop.name + '@' + lang,
+            'type': prop.dtype.name,
+            'level': prop.level.value if prop.level is not None else '',
+            'access': prop.given.access
+        })
+
+
 def _comments_to_tabular(
     comments: Optional[List[Comment]],
     *,
@@ -2022,13 +2194,16 @@ def _property_to_tabular(
     elif isinstance(prop.dtype, Object):
         for obj_prop in prop.dtype.properties.values():
             yield_rows.append(obj_prop)
+    elif isinstance(prop.dtype, Text):
+        for lang_prop in prop.dtype.langs.values():
+            yield_rows.append(lang_prop)
 
     elif prop.enum is not None:
         data['ref'] = prop.given.enum
     elif prop.unit is not None:
         data['ref'] = prop.given.unit
     data, prepare_rows = _prepare_to_tabular(data, prop)
-    if prop.given.name:
+    if prop.given.explicit:
         yield torow(DATASET, data)
     yield from prepare_rows
     yield from _comments_to_tabular(prop.comments, access=access)
@@ -2106,7 +2281,6 @@ def _model_to_tabular(
     yield from _comments_to_tabular(model.comments, access=access)
     yield from _lang_to_tabular(model.lang)
     yield from _unique_to_tabular(model.unique, hide_list)
-
     props = sort(PROPERTIES_ORDER_BY, model.properties.values(), order_by)
     for prop in props:
         yield from _property_to_tabular(

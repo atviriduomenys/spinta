@@ -18,7 +18,7 @@ from sqlalchemy.sql.functions import Function
 
 from spinta import exceptions
 from spinta.auth import authorized
-from spinta.components import Action, Page
+from spinta.components import Action, Page, UrlParams
 from spinta.components import Model
 from spinta.components import Property
 from spinta.core.ufuncs import Bind
@@ -29,17 +29,18 @@ from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.backends.sql.ufuncs.components import SqlResultBuilder
 from spinta.dimensions.enum.helpers import prepare_enum_value
 from spinta.dimensions.param.components import ResolvedParams
-from spinta.exceptions import PropertyNotFound, SourceCannotBeList
+from spinta.exceptions import PropertyNotFound, SourceCannotBeList, FieldNotInResource, LangNotDeclared
 from spinta.exceptions import UnknownMethod
 from spinta.exceptions import UnableToCast
-from spinta.types.datatype import DataType
+from spinta.types.datatype import DataType, Denorm
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.types.datatype import String
 from spinta.types.datatype import Integer
 from spinta.types.file.components import FileData
+from spinta.types.text.components import Text
 from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, merge_with_page_selected_list, \
-    merge_with_page_sort, merge_with_page_limit
+    merge_with_page_sort, merge_with_page_limit, QueryParams
 from spinta.ufuncs.components import ForeignProperty
 from spinta.core.ufuncs import Unresolved
 from spinta.utils.data import take
@@ -130,8 +131,8 @@ class SqlQueryBuilder(BaseQueryBuilder):
     selected: Dict[str, Selected] = None
     params: ResolvedParams
 
-    def init(self, backend: Sql, table: sa.Table):
-        return self(
+    def init(self, backend: Sql, table: sa.Table, params: QueryParams = None):
+        result = self(
             backend=backend,
             table=table,
             columns=[],
@@ -141,8 +142,10 @@ class SqlQueryBuilder(BaseQueryBuilder):
             sort=[],
             limit=None,
             offset=None,
-            page=QueryPage()
+            page=QueryPage(),
         )
+        result.init_query_params(params)
+        return result
 
     def build(self, where):
         if self.selected is None:
@@ -241,6 +244,21 @@ class Selected:
             )
 
 
+def _gather_selected_properties(env: SqlQueryBuilder):
+    result = []
+    if env.selected:
+        for selected in env.selected.values():
+            if selected and selected.prop:
+                result.append(selected.prop)
+    return result
+
+
+def _get_column_with_extra(env: SqlQueryBuilder, prop: Property):
+    default_langs = env.context.get('config').languages
+    column = env.backend.get_column(env.table, prop, langs=env.query_params.lang_priority, push=env.query_params.push, default_langs=default_langs)
+    return column
+
+
 @dataclasses.dataclass
 class GetAttr(Unresolved):
     obj: str
@@ -248,8 +266,8 @@ class GetAttr(Unresolved):
 
 
 @ufunc.resolver(SqlQueryBuilder, Bind, Bind, name='getattr')
-def getattr_(env: SqlQueryBuilder, obj: Bind, attr: Bind):
-    return GetAttr(obj.name, attr)
+def getattr_(env: SqlQueryBuilder, field: Bind, attr: Bind):
+    return GetAttr(field.name, attr)
 
 
 @ufunc.resolver(SqlQueryBuilder, Bind, GetAttr, name='getattr')
@@ -285,6 +303,15 @@ def _resolve_getattr(
 ) -> ForeignProperty:
     prop = dtype.model.properties[attr.name]
     return ForeignProperty(None, dtype, prop.dtype)
+
+
+@ufunc.resolver(SqlQueryBuilder, Text, Bind)
+def _resolve_getattr(env, dtype, bind):
+    if dtype.prop.name in env.model.properties:
+        prop = env.model.properties[dtype.prop.name]
+        if bind.name in prop.dtype.langs:
+            return prop.dtype.langs[bind.name].dtype
+        raise LangNotDeclared(dtype, lang=bind.name)
 
 
 @ufunc.resolver(SqlQueryBuilder, ForeignProperty, Ref, GetAttr)
@@ -372,9 +399,8 @@ def compare(env: SqlQueryBuilder, op: str, field: Bind, value: Any):
 
 @ufunc.resolver(SqlQueryBuilder, GetAttr, object, names=COMPARE)
 def compare(env: SqlQueryBuilder, op: str, attr: GetAttr, value: Any):
-    fpr: ForeignProperty = env.call('_resolve_getattr', attr)
-    value = _prepare_value(fpr.right.prop, value)
-    return env.call(op, fpr, fpr.right, value)
+    resolved = env.call('_resolve_getattr', attr)
+    return env.call(op, resolved, value)
 
 
 @ufunc.resolver(SqlQueryBuilder, Bind, list, names=COMPARE)
@@ -407,6 +433,12 @@ def compare(env: SqlQueryBuilder, op: str, dtype: DataType, value: Any):
     return _sa_compare(op, column, value)
 
 
+@ufunc.resolver(SqlQueryBuilder, Text, object, names=COMPARE)
+def compare(env: SqlQueryBuilder, op: str, dtype: Text, value: Any):
+    column = _get_column_with_extra(env, dtype.prop)
+    return _sa_compare(op, column, value)
+
+
 @ufunc.resolver(SqlQueryBuilder, ForeignProperty, DataType, object, names=COMPARE)
 def compare(
     env: SqlQueryBuilder,
@@ -431,6 +463,12 @@ def eq(env: SqlQueryBuilder, dtype: DataType, value: List[Any]):
     return column.in_(value)
 
 
+@ufunc.resolver(SqlQueryBuilder, Text, list)
+def eq(env: SqlQueryBuilder, dtype: Text, value: List[Any]):
+    column = _get_column_with_extra(env, dtype.prop)
+    return column.in_(value)
+
+
 @ufunc.resolver(SqlQueryBuilder, ForeignProperty, DataType, list)
 def eq(env: SqlQueryBuilder, fpr: ForeignProperty, dtype: DataType, value: list):
     table = env.joins.get_table(env, fpr)
@@ -441,6 +479,12 @@ def eq(env: SqlQueryBuilder, fpr: ForeignProperty, dtype: DataType, value: list)
 @ufunc.resolver(SqlQueryBuilder, DataType, list)
 def ne(env: SqlQueryBuilder, dtype: DataType, value: List[Any]):
     column = env.backend.get_column(env.table, dtype.prop)
+    return ~column.in_(value)
+
+
+@ufunc.resolver(SqlQueryBuilder, Text, list)
+def ne(env: SqlQueryBuilder, dtype: Text, value: List[Any]):
+    column = _get_column_with_extra(env, dtype.prop)
     return ~column.in_(value)
 
 
@@ -540,17 +584,19 @@ def select(env: SqlQueryBuilder, expr: Expr):
     args = list(zip(keys, args)) + list(kwargs.items())
     if env.selected is not None:
         raise RuntimeError("`select` was already called.")
-
     env.selected = {}
     if args:
         for key, arg in args:
             selected = env.call('select', arg)
             if selected is not None:
-                env.selected[key] = selected
+                if selected.prop is None or selected.prop is not None and selected.prop.given.explicit:
+                    env.selected[key] = selected
     else:
         for prop in take(['_id', all], env.model.properties).values():
             if authorized(env.context, prop, Action.GETALL):
-                env.selected[prop.place] = env.call('select', prop)
+                processed = env.call('select', prop)
+                if prop.given.explicit or processed.prep is not None:
+                    env.selected[prop.place] = processed
 
     if not (len(args) == 1 and args[0][0] == '_page'):
         if not env.columns:
@@ -632,6 +678,14 @@ def select(env: SqlQueryBuilder, prop: Property) -> Selected:
         elif prop.is_reserved():
             # Reserved properties never have external source.
             result = env.call('select', prop.dtype)
+        elif not prop.dtype.requires_source:
+            # Some DataTypes might have children that have source instead of themselves, like: Text
+            result = env.call('select', prop.dtype)
+        elif not prop.given.explicit:
+            # Some DataTypes might be inherited, or hidden, so we need to go through them in case they can be joined
+            result = env.call('select', prop.dtype)
+            if not isinstance(result, Selected):
+                result = Selected(prop=prop, prep=None)
         else:
             # If `source` is not given, return None.
             result = Selected(prop=prop, prep=None)
@@ -648,6 +702,73 @@ def select(env: SqlQueryBuilder, dtype: DataType) -> Selected:
         item=env.add_column(column),
         prop=dtype.prop,
     )
+
+
+@ufunc.resolver(SqlQueryBuilder, Ref)
+def select(env: SqlQueryBuilder, dtype: Ref) -> Selected:
+    table = env.backend.get_table(env.model)
+    column = env.backend.get_column(table, dtype.prop, select=True)
+
+    for prop in dtype.properties.values():
+        processed = env.call("select", prop)
+        if prop.given.explicit or processed.prep is not None:
+            env.selected[prop.place] = processed
+
+    if column is not None and dtype.prop.given.explicit:
+        return Selected(
+            item=env.add_column(column),
+            prop=dtype.prop,
+        )
+
+
+@ufunc.resolver(SqlQueryBuilder, String)
+def select(env, dtype):
+    env.call('validate_dtype_for_select', dtype, _gather_selected_properties(env))
+    column = env.backend.get_column(env.table, dtype.prop)
+    return Selected(env.add_column(column), dtype.prop)
+
+
+@ufunc.resolver(SqlQueryBuilder, Text)
+def select(env, dtype):
+    env.call('validate_dtype_for_select', dtype, _gather_selected_properties(env))
+    if env.query_params.push:
+        result = {
+            key: env.call('select', prop)
+            for key, prop in dtype.langs.items()
+        }
+        return Selected(prop=dtype.prop, prep=result)
+    else:
+        column = _get_column_with_extra(env, dtype.prop)
+        return Selected(env.add_column(column), dtype.prop)
+
+
+@ufunc.resolver(SqlQueryBuilder, Denorm)
+def select(env, dtype: Denorm):
+    ref = dtype.prop.parent
+    root_parent = ref
+    if isinstance(ref, Property) and isinstance(ref.dtype, Ref):
+        fpr = None
+        if not ref.given.explicit:
+            parent_list = []
+            root_ref_parent = ref
+            while root_ref_parent and isinstance(root_ref_parent, Property) and isinstance(root_ref_parent.dtype, Ref):
+                parent_list.append(root_ref_parent)
+                if root_ref_parent.given.explicit:
+                    break
+                root_ref_parent = root_ref_parent.parent
+
+            if parent_list:
+                parent_list = list(reversed(parent_list))
+                root_parent = parent_list[0]
+                for parent in parent_list[1:]:
+                    if parent.place.startswith(f'{root_parent.place}.'):
+                        fixed_name = parent.place.replace(f'{root_parent.place}.', '', 1)
+                        if fixed_name in root_parent.dtype.model.properties:
+                            parent = root_parent.dtype.model.properties[fixed_name]
+                    fpr = ForeignProperty(fpr, root_parent.dtype, parent.dtype)
+                    root_parent = parent
+        fpr = ForeignProperty(fpr, root_parent.dtype, dtype.rel_prop.dtype)
+        return env.call("select", fpr)
 
 
 @ufunc.resolver(SqlQueryBuilder, Page)
@@ -711,11 +832,22 @@ def select(
 @ufunc.resolver(SqlQueryBuilder, GetAttr)
 def select(env: SqlQueryBuilder, attr: GetAttr) -> Selected:
     """For things like select(foo.bar.baz)."""
-    fpr: ForeignProperty = env.call('_resolve_getattr', attr)
+    resolved = env.call('_resolve_getattr', attr)
+    return env.call('select', resolved, attr)
+
+
+@ufunc.resolver(SqlQueryBuilder, ForeignProperty, GetAttr)
+def select(env: SqlQueryBuilder, fpr: ForeignProperty, attr: GetAttr) -> Selected:
+    """For things like select(foo.bar.baz)."""
     return Selected(
         prop=fpr.right.prop,
         prep=env.call('select', fpr, fpr.right.prop),
     )
+
+
+@ufunc.resolver(SqlQueryBuilder, DataType, GetAttr)
+def select(env: SqlQueryBuilder, dtype: DataType, attr: GetAttr) -> Selected:
+    return env.call('select', dtype)
 
 
 @ufunc.resolver(SqlQueryBuilder, ForeignProperty)
@@ -861,6 +993,12 @@ def join_table_on(env: SqlQueryBuilder, dtype: DataType) -> Tuple[Any]:
     return column
 
 
+@ufunc.resolver(SqlQueryBuilder, Text)
+def join_table_on(env: SqlQueryBuilder, dtype: Text) -> Tuple[Any]:
+    column = _get_column_with_extra(env, dtype.prop)
+    return column
+
+
 @ufunc.resolver(SqlQueryBuilder, PrimaryKey)
 def join_table_on(env: SqlQueryBuilder, dtype: DataType) -> Any:
     model = dtype.prop.model
@@ -924,13 +1062,13 @@ def sort(env: SqlQueryBuilder, expr: Expr):
     args, kwargs = expr.resolve(env)
     env.sort = []
     for key in args:
-        prop = env.model.properties[key.name]
-        column = env.backend.get_column(env.table, prop)
-        if isinstance(key, Negative):
-            column = column.desc()
-        else:
-            column = column.asc()
-        env.sort.append(column)
+        result = env.call('sort', key)
+        env.sort.append(result)
+
+
+@ufunc.resolver(SqlQueryBuilder, DataType)
+def sort(env, dtype):
+    return env.call('asc', dtype)
 
 
 @ufunc.resolver(SqlQueryBuilder, Bind)
@@ -945,16 +1083,34 @@ def sort(env, field):
     return env.call('desc', prop.dtype)
 
 
+@ufunc.resolver(SqlQueryBuilder, GetAttr)
+def sort(env, field):
+    dtype = env.call('_resolve_getattr', field)
+    return env.call('sort', dtype)
+
+
 @ufunc.resolver(SqlQueryBuilder, DataType)
 def asc(env, dtype):
     column = env.backend.get_column(env.table, dtype.prop)
-    return column.asc()
+    return sa.sql.expression.nullslast(column.asc())
+
+
+@ufunc.resolver(SqlQueryBuilder, Text)
+def asc(env, dtype):
+    column = _get_column_with_extra(env, dtype.prop)
+    return sa.sql.expression.nullslast(column.asc())
 
 
 @ufunc.resolver(SqlQueryBuilder, DataType)
 def desc(env, dtype):
     column = env.backend.get_column(env.table, dtype.prop)
-    return column.desc()
+    return sa.sql.expression.nullsfirst(column.desc())
+
+
+@ufunc.resolver(SqlQueryBuilder, Text)
+def desc(env, dtype):
+    column = _get_column_with_extra(env, dtype.prop)
+    return sa.sql.expression.nullsfirst(column.desc())
 
 
 def _get_from_flatprops(model: Model, prop: str):
@@ -962,6 +1118,24 @@ def _get_from_flatprops(model: Model, prop: str):
         return model.flatprops[prop]
     else:
         raise exceptions.FieldNotInResource(model, property=prop)
+
+
+@ufunc.resolver(SqlQueryBuilder, DataType)
+def negative(env: SqlQueryBuilder, dtype: DataType):
+    return Negative(dtype.prop.place)
+
+
+@ufunc.resolver(SqlQueryBuilder, GetAttr)
+def negative(env: SqlQueryBuilder, attr: GetAttr):
+    resolved = env.call('_resolve_getattr', attr)
+    return env.call('negative', resolved)
+
+
+@ufunc.resolver(SqlQueryBuilder, String)
+def negative(env: SqlQueryBuilder, dtype: String):
+    if dtype.prop.parent and isinstance(dtype.prop.parent.dtype, Text):
+        return Negative(dtype.prop.place.replace('.', '@'))
+    return Negative(dtype.prop.place)
 
 
 @ufunc.resolver(SqlQueryBuilder, int)

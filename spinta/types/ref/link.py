@@ -42,6 +42,6 @@ def link(context: Context, dtype: Ref) -> None:
 
     if dtype.properties:
         for denorm_prop in dtype.properties.values():
-            denorm_prop.model = dtype.model
+            #denorm_prop.model = dtype.model
             commands.link(context, denorm_prop)
 
