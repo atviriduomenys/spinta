@@ -7,7 +7,7 @@ from spinta.backends.constants import TableType
 from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.helpers import get_pg_name, get_column_name
 from spinta.backends.postgresql.helpers.migrate import MigrationHandler
-from spinta.cli.inspect import zipitems
+from spinta.datasets.inspect.helpers import zipitems
 import spinta.backends.postgresql.helpers.migrate as ma
 
 import sqlalchemy as sa
