@@ -374,7 +374,7 @@ def test_inspect_with_schema(
       | schema           | sql  | {sqlite.dsn} | connect(self, schema: null)
     ''')
 
-    cli.invoke(rc_new, ['inspect', '-o', tmp_path / 'result.csv'])
+    cli.invoke(rc_new, ['inspect', tmp_path / 'manifest.csv', '-o', tmp_path / 'result.csv'])
 
     # Check what was detected.
     manifest = load_manifest(rc_new, tmp_path / 'result.csv')
