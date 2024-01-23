@@ -161,7 +161,7 @@ def test_join_two_refs_same_model(rc: RawConfig):
     '''
 
 
-def test_paginate_none_values(rc: RawConfig):
+def test_paginate_all_none_values(rc: RawConfig):
     assert _build(rc, '''
         d | r | b | m | property   | type    | ref     | access
         example                    |         |         |
@@ -181,6 +181,58 @@ def test_paginate_none_values(rc: RawConfig):
     '''
 
 
+def test_paginate_half_none_values(rc: RawConfig):
+    assert _build(rc, '''
+        d | r | b | m | property   | type    | ref     | access
+        example                    |         |         |
+          |   |   | Planet         |         | name    |
+          |   |   |   | name       | string  |         | open
+          |   |   |   | code       | integer |         | open
+        ''', 'example/Planet', '', {
+        'name': None,
+        'code': 0
+    }) == '''
+    SELECT "example/Planet"._id,
+           "example/Planet"._revision,
+           "example/Planet".name,
+           "example/Planet".code
+    FROM "example/Planet"
+    WHERE "example/Planet".name IS NULL
+      AND "example/Planet"._id IS NULL
+      AND ("example/Planet".code > :code_1
+           OR "example/Planet".code IS NULL)
+    ORDER BY "example/Planet".name ASC,
+             "example/Planet"._id ASC,
+             "example/Planet".code ASC
+    '''
+
+
+def test_paginate_half_none_values_desc(rc: RawConfig):
+    assert _build(rc, '''
+        d | r | b | m | property   | type    | ref     | access
+        example                    |         |         |
+          |   |   | Planet         |         | name    |
+          |   |   |   | name       | string  |         | open
+          |   |   |   | code       | integer |         | open
+        ''', 'example/Planet', '', {
+        '-name': None,
+        '-code': 0
+    }) == '''
+    SELECT "example/Planet"._id,
+           "example/Planet"._revision,
+           "example/Planet".name,
+           "example/Planet".code
+    FROM "example/Planet"
+    WHERE "example/Planet".name IS NOT NULL
+      OR "example/Planet".name IS NULL
+      AND "example/Planet"._id IS NULL
+      AND "example/Planet".code < :code_1
+    ORDER BY "example/Planet".name DESC,
+             "example/Planet"._id ASC,
+             "example/Planet".code DESC
+    '''
+
+
 def test_paginate_given_values_page_and_ref_not_given(rc: RawConfig):
     assert _build(rc, '''
         d | r | b | m | property   | type    | ref     | access
@@ -197,6 +249,7 @@ def test_paginate_given_values_page_and_ref_not_given(rc: RawConfig):
            "example/Planet".code
     FROM "example/Planet"
     WHERE "example/Planet"._id > :id_1
+      OR "example/Planet"._id IS NULL
     ORDER BY "example/Planet"._id ASC
     '''
 
@@ -218,8 +271,10 @@ def test_paginate_given_values_page_not_given(rc: RawConfig):
            "example/Planet".code
     FROM "example/Planet"
     WHERE "example/Planet".name > :name_1
+      OR "example/Planet".name IS NULL
       OR "example/Planet".name = :name_2
-      AND "example/Planet"._id > :id_1
+      AND ("example/Planet"._id > :id_1
+           OR "example/Planet"._id IS NULL)
     ORDER BY "example/Planet".name ASC,
              "example/Planet"._id ASC
     '''
@@ -242,8 +297,10 @@ def test_paginate_given_values_size_given(rc: RawConfig):
            "example/Planet".code
     FROM "example/Planet"
     WHERE "example/Planet".name > :name_1
+      OR "example/Planet".name IS NULL
       OR "example/Planet".name = :name_2
-      AND "example/Planet"._id > :id_1
+      AND ("example/Planet"._id > :id_1
+           OR "example/Planet"._id IS NULL)
     ORDER BY "example/Planet".name ASC,
              "example/Planet"._id ASC
     LIMIT :param_1
@@ -268,11 +325,14 @@ def test_paginate_given_values_private(rc: RawConfig):
            "example/Planet".code
     FROM "example/Planet"
     WHERE "example/Planet".name > :name_1
+      OR "example/Planet".name IS NULL
       OR "example/Planet".name = :name_2
-      AND "example/Planet".code > :code_1
+      AND ("example/Planet".code > :code_1
+           OR "example/Planet".code IS NULL)
       OR "example/Planet".name = :name_3
       AND "example/Planet".code = :code_2
-      AND "example/Planet"._id > :id_1
+      AND ("example/Planet"._id > :id_1
+           OR "example/Planet"._id IS NULL)
     ORDER BY "example/Planet".name ASC,
              "example/Planet".code ASC,
              "example/Planet"._id ASC
@@ -297,11 +357,14 @@ def test_paginate_given_values_two_keys(rc: RawConfig):
            "example/Planet".code
     FROM "example/Planet"
     WHERE "example/Planet".name > :name_1
+      OR "example/Planet".name IS NULL
       OR "example/Planet".name = :name_2
-      AND "example/Planet".code > :code_1
+      AND ("example/Planet".code > :code_1
+           OR "example/Planet".code IS NULL)
       OR "example/Planet".name = :name_3
       AND "example/Planet".code = :code_2
-      AND "example/Planet"._id > :id_1
+      AND ("example/Planet"._id > :id_1
+           OR "example/Planet"._id IS NULL)
     ORDER BY "example/Planet".name ASC,
              "example/Planet".code ASC,
              "example/Planet"._id ASC
@@ -335,26 +398,32 @@ def test_paginate_given_values_five_keys(rc: RawConfig):
            "example/Planet".pass
     FROM "example/Planet"
     WHERE "example/Planet".name > :name_1
+      OR "example/Planet".name IS NULL
       OR "example/Planet".name = :name_2
-      AND "example/Planet".code > :code_1
+      AND ("example/Planet".code > :code_1
+           OR "example/Planet".code IS NULL)
       OR "example/Planet".name = :name_3
       AND "example/Planet".code = :code_2
-      AND "example/Planet".float > :float_1
+      AND ("example/Planet".float > :float_1
+           OR "example/Planet".float IS NULL)
       OR "example/Planet".name = :name_4
       AND "example/Planet".code = :code_3
       AND "example/Planet".float = :float_2
-      AND "example/Planet"."user" > :user_1
+      AND ("example/Planet"."user" > :user_1
+           OR "example/Planet"."user" IS NULL)
       OR "example/Planet".name = :name_5
       AND "example/Planet".code = :code_4
       AND "example/Planet".float = :float_3
       AND "example/Planet"."user" = :user_2
-      AND "example/Planet".pass > :pass_1
+      AND ("example/Planet".pass > :pass_1
+           OR "example/Planet".pass IS NULL)
       OR "example/Planet".name = :name_6
       AND "example/Planet".code = :code_5
       AND "example/Planet".float = :float_4
       AND "example/Planet"."user" = :user_3
       AND "example/Planet".pass = :pass_2
-      AND "example/Planet"._id > :id_1
+      AND ("example/Planet"._id > :id_1
+           OR "example/Planet"._id IS NULL)
     ORDER BY "example/Planet".name ASC,
              "example/Planet".code ASC,
              "example/Planet".float ASC,
@@ -382,11 +451,13 @@ def test_paginate_desc(rc: RawConfig):
            "example/Planet".code
     FROM "example/Planet"
     WHERE "example/Planet".name > :name_1
+      OR "example/Planet".name IS NULL
       OR "example/Planet".name = :name_2
       AND "example/Planet".code < :code_1
       OR "example/Planet".name = :name_3
       AND "example/Planet".code = :code_2
-      AND "example/Planet"._id > :id_1
+      AND ("example/Planet"._id > :id_1
+           OR "example/Planet"._id IS NULL)
     ORDER BY "example/Planet".name ASC,
              "example/Planet".code DESC,
              "example/Planet"._id ASC

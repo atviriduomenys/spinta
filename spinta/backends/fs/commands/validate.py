@@ -1,6 +1,6 @@
-import pathlib
 import os
 
+from pathlib import Path
 from spinta import commands
 from spinta.components import Context, Action, Property, DataItem
 from spinta.backends.components import Backend
@@ -31,6 +31,7 @@ def complex_data_check(
     prop: Property,
     backend: Backend,
     given: dict,
+    **kwargs
 ):
     complex_data_check[
         type(context),
@@ -39,7 +40,7 @@ def complex_data_check(
         Property,
         Backend,
         dict,
-    ](context, data, dtype, prop, backend, given)
+    ](context, data, dtype, prop, backend, given, **kwargs)
     if isinstance(dtype.backend, FileSystem):
         _validate_path(given['_id'], dtype.backend, dtype)
         path = dtype.backend.path / given['_id']
@@ -55,6 +56,7 @@ def complex_data_check(
     prop: Property,
     backend: FileSystem,
     value: dict,
+    **kwargs
 ):
     # TODO: revision check for files
     if data.action in (Action.UPDATE, Action.PATCH, Action.DELETE):
@@ -67,11 +69,11 @@ def complex_data_check(
                 )
         if value.get('_id'):
             if isinstance(dtype.backend, FileSystem):
-                filename = pathlib.PosixPath(value['_id'])
+                filename = Path(value['_id'])
                 _validate_path(filename, dtype.backend, dtype)
 
 
-def _validate_path(filename: pathlib.PosixPath(), fs: FileSystem, dtype: File):
+def _validate_path(filename: Path, fs: FileSystem, dtype: File):
     commonpath = os.path.commonpath([
         fs.path.resolve(),
         (fs.path / filename).resolve(),

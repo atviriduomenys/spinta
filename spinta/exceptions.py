@@ -314,6 +314,10 @@ class InvalidManifestFile(BaseError):
     template = "Error while parsing {eid!r} manifest entry: {error}"
 
 
+class CoordinatesOutOfRange(UserError):
+    template = 'Given coordinates: {given!r} ar not within the {srid!r} available bounds: {bounds} (west, south, east, north).'
+
+
 class ManifestFileDoesNotExist(BaseError):
     template = "Manifest file {path} does not exist."
 
@@ -637,6 +641,38 @@ class InvalidRequestQuery(UserError):
     template = "Query '{query}' requires '{format}' format."
 
 
+class UnexpectedFormKeys(UserError):
+    template = "Unexpected keys: {unknown_keys}, only keys that are allowed are: {allowed_keys}."
+
+
+class RequiredFormKeyWithCondition(UserError):
+    template = "'{key}' key is required when {condition}."
+
+
+class InvalidFormKeyCombination(UserError):
+    template = "Form only accepts one of the keys: {keys}."
+
+
+class MissingFormKeys(UserError):
+    template = "Form requires to have at least one of the keys: {keys}."
+
+
+class InvalidInputData(UserError):
+    template = "'{key}' does not accept value: '{given}', {condition}"
+
+
+class InvalidResourceSource(UserError):
+    template = "'{source}' is unacceptable resource source, it must be URL."
+
+
+class UnknownManifestType(BaseError):
+    template = "Can't find manifest component matching given type {type!r}."
+
+
+class UnknownManifestTypeFromPath(BaseError):
+    template = "Can't find manifest type matching given path {path!r}."
+
+
 class InvalidPageParameterCount(UserError):
     template = "Parameter 'page' only accepts one of page key, size, or disable attributes."
 
@@ -649,8 +685,35 @@ class InvalidPageKey(UserError):
     template = "Given '{key}' page key is invalid."
 
 
-class InfiniteLoopWithPagination(BaseError):
-    template = "Pagination values has cause infinite loop while fetching data."
+class InfiniteLoopWithPagination(UserError):
+    template = '''
+    Pagination values has cause infinite loop while fetching data.
+    Page of size: {page_size}, first value is the same as previous page's last value, which is:
+    {page_values}
+    '''
+
+
+class TooShortPageSize(UserError):
+    template = '''
+    Page of size: {page_size} is too small, some duplicate values do not fit in a single page.
+    Which can cause either loss of data, or cause infinite loop while paginating.
+    Affected row: {page_values}
+    
+    To fix this, please either increase page size in the manifest, or 'push_page_size' value in the configs.
+    Alternatively make page's structure more complex, by adding more properties to it.
+    '''
+
+
+class TooShortPageSizeKeyRepetition(TooShortPageSize):
+
+    def __init__(self, *args, **kwargs):
+        super(TooShortPageSize, self).__init__(*args, **kwargs)
+        self.template = f'''
+        {self.template}
+        Error has been triggered because:
+        New page's key has been encountered multiple times in the previous page and it is the same for the future value.
+        This will cause the same data to be fetched multiple times.
+        '''
 
 
 class DuplicateRowWhilePaginating(BaseError):
@@ -738,13 +801,33 @@ class UnableToDetermineRequiredLang(UserError):
 class CannotSelectTextAndSpecifiedLang(UserError):
     template = "Cannot select undisclosed language Text at the same time when disclosed language Text is selected."
 
-    
+
 class DuplicateRdfPrefixMissmatch(UserError):
     template = "Currently system does not support prefix missmatch. Prefix {prefix!r} has {old_value!r} and {new_value!r} values given."
 
 
 class InvalidName(UserError):
     template = 'Invalid {name!r} {type} code name.'
+
+
+class NoneValueComparison(UserError):
+    template = "None values can only be compared using 'eq' or 'ne' operands, {op!r} was given."
+
+
+class InvalidDenormProperty(UserError):
+    template = 'Cannot create Denorm property {denorm!r}, because it is part of {ref!r} refprops: {refprops}.'
+
+
+class RefPropTypeMissmatch(UserError):
+    template = 'Refprop {refprop!r} requires {required_type!r} type, but was given {given_type!r}.'
+
+
+class InheritPropertyValueMissmatch(UserError):
+    template = 'Expected {expected!r} value, but got {given!r}.'
+
+
+class OutOfMemoryMigrate(UserError):
+    template = "Ran out of shared memory while migrating. Use '--autocommit' tag, or increase 'max_locks_per_transaction'."
 
 
 class ManifestObjectNotDefined(UserError):

@@ -1,7 +1,13 @@
 import datetime
 import hashlib
 
+from spinta.core.config import RawConfig
 import pytest
+from _pytest.fixtures import FixtureRequest
+
+from spinta.testing.client import create_test_client
+from spinta.testing.data import pushdata, encode_page_values_manually
+from spinta.testing.manifest import bootstrap_manifest
 
 
 def sha1(s):
@@ -107,4 +113,38 @@ def test_export_json(app, mocker):
 
     assert app.get('country/:dataset/csv/:resource/countries/:changes/1000/:format/json').json() == {
         '_data': []
+    }
+
+
+def test_json_last_page(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, '''
+    d | r | b | m | property | type   | ref     | access
+    example/json/page         |        |         |
+      |   |   | City         |        | name    |
+      |   |   |   | name     | string |         | open
+    ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authorize(['spinta_set_meta_fields'])
+    app.authmodel('example/json/page', ['insert', 'search'])
+
+    # Add data
+    result = pushdata(app, '/example/json/page/City', {
+        'name': 'Vilnius'
+    })
+    pushdata(app, '/example/json/page/City', {
+        'name': 'Kaunas'
+    })
+    res = app.get('/example/json/page/City/:format/json?select(name,_page)').json()
+    assert res == {
+        '_data': [
+            {'name': 'Kaunas'},
+            {'name': 'Vilnius'},
+        ],
+        '_page': {
+            'next': encode_page_values_manually({'name': 'Vilnius', '_id': result['_id']})
+        },
     }

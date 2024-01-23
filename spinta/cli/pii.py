@@ -21,6 +21,7 @@ from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.data import ModelRow
 from spinta.cli.helpers.data import count_rows
 from spinta.cli.helpers.data import iter_model_rows
+from spinta.cli.helpers.manifest import convert_str_to_manifest_path
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.components import Action
 from spinta.components import Context
@@ -190,7 +191,7 @@ def detect(
     checks a uri value is set.
     """
     context: Context = ctx.obj
-
+    manifest = convert_str_to_manifest_path(str(manifest))
     if manifest:
         config = {
             'backends.cli': {
@@ -201,8 +202,8 @@ def detect(
                 'dsn': 'sqlite:///{data_dir}/keymap.db',
             },
             'manifests.cli': {
-                'type': 'tabular',
-                'path': str(manifest),
+                'type': manifest.type,
+                'path': manifest.path,
                 'backend': 'cli',
                 'keymap': 'default',
                 'mode': 'external',

@@ -10,6 +10,7 @@ import pytest
 
 from spinta import commands
 from spinta.core.config import RawConfig
+from spinta.datasets.inspect.helpers import PriorityKey
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.config import configure
@@ -27,7 +28,7 @@ def sqlite_new():
 
 
 @pytest.fixture()
-def rc(rc, tmp_path: pathlib.Path):
+def rc_new(rc, tmp_path: pathlib.Path):
     # Need to have a clean slate, ignoring testing context manifests
     path = f'{tmp_path}/manifest.csv'
     context = create_test_context(rc)
@@ -53,7 +54,7 @@ def rc(rc, tmp_path: pathlib.Path):
 
 
 def test_inspect(
-    rc: RawConfig,
+    rc_new: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite,
@@ -71,10 +72,10 @@ def test_inspect(
         ],
     })
 
-    cli.invoke(rc, ['inspect', sqlite.dsn, '-o', tmp_path / 'result.csv'])
+    cli.invoke(rc_new, ['inspect', sqlite.dsn, '-o', tmp_path / 'result.csv'])
 
     # Check what was detected.
-    context, manifest = load_manifest_and_context(rc, tmp_path / 'result.csv')
+    context, manifest = load_manifest_and_context(rc_new, tmp_path / 'result.csv')
     commands.get_dataset(context, manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
     assert manifest == f'''
     d | r | b | m | property   | type    | ref     | source     | prepare
@@ -93,7 +94,7 @@ def test_inspect(
 
 
 def test_inspect_from_manifest_table(
-    rc: RawConfig,
+    rc_new: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite,
@@ -105,20 +106,20 @@ def test_inspect_from_manifest_table(
             sa.Column('NAME', sa.Text),
         ],
     })
-    context = create_test_context(rc)
+    context = create_test_context(rc_new)
     create_tabular_manifest(context, tmp_path / 'manifest.csv', f'''
     d | r | m | property     | type   | ref | source | access
     dbsqlite                |        |     |        |
       | resource1            | sql    |   | {sqlite.dsn} |
     ''')
-    cli.invoke(rc, [
+    cli.invoke(rc_new, [
         'inspect', tmp_path / 'manifest.csv',
         '-r', 'sql', sqlite.dsn,
         '-o', tmp_path / 'result.csv',
     ])
 
     # Check what was detected.
-    context, manifest = load_manifest_and_context(rc, tmp_path / 'result.csv')
+    context, manifest = load_manifest_and_context(rc_new, tmp_path / 'result.csv')
     commands.get_dataset(context, manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
     assert manifest == f'''
     d | r | b | m | property  | type    | ref | source  | prepare
@@ -132,7 +133,7 @@ def test_inspect_from_manifest_table(
 
 
 def test_inspect_format(
-    rc: RawConfig,
+    rc_new: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite,
@@ -149,14 +150,14 @@ def test_inspect_format(
             sa.Column('COUNTRY_ID', sa.Integer, sa.ForeignKey("COUNTRY.ID")),
         ],
     })
-    cli.invoke(rc, [
+    cli.invoke(rc_new, [
         'inspect',
         '-r', 'sql', sqlite.dsn,
         '-o', tmp_path / 'manifest.csv',
     ])
 
     # Check what was detected.
-    context, manifest = load_manifest_and_context(rc, tmp_path / 'manifest.csv')
+    context, manifest = load_manifest_and_context(rc_new, tmp_path / 'manifest.csv')
     commands.get_dataset(context, manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
     a, b = compare_manifest(manifest, f'''
     d | r | b | m | property   | type    | ref     | source     | prepare
@@ -176,7 +177,7 @@ def test_inspect_format(
 
 
 def test_inspect_cyclic_refs(
-    rc: RawConfig,
+    rc_new: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite,
@@ -195,14 +196,14 @@ def test_inspect_cyclic_refs(
         ],
     })
 
-    cli.invoke(rc, [
+    cli.invoke(rc_new, [
         'inspect',
         '-r', 'sql', sqlite.dsn,
         '-o', tmp_path / 'manifest.csv',
     ])
 
     # Check what was detected.
-    context, manifest = load_manifest_and_context(rc, tmp_path / 'manifest.csv')
+    context, manifest = load_manifest_and_context(rc_new, tmp_path / 'manifest.csv')
     commands.get_dataset(context, manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
     assert manifest == f'''
     d | r | b | m | property   | type    | ref     | source     | prepare
@@ -222,7 +223,7 @@ def test_inspect_cyclic_refs(
 
 
 def test_inspect_self_refs(
-    rc: RawConfig,
+    rc_new: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite,
@@ -235,21 +236,21 @@ def test_inspect_self_refs(
             sa.Column('PARENT_ID', sa.Integer, sa.ForeignKey("CATEGORY.ID")),
         ],
     })
-    rc = rc.fork({
+    rc_new = rc_new.fork({
         "manifests": {
             "default": {
 
             }
         }
     })
-    cli.invoke(rc, [
+    cli.invoke(rc_new, [
         'inspect',
         '-r', 'sql', sqlite.dsn,
         '-o', tmp_path / 'manifest.csv',
     ])
 
     # Check what was detected.
-    context, manifest = load_manifest_and_context(rc, tmp_path / 'manifest.csv')
+    context, manifest = load_manifest_and_context(rc_new, tmp_path / 'manifest.csv')
     commands.get_dataset(context, manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
     assert manifest == f'''
     d | r | b | m | property  | type    | ref      | source    | prepare
@@ -265,11 +266,11 @@ def test_inspect_self_refs(
 
 @pytest.mark.skip(reason="sqldump not fully implemented")
 def test_inspect_oracle_sqldump_stdin(
-    rc: RawConfig,
+    rc_new: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
 ):
-    cli.invoke(rc, [
+    cli.invoke(rc_new, [
         'inspect',
         '-r', 'sqldump', '-',
         '-o', tmp_path / 'manifest.csv',
@@ -311,7 +312,7 @@ def test_inspect_oracle_sqldump_stdin(
     ''')
 
     # Check what was detected.
-    context, manifest = load_manifest_and_context(rc, tmp_path / 'manifest.csv')
+    context, manifest = load_manifest_and_context(rc_new, tmp_path / 'manifest.csv')
     assert manifest == '''
     id | d | r | b | m | property | type    | ref | source  | prepare | level | access | uri | title | description
        | datasets/gov/example     |         |     |         |         |       |        |     |       |
@@ -325,7 +326,7 @@ def test_inspect_oracle_sqldump_stdin(
 
 @pytest.mark.skip(reason="sqldump not fully implemented")
 def test_inspect_oracle_sqldump_file_with_formula(
-    rc: RawConfig,
+    rc_new: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
 ):
@@ -336,7 +337,7 @@ def test_inspect_oracle_sqldump_file_with_formula(
       "NAME" VARCHAR2(255 CHAR)
     );
     ''', encoding='iso-8859-4')
-    cli.invoke(rc, [
+    cli.invoke(rc_new, [
         'inspect',
         '-r', 'sqldump', tmp_path / 'dump.sql',
         '-f', 'file(self, encoding: "iso-8859-4")',
@@ -344,7 +345,7 @@ def test_inspect_oracle_sqldump_file_with_formula(
     ])
 
     # Check what was detected.
-    context, manifest = load_manifest_and_context(rc, tmp_path / 'manifest.csv')
+    context, manifest = load_manifest_and_context(rc_new, tmp_path / 'manifest.csv')
     dataset = commands.get_dataset(context, manifest, 'datasets/gov/example')
     dataset.resources['resource1'].external = 'dump.sql'
     assert manifest == '''
@@ -357,13 +358,13 @@ def test_inspect_oracle_sqldump_file_with_formula(
 
 
 def test_inspect_with_schema(
-    rc: RawConfig,
+    rc_new: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite,
 ):
     # Prepare source data.
-    context = create_test_context(rc)
+    context = create_test_context(rc_new)
     sqlite.init({
         'CITY': [
             sa.Column('ID', sa.Integer, primary_key=True),
@@ -372,16 +373,16 @@ def test_inspect_with_schema(
     })
 
     # Configure Spinta.
-    rc = configure(context, rc, None, tmp_path / 'manifest.csv', f'''
+    rc_new = configure(context, rc_new, None, tmp_path / 'manifest.csv', f'''
     d | r | m | property | type | source       | prepare
     dataset              |      |              |
       | schema           | sql  | {sqlite.dsn} | connect(self, schema: null)
     ''')
 
-    cli.invoke(rc, ['inspect', '-o', tmp_path / 'result.csv'])
+    cli.invoke(rc_new, ['inspect', tmp_path / 'manifest.csv', '-o', tmp_path / 'result.csv'])
 
     # Check what was detected.
-    context, manifest = load_manifest_and_context(rc, tmp_path / 'result.csv')
+    context, manifest = load_manifest_and_context(rc_new, tmp_path / 'result.csv')
     commands.get_dataset(context, manifest, 'dataset').resources['schema'].external = 'sqlite'
     a, b = compare_manifest(manifest, '''
     d | r | b | m | property | type    | ref | source | prepare
@@ -396,13 +397,13 @@ def test_inspect_with_schema(
 
 
 def test_inspect_update_existing_manifest(
-    rc: RawConfig,
+    rc_new: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite,
 ):
     # Prepare source data.
-    context = create_test_context(rc)
+    context = create_test_context(rc_new)
     sqlite.init({
         'COUNTRY': [
             sa.Column('ID', sa.Integer, primary_key=True),
@@ -417,7 +418,7 @@ def test_inspect_update_existing_manifest(
     })
 
     # Configure Spinta.
-    rc = configure(context, rc, sqlite, tmp_path / 'manifest.csv', f'''
+    rc_new = configure(context, rc_new, sqlite, tmp_path / 'manifest.csv', f'''
     d | r | m | property | type    | ref | source | prepare | access  | title
     datasets/gov/example |         |     |        |         |         | Example
       | schema           | sql     | sql |        |         |         |
@@ -427,14 +428,14 @@ def test_inspect_update_existing_manifest(
       |   |   | name     | string  |     | NAME   | strip() | open    | City name
     ''')
 
-    cli.invoke(rc, [
+    cli.invoke(rc_new, [
         'inspect',
         tmp_path / 'manifest.csv',
         '-o', tmp_path / 'result.csv',
     ])
 
     # Check what was detected.
-    context, manifest = load_manifest_and_context(rc, tmp_path / 'result.csv')
+    context, manifest = load_manifest_and_context(rc_new, tmp_path / 'result.csv')
     a, b = compare_manifest(manifest, '''
     d | r | b | m | property | type    | ref     | source  | prepare | access  | title
     datasets/gov/example     |         |         |         |         |         | Example
@@ -453,13 +454,13 @@ def test_inspect_update_existing_manifest(
 
 
 def test_inspect_update_existing_ref_manifest_priority(
-    rc: RawConfig,
+    rc_new: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite,
 ):
     # Prepare source data.
-    context = create_test_context(rc)
+    context = create_test_context(rc_new)
     sqlite.init({
         'COUNTRY': [
             sa.Column('ID', sa.Integer, primary_key=True),
@@ -473,7 +474,7 @@ def test_inspect_update_existing_ref_manifest_priority(
     })
 
     # Configure Spinta.
-    rc = configure(context, rc, sqlite, tmp_path / 'manifest.csv', f'''
+    rc_new = configure(context, rc_new, sqlite, tmp_path / 'manifest.csv', f'''
     d | r | m | property | type    | ref | source  | prepare | access  | title
     datasets/gov/example |         |     |         |         |         | Example
       | schema           | sql     | sql |         |         |         |
@@ -487,14 +488,14 @@ def test_inspect_update_existing_ref_manifest_priority(
       |   |   | name     | string  |     | NAME    | strip() | open    | City name
       |   |   | country  | integer |     | COUNTRY |         | open    | Country id
     ''')
-    cli.invoke(rc, [
+    cli.invoke(rc_new, [
         'inspect',
         tmp_path / 'manifest.csv',
         '-o', tmp_path / 'result.csv',
     ])
 
     # Check what was detected.
-    context, manifest = load_manifest_and_context(rc, tmp_path / 'result.csv')
+    context, manifest = load_manifest_and_context(rc_new, tmp_path / 'result.csv')
     a, b = compare_manifest(manifest, '''
     d | r | b | m | property | type    | ref     | source  | prepare | access  | title
     datasets/gov/example     |         |         |         |         |         | Example
@@ -513,13 +514,13 @@ def test_inspect_update_existing_ref_manifest_priority(
 
 
 def test_inspect_update_existing_ref_external_priority(
-    rc: RawConfig,
+    rc_new: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite,
 ):
     # Prepare source data.
-    context = create_test_context(rc)
+    context = create_test_context(rc_new)
     sqlite.init({
         'COUNTRY': [
             sa.Column('ID', sa.Integer, primary_key=True),
@@ -533,7 +534,7 @@ def test_inspect_update_existing_ref_external_priority(
     })
 
     # Configure Spinta.
-    rc = configure(context, rc, sqlite, tmp_path / 'manifest.csv', f'''
+    rc_new = configure(context, rc_new, sqlite, tmp_path / 'manifest.csv', f'''
     d | r | m | property | type    | ref | source  | prepare | access  | title
     datasets/gov/example |         |     |         |         |         | Example
       | schema           | sql     | sql |         |         |         |
@@ -547,7 +548,7 @@ def test_inspect_update_existing_ref_external_priority(
       |   |   | name     | string  |     | NAME    | strip() | open    | City name
       |   |   | country  | integer |     | COUNTRY |         | open    | Country id
     ''')
-    cli.invoke(rc, [
+    cli.invoke(rc_new, [
         'inspect',
         tmp_path / 'manifest.csv',
         '-p', 'external',
@@ -555,7 +556,7 @@ def test_inspect_update_existing_ref_external_priority(
     ])
 
     # Check what was detected.
-    context, manifest = load_manifest_and_context(rc, tmp_path / 'result.csv')
+    context, manifest = load_manifest_and_context(rc_new, tmp_path / 'result.csv')
     a, b = compare_manifest(manifest, '''
     d | r | b | m | property | type    | ref     | source  | prepare | access  | title
     datasets/gov/example     |         |         |         |         |         | Example
@@ -574,7 +575,7 @@ def test_inspect_update_existing_ref_external_priority(
 
 
 def test_inspect_with_empty_config_dir(
-    rc: RawConfig,
+    rc_new: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite,
@@ -589,18 +590,18 @@ def test_inspect_with_empty_config_dir(
 
     # Change config dir
     (tmp_path / 'config').mkdir()
-    rc = rc.fork({
+    rc_new = rc_new.fork({
         'config_path': tmp_path / 'config',
     })
 
-    cli.invoke(rc, [
+    cli.invoke(rc_new, [
         'inspect',
         '-r', 'sql', sqlite.dsn,
         '-o', tmp_path / 'result.csv',
     ])
 
     # Check what was detected.
-    context, manifest = load_manifest_and_context(rc, tmp_path / 'result.csv')
+    context, manifest = load_manifest_and_context(rc_new, tmp_path / 'result.csv')
     commands.get_dataset(context, manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
     assert manifest == f'''
     d | r | b | m | property | type    | ref | source
@@ -614,7 +615,7 @@ def test_inspect_with_empty_config_dir(
 
 
 def test_inspect_duplicate_table_names(
-    rc: RawConfig,
+    rc_new: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite,
@@ -627,14 +628,14 @@ def test_inspect_duplicate_table_names(
     })
 
     result_file_path = tmp_path / 'result.csv'
-    cli.invoke(rc, [
+    cli.invoke(rc_new, [
         'inspect',
         '-r', 'sql', sqlite.dsn,
         '-o', result_file_path,
     ])
 
     # Check what was detected.
-    context, manifest = load_manifest_and_context(rc, result_file_path)
+    context, manifest = load_manifest_and_context(rc_new, result_file_path)
     commands.get_dataset(context, manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
     assert manifest == f'''
     d | r | b | m | property | type    | ref | source
@@ -653,7 +654,7 @@ def test_inspect_duplicate_table_names(
 
 
 def test_inspect_duplicate_column_names(
-    rc: RawConfig,
+    rc_new: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite,
@@ -668,14 +669,14 @@ def test_inspect_duplicate_column_names(
     })
 
     result_file_path = tmp_path / 'result.csv'
-    cli.invoke(rc, [
+    cli.invoke(rc_new, [
         'inspect',
         '-r', 'sql', sqlite.dsn,
         '-o', result_file_path,
     ])
 
     # Check what was detected.
-    context, manifest = load_manifest_and_context(rc, result_file_path)
+    context, manifest = load_manifest_and_context(rc_new, result_file_path)
     commands.get_dataset(context, manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
     assert manifest == f'''
     d | r | b | m | property | type    | ref | source
@@ -690,13 +691,13 @@ def test_inspect_duplicate_column_names(
 
 
 def test_inspect_existing_duplicate_table_names(
-    rc: RawConfig,
+    rc_new: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite,
 ):
     # Prepare source data.
-    context = create_test_context(rc)
+    context = create_test_context(rc_new)
     sqlite.init({
         '__COUNTRY': [sa.Column('NAME', sa.Text)],
         '_COUNTRY': [sa.Column('NAME', sa.Text)],
@@ -705,7 +706,7 @@ def test_inspect_existing_duplicate_table_names(
 
     result_file_path = tmp_path / 'result.csv'
     # Configure Spinta.
-    rc = configure(context, rc, sqlite, tmp_path / 'manifest.csv', f'''
+    rc_new = configure(context, rc_new, sqlite, tmp_path / 'manifest.csv', f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
          | schema           | sql     | sql |         |         |         |
@@ -714,13 +715,13 @@ def test_inspect_existing_duplicate_table_names(
          |   |   | id       | integer |     |         |         | private | Primary key
          |   |   | name     | string  |     |         |         | open    | Country name
        ''')
-    cli.invoke(rc, [
+    cli.invoke(rc_new, [
         'inspect',
         tmp_path / 'manifest.csv',
         '-o', tmp_path / 'result.csv',
     ])
     # Check what was detected.
-    context, manifest = load_manifest_and_context(rc, result_file_path)
+    context, manifest = load_manifest_and_context(rc_new, result_file_path)
     a, b = compare_manifest(manifest, f'''
        d | r | m | property | type    | ref | source    | prepare | access  | title
        datasets/gov/example |         |     |           |         |         | Example
@@ -743,13 +744,13 @@ def test_inspect_existing_duplicate_table_names(
 
 
 def test_inspect_existing_duplicate_column_names(
-    rc: RawConfig,
+    rc_new: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite,
 ):
     # Prepare source data.
-    context = create_test_context(rc)
+    context = create_test_context(rc_new)
     sqlite.init({
         'COUNTRY': [
             sa.Column('__NAME', sa.Text),
@@ -760,7 +761,7 @@ def test_inspect_existing_duplicate_column_names(
 
     result_file_path = tmp_path / 'result.csv'
     # Configure Spinta.
-    rc = configure(context, rc, sqlite, tmp_path / 'manifest.csv', f'''
+    rc_new = configure(context, rc_new, sqlite, tmp_path / 'manifest.csv', f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
          | schema           | sql     | sql |         |         |         |
@@ -768,13 +769,13 @@ def test_inspect_existing_duplicate_column_names(
          |   | Country      |         |     | COUNTRY |         |         | Country
          |   |   | name     | string  |     |         |         | open    | Country name
        ''')
-    cli.invoke(rc, [
+    cli.invoke(rc_new, [
         'inspect',
         tmp_path / 'manifest.csv',
         '-o', tmp_path / 'result.csv',
     ])
     # Check what was detected.
-    context, manifest = load_manifest_and_context(rc, result_file_path)
+    context, manifest = load_manifest_and_context(rc_new, result_file_path)
     a, b = compare_manifest(manifest, f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
@@ -790,13 +791,13 @@ def test_inspect_existing_duplicate_column_names(
 
 
 def test_inspect_insert_new_dataset(
-    rc: RawConfig,
+    rc_new: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite,
 ):
     # Prepare source data.
-    context = create_test_context(rc)
+    context = create_test_context(rc_new)
     sqlite.init({
         'COUNTRY': [
             sa.Column('NAME', sa.Text),
@@ -805,21 +806,21 @@ def test_inspect_insert_new_dataset(
 
     result_file_path = tmp_path / 'result.csv'
     # Configure Spinta.
-    rc = configure(context, rc, sqlite, tmp_path / 'manifest.csv', f'''
+    rc_new = configure(context, rc_new, sqlite, tmp_path / 'manifest.csv', f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
                             |         |     |         |         |         |
          |   | Country      |         |     |         |         |         | Country
          |   |   | name     | string  |     |         |         | open    | Country name
        ''')
-    cli.invoke(rc, [
+    cli.invoke(rc_new, [
         'inspect',
         tmp_path / 'manifest.csv',
         '-r', 'sql', sqlite.dsn,
         '-o', tmp_path / 'result.csv',
     ])
     # Check what was detected.
-    context, manifest = load_manifest_and_context(rc, result_file_path)
+    context, manifest = load_manifest_and_context(rc_new, result_file_path)
     commands.get_dataset(context, manifest, 'dbsqlite').resources['resource1'].external = "sqlite"
     a, b = compare_manifest(manifest, f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
@@ -837,13 +838,13 @@ def test_inspect_insert_new_dataset(
 
 
 def test_inspect_delete_model_source(
-    rc: RawConfig,
+    rc_new: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite,
 ):
     # Prepare source data.
-    context = create_test_context(rc)
+    context = create_test_context(rc_new)
     sqlite.init({
         'COUNTRY': [
             sa.Column('NAME', sa.Text),
@@ -852,7 +853,7 @@ def test_inspect_delete_model_source(
 
     result_file_path = tmp_path / 'result.csv'
     # Configure Spinta.
-    rc = configure(context, rc, sqlite, tmp_path / 'manifest.csv', f'''
+    rc_new = configure(context, rc_new, sqlite, tmp_path / 'manifest.csv', f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
          | schema           | sql     | sql |         |         |         |
@@ -860,13 +861,13 @@ def test_inspect_delete_model_source(
          |   | City         |         |     | CITY    |         |         | City
          |   |   | name     | string  |     | NAME    |         | open    | City name
        ''')
-    cli.invoke(rc, [
+    cli.invoke(rc_new, [
         'inspect',
         tmp_path / 'manifest.csv',
         '-o', tmp_path / 'result.csv',
     ])
     # Check what was detected.
-    context, manifest = load_manifest_and_context(rc, result_file_path)
+    context, manifest = load_manifest_and_context(rc_new, result_file_path)
     a, b = compare_manifest(manifest, f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
@@ -882,13 +883,13 @@ def test_inspect_delete_model_source(
 
 
 def test_inspect_delete_property_source(
-    rc: RawConfig,
+    rc_new: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite,
 ):
     # Prepare source data.
-    context = create_test_context(rc)
+    context = create_test_context(rc_new)
     sqlite.init({
         'COUNTRY': [
             sa.Column('NAME', sa.Text),
@@ -897,7 +898,7 @@ def test_inspect_delete_property_source(
 
     result_file_path = tmp_path / 'result.csv'
     # Configure Spinta.
-    rc = configure(context, rc, sqlite, tmp_path / 'manifest.csv', f'''
+    rc_new = configure(context, rc_new, sqlite, tmp_path / 'manifest.csv', f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
          | schema           | sql     | sql |         |         |         |
@@ -906,13 +907,13 @@ def test_inspect_delete_property_source(
          |   |   | name     | string  |     | NAME    |         | open    | Country name
          |   |   | code     | string  |     | CODE    |         | open    | Country code
        ''')
-    cli.invoke(rc, [
+    cli.invoke(rc_new, [
         'inspect',
         tmp_path / 'manifest.csv',
         '-o', tmp_path / 'result.csv',
     ])
     # Check what was detected.
-    context, manifest = load_manifest_and_context(rc, result_file_path)
+    context, manifest = load_manifest_and_context(rc_new, result_file_path)
     a, b = compare_manifest(manifest, f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
@@ -926,14 +927,14 @@ def test_inspect_delete_property_source(
 
 
 def test_inspect_multiple_resources_all_new(
-    rc: RawConfig,
+    rc_new: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite,
     sqlite_new: Sqlite
 ):
     # Prepare source data.
-    context = create_test_context(rc)
+    context = create_test_context(rc_new)
     sqlite.init({
         'COUNTRY': [
             sa.Column('NAME', sa.Text),
@@ -948,20 +949,20 @@ def test_inspect_multiple_resources_all_new(
 
     result_file_path = tmp_path / 'result.csv'
     # Configure Spinta.
-    rc = configure(context, rc, None, tmp_path / 'manifest.csv', f'''
+    rc_new = configure(context, rc_new, None, tmp_path / 'manifest.csv', f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
          | schema           | sql     |     | {sqlite.dsn} |         |         |
                             |         |     |         |         |         |
          | schema_1         | sql     |     | {sqlite_new.dsn} |         |         |
        ''')
-    cli.invoke(rc, [
+    cli.invoke(rc_new, [
         'inspect',
         tmp_path / 'manifest.csv',
         '-o', tmp_path / 'result.csv',
     ])
     # Check what was detected.
-    context, manifest = load_manifest_and_context(rc, result_file_path)
+    context, manifest = load_manifest_and_context(rc_new, result_file_path)
     commands.get_dataset(context, manifest, 'datasets/gov/example').resources['schema'].external = 'sqlite'
     commands.get_dataset(context, manifest, 'datasets/gov/example').resources['schema_1'].external = 'sqlite_new'
     a, b = compare_manifest(manifest, f'''
@@ -981,14 +982,14 @@ def test_inspect_multiple_resources_all_new(
 
 
 def test_inspect_multiple_resources_specific(
-    rc: RawConfig,
+    rc_new: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite,
     sqlite_new: Sqlite
 ):
     # Prepare source data.
-    context = create_test_context(rc)
+    context = create_test_context(rc_new)
     sqlite.init({
         'COUNTRY': [
             sa.Column('NAME', sa.Text),
@@ -1013,7 +1014,7 @@ def test_inspect_multiple_resources_specific(
 
     result_file_path = tmp_path / 'result.csv'
     # Configure Spinta.
-    rc = configure(context, rc, None, tmp_path / 'manifest.csv', f'''
+    rc_new = configure(context, rc_new, None, tmp_path / 'manifest.csv', f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
          | schema           | sql     |     | {sqlite.dsn} |         |         |
@@ -1025,14 +1026,14 @@ def test_inspect_multiple_resources_specific(
          |   | Country1     |         |     | COUNTRY |         |         |
          |   |   | code     | string  |     | CODE    |         |         |
        ''')
-    cli.invoke(rc, [
+    cli.invoke(rc_new, [
         'inspect',
         '-r', 'sql', sqlite_new.dsn,
         tmp_path / 'manifest.csv',
         '-o', tmp_path / 'result.csv',
     ])
     # Check what was detected.
-    context, manifest = load_manifest_and_context(rc, result_file_path)
+    context, manifest = load_manifest_and_context(rc_new, result_file_path)
     commands.get_dataset(context, manifest, 'datasets/gov/example').resources['schema'].external = 'sqlite'
     commands.get_dataset(context, manifest, 'datasets/gov/example').resources['schema_1'].external = 'sqlite_new'
     a, b = compare_manifest(manifest, f'''
@@ -1058,14 +1059,14 @@ def test_inspect_multiple_resources_specific(
 
 
 def test_inspect_multiple_resources_advanced(
-    rc: RawConfig,
+    rc_new: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite,
     sqlite_new: Sqlite
 ):
     # Prepare source data.
-    context = create_test_context(rc)
+    context = create_test_context(rc_new)
     sqlite.init({
         'COUNTRY': [
             sa.Column('NAME', sa.Text),
@@ -1090,7 +1091,7 @@ def test_inspect_multiple_resources_advanced(
 
     result_file_path = tmp_path / 'result.csv'
     # Configure Spinta.
-    rc = configure(context, rc, None, tmp_path / 'manifest.csv', f'''
+    rc_new = configure(context, rc_new, None, tmp_path / 'manifest.csv', f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
          |   | Location     |         |     |         |         |         |
@@ -1121,13 +1122,13 @@ def test_inspect_multiple_resources_advanced(
          |   | AtEnd        |         |     |         |         |         |
          |   |   | name     | string  |     |         |         |         |
        ''')
-    cli.invoke(rc, [
+    cli.invoke(rc_new, [
         'inspect',
         tmp_path / 'manifest.csv',
         '-o', tmp_path / 'result.csv',
     ])
     # Check what was detected.
-    context, manifest = load_manifest_and_context(rc, result_file_path)
+    context, manifest = load_manifest_and_context(rc_new, result_file_path)
     commands.get_dataset(context, manifest, 'datasets/gov/example').resources['schema'].external = 'sqlite'
     commands.get_dataset(context, manifest, 'datasets/gov/example').resources['schema_1'].external = 'sqlite_new'
     a, b = compare_manifest(manifest, f'''
@@ -1177,13 +1178,13 @@ def test_inspect_multiple_resources_advanced(
 
 
 def test_inspect_multiple_datasets(
-    rc: RawConfig,
+    rc_new: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite
 ):
     # Prepare source data.
-    context = create_test_context(rc)
+    context = create_test_context(rc_new)
     sqlite.init({
         'COUNTRY': [
             sa.Column('NAME', sa.Text),
@@ -1196,7 +1197,7 @@ def test_inspect_multiple_datasets(
 
     result_file_path = tmp_path / 'result.csv'
     # Configure Spinta.
-    rc = configure(context, rc, None, tmp_path / 'manifest.csv', f'''
+    rc_new = configure(context, rc_new, None, tmp_path / 'manifest.csv', f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
          | schema           | sql     |     | {sqlite.dsn} |         |         |
@@ -1210,13 +1211,13 @@ def test_inspect_multiple_datasets(
          |   | Country      |         |     | COUNTRY |         |         |
          |   |   | name     | string  |     | NAME    |         |         |
        ''')
-    cli.invoke(rc, [
+    cli.invoke(rc_new, [
         'inspect',
         tmp_path / 'manifest.csv',
         '-o', tmp_path / 'result.csv',
     ])
     # Check what was detected.
-    context, manifest = load_manifest_and_context(rc, result_file_path)
+    context, manifest = load_manifest_and_context(rc_new, result_file_path)
     commands.get_dataset(context, manifest, 'datasets/gov/example').resources['schema'].external = 'sqlite'
     commands.get_dataset(context, manifest, 'datasets/gov/loc').resources['schema'].external = 'sqlite'
     a, b = compare_manifest(manifest, f'''
@@ -1246,13 +1247,13 @@ def test_inspect_multiple_datasets(
 
 
 def test_inspect_multiple_datasets_advanced_manifest_priority(
-    rc: RawConfig,
+    rc_new: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite
 ):
     # Prepare source data.
-    context = create_test_context(rc)
+    context = create_test_context(rc_new)
     sqlite.init({
         'COUNTRY': [
             sa.Column('CODE', sa.Text),
@@ -1267,7 +1268,7 @@ def test_inspect_multiple_datasets_advanced_manifest_priority(
 
     result_file_path = tmp_path / 'result.csv'
     # Configure Spinta.
-    rc = configure(context, rc, None, tmp_path / 'manifest.csv', f'''
+    rc_new = configure(context, rc_new, None, tmp_path / 'manifest.csv', f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
          | schema           | sql     |     | {sqlite.dsn} |         |         |
@@ -1285,13 +1286,13 @@ def test_inspect_multiple_datasets_advanced_manifest_priority(
          |   |   | name     | string  |     | TEST    |         |         |
          |   |   | new_id     | string  |     | ID    |         |         |
        ''')
-    cli.invoke(rc, [
+    cli.invoke(rc_new, [
         'inspect',
         tmp_path / 'manifest.csv',
         '-o', tmp_path / 'result.csv',
     ])
     # Check what was detected.
-    context, manifest = load_manifest_and_context(rc, result_file_path)
+    context, manifest = load_manifest_and_context(rc_new, result_file_path)
     commands.get_dataset(context, manifest, 'datasets/gov/example').resources['schema'].external = 'sqlite'
     commands.get_dataset(context, manifest, 'datasets/gov/loc').resources['schema'].external = 'sqlite'
     a, b = compare_manifest(manifest, f'''
@@ -1325,13 +1326,13 @@ def test_inspect_multiple_datasets_advanced_manifest_priority(
 
 
 def test_inspect_multiple_datasets_advanced_external_priority(
-    rc: RawConfig,
+    rc_new: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite
 ):
     # Prepare source data.
-    context = create_test_context(rc)
+    context = create_test_context(rc_new)
     sqlite.init({
         'COUNTRY': [
             sa.Column('CODE', sa.Text),
@@ -1346,7 +1347,7 @@ def test_inspect_multiple_datasets_advanced_external_priority(
 
     result_file_path = tmp_path / 'result.csv'
     # Configure Spinta.
-    rc = configure(context, rc, None, tmp_path / 'manifest.csv', f'''
+    rc_new = configure(context, rc_new, None, tmp_path / 'manifest.csv', f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
          | schema           | sql     |     | {sqlite.dsn} |         |         |
@@ -1364,14 +1365,14 @@ def test_inspect_multiple_datasets_advanced_external_priority(
          |   |   | name     | string  |     | TEST    |         |         |
          |   |   | new_id     | string  |     | ID    |         |         |
        ''')
-    cli.invoke(rc, [
+    cli.invoke(rc_new, [
         'inspect',
         tmp_path / 'manifest.csv',
         '-p', 'external',
         '-o', tmp_path / 'result.csv',
     ])
     # Check what was detected.
-    context, manifest = load_manifest_and_context(rc, result_file_path)
+    context, manifest = load_manifest_and_context(rc_new, result_file_path)
     commands.get_dataset(context, manifest, 'datasets/gov/example').resources['schema'].external = 'sqlite'
     commands.get_dataset(context, manifest, 'datasets/gov/loc').resources['schema'].external = 'sqlite'
     a, b = compare_manifest(manifest, f'''
@@ -1405,14 +1406,14 @@ def test_inspect_multiple_datasets_advanced_external_priority(
 
 
 def test_inspect_multiple_datasets_different_resources(
-    rc: RawConfig,
+    rc_new: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite,
     sqlite_new: Sqlite
 ):
     # Prepare source data.
-    context = create_test_context(rc)
+    context = create_test_context(rc_new)
     sqlite.init({
         'COUNTRY': [
             sa.Column('CODE', sa.Text),
@@ -1438,7 +1439,7 @@ def test_inspect_multiple_datasets_different_resources(
 
     result_file_path = tmp_path / 'result.csv'
     # Configure Spinta.
-    rc = configure(context, rc, None, tmp_path / 'manifest.csv', f'''
+    rc_new = configure(context, rc_new, None, tmp_path / 'manifest.csv', f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/loc |         |     |         |         |         | Example
          | schema           | sql     |     | {sqlite.dsn} |         |         |
@@ -1447,13 +1448,13 @@ def test_inspect_multiple_datasets_different_resources(
          | schema           | sql     |     | {sqlite_new.dsn} |         |         |
                             |         |     |         |         |         |
        ''')
-    cli.invoke(rc, [
+    cli.invoke(rc_new, [
         'inspect',
         tmp_path / 'manifest.csv',
         '-o', tmp_path / 'result.csv',
     ])
     # Check what was detected.
-    context, manifest = load_manifest_and_context(rc, result_file_path)
+    context, manifest = load_manifest_and_context(rc_new, result_file_path)
     commands.get_dataset(context, manifest, 'datasets/gov/car').resources['schema'].external = 'sqlite_new'
     commands.get_dataset(context, manifest, 'datasets/gov/loc').resources['schema'].external = 'sqlite'
     a, b = compare_manifest(manifest, f'''
@@ -1486,14 +1487,14 @@ def test_inspect_multiple_datasets_different_resources(
 
 
 def test_inspect_multiple_datasets_different_resources_specific(
-    rc: RawConfig,
+    rc_new: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite,
     sqlite_new: Sqlite
 ):
     # Prepare source data.
-    context = create_test_context(rc)
+    context = create_test_context(rc_new)
     sqlite.init({
         'COUNTRY': [
             sa.Column('CODE', sa.Text),
@@ -1519,7 +1520,7 @@ def test_inspect_multiple_datasets_different_resources_specific(
 
     result_file_path = tmp_path / 'result.csv'
     # Configure Spinta.
-    rc = configure(context, rc, None, tmp_path / 'manifest.csv', f'''
+    rc_new = configure(context, rc_new, None, tmp_path / 'manifest.csv', f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/loc |         |     |         |         |         | Example
          | schema           | sql     |     | {sqlite.dsn} |         |         |
@@ -1535,14 +1536,14 @@ def test_inspect_multiple_datasets_different_resources_specific(
          |   |   | name     | string  |     | NAME    |         |         |
          |   |   | motor     | string  |     | MOTOR    |         |         |
        ''')
-    cli.invoke(rc, [
+    cli.invoke(rc_new, [
         'inspect',
         tmp_path / 'manifest.csv',
         '-r', 'sql', sqlite_new.dsn,
         '-o', tmp_path / 'result.csv',
     ])
     # Check what was detected.
-    context, manifest = load_manifest_and_context(rc, result_file_path)
+    context, manifest = load_manifest_and_context(rc_new, result_file_path)
     commands.get_dataset(context, manifest, 'datasets/gov/car').resources['schema'].external = 'sqlite_new'
     commands.get_dataset(context, manifest, 'datasets/gov/loc').resources['schema'].external = 'sqlite'
     a, b = compare_manifest(manifest, f'''
@@ -1571,7 +1572,7 @@ def test_inspect_multiple_datasets_different_resources_specific(
 
 
 def test_inspect_with_views(
-    rc: RawConfig,
+    rc_new: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite
@@ -1596,13 +1597,13 @@ def test_inspect_with_views(
 
     result_file_path = tmp_path / 'result.csv'
     # Configure Spinta.
-    cli.invoke(rc, [
+    cli.invoke(rc_new, [
         'inspect',
         '-r', 'sql', sqlite.dsn,
         '-o', tmp_path / 'result.csv',
     ])
     # Check what was detected.
-    context, manifest = load_manifest_and_context(rc, result_file_path)
+    context, manifest = load_manifest_and_context(rc_new, result_file_path)
     commands.get_dataset(context, manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
     commands.get_dataset(context, manifest, 'dbsqlite/views').resources['resource1'].external = 'sqlite'
     a, b = compare_manifest(manifest, f'''
@@ -1632,13 +1633,13 @@ def test_inspect_with_views(
 
 @pytest.mark.skip(reason="Requires #440 task")
 def test_inspect_with_manifest_backends(
-    rc: RawConfig,
+    rc_new: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
     sqlite: Sqlite,
 ):
     # Prepare source data.
-    context = create_test_context(rc)
+    context = create_test_context(rc_new)
     sqlite.init({
         'COUNTRY': [
             sa.Column('NAME', sa.Text),
@@ -1647,7 +1648,7 @@ def test_inspect_with_manifest_backends(
 
     result_file_path = tmp_path / 'result.csv'
     # Configure Spinta.
-    rc = configure(context, rc, sqlite, tmp_path / 'manifest.csv', f'''
+    rc_new = configure(context, rc_new, sqlite, tmp_path / 'manifest.csv', f'''
        d | r | m | property | type    | ref  | source       | prepare | access  | title
          | test             | sql     |      | {sqlite.dsn} |         |         |
                             |         |      |              |         |         |
@@ -1658,13 +1659,13 @@ def test_inspect_with_manifest_backends(
          |   |   | name     | string  |      | NAME         |         | open    | Country name
          |   |   | code     | string  |      | CODE         |         | open    | Country code
        ''')
-    cli.invoke(rc, [
+    cli.invoke(rc_new, [
         'inspect',
         tmp_path / 'manifest.csv',
         '-o', tmp_path / 'result.csv',
     ])
     # Check what was detected.
-    context, manifest = load_manifest_and_context(rc, result_file_path)
+    context, manifest = load_manifest_and_context(rc_new, result_file_path)
     commands.get_dataset(context, manifest, 'datasets/gov/example').resources['test'].external = 'sqlite'
     a, b = compare_manifest(manifest, f'''
        d | r | m | property | type    | ref  | source  | prepare | access  | title
@@ -1681,7 +1682,7 @@ def test_inspect_with_manifest_backends(
 
 
 def test_inspect_json_model_ref_change(
-    rc: RawConfig,
+    rc_new: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path):
     json_manifest = [
@@ -1721,11 +1722,11 @@ def test_inspect_json_model_ref_change(
     ]
     path = tmp_path / 'manifest.json'
     path.write_text(json.dumps(json_manifest))
-    context = create_test_context(rc)
+    context = create_test_context(rc_new)
 
     result_file_path = tmp_path / 'result.csv'
     # Configure Spinta.
-    rc = configure(context, rc, None, tmp_path / 'manifest.csv', f'''
+    rc_new = configure(context, rc_new, None, tmp_path / 'manifest.csv', f'''
            d | r | m      | property            | type                   | ref    | source              
            datasets/json/inspect                |                        |        |
              | resource                         | json                   |        | {path}
@@ -1742,13 +1743,13 @@ def test_inspect_json_model_ref_change(
              |   |        | weather_wind_speed  | number unique          |        | weather.wind_speed
            ''')
 
-    cli.invoke(rc, [
+    cli.invoke(rc_new, [
         'inspect',
         tmp_path / 'manifest.csv',
         '-o', tmp_path / 'result.csv',
     ])
     # Check what was detected.
-    context, manifest = load_manifest_and_context(rc, result_file_path)
+    context, manifest = load_manifest_and_context(rc_new, result_file_path)
     commands.get_dataset(context, manifest, 'datasets/json/inspect').resources['resource'].external = 'resource.json'
     a, b = compare_manifest(manifest, f'''
 d | r | model  | property            | type                   | ref    | source
@@ -1846,3 +1847,69 @@ datasets/xml/inspect            |                        |        |
   |   |   | country             | ref                    | Country | ..
     ''', context)
     assert a == b
+
+
+def test_priority_key_eq():
+    old = PriorityKey()
+    new = PriorityKey()
+    assert old != new
+
+    old = PriorityKey(_id="5")
+    new = PriorityKey(source="5")
+    assert old != new
+
+    old = PriorityKey(_id="5")
+    new = PriorityKey(_id="5")
+    assert old == new
+
+    old = PriorityKey(_id="5", name="test")
+    new = PriorityKey(_id="2", name="test")
+    assert old == new
+
+    old = PriorityKey(_id="5", name="test")
+    new = PriorityKey(_id="2", name="testas")
+    assert old != new
+
+    old = PriorityKey(_id="5", name="test", source="asd")
+    new = PriorityKey(_id="2", name="testas", source="asd")
+    assert old == new
+
+    old = PriorityKey(name="test", source="asd")
+    new = PriorityKey(name="testas", source="asd")
+    assert old == new
+
+    old = PriorityKey(name="test", source="asd")
+    new = PriorityKey(name="testas", source="asds")
+    assert old != new
+
+    old = PriorityKey(name="test", source="asd")
+    new = PriorityKey(name="test", source="asds")
+    assert old == new
+
+    old = PriorityKey(source="asd")
+    new = PriorityKey(source="asds")
+    assert old != new
+
+    old = PriorityKey(source="asd")
+    new = PriorityKey(source="asd")
+    assert old == new
+
+    old = PriorityKey(source=tuple(["asd"]))
+    new = PriorityKey(source=tuple(["asd"]))
+    assert old == new
+
+    old = PriorityKey(source=("asd", "new"))
+    new = PriorityKey(source=tuple(["asd"]))
+    assert old == new
+
+    old = PriorityKey(source=tuple(["asd"]))
+    new = PriorityKey(source=("asd", "new"))
+    assert old == new
+
+    old = PriorityKey(source=tuple(["zxc"]))
+    new = PriorityKey(source=("asd", "new"))
+    assert old != new
+
+    old = PriorityKey(source=("asd", "new"))
+    new = PriorityKey(source=tuple(["asd"]))
+    assert old in [new]

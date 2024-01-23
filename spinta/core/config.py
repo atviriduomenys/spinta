@@ -546,7 +546,7 @@ def parse_resource_args(
     return [resource]
 
 
-def _parse_manifest_path(
+def parse_manifest_path(
     rc: RawConfig,
     path: Union[str, ManifestPath, ResourceTuple],
 ) -> ManifestPath:
@@ -558,6 +558,11 @@ def _parse_manifest_path(
         path = path.external
     Manifest_ = detect_manifest_from_path(rc, path)
     return ManifestPath(type=Manifest_.type, path=path)
+
+
+def check_if_manifest_valid(rc: RawConfig, manifest: str):
+    names = rc.keys('components', 'manifests')
+    return manifest in names
 
 
 def _get_resource_config(
@@ -589,6 +594,7 @@ def configure_rc(
     check_names: Optional[bool] = None,
     backend: str = None,
     resources: List[ResourceTuple] = None,
+    dataset: str = None,
     manifest_type: str = 'inline'
 ) -> RawConfig:
 
@@ -620,6 +626,9 @@ def configure_rc(
     if manifests or resources:
         sync = []
         inline = []
+        if dataset:
+            config['given_dataset_name'] = dataset
+
         if resources:
             inline.append({
                 'type': 'dataset',
@@ -631,7 +640,7 @@ def configure_rc(
             })
 
         if manifest_type != 'inline':
-            manifest = _parse_manifest_path(rc, manifests[0])
+            manifest = parse_manifest_path(rc, manifests[0])
             config['manifests.default'] = {
                 'type': manifest_type,
                 'backend': 'default',
@@ -641,31 +650,29 @@ def configure_rc(
                 'file': manifest.file,
                 'manifest': inline
             }
-        else:
-            if manifests:
-                for i, path in enumerate(manifests):
-                    manifest_name = f'manifest{i}'
-                    manifest = _parse_manifest_path(rc, path)
-                    config[f'manifests.{manifest_name}'] = {
-                        'type': manifest.type,
-                        'path': manifest.path,
-                        'file': manifest.file,
-                    }
-                    if isinstance(path, ResourceTuple) and path.prepare:
-                        parsed = spyna.parse(path.prepare)
-                        converted = asttoexpr(parsed)
-                        config[f'manifests.{manifest_name}']['prepare'] = converted
-                    sync.append(manifest_name)
+        elif manifests:
+            for i, path in enumerate(manifests):
+                manifest_name = f'manifest{i}'
+                manifest = parse_manifest_path(rc, path)
+                config[f'manifests.{manifest_name}'] = {
+                    'type': manifest.type,
+                    'path': manifest.path,
+                    'file': manifest.file,
+                }
+                if isinstance(path, ResourceTuple) and path.prepare:
+                    parsed = spyna.parse(path.prepare)
+                    converted = asttoexpr(parsed)
+                    config[f'manifests.{manifest_name}']['prepare'] = converted
+                sync.append(manifest_name)
 
-            config['manifests.default'] = {
-                'type': manifest_type,
-                'backend': 'default',
-                'keymap': 'default',
-                'mode': mode.value,
-                'sync': sync,
-                'manifest': inline,
-            }
-
+        config['manifests.default'] = {
+            'type': manifest_type,
+            'backend': 'default',
+            'keymap': 'default',
+            'mode': mode.value,
+            'sync': sync,
+            'manifest': inline,
+        }
         config['manifest'] = 'default'
 
         if check_names is not None:

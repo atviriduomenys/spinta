@@ -4,6 +4,11 @@ import operator
 import hashlib
 
 import pytest
+from _pytest.fixtures import FixtureRequest
+from spinta.core.config import RawConfig
+from spinta.testing.client import create_test_client
+from spinta.testing.data import pushdata, encode_page_values_manually
+from spinta.testing.manifest import bootstrap_manifest
 
 
 def sha1(s):
@@ -105,4 +110,39 @@ def test_export_jsonl_with_all(app):
         (sha1('1'), 'Europe'),
         (sha1('2'), 'Lithuania'),
         (sha1('3'), 'Vilnius')
+    ]
+
+
+def test_jsonl_last_page(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, '''
+    d | r | b | m | property | type   | ref     | access
+    example/jsonl/page         |        |         |
+      |   |   | City         |        | name    |
+      |   |   |   | name     | string |         | open
+    ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authorize(['spinta_set_meta_fields'])
+    app.authmodel('example/jsonl/page', ['insert', 'search'])
+
+    # Add data
+    result = pushdata(app, '/example/jsonl/page/City', {
+        'name': 'Vilnius'
+    })
+    pushdata(app, '/example/jsonl/page/City', {
+        'name': 'Kaunas'
+    })
+    res = app.get('/example/jsonl/page/City/:format/jsonl?select(name,_page)')
+    data = [json.loads(d) for d in res.text.splitlines()]
+    assert data == [
+        {
+            'name': 'Kaunas'
+        },
+        {
+            '_page': {'next': encode_page_values_manually({'name': 'Vilnius', '_id': result['_id']})},
+            'name': 'Vilnius'
+        }
     ]

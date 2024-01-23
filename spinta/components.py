@@ -20,6 +20,7 @@ from spinta.exceptions import InvalidPageKey, InvalidPushWithPageParameterCount
 from spinta import exceptions
 from spinta.dimensions.lang.components import LangData
 from spinta.units.components import Unit
+from spinta.utils.encoding import encode_page_values
 from spinta.utils.schema import NA
 from spinta.core.enums import Access
 from spinta.datasets.enums import Level
@@ -489,6 +490,7 @@ class Base(ExtraMetaData):
 class ModelGiven:
     access: str = None
     pkeys: list[str] = None
+    name: str = None
 
 
 class PageBy:
@@ -501,16 +503,20 @@ class PageBy:
 
 
 class Page:
+    model: Model
     is_enabled: bool
     by: Dict[str, PageBy]
     size: int
     filter_only: bool
+    first_time: bool
 
     def __init__(self):
         self.by = {}
         self.size = None
         self.is_enabled = True
         self.filter_only = False
+        self.model = None
+        self.first_time = True
 
     def __deepcopy__(self, memo):
         cls = self.__class__
@@ -518,7 +524,9 @@ class Page:
         result.is_enabled = self.is_enabled
         result.size = self.size
         result.by = {}
+        result.model = self.model
         result.filter_only = self.filter_only
+        result.first_time = self.first_time
         for by, page_by in self.by.items():
             result.by[by] = PageBy(page_by.prop, page_by.value)
         return result
@@ -527,6 +535,12 @@ class Page:
         self.by[by] = PageBy(prop, value)
 
     def update_value(self, by: str, prop: Property, value: Any):
+        cleaned_up = by[1:] if by.startswith('-') else by
+
+        if cleaned_up != by and cleaned_up in self.by:
+            renamed_dict = {by if key == cleaned_up else key:value for key, value in self.by.items()}
+            self.by = renamed_dict
+
         if by not in self.by:
             self.by[by] = PageBy(prop)
         self.by[by].value = value
@@ -559,10 +573,27 @@ class Page:
         for by, page_by in page.by.items():
             self.update_value(by, page_by.prop, page_by.value)
 
+    def all_none(self):
+        return all([value.value is None for value in self.by.values()])
+
+    def get_repr_for_error(self):
+        # size - 1, because we fetch + 1 to check if size is not too small.
+        return_dict = {
+            'key': encode_page_values(list([val.value for val in self.by.values()])),
+            'key_values': {key: value.value for key, value in self.by.items()},
+            'size': self.size - 1 if self.size else self.size
+        }
+        return return_dict
+
 
 def decode_page_values(encoded: Any):
     decoded = base64.urlsafe_b64decode(encoded)
     return json.loads(decoded)
+
+
+def get_page_size(config: Config, model: Model, page: Page = None):
+    page_size = page.size if page is not None else None
+    return page_size or model.page.size or config.push_page_size
 
 
 class ParamsPage:
@@ -572,12 +603,12 @@ class ParamsPage:
 
     def __init__(self):
         self.key = []
+        self.values = None
         self.size = None
         self.is_enabled = True
 
 
-class Model(MetaData):
-    id: str
+class Model(ExtraMetaData):
     level: Level
     access: Access
     title: str
@@ -619,6 +650,7 @@ class Model(MetaData):
         'params': {'type': 'object'},
         'comments': {},
         'uri': {'type': 'string'},
+        'given_name': {'type': 'string', 'default': None},
     }
 
     def __init__(self):
@@ -712,7 +744,7 @@ class Property(ExtraMetaData):
         'units': {'type': 'string'},
         'lang': {'type': 'object'},
         'comments': {},
-        'given_name': {'type': 'string'},
+        'given_name': {'type': 'string', 'default': None},
         'explicitly_given': {'type': 'boolean'},
         'prepare_given': {'required': False},
     }
@@ -846,6 +878,9 @@ class UrlParams:
     # If True, then HTTP HEAD request was made, this means no data must be
     # returned only headers.
     head: bool = False
+
+    # If True, inspect POST request was made
+    inspect: bool = False
 
     query: List[Dict[str, Any]] = None
 

@@ -6,6 +6,7 @@ from typer import Context as TyperContext
 from typer import Option
 from typer import echo
 
+from spinta.cli.helpers.manifest import convert_str_to_manifest_path
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.components import Mode
 from spinta.core.config import KeyFormat
@@ -32,6 +33,7 @@ def check(
     check_names: bool = Option(None, help="To check dataset, model and property names"),
 ):
     """Check configuration and manifests"""
+    manifests = convert_str_to_manifest_path(manifests)
     context = configure_context(ctx.obj, manifests, mode=mode, check_names=check_names)
     prepare_manifest(context, ensure_config_dir=True, full_load=True)
     echo("OK")

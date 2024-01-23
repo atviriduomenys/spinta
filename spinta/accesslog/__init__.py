@@ -132,7 +132,7 @@ def load(context: Context, accesslog: AccessLog, request: Request):  # noqa
 @overload
 @commands.load.register(Context, AccessLog, UrlParams)
 def load(context: Context, accesslog: AccessLog, params: UrlParams):  # noqa
-    accesslog.format = params.format
+    accesslog.format = params.format if params.format else 'json'
 
 
 def create_accesslog(

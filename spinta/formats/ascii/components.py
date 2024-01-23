@@ -7,7 +7,7 @@ from spinta.formats.ascii.helpers import get_widths, get_displayed_cols, draw_bo
 from spinta.manifests.components import Manifest
 from spinta.formats.components import Format
 from spinta.utils.nestedstruct import flatten
-from spinta.formats.helpers import get_model_tabular_header
+from spinta.formats.helpers import get_model_tabular_header, rename_page_col
 
 
 class Ascii(Format):
@@ -57,7 +57,9 @@ class Ascii(Format):
                 model = commands.get_model(context, manifest, name)
 
             rows = flatten(group)
+            rows = rename_page_col(rows)
             cols = get_model_tabular_header(context, model, action, params)
+            cols = [col if col != '_page' else '_page.next' for col in cols]
             read_rows, widths = get_widths(
                 rows,
                 cols,
@@ -74,14 +76,24 @@ class Ascii(Format):
             yield draw_border(widths, displayed_cols, separator, shortened)
             yield draw_header(widths, displayed_cols, separator, shortened)
 
+            memory = next(rows)
             for row in rows:
                 yield draw_row(
-                    row,
+                    {k: v for k, v in memory.items() if k != '_page.next'},
                     widths,
                     displayed_cols,
                     max_value_length,
                     separator,
                     shortened
                 )
+                memory = row
+            yield draw_row(
+                memory,
+                widths,
+                displayed_cols,
+                max_value_length,
+                separator,
+                shortened
+            )
 
             yield draw_border(widths, displayed_cols, separator, shortened)

@@ -41,11 +41,12 @@ from spinta.cli.helpers.data import ModelRow, count_rows, read_model_data, filte
     filter_dict_by_keys
 from spinta.cli.helpers.data import ensure_data_dir
 from spinta.cli.helpers.errors import ErrorCounter
+from spinta.cli.helpers.manifest import convert_str_to_manifest_path
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.client import get_access_token
 from spinta.client import get_client_credentials
-from spinta.commands.read import get_page
-from spinta.components import Action, Page
+from spinta.commands.read import get_page, PaginationMetaData, get_paginated_values
+from spinta.components import Action, Page, get_page_size
 from spinta.components import Config
 from spinta.components import Context
 from spinta.components import Mode
@@ -55,12 +56,11 @@ from spinta.core.context import configure_context
 from spinta.core.ufuncs import Expr
 from spinta.datasets.enums import Level
 from spinta.datasets.keymaps.synchronize import sync_keymap
-from spinta.exceptions import InfiniteLoopWithPagination, UnauthorizedPropertyPush
+from spinta.exceptions import InfiniteLoopWithPagination, UnauthorizedPropertyPush, TooShortPageSize
 from spinta.manifests.components import Manifest
 from spinta.types.datatype import Ref
 from spinta.types.namespace import sort_models_by_ref_and_base
 from spinta.ufuncs.basequerybuilder.components import QueryParams
-from spinta.ufuncs.basequerybuilder.ufuncs import filter_page_values
 from spinta.utils.data import take
 from spinta.utils.itertools import peek
 from spinta.utils.json import fix_data_for_json
@@ -146,6 +146,7 @@ def push(
     if stop_time:
         stop_time = toseconds(stop_time)
 
+    manifests = convert_str_to_manifest_path(manifests)
     context = configure_context(ctx.obj, manifests, mode=mode)
     store = prepare_manifest(context, full_load=True)
     config: Config = context.get('config')
@@ -269,7 +270,8 @@ def extract_dependant_nodes(context: Context, models: List[Model], filter_pushed
     return extracted_models
 
 
-def _update_page_values_for_models(context: Context, metadata: sa.MetaData, models: List[Model], incremental: bool, page_model: str, page: list):
+def _update_page_values_for_models(context: Context, metadata: sa.MetaData, models: List[Model], incremental: bool,
+                                   page_model: str, page: list):
     conn = context.get('push.state.conn')
     table = metadata.tables['_page']
     for model in models:
@@ -639,9 +641,7 @@ def _read_rows_by_pages(
     conn = context.get('push.state.conn')
     config = context.get('config')
 
-    page_size = config.push_page_size
-    size = model.page.size or page_size or 1000
-
+    size = get_page_size(config, model)
     model_table = metadata.tables[model.name]
     state_rows = _get_state_rows(
         context,
@@ -751,9 +751,9 @@ def _read_rows_by_pages(
                 update_counter = False
 
         if update_counter:
-            if push_counter:
+            if push_counter is not None:
                 push_counter.update(1)
-            if model_push_counter:
+            if model_push_counter is not None:
                 model_push_counter.update(1)
 
 
@@ -830,49 +830,37 @@ def _get_state_rows(
     size: int
 ) -> sa.engine.LegacyCursorResult:
     conn = context.get('push.state.conn')
-
+    model_page.size = size + 1
     order_by = []
 
     for by, page_by in model_page.by.items():
         if by.startswith('-'):
-            order_by.append(sa.desc(table.c[f"page.{page_by.prop.name}"]))
+            order_by.append(sa.sql.expression.nullsfirst(sa.desc(table.c[f"page.{page_by.prop.name}"])))
         else:
-            order_by.append(sa.asc(table.c[f"page.{page_by.prop.name}"]))
-    last_value = None
-    while True:
-        finished = True
+            order_by.append(sa.sql.expression.nullslast(sa.asc(table.c[f"page.{page_by.prop.name}"])))
+
+    page_meta = PaginationMetaData(
+        page_size=size,
+    )
+
+    while not page_meta.is_finished:
+        page_meta.is_finished = True
         from_cond = _construct_where_condition_from_page(model_page, table)
 
         if from_cond is not None:
+            stmt = sa.select([table]).where(
+                from_cond
+            ).order_by(*order_by).limit(model_page.size)
             rows = conn.execute(
-                sa.select([table]).
-                where(
-                    from_cond
-                ).order_by(*order_by).limit(size)
+                stmt
             )
         else:
+            stmt = sa.select([table]).order_by(*order_by).limit(model_page.size)
             rows = conn.execute(
-                sa.select([table])
-                .order_by(*order_by).limit(size)
+                stmt
             )
-        first_value = None
-        for row in rows:
-            if finished:
-                finished = False
 
-            if first_value is None:
-                first_value = row
-                if first_value == last_value:
-                    raise InfiniteLoopWithPagination()
-                else:
-                    last_value = first_value
-
-            for by, page_by in model_page.by.items():
-                model_page.update_value(by, page_by.prop, row[f"page.{page_by.prop.name}"])
-            yield row
-
-        if finished:
-            break
+        yield from get_paginated_values(model_page, page_meta, rows)
 
 
 def _prepare_rows_for_push(rows: Iterable[_PushRow]) -> Iterator[_PushRow]:
@@ -1532,9 +1520,8 @@ def _iter_deleted_rows(
     models = reversed(models)
     config = context.get('config')
     conn = context.get('push.state.conn')
-    page_size = config.push_page_size
     for model in models:
-        size = model.page.size or page_size or 1000
+        size = get_page_size(config, model)
         table = metadata.tables[model.name]
         total = counts.get(model.name)
 
@@ -1569,25 +1556,46 @@ def _construct_where_condition_to_page(
     where_list = []
     for i in range(item_count):
         where_list.append([])
-    for i, (by, page_by) in enumerate(page.by.items()):
-        if page_by.value:
+    if not page.all_none():
+        for i, (by, page_by) in enumerate(page.by.items()):
             for n in range(item_count):
                 if n >= i:
                     if n == i:
-                        if n == item_count - 1:
-                            if by.startswith('-'):
-                                where_list[n].append(table.c[f"page.{page_by.prop.name}"] >= page_by.value)
+                        if page_by.value is not None:
+                            if n == item_count - 1:
+                                if by.startswith('-'):
+                                    where_list[n].append(table.c[f"page.{page_by.prop.name}"] >= page_by.value)
+                                else:
+                                    where_list[n].append(
+                                        sa.or_(
+                                            table.c[f"page.{page_by.prop.name}"] <= page_by.value,
+                                            table.c[f"page.{page_by.prop.name}"] == None
+                                        )
+                                    )
                             else:
-                                where_list[n].append(table.c[f"page.{page_by.prop.name}"] <= page_by.value)
+                                if by.startswith('-'):
+                                    where_list[n].append(table.c[f"page.{page_by.prop.name}"] > page_by.value)
+                                else:
+                                    where_list[n].append(sa.or_(
+                                        table.c[f"page.{page_by.prop.name}"] < page_by.value,
+                                        table.c[f"page.{page_by.prop.name}"] == None
+                                    )
+                                    )
                         else:
                             if by.startswith('-'):
-                                where_list[n].append(table.c[f"page.{page_by.prop.name}"] > page_by.value)
-                            else:
-                                where_list[n].append(table.c[f"page.{page_by.prop.name}"] < page_by.value)
+                                where_list[n].append(table.c[f"page.{page_by.prop.name}"] != page_by.value)
                     else:
                         where_list[n].append(table.c[f"page.{page_by.prop.name}"] == page_by.value)
 
     where_condition = None
+
+    remove_list = []
+    for i, (by, value) in enumerate(page.by.items()):
+        if value.value is None and not by.startswith('-'):
+            remove_list.append(where_list[i])
+    for item in remove_list:
+        where_list.remove(item)
+
     for where in where_list:
         condition = None
         for item in where:
@@ -1613,24 +1621,41 @@ def _construct_where_condition_from_page(
     page: Page,
     table: sa.Table
 ):
-    filtered = filter_page_values(page)
+    filtered = page
     item_count = len(filtered.by.keys())
     where_list = []
     for i in range(item_count):
         where_list.append([])
-    for i, (by, page_by) in enumerate(filtered.by.items()):
-        if page_by.value:
+    if not page.all_none():
+        for i, (by, page_by) in enumerate(filtered.by.items()):
             for n in range(item_count):
                 if n >= i:
                     if n == i:
-                        if by.startswith('-'):
-                            where_list[n].append(table.c[f"page.{page_by.prop.name}"] < page_by.value)
+                        if page_by.value is not None:
+                            if by.startswith('-'):
+                                where_list[n].append(table.c[f"page.{page_by.prop.name}"] < page_by.value)
+                            else:
+                                where_list[n].append(
+                                    sa.or_(
+                                        table.c[f"page.{page_by.prop.name}"] > page_by.value,
+                                        table.c[f"page.{page_by.prop.name}"] == None
+                                    )
+                                )
                         else:
-                            where_list[n].append(table.c[f"page.{page_by.prop.name}"] > page_by.value)
+                            if by.startswith('-'):
+                                where_list[n].append(table.c[f"page.{page_by.prop.name}"] != page_by.value)
                     else:
                         where_list[n].append(table.c[f"page.{page_by.prop.name}"] == page_by.value)
 
     where_condition = None
+
+    remove_list = []
+    for i, (by, value) in enumerate(page.by.items()):
+        if value.value is None and not by.startswith('-'):
+            remove_list.append(where_list[i])
+    for item in remove_list:
+        where_list.remove(item)
+
     for where in where_list:
         condition = None
         for item in where:
@@ -1664,8 +1689,9 @@ def _get_deleted_rows_with_page(
 
     for page_by in model_page.by.values():
         order_by.append(sa.asc(table.c[f"page.{page_by.prop.name}"]))
-
+    model_page.size = size + 1
     from_page = Page()
+    from_page.size = size + 1
     from_page.update_values_from_page(model_page)
     from_page.clear()
 
@@ -1673,15 +1699,21 @@ def _get_deleted_rows_with_page(
         table.c.pushed.is_(None),
         table.c.error.is_(False)
     )
-    last_value = None
-    while True:
-        finished = True
+
+    page_meta = PaginationMetaData(
+        page_size=size
+    )
+
+    while not page_meta.is_finished:
+        page_meta.is_finished = True
+
         from_cond = _construct_where_condition_from_page(from_page, table)
         to_cond = _construct_where_condition_to_page(model_page, table)
-
         where_cond = None
+
         if from_cond is not None:
             where_cond = from_cond
+
         if to_cond is not None:
             if where_cond is not None:
                 sa.and_(
@@ -1699,30 +1731,14 @@ def _get_deleted_rows_with_page(
         else:
             where_cond = required_where_cond
 
-        deleted_rows = conn.execute(
+        rows = conn.execute(
             sa.select([table]).
             where(
                 where_cond
             ).order_by(*order_by).limit(size)
         )
-        first_value = None
-        for row in deleted_rows:
-            if finished:
-                finished = False
 
-            if first_value is None:
-                first_value = row
-                if first_value == last_value:
-                    raise InfiniteLoopWithPagination()
-                else:
-                    last_value = first_value
-
-            for by, page_by in from_page.by.items():
-                from_page.update_value(by, page_by.prop, row[f"page.{page_by.prop.name}"])
-            yield row
-
-        if finished:
-            break
+        yield from get_paginated_values(from_page, page_meta, rows)
 
 
 def _prepare_deleted_row(
@@ -1822,14 +1838,13 @@ def _iter_rows_with_errors(
 ) -> Iterable[ModelRow]:
     conn = context.get('push.state.conn')
     config = context.get('config')
-    page_size = config.push_page_size
 
     for model in models:
-        size = model.page.size or page_size or 1000
+        size = get_page_size(config, model)
         table = metadata.tables[model.name]
 
         if model.page and model.page.is_enabled and model.page.by:
-            rows = _get_deleted_rows_with_page(context, model.page, table, size)
+            rows = _get_error_rows_with_page(context, model.page, table, size)
         else:
             rows = conn.execute(
                 sa.select([table.c.id, table.c.checksum, table.c.data]).
@@ -1869,7 +1884,9 @@ def _get_error_rows_with_page(
     for page_by in model_page.by.values():
         order_by.append(sa.asc(table.c[f"page.{page_by.prop.name}"]))
 
+    model_page.size = size + 1
     from_page = Page()
+    from_page.size = size + 1
     from_page.update_values_from_page(model_page)
     from_page.clear()
 
@@ -1909,14 +1926,28 @@ def _get_error_rows_with_page(
             ).order_by(*order_by).limit(size)
         )
         first_value = None
-        for row in rows:
+        previous_value = None
+        for i, row in enumerate(rows):
+            if i > size - 1:
+                if row == previous_value:
+                    raise TooShortPageSize(
+                        from_page,
+                        page_size=size,
+                        page_values=previous_value
+                    )
+                break
+            previous_value = row
             if finished:
                 finished = False
 
             if first_value is None:
                 first_value = row
                 if first_value == last_value:
-                    raise InfiniteLoopWithPagination()
+                    raise InfiniteLoopWithPagination(
+                        from_page,
+                        page_size=size,
+                        page_values=first_value
+                    )
                 else:
                     last_value = first_value
 

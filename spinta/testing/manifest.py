@@ -59,6 +59,7 @@ def load_manifest_get_context(
     manifest_type: str = '',
     tmp_path: pathlib.Path = None,
     full_load: bool = True,
+    ensure_config_dir: bool = False,
     **kwargs,
 ) -> TestContext:
     temp_rc = configure_rc(rc, None, **kwargs)
@@ -101,7 +102,7 @@ def load_manifest_get_context(
     manifest_type = manifest_type if manifest_type != 'internal_sql' else 'internal'
     rc = configure_rc(rc, manifests, manifest_type='inline' if manifest_type != 'internal' else manifest_type, **kwargs)
     context = create_test_context(rc, request)
-    store = load_store(context, verbose=False, ensure_config_dir=False)
+    store = load_store(context, verbose=False, ensure_config_dir=ensure_config_dir)
     commands.load(context, store.manifest, load_internal=load_internal, full_load=full_load)
     commands.link(context, store.manifest)
     return context

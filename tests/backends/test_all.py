@@ -122,8 +122,8 @@ def test_update_get(model, app):
     resp = app.get(f'/{model}')
     data = resp.json()
     page = None
-    if '_page' in data['_data'][0]:
-        page = data['_data'][0]['_page']
+    if '_page' in data:
+        page = data['_page']['next']
     result = {
         '_type': model,
         '_id': id_,
@@ -140,13 +140,21 @@ def test_update_get(model, app):
             'sync_resources': [],
         },
     }
-    if page:
-        result['_page'] = page
-    assert data == {
-        '_data': [
-            result
-        ]
-    }
+    if page is not None:
+        assert data == {
+            '_data': [
+                result
+            ],
+            '_page': {
+                'next': page
+            }
+        }
+    else:
+        assert data == {
+            '_data': [
+                result
+            ]
+        }
 
 
 @pytest.mark.models(

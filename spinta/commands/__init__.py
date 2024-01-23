@@ -269,7 +269,7 @@ def simple_data_check():
 
 
 @command()
-def complex_data_check():
+def complex_data_check(*args, **kwargs):
     """Run a complex data check.
 
     At this point, simple data check is already done and data is passed simple
@@ -785,7 +785,22 @@ def is_object_id():
     """
 
 
-@command()
+@overload
+def render(
+    context: Context,
+    manifest: Manifest,
+    fmt: Format,
+    *,
+    action: Action = None,
+    params: UrlParams = None,
+    status_code: int = 200,
+    headers: Optional[dict] = None,
+    path: str = None
+):
+    """Render manifest structure to the client."""
+
+
+@overload
 def render(
     context: Context,
     request: Request,
@@ -798,7 +813,12 @@ def render(
     status_code: int = 200,
     headers: Optional[dict] = None,
 ):
-    """Render response to the clinet."""
+    """Render model data to the client."""
+
+
+@command()
+def render(*args):
+    """ Render response to the client."""
 
 
 @command()
@@ -1036,11 +1056,26 @@ def merge(*args) -> None:
     """Merge new manifest into old."""
 
 
-@command()
+@overload
 def create_exception(
     data_item: DataItem,
     error: Exception
 ) -> BaseError:
+    pass
+
+
+@overload
+def create_exception(
+    manifest: Manifest,
+    error: Exception
+) -> BaseError:
+    pass
+
+
+@command()
+def create_exception(
+    **kwargs
+):
     """
         Creates Spinta Exception from normal error
     """
@@ -1136,6 +1171,26 @@ def get_column(
 def get_column(
     backend: Backend,
     prop: Property,
+    **kwargs
+):
+    pass
+
+
+@overload
+def get_column(
+    backend: Backend,
+    prop: Property,
+    model: Model,
+    **kwargs
+):
+    pass
+
+
+@overload
+def get_column(
+    backend: Backend,
+    prop: DataType,
+    model: Model,
     **kwargs
 ):
     pass

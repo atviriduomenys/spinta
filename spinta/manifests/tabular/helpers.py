@@ -269,6 +269,7 @@ class DatasetReader(TabularReader):
                 'access': row['access'],
                 'title': row['title'],
                 'description': row['description'],
+                'given_name': row['dataset'],
                 'resources': {},
             }
 
@@ -344,6 +345,7 @@ class ResourceReader(TabularReader):
             'access': row['access'],
             'title': row['title'],
             'description': row['description'],
+            'given_name': self.name,
         }
 
         dataset['resources'][self.name] = self.data
@@ -458,6 +460,7 @@ class ModelReader(TabularReader):
                 'name': row['source'],
                 'prepare': _parse_spyna(self, row[PREPARE]),
             },
+            'given_name': name,
         }
         if resource and not dataset:
             self.data['backend'] = resource.name
@@ -534,7 +537,7 @@ def _get_type_repr(dtype: [DataType, str]):
         unique = ' unique' if dtype.unique else ''
 
         model = dtype.prop.model
-        if model.external.unknown_primary_key is False:
+        if model.external and model.external.unknown_primary_key is False:
             if len(model.external.pkeys) == 1 and dtype.prop in model.external.pkeys:
                 unique = ''
         if dtype.type_args:
@@ -711,9 +714,8 @@ def _datatype_handler(reader: PropertyReader, row: dict, initial_data_loader: Ca
     new_data = initial_data_loader(given_name, dtype, row)
     dataset = reader.state.dataset.data if reader.state.dataset else None
 
-    custom_data = new_data
     if row['prepare']:
-        custom_data['prepare_given'].append(
+        new_data['prepare_given'].append(
             PrepareGiven(
                 appended=False,
                 source='',
@@ -723,22 +725,21 @@ def _datatype_handler(reader: PropertyReader, row: dict, initial_data_loader: Ca
     if row['ref']:
         if dtype['type'] in ('ref', 'backref', 'generic'):
             ref_model, ref_props = _parse_property_ref(row['ref'])
-            custom_data['model'] = get_relative_model_name(dataset, ref_model)
+            new_data['model'] = get_relative_model_name(dataset, ref_model)
             if dtype['type'] == 'backref':
                 if len(ref_props) > 1:
                     raise InvalidBackRefReferenceAmount(backref=reader.name)
                 if len(ref_props) == 1:
-                    custom_data['refprop'] = ref_props[0]
+                    new_data['refprop'] = ref_props[0]
             else:
-                custom_data['refprops'] = ref_props
+                new_data['refprops'] = ref_props
         else:
             # TODO: Detect if ref is a unit or an enum.
-            custom_data['enum'] = row['ref']
+            new_data['enum'] = row['ref']
     if dataset or row['source']:
-        custom_data['external'] = {
+        new_data['external'] = {
             'name': row['source'],
         }
-
     return new_data
 
 
@@ -2159,7 +2160,7 @@ def _property_to_tabular(
         return
 
     data = {
-        'property': prop.given.name,
+        'property': prop.given.name or prop.name,
         'id': prop.id,
         'type': _get_type_repr(prop.dtype),
         'level': prop.level.value if prop.level else "",
@@ -2217,6 +2218,9 @@ def _property_to_tabular(
         else:
             data['ref'] = prop.dtype.model.name
 
+        if prop.dtype.properties:
+            for denorm_prop in prop.dtype.properties.values():
+                yield_rows.append(denorm_prop)
     elif isinstance(prop.dtype, Object):
         for obj_prop in prop.dtype.properties.values():
             yield_rows.append(obj_prop)
@@ -2573,14 +2577,14 @@ def write_tabular_manifest(
 
     rows = ({c: row[c] for c in cols} for row in rows)
     if path.endswith('.csv'):
-        _write_csv(pathlib.Path(path), rows, cols)
+        write_csv(pathlib.Path(path), rows, cols)
     elif path.endswith('.xlsx'):
-        _write_xlsx(pathlib.Path(path), rows, cols)
+        write_xlsx(pathlib.Path(path), rows, cols)
     else:
         raise ValueError(f"Unknown tabular manifest format {path!r}.")
 
 
-def _write_csv(
+def write_csv(
     path: pathlib.Path,
     rows: Iterator[ManifestRow],
     cols: List[ManifestColumn],
@@ -2591,12 +2595,13 @@ def _write_csv(
         writer.writerows(rows)
 
 
-def _write_xlsx(
-    path: pathlib.Path,
+def write_xlsx(
+    path: Any,
     rows: Iterator[ManifestRow],
     cols: List[ManifestColumn],
 ) -> None:
     workbook = xlsxwriter.Workbook(path, {
+        'in_memory': True,
         'strings_to_formulas': False,
         'strings_to_urls': False,
     })

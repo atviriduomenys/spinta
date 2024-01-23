@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict
+from typing import Dict, Any
 from typing import List
 from typing import Optional
 
@@ -25,15 +25,15 @@ from spinta.utils.schema import NA
 
 class DatasetGiven:
     access: str = None
+    name: str = None
 
 
-class Dataset(MetaData):
+class Dataset(ExtraMetaData):
     """DCAT compatible metadata about an external dataset.
 
     DCAT (Data Catalog Vocabulary) - https://w3c.github.io/dxwg/dcat/
     """
 
-    id: str
     manifest: Manifest
     level: Level = 3
     access: Access = Access.private
@@ -81,6 +81,7 @@ class Dataset(MetaData):
             }
         },
         'source': {'type': 'string'},
+        'given_name': {'type': 'string', 'default': None},
     }
 
     def __init__(self):
@@ -99,6 +100,7 @@ class External(ExtraMetaData):
 
 class ResourceGiven:
     access: Access = None
+    name: str = None
 
 
 class Resource(External):
@@ -149,6 +151,7 @@ class Resource(External):
         'description': {'type': 'string'},
         'comments': {},
         'lang': {'type': 'object'},
+        'given_name': {'type': 'string', 'default': None},
     }
 
     def __init__(self):

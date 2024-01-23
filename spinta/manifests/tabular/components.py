@@ -134,6 +134,7 @@ class DatasetRow(TypedDict, total=False):
     resources: Dict[str, ResourceRow]
     lang: LangData
     source: str
+    given_name: str
 
 
 class ResourceRow(ManifestRow):
@@ -141,6 +142,7 @@ class ResourceRow(ManifestRow):
     backend: str
     external: str
     lang: LangData
+    given_name: str
 
 
 class BackendRow(TypedDict, total=False):
@@ -188,6 +190,7 @@ class ModelRow(TypedDict, total=False):
     backend: str
     lang: LangData
     data: ModelExtraData
+    given_name: str
 
 
 class ModelExternalRow(TypedDict, total=False):

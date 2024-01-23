@@ -115,30 +115,30 @@ async def test_export_multiple_types(
         '\n'
         '\n'
         'Table: example/A\n'
-        '---------  ---  ---------  -----  -----\n'
-        '_type      _id  _revision  _page  value\n'
-        'example/A  ∅    ∅          ∅      1\n'
-        'example/A  ∅    ∅          ∅      2\n'
-        'example/A  ∅    ∅          ∅      3\n'
-        '---------  ---  ---------  -----  -----\n'
+        '---------  ---  ---------  ----------  -----\n'
+        '_type      _id  _revision  _page.next  value\n'
+        'example/A  ∅    ∅          ∅           1\n'
+        'example/A  ∅    ∅          ∅           2\n'
+        'example/A  ∅    ∅          ∅           3\n'
+        '---------  ---  ---------  ----------  -----\n'
         '\n'
         '\n'
         'Table: example/B\n'
-        '---------  ---  ---------  -----  -----\n'
-        '_type      _id  _revision  _page  value\n'
-        'example/B  ∅    ∅          ∅      1\n'
-        'example/B  ∅    ∅          ∅      2\n'
-        'example/B  ∅    ∅          ∅      3\n'
-        '---------  ---  ---------  -----  -----\n'
+        '---------  ---  ---------  ----------  -----\n'
+        '_type      _id  _revision  _page.next  value\n'
+        'example/B  ∅    ∅          ∅           1\n'
+        'example/B  ∅    ∅          ∅           2\n'
+        'example/B  ∅    ∅          ∅           3\n'
+        '---------  ---  ---------  ----------  -----\n'
         '\n'
         '\n'
         'Table: example/C\n'
-        '---------  ---  ---------  -----  -----\n'
-        '_type      _id  _revision  _page  value\n'
-        'example/C  ∅    ∅          ∅      1\n'
-        'example/C  ∅    ∅          ∅      2\n'
-        'example/C  ∅    ∅          ∅      3\n'
-        '---------  ---  ---------  -----  -----\n'
+        '---------  ---  ---------  ----------  -----\n'
+        '_type      _id  _revision  _page.next  value\n'
+        'example/C  ∅    ∅          ∅           1\n'
+        'example/C  ∅    ∅          ∅           2\n'
+        'example/C  ∅    ∅          ∅           3\n'
+        '---------  ---  ---------  ----------  -----\n'
     )
 
 
@@ -285,10 +285,10 @@ async def test_ascii_getone(
         '',
         '',
         'Table: example/City',
-        '------------  ------------------------------------  ------------------------------------  -----  -------',
-        '_type         _id                                   _revision                             _page  name   ',
-        'example/City  19e4f199-93c5-40e5-b04e-a575e81ac373  b6197bb7-3592-4cdb-a61c-5a618f44950c  ∅      Vilnius',
-        '------------  ------------------------------------  ------------------------------------  -----  -------',
+        '------------  ------------------------------------  ------------------------------------  ----------  -------',
+        '_type         _id                                   _revision                             _page.next  name   ',
+        'example/City  19e4f199-93c5-40e5-b04e-a575e81ac373  b6197bb7-3592-4cdb-a61c-5a618f44950c  ∅           Vilnius',
+        '------------  ------------------------------------  ------------------------------------  ----------  -------',
     ]
 
 
@@ -386,4 +386,56 @@ def test_ascii_multiline(
         '           ve.\n'
         '---------  ----------------\n'
     )
+
+
+@pytest.mark.asyncio
+async def test_ascii_check_last_page(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, '''
+        d | r | b | m | property   | type    | ref  | access
+        example/ascii/page         |         |      |
+          |   |   | Country        |         | name |
+          |   |   |   | name       | string  |      | open
+          |   |   |   | capital    | string  |      | open
+        ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authorize(['spinta_set_meta_fields'])
+    app.authmodel('example/ascii/page', ['insert', 'search', 'getall'])
+    lithuania_id = '8d3404c7-9371-403f-aaab-6266b57a4b38'
+    england_id = 'aff76319-17f6-4ad2-a448-45262d9536b8'
+    # Add data
+    results = pushdata(app, '/example/ascii/page/Country', [
+        {
+            '_op': 'insert',
+            '_id': lithuania_id,
+            'name': 'Lithuania',
+            'capital': 'Vilnius'
+        },
+        {
+            '_op': 'insert',
+            '_id': england_id,
+            'name': 'England',
+            'capital': 'London'
+        }
+    ])
+    assert app.get('/example/ascii/page/Country/:format/ascii').text == (
+        '\n'
+        '\n'
+        'Table: example/ascii/page/Country\n'
+        '--------------------------  ------------------------------------  ------------------------------------  ------------------------------------------  --------  -------\n'
+        '_type                       _id                                   _revision                             _page.next                                  name      capital\n'
+        f'example/ascii/page/Country  aff76319-17f6-4ad2-a448-45262d9536b8  {results[1]["_revision"]}  ∅                                           England   London\n'
+        f'example/ascii/page/Country  8d3404c7-9371-403f-aaab-6266b57a4b38  {results[0]["_revision"]}  WyJMaXRodWFuaWEiLCAiOGQzNDA0YzctOTM3MS00MD  Lithuani  Vilnius\\\n'
+        '                                                                                                        NmLWFhYWItNjI2NmI1N2E0YjM4Il0=              a\n'
+        '--------------------------  ------------------------------------  ------------------------------------  ------------------------------------------  --------  -------\n'
+    )
+
+
+
+
+
+
 

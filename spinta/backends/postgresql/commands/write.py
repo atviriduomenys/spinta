@@ -10,7 +10,6 @@ from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.sqlalchemy import utcnow
 
 
-
 @commands.insert.register(Context, Model, PostgreSQL)
 async def insert(
     context: Context,
@@ -175,17 +174,15 @@ def before_write(
     patch['_txn'] = context.get('transaction').id
     patch['_created'] = utcnow()
     for prop in take(model.properties).values():
-        if isinstance(prop.dtype, Denorm):
-            prop_data = data[prop.name.split('.')[0]]
-        else:
+        if not prop.dtype.inherited:
             prop_data = data[prop.name]
-        value = commands.before_write(
-            context,
-            prop.dtype,
-            backend,
-            data=prop_data,
-        )
-        patch.update(value)
+            value = commands.before_write(
+                context,
+                prop.dtype,
+                backend,
+                data=prop_data,
+            )
+            patch.update(value)
     return patch
 
 

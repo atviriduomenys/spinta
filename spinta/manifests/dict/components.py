@@ -1,5 +1,7 @@
 from enum import Enum
 
+import requests
+
 from spinta.manifests.components import Manifest
 
 

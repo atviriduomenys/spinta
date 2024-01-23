@@ -26,7 +26,7 @@ from spinta.utils.naming import to_model_name
 from spinta.utils.naming import to_property_name
 
 
-def read_schema(context: Context, path: str, prepare: str = None):
+def read_schema(context: Context, path: str, prepare: str = None, dataset_name: str = ''):
     engine = sa.create_engine(path)
     schema = None
     if prepare:
@@ -46,12 +46,13 @@ def read_schema(context: Context, path: str, prepare: str = None):
         engine = engine.create()
 
     url = sa.engine.make_url(path)
-    dataset = to_dataset_name(url.database) if url.database else 'dataset1'
+    dataset = dataset_name if dataset_name else to_dataset_name(url.database) if url.database else 'dataset1'
     insp = sa.inspect(engine)
 
     table_mapper = [
         {
             "dataset": dataset,
+            "dataset_given": dataset_name,
             "resource": 'resource1',
             "mapping": _create_mapping(insp, insp.get_table_names(schema=schema), schema, dataset)
         }
@@ -67,9 +68,11 @@ def read_schema(context: Context, path: str, prepare: str = None):
 
     if views:
         dataset = f'{dataset}/views'
+        dataset_name = f'{dataset_name}/views'
         table_mapper.append(
             {
                 "dataset": dataset,
+                "dataset_given": dataset_name,
                 "resource": "resource1",
                 "mapping": _create_mapping(insp, views, schema, dataset)
             }
@@ -86,6 +89,7 @@ def read_schema(context: Context, path: str, prepare: str = None):
                     'prepare': prepare
                 },
             },
+            'given_name': mapping_data["dataset_given"]
         }
 
         for table in sorted(mapping_data["mapping"]):

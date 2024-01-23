@@ -4,13 +4,20 @@ from spinta.components import Property
 from spinta.backends.postgresql.constants import NAMEDATALEN
 
 
-def get_column_name(prop: Property) -> str:
+def get_column_name(prop: Property, replace: bool = False) -> str:
     if prop.list:
         if prop.place == prop.list.place:
             return prop.list.name
         else:
             return prop.place[len(prop.list.place) + 1:]
     else:
+        parent = prop.parent
+        if replace and parent and isinstance(parent, Property):
+            if prop.place.startswith(parent.place):
+                name = prop.place.replace(parent.place, '')
+                if name.startswith('.'):
+                    name = name[1:]
+                return name
         return prop.place
 
 
