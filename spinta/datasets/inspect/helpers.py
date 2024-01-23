@@ -30,6 +30,7 @@ from spinta.components import Model
 
 
 def create_manifest_from_inspect(
+    context: Context = None,
     manifest: Union[str, ManifestPath] = None,
     resources: Tuple = None,
     backend: str = None,
@@ -40,16 +41,17 @@ def create_manifest_from_inspect(
     only_url: bool = False,
 ):
     # Reset Context, to not have any outside influence from given
-    rc = RawConfig()
-    rc.read([Path('spinta', 'spinta.config:CONFIG')])
-    new_context = create_context(name="inspect", rc=rc)
+    if context is None:
+        rc = RawConfig()
+        rc.read([Path('spinta', 'spinta.config:CONFIG')])
+        context = create_context(name="inspect", rc=rc)
 
     has_manifest_priority = priority == 'manifest'
     if resources:
         resources = parse_resource_args(*resources, formula)
 
     context = configure_context(
-        new_context,
+        context,
         [manifest] if manifest else None,
         mode=Mode.external,
         backend=backend

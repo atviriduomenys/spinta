@@ -415,7 +415,7 @@ def test_inspect_update_existing_manifest(
     rc_new = configure(rc_new, sqlite, tmp_path / 'manifest.csv', f'''
     d | r | m | property | type    | ref | source       | prepare | access  | title
     datasets/gov/example |         |     |              |         |         | Example
-      | schema           | sql     |     | {sqlite.dsn} |         |         |
+      | schema           | sql     | sql |              |         |         |
                          |         |     |              |         |         |
       |   | City         |         | id  | CITY         | id > 1  |         | City
       |   |   | id       | integer |     | ID           |         | private |
@@ -430,11 +430,10 @@ def test_inspect_update_existing_manifest(
 
     # Check what was detected.
     manifest = load_manifest(rc_new, tmp_path / 'result.csv')
-    manifest.datasets['datasets/gov/example'].resources['schema'].external = 'sqlite'
     a, b = compare_manifest(manifest, '''
     d | r | b | m | property | type    | ref     | source  | prepare | access  | title
     datasets/gov/example     |         |         |         |         |         | Example
-      | schema               | sql     |         | sqlite  |         |         |
+      | schema               | sql     | sql     |         |         |         |
                              |         |         |         |         |         |
       |   |   | City         |         | id      | CITY    | id>1    |         | City
       |   |   |   | id       | integer |         | ID      |         | private |

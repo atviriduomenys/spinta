@@ -56,6 +56,7 @@ def inspect(
 
     manifest = convert_str_to_manifest_path(manifest)
     context, manifest = create_manifest_from_inspect(
+        context=ctx.obj,
         manifest=manifest,
         resources=resource,
         formula=formula,
