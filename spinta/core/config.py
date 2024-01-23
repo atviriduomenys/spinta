@@ -546,7 +546,7 @@ def parse_resource_args(
     return [resource]
 
 
-def _parse_manifest_path(
+def parse_manifest_path(
     rc: RawConfig,
     path: Union[str, ManifestPath, ResourceTuple],
 ) -> ManifestPath:
@@ -558,6 +558,11 @@ def _parse_manifest_path(
         path = path.external
     Manifest_ = detect_manifest_from_path(rc, path)
     return ManifestPath(type=Manifest_.type, path=path)
+
+
+def check_if_manifest_valid(rc: RawConfig, manifest: str):
+    names = rc.keys('components', 'manifests')
+    return manifest in names
 
 
 def _get_resource_config(
@@ -589,6 +594,7 @@ def configure_rc(
     check_names: Optional[bool] = None,
     backend: str = None,
     resources: List[ResourceTuple] = None,
+    dataset: str = None,
 ) -> RawConfig:
 
     config: Dict[str, Any] = {}
@@ -619,11 +625,13 @@ def configure_rc(
     if manifests or resources:
         sync = []
         inline = []
+        if dataset:
+            config['given_dataset_name'] = dataset
 
         if manifests:
             for i, path in enumerate(manifests):
                 manifest_name = f'manifest{i}'
-                manifest = _parse_manifest_path(rc, path)
+                manifest = parse_manifest_path(rc, path)
                 config[f'manifests.{manifest_name}'] = {
                     'type': manifest.type,
                     'path': manifest.path,

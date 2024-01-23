@@ -41,6 +41,7 @@ from spinta.cli.helpers.data import ModelRow, count_rows, read_model_data, filte
     filter_dict_by_keys
 from spinta.cli.helpers.data import ensure_data_dir
 from spinta.cli.helpers.errors import ErrorCounter
+from spinta.cli.helpers.manifest import convert_str_to_manifest_path
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.client import get_access_token
 from spinta.client import get_client_credentials
@@ -145,6 +146,7 @@ def push(
     if stop_time:
         stop_time = toseconds(stop_time)
 
+    manifests = convert_str_to_manifest_path(manifests)
     context = configure_context(ctx.obj, manifests, mode=mode)
     store = prepare_manifest(context)
     config: Config = context.get('config')

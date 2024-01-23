@@ -14,7 +14,7 @@ def _cleanup(name: str) -> str:
 
 
 def to_dataset_name(name: str) -> str:
-    name = unidecode(name)
+    name = unidecode(name) if name else ''
     if '/' in name:
         parts = [p for p in name.split('/') if p]
         if parts:
@@ -25,7 +25,7 @@ def to_dataset_name(name: str) -> str:
 
 
 def to_model_name(name: str) -> str:
-    name = unidecode(name)
+    name = unidecode(name) if name else ''
     name = camel_cased_words.sub(r' \1', name).strip()
     words = split_words_re.split(name)
     if name.isupper() or name.islower():
@@ -43,7 +43,7 @@ def to_property_name(name: str, is_ref: bool = False) -> str:
 
 
 def to_code_name(name: str) -> str:
-    name = unidecode(name)
+    name = unidecode(name) if name else ''
     name = camel_cased_words.sub(r' \1', name).strip()
     words = split_words_re.split(name)
     words = filter(None, words)

@@ -54,7 +54,7 @@ def load(
     dataset.ns = ns
 
     dataset.lang = load_lang_data(context, dataset.lang)
-
+    dataset.given.name = data.get("given_name", None)
     # Load resources
     dataset.resources = {}
     for name, params in (data.get('resources') or {}).items():
@@ -92,7 +92,7 @@ def load(context: Context, resource: Resource, data: dict, manifest: Manifest):
         # First backend is loaded as string and later becomes Backend.
         resource.backend,
     )
-
+    resource.given.name = data.get("given_name", None)
     # Models will be added on `link` command.
     resource.models = {}
     return resource

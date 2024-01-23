@@ -739,7 +739,22 @@ def is_object_id():
     """
 
 
-@command()
+@overload
+def render(
+    context: Context,
+    manifest: Manifest,
+    fmt: Format,
+    *,
+    action: Action = None,
+    params: UrlParams = None,
+    status_code: int = 200,
+    headers: Optional[dict] = None,
+    path: str = None
+):
+    """Render manifest structure to the client."""
+
+
+@overload
 def render(
     context: Context,
     request: Request,
@@ -752,7 +767,12 @@ def render(
     status_code: int = 200,
     headers: Optional[dict] = None,
 ):
-    """Render response to the clinet."""
+    """Render model data to the client."""
+
+
+@command()
+def render(*args):
+    """ Render response to the client."""
 
 
 @command()

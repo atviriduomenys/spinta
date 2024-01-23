@@ -137,6 +137,7 @@ CONFIG = {
         'jsonl': 'spinta.formats.jsonlines.components:JsonLines',
         'html': 'spinta.formats.html.components:Html',
         'rdf': 'spinta.formats.rdf.components:Rdf',
+        'xlsx': 'spinta.formats.xlsx.components:Xlsx',
     },
     'accesslog': {
         'type': 'file',

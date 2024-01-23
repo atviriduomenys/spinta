@@ -21,6 +21,7 @@ from spinta.components import UrlParams
 from spinta.exceptions import BaseError
 from spinta.exceptions import NoBackendConfigured
 from spinta.exceptions import error_response
+from spinta.api.inspect import inspect_api
 from spinta.renderer import render
 
 
@@ -190,40 +191,42 @@ async def create_http_response(
             )
 
     else:
-        context.attach('transaction', manifest.backend.transaction, write=True)
-        action = params.action
-        if params.prop and params.propref:
-            return await commands.push(
-                context,
-                request,
-                params.prop.dtype,
-                params.model.backend,
-                action=action,
-                params=params,
-            )
-        elif params.prop:
-            return await commands.push(
-                context,
-                request,
-                params.prop.dtype,
-                params.prop.dtype.backend,
-                action=action,
-                params=params,
-            )
+        if request.method == 'POST' and params.inspect:
+            return await inspect_api(context, request, params)
         else:
-            return await commands.push(
-                context,
-                request,
-                params.model,
-                params.model.backend,
-                action=action,
-                params=params,
-            )
+            context.attach('transaction', manifest.backend.transaction, write=True)
+            action = params.action
+            if params.prop and params.propref:
+                return await commands.push(
+                    context,
+                    request,
+                    params.prop.dtype,
+                    params.model.backend,
+                    action=action,
+                    params=params,
+                )
+            elif params.prop:
+                return await commands.push(
+                    context,
+                    request,
+                    params.prop.dtype,
+                    params.prop.dtype.backend,
+                    action=action,
+                    params=params,
+                )
+            else:
+                return await commands.push(
+                    context,
+                    request,
+                    params.model,
+                    params.model.backend,
+                    action=action,
+                    params=params,
+                )
 
 
 def _enforce_limit(context: Context, params: UrlParams):
-    config = context.get('config')
-    fmt: Format = config.exporters[params.format]
+    fmt: Format = params.fmt
     # XXX: I think this is not the best way to enforce limit, maybe simply
     #      an error should be raised?
     # XXX: Max resource count should be configurable.

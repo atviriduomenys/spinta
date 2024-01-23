@@ -38,6 +38,7 @@ def load_manifest_get_context(
     *,
     load_internal: bool = False,
     request: FixtureRequest = None,
+    ensure_config_dir: bool = False,
     **kwargs,
 ) -> TestContext:
     if isinstance(manifest, pathlib.Path):
@@ -53,7 +54,7 @@ def load_manifest_get_context(
         manifests = manifest
     rc = configure_rc(rc, manifests, **kwargs)
     context = create_test_context(rc, request)
-    store = load_store(context, verbose=False, ensure_config_dir=False)
+    store = load_store(context, verbose=False, ensure_config_dir=ensure_config_dir)
     commands.load(context, store.manifest, load_internal=load_internal)
     commands.link(context, store.manifest)
     return context

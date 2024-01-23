@@ -177,6 +177,7 @@ class Schema(enum.IntEnum):
 
 def read_rdf_manifest(
     manifest: RdfManifest,
+    dataset_name: str,
     lang: str = 'en',
 ):
     g = Graph(bind_namespaces='rdflib')
@@ -185,8 +186,9 @@ def read_rdf_manifest(
     schemas = []
     dataset = {
         'type': 'dataset',
-        'name': manifest.path.split('/')[-1].rsplit('.', 1)[0],
-        'prefixes': {}
+        'name': dataset_name if dataset_name else manifest.path.split('/')[-1].rsplit('.', 1)[0],
+        'prefixes': {},
+        'given_name': dataset_name
     }
     for i, (name, url) in enumerate(g.namespaces()):
         dataset['prefixes'][name] = {

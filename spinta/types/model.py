@@ -82,7 +82,7 @@ def load(
     load_node(context, model, data)
     model.lang = load_lang_data(context, model.lang)
     model.comments = load_comments(model, model.comments)
-
+    model.given.name = data.get("given_name", None)
     if model.keymap:
         model.keymap = manifest.store.keymaps[model.keymap]
     else:
@@ -314,8 +314,8 @@ def load(
         prop.unit = unit
     else:
         prop.given.enum = unit
-    prop.given.name = prop.given_name if prop.given_name else prop.name
     prop.given.explicit = prop.explicitly_given if prop.explicitly_given is not None else True
+    prop.given.name = prop.given_name
     return prop
 
 

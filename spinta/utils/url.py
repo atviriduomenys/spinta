@@ -38,6 +38,9 @@ RULES = {
     # Check manifest.
     'check': {
         'maxargs': 0,
+    },
+    'inspect': {
+        'maxargs': 0
     }
 }
 

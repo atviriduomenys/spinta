@@ -483,6 +483,7 @@ class Base(Node):
 class ModelGiven:
     access: str = None
     pkeys: list[str] = None
+    name: str = None
 
 
 class PageBy:
@@ -645,6 +646,7 @@ class Model(MetaData):
         'params': {'type': 'object'},
         'comments': {},
         'uri': {'type': 'string'},
+        'given_name': {'type': 'string', 'default': None},
     }
 
     def __init__(self):
@@ -696,6 +698,7 @@ class PrepareGiven(TypedDict):
 
 
 class Property(Node):
+    id: Any = None
     place: str = None  # Dotted property path
     title: str = None
     description: str = None
@@ -738,7 +741,7 @@ class Property(Node):
         'units': {'type': 'string'},
         'lang': {'type': 'object'},
         'comments': {},
-        'given_name': {'type': 'string'},
+        'given_name': {'type': 'string', 'default': None},
         'explicitly_given': {'type': 'boolean'},
         'prepare_given': {'required': False},
     }
@@ -872,6 +875,9 @@ class UrlParams:
     # If True, then HTTP HEAD request was made, this means no data must be
     # returned only headers.
     head: bool = False
+
+    # If True, inspect POST request was made
+    inspect: bool = False
 
     query: List[Dict[str, Any]] = None
 

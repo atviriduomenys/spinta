@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict
+from typing import Dict, Any
 from typing import List
 from typing import Optional
 
@@ -26,6 +26,7 @@ from spinta.types.project import Project
 
 class DatasetGiven:
     access: str = None
+    name: str = None
 
 
 class Dataset(MetaData):
@@ -84,6 +85,7 @@ class Dataset(MetaData):
             }
         },
         'source': {'type': 'string'},
+        'given_name': {'type': 'string', 'default': None},
     }
 
     def __init__(self):
@@ -102,9 +104,11 @@ class External(Node):
 
 class ResourceGiven:
     access: Access = None
+    name: str = None
 
 
 class Resource(External):
+    id: Any = None
     eid: EntryId = None
     title: str
     description: str
@@ -151,6 +155,7 @@ class Resource(External):
         'title': {'type': 'string'},
         'description': {'type': 'string'},
         'comments': {},
+        'given_name': {'type': 'string', 'default': None},
     }
 
     def __init__(self):

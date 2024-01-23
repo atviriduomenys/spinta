@@ -11,6 +11,7 @@ from typer import Context as TyperContext
 
 from spinta import commands
 from spinta.cli.helpers.auth import require_auth
+from spinta.cli.helpers.manifest import convert_str_to_manifest_path
 from spinta.cli.helpers.store import load_store
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.core.context import configure_context
@@ -28,6 +29,7 @@ def bootstrap(
 
     This will create tables and sync manifest to backends.
     """
+    manifests = convert_str_to_manifest_path(manifests)
     context = configure_context(ctx.obj, manifests)
     store = prepare_manifest(context, ensure_config_dir=True)
 
@@ -67,6 +69,7 @@ def migrate(
     ))
 ):
     """Migrate schema change to backends"""
+    manifests = convert_str_to_manifest_path(manifests)
     context = configure_context(ctx.obj, manifests)
     store = prepare_manifest(context, ensure_config_dir=True)
     with context:

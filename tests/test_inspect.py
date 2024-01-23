@@ -9,6 +9,7 @@ import sqlalchemy as sa
 import pytest
 
 from spinta.core.config import RawConfig
+from spinta.datasets.inspect.helpers import PriorityKey
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.config import configure
@@ -373,7 +374,7 @@ def test_inspect_with_schema(
       | schema           | sql  | {sqlite.dsn} | connect(self, schema: null)
     ''')
 
-    cli.invoke(rc_new, ['inspect', '-o', tmp_path / 'result.csv'])
+    cli.invoke(rc_new, ['inspect', tmp_path / 'manifest.csv', '-o', tmp_path / 'result.csv'])
 
     # Check what was detected.
     manifest = load_manifest(rc_new, tmp_path / 'result.csv')
@@ -412,13 +413,13 @@ def test_inspect_update_existing_manifest(
 
     # Configure Spinta.
     rc_new = configure(rc_new, sqlite, tmp_path / 'manifest.csv', f'''
-    d | r | m | property | type    | ref | source | prepare | access  | title
-    datasets/gov/example |         |     |        |         |         | Example
-      | schema           | sql     | sql |        |         |         |
-                         |         |     |        |         |         |
-      |   | City         |         | id  | CITY   | id > 1  |         | City
-      |   |   | id       | integer |     | ID     |         | private |
-      |   |   | name     | string  |     | NAME   | strip() | open    | City name
+    d | r | m | property | type    | ref | source       | prepare | access  | title
+    datasets/gov/example |         |     |              |         |         | Example
+      | schema           | sql     | sql |              |         |         |
+                         |         |     |              |         |         |
+      |   | City         |         | id  | CITY         | id > 1  |         | City
+      |   |   | id       | integer |     | ID           |         | private |
+      |   |   | name     | string  |     | NAME         | strip() | open    | City name
     ''')
 
     cli.invoke(rc_new, [
@@ -469,7 +470,7 @@ def test_inspect_update_existing_ref_manifest_priority(
     rc_new = configure(rc_new, sqlite, tmp_path / 'manifest.csv', f'''
     d | r | m | property | type    | ref | source  | prepare | access  | title
     datasets/gov/example |         |     |         |         |         | Example
-      | schema           | sql     | sql |         |         |         |
+      | schema           | sql     |     | {sqlite.dsn} |         |         |
                          |         |     |         |         |         |
       |   | Country      |         | id  | COUNTRY |         |         | Country
       |   |   | id       | integer |     | ID      |         | private | Primary key
@@ -488,10 +489,11 @@ def test_inspect_update_existing_ref_manifest_priority(
 
     # Check what was detected.
     manifest = load_manifest(rc_new, tmp_path / 'result.csv')
+    manifest.datasets['datasets/gov/example'].resources['schema'].external = 'sqlite'
     a, b = compare_manifest(manifest, '''
     d | r | b | m | property | type    | ref     | source  | prepare | access  | title
     datasets/gov/example     |         |         |         |         |         | Example
-      | schema               | sql     | sql     |         |         |         |
+      | schema               | sql     |         | sqlite  |         |         |
                              |         |         |         |         |         |
       |   |   | Country      |         | id      | COUNTRY |         |         | Country
       |   |   |   | id       | integer |         | ID      |         | private | Primary key
@@ -528,7 +530,7 @@ def test_inspect_update_existing_ref_external_priority(
     rc_new = configure(rc_new, sqlite, tmp_path / 'manifest.csv', f'''
     d | r | m | property | type    | ref | source  | prepare | access  | title
     datasets/gov/example |         |     |         |         |         | Example
-      | schema           | sql     | sql |         |         |         |
+      | schema           | sql     |     | {sqlite.dsn} |         |         |
                          |         |     |         |         |         |
       |   | Country      |         | id  | COUNTRY |         |         | Country
       |   |   | id       | integer |     | ID      |         | private | Primary key
@@ -548,10 +550,11 @@ def test_inspect_update_existing_ref_external_priority(
 
     # Check what was detected.
     manifest = load_manifest(rc_new, tmp_path / 'result.csv')
+    manifest.datasets['datasets/gov/example'].resources['schema'].external = 'sqlite'
     a, b = compare_manifest(manifest, '''
     d | r | b | m | property | type    | ref     | source  | prepare | access  | title
     datasets/gov/example     |         |         |         |         |         | Example
-      | schema               | sql     | sql     |         |         |         |
+      | schema               | sql     |         | sqlite  |         |         |
                              |         |         |         |         |         |
       |   |   | Country      |         | id      | COUNTRY |         |         | Country
       |   |   |   | id       | integer |         | ID      |         | private | Primary key
@@ -592,7 +595,7 @@ def test_inspect_with_empty_config_dir(
     ])
 
     # Check what was detected.
-    manifest = load_manifest(rc_new, tmp_path / 'result.csv')
+    manifest = load_manifest(rc_new, tmp_path / 'result.csv', ensure_config_dir=True)
     manifest.datasets['dbsqlite'].resources['resource1'].external = 'sqlite'
     assert manifest == f'''
     d | r | b | m | property | type    | ref | source
@@ -699,7 +702,7 @@ def test_inspect_existing_duplicate_table_names(
     rc_new = configure(rc_new, sqlite, tmp_path / 'manifest.csv', f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
-         | schema           | sql     | sql |         |         |         |
+         | schema           | sql     |     | {sqlite.dsn} |         |         |
                             |         |     |         |         |         |
          |   | Country      |         | id  |         |         |         | Country
          |   |   | id       | integer |     |         |         | private | Primary key
@@ -712,10 +715,11 @@ def test_inspect_existing_duplicate_table_names(
     ])
     # Check what was detected.
     manifest = load_manifest(rc_new, result_file_path)
+    manifest.datasets['datasets/gov/example'].resources['schema'].external = 'sqlite'
     a, b = compare_manifest(manifest, f'''
        d | r | m | property | type    | ref | source    | prepare | access  | title
        datasets/gov/example |         |     |           |         |         | Example
-         | schema           | sql     | sql |           |         |         |
+         | schema           | sql     |     | sqlite    |         |         |
                             |         |     |           |         |         |
          |   | Country      |         | id  |           |         |         | Country
          |   |   | id       | integer |     |           |         | private | Primary key
@@ -753,7 +757,7 @@ def test_inspect_existing_duplicate_column_names(
     rc_new = configure(rc_new, sqlite, tmp_path / 'manifest.csv', f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
-         | schema           | sql     | sql |         |         |         |
+         | schema           | sql     |     | {sqlite.dsn} |         |         |
                             |         |     |         |         |         |
          |   | Country      |         |     | COUNTRY |         |         | Country
          |   |   | name     | string  |     |         |         | open    | Country name
@@ -765,10 +769,11 @@ def test_inspect_existing_duplicate_column_names(
     ])
     # Check what was detected.
     manifest = load_manifest(rc_new, result_file_path)
+    manifest.datasets['datasets/gov/example'].resources['schema'].external = 'sqlite'
     a, b = compare_manifest(manifest, f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
-         | schema           | sql     | sql |         |         |         |
+         | schema           | sql     |     | sqlite  |         |         |
                             |         |     |         |         |         |
          |   | Country      |         |     | COUNTRY |         |         | Country
          |   |   | name     | string  |     |         |         | open    | Country name
@@ -843,7 +848,7 @@ def test_inspect_delete_model_source(
     rc_new = configure(rc_new, sqlite, tmp_path / 'manifest.csv', f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
-         | schema           | sql     | sql |         |         |         |
+         | schema           | sql     |     | {sqlite.dsn} |         |         |
                             |         |     |         |         |         |
          |   | City         |         |     | CITY    |         |         | City
          |   |   | name     | string  |     | NAME    |         | open    | City name
@@ -855,10 +860,11 @@ def test_inspect_delete_model_source(
     ])
     # Check what was detected.
     manifest = load_manifest(rc_new, result_file_path)
+    manifest.datasets['datasets/gov/example'].resources['schema'].external = 'sqlite'
     a, b = compare_manifest(manifest, f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
-         | schema           | sql     | sql |         |         |         |
+         | schema           | sql     |     | sqlite  |         |         |
                             |         |     |         |         |         |
          |   | City         |         |     |         |         |         | City
          |   |   | name     | string  |     |         |         | open    | City name
@@ -887,7 +893,7 @@ def test_inspect_delete_property_source(
     rc_new = configure(rc_new, sqlite, tmp_path / 'manifest.csv', f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
-         | schema           | sql     | sql |         |         |         |
+         | schema           | sql     |     | {sqlite.dsn} |         |         |
                             |         |     |         |         |         |
          |   | Country      |         |     | COUNTRY |         |         | Country
          |   |   | name     | string  |     | NAME    |         | open    | Country name
@@ -900,10 +906,11 @@ def test_inspect_delete_property_source(
     ])
     # Check what was detected.
     manifest = load_manifest(rc_new, result_file_path)
+    manifest.datasets['datasets/gov/example'].resources['schema'].external = 'sqlite'
     a, b = compare_manifest(manifest, f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
-         | schema           | sql     | sql |         |         |         |
+         | schema           | sql     |     | sqlite  |         |         |
                             |         |     |         |         |         |
          |   | Country      |         |     | COUNTRY |         |         | Country
          |   |   | name     | string  |     | NAME    |         | open    | Country name
@@ -1822,3 +1829,69 @@ datasets/xml/inspect            |                        |        |
   |   |   | country             | ref                    | Country | ..
     ''')
     assert a == b
+
+
+def test_priority_key_eq():
+    old = PriorityKey()
+    new = PriorityKey()
+    assert old != new
+
+    old = PriorityKey(_id="5")
+    new = PriorityKey(source="5")
+    assert old != new
+
+    old = PriorityKey(_id="5")
+    new = PriorityKey(_id="5")
+    assert old == new
+
+    old = PriorityKey(_id="5", name="test")
+    new = PriorityKey(_id="2", name="test")
+    assert old == new
+
+    old = PriorityKey(_id="5", name="test")
+    new = PriorityKey(_id="2", name="testas")
+    assert old != new
+
+    old = PriorityKey(_id="5", name="test", source="asd")
+    new = PriorityKey(_id="2", name="testas", source="asd")
+    assert old == new
+
+    old = PriorityKey(name="test", source="asd")
+    new = PriorityKey(name="testas", source="asd")
+    assert old == new
+
+    old = PriorityKey(name="test", source="asd")
+    new = PriorityKey(name="testas", source="asds")
+    assert old != new
+
+    old = PriorityKey(name="test", source="asd")
+    new = PriorityKey(name="test", source="asds")
+    assert old == new
+
+    old = PriorityKey(source="asd")
+    new = PriorityKey(source="asds")
+    assert old != new
+
+    old = PriorityKey(source="asd")
+    new = PriorityKey(source="asd")
+    assert old == new
+
+    old = PriorityKey(source=tuple(["asd"]))
+    new = PriorityKey(source=tuple(["asd"]))
+    assert old == new
+
+    old = PriorityKey(source=("asd", "new"))
+    new = PriorityKey(source=tuple(["asd"]))
+    assert old == new
+
+    old = PriorityKey(source=tuple(["asd"]))
+    new = PriorityKey(source=("asd", "new"))
+    assert old == new
+
+    old = PriorityKey(source=tuple(["zxc"]))
+    new = PriorityKey(source=("asd", "new"))
+    assert old != new
+
+    old = PriorityKey(source=("asd", "new"))
+    new = PriorityKey(source=tuple(["asd"]))
+    assert old in [new]
