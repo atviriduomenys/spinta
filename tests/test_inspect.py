@@ -531,7 +531,7 @@ def test_inspect_update_existing_ref_external_priority(
     rc_new = configure(rc_new, sqlite, tmp_path / 'manifest.csv', f'''
     d | r | m | property | type    | ref | source  | prepare | access  | title
     datasets/gov/example |         |     |         |         |         | Example
-      | schema           | sql     | sql |         |         |         |
+      | schema           | sql     |     | {sqlite.dsn} |         |         |
                          |         |     |         |         |         |
       |   | Country      |         | id  | COUNTRY |         |         | Country
       |   |   | id       | integer |     | ID      |         | private | Primary key
@@ -551,10 +551,11 @@ def test_inspect_update_existing_ref_external_priority(
 
     # Check what was detected.
     manifest = load_manifest(rc_new, tmp_path / 'result.csv')
+    manifest.datasets['datasets/gov/example'].resources['schema'].external = 'sqlite'
     a, b = compare_manifest(manifest, '''
     d | r | b | m | property | type    | ref     | source  | prepare | access  | title
     datasets/gov/example     |         |         |         |         |         | Example
-      | schema               | sql     | sql     |         |         |         |
+      | schema               | sql     |         | sqlite  |         |         |
                              |         |         |         |         |         |
       |   |   | Country      |         | id      | COUNTRY |         |         | Country
       |   |   |   | id       | integer |         | ID      |         | private | Primary key
@@ -757,7 +758,7 @@ def test_inspect_existing_duplicate_column_names(
     rc_new = configure(rc_new, sqlite, tmp_path / 'manifest.csv', f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
-         | schema           | sql     | sql |         |         |         |
+         | schema           | sql     |     | {sqlite.dsn} |         |         |
                             |         |     |         |         |         |
          |   | Country      |         |     | COUNTRY |         |         | Country
          |   |   | name     | string  |     |         |         | open    | Country name
@@ -769,10 +770,11 @@ def test_inspect_existing_duplicate_column_names(
     ])
     # Check what was detected.
     manifest = load_manifest(rc_new, result_file_path)
+    manifest.datasets['datasets/gov/example'].resources['schema'].external = 'sqlite'
     a, b = compare_manifest(manifest, f'''
-       d | r | m | property | type    | ref | source  | prepare | access  | title
-       datasets/gov/example |         |     |         |         |         | Example
-         | schema           | sql     | sql |         |         |         |
+       d | r | m | property | type    | ref | source    | prepare | access  | title
+       datasets/gov/example |         |     |           |         |         | Example
+         | schema           | sql     |     | sqlite    |         |         |
                             |         |     |         |         |         |
          |   | Country      |         |     | COUNTRY |         |         | Country
          |   |   | name     | string  |     |         |         | open    | Country name
