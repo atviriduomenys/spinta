@@ -59,7 +59,7 @@ def render(
     headers: Dict[str, str] = None,
     path: str = None
 ) -> Response:
-    rows = datasets_to_tabular(manifest)
+    rows = datasets_to_tabular(context, manifest)
     rows = ({c: row[c] for c in DATASET} for row in rows)
     if not path:
         headers = headers or {}
