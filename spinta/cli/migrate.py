@@ -14,6 +14,7 @@ from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.manifest import convert_str_to_manifest_path
 from spinta.cli.helpers.store import load_store
 from spinta.cli.helpers.store import prepare_manifest
+from spinta.components import Context
 from spinta.core.context import configure_context
 from spinta.exceptions import FileNotFound, ModelNotFound, PropertyNotFound
 from spinta.manifests.components import Manifest
@@ -83,7 +84,7 @@ def migrate(
                 path=rename
             )
         )
-        _validate_migrate_rename(migrate_meta.rename, manifest)
+        _validate_migrate_rename(context, migrate_meta.rename, manifest)
 
         if backend:
             context.attach(f'transaction.{backend.name}', backend.begin)
@@ -188,12 +189,13 @@ class MigrateMeta:
         self.autocommit = autocommit
 
 
-def _validate_migrate_rename(rename: MigrateRename, manifest: Manifest):
+def _validate_migrate_rename(context: Context, rename: MigrateRename, manifest: Manifest):
     tables = rename.tables.values()
     for table in tables:
-        if table["new_name"] not in manifest.models.keys():
+        models = commands.get_models(context, manifest)
+        if table["new_name"] not in models.keys():
             raise ModelNotFound(model=table["new_name"])
-        model = manifest.models[table["new_name"]]
+        model = commands.get_model(context, manifest, table["new_name"])
         for column in table["columns"].values():
             if column not in model.properties.keys():
                 raise PropertyNotFound(property=column)

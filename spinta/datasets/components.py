@@ -28,7 +28,7 @@ class DatasetGiven:
     name: str = None
 
 
-class Dataset(ExtraMetaData):
+class Dataset(MetaData):
     """DCAT compatible metadata about an external dataset.
 
     DCAT (Data Catalog Vocabulary) - https://w3c.github.io/dxwg/dcat/

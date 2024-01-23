@@ -608,7 +608,7 @@ class ParamsPage:
         self.is_enabled = True
 
 
-class Model(ExtraMetaData):
+class Model(MetaData):
     level: Level
     access: Access
     title: str

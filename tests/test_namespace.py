@@ -179,8 +179,13 @@ def test_sort_models_by_refs(
     ]
 
 
-def test_sort_models_by_ref_with_base(rc: RawConfig):
-    manifest = load_manifest(rc, '''
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_sort_models_by_ref_with_base(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+):
+    context, manifest = load_manifest_and_context(rc, '''
     d | r | b | m | property | type    | ref     | access
     datasets/basetest        |         |         |
       |   |   | Place        |         | id      |
@@ -197,9 +202,9 @@ def test_sort_models_by_ref_with_base(rc: RawConfig):
       |   |   |   | id       | integer |         | open
       |   |   |   | name     |         |         | open
       |   |   |   | country  | ref     | Country | open
-    ''')
+    ''', manifest_type=manifest_type, tmp_path=tmp_path)
 
-    models = sort_models_by_refs(manifest.models.values())
+    models = sort_models_by_refs(commands.get_models(context, manifest).values())
     names = [model.name for model in models]
     assert names == [
         'datasets/basetest/City',
