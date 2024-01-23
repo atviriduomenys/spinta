@@ -665,14 +665,14 @@ def configure_rc(
                     config[f'manifests.{manifest_name}']['prepare'] = converted
                 sync.append(manifest_name)
 
-        config['manifests.default'] = {
-            'type': manifest_type,
-            'backend': 'default',
-            'keymap': 'default',
-            'mode': mode.value,
-            'sync': sync,
-            'manifest': inline,
-        }
+            config['manifests.default'] = {
+                'type': manifest_type,
+                'backend': 'default',
+                'keymap': 'default',
+                'mode': mode.value,
+                'sync': sync,
+                'manifest': inline,
+            }
         config['manifest'] = 'default'
 
         if check_names is not None:
