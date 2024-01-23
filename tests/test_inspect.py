@@ -772,9 +772,9 @@ def test_inspect_existing_duplicate_column_names(
     manifest = load_manifest(rc_new, result_file_path)
     manifest.datasets['datasets/gov/example'].resources['schema'].external = 'sqlite'
     a, b = compare_manifest(manifest, f'''
-       d | r | m | property | type    | ref | source    | prepare | access  | title
-       datasets/gov/example |         |     |           |         |         | Example
-         | schema           | sql     |     | sqlite    |         |         |
+       d | r | m | property | type    | ref | source  | prepare | access  | title
+       datasets/gov/example |         |     |         |         |         | Example
+         | schema           | sql     |     | sqlite  |         |         |
                             |         |     |         |         |         |
          |   | Country      |         |     | COUNTRY |         |         | Country
          |   |   | name     | string  |     |         |         | open    | Country name
