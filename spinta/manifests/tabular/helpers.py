@@ -2218,9 +2218,6 @@ def _property_to_tabular(
         else:
             data['ref'] = prop.dtype.model.name
 
-        if prop.dtype.properties:
-            for denorm_prop in prop.dtype.properties.values():
-                yield_rows.append(denorm_prop)
     elif isinstance(prop.dtype, Object):
         for obj_prop in prop.dtype.properties.values():
             yield_rows.append(obj_prop)

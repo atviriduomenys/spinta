@@ -89,8 +89,8 @@ def test_getall_paginate_null_check_value(context, rc, tmp_path, geodb_null_chec
     ]
 
 
-def test_getall_paginate_with_nulls_page_too_small(rc, tmp_path, geodb_with_nulls):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_getall_paginate_with_nulls_page_too_small(context, rc, tmp_path, geodb_with_nulls):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source          | type    | ref     | access | prepare
        | external/paginate        |                 |         |         |        |
        |   | data                 |                 | sql     |         |        |
@@ -110,8 +110,8 @@ def test_getall_paginate_with_nulls_page_too_small(rc, tmp_path, geodb_with_null
         assert isinstance(exceptions[0], TooShortPageSize)
 
 
-def test_getall_paginate_with_nulls(rc, tmp_path, geodb_with_nulls):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_getall_paginate_with_nulls(context, rc, tmp_path, geodb_with_nulls):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source          | type    | ref     | access | prepare
        | external/paginate/null0  |                 |         |         |        |
        |   | data                 |                 | sql     |         |        |
@@ -140,8 +140,8 @@ def test_getall_paginate_with_nulls(rc, tmp_path, geodb_with_nulls):
     ]
 
 
-def test_getall_paginate_with_nulls_multi_key(rc, tmp_path, geodb_with_nulls):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_getall_paginate_with_nulls_multi_key(context, rc, tmp_path, geodb_with_nulls):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source          | type    | ref      | access | prepare
        | external/paginate/null1  |                 |         |          |        |
        |   | data                 |                 | sql     |          |        |
@@ -170,8 +170,8 @@ def test_getall_paginate_with_nulls_multi_key(rc, tmp_path, geodb_with_nulls):
     ]
 
 
-def test_getall_paginate_with_nulls_all_keys(rc, tmp_path, geodb_with_nulls):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_getall_paginate_with_nulls_all_keys(context, rc, tmp_path, geodb_with_nulls):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source          | type    | ref      | access | prepare
        | external/paginate/null1  |                 |         |          |        |
        |   | data                 |                 | sql     |          |        |
@@ -200,8 +200,8 @@ def test_getall_paginate_with_nulls_all_keys(rc, tmp_path, geodb_with_nulls):
     ]
 
 
-def test_getall_paginate_with_nulls_and_sort(rc, tmp_path, geodb_with_nulls):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_getall_paginate_with_nulls_and_sort(context, rc, tmp_path, geodb_with_nulls):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source          | type    | ref      | access | prepare
        | external/paginate/null2        |                 |         |          |        |
        |   | data                 |                 | sql     |          |        |
@@ -230,8 +230,8 @@ def test_getall_paginate_with_nulls_and_sort(rc, tmp_path, geodb_with_nulls):
     ]
 
 
-def test_getall_paginate_with_nulls_unique(rc, tmp_path, geodb_with_nulls):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_getall_paginate_with_nulls_unique(context, rc, tmp_path, geodb_with_nulls):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source          | type    | ref      | access | prepare
        | external/paginate/null3        |                 |         |          |        |
        |   | data                 |                 | sql     |          |        |

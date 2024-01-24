@@ -1293,6 +1293,7 @@ def test_push_postgresql(
 
 
 def test_push_with_nulls(
+    context,
     postgresql,
     rc,
     cli: SpintaCliRunner,
@@ -1301,7 +1302,7 @@ def test_push_with_nulls(
     geodb,
     request
 ):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | type     | ref            | source      | level | access
     nullpush                 |          |                |             |       |
       | db                   | sql      |                |             |       |
