@@ -3,9 +3,11 @@ from pathlib import Path
 
 import pytest
 
+from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
+from spinta.testing.context import create_test_context
 from spinta.testing.tabular import create_tabular_manifest
 from geoalchemy2.shape import to_shape
 
@@ -43,10 +45,9 @@ def _prepare_migration_postgresql(dsn: URL) -> None:
 
 
 def _configure(rc, path, manifest):
-    override_manifest(path, manifest)
     url = make_url(rc.get('backends', 'default', 'dsn', required=True))
     url = url.set(database=MIGRATION_DATABASE)
-    return rc.fork({
+    rc = rc.fork({
         'manifests': {
             'default': {
                 'type': 'tabular',
@@ -63,11 +64,14 @@ def _configure(rc, path, manifest):
             },
         },
     })
+    context = create_test_context(rc, name='pytest/cli')
+    override_manifest(context, path, manifest)
+    return context, rc
 
 
-def override_manifest(path, manifest):
+def override_manifest(context: Context, path, manifest):
     path = f'{path}/manifest.csv'
-    create_tabular_manifest(path, striptable(manifest))
+    create_tabular_manifest(context, path, striptable(manifest))
 
 
 def _clean_up_tables(meta: sa.MetaData, tables: list):
@@ -127,11 +131,11 @@ def test_migrate_create_simple_datatype_model(
     initial_manifest = '''
      d | r | b | m | property   | type    | ref     | source     | prepare
     '''
-    rc = _configure(rc, tmp_path, initial_manifest)
+    context, rc = _configure(rc, tmp_path, initial_manifest)
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
     ])
-    override_manifest(tmp_path, '''
+    override_manifest(context, tmp_path, '''
      d               | r | b | m    | property     | type
      migrate/example |   |   |      |              |
                      |   |   | Test |              |
@@ -282,7 +286,7 @@ def test_migrate_add_simple_column(
                      |   |   | Test |              |
                      |   |   |      | someText     | string
     '''
-    rc = _configure(rc, tmp_path, initial_manifest)
+    context, rc = _configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
@@ -302,7 +306,7 @@ def test_migrate_add_simple_column(
 
         assert not {'someInteger'}.issubset(columns.keys())
 
-    override_manifest(tmp_path, '''
+    override_manifest(context, tmp_path, '''
      d               | r | b | m    | property     | type
      migrate/example |   |   |      |              |
                      |   |   | Test |              |
@@ -365,7 +369,7 @@ def test_migrate_remove_simple_column(
                      |   |   |      | someText     | string
                      |   |   |      | someInteger  | integer
     '''
-    rc = _configure(rc, tmp_path, initial_manifest)
+    context, rc = _configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
@@ -387,7 +391,7 @@ def test_migrate_remove_simple_column(
         assert isinstance(some_integer.type, sa.Integer)
         assert some_integer.nullable
 
-    override_manifest(tmp_path, '''
+    override_manifest(context, tmp_path, '''
      d               | r | b | m    | property     | type
      migrate/example |   |   |      |              |
                      |   |   | Test |              |
@@ -455,7 +459,7 @@ def test_migrate_multiple_times_remove_simple_column(
                      |   |   |      | someText     | string
                      |   |   |      | someInteger  | integer
     '''
-    rc = _configure(rc, tmp_path, initial_manifest)
+    context, rc = _configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
@@ -477,7 +481,7 @@ def test_migrate_multiple_times_remove_simple_column(
         assert isinstance(some_integer.type, sa.Integer)
         assert some_integer.nullable
 
-    override_manifest(tmp_path, '''
+    override_manifest(context, tmp_path, '''
      d               | r | b | m    | property     | type
      migrate/example |   |   |      |              |
                      |   |   | Test |              |
@@ -525,7 +529,7 @@ def test_migrate_multiple_times_remove_simple_column(
 
         assert not {'someInteger'}.issubset(columns.keys())
 
-    override_manifest(tmp_path, '''
+    override_manifest(context, tmp_path, '''
          d               | r | b | m    | property     | type
          migrate/example |   |   |      |              |
                          |   |   | Test |              |
@@ -548,7 +552,7 @@ def test_migrate_multiple_times_remove_simple_column(
         assert isinstance(some_integer.type, sa.Integer)
         assert some_integer.nullable
 
-    override_manifest(tmp_path, '''
+    override_manifest(context, tmp_path, '''
          d               | r | b | m    | property     | type
          migrate/example |   |   |      |              |
                          |   |   | Test |              |
@@ -609,13 +613,13 @@ def test_migrate_model_ref_unique_constraint(
     initial_manifest = '''
      d               | r | b | m    | property     | type   | ref
     '''
-    rc = _configure(rc, tmp_path, initial_manifest)
+    context, rc = _configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
     ])
 
-    override_manifest(tmp_path, '''
+    override_manifest(context, tmp_path, '''
      d               | r | b | m     | property     | type          | ref
      migrate/example |   |   |       |              |               |
                      |   |   | Test  |              |               | someText
@@ -723,7 +727,7 @@ def test_migrate_model_ref_unique_constraint(
         assert any(columns == ["someNumber"] for columns in constraint_columns)
         assert any(sorted(columns) == sorted(["someNumber", "someText"]) for columns in constraint_columns)
 
-    override_manifest(tmp_path, '''
+    override_manifest(context, tmp_path, '''
      d               | r | b | m     | property     | type          | ref
      migrate/example |   |   |       |              |               |
                      |   |   | Test  |              |               |
@@ -812,7 +816,7 @@ def test_migrate_add_unique_constraint(
                      |   |   | Test |              |
                      |   |   |      | someText     | string
     '''
-    rc = _configure(rc, tmp_path, initial_manifest)
+    context, rc = _configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
@@ -830,7 +834,7 @@ def test_migrate_add_unique_constraint(
         assert isinstance(some_text.type, sa.String)
         assert some_text.nullable
 
-    override_manifest(tmp_path, '''
+    override_manifest(context, tmp_path, '''
      d               | r | b | m    | property     | type
      migrate/example |   |   |      |              |
                      |   |   | Test |              |
@@ -886,7 +890,7 @@ def test_migrate_remove_unique_constraint(
                      |   |   | Test |              |
                      |   |   |      | someText     | string unique
     '''
-    rc = _configure(rc, tmp_path, initial_manifest)
+    context, rc = _configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
@@ -907,7 +911,7 @@ def test_migrate_remove_unique_constraint(
         constraint_columns = _get_table_unique_constraint_columns(tables['migrate/example/Test'])
         assert any(columns == ["someText"] for columns in constraint_columns)
 
-    override_manifest(tmp_path, '''
+    override_manifest(context, tmp_path, '''
      d               | r | b | m    | property     | type
      migrate/example |   |   |      |              |
                      |   |   | Test |              |
@@ -960,13 +964,13 @@ def test_migrate_create_models_with_ref(
     initial_manifest = '''
      d               | r | b | m    | property     | type | ref | level
     '''
-    rc = _configure(rc, tmp_path, initial_manifest)
+    context, rc = _configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
     ])
 
-    override_manifest(tmp_path, '''
+    override_manifest(context, tmp_path, '''
      d               | r | b | m      | property     | type          | ref                  | level
      migrate/example |   |   |        |              |               |                      |
                      |   |   | Test   |              |               | someText, someNumber |
@@ -1163,7 +1167,7 @@ def test_migrate_remove_ref_column(
                      |   |   |        | someText     | string        |                      |
                      |   |   |        | someRef      | ref           | Test                 | 3
     '''
-    rc = _configure(rc, tmp_path, initial_manifest)
+    context, rc = _configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
@@ -1191,7 +1195,7 @@ def test_migrate_remove_ref_column(
         columns = tables['migrate/example/RefTwo'].columns
         assert {'someText', 'someRef.someText', 'someRef.someNumber'}.issubset(columns.keys())
 
-    override_manifest(tmp_path, '''
+    override_manifest(context, tmp_path, '''
      d               | r | b | m      | property     | type          | ref                  | level
      migrate/example |   |   |        |              |               |                      |
                      |   |   | Test   |              |               | someText, someNumber |
@@ -1246,7 +1250,7 @@ def test_migrate_remove_ref_column(
             constraint in columns
         )
 
-    override_manifest(tmp_path, '''
+    override_manifest(context, tmp_path, '''
          d               | r | b | m      | property     | type          | ref                  | level
          migrate/example |   |   |        |              |               |                      |
                          |   |   | Test   |              |               | someText, someNumber |
@@ -1312,7 +1316,7 @@ def test_migrate_adjust_ref_levels(
                      |   |   |        | someText     | string        |                      |
                      |   |   |        | someRef      | ref           | Test                 | 4
     '''
-    rc = _configure(rc, tmp_path, initial_manifest)
+    context, rc = _configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
@@ -1391,7 +1395,7 @@ def test_migrate_adjust_ref_levels(
             constraint in columns
         )
 
-    override_manifest(tmp_path, '''
+    override_manifest(context, tmp_path, '''
      d               | r | b | m      | property     | type          | ref                  | level
      migrate/example |   |   |        |              |               |                      |
                      |   |   | Test   |              |               | someText, someNumber |
@@ -1460,7 +1464,7 @@ def test_migrate_adjust_ref_levels(
             assert item["someRef.someText"] == insert_values[i]["someText"]
             assert item["someRef.someNumber"] == insert_values[i]["someNumber"]
 
-    override_manifest(tmp_path, '''
+    override_manifest(context, tmp_path, '''
      d               | r | b | m      | property     | type          | ref                  | level
      migrate/example |   |   |        |              |               |                      |
                      |   |   | Test   |              |               | someText, someNumber |
@@ -1544,13 +1548,13 @@ def test_migrate_create_models_with_base(
     initial_manifest = '''
      d               | r | b | m    | property     | type | ref | level
     '''
-    rc = _configure(rc, tmp_path, initial_manifest)
+    context, rc = _configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
     ])
 
-    override_manifest(tmp_path, '''
+    override_manifest(context, tmp_path, '''
      d               | r | b    | m    | property     | type          | ref                  | level
      migrate/example |   |      |      |              |               |                      |
                      |   |      | Base |              |               | someText, someNumber |
@@ -1673,13 +1677,13 @@ def test_migrate_remove_base_from_model(
                      |   |      | Test |              |               |                      |
                      |   |      |      | someText     | string        |                      |
     '''
-    rc = _configure(rc, tmp_path, initial_manifest)
+    context, rc = _configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
     ])
 
-    override_manifest(tmp_path, '''
+    override_manifest(context, tmp_path, '''
      d               | r | b    | m    | property     | type          | ref                  | level
      migrate/example |   |      |      |              |               |                      |
                      |   |      | Base |              |               | someText, someNumber |
@@ -1734,13 +1738,13 @@ def test_migrate_create_models_with_file_type(
     initial_manifest = '''
      d               | r | b | m    | property     | type | ref | source
     '''
-    rc = _configure(rc, tmp_path, initial_manifest)
+    context, rc = _configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
     ])
 
-    override_manifest(tmp_path, '''
+    override_manifest(context, tmp_path, '''
      d               | r | b    | m    | property       | type    | ref                  | source
      migrate/example |   |      |      |                |         |                      |
                      |   |      | Test |                |         | someText, someNumber |
@@ -1852,13 +1856,13 @@ def test_migrate_remove_file_type(
                      |   |      |      | flag           | file    |                      |
                      |   |      |      | new            | file    |                      | file()
     '''
-    rc = _configure(rc, tmp_path, initial_manifest)
+    context, rc = _configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
     ])
 
-    override_manifest(tmp_path, '''
+    override_manifest(context, tmp_path, '''
      d               | r | b    | m    | property       | type    | ref                  | source
      migrate/example |   |      |      |                |         |                      |
                      |   |      | Test |                |         | someText, someNumber |
@@ -1931,7 +1935,7 @@ def test_migrate_modify_geometry_type(
                      |   |      |      | someGeoLt      | geometry(3346) |     |
                      |   |      |      | someGeoWorld   | geometry(4326) |     |
     '''
-    rc = _configure(rc, tmp_path, initial_manifest)
+    context, rc = _configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
@@ -1966,7 +1970,7 @@ def test_migrate_modify_geometry_type(
             assert float_equals(float(some_geo_world_values[0]), 15, epsilon=1e-2)
             assert float_equals(float(some_geo_world_values[1]), 15, epsilon=1e-2)
 
-    override_manifest(tmp_path, '''
+    override_manifest(context, tmp_path, '''
      d               | r | b    | m    | property       | type           | ref | source
      migrate/example |   |      |      |                |                |     |
                      |   |      | Test |                |                |     |
@@ -2040,7 +2044,7 @@ def test_migrate_rename_model(
                      |   |      |      | someFile       | file     |     |
                      |   |      |      | someRef        | ref      | Ref |
     '''
-    rc = _configure(rc, tmp_path, initial_manifest)
+    context, rc = _configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
@@ -2058,7 +2062,7 @@ def test_migrate_rename_model(
         constraints = _get_table_foreign_key_constraint_columns(table)
         assert any(constraint["constraint_name"] == 'fk_migrate/example/Test_someRef._id' for constraint in constraints)
 
-    override_manifest(tmp_path, '''
+    override_manifest(context, tmp_path, '''
      d               | r | b    | m      | property       | type     | ref    | source
      migrate/example |   |      |        |                |          |        |
                      |   |      | NewRef |                |          |        |
@@ -2158,7 +2162,7 @@ def test_migrate_rename_property(
                      |   |      |      | someRef        | ref      | Ref      | 3
                      |   |      |      | someOther      | ref      | Ref      | 4
     '''
-    rc = _configure(rc, tmp_path, initial_manifest)
+    context, rc = _configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
@@ -2181,7 +2185,7 @@ def test_migrate_rename_property(
         assert any(
             constraint["constraint_name"] == 'fk_migrate/example/Test_someOther._id' for constraint in constraints)
 
-    override_manifest(tmp_path, '''
+    override_manifest(context, tmp_path, '''
      d               | r | b    | m    | property       | type     | ref      | level
      migrate/example |   |      |      |                |          |          |
                      |   |      | Ref  |                |          | newText  |
