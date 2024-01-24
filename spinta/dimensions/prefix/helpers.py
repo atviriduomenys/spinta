@@ -20,6 +20,7 @@ def load_prefixes(
     loaded = {}
     for name, data in prefixes.items():
         prefix: UriPrefix = get_node(
+            context,
             config,
             manifest,
             data['eid'],

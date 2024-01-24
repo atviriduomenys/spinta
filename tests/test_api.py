@@ -117,7 +117,7 @@ def test_app(app):
         ],
     }
     assert next(d for d in data['data'] if d['title'] == 'Country') == {
-        'name': '📄 country',
+        'name': '📄 Country',
         'title': 'Country',
         'description': '',
     }
@@ -125,13 +125,13 @@ def test_app(app):
     html = get_html_tree(resp)
     rows = html.cssselect('table.table tr td:nth-child(1)')
     rows = [row.text_content().strip() for row in rows]
-    assert '📄 country' in rows
+    assert '📄 Country' in rows
     assert '📁 datasets/' in rows
 
 
 def test_directory(app):
     app.authorize(['spinta_datasets_getall'])
-    resp = app.get('/datasets/xlsx/rinkimai/:ns', headers={'accept': 'text/html'})
+    resp = app.get('/datasets/xlsx/Rinkimai/:ns', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
     resp.context.pop('request')
@@ -140,45 +140,45 @@ def test_directory(app):
             ('🏠', '/'),
             ('datasets', '/datasets'),
             ('xlsx', '/datasets/xlsx'),
-            ('rinkimai', None),
+            ('Rinkimai', None),
         ],
         'empty': False,
         'header': ['name', 'title', 'description'],
         'data': [
             [
-                {'value': '📄 apygarda', 'link': '/datasets/xlsx/rinkimai/apygarda'},
+                {'value': '📄 Apygarda', 'link': '/datasets/xlsx/Rinkimai/Apygarda'},
                 {'value': '', 'color': '#f5f5f5'},
                 {'value': '', 'color': '#f5f5f5'},
             ],
             [
-                {'value': '📄 apylinke', 'link': '/datasets/xlsx/rinkimai/apylinke'},
+                {'value': '📄 Apylinke', 'link': '/datasets/xlsx/Rinkimai/Apylinke'},
                 {'value': '', 'color': '#f5f5f5'},
                 {'value': '', 'color': '#f5f5f5'},
             ],
             [
-                {'value': '📄 kandidatas', 'link': '/datasets/xlsx/rinkimai/kandidatas'},
+                {'value': '📄 Kandidatas', 'link': '/datasets/xlsx/Rinkimai/Kandidatas'},
                 {'value': '', 'color': '#f5f5f5'},
                 {'value': '', 'color': '#f5f5f5'},
             ],
             [
-                {'value': '📄 turas', 'link': '/datasets/xlsx/rinkimai/turas'},
+                {'value': '📄 Turas', 'link': '/datasets/xlsx/Rinkimai/Turas'},
                 {'value': '', 'color': '#f5f5f5'},
                 {'value': '', 'color': '#f5f5f5'},
             ]
         ],
         'formats': [
-            ('CSV', '/datasets/xlsx/rinkimai/:ns/:format/csv'),
-            ('JSON', '/datasets/xlsx/rinkimai/:ns/:format/json'),
-            ('JSONL', '/datasets/xlsx/rinkimai/:ns/:format/jsonl'),
-            ('ASCII', '/datasets/xlsx/rinkimai/:ns/:format/ascii'),
-            ('RDF', '/datasets/xlsx/rinkimai/:ns/:format/rdf'),
+            ('CSV', '/datasets/xlsx/Rinkimai/:ns/:format/csv'),
+            ('JSON', '/datasets/xlsx/Rinkimai/:ns/:format/json'),
+            ('JSONL', '/datasets/xlsx/Rinkimai/:ns/:format/jsonl'),
+            ('ASCII', '/datasets/xlsx/Rinkimai/:ns/:format/ascii'),
+            ('RDF', '/datasets/xlsx/Rinkimai/:ns/:format/rdf'),
         ],
     }
 
 
 @pytest.mark.models(
-    'backends/postgres/report',
-    'backends/mongo/report',
+    'backends/postgres/Report',
+    'backends/mongo/Report',
 )
 def test_model(model, context, app):
     app.authmodel(model, ['insert', 'getall'])
@@ -197,7 +197,7 @@ def test_model(model, context, app):
 
     resp.context.pop('request')
 
-    backend = model[len('backends/'):len(model) - len('/report')]
+    backend = model[len('backends/'):len(model) - len('/Report')]
     assert _cleaned_context(resp, data=False) == {
         'location': [
             ('🏠', '/'),
@@ -250,8 +250,8 @@ def test_model(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/postgres/report',
-    'backends/mongo/report',
+    'backends/postgres/Report',
+    'backends/mongo/Report',
 )
 def test_model_get(model, app):
     app.authmodel(model, ['insert', 'getone'])
@@ -328,15 +328,15 @@ def test_model_get(model, app):
 
 
 def test_dataset(app):
-    app.authmodel('datasets/json/rinkimai', ['insert', 'getall'])
-    resp = app.post('/datasets/json/rinkimai', json={
+    app.authmodel('datasets/json/Rinkimai', ['insert', 'getall'])
+    resp = app.post('/datasets/json/Rinkimai', json={
         'id': '1',
         'pavadinimas': 'Rinkimai 1',
     })
     data = resp.json()
     assert resp.status_code == 201, data
 
-    resp = app.get('/datasets/json/rinkimai', headers={'accept': 'text/html'})
+    resp = app.get('/datasets/json/Rinkimai', headers={'accept': 'text/html'})
     assert resp.status_code == 200, resp.json()
 
     pk = data['_id']
@@ -346,39 +346,39 @@ def test_dataset(app):
             ('🏠', '/'),
             ('datasets', '/datasets'),
             ('json', '/datasets/json'),
-            ('rinkimai', None),
-            ('Changes', '/datasets/json/rinkimai/:changes/-10'),
+            ('Rinkimai', None),
+            ('Changes', '/datasets/json/Rinkimai/:changes/-10'),
         ],
         'header': ['_id', 'id', 'pavadinimas'],
         'empty': False,
         'data': [
             [
-                {'link': f'/datasets/json/rinkimai/{pk}', 'value': pk[:8]},
+                {'link': f'/datasets/json/Rinkimai/{pk}', 'value': pk[:8]},
                 {'value': '1'},
                 {'value': 'Rinkimai 1'},
             ],
         ],
         'formats': [
-            ('CSV', '/datasets/json/rinkimai/:format/csv'),
-            ('JSON', '/datasets/json/rinkimai/:format/json'),
-            ('JSONL', '/datasets/json/rinkimai/:format/jsonl'),
-            ('ASCII', '/datasets/json/rinkimai/:format/ascii'),
-            ('RDF', '/datasets/json/rinkimai/:format/rdf'),
+            ('CSV', '/datasets/json/Rinkimai/:format/csv'),
+            ('JSON', '/datasets/json/Rinkimai/:format/json'),
+            ('JSONL', '/datasets/json/Rinkimai/:format/jsonl'),
+            ('ASCII', '/datasets/json/Rinkimai/:format/ascii'),
+            ('RDF', '/datasets/json/Rinkimai/:format/rdf'),
         ],
     }
 
 
 def test_dataset_with_show(context, app):
-    app.authmodel('/datasets/json/rinkimai', ['insert', 'search'])
+    app.authmodel('/datasets/json/Rinkimai', ['insert', 'search'])
 
-    resp = app.post('/datasets/json/rinkimai', json={
+    resp = app.post('/datasets/json/Rinkimai', json={
         'id': '1',
         'pavadinimas': 'Rinkimai 1',
     })
     data = resp.json()
     assert resp.status_code == 201, data
 
-    resp = app.get('/datasets/json/rinkimai?select(pavadinimas)', headers={
+    resp = app.get('/datasets/json/Rinkimai?select(pavadinimas)', headers={
         'accept': 'text/html',
     })
     assert resp.status_code == 200
@@ -391,35 +391,35 @@ def test_dataset_with_show(context, app):
 
 
 def test_dataset_url_without_resource(context, app):
-    app.authmodel('datasets/json/rinkimai', ['insert', 'getall'])
-    resp = app.post('/datasets/json/rinkimai', json={
+    app.authmodel('datasets/json/Rinkimai', ['insert', 'getall'])
+    resp = app.post('/datasets/json/Rinkimai', json={
         'id': '1',
         'pavadinimas': 'Rinkimai 1',
     })
     data = resp.json()
     pk = data['_id']
     assert resp.status_code == 201, data
-    resp = app.get('/datasets/json/rinkimai', headers={'accept': 'text/html'})
+    resp = app.get('/datasets/json/Rinkimai', headers={'accept': 'text/html'})
     assert resp.status_code == 200
     context = _cleaned_context(resp, data=False)
     assert context['header'] == ['_id', 'id', 'pavadinimas']
     assert context['data'] == [[
-        {'link': f'/datasets/json/rinkimai/{pk}', 'value': pk[:8]},
+        {'link': f'/datasets/json/Rinkimai/{pk}', 'value': pk[:8]},
         {'value': '1'},
         {'value': 'Rinkimai 1'},
     ]]
 
 
 def test_nested_dataset(app):
-    app.authmodel('datasets/nested/dataset/name/model', ['insert', 'getall'])
-    resp = app.post('/datasets/nested/dataset/name/model', json={
+    app.authmodel('datasets/nested/dataset/name/Model', ['insert', 'getall'])
+    resp = app.post('/datasets/nested/dataset/name/Model', json={
         'name': 'Nested One',
     })
     data = resp.json()
     assert resp.status_code == 201, data
     pk = data['_id']
 
-    resp = app.get('/datasets/nested/dataset/name/model', headers={'accept': 'text/html'})
+    resp = app.get('/datasets/nested/dataset/name/Model', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
     resp.context.pop('request')
@@ -430,30 +430,30 @@ def test_nested_dataset(app):
             ('nested', '/datasets/nested'),
             ('dataset', '/datasets/nested/dataset'),
             ('name', '/datasets/nested/dataset/name'),
-            ('model', None),
-            ('Changes', '/datasets/nested/dataset/name/model/:changes/-10'),
+            ('Model', None),
+            ('Changes', '/datasets/nested/dataset/name/Model/:changes/-10'),
         ],
         'header': ['_id', 'name'],
         'empty': False,
         'data': [
             [
-                {'link': f'/datasets/nested/dataset/name/model/{pk}', 'value': pk[:8]},
+                {'link': f'/datasets/nested/dataset/name/Model/{pk}', 'value': pk[:8]},
                 {'value': 'Nested One'},
             ],
         ],
         'formats': [
-            ('CSV', '/datasets/nested/dataset/name/model/:format/csv'),
-            ('JSON', '/datasets/nested/dataset/name/model/:format/json'),
-            ('JSONL', '/datasets/nested/dataset/name/model/:format/jsonl'),
-            ('ASCII', '/datasets/nested/dataset/name/model/:format/ascii'),
-            ('RDF', '/datasets/nested/dataset/name/model/:format/rdf'),
+            ('CSV', '/datasets/nested/dataset/name/Model/:format/csv'),
+            ('JSON', '/datasets/nested/dataset/name/Model/:format/json'),
+            ('JSONL', '/datasets/nested/dataset/name/Model/:format/jsonl'),
+            ('ASCII', '/datasets/nested/dataset/name/Model/:format/ascii'),
+            ('RDF', '/datasets/nested/dataset/name/Model/:format/rdf'),
         ],
     }
 
 
 def test_dataset_key(app):
-    app.authmodel('datasets/json/rinkimai', ['insert', 'getone'])
-    resp = app.post('/datasets/json/rinkimai', json={
+    app.authmodel('datasets/json/Rinkimai', ['insert', 'getone'])
+    resp = app.post('/datasets/json/Rinkimai', json={
         'id': '1',
         'pavadinimas': 'Rinkimai 1',
     })
@@ -462,7 +462,7 @@ def test_dataset_key(app):
     pk = data['_id']
     rev = data['_revision']
 
-    resp = app.get(f'/datasets/json/rinkimai/{pk}', headers={'accept': 'text/html'})
+    resp = app.get(f'/datasets/json/Rinkimai/{pk}', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
     resp.context.pop('request')
@@ -471,16 +471,16 @@ def test_dataset_key(app):
             ('🏠', '/'),
             ('datasets', '/datasets'),
             ('json', '/datasets/json'),
-            ('rinkimai', '/datasets/json/rinkimai'),
+            ('Rinkimai', '/datasets/json/Rinkimai'),
             (short_id(pk), None),
-            ('Changes', f'/datasets/json/rinkimai/{pk}/:changes/-10'),
+            ('Changes', f'/datasets/json/Rinkimai/{pk}/:changes/-10'),
         ],
         'formats': [
-            ('CSV', f'/datasets/json/rinkimai/{pk}/:format/csv'),
-            ('JSON', f'/datasets/json/rinkimai/{pk}/:format/json'),
-            ('JSONL', f'/datasets/json/rinkimai/{pk}/:format/jsonl'),
-            ('ASCII', f'/datasets/json/rinkimai/{pk}/:format/ascii'),
-            ('RDF', f'/datasets/json/rinkimai/{pk}/:format/rdf'),
+            ('CSV', f'/datasets/json/Rinkimai/{pk}/:format/csv'),
+            ('JSON', f'/datasets/json/Rinkimai/{pk}/:format/json'),
+            ('JSONL', f'/datasets/json/Rinkimai/{pk}/:format/jsonl'),
+            ('ASCII', f'/datasets/json/Rinkimai/{pk}/:format/ascii'),
+            ('RDF', f'/datasets/json/Rinkimai/{pk}/:format/rdf'),
         ],
         'header': [
             '_type',
@@ -491,8 +491,8 @@ def test_dataset_key(app):
         ],
         'empty': False,
         'data': [[
-            {'value': 'datasets/json/rinkimai'},
-            {'value': short_id(pk), 'link': f'/datasets/json/rinkimai/{pk}'},
+            {'value': 'datasets/json/Rinkimai'},
+            {'value': short_id(pk), 'link': f'/datasets/json/Rinkimai/{pk}'},
             {'value': rev},
             {'value': '1'},
             {'value': 'Rinkimai 1'},
@@ -501,9 +501,9 @@ def test_dataset_key(app):
 
 
 def test_changes_single_object(app: TestClient, mocker):
-    app.authmodel('datasets/json/rinkimai', ['insert', 'patch', 'changes'])
+    app.authmodel('datasets/json/Rinkimai', ['insert', 'patch', 'changes'])
 
-    model = 'datasets/json/rinkimai'
+    model = 'datasets/json/Rinkimai'
 
     obj = send(app, model, 'insert', {
         'id': '1',
@@ -514,7 +514,7 @@ def test_changes_single_object(app: TestClient, mocker):
         'pavadinimas': 'Rinkimai 2',
     })
 
-    resp = app.get(f'/datasets/json/rinkimai/{obj.id}/:changes/-10', headers={
+    resp = app.get(f'/datasets/json/Rinkimai/{obj.id}/:changes/-10', headers={
         'accept': 'text/html',
     })
     assert resp.status_code == 200
@@ -525,8 +525,8 @@ def test_changes_single_object(app: TestClient, mocker):
             ('🏠', '/'),
             ('datasets', '/datasets'),
             ('json', '/datasets/json'),
-            ('rinkimai', '/datasets/json/rinkimai'),
-            (obj1.sid, f'/datasets/json/rinkimai/{obj.id}'),
+            ('Rinkimai', '/datasets/json/Rinkimai'),
+            (obj1.sid, f'/datasets/json/Rinkimai/{obj.id}'),
             ('Changes', None),
         ],
         'formats': [
@@ -562,7 +562,7 @@ def test_changes_single_object(app: TestClient, mocker):
                 {'value': 2},
                 {'value': change[1]['_created']},
                 {'value': 'patch'},
-                {'value': obj.sid, 'link': f'/datasets/json/rinkimai/{obj.id}'},
+                {'value': obj.sid, 'link': f'/datasets/json/Rinkimai/{obj.id}'},
                 {'value': change[1]['_txn']},
                 {'value': obj1.rev},
                 {'value': '', 'color': '#f5f5f5'},
@@ -573,9 +573,9 @@ def test_changes_single_object(app: TestClient, mocker):
 
 
 def test_changes_object_list(app, mocker):
-    app.authmodel('datasets/json/rinkimai', ['insert', 'patch', 'changes'])
+    app.authmodel('datasets/json/Rinkimai', ['insert', 'patch', 'changes'])
 
-    model = 'datasets/json/rinkimai'
+    model = 'datasets/json/Rinkimai'
 
     obj = send(app, model, 'insert', {
         'id': '1',
@@ -586,7 +586,7 @@ def test_changes_object_list(app, mocker):
         'pavadinimas': 'Rinkimai 2',
     })
 
-    resp = app.get('/datasets/json/rinkimai/:changes/-10', headers={'accept': 'text/html'})
+    resp = app.get('/datasets/json/Rinkimai/:changes/-10', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
     change = _cleaned_context(resp)['data']
@@ -595,7 +595,7 @@ def test_changes_object_list(app, mocker):
             ('🏠', '/'),
             ('datasets', '/datasets'),
             ('json', '/datasets/json'),
-            ('rinkimai', f'/{model}'),
+            ('Rinkimai', f'/{model}'),
             ('Changes', None),
         ],
         'formats': [
@@ -642,19 +642,19 @@ def test_changes_object_list(app, mocker):
 
 
 def test_count(app):
-    app.authmodel('/datasets/json/rinkimai', ['upsert', 'search'])
+    app.authmodel('/datasets/json/Rinkimai', ['upsert', 'search'])
 
-    resp = app.post('/datasets/json/rinkimai', json={'_data': [
+    resp = app.post('/datasets/json/Rinkimai', json={'_data': [
         {
             '_op': 'upsert',
-            '_type': 'datasets/json/rinkimai',
+            '_type': 'datasets/json/Rinkimai',
             '_where': f'id="1"',
             'id': '1',
             'pavadinimas': 'Rinkimai 1',
         },
         {
             '_op': 'upsert',
-            '_type': 'datasets/json/rinkimai',
+            '_type': 'datasets/json/Rinkimai',
             '_where': f'id="2"',
             'id': '2',
             'pavadinimas': 'Rinkimai 2',
@@ -663,7 +663,7 @@ def test_count(app):
     # FIXME: Status code on multiple objects must be 207.
     assert resp.status_code == 200, resp.json()
 
-    resp = app.get('/datasets/json/rinkimai?count()', headers={'accept': 'text/html'})
+    resp = app.get('/datasets/json/Rinkimai?count()', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
     context = _cleaned_context(resp)
@@ -671,8 +671,8 @@ def test_count(app):
 
 
 @pytest.mark.models(
-    'backends/postgres/report',
-    'backends/mongo/report',
+    'backends/postgres/Report',
+    'backends/mongo/Report',
 )
 def test_post(model, context, app):
     app.authmodel(model, ['insert', 'getone'])
@@ -725,8 +725,8 @@ def test_post(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/postgres/report',
-    'backends/mongo/report',
+    'backends/postgres/Report',
+    'backends/mongo/Report',
 )
 def test_post_invalid_json(model, context, app):
     # tests 400 response on invalid json
@@ -741,8 +741,8 @@ def test_post_invalid_json(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/postgres/report',
-    'backends/mongo/report',
+    'backends/postgres/Report',
+    'backends/mongo/Report',
 )
 def test_post_empty_content(model, context, app):
     # tests posting empty content
@@ -757,8 +757,8 @@ def test_post_empty_content(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/postgres/report',
-    'backends/mongo/report',
+    'backends/postgres/Report',
+    'backends/mongo/Report',
 )
 def test_post_id(model, context, app):
     # tests 400 response when trying to create object with id
@@ -778,8 +778,8 @@ def test_post_id(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/postgres/report',
-    'backends/mongo/report',
+    'backends/postgres/Report',
+    'backends/mongo/Report',
 )
 def test_insufficient_scope(model, context, app):
     # tests 400 response when trying to create object with id
@@ -798,8 +798,8 @@ def test_insufficient_scope(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/postgres/report',
-    'backends/mongo/report',
+    'backends/postgres/Report',
+    'backends/mongo/Report',
 )
 def test_post_update_postgres(model, context, app):
     # tests if update works with `id` present in the json
@@ -846,8 +846,8 @@ def test_post_update_postgres(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/postgres/report',
-    'backends/mongo/report',
+    'backends/postgres/Report',
+    'backends/mongo/Report',
 )
 def test_post_revision(model, context, app):
     # tests 400 response when trying to create object with revision
@@ -862,8 +862,8 @@ def test_post_revision(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/postgres/report',
-    'backends/mongo/report',
+    'backends/postgres/Report',
+    'backends/mongo/Report',
 )
 def test_post_duplicate_id(model, app):
     # tests 400 response when trying to create object with id which exists
@@ -887,8 +887,8 @@ def test_post_duplicate_id(model, app):
 
 
 @pytest.mark.models(
-    'backends/postgres/report',
-    'backends/mongo/report',
+    'backends/postgres/Report',
+    'backends/mongo/Report',
 )
 def test_patch_duplicate_id(model, context, app):
     # tests that duplicate ID detection works with PATCH requests
@@ -897,13 +897,13 @@ def test_patch_duplicate_id(model, context, app):
 
     # create extra report
     resp = app.post(f'/{model}', json={
-        '_type': 'report',
+        '_type': 'Report',
         'status': '1',
     })
     assert resp.status_code == 201
 
     data = app.post(f'/{model}', json={
-        '_type': 'report',
+        '_type': 'Report',
         'status': '1',
     }).json()
     id_ = data['_id']
@@ -932,7 +932,7 @@ def test_patch_duplicate_id(model, context, app):
     # this should not be successful because id that we want to setup
     # already exists in database
     resp = app.post(f'/{model}', json={
-        '_type': 'report',
+        '_type': 'Report',
         'status': '1',
     })
     existing_id = resp.json()['_id']
@@ -946,8 +946,8 @@ def test_patch_duplicate_id(model, context, app):
 
 
 @pytest.mark.models(
-    'backends/postgres/report',
-    'backends/mongo/report',
+    'backends/postgres/Report',
+    'backends/mongo/Report',
 )
 def test_post_non_json_content_type(model, app):
     # tests 400 response when trying to make non-json request
@@ -962,8 +962,8 @@ def test_post_non_json_content_type(model, app):
 
 
 @pytest.mark.models(
-    'backends/postgres/report',
-    'backends/mongo/report',
+    'backends/postgres/Report',
+    'backends/mongo/Report',
 )
 def test_post_bad_auth_header(model, app):
     # tests 400 response when authorization header is missing `Bearer `
@@ -977,8 +977,8 @@ def test_post_bad_auth_header(model, app):
 
 
 @pytest.mark.models(
-    'backends/postgres/report',
-    'backends/mongo/report',
+    'backends/postgres/Report',
+    'backends/mongo/Report',
 )
 def test_post_missing_auth_header(model, context, app, mocker):
     mocker.patch.object(context.get('config'), 'default_auth_client', None)
@@ -991,8 +991,8 @@ def test_post_missing_auth_header(model, context, app, mocker):
 
 
 @pytest.mark.models(
-    'backends/postgres/report',
-    'backends/mongo/report',
+    'backends/postgres/Report',
+    'backends/mongo/Report',
 )
 def test_post_invalid_report_schema(model, app):
     # tests validation of correct value types according to manifest's schema
@@ -1072,8 +1072,8 @@ def test_post_invalid_report_schema(model, app):
 
 
 @pytest.mark.models(
-    'backends/postgres/report',
-    'backends/mongo/report',
+    'backends/postgres/Report',
+    'backends/mongo/Report',
 )
 def test_streaming_response(model, app):
     app.authmodel(model, ['insert', 'getall'])
@@ -1104,8 +1104,8 @@ def test_streaming_response(model, app):
 
 
 @pytest.mark.models(
-    'backends/postgres/report',
-    'backends/mongo/report',
+    'backends/postgres/Report',
+    'backends/mongo/Report',
 )
 def test_multi_backends(model, app):
     app.authmodel(model, ['insert', 'getone', 'getall', 'search'])
@@ -1150,8 +1150,8 @@ def test_multi_backends(model, app):
 
 
 @pytest.mark.models(
-    'backends/postgres/report',
-    'backends/mongo/report',
+    'backends/postgres/Report',
+    'backends/mongo/Report',
 )
 def test_location_header(model, app, context):
     app.authmodel(model, ['insert'])
@@ -1160,12 +1160,12 @@ def test_location_header(model, app, context):
     assert 'location' in resp.headers
     id_ = resp.json()['_id']
     server_url = context.get('config').server_url
-    assert resp.headers['location'] == f'{server_url}{model}s/{id_}'
+    assert resp.headers['location'] == f'{server_url}{model}/{id_}'
 
 
 @pytest.mark.models(
-    'backends/postgres/report',
-    'backends/mongo/report',
+    'backends/postgres/Report',
+    'backends/mongo/Report',
 )
 def test_upsert_where_ast(model, app):
     app.authmodel(model, ['upsert', 'changes'])
@@ -1240,8 +1240,8 @@ def test_head_method(
 
 
 @pytest.mark.models(
-    'backends/postgres/report',
-    'backends/mongo/report',
+    'backends/postgres/Report',
+    'backends/mongo/Report',
 )
 def test_delete(
     model: str,
@@ -1257,8 +1257,8 @@ def test_delete(
 
 
 @pytest.mark.models(
-    'backends/postgres/report',
-    'backends/mongo/report',
+    'backends/postgres/Report',
+    'backends/mongo/Report',
 )
 def test_delete_batch(
     model: str,
@@ -1296,13 +1296,13 @@ def test_delete_batch(
 
 def test_get_gt_ge_lt_le_ne(app):
     app.authorize(['spinta_set_meta_fields'])
-    app.authmodel('/datasets/json/rinkimai', ['insert', 'upsert', 'search'])
+    app.authmodel('/datasets/json/Rinkimai', ['insert', 'upsert', 'search'])
 
-    resp = app.post('/datasets/json/rinkimai', json={'_data': [
+    resp = app.post('/datasets/json/Rinkimai', json={'_data': [
         {
             '_id': '3ba54cb1-2099-49c8-9b6e-629f6ad60a3b',
             '_op': 'upsert',
-            '_type': 'datasets/json/rinkimai',
+            '_type': 'datasets/json/Rinkimai',
             '_where': f'id="1"',
             'id': '1',
             'pavadinimas': 'Rinkimai 1',
@@ -1310,7 +1310,7 @@ def test_get_gt_ge_lt_le_ne(app):
         {
             '_id': '1e4fff26-0082-4ce8-87b8-dd8abf7fadae',
             '_op': 'upsert',
-            '_type': 'datasets/json/rinkimai',
+            '_type': 'datasets/json/Rinkimai',
             '_where': f'id="2"',
             'id': '2',
             'pavadinimas': 'Rinkimai 2',
@@ -1318,7 +1318,7 @@ def test_get_gt_ge_lt_le_ne(app):
         {
             '_id': '7109da99-6c02-49bf-97aa-a602e23b6659',
             '_op': 'upsert',
-            '_type': 'datasets/json/rinkimai',
+            '_type': 'datasets/json/Rinkimai',
             '_where': f'id="3"',
             'id': '3',
             'pavadinimas': 'Rinkimai 3',
@@ -1326,7 +1326,7 @@ def test_get_gt_ge_lt_le_ne(app):
         {
             '_id': '959e8881-9d84-4b44-a0e8-31183aac0de6',
             '_op': 'upsert',
-            '_type': 'datasets/json/rinkimai',
+            '_type': 'datasets/json/Rinkimai',
             '_where': f'id="4"',
             'id': '4',
             'pavadinimas': 'Rinkimai 4',
@@ -1334,7 +1334,7 @@ def test_get_gt_ge_lt_le_ne(app):
         {
             '_id': '24e613cc-3b3d-4075-96dd-093f2edbdf08',
             '_op': 'upsert',
-            '_type': 'datasets/json/rinkimai',
+            '_type': 'datasets/json/Rinkimai',
             '_where': f'id="5"',
             'id': '5',
             'pavadinimas': 'Rinkimai 5',
@@ -1344,26 +1344,26 @@ def test_get_gt_ge_lt_le_ne(app):
     assert resp.status_code == 200, resp.json()
 
     eq_id_for_gt_ge = resp.json()['_data'][0]['_id']
-    request_line = '/datasets/json/rinkimai?_id>"{0}"'.format(eq_id_for_gt_ge)
+    request_line = '/datasets/json/Rinkimai?_id>"{0}"'.format(eq_id_for_gt_ge)
     resp = app.get(request_line)
     assert len(resp.json()['_data']) == 2
 
-    request_line = '/datasets/json/rinkimai?_id>="{0}"'.format(eq_id_for_gt_ge)
+    request_line = '/datasets/json/Rinkimai?_id>="{0}"'.format(eq_id_for_gt_ge)
     resp = app.get(request_line)
 
     assert len(resp.json()['_data']) == 3
 
     eq_id_for_gt_ge = resp.json()['_data'][1]['_id']
-    request_line = '/datasets/json/rinkimai?_id<="{0}"'.format(eq_id_for_gt_ge)
+    request_line = '/datasets/json/Rinkimai?_id<="{0}"'.format(eq_id_for_gt_ge)
     resp = app.get(request_line)
 
     assert len(resp.json()['_data']) == 4
 
-    request_line = '/datasets/json/rinkimai?_id<"{0}"'.format(eq_id_for_gt_ge)
+    request_line = '/datasets/json/Rinkimai?_id<"{0}"'.format(eq_id_for_gt_ge)
     resp = app.get(request_line)
     assert len(resp.json()['_data']) == 3
 
-    request_line = '/datasets/json/rinkimai?_id!="{0}"'.format(eq_id_for_gt_ge)
+    request_line = '/datasets/json/Rinkimai?_id!="{0}"'.format(eq_id_for_gt_ge)
     resp = app.get(request_line)
     assert len(resp.json()['_data']) == 4
 

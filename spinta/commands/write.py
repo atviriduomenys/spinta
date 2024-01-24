@@ -37,7 +37,6 @@ from spinta.utils.nestedstruct import flatten_value
 from spinta.utils.streams import splitlines
 from spinta.utils.schema import NotAvailable, NA
 from spinta.utils.data import take
-from spinta.types.namespace import traverse_ns_models
 from spinta.core.ufuncs import asttoexpr
 from spinta.formats.components import Format
 from spinta.types.text.components import Text
@@ -1356,7 +1355,7 @@ async def wipe(  # noqa
     action: Action,
     params: UrlParams,
 ):
-    for model in traverse_ns_models(context, ns, action, internal=True):
+    for model in commands.traverse_ns_models(context, ns, ns.manifest, action, internal=True):
         commands.authorize(context, Action.WIPE, model)
     commands.wipe(context, ns, backend)
     response = {'wiped': True}
@@ -1373,5 +1372,5 @@ def prepare_headers(
     headers = {}
     if action == Action.INSERT and not is_batch:
         server_url = context.get('config').server_url
-        headers['location'] = f'{server_url}{node.endpoint}/{resp["_id"]}'
+        headers['location'] = f'{server_url}{node.name}/{resp["_id"]}'
     return headers

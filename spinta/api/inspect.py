@@ -170,7 +170,7 @@ async def inspect_api(context: Context, request: Request, params: UrlParams):
             only_url=True
         )
         inspect_data.clean_up()
-        clean_up_source_for_return(manifest)
+        clean_up_source_for_return(context, manifest)
 
         return commands.render(
             context,
@@ -183,8 +183,8 @@ async def inspect_api(context: Context, request: Request, params: UrlParams):
         raise e
 
 
-def clean_up_source_for_return(manifest: Manifest):
-    for dataset in manifest.datasets.values():
+def clean_up_source_for_return(context: Context, manifest: Manifest):
+    for dataset in commands.get_datasets(context, manifest).values():
         for resource in dataset.resources.values():
             if resource.external and not ("http://" in resource.external or "https://" in resource.external):
                 resource.external = f"https://get.data.gov.lt/{dataset.name}"

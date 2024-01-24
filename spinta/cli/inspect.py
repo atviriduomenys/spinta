@@ -74,4 +74,4 @@ def inspect(
         fmt = config.exporters[output_type]
         commands.render(ctx.obj, manifest, fmt, path=output)
     else:
-        echo(render_tabular_manifest(manifest))
+        echo(render_tabular_manifest(context, manifest))

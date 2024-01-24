@@ -6,6 +6,7 @@ from typing import Optional
 from typer import Context as TyperContext
 from typer import Option
 
+from spinta import commands
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.cli.helpers.data import process_stream
@@ -26,7 +27,7 @@ def import_(
     context = ctx.obj
     store = prepare_manifest(context)
     manifest = store.manifest
-    root = manifest.objects['ns']['']
+    root = commands.get_namespace(context, manifest, '')
 
     with context:
         require_auth(context, auth)

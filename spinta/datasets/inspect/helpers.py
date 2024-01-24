@@ -58,7 +58,7 @@ def create_manifest_from_inspect(
     )
     with context:
         require_auth(context, auth)
-        store = load_manifest(context, ensure_config_dir=True)
+        store = load_manifest(context, ensure_config_dir=True, full_load=True)
         old = store.manifest
         manifest = Manifest()
         init_manifest(context, manifest, 'inspect')
@@ -66,7 +66,7 @@ def create_manifest_from_inspect(
 
         if not resources:
             resources = []
-            for ds in old.datasets.values():
+            for ds in commands.get_datasets(context, old).values():
                 for resource in ds.resources.values():
                     external = resource.external
                     if external == '' and resource.backend:
@@ -82,7 +82,7 @@ def create_manifest_from_inspect(
 
         # Sort models for render
         sorted_models = {}
-        for key, model in manifest.models.items():
+        for key, model in commands.get_models(context, manifest).items():
             if key not in sorted_models.keys():
                 if model.external and model.external.resource:
                     resource = model.external.resource
@@ -91,7 +91,7 @@ def create_manifest_from_inspect(
                             sorted_models[resource_key] = resource_model
                 else:
                     sorted_models[key] = model
-        manifest.objects['model'] = sorted_models
+        commands.set_models(context, manifest, sorted_models)
     return context, manifest
 
 
@@ -100,7 +100,7 @@ def _merge(context: Context, manifest: Manifest, old: Manifest, resource: Resour
     manifest_ = get_manifest_from_type(rc, resource.type)
     path = ManifestPath(type=manifest_.type, path=resource.external)
     context = configure_context(context, [path], mode=Mode.external, dataset=dataset)
-    store = load_manifest(context)
+    store = load_manifest(context, full_load=True)
     new = store.manifest
     commands.merge(context, manifest, old, new, has_manifest_priority)
 
@@ -124,8 +124,8 @@ def merge(context: Context, manifest: Manifest, old: Manifest, new: Manifest, ha
                     n.name = name
             merge(context, manifest, o, n)
     datasets = zipitems(
-        old.datasets.values(),
-        new.datasets.values(),
+        commands.get_datasets(context, old).values(),
+        commands.get_datasets(context, new).values(),
         _dataset_key,
     )
     deduplicator = Deduplicator("{}")
@@ -157,10 +157,10 @@ def merge(context: Context, manifest: Manifest, old: ExternalBackend, new: NotAv
 
 @commands.merge.register(Context, Manifest, NotAvailable, Dataset, bool)
 def merge(context: Context, manifest: Manifest, old: NotAvailable, new: Dataset, has_manifest_priority: bool) -> None:
-    manifest.datasets[new.name] = new
+    commands.set_dataset(context, manifest, new.name, new)
     _merge_resources(context, manifest, old, new)
 
-    dataset_models = _filter_models_for_dataset(new.manifest, new)
+    dataset_models = _filter_models_for_dataset(context, new.manifest, new)
     deduplicator = Deduplicator()
     for model in dataset_models:
         model.name = deduplicator(model.name)
@@ -177,9 +177,7 @@ def merge(context: Context, manifest: Manifest, old: Dataset, new: Dataset, has_
     old.name = coalesce(old.name, new.name)
     old.manifest = coalesce(old.manifest, new.manifest)
     old.website = coalesce(old.website, new.website)
-    old.projects = coalesce(old.projects, new.projects)
     old.source = coalesce(old.source, new.source)
-    old.owner = coalesce(old.owner, new.owner)
     old.given = coalesce(old.given, new.given)
     old.level = coalesce(old.level, new.level)
     old.access = coalesce(old.access, new.access)
@@ -190,14 +188,14 @@ def merge(context: Context, manifest: Manifest, old: Dataset, new: Dataset, has_
         commands.merge(context, manifest, old.ns, new.ns)
     else:
         old.ns = coalesce(old.ns, new.ns)
-    manifest.datasets[old.name] = old
+    commands.set_dataset(context, manifest, old.name, old)
     _merge_prefixes(context, manifest, old, new)
     _merge_resources(context, manifest, old, new)
 
-    dataset_models = _filter_models_for_dataset(manifest, old)
+    dataset_models = _filter_models_for_dataset(context, manifest, old)
     models = zipitems(
         dataset_models,
-        new.manifest.models.values(),
+        commands.get_models(context, new.manifest).values(),
         _model_key
     )
     resource_list = []
@@ -229,7 +227,7 @@ def merge(context: Context, manifest: Manifest, old: Dataset, new: NotAvailable,
 @commands.merge.register(Context, Manifest, NotAvailable, UriPrefix)
 def merge(context: Context, manifest: Manifest, old: NotAvailable, new: UriPrefix) -> None:
     dataset = new.parent
-    manifest.datasets[dataset.name].prefixes[new.name] = new
+    commands.get_dataset(context, manifest, dataset.name).prefixes[new.name] = new
 
 
 @commands.merge.register(Context, Manifest, UriPrefix, UriPrefix)
@@ -250,7 +248,7 @@ def merge(context: Context, manifest: Manifest, old: UriPrefix, new: NotAvailabl
 
 @commands.merge.register(Context, Manifest, NotAvailable, Namespace)
 def merge(context: Context, manifest: Manifest, old: NotAvailable, new: Namespace) -> None:
-    manifest.namespaces[new.name] = new
+    commands.set_namespace(context, manifest, new.name, new)
 
 
 @commands.merge.register(Context, Manifest, Namespace, Namespace)
@@ -277,7 +275,7 @@ def merge(context: Context, manifest: Manifest, old: Namespace, new: NotAvailabl
 
 @commands.merge.register(Context, Manifest, NotAvailable, Resource)
 def merge(context: Context, manifest: Manifest, old: NotAvailable, new: Resource) -> None:
-    manifest.datasets[new.dataset.name].resources[new.name] = new
+    commands.get_dataset(context, manifest, new.dataset.name).resources[new.name] = new
 
 
 @commands.merge.register(Context, Manifest, Resource, Resource)
@@ -329,7 +327,7 @@ def merge(context: Context, manifest: Manifest, old: NotAvailable, new: Model, h
                             del old_res.models[old_name]
                     old_res.models[old.name] = old
     old.manifest = manifest
-    manifest.models[old.name] = old
+    commands.set_model(context, manifest, old.name, old)
     _merge_model_properties(context, manifest, old, new, has_manifest_priority)
 
 
@@ -350,7 +348,7 @@ def merge(context: Context, manifest: Manifest, old: Model, new: Model, has_mani
     old.external = coalesce(old.external, new.external)
     old.manifest = manifest
 
-    manifest.models[old.name] = old
+    commands.set_model(context, manifest, old.name, old)
     _merge_model_properties(context, manifest, old, new, has_manifest_priority)
 
     if old.external and new.external:
@@ -419,7 +417,8 @@ def merge(context: Context, manifest: Manifest, old: Property, new: Property, ha
 def merge(context: Context, manifest: Manifest, old: Property, new: NotAvailable, has_manifest_priority: bool) -> None:
     if old.external:
         old.external.name = None
-    manifest.models[old.model.name].properties[old.name] = old
+    model = commands.get_model(context, manifest, old.model.name)
+    model.properties[old.name] = old
 
 
 @commands.merge.register(Context, Manifest, DataType, Array)
@@ -438,7 +437,7 @@ def merge(context: Context, manifest: Manifest, old: DataType, new: Array) -> No
     merged.prepare = coalesce(old.prepare, new.prepare)
     models = zipitems(
         [merged.items.model],
-        manifest.models.values(),
+        commands.get_models(context, manifest).values(),
         _model_key
     )
     for model in models:
@@ -486,7 +485,7 @@ def merge(context: Context, manifest: Manifest, old: DataType, new: Object) -> N
         new_value = value
         models = zipitems(
             [value.model],
-            manifest.models.values(),
+            commands.get_models(context, manifest).values(),
             _model_key
         )
         for model in models:
@@ -533,7 +532,7 @@ def merge(context: Context, manifest: Manifest, old: DataType, new: Ref) -> None
 
     models = zipitems(
         [merged.model],
-        manifest.models.values(),
+        commands.get_models(context, manifest).values(),
         _model_key
     )
     for model in models:
@@ -583,7 +582,7 @@ def merge(context: Context, manifest: Manifest, old: DataType, new: Denorm) -> N
 
     models = zipitems(
         [merged.rel_prop.model],
-        manifest.models.values(),
+        commands.get_models(context, manifest).values(),
         _model_key
     )
     for model in models:
@@ -628,11 +627,12 @@ def merge(context: Context, manifest: Manifest, old: DataType, new: DataType) ->
 
 
 def _filter_models_for_dataset(
+    context: Context,
     manifest: Manifest,
     dataset: Dataset
 ) -> List[Model]:
     models = []
-    for model in manifest.models.values():
+    for model in commands.get_models(context, manifest).values():
         if model.external:
             if model.external.dataset is dataset:
                 models.append(model)

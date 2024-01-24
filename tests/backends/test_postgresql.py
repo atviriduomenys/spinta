@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from spinta.components import Model, Property
@@ -58,47 +60,47 @@ def test_get_pg_sequence_name(name: str, result: str):
 
 
 def test_changes(app):
-    app.authmodel('country', ['insert', 'update', 'changes'])
-    data = app.post('/country', json={'_type': 'country', 'code': 'lt', 'title': "Lithuania"}).json()
-    app.put(f'/country/{data["_id"]}', json={'_type': 'country', '_id': data['_id'], 'title': "Lietuva"})
-    app.put(f'/country/{data["_id"]}', json={'type': 'country', '_id': data['_id'], 'code': 'lv', 'title': "Latvia"})
-    app.get(f'/country/{data["_id"]}/:changes').json() == {}
+    app.authmodel('Country', ['insert', 'update', 'changes'])
+    data = app.post('/Country', json={'_type': 'Country', 'code': 'lt', 'title': "Lithuania"}).json()
+    app.put(f'/Country/{data["_id"]}', json={'_type': 'Country', '_id': data['_id'], 'title': "Lietuva"})
+    app.put(f'/Country/{data["_id"]}', json={'type': 'Country', '_id': data['_id'], 'code': 'lv', 'title': "Latvia"})
+    app.get(f'/Country/{data["_id"]}/:changes').json() == {}
 
 
 def test_delete(context, app):
-    app.authmodel('country', ['insert', 'getall', 'delete'])
+    app.authmodel('Country', ['insert', 'getall', 'delete'])
 
     resp = app.post('/', json={
         '_data': [
-            {'_op': 'insert', '_type': 'country', 'code': 'fi', 'title': 'Finland'},
-            {'_op': 'insert', '_type': 'country', 'code': 'lt', 'title': 'Lithuania'},
+            {'_op': 'insert', '_type': 'Country', 'code': 'fi', 'title': 'Finland'},
+            {'_op': 'insert', '_type': 'Country', 'code': 'lt', 'title': 'Lithuania'},
         ],
     })
     ids = [x['_id'] for x in resp.json()['_data']]
     revs = [x['_revision'] for x in resp.json()['_data']]
 
-    resp = app.get('/country').json()
+    resp = app.get('/Country').json()
     data = [x['_id'] for x in resp['_data']]
     assert ids[0] in data
     assert ids[1] in data
 
     # XXX: DELETE method should not include a request body.
-    resp = app.request('DELETE', f'/country/{ids[0]}', json={
+    resp = app.request('DELETE', f'/Country/{ids[0]}', json={
         '_revision': revs[0],
     })
     assert resp.status_code == 204
 
     # multiple deletes should just return HTTP/404
-    resp = app.delete(f'/country/{ids[0]}')
+    resp = app.delete(f'/Country/{ids[0]}')
     assert resp.status_code == 404
     assert get_error_codes(resp.json()) == ['ItemDoesNotExist']
     assert get_error_context(resp.json(), 'ItemDoesNotExist', ['manifest', 'model', 'id']) == {
         'manifest': 'default',
-        'model': 'country',
+        'model': 'Country',
         'id': ids[0],
     }
 
-    resp = app.get('/country').json()
+    resp = app.get('/Country').json()
     data = [x['_id'] for x in resp['_data']]
     assert ids[0] not in data
     assert ids[1] in data
@@ -114,13 +116,13 @@ def test_patch(app):
         'spinta_org_patch',
     ])
 
-    country_data = app.post('/country', json={
-        '_type': 'country',
+    country_data = app.post('/Country', json={
+        '_type': 'Country',
         'code': 'lt',
         'title': 'Lithuania',
     }).json()
-    org_data = app.post('/org', json={
-        '_type': 'org',
+    org_data = app.post('/Org', json={
+        '_type': 'Org',
         'title': 'My Org',
         'govid': '0042',
         'country': {
@@ -129,7 +131,7 @@ def test_patch(app):
     }).json()
     id_ = org_data['_id']
 
-    resp = app.patch(f'/org/{org_data["_id"]}', json={
+    resp = app.patch(f'/Org/{org_data["_id"]}', json={
         '_revision': org_data['_revision'],
         'title': 'foo org',
     })
@@ -139,7 +141,7 @@ def test_patch(app):
     assert org_data['_revision'] != revision
 
     # test that revision mismatch is checked
-    resp = app.patch(f'/org/{org_data["_id"]}', json={
+    resp = app.patch(f'/Org/{org_data["_id"]}', json={
         '_revision': 'r3v1510n',
         'title': 'foo org',
     })
@@ -148,25 +150,25 @@ def test_patch(app):
     assert get_error_context(resp.json(), "ConflictingValue", ["given", "expected", "model"]) == {
         'given': 'r3v1510n',
         'expected': revision,
-        'model': 'org',
+        'model': 'Org',
     }
 
     # test that type mismatch is checked
-    resp = app.patch(f'/org/{org_data["_id"]}', json={
-        '_type': 'country',
+    resp = app.patch(f'/Org/{org_data["_id"]}', json={
+        '_type': 'Country',
         '_revision': org_data['_revision'],
         'title': 'foo org',
     })
     assert resp.status_code == 409
     assert get_error_codes(resp.json()) == ['ConflictingValue']
     assert get_error_context(resp.json(), 'ConflictingValue', ['given', 'expected', 'model']) == {
-        'given': 'country',
-        'expected': 'org',
-        'model': 'org',
+        'given': 'Country',
+        'expected': 'Org',
+        'model': 'Org',
     }
 
     # test that id mismatch is checked
-    resp = app.patch(f'/org/{org_data["_id"]}', json={
+    resp = app.patch(f'/Org/{org_data["_id"]}', json={
         '_id': '0007ddec-092b-44b5-9651-76884e6081b4',
         '_revision': revision,
         'title': 'foo org',
@@ -175,7 +177,7 @@ def test_patch(app):
     data = resp.json()
     assert data['_revision'] != revision
     assert data == {
-        '_type': 'org',
+        '_type': 'Org',
         '_id': '0007ddec-092b-44b5-9651-76884e6081b4',
         '_revision': data['_revision'],
     }
@@ -183,9 +185,9 @@ def test_patch(app):
     revision = data['_revision']
 
     # patch using same values as already stored in database
-    resp = app.patch(f'/org/{id_}', json={
+    resp = app.patch(f'/Org/{id_}', json={
         '_id': id_,
-        '_type': 'org',
+        '_type': 'Org',
         '_revision': revision,
         'title': 'foo org',
     })
@@ -193,24 +195,34 @@ def test_patch(app):
     resp_data = resp.json()
 
     assert resp_data['_id'] == id_
-    assert resp_data['_type'] == 'org'
+    assert resp_data['_type'] == 'Org'
     # title have not changed, so should not be included in result
     assert 'title' not in resp_data
     # revision must be the same, since nothing has changed
     assert resp_data['_revision'] == revision
 
 
+@pytest.mark.manifests('internal_sql', 'ascii')
 def test_exceptions_unique_constraint_single_column(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
         d | r | b | m | property | type   | ref     | access  | uri
         example/unique/single    |        |         |         |
           |   |   | Country      |        | name    |         | 
           |   |   |   | name     | string |         | open    | 
-        ''', backend=postgresql, request=request)
+        ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authmodel('example/unique/single', ['insert'])
 
@@ -237,18 +249,28 @@ def test_exceptions_unique_constraint_single_column(
     }
 
 
+@pytest.mark.manifests('internal_sql', 'ascii')
 def test_exceptions_unique_constraint_multiple_columns(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
         d | r | b | m | property | type    | ref      | access  | uri
         example/unique/multiple  |         |          |         |
           |   |   | Country      |         | name, id |         | 
           |   |   |   | name     | string  |          | open    | 
           |   |   |   | id       | integer |          | open    | 
-        ''', backend=postgresql, request=request)
+        ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authmodel('example/unique/multiple', ['insert'])
 

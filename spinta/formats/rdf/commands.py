@@ -30,7 +30,6 @@ from spinta.types.datatype import Date
 from spinta.types.datatype import Time
 from spinta.types.datatype import DateTime
 from spinta.types.datatype import Number
-from spinta.types.namespace import traverse_ns_models
 from spinta.utils.encoding import encode_page_values
 from spinta.utils.schema import NotAvailable
 
@@ -39,13 +38,13 @@ PAV = "pav"
 DESCRIPTION = "Description"
 
 
-def _get_available_prefixes(model: Model) -> dict:
+def _get_available_prefixes(context: Context, model: Model) -> dict:
     prefixes = {
         RDF: "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
         PAV: "http://purl.org/pav/"
     }
-    if model.manifest.datasets.get(model.ns.name):
-        manifest_prefixes = model.manifest.datasets.get(model.ns.name).prefixes
+    if commands.has_dataset(context, model.manifest, model.ns.name):
+        manifest_prefixes = commands.get_dataset(context, model.manifest, model.ns.name).prefixes
         for key, val in manifest_prefixes.items():
             if isinstance(val, UriPrefix):
                 prefixes[key] = val.uri
@@ -218,6 +217,7 @@ def render(
 
     return StreamingResponse(
         _stream(
+            context,
             request,
             model,
             action,
@@ -259,13 +259,14 @@ def render(
 
 
 async def _stream(
+    context: Context,
     request: Request,
     model: Model,
     action: Action,
     data
 ):
     namespaces = []
-    prefixes = _get_available_prefixes(model)
+    prefixes = _get_available_prefixes(context, model)
     root_name = _get_attribute_name(RDF.upper(), RDF, prefixes)
     for key, val in prefixes.items():
         namespaces.append(f'xmlns:{key}="{val}"')
@@ -292,9 +293,10 @@ async def _stream_namespace(
     data
 ):
     namespaces = []
-    models = traverse_ns_models(
+    models = commands.traverse_ns_models(
         context,
         ns,
+        ns.manifest,
         action,
         internal=True,
     )
@@ -346,7 +348,7 @@ def prepare_data_for_response(
     value = value.copy()
     reserved = get_model_reserved_props(action, model)
 
-    available_prefixes = _get_available_prefixes(model)
+    available_prefixes = _get_available_prefixes(context, model)
 
     value['_available_prefixes'] = available_prefixes
     value['_about_name'] = _get_attribute_name('about', RDF, available_prefixes)

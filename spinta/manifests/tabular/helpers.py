@@ -4,6 +4,7 @@ import csv
 import pathlib
 import logging
 import textwrap
+import uuid
 from operator import itemgetter
 from itertools import zip_longest
 from typing import Any
@@ -38,7 +39,7 @@ from spinta.components import Model
 from spinta.components import Namespace
 from spinta.components import Property
 from spinta.core.enums import Access
-from spinta.core.ufuncs import unparse
+from spinta.core.ufuncs import unparse, Expr
 from spinta.datasets.components import Dataset
 from spinta.dimensions.enum.components import Enums
 from spinta.dimensions.lang.components import LangData
@@ -173,18 +174,21 @@ class TabularReader:
     data: ManifestRow               # Used when `appendable` is False
     rows: List[Dict[str, Any]]      # Used when `appendable` is True
     appendable: bool = False        # Tells if reader is appendable.
+    allow_updates: bool = False     # Tells if manifest supports structure updates
 
     def __init__(
         self,
         state: State,
         path: str,
         line: str,
+        allow_updates: bool = False
     ):
         self.state = state
         self.path = path
         self.line = line
         self.data = {}
         self.rows = []
+        self.allow_updates = allow_updates
 
     def __str__(self):
         return f"<{type(self).__name__} name={self.name!r}>"
@@ -193,10 +197,11 @@ class TabularReader:
         raise NotImplementedError
 
     def append(self, row: Dict[str, str]) -> None:
-        if any(row.values()):
-            self.error(
-                f"Updates are not supported in context of {self.type!r}."
-            )
+        if not self.allow_updates:
+            if any(row.values()):
+                self.error(
+                    f"Updates are not supported in context of {self.type!r}."
+                )
 
     def release(self, reader: TabularReader = None) -> bool:
         raise NotImplementedError
@@ -313,6 +318,7 @@ class ResourceReader(TabularReader):
             )
 
         self.data = {
+            'id': row['id'],
             'type': row['type'],
             'name': self.name,
             'dsn': row['source'],
@@ -330,6 +336,7 @@ class ResourceReader(TabularReader):
             self.error("Resource with the same name already defined in ")
 
         self.data = {
+            'id': row['id'],
             'type': row['type'],
             'backend': row['ref'],
             'external': row['source'],
@@ -344,10 +351,14 @@ class ResourceReader(TabularReader):
         dataset['resources'][self.name] = self.data
 
     def release(self, reader: TabularReader = None) -> bool:
+        if self.state.dataset is None:
+            return True
         return reader is None or isinstance(reader, (
             ManifestReader,
             DatasetReader,
             ResourceReader,
+            EnumReader,
+            PrefixReader
         )) or (isinstance(reader, ModelReader) and self.name == '/')
 
     def enter(self) -> None:
@@ -371,6 +382,7 @@ class BaseReader(TabularReader):
             dataset = dataset.data if dataset else None
 
             self.data = {
+                'id': row['id'],
                 'name': self.name,
                 'model': get_relative_model_name(dataset, row['base']),
                 'pk': (
@@ -425,6 +437,7 @@ class ModelReader(TabularReader):
             'id': row['id'],
             'name': name,
             'base': {
+                'id': base.data["id"],
                 'name': base.name,
                 'parent': base.data['model'],
                 'pk': base.data['pk'],
@@ -633,6 +646,7 @@ ALLOWED_ARRAY_TYPES = ['array', 'partial_array']
 
 def _initial_normal_property_schema(given_name: str, dtype: dict, row: dict):
     return {
+        'id': row.get('id'),
         'type': dtype['type'],
         'type_args': dtype['type_args'],
         'prepare': row.get(PREPARE),
@@ -850,12 +864,12 @@ def _text_datatype_handler(reader: PropertyReader, row: dict):
         'access': row['access'],
     }))
     temp_data['type'] = 'string'
-    temp_data['external'] = new_data['external']
+    temp_data['external'] = new_data['external'] if 'external' in new_data else {}
     if result:
         new_data['langs'] = result['langs']
         if new_data['level'] and int(new_data['level']) <= 3:
             new_data['langs']['C'] = temp_data
-            if new_data['external']:
+            if 'external' in new_data and new_data['external']:
                 new_data['external'] = {}
         result.update(new_data)
         return result
@@ -864,7 +878,7 @@ def _text_datatype_handler(reader: PropertyReader, row: dict):
             new_data['langs'] = {
                 'C': temp_data
             }
-            if new_data['external']:
+            if 'external' in new_data and new_data['external']:
                 new_data['external'] = {}
         return new_data
 
@@ -1304,6 +1318,7 @@ class EnumReader(TabularReader):
             self.error(f"Enum's do not have a level, but level {row[LEVEL]!r} is given.")
 
         self.data = {
+            'id': row[ID],
             'name': self.name,
             'source': row[SOURCE],
             'prepare': _parse_spyna(self, row[PREPARE]),
@@ -1361,6 +1376,7 @@ class LangReader(TabularReader):
             ModelReader,
             PropertyReader,
             EnumReader,
+            LangReader
         )):
             self.error(f'Language metadata is not supported on {reader.type}.')
             return
@@ -1533,6 +1549,7 @@ def _read_tabular_manifest_rows(
     rows: Iterator[Tuple[str, List[str]]],
     *,
     rename_duplicates: bool = True,
+    allow_updates: bool = False
 ) -> Iterator[ParsedRow]:
     _, header = next(rows, (None, None))
     if header is None:
@@ -1544,7 +1561,7 @@ def _read_tabular_manifest_rows(
 
     state = State()
     state.rename_duplicates = rename_duplicates
-    reader = ManifestReader(state, path, '1')
+    reader = ManifestReader(state, path, '1', allow_updates=allow_updates)
     reader.read({})
     yield from state.release(reader)
 
@@ -1554,7 +1571,7 @@ def _read_tabular_manifest_rows(
         row = {**defaults, **row}
         dimension = _detect_dimension(path, line, row)
         Reader = READERS[dimension]
-        reader = Reader(state, path, line)
+        reader = Reader(state, path, line, allow_updates=allow_updates)
         reader.read(row)
         yield from state.release(reader)
 
@@ -1766,6 +1783,8 @@ def get_relative_model_name(dataset: [str, dict], name: str) -> str:
         return name.replace(dataset, '')
     if name.startswith('/'):
         return name[1:]
+    elif '/' in name:
+        return name
     elif dataset is None:
         return name
     else:
@@ -1779,9 +1798,8 @@ def to_relative_model_name(model: Model, dataset: Dataset = None) -> str:
     """Convert absolute model `name` to relative."""
     if dataset is None:
         return model.name
-    if model.name.startswith(dataset.name):
-        prefix = dataset.name
-        return model.name[len(prefix) + 1:]
+    if model.name == f'{dataset.name}/{model.basename}':
+        return model.basename
     else:
         return '/' + model.name
 
@@ -1886,6 +1904,7 @@ def _backends_to_tabular(
 ) -> Iterator[ManifestRow]:
     for name, backend in backends.items():
         yield torow(DATASET, {
+            'id': backend.config.get('id'),
             'type': backend.type,
             'resource': name,
             'source': backend.config.get('dsn'),
@@ -1907,6 +1926,7 @@ def _namespaces_to_tabular(
     first = True
     for name, ns in namespaces.items():
         yield torow(DATASET, {
+            'id': ns.id,
             'type': ns.type if first else '',
             'ref': name,
             'title': ns.title,
@@ -1944,6 +1964,7 @@ def _enums_to_tabular(
             if item.access is not None and item.access < access:
                 continue
             yield torow(DATASET, {
+                'id': item.id,
                 'type': 'enum' if first else '',
                 'ref': name if first else '',
                 'source': item.source if external else '',
@@ -1970,6 +1991,7 @@ def _lang_to_tabular(
     first = True
     for name, data in sorted(lang.items(), key=itemgetter(0)):
         yield torow(DATASET, {
+            'id': data['id'],
             'type': 'lang' if first else '',
             'ref': name if first else '',
             'title': data['title'],
@@ -1985,6 +2007,7 @@ def _text_to_tabular(
         return
     for lang in prop.dtype.langs:
         yield torow(DATASET, {
+            'id': prop.id,
             'property': prop.name + '@' + lang,
             'type': prop.dtype.name,
             'level': prop.level.value if prop.level is not None else '',
@@ -2085,6 +2108,7 @@ def _resource_to_tabular(
 ) -> Iterator[ManifestRow]:
     backend = resource.backend
     yield torow(DATASET, {
+        'id': resource.id,
         'resource': resource.name,
         'source': resource.external if external else '',
         'prepare': unparse(resource.prepare or NA) if external else '',
@@ -2114,6 +2138,7 @@ def _base_to_tabular(
     data = {
         'base': base.name,
         'level': base.level.value if base.level else "",
+        'id': base.id,
     }
     if base.pk:
         data['ref'] = ', '.join([pk.place for pk in base.pk])
@@ -2136,6 +2161,7 @@ def _property_to_tabular(
 
     data = {
         'property': prop.given.name or prop.name,
+        'id': prop.id,
         'type': _get_type_repr(prop.dtype),
         'level': prop.level.value if prop.level else "",
         'access': prop.given.access,
@@ -2192,8 +2218,6 @@ def _property_to_tabular(
         else:
             data['ref'] = prop.dtype.model.name
 
-        for denorm_prop in prop.dtype.properties.values():
-            yield_rows.append(denorm_prop)
     elif isinstance(prop.dtype, Object):
         for obj_prop in prop.dtype.properties.values():
             yield_rows.append(obj_prop)
@@ -2295,6 +2319,7 @@ def _model_to_tabular(
 
 
 def datasets_to_tabular(
+    context: Context,
     manifest: Manifest,
     *,
     external: bool = True,   # clean content of source and prepare
@@ -2304,7 +2329,7 @@ def datasets_to_tabular(
 ) -> Iterator[ManifestRow]:
     yield from _prefixes_to_tabular(manifest.prefixes, separator=True)
     yield from _backends_to_tabular(manifest.backends, separator=True)
-    yield from _namespaces_to_tabular(manifest.namespaces, separator=True)
+    yield from _namespaces_to_tabular(commands.get_namespaces(context, manifest), separator=True)
     yield from _enums_to_tabular(
         manifest.enums,
         external=external,
@@ -2317,7 +2342,8 @@ def datasets_to_tabular(
     dataset = None
     resource = None
     base = None
-    models = manifest.models if internal else take(manifest.models)
+    models = commands.get_models(context, manifest)
+    models = models if internal else take(models)
     models = sort(MODELS_ORDER_BY, models.values(), order_by)
 
     separator = False
@@ -2384,7 +2410,7 @@ def datasets_to_tabular(
             order_by=order_by,
         )
 
-    datasets = sort(DATASETS_ORDER_BY, manifest.datasets.values(), order_by)
+    datasets = sort(DATASETS_ORDER_BY, commands.get_datasets(context, manifest).values(), order_by)
     for dataset in datasets:
         if dataset.name in seen_datasets:
             continue
@@ -2407,12 +2433,13 @@ def torow(keys, values) -> ManifestRow:
 
 
 def render_tabular_manifest(
+    context: Context,
     manifest: Manifest,
     cols: List[ManifestColumn] = None,
     *,
     sizes: Dict[ManifestColumn, int] = None,
 ) -> str:
-    rows = datasets_to_tabular(manifest)
+    rows = datasets_to_tabular(context, manifest)
     return render_tabular_manifest_rows(rows, cols, sizes=sizes)
 
 
@@ -2454,7 +2481,10 @@ def render_tabular_manifest_rows(
 
     for row in rows:
         if ID in cols:
-            line = [row[ID][:2] if row[ID] else '  ']
+            value = row[ID]
+            if isinstance(value, uuid.UUID):
+                value = str(value)
+            line = [value[:2] if value else '  ']
         else:
             line = []
 
@@ -2526,6 +2556,7 @@ def normalizes_columns(
 
 
 def write_tabular_manifest(
+    context: Context,
     path: str,
     rows: Union[
         Manifest,
@@ -2539,7 +2570,7 @@ def write_tabular_manifest(
     if rows is None:
         rows = []
     elif isinstance(rows, Manifest):
-        rows = datasets_to_tabular(rows)
+        rows = datasets_to_tabular(context, rows)
 
     rows = ({c: row[c] for c in cols} for row in rows)
     if path.endswith('.csv'):

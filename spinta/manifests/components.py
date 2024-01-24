@@ -13,7 +13,7 @@ from typing import Tuple
 from typing import TypedDict
 from typing import Union
 
-from spinta.components import Component
+from spinta.components import Component, Context
 from spinta.components import Mode
 from spinta.components import Model
 from spinta.components import Namespace
@@ -34,6 +34,10 @@ class MetaDataContainer(TypedDict):
     model: Dict[str, Model]
 
 
+def get_manifest_object_names():
+    return MetaDataContainer.__annotations__.keys()
+
+
 class ManifestGiven:
     access: str = None
 
@@ -45,15 +49,11 @@ class Manifest(Component):
     backend: Backend = None
     parent: Component = None
     store: Store = None
-    objects: MetaDataContainer = None
+    _objects: MetaDataContainer = None
     path: str = None
     access: Access = Access.protected
     prefixes: Dict[str, UriPrefix]
     enums: Enums
-
-    # {<endpoint>: <model.name>} mapping. There can be multiple model types,
-    # but name and endpoint for all of them should match.
-    endpoints: Dict[str, str] = None
 
     # Backends defined in the manifest.
     backends: Dict[str, Backend] = None
@@ -91,28 +91,8 @@ class Manifest(Component):
         else:
             super().__eq__(other)
 
-    def add_model_endpoint(self, model):
-        endpoint = model.endpoint
-        if endpoint:
-            if endpoint not in self.endpoints:
-                self.endpoints[endpoint] = model.name
-            elif self.endpoints[endpoint] != model.name:
-                raise Exception(
-                    f"Same endpoint, but different model name, "
-                    f"endpoint={endpoint!r}, model.name={model.name!r}."
-                )
-
-    @property
-    def models(self) -> Dict[str, Model]:
-        return self.objects['model']
-
-    @property
-    def datasets(self) -> Dict[str, Dataset]:
-        return self.objects['dataset']
-
-    @property
-    def namespaces(self) -> Dict[str, Namespace]:
-        return self.objects['ns']
+    def get_objects(self) -> dict:
+        return self._objects
 
 
 NodeSchema = Optional[Dict[str, Any]]

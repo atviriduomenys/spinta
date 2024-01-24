@@ -20,7 +20,7 @@ from spinta.manifests.components import Manifest
 from spinta.utils import url as urlutil
 from spinta.components import UrlParams, Version
 from spinta.commands import is_object_id
-from spinta import exceptions
+from spinta import exceptions, commands
 from spinta import spyna
 from spinta.exceptions import ModelNotFound, InvalidPageParameterCount, InvalidPageKey
 from spinta.utils.config import asbool
@@ -251,17 +251,12 @@ def _join_path_parts(*parts: str) -> str:
 
 
 def _find_model_name_index(
-    manifest: Manifest,
     parts: List[str],
 ) -> int:
-    keys = (
-        set(manifest.namespaces) |
-        set(manifest.models) |
-        set(manifest.endpoints)
-    )
-    for i, name in enumerate(itertools.accumulate(parts, _join_path_parts)):
-        if name not in keys:
-            return i
+    # By default, namespace, properties starts with lower case and Model starts with upper
+    for i, part in enumerate(parts):
+        if part[0].isupper():
+            return i + 1
     return len(parts)
 
 
@@ -271,10 +266,10 @@ def _resolve_path(context: Context, params: UrlParams) -> None:
         params.path_parts = []
 
     manifest = context.get('store').manifest
-    i = _find_model_name_index(manifest, params.path_parts)
+    i = _find_model_name_index(params.path_parts)
     parts = params.path_parts[i:]
     params.path = '/'.join(params.path_parts[:i])
-    params.model = get_model_from_params(manifest, params)
+    params.model = get_model_from_params(context, manifest, params)
 
     if parts:
         # Resolve ID.
@@ -309,27 +304,22 @@ def get_model_by_name(context: Context, manifest: Manifest, name: str) -> Node:
 
 
 def get_model_from_params(
+    context: Context,
     manifest: Manifest,
     params: UrlParams,
 ) -> Union[Namespace, Model]:
     name = params.path
-
-    if name in manifest.endpoints:
-        # Allow users to specify a different URL endpoint to make URL look
-        # nicer, but that is optional, they can still use model.name.
-        name = manifest.endpoints[name]
-
     if params.ns:
-        if name in manifest.namespaces:
-            return manifest.namespaces[name]
+        if commands.has_namespace(context, manifest, name):
+            return commands.get_namespace(context, manifest, name)
         else:
             raise ModelNotFound(manifest, model=name)
 
-    elif name in manifest.models:
-        return manifest.models[name]
+    elif commands.has_model(context, manifest, name):
+        return commands.get_model(context, manifest, name)
 
-    elif name in manifest.namespaces:
-        return manifest.namespaces[name]
+    elif commands.has_namespace(context, manifest, name):
+        return commands.get_namespace(context, manifest, name)
 
     else:
         raise ModelNotFound(model=name)

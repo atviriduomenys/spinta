@@ -206,6 +206,16 @@ class ItemDoesNotExist(UserError):
     template = "Resource {id!r} not found."
 
 
+class DatasetNotFound(UserError):
+    status_code = 404
+    template = "Dataset {dataset!r} not found."
+
+
+class NamespaceNotFound(UserError):
+    status_code = 404
+    template = "Namespace {namespace!r} not found."
+
+
 class ModelNotFound(UserError):
     status_code = 404
     template = "Model {model!r} not found."
@@ -818,3 +828,11 @@ class InheritPropertyValueMissmatch(UserError):
 
 class OutOfMemoryMigrate(UserError):
     template = "Ran out of shared memory while migrating. Use '--autocommit' tag, or increase 'max_locks_per_transaction'."
+
+
+class ManifestObjectNotDefined(UserError):
+    template = "Object {obj!r} is not defined in manifest objects list."
+
+
+class InvalidIdType(UserError):
+    template = "Id {id!r} of {id_type!r} type is invalid."

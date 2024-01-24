@@ -88,7 +88,6 @@ def load(
     else:
         model.keymap = manifest.keymap
 
-    manifest.add_model_endpoint(model)
     _load_namespace_from_model(context, manifest, model)
     load_access_param(model, data.get('access'), itertools.chain(
         [model.ns],
@@ -105,6 +104,7 @@ def load(
     if model.base:
         base: dict = model.base
         model.base = get_node(
+            context,
             config,
             manifest,
             model.eid,
@@ -133,6 +133,7 @@ def load(
     if model.external:
         external: dict = model.external
         model.external = get_node(
+            context,
             config,
             manifest,
             model.eid,
@@ -153,6 +154,9 @@ def load(
     builder.update(model=model)
     builder.load_page()
 
+    if not model.name.startswith('_') and not model.basename[0].isupper():
+        raise Exception(model.basename, "MODEL NAME NEEDS TO BE UPPER CASED")
+
     return model
 
 
@@ -172,7 +176,7 @@ def link(context: Context, model: Model):
             raise KeymapNotSet(model)
 
     # Link model backend.
-    if model.backend:
+    if model.backend and isinstance(model.backend, str):
         if model.backend in model.manifest.backends:
             model.backend = model.manifest.backends[model.backend]
         else:
@@ -242,7 +246,7 @@ def _link_model_page(model: Model):
 @overload
 @commands.link.register(Context, Base)
 def link(context: Context, base: Base):
-    base.parent = base.model.manifest.models[base.parent]
+    base.parent = commands.get_model(context, base.model.manifest, base.parent)
     base.pk = [
         base.parent.properties[pk]
         for pk in base.pk
@@ -281,6 +285,7 @@ def load(
     if data['type'] == 'ref' and prop.level is not None and prop.level < 4:
         data['type'] = '_external_ref'
     prop.dtype = get_node(
+        context,
         config,
         manifest,
         prop.model.eid,
@@ -398,6 +403,7 @@ def _load_property_external(
 
     config = context.get('config')
     external: Attribute = get_node(
+        context,
         config,
         manifest,
         prop.model.eid,

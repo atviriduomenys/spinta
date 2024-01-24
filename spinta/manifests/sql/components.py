@@ -14,7 +14,11 @@ class SqlManifest(Manifest):
     def detect_from_path(path: str) -> bool:
         try:
             url = sa.engine.make_url(path)
+            if not url:
+                return False
             url.get_dialect()
-            return True
-        except:
+            engine = sa.create_engine(url)
+            inspector = sa.inspect(engine)
+            return not inspector.has_table('_manifest')
+        except sa.exc.SQLAlchemyError:
             return False

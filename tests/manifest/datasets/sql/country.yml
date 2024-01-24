@@ -1,5 +1,5 @@
 type: model
-name: datasets/sql/country
+name: datasets/sql/Country
 external:
   dataset: datasets/sql
   resource: db

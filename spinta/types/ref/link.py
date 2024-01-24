@@ -18,9 +18,9 @@ def link(context: Context, dtype: Ref) -> None:
         # Self reference.
         dtype.model = dtype.prop.model
     else:
-        if rmodel not in dtype.prop.model.manifest.models:
+        if not commands.has_model(context, dtype.prop.model.manifest, rmodel):
             raise ModelReferenceNotFound(dtype, ref=rmodel)
-        dtype.model = dtype.prop.model.manifest.models[rmodel]
+        dtype.model = commands.get_model(context, dtype.prop.model.manifest, rmodel)
 
     if dtype.refprops:
         refprops = []

@@ -2,8 +2,8 @@ import pytest
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_sort(model, app):
     app.authmodel(model, ['insert', 'search'])
@@ -31,8 +31,8 @@ def test_sort(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_sort_with_nested_prop(model, app):
     app.authmodel(model, ['insert', 'search'])

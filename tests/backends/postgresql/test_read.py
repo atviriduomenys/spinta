@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Any
 from typing import Dict
 from typing import List
@@ -15,6 +16,7 @@ from spinta.core.ufuncs import asttoexpr
 from _pytest.fixtures import FixtureRequest
 
 from spinta.testing.utils import get_error_codes
+import pytest
 
 
 def _prep_context(context: Context):
@@ -47,7 +49,7 @@ def test_getall(rc: RawConfig):
             'country.name': 'Lithuania',
         }
     ])
-    model = manifest.models['example/City']
+    model = commands.get_model(context, manifest, 'example/City')
     backend = model.backend
     query = asttoexpr(spyna.parse('select(_id, country.name)'))
     rows = commands.getall(context, model, backend, query=query)
@@ -75,13 +77,27 @@ def test_getall(rc: RawConfig):
     ]
 
 
-def test_getall_pagination_disabled(rc: RawConfig, postgresql: str, request: FixtureRequest):
-    context = bootstrap_manifest(rc, '''
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_getall_pagination_disabled(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
             d | r | b | m | property | type    | ref     | access  | uri
             example/getall/test      |         |         |         |
               |   |   | Test         |         | value   |         | 
               |   |   |   | value    | integer |         | open    | 
-            ''', backend=postgresql, request=request)
+            ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authmodel('example/getall/test', ['insert', 'getall', 'search'])
     app.post('/example/getall/test/Test', json={'value': 0})
@@ -99,13 +115,27 @@ def test_getall_pagination_disabled(rc: RawConfig, postgresql: str, request: Fix
     assert len(json_response["_data"]) == 5
 
 
-def test_getall_pagination_enabled(rc: RawConfig, postgresql: str, request: FixtureRequest):
-    context = bootstrap_manifest(rc, '''
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_getall_pagination_enabled(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
             d | r | b | m | property | type    | ref     | access  | uri
             example/getall/test      |         |         |         |
               |   |   | Test         |         | value   |         | 
               |   |   |   | value    | integer |         | open    | 
-            ''', backend=postgresql, request=request)
+            ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authmodel('example/getall/test', ['insert', 'getall', 'search'])
     app.post('/example/getall/test/Test', json={'value': 0})
@@ -123,13 +153,27 @@ def test_getall_pagination_enabled(rc: RawConfig, postgresql: str, request: Fixt
     assert len(json_response["_data"]) == 2
 
 
-def test_get_date(rc: RawConfig, postgresql: str, request: FixtureRequest):
-    context = bootstrap_manifest(rc, '''
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_get_date(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
             d | r | b | m | property | type    | ref     | access  | uri
             example/date/test      |         |         |         |
               |   |   | Test         |         | date   |         | 
               |   |   |   | date    | date |         | open    | 
-            ''', backend=postgresql, request=request)
+            ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authmodel('example/date/test', ['insert', 'getall', 'search'])
     app.post('/example/date/test/Test', json={'date': '2020-01-01'})
@@ -139,13 +183,27 @@ def test_get_date(rc: RawConfig, postgresql: str, request: FixtureRequest):
     assert json_response['_data'][0]['date'] == '2020-01-01'
 
 
-def test_get_datetime(rc: RawConfig, postgresql: str, request: FixtureRequest):
-    context = bootstrap_manifest(rc, '''
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_get_datetime(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
             d | r | b | m | property | type    | ref     | access  | uri
             example/datetime/test      |         |         |         |
               |   |   | Test         |         | date   |         | 
               |   |   |   | date    | datetime |         | open    | 
-            ''', backend=postgresql, request=request)
+            ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authmodel('example/datetime/test', ['insert', 'getall', 'search'])
     app.post('/example/datetime/test/Test', json={'date': '2020-01-01T10:00:10'})
@@ -155,13 +213,27 @@ def test_get_datetime(rc: RawConfig, postgresql: str, request: FixtureRequest):
     assert json_response['_data'][0]['date'] == '2020-01-01T10:00:10'
 
 
-def test_get_time(rc: RawConfig, postgresql: str, request: FixtureRequest):
-    context = bootstrap_manifest(rc, '''
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_get_time(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
             d | r | b | m | property | type    | ref     | access  | uri
             example/time/test      |         |         |         |
               |   |   | Test         |         | date   |         | 
               |   |   |   | date    | time |         | open    | 
-            ''', backend=postgresql, request=request)
+            ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authmodel('example/time/test', ['insert', 'getall', 'search'])
     app.post('/example/time/test/Test', json={'date': '10:00:10'})
@@ -171,14 +243,28 @@ def test_get_time(rc: RawConfig, postgresql: str, request: FixtureRequest):
     assert json_response['_data'][0]['date'] == '10:00:10'
 
 
-def test_get_paginate_with_none_simple(rc: RawConfig, postgresql: str, request: FixtureRequest):
-    context = bootstrap_manifest(rc, '''
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_get_paginate_with_none_simple(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
             d | r | b | m | property | type    | ref     | access  | uri
             example/page/null/simple |         |         |         |
               |   |   | Test         |         | id      | open    | 
               |   |   |   | id       | integer |         |         | 
               |   |   |   | name     | string  |         |         |
-            ''', backend=postgresql, request=request)
+            ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authmodel('example/page/null/simple', ['insert', 'getall', 'search'])
     app.post('/example/page/null/simple/Test', json={
@@ -239,14 +325,28 @@ def test_get_paginate_with_none_simple(rc: RawConfig, postgresql: str, request: 
     ]
 
 
-def test_get_paginate_with_none_multi_key(rc: RawConfig, postgresql: str, request: FixtureRequest):
-    context = bootstrap_manifest(rc, '''
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_get_paginate_with_none_multi_key(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
             d | r | b | m | property | type    | ref      | access  | uri
             example/page/null/multi  |         |          |         |
               |   |   | Test         |         | id, name | open    | 
               |   |   |   | id       | integer |          |         | 
               |   |   |   | name     | string  |          |         |
-            ''', backend=postgresql, request=request)
+            ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authmodel('example/page/null/multi', ['insert', 'getall', 'search'])
     app.post('/example/page/null/multi/Test', json={
@@ -325,12 +425,16 @@ def test_get_paginate_with_none_multi_key(rc: RawConfig, postgresql: str, reques
     ]
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_join_with_base(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property   | type                 | ref     | prepare   | access
     datasets/basetest          |                      |         |           |
       |   |   |   |            |                      |         |           |
@@ -369,7 +473,13 @@ def test_join_with_base(
       |   |   |   | country    | ref                  | Country |           | open
       |   |   |   | testfk     | ref                  | Test    |           | open
       |   |   |   |            |                      |         |           |
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
 
     app = create_test_client(context)
     app.authorize(['spinta_insert', 'spinta_getall', 'spinta_wipe', 'spinta_search', 'spinta_set_meta_fields'])
@@ -454,12 +564,16 @@ def test_join_with_base(
     assert listdata(resp, 'name','population', 'koord', sort='name')[0] == ('Vilnius', 625349, 'POINT (54.68677 25.29067)')
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_invalid_inherit_check(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property   | type                 | ref     | prepare   | access
     datasets/invalid/base          |                      |         |           |
       |   |   |   |            |                      |         |           |
@@ -481,7 +595,13 @@ def test_invalid_inherit_check(
       |   |   |   | id         | integer              |         |           | open
       |   |   |   | name       |                      |         |           | open
       |   |   |   | population |                      |         |           | open
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
 
     app = create_test_client(context)
     app.authorize(['spinta_insert', 'spinta_getall', 'spinta_wipe', 'spinta_search', 'spinta_set_meta_fields'])

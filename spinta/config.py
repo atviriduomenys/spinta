@@ -48,7 +48,8 @@ CONFIG = {
             'sql': 'spinta.manifests.sql.components:SqlManifest',
             'memory': 'spinta.manifests.memory.components:MemoryManifest',
             'json': 'spinta.manifests.dict.components:JsonManifest',
-            'xml': 'spinta.manifests.dict.components:XmlManifest'
+            'xml': 'spinta.manifests.dict.components:XmlManifest',
+            'internal': 'spinta.manifests.internal_sql.components:InternalSQLManifest',
         },
         'backends': {
             # In memory backends mostly usable in tests
@@ -76,8 +77,6 @@ CONFIG = {
         'nodes': {
             'ns': 'spinta.components:Namespace',
             'model': 'spinta.components:Model',
-            'owner': 'spinta.types.owner:Owner',
-            'project': 'spinta.types.project:Project',
             'dataset': 'spinta.datasets.components:Dataset',
             'base': 'spinta.components:Base',
         },

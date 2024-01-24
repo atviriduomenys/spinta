@@ -1,6 +1,6 @@
 ---
 type: model
-name: backends/postgres/country
+name: backends/postgres/Country
 title: Country
 properties:
   title:
@@ -11,4 +11,4 @@ properties:
     title: Two letters country code
   continent:
     type: ref
-    model: backends/postgres/continent
+    model: backends/postgres/Continent

@@ -182,3 +182,7 @@ def test_escale_quotes_one():
 
 def test_escale_quotes_both():
     check("swap('\\\'TEST\\\' \"TEST\"', '\"TEST\" \\\'TEST\\\'')")
+
+
+def test_normal_text():
+    check("'TEST'")

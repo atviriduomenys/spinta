@@ -11,7 +11,8 @@ from spinta.testing.tabular import create_tabular_manifest
 
 
 def test_configure(tmp_path: Path, rc: RawConfig):
-    create_tabular_manifest(tmp_path / 'm1.csv', striptable('''
+    context: Context = create_test_context(rc)
+    create_tabular_manifest(context, tmp_path / 'm1.csv', striptable('''
     d | r | b | m | property | type   | source
     datasets/1               |        | 
       | data                 | sql    | 
@@ -20,7 +21,7 @@ def test_configure(tmp_path: Path, rc: RawConfig):
       |   |   |   | name     | string | PAVADINIMAS
     '''))
 
-    create_tabular_manifest(tmp_path / 'm2.csv', striptable('''
+    create_tabular_manifest(context, tmp_path / 'm2.csv', striptable('''
     d | r | b | m | property | type   | source
     datasets/2               |        | 
       | data                 | sql    | 
@@ -28,8 +29,6 @@ def test_configure(tmp_path: Path, rc: RawConfig):
       |   |   | Country      |        | SALIS
       |   |   |   | name     | string | PAVADINIMAS
     '''))
-
-    context: Context = create_test_context(rc)
     context = configure_context(context, [
         str(tmp_path / 'm1.csv'),
         str(tmp_path / 'm2.csv'),

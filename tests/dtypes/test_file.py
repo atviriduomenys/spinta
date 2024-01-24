@@ -27,7 +27,7 @@ def _create_file(
 
 @pytest.mark.models(
     # TODO 'backends/mongo/dtypes/postgres/file',
-    'backends/postgres/dtypes/file',
+    'backends/postgres/dtypes/File',
 )
 def test_insert(model, app):
     app.authmodel(model, ['insert', 'getone'])
@@ -57,7 +57,7 @@ def test_insert(model, app):
 
 @pytest.mark.models(
     # TODO 'backends/mongo/dtypes/postgres/file',
-    'backends/postgres/dtypes/file',
+    'backends/postgres/dtypes/File',
 )
 def test_update(model, app, tmp_path):
     app.authmodel(model, ['insert', 'update', 'getone'])
@@ -78,7 +78,7 @@ def test_update(model, app, tmp_path):
     data = resp.json()
     assert resp.status_code == 200, data
     assert data == {
-        '_type': 'backends/postgres/dtypes/file',
+        '_type': 'backends/postgres/dtypes/File',
         '_id': data['_id'],
         '_revision': data['_revision'],
         'file': {
@@ -96,7 +96,7 @@ def test_update(model, app, tmp_path):
 
 @pytest.mark.models(
     # TODO 'backends/mongo/dtypes/postgres/file',
-    'backends/postgres/dtypes/file',
+    'backends/postgres/dtypes/File',
 )
 def test_patch(model, app, tmp_path):
     app.authmodel(model, ['insert', 'patch', 'getone'])
@@ -116,7 +116,7 @@ def test_patch(model, app, tmp_path):
     data = resp.json()
     assert resp.status_code == 200, data
     assert data == {
-        '_type': 'backends/postgres/dtypes/file',
+        '_type': 'backends/postgres/dtypes/File',
         '_id': data['_id'],
         '_revision': data['_revision'],
         'file': {
@@ -133,7 +133,7 @@ def test_patch(model, app, tmp_path):
 
 @pytest.mark.models(
     # TODO 'backends/mongo/dtypes/postgres/file',
-    'backends/postgres/dtypes/file',
+    'backends/postgres/dtypes/File',
 )
 def test_subresource_update(model, app, tmp_path):
     app.authmodel(model, ['insert', 'update', 'getone'])
@@ -151,7 +151,7 @@ def test_subresource_update(model, app, tmp_path):
     data = resp.json()
     assert resp.status_code == 200, data
     assert data == {
-        '_type': 'backends/postgres/dtypes/file.file',
+        '_type': 'backends/postgres/dtypes/File.file',
         '_revision': data['_revision'],
         '_id': 'data.txt',
         '_content_type': 'text/plain',
@@ -166,7 +166,7 @@ def test_subresource_update(model, app, tmp_path):
 
 @pytest.mark.models(
     # TODO 'backends/mongo/dtypes/postgres/file',
-    'backends/postgres/dtypes/file',
+    'backends/postgres/dtypes/File',
 )
 def test_subresource_patch(model, app, tmp_path):
     app.authmodel(model, ['insert', 'patch', 'getone'])
@@ -184,7 +184,7 @@ def test_subresource_patch(model, app, tmp_path):
     data = resp.json()
     assert resp.status_code == 200, data
     assert data == {
-        '_type': 'backends/postgres/dtypes/file.file',
+        '_type': 'backends/postgres/dtypes/File.file',
         '_revision': data['_revision'],
         '_id': 'data_new.txt',
         '_content_type': 'application/pdf',
@@ -200,7 +200,7 @@ def test_subresource_patch(model, app, tmp_path):
 # update ref of file by PUT /model/id/file:ref
 @pytest.mark.models(
     # TODO 'backends/mongo/dtypes/postgres/file',
-    'backends/postgres/dtypes/file',
+    'backends/postgres/dtypes/File',
 )
 def test_subresource_update_ref(model, app, tmp_path):
     app.authmodel(model, ['insert', 'update', 'getone'])
@@ -218,7 +218,7 @@ def test_subresource_update_ref(model, app, tmp_path):
     data = resp.json()
     assert resp.status_code == 200, data
     assert data == {
-        '_type': 'backends/postgres/dtypes/file.file',
+        '_type': 'backends/postgres/dtypes/File.file',
         '_revision': data['_revision'],
         '_id': 'data.rst',
         '_content_type': 'text/x-rst',
@@ -234,7 +234,7 @@ def test_subresource_update_ref(model, app, tmp_path):
 
 @pytest.mark.models(
     # TODO 'backends/mongo/dtypes/postgres/file',
-    'backends/postgres/dtypes/file',
+    'backends/postgres/dtypes/File',
 )
 def test_subresource_patch_ref(model, app, tmp_path):
     app.authmodel(model, ['insert', 'patch', 'getone'])
@@ -251,7 +251,7 @@ def test_subresource_patch_ref(model, app, tmp_path):
     data = resp.json()
     assert resp.status_code == 200, data
     assert data == {
-        '_type': 'backends/postgres/dtypes/file.file',
+        '_type': 'backends/postgres/dtypes/File.file',
         '_revision': data['_revision'],
         '_id': 'data.rst',
     }
@@ -266,7 +266,7 @@ def test_subresource_patch_ref(model, app, tmp_path):
 
 @pytest.mark.models(
     # TODO 'backends/mongo/dtypes/postgres/file',
-    'backends/postgres/dtypes/file',
+    'backends/postgres/dtypes/File',
 )
 def test_subresource_get_ref(model, app, tmp_path):
     app.authmodel(model, ['insert', 'getone'])
@@ -288,7 +288,7 @@ def test_subresource_get_ref(model, app, tmp_path):
 
 @pytest.mark.models(
     # TODO 'backends/mongo/dtypes/postgres/file',
-    'backends/postgres/dtypes/file',
+    'backends/postgres/dtypes/File',
 )
 def test_subresource_delete(model, app, tmp_path):
     app.authmodel(model, ['insert', 'delete', 'getone'])
@@ -325,7 +325,7 @@ def test_subresource_delete(model, app, tmp_path):
 
 @pytest.mark.models(
     # TODO 'backends/mongo/dtypes/postgres/file',
-    'backends/postgres/dtypes/file',
+    'backends/postgres/dtypes/File',
 )
 def test_select(model, app, tmp_path):
     app.authmodel(model, ['insert', 'search'])
@@ -345,7 +345,7 @@ def test_select(model, app, tmp_path):
 
 @pytest.mark.models(
     # TODO 'backends/mongo/dtypes/postgres/file',
-    'backends/postgres/dtypes/file',
+    'backends/postgres/dtypes/File',
 )
 def test_select_content(model, app, tmp_path):
     app.authmodel(model, ['insert', 'search'])
@@ -366,7 +366,7 @@ def test_select_content(model, app, tmp_path):
 
 @pytest.mark.models(
     # TODO 'backends/mongo/dtypes/postgres/file',
-    'backends/postgres/dtypes/file',
+    'backends/postgres/dtypes/File',
 )
 def test_select_all(model, app, tmp_path):
     app.authmodel(model, ['insert', 'search'])
@@ -386,8 +386,8 @@ def test_select_all(model, app, tmp_path):
 
 
 @pytest.mark.models(
-    'backends/mongo/dtypes/fs/file',
-    'backends/postgres/dtypes/fs/file',
+    'backends/mongo/dtypes/fs/File',
+    'backends/postgres/dtypes/fs/File',
 )
 def test_insert_fs_file(model, app):
     app.authmodel(model, ['insert', 'getone'])
@@ -416,8 +416,8 @@ def test_insert_fs_file(model, app):
 
 
 @pytest.mark.models(
-    'backends/postgres/dtypes/fs/file',
-    'backends/mongo/dtypes/fs/file',
+    'backends/postgres/dtypes/fs/File',
+    'backends/mongo/dtypes/fs/File',
 )
 @pytest.mark.parametrize('filename', [
     '/tmp/etc/passwd',
@@ -436,8 +436,8 @@ def test_insert_fs_file_with_injection(model, filename, app, tmp_path):
 
 
 @pytest.mark.models(
-    'backends/postgres/dtypes/fs/file',
-    'backends/mongo/dtypes/fs/file',
+    'backends/postgres/dtypes/fs/File',
+    'backends/mongo/dtypes/fs/File',
 )
 def test_upload_fs_file(model, app):
     app.authmodel(model, ['insert', 'update', 'getone'])
@@ -475,8 +475,8 @@ def test_upload_fs_file(model, app):
 
 
 @pytest.mark.models(
-    'backends/postgres/dtypes/fs/file',
-    'backends/mongo/dtypes/fs/file',
+    'backends/postgres/dtypes/fs/File',
+    'backends/mongo/dtypes/fs/File',
 )
 @pytest.mark.parametrize('filename', [
     '/tmp/etc/passwd',
@@ -509,8 +509,8 @@ def test_upload_fs_file_with_path_injection(model, app, filename, tmp_path):
 
 
 @pytest.mark.models(
-    'backends/postgres/dtypes/fs/file',
-    'backends/mongo/dtypes/fs/file',
+    'backends/postgres/dtypes/fs/File',
+    'backends/mongo/dtypes/fs/File',
 )
 def test_patch_fs_file(model, app):
     app.authmodel(model, ['insert', 'patch', 'getone'])
@@ -548,8 +548,8 @@ def test_patch_fs_file(model, app):
 
 
 @pytest.mark.models(
-    'backends/postgres/dtypes/fs/file',
-    'backends/mongo/dtypes/fs/file',
+    'backends/postgres/dtypes/fs/File',
+    'backends/mongo/dtypes/fs/File',
 )
 @pytest.mark.parametrize('filename', [
     '/tmp/etc/passwd',
@@ -582,8 +582,8 @@ def test_patch_fs_file_with_path_injection(model, app, filename, tmp_path):
 
 
 @pytest.mark.models(
-    'backends/postgres/dtypes/fs/file',
-    'backends/mongo/dtypes/fs/file',
+    'backends/postgres/dtypes/fs/File',
+    'backends/mongo/dtypes/fs/File',
 )
 @pytest.mark.parametrize('filename', [
     '../../passwd',
@@ -613,8 +613,8 @@ def test_path_injection_put(model, filename, app, tmp_path):
 
 
 @pytest.mark.models(
-    'backends/postgres/dtypes/fs/file',
-    'backends/mongo/dtypes/fs/file',
+    'backends/postgres/dtypes/fs/File',
+    'backends/mongo/dtypes/fs/File',
 )
 @pytest.mark.parametrize('filename', [
     '../../passwd',
@@ -644,8 +644,8 @@ def test_path_injection_patch(model, filename, app, tmp_path):
 
 
 @pytest.mark.models(
-    'backends/postgres/dtypes/fs/file',
-    'backends/mongo/dtypes/fs/file',
+    'backends/postgres/dtypes/fs/File',
+    'backends/mongo/dtypes/fs/File',
 )
 @pytest.mark.parametrize('filename', [
     '../../passwd',
@@ -671,8 +671,8 @@ def test_path_injection_update_file_ref(model, filename, app):
 
 
 @pytest.mark.models(
-    'backends/postgres/dtypes/fs/file',
-    'backends/mongo/dtypes/fs/file',
+    'backends/postgres/dtypes/fs/File',
+    'backends/mongo/dtypes/fs/File',
 )
 @pytest.mark.parametrize('filename', [
     '../../passwd',

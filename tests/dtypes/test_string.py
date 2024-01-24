@@ -5,12 +5,12 @@ from spinta.testing.dtypes import post, upsert, put, patch, delete, get, search
 
 
 @pytest.mark.models(
-    'backends/mongo/dtypes/string',
-    'backends/postgres/dtypes/string',
-    'backends/mongo/dtypes/object/string',
-    'backends/postgres/dtypes/object/string',
-    'backends/mongo/dtypes/array/string',
-    'backends/postgres/dtypes/array/string',
+    'backends/mongo/dtypes/String',
+    'backends/postgres/dtypes/String',
+    'backends/mongo/dtypes/object/String',
+    'backends/postgres/dtypes/object/String',
+    'backends/mongo/dtypes/array/String',
+    'backends/postgres/dtypes/array/String',
 )
 def test_insert(model, app):
     app.authmodel(model, ['insert', 'getone', 'search'])
@@ -21,12 +21,12 @@ def test_insert(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/dtypes/string',
-    'backends/postgres/dtypes/string',
-    'backends/mongo/dtypes/object/string',
-    'backends/postgres/dtypes/object/string',
-    'backends/mongo/dtypes/array/string',
-    'backends/postgres/dtypes/array/string',
+    'backends/mongo/dtypes/String',
+    'backends/postgres/dtypes/String',
+    'backends/mongo/dtypes/object/String',
+    'backends/postgres/dtypes/object/String',
+    'backends/mongo/dtypes/array/String',
+    'backends/postgres/dtypes/array/String',
 )
 def test_upsert_insert(model, app):
     app.authmodel(model, ['upsert', 'getone', 'search'])
@@ -38,12 +38,12 @@ def test_upsert_insert(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/dtypes/string',
-    'backends/postgres/dtypes/string',
-    'backends/mongo/dtypes/object/string',
-    'backends/postgres/dtypes/object/string',
-    'backends/mongo/dtypes/array/string',
-    'backends/postgres/dtypes/array/string',
+    'backends/mongo/dtypes/String',
+    'backends/postgres/dtypes/String',
+    'backends/mongo/dtypes/object/String',
+    'backends/postgres/dtypes/object/String',
+    'backends/mongo/dtypes/array/String',
+    'backends/postgres/dtypes/array/String',
 )
 def test_upsert_patch(model, app):
     app.authmodel(model, ['insert', 'upsert', 'getone', 'search'])
@@ -58,12 +58,12 @@ def test_upsert_patch(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/dtypes/string',
-    'backends/postgres/dtypes/string',
-    'backends/mongo/dtypes/object/string',
-    'backends/postgres/dtypes/object/string',
-    'backends/mongo/dtypes/array/string',
-    'backends/postgres/dtypes/array/string',
+    'backends/mongo/dtypes/String',
+    'backends/postgres/dtypes/String',
+    'backends/mongo/dtypes/object/String',
+    'backends/postgres/dtypes/object/String',
+    'backends/mongo/dtypes/array/String',
+    'backends/postgres/dtypes/array/String',
 )
 def test_update(model, app):
     app.authmodel(model, ['insert', 'update', 'getone', 'search'])
@@ -77,10 +77,10 @@ def test_update(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/dtypes/string',
-    'backends/postgres/dtypes/string',
-    'backends/mongo/dtypes/object/string',
-    'backends/postgres/dtypes/object/string',
+    'backends/mongo/dtypes/String',
+    'backends/postgres/dtypes/String',
+    'backends/mongo/dtypes/object/String',
+    'backends/postgres/dtypes/object/String',
 )
 def test_update_missing(model, app):
     app.authmodel(model, ['insert', 'update', 'getone', 'search'])
@@ -94,8 +94,8 @@ def test_update_missing(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/dtypes/array/string',
-    'backends/postgres/dtypes/array/string',
+    'backends/mongo/dtypes/array/String',
+    'backends/postgres/dtypes/array/String',
 )
 def test_update_missing_in_array(model, app):
     app.authmodel(model, ['insert', 'update', 'getone', 'search'])
@@ -109,12 +109,12 @@ def test_update_missing_in_array(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/dtypes/string',
-    'backends/postgres/dtypes/string',
-    'backends/mongo/dtypes/object/string',
-    'backends/postgres/dtypes/object/string',
-    'backends/mongo/dtypes/array/string',
-    'backends/postgres/dtypes/array/string',
+    'backends/mongo/dtypes/String',
+    'backends/postgres/dtypes/String',
+    'backends/mongo/dtypes/object/String',
+    'backends/postgres/dtypes/object/String',
+    'backends/mongo/dtypes/array/String',
+    'backends/postgres/dtypes/array/String',
 )
 def test_update_same(model, app):
     app.authmodel(model, ['insert', 'update', 'getone', 'search'])
@@ -127,12 +127,12 @@ def test_update_same(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/dtypes/string',
-    'backends/postgres/dtypes/string',
-    'backends/mongo/dtypes/object/string',
-    'backends/postgres/dtypes/object/string',
-    'backends/mongo/dtypes/array/string',
-    'backends/postgres/dtypes/array/string',
+    'backends/mongo/dtypes/String',
+    'backends/postgres/dtypes/String',
+    'backends/mongo/dtypes/object/String',
+    'backends/postgres/dtypes/object/String',
+    'backends/mongo/dtypes/array/String',
+    'backends/postgres/dtypes/array/String',
 )
 def test_patch(model, app):
     app.authmodel(model, ['insert', 'patch', 'getone', 'search'])
@@ -146,12 +146,12 @@ def test_patch(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/dtypes/string',
-    'backends/postgres/dtypes/string',
-    'backends/mongo/dtypes/object/string',
-    'backends/postgres/dtypes/object/string',
-    'backends/mongo/dtypes/array/string',
-    'backends/postgres/dtypes/array/string',
+    'backends/mongo/dtypes/String',
+    'backends/postgres/dtypes/String',
+    'backends/mongo/dtypes/object/String',
+    'backends/postgres/dtypes/object/String',
+    'backends/mongo/dtypes/array/String',
+    'backends/postgres/dtypes/array/String',
 )
 def test_patch_missing(model, app):
     app.authmodel(model, ['insert', 'patch', 'getone', 'search'])
@@ -164,12 +164,12 @@ def test_patch_missing(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/dtypes/string',
-    'backends/postgres/dtypes/string',
-    'backends/mongo/dtypes/object/string',
-    'backends/postgres/dtypes/object/string',
-    'backends/mongo/dtypes/array/string',
-    'backends/postgres/dtypes/array/string',
+    'backends/mongo/dtypes/String',
+    'backends/postgres/dtypes/String',
+    'backends/mongo/dtypes/object/String',
+    'backends/postgres/dtypes/object/String',
+    'backends/mongo/dtypes/array/String',
+    'backends/postgres/dtypes/array/String',
 )
 def test_patch_same(model, app):
     app.authmodel(model, ['insert', 'patch', 'getone', 'search'])
@@ -182,8 +182,8 @@ def test_patch_same(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/dtypes/string',
-    'backends/postgres/dtypes/string',
+    'backends/mongo/dtypes/String',
+    'backends/postgres/dtypes/String',
 )
 def test_delete(model, app):
     app.authmodel(model, ['insert', 'delete', 'getone', 'search'])

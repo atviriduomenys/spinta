@@ -61,13 +61,13 @@ class ContextForTests:
     def wipe(self: TestContext, model: Union[str, Node]):
         if isinstance(model, str):
             store = self.get('store')
-            model = store.manifest.models[model]
+            model = commands.get_model(self, store.manifest, model)
         with self.transaction() as context:
             commands.wipe(context, model, model.backend)
 
     def wipe_all(self: TestContext):
         store = self.get('store')
-        self.wipe(store.manifest.objects['ns'][''])
+        self.wipe(commands.get_namespace(self, store.manifest, ''))
 
     def load(
         self: TestContext,

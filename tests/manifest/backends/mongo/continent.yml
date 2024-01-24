@@ -1,6 +1,6 @@
 ---
 type: model
-name: backends/mongo/continent
+name: backends/mongo/Continent
 title: Continent
 properties:
   title:

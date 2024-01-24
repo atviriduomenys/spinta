@@ -415,6 +415,13 @@ class MetaData(Node):
             return str(self.eid)
 
 
+class ExtraMetaData(Node):
+    id: str = None
+    schema = {
+        'id': {'type': 'string'}
+    }
+
+
 class NamespaceGiven:
     access: str = None
 
@@ -456,7 +463,7 @@ class Namespace(MetaData):
         return isinstance(self.parent, Manifest)
 
 
-class Base(Node):
+class Base(ExtraMetaData):
     model: Model        # a.base.b - here `model` is `b`
     parent: Model       # a.base.b - here `parent` is `a`
     pk: List[Property]  # a.base.b - list of properties of `a` model
@@ -602,13 +609,11 @@ class ParamsPage:
 
 
 class Model(MetaData):
-    id: str
     level: Level
     access: Access
     title: str
     description: str
     ns: Namespace
-    endpoint: str = None
     external: Entity = None
     properties: Dict[str, Property]
     mode: Mode = None
@@ -629,7 +634,6 @@ class Model(MetaData):
         'base': {},
         'link': {},
         'properties': {'default': {}},
-        'endpoint': {},
         'external': {},
         'level': {
             'type': 'integer',
@@ -697,8 +701,7 @@ class PrepareGiven(TypedDict):
     prepare: str
 
 
-class Property(Node):
-    id: Any = None
+class Property(ExtraMetaData):
     place: str = None  # Dotted property path
     title: str = None
     description: str = None

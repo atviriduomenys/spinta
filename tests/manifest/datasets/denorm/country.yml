@@ -1,5 +1,5 @@
 type: model
-name: datasets/denorm/country
+name: datasets/denorm/Country
 external:
   dataset: datasets/denorm
   resource: orgs

@@ -32,7 +32,7 @@ async def run_bootstrap(context: Context, manifest: BackendManifest):
 
     # Sync versions
     stream = read_sync_versions(context, manifest)
-    stream = versions_to_dstream(manifest, stream, applied=True)
+    stream = versions_to_dstream(context, manifest, stream, applied=True)
     await adrain(push_stream(context, stream))
 
     # Update schemas to last version
@@ -43,12 +43,12 @@ async def run_bootstrap(context: Context, manifest: BackendManifest):
 async def run_migrations(context: Context, manifest: BackendManifest):
     # Sync versions
     stream = read_sync_versions(context, manifest)
-    stream = versions_to_dstream(manifest, stream)
+    stream = versions_to_dstream(context, manifest, stream)
     await adrain(push_stream(context, stream))
 
     # Apply unapplied versions
     store = manifest.store
-    model = manifest.objects['ns']['']
+    model = commands.get_namespace(context, manifest, '')
     backends = {}
     versions = read_unapplied_versions(context, manifest)
     versions = itertools.groupby(versions, key=lambda v: v.get('backend', 'default'))
@@ -90,7 +90,7 @@ def read_unapplied_versions(
     context: Context,
     manifest: Manifest,
 ):
-    model = manifest.objects['model']['_schema/Version']
+    model = commands.get_model(context, manifest, '_schema/Version')
     query = Expr(
         'and',
         Expr('select', bind('id'), bind('_id'), bind('parents')),
@@ -113,13 +113,14 @@ def read_sync_versions(context: Context, manifest: Manifest):
 
 
 async def versions_to_dstream(
+    context: Context,
     manifest: BackendManifest,
     versions: Iterable[dict],
     *,
     applied: bool = False,
 ) -> AsyncIterator[DataItem]:
     now = datetime.datetime.now(datetime.timezone.utc)
-    model = manifest.objects['model']['_schema/Version']
+    model = commands.get_model(context, manifest, '_schema/Version')
     for version in versions:
         payload = {
             '_op': 'upsert',
@@ -142,7 +143,7 @@ async def versions_to_dstream(
 
 
 def list_schemas(context: Context, manifest: BackendManifest):
-    model = manifest.objects['model']['_schema']
+    model = commands.get_model(context, manifest, '_schema')
     query = {
         'select': ['_id'],
     }
@@ -151,7 +152,7 @@ def list_schemas(context: Context, manifest: BackendManifest):
 
 
 def read_schema(context: Context, manifest: BackendManifest, eid: str):
-    model = manifest.objects['model']['_schema']
+    model = commands.get_model(context, manifest, '_schema')
     row = commands.getone(context, model, model.backend, id_=eid)
     return row['schema']
 
@@ -160,7 +161,7 @@ def list_sorted_unapplied_versions(
     context: Context,
     manifest: Manifest,
 ) -> Iterator[Tuple[str, str]]:
-    model = manifest.objects['model']['_schema/Version']
+    model = commands.get_model(context, manifest, '_schema/Version')
     query = {
         'select': ['id', '_id', 'parents'],
         'query': [
@@ -182,7 +183,7 @@ def read_lastest_version_schemas(
     context: Context,
     manifest: Manifest,
 ) -> Iterator[Tuple[str, str]]:
-    model = manifest.objects['model']['_schema/Version']
+    model = commands.get_model(context, manifest, '_schema/Version')
     query = Expr(
         'and',
         Expr('select', bind('id'), bind('_id'), bind('parents')),
@@ -204,7 +205,7 @@ def get_last_version_eid(
     manifest: Manifest,
     schema_eid: str,
 ) -> Iterator[Tuple[str, str]]:
-    model = manifest.objects['model']['_schema/Version']
+    model = commands.get_model(context, manifest, '_schema/Version')
     query = Expr(
         'and',
         Expr('select', bind('_id'), bind('parents')),
@@ -224,13 +225,13 @@ def get_version_schema(
     manifest: Manifest,
     version_eid: str,
 ) -> Iterator[Tuple[str, str]]:
-    model = manifest.objects['model']['_schema/Version']
+    model = commands.get_model(context, manifest, '_schema/Version')
     version = commands.getone(context, model, model.backend, id_=version_eid)
     return version['schema']
 
 
 async def update_schema_version(context: Context, manifest: Manifest, schema: dict):
-    model = manifest.objects['model']['_schema']
+    model = commands.get_model(context, manifest, '_schema')
     data = DataItem(model, action=Action.UPSERT, payload={
         '_op': 'upsert',
         '_where': '_id="%s"' % schema['id'],

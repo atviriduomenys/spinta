@@ -97,6 +97,7 @@ def load(
     rename_duplicates: bool = False,
     # If True, load internal manifest, if not loaded.
     load_internal: bool = True,
+    full_load: bool = False
 ) -> None:
     """Load primitive data structures to python-native objects.
 
@@ -126,6 +127,38 @@ def load(
         load(Context, Property, Request)
 
     """
+
+
+@command()
+def load_for_request():
+    pass
+
+
+@command()
+def fully_initialize_manifest(
+    context: Context,
+    manifest: Manifest
+):
+    pass
+
+
+@command()
+def create_request_manifest(
+    context: Context,
+    manifest: Manifest
+):
+    pass
+
+
+@command()
+def traverse_ns_models(
+    context: Context,
+    ns: Namespace,
+    manifest: Manifest,
+    action: Action,
+    **kwargs
+):
+    pass
 
 
 @command()
@@ -616,6 +649,19 @@ def getall(
     context: Context,
     model: Union[Model, Namespace],
     request: Request,
+    *,
+    action: Action,
+    params: UrlParams,
+) -> Response:
+    pass
+
+
+@overload
+def getall(
+    context: Context,
+    ns: Namespace,
+    request: Request,
+    manifest: Manifest,
     *,
     action: Action,
     params: UrlParams,
@@ -1155,3 +1201,95 @@ def get_column(
     **kwargs
 ):
     pass
+
+
+@command()
+def has_node_type(context: Context, manifest: Manifest, obj_type: str, **kwargs) -> bool:
+    """Check if manifest has specified node type"""
+
+
+@command()
+def has_node(context: Context, manifest: Manifest, obj_type: str, obj: str, **kwargs) -> bool:
+    """Check if manifest has specified node"""
+
+
+@command()
+def get_node(context: Context, manifest: Manifest, obj_type: str, obj: str, **kwargs) -> Node:
+    """Return node from manifest"""
+
+
+@command()
+def get_nodes(context: Context, manifest: Manifest, obj_type: str, **kwargs) -> Dict[str, Node]:
+    """Return all nodes from manifest"""
+
+
+@command()
+def set_node(context: Context, manifest: Manifest, obj_type: str, obj_name, obj: Node, **kwargs):
+    """Add node to manifest"""
+
+
+@command()
+def has_model(context: Context, manifest: Manifest, model: str, **kwargs) -> bool:
+    """Check if manifest has specified model"""
+
+
+@command()
+def get_model(context: Context, manifest: Manifest, model: str, **kwargs) -> Model:
+    """Return model from manifest"""
+
+
+@command()
+def get_models(context: Context, manifest: Manifest, **kwargs) -> Dict[str, Model]:
+    """Return all models from manifest"""
+
+
+@command()
+def set_model(context: Context, manifest: Manifest, model_name: str, model: Model, **kwargs):
+    """Add model to manifest"""
+
+
+@command()
+def set_models(context: Context, manifest: Manifest, models: Dict[str, Model], **kwargs):
+    """Sets all model to manifest"""
+
+
+@command()
+def has_namespace(context: Context, manifest: Manifest, namespace: str, **kwargs) -> bool:
+    """Check if manifest has specified namespace"""
+
+
+@command()
+def get_namespaces(context: Context, manifest: Manifest, **kwargs) -> Dict[str, Namespace]:
+    """Return all namespaces from manifest"""
+
+
+@command()
+def get_namespace(context: Context, manifest: Manifest, namespace: str, **kwargs) -> Namespace:
+    """Return namespace from manifest"""
+
+
+@command()
+def set_namespace(context: Context, manifest: Manifest, namespace: str, ns: Namespace, **kwargs):
+    """Add namespace to manifest"""
+
+
+@command()
+def has_dataset(context: Context, manifest: Manifest, dataset: str, **kwargs) -> bool:
+    """Check if manifest has specified dataset"""
+
+
+@command()
+def get_dataset(context: Context, manifest: Manifest, dataset: str, **kwargs) -> Dataset:
+    """Return dataset from manifest"""
+
+
+@command()
+def get_datasets(context: Context, manifest: Manifest, **kwargs) -> Dict[str, Dataset]:
+    """Return all datasets from manifest"""
+
+
+@command()
+def set_dataset(context: Context, manifest: Manifest, dataset_name: str, dataset: Dataset, **kwargs):
+    """Add dataset to manifest"""
+
+

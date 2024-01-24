@@ -138,6 +138,7 @@ class DatasetRow(TypedDict, total=False):
 
 
 class ResourceRow(ManifestRow):
+    id: str
     backend: str
     external: str
     lang: LangData
@@ -145,6 +146,7 @@ class ResourceRow(ManifestRow):
 
 
 class BackendRow(TypedDict, total=False):
+    id: str
     type: str
     name: str
     dsn: str
@@ -153,6 +155,7 @@ class BackendRow(TypedDict, total=False):
 
 
 class BaseRow(TypedDict, total=False):
+    id: str
     name: str
     model: str
     pk: List[str]
@@ -161,6 +164,7 @@ class BaseRow(TypedDict, total=False):
 
 
 class ParamRow(TypedDict):
+    id: str
     name: str                   # param name
     source: List[str]           # list of `self` for prepare formulas
     prepare: List[Any]          # list of formulas
@@ -198,6 +202,7 @@ class ModelExternalRow(TypedDict, total=False):
 
 
 class EnumRow(TypedDict, total=False):
+    id: str
     name: str
     source: str
     prepare: Optional[Dict[str, Any]]
@@ -208,6 +213,7 @@ class EnumRow(TypedDict, total=False):
 
 
 class PropertyRow(TypedDict, total=False):
+    id: str
     type: str
     type_args: List[str]
     prepare: Optional[Dict[str, Any]]

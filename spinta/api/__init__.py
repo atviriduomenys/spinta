@@ -257,15 +257,21 @@ async def homepage(request: Request):
     config = context.get('config')
     UrlParams: Type[components.UrlParams]
     UrlParams = config.components['urlparams']['component']
-    params: UrlParams = prepare(context, UrlParams(), Version(), request)
+    store = context.get('store')
 
+    # Currently need to initialize the manifest and then add missing models
+    # otherwise, manifest never gets created and becomes infinite loop
+    manifest = commands.create_request_manifest(context, store.manifest)
+    context.set('request.manifest', manifest)
+    commands.load_for_request(context, manifest)
+
+    params: UrlParams = prepare(context, UrlParams(), Version(), request)
     context.attach('accesslog', create_accesslog, context, loaders=(
-        context.get('store'),
+        store,
         context.get("auth.token"),
         request,
         params,
     ))
-
     return await create_http_response(context, params, request)
 
 

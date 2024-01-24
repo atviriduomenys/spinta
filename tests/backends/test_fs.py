@@ -8,8 +8,8 @@ from spinta.testing.utils import error, get_error_codes, get_error_context
 
 
 @pytest.mark.models(
-    'backends/mongo/photo',
-    'backends/postgres/photo',
+    'backends/mongo/Photo',
+    'backends/postgres/Photo',
 )
 def test_crud(model, app, tmp_path):
     app.authmodel(model, [
@@ -104,8 +104,8 @@ def test_crud(model, app, tmp_path):
 
 
 @pytest.mark.models(
-    'backends/mongo/photo',
-    'backends/postgres/photo',
+    'backends/mongo/Photo',
+    'backends/postgres/Photo',
 )
 def test_add_existing_file(model, app, tmp_path):
     app.authmodel(model, ['insert', 'image_getone', 'image_patch'])
@@ -141,8 +141,8 @@ def test_add_existing_file(model, app, tmp_path):
 
 
 @pytest.mark.models(
-    'backends/mongo/photo',
-    'backends/postgres/photo',
+    'backends/mongo/Photo',
+    'backends/postgres/Photo',
 )
 def test_add_missing_file(model, app, tmp_path):
     app.authmodel(model, ['insert', 'getone', 'image_patch'])
@@ -171,8 +171,8 @@ def test_add_missing_file(model, app, tmp_path):
 
 
 @pytest.mark.models(
-    'backends/mongo/photo',
-    'backends/postgres/photo',
+    'backends/mongo/Photo',
+    'backends/postgres/Photo',
 )
 def test_create_hidden_image_on_insert(model, app, tmp_path):
     app.authmodel(model, ['insert', 'image_getone', 'image_patch'])
@@ -198,8 +198,8 @@ def test_create_hidden_image_on_insert(model, app, tmp_path):
 
 
 @pytest.mark.models(
-    'backends/mongo/photo',
-    'backends/postgres/photo',
+    'backends/mongo/Photo',
+    'backends/postgres/Photo',
 )
 def test_add_missing_file_as_prop(model, app, tmp_path):
     app.authmodel(model, ['insert', 'getone', 'image_update'])
@@ -231,8 +231,8 @@ def test_add_missing_file_as_prop(model, app, tmp_path):
 
 
 @pytest.mark.models(
-    'backends/mongo/photo',
-    'backends/postgres/photo',
+    'backends/mongo/Photo',
+    'backends/postgres/Photo',
 )
 def test_id_as_filename(model, app, tmp_path):
     app.authmodel(model, ['insert', 'getone', 'image_update', 'image_getone'])
@@ -268,8 +268,8 @@ def test_id_as_filename(model, app, tmp_path):
 
 
 @pytest.mark.models(
-    'backends/mongo/photo',
-    'backends/postgres/photo',
+    'backends/mongo/Photo',
+    'backends/postgres/Photo',
 )
 def test_check_revision_for_file(model, app):
     app.authmodel(model, [
@@ -306,8 +306,8 @@ def test_check_revision_for_file(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/photo',
-    'backends/postgres/photo',
+    'backends/mongo/Photo',
+    'backends/postgres/Photo',
 )
 def test_check_revision_for_file_ref(model, app, tmp_path):
     app.authmodel(model, ['insert', 'image_patch'])
@@ -343,8 +343,8 @@ def test_check_revision_for_file_ref(model, app, tmp_path):
 
 
 @pytest.mark.models(
-    'backends/mongo/photo',
-    'backends/postgres/photo',
+    'backends/mongo/Photo',
+    'backends/postgres/Photo',
 )
 def test_check_extra_field(model, app, tmp_path):
     app.authmodel(model, ['insert', 'image_patch'])
@@ -371,8 +371,8 @@ def test_check_extra_field(model, app, tmp_path):
 
 
 @pytest.mark.models(
-    'backends/mongo/photo',
-    'backends/postgres/photo',
+    'backends/mongo/Photo',
+    'backends/postgres/Photo',
 )
 def test_put_file_multiple_times(model, app):
     app.authmodel(model, ['insert', 'image_update', 'image_getone'])
@@ -408,8 +408,8 @@ def test_put_file_multiple_times(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/photo',
-    'backends/postgres/photo',
+    'backends/mongo/Photo',
+    'backends/postgres/Photo',
 )
 def test_file_get_headers(model, app):
     app.authmodel(model, ['insert', 'image_update', 'image_getone'])
@@ -439,8 +439,8 @@ def test_file_get_headers(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/photo',
-    'backends/postgres/photo',
+    'backends/mongo/Photo',
+    'backends/postgres/Photo',
 )
 def test_rename_non_existing_file(model, app):
     app.authmodel(model, ['getone', 'insert', 'image_update', 'image_patch', 'image_delete'])
@@ -488,8 +488,8 @@ def test_rename_non_existing_file(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/photo',
-    'backends/postgres/photo',
+    'backends/mongo/Photo',
+    'backends/postgres/Photo',
 )
 def test_put_file_no_content(context, model, app):
     app.authmodel(model, ['insert', 'image_update', 'image_getone'])
@@ -517,8 +517,8 @@ def test_put_file_no_content(context, model, app):
 
 
 @pytest.mark.models(
-    # 'backends/mongo/photo',
-    'backends/postgres/photo',
+    # 'backends/mongo/Photo',
+    'backends/postgres/Photo',
 )
 def test_changelog(context, model, app):
     app.authmodel(model, [
@@ -561,8 +561,8 @@ def test_changelog(context, model, app):
 
 @pytest.mark.skip('NotImplemented')
 @pytest.mark.models(
-    # 'backends/mongo/photo',
-    'backends/postgres/photo',
+    # 'backends/mongo/Photo',
+    'backends/postgres/Photo',
 )
 def test_changelog_hidden_prop(context, model, app):
     app.authmodel(model, [
@@ -604,8 +604,8 @@ def test_changelog_hidden_prop(context, model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/photo',
-    'backends/postgres/photo',
+    'backends/mongo/Photo',
+    'backends/postgres/Photo',
 )
 def test_wipe(tmp_path, model, app):
     app.authmodel(model, [

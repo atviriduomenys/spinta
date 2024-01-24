@@ -14,7 +14,7 @@ def test_html(rc: RawConfig):
       |   |   |   | name     | string |      | td                             | open
     '''
     context, manifest = load_manifest_and_context(rc, table, mode=Mode.external)
-    backend = manifest.models['example/City'].backend
+    backend = commands.get_model(context, manifest, 'example/City').backend
     assert backend.type == 'html'
     assert manifest == table
 

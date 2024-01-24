@@ -13,6 +13,7 @@ def load(
     freezed: bool = True,
     rename_duplicates: bool = False,
     load_internal: bool = True,
+    full_load=False
 ):
     assert freezed, (
         "BackendManifest does not have unfreezed version of manifest."

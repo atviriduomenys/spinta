@@ -2,13 +2,13 @@ from spinta.testing.dtypes import path, nest, flat
 
 
 def test_path():
-    assert path('backends/mongo/dtypes/string') == 'string'
-    assert path('backends/postgres/dtypes/object/string') == 'object.string'
+    assert path('backends/mongo/dtypes/String') == 'string'
+    assert path('backends/postgres/dtypes/object/String') == 'object.string'
 
 
 def test_path_array():
-    assert path('backends/postgres/dtypes/array/string') == 'array'
-    assert path('backends/postgres/dtypes/array/object/string') == 'array.string'
+    assert path('backends/postgres/dtypes/array/String') == 'array'
+    assert path('backends/postgres/dtypes/array/object/String') == 'array.string'
 
 
 def test_nest():
@@ -18,13 +18,13 @@ def test_nest():
         '_revision': '',
         'string': 'test',
     }
-    assert nest('backends/mongo/dtypes/string', data) == {
+    assert nest('backends/mongo/dtypes/String', data) == {
         '_type': '',
         '_id': '',
         '_revision': '',
         'string': 'test',
     }
-    assert nest('backends/postgres/dtypes/object/string', data) == {
+    assert nest('backends/postgres/dtypes/object/String', data) == {
         '_type': '',
         '_id': '',
         '_revision': '',
@@ -41,7 +41,7 @@ def test_nest_array():
         '_revision': '',
         'string': 'test',
     }
-    assert nest('backends/postgres/dtypes/array/string', data) == {
+    assert nest('backends/postgres/dtypes/array/String', data) == {
         '_type': '',
         '_id': '',
         '_revision': '',
@@ -56,8 +56,8 @@ def test_flat():
         '_revision': '',
         'string': 'test',
     }
-    assert flat('backends/postgres/dtypes/string', data) == data
-    assert flat('backends/postgres/dtypes/object/string', {
+    assert flat('backends/postgres/dtypes/String', data) == data
+    assert flat('backends/postgres/dtypes/object/String', {
         '_type': '',
         '_id': '',
         '_revision': '',
@@ -74,7 +74,7 @@ def test_flat_array():
         '_revision': '',
         'string': 'test',
     }
-    assert flat('backends/postgres/dtypes/array/string', {
+    assert flat('backends/postgres/dtypes/array/String', {
         '_type': '',
         '_id': '',
         '_revision': '',

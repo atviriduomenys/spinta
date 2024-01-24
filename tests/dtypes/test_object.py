@@ -5,10 +5,10 @@ from spinta.testing.dtypes import path, post, put, patch, get, search
 
 
 @pytest.mark.models(
-    'backends/mongo/dtypes/object',
-    'backends/postgres/dtypes/object',
-    'backends/mongo/dtypes/array/object',
-    'backends/postgres/dtypes/array/object',
+    'backends/mongo/dtypes/Object',
+    'backends/postgres/dtypes/Object',
+    'backends/mongo/dtypes/array/Object',
+    'backends/postgres/dtypes/array/Object',
 )
 def test_update_empty(model, app):
     app.authmodel(model, ['insert', 'update', 'getone', 'search'])
@@ -23,8 +23,8 @@ def test_update_empty(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/dtypes/object',
-    'backends/postgres/dtypes/object',
+    'backends/mongo/dtypes/Object',
+    'backends/postgres/dtypes/Object',
 )
 def test_patch_empty(model, app):
     app.authmodel(model, ['insert', 'patch', 'getone', 'search'])
@@ -39,8 +39,8 @@ def test_patch_empty(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/dtypes/array/object',
-    'backends/postgres/dtypes/array/object',
+    'backends/mongo/dtypes/array/Object',
+    'backends/postgres/dtypes/array/Object',
 )
 def test_patch_empty_array(model, app):
     app.authmodel(model, ['insert', 'patch', 'getone', 'search'])

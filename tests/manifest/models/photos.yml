@@ -1,5 +1,4 @@
-endpoint: photos
-name: photo
+name: Photo
 properties:
   image: {backend: fs, hidden: true, type: file}
   name: {type: string}
@@ -11,7 +10,6 @@ date: 2020-03-12 16:30:35.120272+02:00
 parents: []
 changes:
 - {op: add, path: /type, value: model}
-- {op: add, path: /endpoint, value: photos}
 - op: add
   path: /version
   value:

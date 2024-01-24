@@ -48,12 +48,13 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
     metadata.reflect()
 
     tables = []
+    models = commands.get_models(context, manifest)
     for table in table_names:
         name = migrate_meta.rename.get_table_name(table)
-        if name not in manifest.models.keys():
+        if name not in models.keys():
             name = table
         tables.append(name)
-    sorted_models = sort_models_by_ref_and_base(list(manifest.models.values()))
+    sorted_models = sort_models_by_ref_and_base(list(models.values()))
     sorted_model_names = list([model.name for model in sorted_models])
     # Do reversed zip, to ensure that sorted models get selected first
     models = zipitems(
@@ -71,7 +72,7 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
             old = NA
             if old_model:
                 old = metadata.tables[migrate_meta.rename.get_old_table_name(old_model)]
-            new = manifest.models.get(new_model) if new_model else new_model
+            new = commands.get_model(context, manifest, new_model) if new_model else new_model
             commands.migrate(context, backend, inspector, old, new, handler, migrate_meta.rename)
     _handle_foreign_key_constraints(inspector, sorted_models, handler, migrate_meta.rename)
     _clean_up_file_type(inspector, sorted_models, handler, migrate_meta.rename)

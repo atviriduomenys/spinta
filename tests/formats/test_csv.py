@@ -1,5 +1,6 @@
 import base64
-
+from pathlib import Path
+import pytest
 from _pytest.fixtures import FixtureRequest
 
 from spinta.core.config import RawConfig
@@ -12,7 +13,7 @@ from spinta.testing.data import pushdata, encode_page_values_manually
 
 def test_export_csv(app):
     app.authorize(['spinta_set_meta_fields'])
-    app.authmodel('datasets/csv/country', [
+    app.authmodel('datasets/csv/Country', [
         'insert',
         'patch',
         'getall',
@@ -20,16 +21,16 @@ def test_export_csv(app):
         'changes',
     ])
 
-    resp = app.post('/datasets/csv/country', json={'_data': [
+    resp = app.post('/datasets/csv/Country', json={'_data': [
         {
             '_op': 'insert',
-            '_type': 'datasets/csv/country',
+            '_type': 'datasets/csv/Country',
             'code': 'lt',
             'title': 'Lithuania',
         },
         {
             '_op': 'insert',
-            '_type': 'datasets/csv/country',
+            '_type': 'datasets/csv/Country',
             'code': 'lv',
             'title': 'LATVIA',
         },
@@ -37,23 +38,23 @@ def test_export_csv(app):
     assert resp.status_code == 200, resp.json()
     data = resp.json()['_data']
     lv = data[1]
-    resp = app.patch(f'/datasets/csv/country/{lv["_id"]}/', json={
+    resp = app.patch(f'/datasets/csv/Country/{lv["_id"]}/', json={
         '_revision': lv['_revision'],
         'title': 'Latvia',
     })
     assert resp.status_code == 200, resp.json()
 
     assert app.get(
-        '/datasets/csv/country/:format/csv?select(code,title)&sort(+code)'
+        '/datasets/csv/Country/:format/csv?select(code,title)&sort(+code)'
     ).text == (
         'code,title\r\n'
         'lt,Lithuania\r\n'
         'lv,Latvia\r\n'
     )
 
-    resp = app.get('/datasets/csv/country/:changes/:format/csv')
+    resp = app.get('/datasets/csv/Country/:changes/:format/csv')
     assert resp.status_code == 200
-    assert resp.headers['content-disposition'] == 'attachment; filename="country.csv"'
+    assert resp.headers['content-disposition'] == 'attachment; filename="Country.csv"'
     header, *lines = resp.text.splitlines()
     header = header.split(',')
     assert header == [
@@ -83,15 +84,15 @@ def test_export_csv(app):
 
 
 def test_csv_limit(app: TestClient):
-    app.authmodel('country', ['insert', 'search', ])
-    resp = app.post('/country', json={'_data': [
-        {'_op': 'insert', '_type': 'country', 'code': 'lt', 'title': 'Lithuania'},
-        {'_op': 'insert', '_type': 'country', 'code': 'lv', 'title': 'Latvia'},
-        {'_op': 'insert', '_type': 'country', 'code': 'ee', 'title': 'Estonia'},
+    app.authmodel('Country', ['insert', 'search', ])
+    resp = app.post('/Country', json={'_data': [
+        {'_op': 'insert', '_type': 'Country', 'code': 'lt', 'title': 'Lithuania'},
+        {'_op': 'insert', '_type': 'Country', 'code': 'lv', 'title': 'Latvia'},
+        {'_op': 'insert', '_type': 'Country', 'code': 'ee', 'title': 'Estonia'},
     ]})
     assert resp.status_code == 200, resp.json()
 
-    resp = app.get('/country/:format/csv?select(code,title)&sort(code)&limit(1)')
+    resp = app.get('/Country/:format/csv?select(code,title)&sort(code)&limit(1)')
     assert parse_csv(resp) == [
         ['code', 'title'],
         ['ee', 'Estonia'],
@@ -128,18 +129,28 @@ def test_csv_ref_dtype(
     ]
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_csv_file_dtype(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property | type   | ref  | access
     example/csv/file         |        |      |
       |   |   | Country      |        | name |
       |   |   |   | name     | string |      | open
       |   |   |   | flag     | file   |      | open
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authmodel('example/csv/file', ['insert', 'search'])
 
@@ -159,12 +170,16 @@ def test_csv_file_dtype(
     ]
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_csv_empty_ref(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property | type   | ref     | access
     example/csv/ref          |        |         |
       |   |   | Country      |        | name    |
@@ -172,7 +187,13 @@ def test_csv_empty_ref(
       |   |   | City         |        | name    |
       |   |   |   | name     | string |         | open
       |   |   |   | country  | ref    | Country | open
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authorize(['spinta_set_meta_fields'])
     app.authmodel('example/csv/ref', ['insert', 'search'])
@@ -188,12 +209,16 @@ def test_csv_empty_ref(
     ]
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_csv_mixed_ref(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property | type   | ref     | access
     example/csv/ref          |        |         |
       |   |   | Country      |        | name    |
@@ -201,7 +226,13 @@ def test_csv_mixed_ref(
       |   |   | City         |        | name    |
       |   |   |   | name     | string |         | open
       |   |   |   | country  | ref    | Country | open
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authorize(['spinta_set_meta_fields'])
     app.authmodel('example/csv/ref', ['insert', 'search'])

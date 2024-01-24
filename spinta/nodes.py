@@ -19,6 +19,7 @@ from spinta.utils.schema import resolve_schema
 
 
 def get_node(
+    context: Context,
     config: Config,
     manifest: Manifest,
     # MetaData entry ID, for yaml manifests it's filename, for backend manifests
@@ -56,7 +57,7 @@ def get_node(
         # If parent is given, that means we are loading a node whose parent is
         # not manifest, that means we can't do checks on manifest.objects.
 
-        if ctype not in manifest.objects:
+        if not commands.has_node_type(context, manifest, ctype):
             raise exceptions.InvalidManifestFile(
                 manifest=manifest.name,
                 eid=eid,
@@ -71,9 +72,9 @@ def get_node(
                     prop='name',
                 )
 
-            if data['name'] in manifest.objects[ctype]:
+            if commands.has_node(context, manifest, ctype, data['name'], loaded=True):
                 name = data['name']
-                other = manifest.objects[ctype][name].eid
+                other = commands.get_node(context, manifest, ctype, name).eid
                 raise exceptions.InvalidManifestFile(
                     manifest=manifest.name,
                     eid=eid,

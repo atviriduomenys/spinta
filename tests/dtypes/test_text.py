@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from pytest import FixtureRequest
 import pytest
 from spinta.core.config import RawConfig
@@ -12,18 +14,28 @@ from starlette.datastructures import Headers
 from spinta.testing.utils import error
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_text(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property      | type
     backends/postgres/dtypes/text |
       |   |   | Country           |
       |   |   |   | name@lt       | string
       |   |   |   | name@en       | string
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
 
     app = create_test_client(context)
     app.authmodel('backends/postgres/dtypes/text/Country', [
@@ -48,18 +60,28 @@ def test_text(
     listdata(resp, full=True)
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_text_patch(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property      | type
     backends/postgres/dtypes/text |
       |   |   | Country           |
       |   |   |   | name@lt       | string
       |   |   |   | name@en       | string
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
 
     app = create_test_client(context)
     app.authmodel('backends/postgres/dtypes/text/Country', [
@@ -98,14 +120,23 @@ def test_text_patch(
     assert listdata(resp, full=True) == [{'name.lt': "Latvija", 'name.en': "Latvia"}]
 
 
-def test_html(rc: RawConfig):
-    context, manifest = load_manifest_and_context(rc, '''
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_html(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+):
+    context, manifest = load_manifest_and_context(
+        rc, '''
     d | r | b | m | property | type   | access
     example                  |        |
       |   |   | Country      |        |
       |   |   |   | name@lt  | string | open
       |   |   |   | name@en  | string | open
-    ''')
+    ''',
+        tmp_path=tmp_path,
+        manifest_type=manifest_type
+    )
     result = render_data(
         context, manifest,
         'example/Country',
@@ -131,18 +162,28 @@ def test_html(rc: RawConfig):
     }
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_text_change_log(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property      | type
     backends/postgres/dtypes/text |
       |   |   | Country           |
       |   |   |   | name@lt       | string
       |   |   |   | name@en       | string
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     model = 'backends/postgres/dtypes/text/Country'
     app = create_test_client(context)
     app.authmodel('backends/postgres/dtypes/text/Country', [
@@ -178,12 +219,16 @@ def test_text_change_log(
     assert resp_changes.json()['_data'][1]['_op'] == 'delete'
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_text_select_by_prop(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
         id | d | r | b | m | property | type   | ref | source | prepare | level | access | uri | title | description
            | types/text               |        |     |        |         |       |        |     |       |
            |                          |        |     |        |         |       |        |     |       |
@@ -193,7 +238,13 @@ def test_text_select_by_prop(
            |   |   |   | Country1     |        |     |        |         |       |        |     |       |
            |   |   |   |   | name@lt  | string   |     |        |         | 3     | open   |     |       |
            |   |   |   |   | name@en  | string   |     |        |         | 3     | open   |     |       |
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     model = 'types/text/Country1'
     app = create_test_client(context)
     app.authmodel('types/text/Country1', [
@@ -219,18 +270,28 @@ def test_text_select_by_prop(
     assert sort_by_prop.status_code == 200
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_text_post_wrong_property_with_text(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property      | type
     backends/postgres/dtypes/text |
       |   |   | Country           |
       |   |   |   | name@lt       | string
       |   |   |   | name@en       | string
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     model = 'backends/postgres/dtypes/text/Country'
     app = create_test_client(context)
     app.authmodel('backends/postgres/dtypes/text/Country', [
@@ -251,18 +312,28 @@ def test_text_post_wrong_property_with_text(
     assert resp.status_code != 200
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_text_accept_language(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
         id | d | r | b | m | property | type     | ref | source | prepare | level | access | uri | title | description
            | types/text/accept               |          |     |        |         |       |        |     |       |
            |   |   |   | Country      |          |     |        |         |       |        |     |       |
            |   |   |   |   | name@lt  | string   |     |        |         | 3     | open   |     |       |
            |   |   |   |   | name@en  | string   |     |        |         | 3     | open   |     |       |
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     model = 'types/text/accept/Country'
     app = create_test_client(context)
     app.authmodel('types/text/accept/Country', [
@@ -300,18 +371,28 @@ def test_text_accept_language(
     }]
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_text_content_language(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
         id | d | r | b | m | property | type     | ref | source | prepare | level | access | uri | title | description
            | types/text/content               |          |     |        |         |       |        |     |       |
            |   |   |   | Country      |          |     |        |         |       |        |     |       |
            |   |   |   |   | name@lt  | string   |     |        |         | 3     | open   |     |       |
            |   |   |   |   | name@en  | string   |     |        |         | 3     | open   |     |       |
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     model = 'types/text/content/Country'
     app = create_test_client(context)
     app.authmodel('types/text/content/Country', [
@@ -340,19 +421,29 @@ def test_text_content_language(
     }]
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_text_unknown_language(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
         id | d | r | b | m | property | type     | ref | source | prepare | level | access | uri | title | description
            | types/text/content               |          |     |        |         |       |        |     |       |
            |   |   |   | Country      |          |     |        |         |       |        |     |       |
            |   |   |   |   | name     | text     |     |        |         | 3     | open   |     |       |
            |   |   |   |   | name@lt  | string   |     |        |         |       | open   |     |       |
            |   |   |   |   | name@en  | string   |     |        |         |       | open   |     |       |
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     model = 'types/text/content/Country'
     app = create_test_client(context)
     app.authmodel('types/text/content/Country', [
@@ -381,19 +472,29 @@ def test_text_unknown_language(
     }]
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_text_unknown_language_invalid(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
         id | d | r | b | m | property | type     | ref | source | prepare | level | access | uri | title | description
            | types/text/content               |          |     |        |         |       |        |     |       |
            |   |   |   | Country      |          |     |        |         |       |        |     |       |
            |   |   |   |   | name     | text     |     |        |         | 4     | open   |     |       |
            |   |   |   |   | name@lt  | string   |     |        |         |       | open   |     |       |
            |   |   |   |   | name@en  | string   |     |        |         |       | open   |     |       |
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     model = 'types/text/content/Country'
     app = create_test_client(context)
     app.authmodel('types/text/content/Country', [

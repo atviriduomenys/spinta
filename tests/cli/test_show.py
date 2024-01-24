@@ -3,7 +3,7 @@ from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.tabular import create_tabular_manifest
 
 
-def test_show(rc, cli: SpintaCliRunner, tmp_path):
+def test_show(context, rc, cli: SpintaCliRunner, tmp_path):
     manifest = striptable('''
     id | d | r | b | m | property | type   | ref     | source      | prepare | level | access    | uri | title | description
        | datasets/gov/example     |        |         |             |         |       | protected |     |       |
@@ -22,7 +22,7 @@ def test_show(rc, cli: SpintaCliRunner, tmp_path):
        |   |   |   |   | country  | ref    | Country | salis       |         |       | protected |     |       |
     ''')
 
-    create_tabular_manifest(tmp_path / 'manifest.csv', manifest)
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', manifest)
 
     result = cli.invoke(rc, ['show', tmp_path / 'manifest.csv'])
 

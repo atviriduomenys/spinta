@@ -10,7 +10,7 @@ def create_model(context, schema):
     manifest = context.get('store').manifest
     data = {
         'type': 'model',
-        'name': 'model',
+        'name': 'Model',
         **schema,
     }
     model = Model()

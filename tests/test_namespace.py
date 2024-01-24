@@ -1,23 +1,24 @@
 import hashlib
+from pathlib import Path
 from typing import Tuple
 
 import pytest
 
+from spinta import commands
 from spinta.core.config import RawConfig
 from spinta.testing.client import TestClient
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
 from spinta.testing.data import pushdata
-from spinta.testing.manifest import bootstrap_manifest
-from spinta.testing.manifest import load_manifest
+from spinta.testing.manifest import bootstrap_manifest, load_manifest_and_context
 from spinta.types.namespace import sort_models_by_refs
 from spinta.utils.data import take
 
 
 def _create_data(app: TestClient, ns: str) -> Tuple[str, str]:
-    continent = ns + '/continent'
-    country = ns + '/country'
-    capital = ns + '/capital'
+    continent = ns + '/Continent'
+    country = ns + '/Country'
+    capital = ns + '/Capital'
 
     app.authmodel(continent, ['insert'])
     app.authmodel(country, ['insert'])
@@ -66,18 +67,22 @@ def test_getall_ns(model, app):
 
     resp = app.get('/datasets/backends/postgres/dataset/:ns/:all')
     assert listdata(resp, 'name') == [
-        'datasets/backends/postgres/dataset/capital',
-        'datasets/backends/postgres/dataset/continent',
-        'datasets/backends/postgres/dataset/country',
-        'datasets/backends/postgres/dataset/org',
-        'datasets/backends/postgres/dataset/report',
+        'datasets/backends/postgres/dataset/Capital',
+        'datasets/backends/postgres/dataset/Continent',
+        'datasets/backends/postgres/dataset/Country',
+        'datasets/backends/postgres/dataset/Org',
+        'datasets/backends/postgres/dataset/Report',
     ]
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_ns_titles(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property | type   | ref          | title               | description
                              | ns     | datasets     | All datasets        | All external datasets.
                              | ns     | datasets/gov | Government datasets | All external government datasets.
@@ -87,7 +92,11 @@ def test_ns_titles(
       |   |   |   | name     | string |              | Country name        | Name of a country.
       |   |   | City         |        |              | Cities              | All cities.
       |   |   |   | name     | string |              | City name           | Name of a city.
-    ''')
+    ''',
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        full_load=True
+    )
     app = create_test_client(context, scope=['spinta_getall'])
     assert listdata(app.get('/:ns'), 'title', 'description') == [
         ("All datasets", "All external datasets."),
@@ -102,10 +111,14 @@ def test_ns_titles(
     ]
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_ns_titles_bare_models(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property                 | type   | ref                  | title               | description
                                              | ns     | datasets             | All datasets        | All external datasets.
                                              |        | datasets/gov         | Government datasets | All external government datasets.
@@ -115,7 +128,11 @@ def test_ns_titles_bare_models(
       |   |   |   | name                     | string |                      | Country name        | Name of a country.
       |   |   | datasets/gov/vpt/new/City    |        |                      | Cities              | All cities.
       |   |   |   | name                     | string |                      | City name           | Name of a city.
-    ''')
+    ''',
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        full_load=True
+    )
     app = create_test_client(context, scope=['spinta_getall'])
     assert listdata(app.get('/:ns'), 'title', 'description') == [
         ("All datasets", "All external datasets."),
@@ -130,8 +147,13 @@ def test_ns_titles_bare_models(
     ]
 
 
-def test_sort_models_by_refs(rc: RawConfig):
-    manifest = load_manifest(rc, '''
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_sort_models_by_refs(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+):
+    context, manifest = load_manifest_and_context(rc, '''
     d | r | b | m | property  | type   | ref       | access
     datasets/gov/example      |        |           |
       |   |                   |        |           |
@@ -146,9 +168,9 @@ def test_sort_models_by_refs(rc: RawConfig):
       |   |   | City          |        |           |
       |   |   |   | name      | string |           | open
       |   |   |   | country   | ref    | Country   | open
-    ''')
+    ''', manifest_type=manifest_type, tmp_path=tmp_path)
 
-    models = sort_models_by_refs(manifest.models.values())
+    models = sort_models_by_refs(commands.get_models(context, manifest).values())
     names = [model.name for model in models]
     assert names == [
         'datasets/gov/example/City',
@@ -157,8 +179,13 @@ def test_sort_models_by_refs(rc: RawConfig):
     ]
 
 
-def test_sort_models_by_ref_with_base(rc: RawConfig):
-    manifest = load_manifest(rc, '''
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_sort_models_by_ref_with_base(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+):
+    context, manifest = load_manifest_and_context(rc, '''
     d | r | b | m | property | type    | ref     | access
     datasets/basetest        |         |         |
       |   |   | Place        |         | id      |
@@ -175,9 +202,9 @@ def test_sort_models_by_ref_with_base(rc: RawConfig):
       |   |   |   | id       | integer |         | open
       |   |   |   | name     |         |         | open
       |   |   |   | country  | ref     | Country | open
-    ''')
+    ''', manifest_type=manifest_type, tmp_path=tmp_path)
 
-    models = sort_models_by_refs(manifest.models.values())
+    models = sort_models_by_refs(commands.get_models(context, manifest).values())
     names = [model.name for model in models]
     assert names == [
         'datasets/basetest/City',

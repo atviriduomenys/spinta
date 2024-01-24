@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Optional
 
 import pytest
@@ -11,6 +12,7 @@ from spinta.testing.manifest import bootstrap_manifest
 from spinta.manifests.components import Manifest
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 @pytest.mark.parametrize('value', [
     None,
     0,
@@ -19,17 +21,28 @@ from spinta.manifests.components import Manifest
     1000,
     -1000,
 ])
-def test_integer(rc: RawConfig, value: Optional[int]):
-    context = bootstrap_manifest(rc, '''
+def test_integer(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    value: Optional[int]):
+    context = bootstrap_manifest(
+        rc, '''
     d | m | property     | type
     datasets/gov/example |
       | City             |
       |   | population   | integer
-    ''', backend='memory')
+    ''',
+        backend='memory',
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        full_load=True
+    )
+
     store: Store = context.get('store')
     manifest: Manifest = store.manifest
     backend: Memory = manifest.backend
-    model = manifest.models['datasets/gov/example/City']
+    model = commands.get_model(context, manifest, 'datasets/gov/example/City')
     payload = {
         '_op': 'insert',
         'population': value,

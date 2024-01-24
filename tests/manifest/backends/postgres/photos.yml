@@ -1,7 +1,6 @@
 ---
 type: model
-name: backends/postgres/photo
-endpoint: backends/postgres/photos
+name: backends/postgres/Photo
 version:
   id: 1
   date: "2019-05-30"

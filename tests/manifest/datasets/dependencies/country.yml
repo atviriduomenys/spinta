@@ -1,10 +1,10 @@
 type: model
-name: datasets/dependencies/country
+name: datasets/dependencies/Country
 external:
   dataset: datasets/dependencies
   resource: continents
   params:
-    - continent: query(datasets/dependencies/continent)
+    - continent: query(datasets/dependencies/Continent)
   name: /continents/{continent.id}/countries.csv
   pk: id
 properties:
@@ -16,5 +16,5 @@ properties:
     external: country
   continent:
     type: ref
-    model: datasets/dependencies/continent
+    model: datasets/dependencies/Continent
     prepare: continent.id

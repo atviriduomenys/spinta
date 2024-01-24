@@ -8,12 +8,12 @@ from typer import Option
 from typer import Typer
 from typer import echo
 
-from spinta.cli.helpers.manifest import convert_str_to_manifest_path
 from spinta.cli.helpers.store import load_manifest
 from spinta.components import Context
 from spinta.core.context import configure_context
 from spinta.core.enums import Access
-from spinta.manifests.components import ManifestPath
+from spinta.manifests.internal_sql.components import InternalSQLManifest
+from spinta.manifests.internal_sql.helpers import write_internal_sql_manifest
 from spinta.manifests.tabular.components import ManifestColumn
 from spinta.manifests.tabular.components import ManifestRow
 from spinta.manifests.tabular.helpers import datasets_to_tabular
@@ -58,35 +58,80 @@ def copy(
 ):
     """Copy models from CSV manifest files into another CSV manifest file"""
     context: Context = ctx.obj
+    copy_manifest(
+        context,
+        source=source,
+        access=access,
+        format_names=format_names,
+        output=output,
+        columns=columns,
+        order_by=order_by,
+        rename_duplicates=rename_duplicates,
+        manifests=manifests
+    )
+
+
+def copy_manifest(
+    context: Context,
+    source: bool = True,
+    access: str = 'private',
+    format_names: bool = False,
+    output: Optional[str] = None,
+    columns: Optional[str] = None,
+    order_by: Optional[str] = None,
+    rename_duplicates: bool = False,
+    manifests: List[str] = None,
+    output_type: Optional[str] = None
+):
+    """Copy models from CSV manifest files into another CSV manifest file"""
     access = get_enum_by_name(Access, access)
     cols = normalizes_columns(columns.split(',')) if columns else None
-
+    internal = False
     verbose = True
     if not output:
         verbose = False
+    else:
+        if output_type:
+            if output_type == 'internal_sql':
+                internal = True
+        else:
+            internal = InternalSQLManifest.detect_from_path(output)
 
-    manifests = convert_str_to_manifest_path(manifests)
-
-    rows = _read_csv_files(
-        context,
-        manifests,
-        external=source,
-        access=access,
-        format_names=format_names,
-        order_by=order_by,
-        rename_duplicates=rename_duplicates,
-        verbose=verbose,
-    )
+    if internal:
+        rows = _read_and_return_manifest(
+            context,
+            manifests,
+            external=source,
+            access=access,
+            format_names=format_names,
+            order_by=order_by,
+            rename_duplicates=rename_duplicates,
+            verbose=verbose,
+        )
+    else:
+        rows = _read_and_return_rows(
+            context,
+            manifests,
+            external=source,
+            access=access,
+            format_names=format_names,
+            order_by=order_by,
+            rename_duplicates=rename_duplicates,
+            verbose=verbose,
+        )
 
     if output:
-        write_tabular_manifest(output, rows)
+        if internal:
+            write_internal_sql_manifest(context, output, rows)
+        else:
+            write_tabular_manifest(context, output, rows)
     else:
         echo(render_tabular_manifest_rows(rows, cols))
 
 
-def _read_csv_files(
+def _read_and_return_manifest(
     context: Context,
-    manifests: List[ManifestPath],
+    manifests: List[str],
     *,
     external: bool = True,
     access: Access = Access.private,
@@ -101,12 +146,40 @@ def _read_csv_files(
         rename_duplicates=rename_duplicates,
         load_internal=False,
         verbose=verbose,
+        full_load=True
+    )
+
+    if format_names:
+        reformat_names(context, store.manifest)
+
+    return store.manifest
+
+
+def _read_and_return_rows(
+    context: Context,
+    manifests: List[str],
+    *,
+    external: bool = True,
+    access: Access = Access.private,
+    format_names: bool = False,
+    order_by: ManifestColumn = None,
+    rename_duplicates: bool = False,
+    verbose: bool = True,
+) -> Iterator[ManifestRow]:
+    context = configure_context(context, manifests)
+    store = load_manifest(
+        context,
+        rename_duplicates=rename_duplicates,
+        load_internal=False,
+        verbose=verbose,
+        full_load=True
     )
 
     if format_names:
         reformat_names(context, store.manifest)
 
     yield from datasets_to_tabular(
+        context,
         store.manifest,
         external=external,
         access=access,

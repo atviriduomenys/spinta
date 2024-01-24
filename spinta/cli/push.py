@@ -32,7 +32,7 @@ from typer import Option
 from typer import Exit
 from typer import echo
 
-from spinta import exceptions
+from spinta import exceptions, commands
 from spinta import spyna
 from spinta.auth import authorized
 from spinta.auth import get_client_id_from_name, get_clients_path
@@ -148,7 +148,7 @@ def push(
 
     manifests = convert_str_to_manifest_path(manifests)
     context = configure_context(ctx.obj, manifests, mode=mode)
-    store = prepare_manifest(context)
+    store = prepare_manifest(context, full_load=True)
     config: Config = context.get('config')
 
     if credentials:
@@ -168,11 +168,11 @@ def push(
     state = f'sqlite:///{state}'
 
     manifest = store.manifest
-    if dataset and dataset not in manifest.datasets:
+    if dataset and not commands.has_dataset(context, manifest, dataset):
         echo(str(exceptions.NodeNotFound(manifest, type='dataset', name=dataset)))
         raise Exit(code=1)
 
-    ns = manifest.namespaces['']
+    ns = commands.get_namespace(context, manifest, '')
 
     echo(f"Get access token from {creds.server}")
     token = get_access_token(creds)
@@ -190,9 +190,7 @@ def push(
         _attach_keymaps(context, store)
         error_counter = ErrorCounter(max_count=max_error_count)
 
-        from spinta.types.namespace import traverse_ns_models
-
-        models = traverse_ns_models(context, ns, Action.SEARCH, dataset, source_check=True)
+        models = commands.traverse_ns_models(context, ns, manifest, Action.SEARCH, dataset_=dataset, source_check=True)
         models = sort_models_by_ref_and_base(list(models))
 
         if state:
@@ -479,7 +477,7 @@ def _attach_backends(context: Context, store: Store, manifest: Manifest) -> None
     for backend in manifest.backends.values():
         backends.add(backend.name)
         context.attach(f'transaction.{backend.name}', backend.begin)
-    for dataset_ in manifest.datasets.values():
+    for dataset_ in commands.get_datasets(context, manifest).values():
         for resource in dataset_.resources.values():
             if resource.backend and resource.backend.name not in backends:
                 backends.add(resource.backend.name)

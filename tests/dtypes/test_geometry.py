@@ -21,24 +21,33 @@ from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
 from spinta.testing.manifest import bootstrap_manifest, load_manifest_and_context
 from spinta.testing.request import render_data
-from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.manifest import load_manifest
 from spinta.testing.manifest import load_manifest_get_context
 from spinta.types.geometry.constants import WGS84, LKS94
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_geometry(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, '''
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property          | type     | ref
     backends/postgres/dtypes/geometry |          |
       |   |   | City                  |          |
       |   |   |   | name              | string   |
       |   |   |   | coordinates       | geometry |
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
 
     app = create_test_client(context)
     app.authmodel('backends/postgres/dtypes/geometry/City', [
@@ -63,18 +72,28 @@ def test_geometry(
     ]
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_geometry_params_point(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, f'''
+    context = bootstrap_manifest(
+        rc, f'''
     d | r | b | m | property                   | type            | ref
     backends/postgres/dtypes/geometry/point    |                 |
       |   |   | City                           |                 |
       |   |   |   | name                       | string          |
       |   |   |   | coordinates                | geometry(point) |
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
 
     ns: str = 'backends/postgres/dtypes/geometry/point'
     model: str = f'{ns}/City'
@@ -108,18 +127,28 @@ def test_geometry_params_point(
     ]
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_geometry_params_srid(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, f'''
+    context = bootstrap_manifest(
+        rc, f'''
     d | r | b | m | property                   | type           | ref
     backends/postgres/dtypes/geometry/srid     |                |
       |   |   | City                           |                |
       |   |   |   | name                       | string         |
       |   |   |   | coordinates                | geometry(3346) |
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
 
     ns: str = 'backends/postgres/dtypes/geometry/srid'
     model: str = f'{ns}/City'
@@ -143,14 +172,20 @@ def test_geometry_params_srid(
     assert resp.status_code == 201
 
 
-def test_geometry_html(rc: RawConfig):
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_geometry_html(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+):
     context, manifest = load_manifest_and_context(rc, '''
     d | r | b | m | property                   | type           | ref   | description
     example                                    |                |       |
       |   |   | City                           |                |       |
       |   |   |   | name                       | string         |       |
       |   |   |   | coordinates                | geometry(4326) |       | WGS
-    ''')
+    ''', manifest_type=manifest_type, tmp_path=tmp_path)
     result = render_data(
         context, manifest,
         'example/City',
@@ -189,6 +224,7 @@ osm_url = (
 )
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 @pytest.mark.parametrize('wkt, srid, link', [
     ('POINT (6061789 582964)', LKS94, osm_url),
     ('POINT (54.68569111173754 25.286688302053335)', WGS84, osm_url),
@@ -196,7 +232,10 @@ osm_url = (
     ('POINT (25.273658402751387 54.662851967609136)', None, None),
 ])
 def test_geometry_coordinate_transformation(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
+    postgresql: str,
     wkt: str,
     srid: Optional[int],
     link: Optional[str],
@@ -212,9 +251,9 @@ def test_geometry_coordinate_transformation(
           |   |   | City                           |         |       |
           |   |   |   | name                       | string  |       |
           |   |   |   | coordinates                | {dtype} |       |
-        ''')
+        ''', manifest_type=manifest_type, tmp_path=tmp_path)
 
-    model = manifest.models['example/City']
+    model = commands.get_model(context, manifest, 'example/City')
     prop = model.properties['coordinates']
 
     value = shapely.wkt.loads(wkt)
@@ -233,13 +272,17 @@ def test_geometry_coordinate_transformation(
     assert result.link == link
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 @pytest.mark.parametrize('wkt, display', [
     ('POINT (25.282 54.681)', 'POINT (25.282 54.681)'),
     ('POLYGON ((25.28 54.68, 25.29 54.69, 25.38 54.64, 25.28 54.68))', 'POLYGON'),
     ('LINESTRING (25.28 54.68, 25.29 54.69)', 'LINESTRING'),
 ])
 def test_geometry_wkt_value_shortening(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
+    postgresql: str,
     wkt: str,
     display: str,
 ):
@@ -249,8 +292,8 @@ def test_geometry_wkt_value_shortening(
       |   |   | City            |                |     |
       |   |   |   | name        | string         |     |
       |   |   |   | coordinates | geometry(4326) |     | WGS
-    ''')
-    model = manifest.models['example/City']
+    ''', manifest_type=manifest_type, tmp_path=tmp_path)
+    model = commands.get_model(context, manifest, 'example/City')
     prop = model.properties['coordinates']
 
     value = shapely.wkt.loads(wkt)
@@ -268,7 +311,13 @@ def test_geometry_wkt_value_shortening(
     assert result.value == display
 
 
-def test_loading(tmp_path: Path, rc: RawConfig):
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_loading(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+):
     table = '''
     d | r | b | m | property | type                  | ref  | access
     datasets/gov/example     |                       |      | open
@@ -277,17 +326,20 @@ def test_loading(tmp_path: Path, rc: RawConfig):
       |   |   |   | name     | string                |      | open
       |   |   |   | country  | geometry(point, 3346) |      | open
     '''
-    create_tabular_manifest(tmp_path / 'manifest.csv', table)
-    manifest = load_manifest(rc, tmp_path / 'manifest.csv')
+    manifest = load_manifest(rc, table, manifest_type=manifest_type, tmp_path=tmp_path)
     assert manifest == table
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_geometry_params_with_srid_without_srid(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, f'''
+    context = bootstrap_manifest(
+        rc, f'''
         d | r | b | m | property                | type           | access
         backends/postgres/dtypes/geometry/srid  |                | 
           |   |   | Point                       |                | 
@@ -296,7 +348,13 @@ def test_geometry_params_with_srid_without_srid(
           |   |   |   | point                   | geometry(3346) | open
           |   |   | PointWGS84                  |                | 
           |   |   |   | point                   | geometry(4326) | open
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
 
     ns: str = 'backends/postgres/dtypes/geometry/srid'
     model: str = f'{ns}/PointLKS94'
@@ -335,6 +393,7 @@ def test_geometry_params_with_srid_without_srid(
     assert resp.status_code == 201
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 @pytest.mark.parametrize('path', [
     # LKS94 (3346) -> WGS84 (4326)  Bell tower of Vilnius Cathedral
     '3346/6061789/582964',
@@ -344,14 +403,15 @@ def test_geometry_params_with_srid_without_srid(
     '4326/54.68569/25.28668',
 ])
 def test_srid_service(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
-    request: FixtureRequest,
     path: str,
 ):
     context = load_manifest_get_context(rc, '''
     d | r | b | m | property | type | ref
-    ''')
+    ''', manifest_type=manifest_type, tmp_path=tmp_path)
 
     app = create_test_client(context)
 
@@ -369,18 +429,28 @@ def test_srid_service(
     assert y[:8] == '25.28668'
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_geometry_delete(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, f'''
+    context = bootstrap_manifest(
+        rc, f'''
         d | r | b | m | property                | type           | access
         backends/postgres/dtypes/geometry/error  |                | 
           |   |   | Point                       |                | 
           |   |   |   | point                   | geometry       | open
           |   |   |   | number                  | integer        | open
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
 
     ns: str = 'backends/postgres/dtypes/geometry/error'
     model: str = f'{ns}/Point'
@@ -400,18 +470,28 @@ def test_geometry_delete(
     assert resp.status_code == 204
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_geometry_insert_without_geometry(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, f'''
+    context = bootstrap_manifest(
+        rc, f'''
         d | r | b | m | property                | type           | access
         backends/postgres/dtypes/geometry/error  |                | 
           |   |   | Point                       |                | 
           |   |   |   | point                   | geometry       | open
           |   |   |   | number                  | integer        | open
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
 
     ns: str = 'backends/postgres/dtypes/geometry/error'
     model: str = f'{ns}/Point'
@@ -427,18 +507,28 @@ def test_geometry_insert_without_geometry(
     assert resp.status_code == 201
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_geometry_update_without_geometry(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, f'''
+    context = bootstrap_manifest(
+        rc, f'''
         d | r | b | m | property                | type           | access
         backends/postgres/dtypes/geometry/error  |                | 
           |   |   | Point                       |                | 
           |   |   |   | point                   | geometry       | open
           |   |   |   | number                  | integer        | open
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
 
     ns: str = 'backends/postgres/dtypes/geometry/error'
     model: str = f'{ns}/Point'

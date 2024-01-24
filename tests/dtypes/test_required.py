@@ -1,4 +1,5 @@
 import uuid
+from pathlib import Path
 
 from pytest import FixtureRequest
 
@@ -7,21 +8,32 @@ from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
 from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.utils import get_error_codes, get_error_context
+import pytest
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_insert_with_required_property(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
     dataset = 'type/required/insert'
-    context = bootstrap_manifest(rc, f'''
+    context = bootstrap_manifest(
+        rc, f'''
     d | r | b | m | property          | type            | ref
     {dataset}                         |                 |
       |   |   | City                  |                 |
       |   |   |   | name              | string required |
       |   |   |   | description       | string          |
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
 
     app = create_test_client(context)
     app.authmodel(f'{dataset}/City', [
@@ -56,19 +68,29 @@ def test_insert_with_required_property(
     ]
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_update_with_required_property(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
     dataset = 'type/required/update'
-    context = bootstrap_manifest(rc, f'''
+    context = bootstrap_manifest(
+        rc, f'''
     d | r | b | m | property          | type            | ref
     {dataset}                         |                 |
       |   |   | City                  |                 |
       |   |   |   | name              | string required |
       |   |   |   | description       | string          |
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
 
     app = create_test_client(context)
     app.authmodel(f'{dataset}/City', [
@@ -112,19 +134,29 @@ def test_update_with_required_property(
     ]
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_patch_with_required_property(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
     dataset = 'type/required/patch'
-    context = bootstrap_manifest(rc, f'''
+    context = bootstrap_manifest(
+        rc, f'''
     d | r | b | m | property          | type            | ref
     {dataset}                         |                 |
       |   |   | City                  |                 |
       |   |   |   | name              | string required |
       |   |   |   | description       | string          |
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
 
     app = create_test_client(context)
     app.authmodel(f'{dataset}/City', [
@@ -169,19 +201,29 @@ def test_patch_with_required_property(
     ]
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_upsert_insert_with_required_property(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
     dataset = 'type/required/upsert'
-    context = bootstrap_manifest(rc, f'''
+    context = bootstrap_manifest(
+        rc, f'''
     d | r | b | m | property          | type            | ref
     {dataset}                         |                 |
       |   |   | City                  |                 |
       |   |   |   | name              | string required |
       |   |   |   | description       | string          |
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
 
     app = create_test_client(context)
     app.authmodel(f'{dataset}/City', [
@@ -221,19 +263,29 @@ def test_upsert_insert_with_required_property(
     ]
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_upsert_patch_with_required_property(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
 ):
     dataset = 'type/required/upsert/patch'
-    context = bootstrap_manifest(rc, f'''
+    context = bootstrap_manifest(
+        rc, f'''
     d | r | b | m | property          | type            | ref
     {dataset}                         |                 |
       |   |   | City                  |                 |
       |   |   |   | name              | string required |
       |   |   |   | description       | string          |
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
 
     app = create_test_client(context)
     app.authmodel(f'{dataset}/City', [

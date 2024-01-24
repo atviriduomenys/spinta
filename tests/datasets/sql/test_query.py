@@ -5,8 +5,9 @@ import sqlalchemy as sa
 from sqlalchemy.sql import Select
 from sqlalchemy.sql.type_api import TypeEngine
 
+from spinta import commands
 from spinta.auth import AdminToken
-from spinta.components import Model, Mode
+from spinta.components import Model, Mode, Context
 from spinta.core.config import RawConfig
 from spinta.datasets.backends.sql.commands.query import SqlQueryBuilder
 from spinta.datasets.backends.sql.components import Sql
@@ -51,9 +52,9 @@ def _get_model_db_name(model: Model) -> str:
     return model.get_name_without_ns().upper()
 
 
-def _meta_from_manifest(manifest: Manifest) -> sa.MetaData:
+def _meta_from_manifest(context: Context, manifest: Manifest) -> sa.MetaData:
     meta = sa.MetaData()
-    for model in manifest.models.values():
+    for model in commands.get_models(context, manifest).values():
         columns = [
             sa.Column(prop.external.name, _get_sql_type(prop.dtype))
             for name, prop in model.properties.items()
@@ -70,8 +71,8 @@ def _meta_from_manifest(manifest: Manifest) -> sa.MetaData:
 def _build(rc: RawConfig, manifest: str, model_name: str, page_mapping: dict = None) -> str:
     context, manifest = load_manifest_and_context(rc, manifest, mode=Mode.external)
     context.set('auth.token', AdminToken())
-    model = manifest.models[model_name]
-    meta = _meta_from_manifest(manifest)
+    model = commands.get_model(context, manifest, model_name)
+    meta = _meta_from_manifest(context, manifest)
     backend = Sql()
     backend.schema = meta
     query = model.external.prepare

@@ -1,6 +1,6 @@
 ---
 type: model
-name: backends/postgres/org
+name: backends/postgres/Org
 title: "Organization"
 version:
   id: 1
@@ -10,4 +10,4 @@ unique:
 properties:
   title: {type: string}
   govid: {type: string, title: "Identification number", description: "Identification number assigned by government."}
-  country: {type: ref, model: backends/postgres/country}
+  country: {type: ref, model: backends/postgres/Country}

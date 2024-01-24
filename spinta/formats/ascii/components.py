@@ -1,6 +1,7 @@
 import operator
 import itertools
 
+from spinta import commands
 from spinta.components import Context, Action, UrlParams, Model
 from spinta.formats.ascii.helpers import get_widths, get_displayed_cols, draw_border, draw_header, draw_row
 from spinta.manifests.components import Manifest
@@ -53,7 +54,7 @@ class Ascii(Format):
         for name, group in groups:
             if name:
                 yield f'\n\nTable: {name}\n'
-                model = manifest.models[name]
+                model = commands.get_model(context, manifest, name)
 
             rows = flatten(group)
             rows = rename_page_col(rows)

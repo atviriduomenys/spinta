@@ -17,6 +17,8 @@ def load(context: Context, dtype: Text, data: dict, manifest: Manifest) -> DataT
         prop.model = dtype.prop.model
         prop.list = dtype.prop.list
         commands.load(context, prop, params, manifest)
+        if prop.access is None:
+            prop.access = dtype.prop.access
         dtype.prop.model.flatprops[place] = prop
         props[name] = prop
     dtype.langs = props

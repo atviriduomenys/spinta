@@ -35,5 +35,5 @@ def check(
     """Check configuration and manifests"""
     manifests = convert_str_to_manifest_path(manifests)
     context = configure_context(ctx.obj, manifests, mode=mode, check_names=check_names)
-    prepare_manifest(context, ensure_config_dir=True)
+    prepare_manifest(context, ensure_config_dir=True, full_load=True)
     echo("OK")

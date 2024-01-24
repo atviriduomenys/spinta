@@ -27,7 +27,7 @@ def test_create_model(rc, cli: SpintaCliRunner):
     create_manifest_files(tmpdir, {
         'country.yml': {
             'type': 'model',
-            'name': 'country',
+            'name': 'Country',
             'properties': {
                 'name': {'type': 'string'},
             },
@@ -41,29 +41,29 @@ def test_create_model(rc, cli: SpintaCliRunner):
         'country.yml': [
             {
                 'type': 'model',
-                'name': 'country',
-                'id': 'country:0',
-                'version': 'country:1',
+                'name': 'Country',
+                'id': 'Country:0',
+                'version': 'Country:1',
                 'properties': {
                     'name': {'type': 'string'},
                 },
             },
             {
-                'id': 'country:1',
+                'id': 'Country:1',
                 'parents': [],
                 'migrate': [
                     {
                         'type': 'schema',
                         'upgrade': [
                             "create_table(",
-                            "    'country',",
+                            "    'Country',",
                             "    column('_id', pk()),",
                             "    column('_revision', string()),",
                             "    column('name', string())",
                             ")"
                         ],
                         'downgrade': [
-                            "drop_table('country')",
+                            "drop_table('Country')",
                         ],
                     },
                 ],
@@ -78,7 +78,7 @@ def test_add_column(rc, cli: SpintaCliRunner):
     create_manifest_files(tmpdir, {
         'country.yml': {
             'type': 'model',
-            'name': 'country',
+            'name': 'Country',
             'properties': {
                 'name': {'type': 'string'},
             },
@@ -102,25 +102,25 @@ def test_add_column(rc, cli: SpintaCliRunner):
         'country.yml': [
             {
                 'type': 'model',
-                'name': 'country',
-                'id': 'country:0',
-                'version': 'country:2',
+                'name': 'Country',
+                'id': 'Country:0',
+                'version': 'Country:2',
                 'properties': {
                     'name': {'type': 'string'},
                     'code': {'type': 'string'},
                 },
             },
             {
-                'id': 'country:2',
+                'id': 'Country:2',
                 'parents': [],
                 'migrate': [
                     {
                         'type': 'schema',
                         'upgrade': [
-                            "add_column('country', column('code', string()))",
+                            "add_column('Country', column('code', string()))",
                         ],
                         'downgrade': [
-                            "drop_column('country', 'code')",
+                            "drop_column('Country', 'code')",
                         ],
                     },
                 ],
@@ -135,7 +135,7 @@ def test_freeze_no_changes(rc, cli: SpintaCliRunner):
     create_manifest_files(tmpdir, {
         'country.yml': {
             'type': 'model',
-            'name': 'country',
+            'name': 'Country',
             'properties': {
                 'name': {'type': 'string'},
             },
@@ -150,29 +150,29 @@ def test_freeze_no_changes(rc, cli: SpintaCliRunner):
         'country.yml': [
             {
                 'type': 'model',
-                'name': 'country',
-                'id': 'country:0',
-                'version': 'country:1',
+                'name': 'Country',
+                'id': 'Country:0',
+                'version': 'Country:1',
                 'properties': {
                     'name': {'type': 'string'},
                 },
             },
             {
-                'id': 'country:1',
+                'id': 'Country:1',
                 'parents': [],
                 'migrate': [
                     {
                         'type': 'schema',
                         'upgrade': [
                             "create_table(",
-                            "    'country',",
+                            "    'Country',",
                             "    column('_id', pk()),",
                             "    column('_revision', string()),",
                             "    column('name', string())",
                             ")"
                         ],
                         'downgrade': [
-                            "drop_table('country')",
+                            "drop_table('Country')",
                         ],
                     },
                 ],
@@ -187,7 +187,7 @@ def test_freeze_array(rc, cli: SpintaCliRunner):
     create_manifest_files(tmpdir, {
         'country.yml': {
             'type': 'model',
-            'name': 'country',
+            'name': 'Country',
             'properties': {
                 'names': {
                     'type': 'array',
@@ -207,28 +207,28 @@ def test_freeze_array(rc, cli: SpintaCliRunner):
             'type': 'schema',
             'upgrade': [
                 "create_table(",
-                "    'country/:list/names',",
+                "    'Country/:list/names',",
                 "    column('_txn', uuid()),",
-                "    column('_rid', ref('country._id', ondelete: 'CASCADE')),",
+                "    column('_rid', ref('Country._id', ondelete: 'CASCADE')),",
                 "    column('names', string())",
                 ")",
             ],
             'downgrade': [
-                "drop_table('country/:list/names')",
+                "drop_table('Country/:list/names')",
             ],
         },
         {
             'type': 'schema',
             'upgrade': [
                 "create_table(",
-                "    'country',",
+                "    'Country',",
                 "    column('_id', pk()),",
                 "    column('_revision', string()),",
                 "    column('names', json())",
                 ")"
             ],
             'downgrade': [
-                "drop_table('country')",
+                "drop_table('Country')",
             ],
         },
     ]
@@ -240,7 +240,7 @@ def test_freeze_array_with_object(rc, cli: SpintaCliRunner):
     create_manifest_files(tmpdir, {
         'country.yml': {
             'type': 'model',
-            'name': 'country',
+            'name': 'Country',
             'properties': {
                 'notes': {
                     'type': 'array',
@@ -260,13 +260,13 @@ def test_freeze_array_with_object(rc, cli: SpintaCliRunner):
     manifest = read_manifest_files(tmpdir)
     assert readable_manifest_files(manifest)['country.yml'][-1]['migrate'] == [
         {
-            'downgrade': ["drop_table('country/:list/notes')"],
+            'downgrade': ["drop_table('Country/:list/notes')"],
             'type': 'schema',
             'upgrade': [
                 'create_table(',
-                "    'country/:list/notes',",
+                "    'Country/:list/notes',",
                 "    column('_txn', uuid()),",
-                "    column('_rid', ref('country._id', ondelete: 'CASCADE')),",
+                "    column('_rid', ref('Country._id', ondelete: 'CASCADE')),",
                 "    column('notes.note', string())",
                 ')',
             ],
@@ -275,14 +275,14 @@ def test_freeze_array_with_object(rc, cli: SpintaCliRunner):
             'type': 'schema',
             'upgrade': [
                 "create_table(",
-                "    'country',",
+                "    'Country',",
                 "    column('_id', pk()),",
                 "    column('_revision', string()),",
                 "    column('notes', json())",
                 ")"
             ],
             'downgrade': [
-                "drop_table('country')",
+                "drop_table('Country')",
             ],
         },
     ]
@@ -294,7 +294,7 @@ def test_freeze_object(rc, cli: SpintaCliRunner):
     create_manifest_files(tmpdir, {
         'report.yml': {
             'type': 'model',
-            'name': 'report',
+            'name': 'Report',
             'properties': {
                 'str': {'type': 'string'},
                 'note': {
@@ -319,13 +319,13 @@ def test_freeze_object(rc, cli: SpintaCliRunner):
     manifest = read_manifest_files(tmpdir)
     assert readable_manifest_files(manifest)['report.yml'][-1]['migrate'] == [
         {
-            'downgrade': ["drop_table('report/:list/note.list')"],
+            'downgrade': ["drop_table('Report/:list/note.list')"],
             'type': 'schema',
             'upgrade': [
                 'create_table(',
-                "    'report/:list/note.list',",
+                "    'Report/:list/note.list',",
                 "    column('_txn', uuid()),",
-                "    column('_rid', ref('report._id', ondelete: 'CASCADE')),",
+                "    column('_rid', ref('Report._id', ondelete: 'CASCADE')),",
                 "    column('note.list', string())",
                 ')',
             ],
@@ -334,7 +334,7 @@ def test_freeze_object(rc, cli: SpintaCliRunner):
             'type': 'schema',
             'upgrade': [
                 "create_table(",
-                "    'report',",
+                "    'Report',",
                 "    column('_id', pk()),",
                 "    column('_revision', string()),",
                 "    column('note.list', json()),",
@@ -344,7 +344,7 @@ def test_freeze_object(rc, cli: SpintaCliRunner):
                 ")"
             ],
             'downgrade': [
-                "drop_table('report')",
+                "drop_table('Report')",
             ],
         },
     ]
@@ -356,7 +356,7 @@ def test_freeze_file(rc, cli: SpintaCliRunner):
     create_manifest_files(tmpdir, {
         'country.yml': {
             'type': 'model',
-            'name': 'country',
+            'name': 'Country',
             'properties': {
                 'flag': {'type': 'file'},
                 'anthem': {
@@ -372,11 +372,11 @@ def test_freeze_file(rc, cli: SpintaCliRunner):
     manifest = read_manifest_files(tmpdir)
     assert readable_manifest_files(manifest)['country.yml'][-1]['migrate'] == [
         {
-            'downgrade': ["drop_table('country/:file/flag')"],
+            'downgrade': ["drop_table('Country/:file/flag')"],
             'type': 'schema',
             'upgrade': [
                 'create_table(',
-                "    'country/:file/flag',",
+                "    'Country/:file/flag',",
                 "    column('_id', uuid()),",
                 "    column('_block', binary())",
                 ')',
@@ -386,7 +386,7 @@ def test_freeze_file(rc, cli: SpintaCliRunner):
             'type': 'schema',
             'upgrade': [
                 "create_table(",
-                "    'country',",
+                "    'Country',",
                 "    column('_id', pk()),",
                 "    column('_revision', string()),",
                 "    column('anthem._id', string()),",
@@ -400,7 +400,7 @@ def test_freeze_file(rc, cli: SpintaCliRunner):
                 ")"
             ],
             'downgrade': [
-                "drop_table('country')",
+                "drop_table('Country')",
             ],
         },
     ]
@@ -412,7 +412,7 @@ def test_freeze_list_of_files(rc, cli: SpintaCliRunner):
     create_manifest_files(tmpdir, {
         'country.yml': {
             'type': 'model',
-            'name': 'country',
+            'name': 'Country',
             'properties': {
                 'flags': {
                     'type': 'array',
@@ -429,24 +429,24 @@ def test_freeze_list_of_files(rc, cli: SpintaCliRunner):
     manifest = read_manifest_files(tmpdir)
     assert readable_manifest_files(manifest)['country.yml'][-1]['migrate'] == [
         {
-            'downgrade': ["drop_table('country/:file/flags')"],
+            'downgrade': ["drop_table('Country/:file/flags')"],
             'type': 'schema',
             'upgrade': [
                 'create_table(',
-                "    'country/:file/flags',",
+                "    'Country/:file/flags',",
                 "    column('_id', uuid()),",
                 "    column('_block', binary())",
                 ')',
             ],
         },
         {
-            'downgrade': ["drop_table('country/:list/flags')"],
+            'downgrade': ["drop_table('Country/:list/flags')"],
             'type': 'schema',
             'upgrade': [
                 'create_table(',
-                "    'country/:list/flags',",
+                "    'Country/:list/flags',",
                 "    column('_txn', uuid()),",
-                "    column('_rid', ref('country._id', ondelete: 'CASCADE')),",
+                "    column('_rid', ref('Country._id', ondelete: 'CASCADE')),",
                 "    column('flags._id', string()),",
                 "    column('flags._content_type', string()),",
                 "    column('flags._size', integer()),",
@@ -459,14 +459,14 @@ def test_freeze_list_of_files(rc, cli: SpintaCliRunner):
             'type': 'schema',
             'upgrade': [
                 "create_table(",
-                "    'country',",
+                "    'Country',",
                 "    column('_id', pk()),",
                 "    column('_revision', string()),",
                 "    column('flags', json())",
                 ")"
             ],
             'downgrade': [
-                "drop_table('country')",
+                "drop_table('Country')",
             ],
         },
     ]
@@ -478,18 +478,18 @@ def test_freeze_ref(rc, cli: SpintaCliRunner):
     create_manifest_files(tmpdir, {
         'country.yml': {
             'type': 'model',
-            'name': 'country',
+            'name': 'Country',
             'properties': {
                 'name': {'type': 'string'},
             },
         },
         'city.yml': {
             'type': 'model',
-            'name': 'city',
+            'name': 'City',
             'properties': {
                 'country': {
                     'type': 'ref',
-                    'model': 'country'
+                    'model': 'Country'
                 },
                 'name': {'type': 'string'}
             }
@@ -502,14 +502,14 @@ def test_freeze_ref(rc, cli: SpintaCliRunner):
     manifest_files = readable_manifest_files(manifest)
     assert manifest_files['city.yml'][-1]['migrate'] == [
         {
-            'downgrade': ["drop_table('city')"],
+            'downgrade': ["drop_table('City')"],
             'type': 'schema',
             'upgrade': [
                 'create_table(',
-                "    'city',",
+                "    'City',",
                 "    column('_id', pk()),",
                 "    column('_revision', string()),",
-                "    column('country._id', ref('country._id')),",
+                "    column('country._id', ref('Country._id')),",
                 "    column('name', string())",
                 ')',
             ],
@@ -520,13 +520,13 @@ def test_freeze_ref(rc, cli: SpintaCliRunner):
             'type': 'schema',
             'upgrade': [
                 "create_table(",
-                "    'country',",
+                "    'Country',",
                 "    column('_id', pk()),",
                 "    column('_revision', string()),",
                 "    column('name', string())",
                 ")"
             ],
-            'downgrade': ["drop_table('country')"],
+            'downgrade': ["drop_table('Country')"],
         },
     ]
 
@@ -537,14 +537,14 @@ def test_add_reference_column(rc, cli: SpintaCliRunner):
     create_manifest_files(tmpdir, {
         'country.yml': {
             'type': 'model',
-            'name': 'country',
+            'name': 'Country',
             'properties': {
                 'name': {'type': 'string'},
             },
         },
         'city.yml': {
             'type': 'model',
-            'name': 'city',
+            'name': 'City',
             'properties': {
                 'name': {'type': 'string'}
             },
@@ -559,7 +559,7 @@ def test_add_reference_column(rc, cli: SpintaCliRunner):
                 'path': '/properties/city',
                 'value': {
                     'type': 'ref',
-                    'model': 'city',
+                    'model': 'City',
                 },
             }
         ]
@@ -571,13 +571,13 @@ def test_add_reference_column(rc, cli: SpintaCliRunner):
     assert manifest_files['country.yml'][-1]['migrate'] == [
         {
             'downgrade': [
-                "drop_column('country', 'city._id')",
+                "drop_column('Country', 'city._id')",
             ],
             'type': 'schema',
             'upgrade': [
                 "add_column(",
-                "    'country',",
-                "    column('city._id', ref('city._id'))",
+                "    'Country',",
+                "    column('city._id', ref('City._id'))",
                 ")",
             ],
         },
@@ -590,25 +590,25 @@ def test_change_ref_model(rc, cli: SpintaCliRunner):
     create_manifest_files(tmpdir, {
         'country.yml': {
             'type': 'model',
-            'name': 'country',
+            'name': 'Country',
             'properties': {
                 'name': {'type': 'string'},
             },
         },
         'continent.yml': {
             'type': 'model',
-            'name': 'continent',
+            'name': 'Continent',
             'properties': {
                 'name': {'type': 'string'},
             },
         },
         'city.yml': {
             'type': 'model',
-            'name': 'city',
+            'name': 'City',
             'properties': {
                 'country': {
                     'type': 'ref',
-                    'model': 'country',
+                    'model': 'Country',
                 },
                 'name': {'type': 'string'},
             }
@@ -621,7 +621,7 @@ def test_change_ref_model(rc, cli: SpintaCliRunner):
             {
                 'op': 'replace',
                 'path': '/properties/country/model',
-                'value': 'continent',
+                'value': 'Continent',
             }
         ]
     })
@@ -636,20 +636,20 @@ def test_freeze_ref_in_array(rc, cli: SpintaCliRunner):
     create_manifest_files(tmpdir, {
         'country.yml': {
             'type': 'model',
-            'name': 'country',
+            'name': 'Country',
             'properties': {
                 'cities': {
                     'type': 'array',
                     'items': {
                         'type': 'ref',
-                        'model': 'city'
+                        'model': 'City'
                     }
                 },
             },
         },
         'city.yml': {
             'type': 'model',
-            'name': 'city',
+            'name': 'City',
             'properties': {
                 'name': {'type': 'string'}
             }
@@ -662,11 +662,11 @@ def test_freeze_ref_in_array(rc, cli: SpintaCliRunner):
     manifest_files = readable_manifest_files(manifest)
     assert manifest_files['city.yml'][-1]['migrate'] == [
         {
-            'downgrade': ["drop_table('city')"],
+            'downgrade': ["drop_table('City')"],
             'type': 'schema',
             'upgrade': [
                 'create_table(',
-                "    'city',",
+                "    'City',",
                 "    column('_id', pk()),",
                 "    column('_revision', string()),",
                 "    column('name', string())",
@@ -679,25 +679,25 @@ def test_freeze_ref_in_array(rc, cli: SpintaCliRunner):
             'type': 'schema',
             'upgrade': [
                 "create_table(",
-                "    'country/:list/cities',",
+                "    'Country/:list/cities',",
                 "    column('_txn', uuid()),",
-                "    column('_rid', ref('country._id', ondelete: 'CASCADE')),",
-                "    column('cities._id', ref('city._id'))",
+                "    column('_rid', ref('Country._id', ondelete: 'CASCADE')),",
+                "    column('cities._id', ref('City._id'))",
                 ")"
             ],
-            'downgrade': ["drop_table('country/:list/cities')"],
+            'downgrade': ["drop_table('Country/:list/cities')"],
         },
         {
             'type': 'schema',
             'upgrade': [
                 "create_table(",
-                "    'country',",
+                "    'Country',",
                 "    column('_id', pk()),",
                 "    column('_revision', string()),",
                 "    column('cities', json())",
                 ")"
             ],
-            'downgrade': ["drop_table('country')"],
+            'downgrade': ["drop_table('Country')"],
         }
     ]
 
@@ -708,7 +708,7 @@ def test_change_field_type_in_object(rc, cli: SpintaCliRunner):
     create_manifest_files(tmpdir, {
         'country.yml': {
             'type': 'model',
-            'name': 'country',
+            'name': 'Country',
             'properties': {
                 'population': {
                     'type': 'object',
@@ -737,7 +737,7 @@ def test_change_field_type_in_object(rc, cli: SpintaCliRunner):
         {
             'downgrade': [
                 'alter_column(',
-                "    'country',",
+                "    'Country',",
                 "    'population.amount',",
                 '    type_: string()',
                 ')',
@@ -745,7 +745,7 @@ def test_change_field_type_in_object(rc, cli: SpintaCliRunner):
             'type': 'schema',
             'upgrade': [
                 'alter_column(',
-                "    'country',",
+                "    'Country',",
                 "    'population.amount',",
                 '    type_: integer()',
                 ')',
@@ -760,7 +760,7 @@ def test_change_field_type_in_list(rc, cli: SpintaCliRunner):
     create_manifest_files(tmpdir, {
         'country.yml': {
             'type': 'model',
-            'name': 'country',
+            'name': 'Country',
             'properties': {
                 'flags': {
                     'type': 'array',
@@ -787,7 +787,7 @@ def test_change_field_type_in_list(rc, cli: SpintaCliRunner):
         {
             'downgrade': [
                 'alter_column(',
-                "    'country/:list/flags',",
+                "    'Country/:list/flags',",
                 "    'flags',",
                 '    type_: string()',
                 ')',
@@ -795,7 +795,7 @@ def test_change_field_type_in_list(rc, cli: SpintaCliRunner):
             'type': 'schema',
             'upgrade': [
                 'alter_column(',
-                "    'country/:list/flags',",
+                "    'Country/:list/flags',",
                 "    'flags',",
                 '    type_: integer()',
                 ')',
@@ -810,7 +810,7 @@ def test_add_field_to_object(rc, cli: SpintaCliRunner):
     create_manifest_files(tmpdir, {
         'country.yml': {
             'type': 'model',
-            'name': 'country',
+            'name': 'Country',
             'properties': {
                 'population': {
                     'type': 'object',
@@ -840,10 +840,10 @@ def test_add_field_to_object(rc, cli: SpintaCliRunner):
             'type': 'schema',
             'upgrade': [
                 "add_column(",
-                "    'country',",
+                "    'Country',",
                 "    column('population.code', string())",
                 ")"],
-            'downgrade': ["drop_column('country', 'population.code')"],
+            'downgrade': ["drop_column('Country', 'population.code')"],
         },
     ]
 
@@ -854,7 +854,7 @@ def test_add_field(rc, cli: SpintaCliRunner):
     create_manifest_files(tmpdir, {
         'country.yml': {
             'type': 'model',
-            'name': 'country',
+            'name': 'Country',
             'properties': {
                 'name': {'type': 'string'}
             }
@@ -882,8 +882,8 @@ def test_add_field(rc, cli: SpintaCliRunner):
     assert readable_manifest_files(manifest)['country.yml'][-1]['migrate'] == [
         {
             'type': 'schema',
-            'upgrade': ["add_column('country', column('cities.name', string()))"],
-            'downgrade': ["drop_column('country', 'cities.name')"],
+            'upgrade': ["add_column('Country', column('cities.name', string()))"],
+            'downgrade': ["drop_column('Country', 'cities.name')"],
         }
     ]
 
@@ -894,7 +894,7 @@ def test_freeze_nullable(rc, cli: SpintaCliRunner):
     create_manifest_files(tmpdir, {
         'country.yml': {
             'type': 'model',
-            'name': 'country',
+            'name': 'Country',
             'properties': {
                 'name': {
                     'type': 'string',
@@ -910,12 +910,12 @@ def test_freeze_nullable(rc, cli: SpintaCliRunner):
         {
             'type': 'schema',
             'upgrade': ["create_table(",
-                        "    'country',",
+                        "    'Country',",
                         "    column('_id', pk()),",
                         "    column('_revision', string()),",
                         "    column('name', string(), nullable: true)",
                         ")"],
-            'downgrade': ["drop_table('country')"],
+            'downgrade': ["drop_table('Country')"],
         }
     ]
 
@@ -926,7 +926,7 @@ def test_change_nullable(rc, cli: SpintaCliRunner):
     create_manifest_files(tmpdir, {
         'country.yml': {
             'type': 'model',
-            'name': 'country',
+            'name': 'Country',
             'properties': {
                 'name': {
                     'type': 'string',
@@ -951,9 +951,9 @@ def test_change_nullable(rc, cli: SpintaCliRunner):
     manifest = read_manifest_files(tmpdir)
     assert readable_manifest_files(manifest)['country.yml'][-1]['migrate'] == [
         {
-            'downgrade': ["alter_column('country', 'name', nullable: true)"],
+            'downgrade': ["alter_column('Country', 'name', nullable: true)"],
             'type': 'schema',
-            'upgrade': ["alter_column('country', 'name', nullable: false)"],
+            'upgrade': ["alter_column('Country', 'name', nullable: false)"],
         },
     ]
 
@@ -964,7 +964,7 @@ def test_add_nullable_column(rc, cli: SpintaCliRunner):
     create_manifest_files(tmpdir, {
         'country.yml': {
             'type': 'model',
-            'name': 'country',
+            'name': 'Country',
             'properties': {
                 'name': {'type': 'string'},
             },
@@ -991,12 +991,12 @@ def test_add_nullable_column(rc, cli: SpintaCliRunner):
     assert manifest_files['country.yml'][-1]['migrate'] == [
         {
             'downgrade': [
-                "drop_column('country', 'flag')",
+                "drop_column('Country', 'flag')",
             ],
             'type': 'schema',
             'upgrade': [
                 "add_column(",
-                "    'country',",
+                "    'Country',",
                 "    column('flag', string(), nullable: true)",
                 ")",
             ],
@@ -1010,7 +1010,7 @@ def test_delete_property(rc, cli: SpintaCliRunner):
     create_manifest_files(tmpdir, {
         'country.yml': {
             'type': 'model',
-            'name': 'country',
+            'name': 'Country',
             'properties': {
                 'name': {'type': 'string'},
                 'flag': {'type': 'string'}
@@ -1040,7 +1040,7 @@ def test_delete_property_from_object(rc, cli: SpintaCliRunner):
     create_manifest_files(tmpdir, {
         'country.yml': {
             'type': 'model',
-            'name': 'country',
+            'name': 'Country',
             'properties': {
                 'name': {'type': 'string'},
                 'info': {
@@ -1076,7 +1076,7 @@ def test_replace_all_properties(rc, cli: SpintaCliRunner):
     create_manifest_files(tmpdir, {
         'country.yml': {
             'type': 'model',
-            'name': 'country',
+            'name': 'Country',
             'properties': {
                 'name': {'type': 'string'},
                 'flag': {'type': 'string'}
@@ -1100,8 +1100,8 @@ def test_replace_all_properties(rc, cli: SpintaCliRunner):
     manifest_files = readable_manifest_files(manifest)
     assert manifest_files['country.yml'][-1]['migrate'] == [
         {
-            'downgrade': ["drop_column('country', 'capital')"],
+            'downgrade': ["drop_column('Country', 'capital')"],
             'type': 'schema',
-            'upgrade': ["add_column('country', column('capital', string()))"],
+            'upgrade': ["add_column('Country', column('capital', string()))"],
         }
     ]

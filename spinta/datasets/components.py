@@ -8,20 +8,19 @@ import sqlalchemy as sa
 from sqlalchemy.engine.base import Engine
 
 from spinta.backends.components import Backend
-from spinta.components import EntryId
+from spinta.components import EntryId, ExtraMetaData
 from spinta.components import Namespace
+from spinta.dimensions.comments.components import Comment
 from spinta.dimensions.lang.components import LangData
 from spinta.components import MetaData
 from spinta.components import Model
-from spinta.components import Node
 from spinta.components import Property
 from spinta.core.enums import Access
 from spinta.core.ufuncs import Expr
 from spinta.datasets.enums import Level
 from spinta.dimensions.prefix.components import UriPrefix
 from spinta.manifests.components import Manifest
-from spinta.types.owner import Owner
-from spinta.types.project import Project
+from spinta.utils.schema import NA
 
 
 class DatasetGiven:
@@ -35,13 +34,10 @@ class Dataset(MetaData):
     DCAT (Data Catalog Vocabulary) - https://w3c.github.io/dxwg/dcat/
     """
 
-    id: str
     manifest: Manifest
-    owner: Owner = None
     level: Level = 3
     access: Access = Access.private
     website: str = None
-    projects: List[Project] = None
     resources: Dict[str, Resource] = None
     source: Optional[str] = None  # metadata source
     title: str
@@ -98,7 +94,7 @@ class ExternalBackend(Backend):
     schema: sa.MetaData = None
 
 
-class External(Node):
+class External(ExtraMetaData):
     pass
 
 
@@ -108,7 +104,6 @@ class ResourceGiven:
 
 
 class Resource(External):
-    id: Any = None
     eid: EntryId = None
     title: str
     description: str
@@ -117,7 +112,7 @@ class Resource(External):
     level: Level
     access: Access
     external: str
-    prepare: str
+    prepare: Expr
     models: Dict[str, Model]
     given: ResourceGiven
     lang: LangData = None
@@ -126,7 +121,7 @@ class Resource(External):
     schema = {
         'type': {'type': 'string'},
         'dataset': {'parent': True},
-        'prepare': {'type': 'spyna'},
+        'prepare': {'type': 'spyna', 'default': NA},
 
         # Backend name specified in `ref` column, points to previously defined
         # backend or to a configured stored backend.
@@ -155,6 +150,7 @@ class Resource(External):
         'title': {'type': 'string'},
         'description': {'type': 'string'},
         'comments': {},
+        'lang': {'type': 'object'},
         'given_name': {'type': 'string', 'default': None},
     }
 
@@ -191,7 +187,7 @@ class Entity(External):
         'dataset': {'type': 'ref', 'ref': 'context.nodes.dataset'},
         'resource': {'type': 'ref', 'ref': 'dataset.resources'},
         'name': {'type': 'string', 'default': None},
-        'prepare': {'type': 'spyna', 'default': None},
+        'prepare': {'type': 'spyna', 'default': NA},
         'params': {
             'type': 'array',
             'items': {'type': 'object'},
@@ -211,10 +207,10 @@ class Entity(External):
 class Attribute(External):
     prop: Property          # property
     name: str               # property.source
-    prepare: Expr = None    # property.prepare
+    prepare: Expr = NA    # property.prepare
 
     schema = {
         'prop': {'parent': True},
         'name': {'default': None},
-        'prepare': {'type': 'spyna', 'default': None},
+        'prepare': {'type': 'spyna', 'default': NA},
     }

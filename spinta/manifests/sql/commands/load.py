@@ -19,6 +19,7 @@ def load(
     freezed: bool = True,
     rename_duplicates: bool = False,
     load_internal: bool = True,
+    full_load=False
 ):
     assert freezed, (
         "SqlManifest does not have unfreezed version of manifest."
@@ -26,9 +27,9 @@ def load(
 
     if load_internal:
         target = into or manifest
-        if '_schema' not in target.models:
+        if not commands.has_model(context, target, '_schema'):
             store = context.get('store')
-            commands.load(context, store.internal, into=target)
+            commands.load(context, store.internal, into=target, full_load=full_load)
 
     dataset_name = context.get("rc").get("given_dataset_name")
     schemas = read_schema(context, manifest.path, manifest.prepare, dataset_name)
@@ -56,4 +57,5 @@ def load(
             freezed=freezed,
             rename_duplicates=rename_duplicates,
             load_internal=load_internal,
+            full_load=full_load
         )

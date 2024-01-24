@@ -8,6 +8,7 @@ from typing import Optional
 from typing import Tuple
 from typing import TypedDict
 
+from spinta import commands
 from spinta.components import Config
 from spinta.components import Context
 from spinta.components import Model
@@ -28,6 +29,7 @@ CurrentLocation = List[Tuple[
 
 
 def get_current_location(
+    context: Context,
     config: Config,
     model: Model,
     params: UrlParams,
@@ -40,7 +42,7 @@ def get_current_location(
         elif config.root.startswith(path):
             path = ''
 
-    parts = _split_path(model.manifest, config.root, path)
+    parts = _split_path(context, model.manifest, config.root, path)
     if len(parts) > 0:
         parts, last = parts[:-1], parts[-1]
     else:
@@ -212,6 +214,7 @@ class PathInfo(NamedTuple):
 
 
 def _split_path(
+    context: Context,
     manifest: Manifest,
     base: str,
     orig_path: str,
@@ -222,10 +225,10 @@ def _split_path(
     base = [base] if base else []
     for i, part in enumerate(parts, 1):
         path = '/'.join(base + parts[:i])
-        if i == last and path in manifest.models:
-            title = manifest.models[path].title
-        elif path in manifest.namespaces:
-            title = manifest.namespaces[path].title
+        if i == last and commands.has_model(context, manifest, path):
+            title = commands.get_model(context, manifest, path).title
+        elif commands.has_namespace(context, manifest, path):
+            title = commands.get_namespace(context, manifest, path).title
         else:
             title = ''
         title = title or part
@@ -241,7 +244,7 @@ def _split_path(
 def get_template_context(context: Context, model, params: UrlParams):
     config: Config = context.get('config')
     return {
-        'location': get_current_location(config, model, params),
+        'location': get_current_location(context, config, model, params),
     }
 
 

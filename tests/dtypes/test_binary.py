@@ -4,7 +4,7 @@ import pytest
 
 
 @pytest.mark.models(
-    'backends/postgres/dtypes/binary',
+    'backends/postgres/dtypes/Binary',
 )
 def test_insert(model, app):
     data = base64.b64encode(b'data').decode('ascii')
@@ -15,7 +15,7 @@ def test_insert(model, app):
 
 
 @pytest.mark.models(
-    'backends/postgres/dtypes/binary',
+    'backends/postgres/dtypes/Binary',
 )
 def test_upsert(model, app):
     data = base64.b64encode(b'data').decode('ascii')
@@ -47,7 +47,7 @@ def test_upsert(model, app):
 
 
 @pytest.mark.models(
-    'datasets/dtypes/binary',
+    'datasets/dtypes/Binary',
 )
 def test_getone(model, app):
     data = base64.b64encode(b'data').decode('ascii')
@@ -63,7 +63,7 @@ def test_getone(model, app):
 
 
 @pytest.mark.models(
-    'datasets/dtypes/binary',
+    'datasets/dtypes/Binary',
 )
 def test_getall(model, app):
     data = base64.b64encode(b'data').decode('ascii')

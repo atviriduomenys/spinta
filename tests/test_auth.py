@@ -10,7 +10,7 @@ import ruamel.yaml
 from authlib.jose import jwk
 from authlib.jose import jwt
 
-from spinta import auth
+from spinta import auth, commands
 from spinta.auth import get_client_file_path, query_client, get_clients_path
 from spinta.components import Action, Context
 from spinta.testing.cli import SpintaCliRunner
@@ -168,26 +168,26 @@ def test_invalid_client(app):
 
 
 @pytest.mark.parametrize('client, scope, node, action, authorized', [
-    ('default-client', 'spinta_getone', 'backends/mongo/subitem', 'getone', False),
-    ('test-client', 'spinta_getone', 'backends/mongo/subitem', 'getone', True),
-    ('test-client', 'spinta_getone', 'backends/mongo/subitem', 'insert', False),
-    ('test-client', 'spinta_getone', 'backends/mongo/subitem', 'update', False),
-    ('test-client', 'spinta_backends_getone', 'backends/mongo/subitem', 'getone', True),
-    ('test-client', 'spinta_backends_mongo_subitem_getone', 'backends/mongo/subitem', 'getone', True),
-    ('default-client', 'spinta_backends_mongo_subitem_getone', 'backends/mongo/subitem', 'getone', False),
-    ('test-client', 'spinta_backends_mongo_subitem_getone', 'backends/mongo/subitem', 'insert', False),
-    ('test-client', 'spinta_getone', 'backends/mongo/subitem.subobj', 'getone', True),
-    ('test-client', 'spinta_backends_mongo_getone', 'backends/mongo/subitem.subobj', 'getone', True),
-    ('test-client', 'spinta_backends_mongo_subitem_getone', 'backends/mongo/subitem.subobj', 'getone', True),
-    ('test-client', 'spinta_backends_mongo_subitem_subobj_getone', 'backends/mongo/subitem.subobj', 'getone', True),
-    ('test-client', 'spinta_backends_mongo_subitem_subobj_getone', 'backends/mongo/subitem.subobj', 'insert', False),
-    ('default-client', 'spinta_backends_mongo_subitem_subobj_getone', 'backends/mongo/subitem.subobj', 'getone', False),
-    ('test-client', 'spinta_getone', 'backends/mongo/subitem.hidden_subobj', 'getone', False),
-    ('test-client', 'spinta_backends_mongo_getone', 'backends/mongo/subitem.hidden_subobj', 'getone', False),
-    ('test-client', 'spinta_backends_mongo_subitem_getone', 'backends/mongo/subitem.hidden_subobj', 'getone', False),
-    ('test-client', 'spinta_backends_mongo_subitem_hidden_subobj_getone', 'backends/mongo/subitem.hidden_subobj', 'getone', True),
-    ('test-client', 'spinta_backends_mongo_subitem_hidden_subobj_getone', 'backends/mongo/subitem.hidden_subobj', 'update', False),
-    ('default-client', 'spinta_backends_mongo_subitem_hidden_subobj_getone', 'backends/mongo/subitem.hidden_subobj', 'getone', False),
+    ('default-client', 'spinta_getone', 'backends/mongo/Subitem', 'getone', False),
+    ('test-client', 'spinta_getone', 'backends/mongo/Subitem', 'getone', True),
+    ('test-client', 'spinta_getone', 'backends/mongo/Subitem', 'insert', False),
+    ('test-client', 'spinta_getone', 'backends/mongo/Subitem', 'update', False),
+    ('test-client', 'spinta_backends_getone', 'backends/mongo/Subitem', 'getone', True),
+    ('test-client', 'spinta_backends_mongo_subitem_getone', 'backends/mongo/Subitem', 'getone', True),
+    ('default-client', 'spinta_backends_mongo_subitem_getone', 'backends/mongo/Subitem', 'getone', False),
+    ('test-client', 'spinta_backends_mongo_subitem_getone', 'backends/mongo/Subitem', 'insert', False),
+    ('test-client', 'spinta_getone', 'backends/mongo/Subitem.subobj', 'getone', True),
+    ('test-client', 'spinta_backends_mongo_getone', 'backends/mongo/Subitem.subobj', 'getone', True),
+    ('test-client', 'spinta_backends_mongo_subitem_getone', 'backends/mongo/Subitem.subobj', 'getone', True),
+    ('test-client', 'spinta_backends_mongo_subitem_subobj_getone', 'backends/mongo/Subitem.subobj', 'getone', True),
+    ('test-client', 'spinta_backends_mongo_subitem_subobj_getone', 'backends/mongo/Subitem.subobj', 'insert', False),
+    ('default-client', 'spinta_backends_mongo_subitem_subobj_getone', 'backends/mongo/Subitem.subobj', 'getone', False),
+    ('test-client', 'spinta_getone', 'backends/mongo/Subitem.hidden_subobj', 'getone', False),
+    ('test-client', 'spinta_backends_mongo_getone', 'backends/mongo/Subitem.hidden_subobj', 'getone', False),
+    ('test-client', 'spinta_backends_mongo_subitem_getone', 'backends/mongo/Subitem.hidden_subobj', 'getone', False),
+    ('test-client', 'spinta_backends_mongo_subitem_hidden_subobj_getone', 'backends/mongo/Subitem.hidden_subobj', 'getone', True),
+    ('test-client', 'spinta_backends_mongo_subitem_hidden_subobj_getone', 'backends/mongo/Subitem.hidden_subobj', 'update', False),
+    ('default-client', 'spinta_backends_mongo_subitem_hidden_subobj_getone', 'backends/mongo/Subitem.hidden_subobj', 'getone', False),
 ])
 def test_authorized(context, client, scope, node, action, authorized):
     if client == 'default-client':
@@ -200,18 +200,18 @@ def test_authorized(context, client, scope, node, action, authorized):
     store = context.get('store')
     if '.' in node:
         model, prop = node.split('.', 1)
-        node = store.manifest.models[model].flatprops[prop]
-    elif node in store.manifest.models:
-        node = store.manifest.models[node]
+        node = commands.get_model(context, store.manifest, model).flatprops[prop]
+    elif commands.has_model(context, store.manifest, node):
+        node = commands.get_model(context, store.manifest, node)
     else:
-        node = store.manifest.objects['ns'][node]
+        node = commands.get_namespace(context, store.manifest, node)
     action = getattr(Action, action.upper())
     assert auth.authorized(context, node, action) is authorized
 
 
 def test_invalid_access_token(app):
     app.headers.update({"Authorization": "Bearer FAKE_TOKEN"})
-    resp = app.get('/reports')
+    resp = app.get('/Report')
     assert resp.status_code == 401
     assert 'WWW-Authenticate' in resp.headers
     assert resp.headers['WWW-Authenticate'] == 'Bearer error="invalid_token"'
@@ -238,7 +238,7 @@ def test_token_validation_key_config(backends, rc, tmp_path, request):
     token = auth.create_access_token(context, prvkey, client, scopes=scopes)
 
     client = create_test_client(context)
-    resp = client.get('/reports', headers={'Authorization': f'Bearer {token}'})
+    resp = client.get('/Report', headers={'Authorization': f'Bearer {token}'})
     assert resp.status_code == 200
 
 
@@ -274,7 +274,7 @@ def basic_auth(backends, rc, tmp_path, request):
 
 def test_http_basic_auth_unauthorized(basic_auth):
     client = basic_auth
-    resp = client.get('/reports')
+    resp = client.get('/Report')
     assert resp.status_code == 401, resp.json()
     assert resp.headers['www-authenticate'] == 'Basic realm="Authentication required."'
     assert resp.json() == {
@@ -292,21 +292,21 @@ def test_http_basic_auth_unauthorized(basic_auth):
 
 def test_http_basic_auth_invalid_secret(basic_auth):
     client = basic_auth
-    resp = client.get('/reports', auth=('default', 'invalid'))
+    resp = client.get('/Report', auth=('default', 'invalid'))
     assert resp.status_code == 401, resp.json()
     assert resp.headers['www-authenticate'] == 'Basic realm="Authentication required."'
 
 
 def test_http_basic_auth_invalid_client(basic_auth):
     client = basic_auth
-    resp = client.get('/reports', auth=('invalid', 'secret'))
+    resp = client.get('/Report', auth=('invalid', 'secret'))
     assert resp.status_code == 401, resp.json()
     assert resp.headers['www-authenticate'] == 'Basic realm="Authentication required."'
 
 
 def test_http_basic_auth(basic_auth):
     client = basic_auth
-    resp = client.get('/reports', auth=('default', 'secret'))
+    resp = client.get('/Report', auth=('default', 'secret'))
     assert resp.status_code == 200, resp.json()
 
 

@@ -22,12 +22,13 @@ def load(
     freezed: bool = False,
     rename_duplicates: bool = False,
     load_internal: bool = True,
+    full_load: bool = False
 ):
     if load_internal:
         target = into or manifest
-        if '_schema' not in target.models:
+        if not commands.has_model(context, target, '_schema'):
             store = context.get('store')
-            commands.load(context, store.internal, into=target)
+            commands.load(context, store.internal, into=target, full_load=full_load)
 
     if freezed:
         if into:
@@ -75,6 +76,7 @@ def load(
     freezed: bool = True,
     rename_duplicates: bool = False,
     load_internal: bool = True,
+    full_load: bool = False
 ):
     assert freezed, (
         "InlineManifest does not have unfreezed version of manifest."
@@ -82,9 +84,9 @@ def load(
 
     if load_internal:
         target = into or manifest
-        if '_schema' not in target.models:
+        if not commands.has_model(context, target, '_schema'):
             store = context.get('store')
-            commands.load(context, store.internal, into=target)
+            commands.load(context, store.internal, into=target, full_load=full_load)
 
     if into:
         log.info(
@@ -111,4 +113,5 @@ def load(
             freezed=freezed,
             rename_duplicates=rename_duplicates,
             load_internal=load_internal,
+            full_load=full_load
         )

@@ -23,7 +23,7 @@ def show(
     """Show manifest as ascii table"""
     manifests = convert_str_to_manifest_path(manifests)
     context = configure_context(ctx.obj, manifests, mode=mode)
-    store = prepare_manifest(context, verbose=False)
+    store = prepare_manifest(context, verbose=False, full_load=True)
     manifest = store.manifest
-    echo(render_tabular_manifest(manifest))
+    echo(render_tabular_manifest(context, manifest))
 

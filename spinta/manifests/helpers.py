@@ -37,9 +37,8 @@ def init_manifest(context: Context, manifest: Manifest, name: str):
     manifest.name = name
     manifest.store = context.get('store')
     manifest.parent = None
-    manifest.endpoints = {}
     manifest.backends = {}
-    manifest.objects = {name: {} for name in config.components['nodes']}
+    manifest._objects = {name: {} for name in config.components['nodes']}
     manifest.sync = []
     manifest.prefixes = {}
     manifest.enums = {}
@@ -136,11 +135,11 @@ def load_manifest_nodes(
             _load_manifest(context, manifest, schema, eid)
         else:
             node = _load_manifest_node(context, config, manifest, source, eid, schema)
-            manifest.objects[node.type][node.name] = node
+            commands.set_node(context, manifest, node.type, node.name, node)
             if link:
                 to_link.append(node)
 
-    if '' not in manifest.namespaces:
+    if not commands.has_namespace(context, manifest, '', loaded=True):
         # Root namespace must always be present in manifest event if manifest is
         # empty.
         load_namespace_from_name(context, manifest, '', drop=False)
@@ -154,8 +153,12 @@ def _load_manifest_backends(
     context: Context,
     manifest: Manifest,
     backends: Dict[str, Dict[str, str]],
+    reset: bool = True
 ) -> None:
-    manifest.backends = {}
+    if reset:
+        manifest.backends = {}
+    elif not manifest.backends:
+        manifest.backends = {}
     for name, data in backends.items():
         manifest.backends[name] = load_backend(
             context,
@@ -171,9 +174,10 @@ def _load_manifest(
     manifest: Manifest,
     data: Dict[str, Any],
     eid: EntryId,
+    reset: bool = True
 ) -> None:
     if 'backends' in data:
-        _load_manifest_backends(context, manifest, data['backends'])
+        _load_manifest_backends(context, manifest, data['backends'], reset=reset)
     if 'prefixes' in data:
         prefixes = load_prefixes(context, manifest, manifest, data['prefixes'])
         manifest.prefixes.update(prefixes)
@@ -191,7 +195,7 @@ def _load_manifest_node(
     eid: EntryId,
     data: dict,
 ) -> MetaData:
-    node = get_node(config, manifest, eid, data)
+    node = get_node(context, config, manifest, eid, data)
     node.eid = eid
     node.type = data['type']
     node.parent = manifest

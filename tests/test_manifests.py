@@ -2,22 +2,23 @@ from spinta import commands
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.utils import create_manifest_files
 from spinta.testing.context import create_test_context
-from spinta.components import Model
-from spinta.manifests.components import Manifest
+from spinta.components import Model, Context
+from spinta.manifests.components import Manifest, get_manifest_object_names
 
 
-def show(c: Manifest):
+def show(context: Context, c: Manifest):
     if isinstance(c, Manifest):
         res = {
             'type': c.type,
             'nodes': {},
         }
-        for group, nodes in c.objects.items():
-            if nodes:
-                res['nodes'][group] = {
-                    name: show(node)
-                    for name, node in nodes.items()
-                }
+        for group in get_manifest_object_names():
+            res['nodes'][group] = {
+                name: show(context, node)
+                for name, node in commands.get_nodes(context, c, group).items()
+            }
+            if not res['nodes'][group]:
+                res['nodes'].pop(group)
         return res
     if isinstance(c, Model):
         return {
@@ -44,7 +45,7 @@ def test_manifest_loading(postgresql, rc, cli: SpintaCliRunner, tmp_path, reques
     create_manifest_files(tmp_path, {
         'country.yml': {
             'type': 'model',
-            'name': 'country',
+            'name': 'Country',
             'properties': {
                 'name': {'type': 'string'},
             },
@@ -65,7 +66,7 @@ def test_manifest_loading(postgresql, rc, cli: SpintaCliRunner, tmp_path, reques
 
     request.addfinalizer(context.wipe_all)
 
-    assert show(store.manifest) == {
+    assert show(context, store.manifest) == {
         'type': 'backend',
         'nodes': {
             'ns': {
@@ -85,7 +86,7 @@ def test_manifest_loading(postgresql, rc, cli: SpintaCliRunner, tmp_path, reques
                 '_txn': {
                     'backend': 'default',
                 },
-                'country': {
+                'Country': {
                     'backend': 'default',
                 },
             },

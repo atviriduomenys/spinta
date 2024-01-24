@@ -1,5 +1,5 @@
 type: model
-name: datasets/csv/country
+name: datasets/csv/Country
 external:
   dataset: datasets/csv
   resource: countries

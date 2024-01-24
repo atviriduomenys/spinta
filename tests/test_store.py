@@ -17,8 +17,8 @@ from spinta.testing.tabular import create_tabular_manifest
     'backends/postgres/{}',
 )
 def test_schema_loader(model, app):
-    model_org = model.format('org')
-    model_country = model.format('country')
+    model_org = model.format('Org')
+    model_country = model.format('Country')
 
     app.authmodel(model_org, ['insert'])
     app.authmodel(model_country, ['insert'])
@@ -78,8 +78,8 @@ def test_schema_loader(model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
+    'backends/mongo/Report',
+    'backends/postgres/Report',
 )
 def test_nested(model, app):
     app.authmodel(model, ['insert', 'getone'])
@@ -104,8 +104,8 @@ def test_nested(model, app):
     }]
 
 
-def test_root(rc: RawConfig, tmp_path: Path):
-    rc = configure(rc, None, tmp_path / 'manifest.csv', '''
+def test_root(context, rc: RawConfig, tmp_path: Path):
+    rc = configure(context, rc, None, tmp_path / 'manifest.csv', '''
     d | r | b | m | property | type   | title
     datasets/gov/vpt/old     |        | Old data
       | sql                  | sql    |
@@ -127,6 +127,7 @@ def test_root(rc: RawConfig, tmp_path: Path):
 
 
 def test_resource_backends(
+    context,
     rc: RawConfig,
     tmp_path: Path,
     sqlite: Sqlite,
@@ -145,7 +146,7 @@ def test_resource_backends(
         {'ID': 2, 'NAME': 'Latvia'},
     ])
 
-    create_tabular_manifest(tmp_path / 'old.csv', striptable('''
+    create_tabular_manifest(context, tmp_path / 'old.csv', striptable('''
     d | r | b | m | property | type    | ref | source  | access | title
     datasets/gov/vpt/old     |         |     |         |        | Old data
       | sql                  |         | old |         |        |
@@ -154,7 +155,7 @@ def test_resource_backends(
       |   |   |   | name     | string  |     | NAME    | open   |
     '''))
 
-    create_tabular_manifest(tmp_path / 'new.csv', striptable('''
+    create_tabular_manifest(context, tmp_path / 'new.csv', striptable('''
     d | r | b | m | property | type    | ref  | source  | access | title
     datasets/gov/vpt/new     |         |      |         |        | New data
       | sql                  |         | new  |         |        |

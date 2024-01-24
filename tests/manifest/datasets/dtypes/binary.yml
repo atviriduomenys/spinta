@@ -1,5 +1,5 @@
 type: model
-name: datasets/dtypes/binary
+name: datasets/dtypes/Binary
 external:
   dataset: datasets/dtypes/binary
   resource: resource

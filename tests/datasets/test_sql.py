@@ -114,27 +114,27 @@ def geodb_denorm():
         yield db
 
 
-def test_filter(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_filter(context, rc, tmp_path, geodb):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source      | prepare   | type   | ref     | level | access | uri | title   | description
        | datasets/gov/example     |             |           |        |         |       |        |     | Example |
        |   | data                 |             |           | sql    |         |       |        |     | Data    |
        |   |   |                  |             |           |        |         |       |        |     |         |
-       |   |   |   | country      | salis       | code='lt' |        | code    |       |        |     | Country |
+       |   |   |   | Country      | salis       | code='lt' |        | code    |       |        |     | Country |
        |   |   |   |   | code     | kodas       |           | string |         | 3     | open   |     | Code    |
        |   |   |   |   | name     | pavadinimas |           | string |         | 3     | open   |     | Name    |
     '''))
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country')
+    resp = app.get('/datasets/gov/example/Country')
     assert listdata(resp, 'code', 'name') == [
         ('lt', 'Lietuva'),
     ]
 
 
-def test_filter_join(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_filter_join(context, rc, tmp_path, geodb):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | type   | ref     | source      | prepare           | level | access | uri | title   | description
        | datasets/gov/example     |        |         |             |                   |       |        |     | Example |
        |   | data                 | sql    |         |             |                   |       |        |     | Data    |
@@ -162,11 +162,12 @@ def test_filter_join(rc, tmp_path, geodb):
 
 
 def test_filter_join_nested(
+    context,
     rc: RawConfig,
     tmp_path: pathlib.Path,
     sqlite: Sqlite,
 ):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | type   | ref     | source   | prepare   | access
     example/join/nested      |        |         |          |           |
       | data                 | sql    |         |          |           |
@@ -216,27 +217,27 @@ def test_filter_join_nested(
     ]
 
 
-def test_filter_join_array_value(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_filter_join_array_value(context, rc, tmp_path, geodb):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source      | prepare                  | type   | ref     | level | access | uri | title   | description
        | datasets/gov/example     |             |                          |        |         |       |        |     | Example |
        |   | data                 |             |                          | sql    |         |       |        |     | Data    |
        |   |   |                  |             |                          |        |         |       |        |     |         |
-       |   |   |   | country      | salis       |                          |        | code    |       |        |     | Country |
+       |   |   |   | Country      | salis       |                          |        | code    |       |        |     | Country |
        |   |   |   |   | code     | kodas       |                          | string |         | 3     | open   |     | Code    |
        |   |   |   |   | name     | pavadinimas |                          | string |         | 3     | open   |     | Name    |
        |   |   |                  |             |                          |        |         |       |        |     |         |
-       |   |   |   | city         | miestas     | country.code=['lt','lv'] |        | name    |       |        |     | City    |
+       |   |   |   | City         | miestas     | country.code=['lt','lv'] |        | name    |       |        |     | City    |
        |   |   |   |   | name     | pavadinimas |                          | string |         | 3     | open   |     | Name    |
-       |   |   |   |   | country  | salis       |                          | ref    | country | 4     | open   |     | Country |
+       |   |   |   |   | country  | salis       |                          | ref    | Country | 4     | open   |     | Country |
     '''))
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country')
+    resp = app.get('/datasets/gov/example/Country')
     codes = dict(listdata(resp, '_id', 'code'))
 
-    resp = app.get('/datasets/gov/example/city?sort(name)')
+    resp = app.get('/datasets/gov/example/City?sort(name)')
     data = listdata(resp, 'country._id', 'name', sort='name')
     data = [(codes.get(country), city) for country, city in data]
     assert data == [
@@ -245,27 +246,27 @@ def test_filter_join_array_value(rc, tmp_path, geodb):
     ]
 
 
-def test_filter_join_ne_array_value(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_filter_join_ne_array_value(context, rc, tmp_path, geodb):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source      | prepare                   | type   | ref     | level | access | uri | title   | description
        | datasets/gov/example     |             |                           |        |         |       |        |     | Example |
        |   | data                 |             |                           | sql    |         |       |        |     | Data    |
        |   |   |                  |             |                           |        |         |       |        |     |         |
-       |   |   |   | country      | salis       |                           |        | code    |       |        |     | Country |
+       |   |   |   | Country      | salis       |                           |        | code    |       |        |     | Country |
        |   |   |   |   | code     | kodas       |                           | string |         | 3     | open   |     | Code    |
        |   |   |   |   | name     | pavadinimas |                           | string |         | 3     | open   |     | Name    |
        |   |   |                  |             |                           |        |         |       |        |     |         |
-       |   |   |   | city         | miestas     | country.code!=['lt','lv'] |        | name    |       |        |     | City    |
+       |   |   |   | City         | miestas     | country.code!=['lt','lv'] |        | name    |       |        |     | City    |
        |   |   |   |   | name     | pavadinimas |                           | string |         | 3     | open   |     | Name    |
-       |   |   |   |   | country  | salis       |                           | ref    | country | 4     | open   |     | Country |
+       |   |   |   |   | country  | salis       |                           | ref    | Country | 4     | open   |     | Country |
     '''))
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country')
+    resp = app.get('/datasets/gov/example/Country')
     codes = dict(listdata(resp, '_id', 'code'))
 
-    resp = app.get('/datasets/gov/example/city?sort(name)')
+    resp = app.get('/datasets/gov/example/City?sort(name)')
     data = listdata(resp, 'country._id', 'name', sort='name')
     data = [(codes.get(country), city) for country, city in data]
     assert data == [
@@ -273,9 +274,8 @@ def test_filter_join_ne_array_value(rc, tmp_path, geodb):
     ]
 
 
-@pytest.mark.skip('todo')
-def test_filter_multi_column_pk(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_filter_multi_column_pk(context, rc, tmp_path, geodb):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source      | prepare            | type    | ref            | level | access | uri | title   | description
        | keymap                   |             |                    |         |                |       |        |     | Example |
        |   | data                 |             |                    | sql     |                |       |        |     | Data    |
@@ -302,55 +302,55 @@ def test_filter_multi_column_pk(rc, tmp_path, geodb):
     ]
 
 
-def test_getall(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_getall(context, rc, tmp_path, geodb):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source      | prepare | type   | ref     | level | access | uri | title   | description
        | datasets/gov/example     |             |         |        |         |       |        |     | Example |
        |   | data                 |             |         | sql    |         |       |        |     | Data    |
        |   |   |                  |             |         |        |         |       |        |     |         |
-       |   |   |   | country      | salis       |         |        | code    |       |        |     | Country |
+       |   |   |   | Country      | salis       |         |        | code    |       |        |     | Country |
        |   |   |   |   | code     | kodas       |         | string |         | 3     | open   |     | Code    |
        |   |   |   |   | name     | pavadinimas |         | string |         | 3     | open   |     | Name    |
        |   |   |                  |             |         |        |         |       |        |     |         |
-       |   |   |   | city         | miestas     |         |        | name    |       |        |     | City    |
+       |   |   |   | City         | miestas     |         |        | name    |       |        |     | City    |
        |   |   |   |   | name     | pavadinimas |         | string |         | 3     | open   |     | Name    |
-       |   |   |   |   | country  | salis       |         | ref    | country | 4     | open   |     | Country |
+       |   |   |   |   | country  | salis       |         | ref    | Country | 4     | open   |     | Country |
     '''))
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country?sort(code)')
+    resp = app.get('/datasets/gov/example/Country?sort(code)')
     codes = dict(listdata(resp, '_id', 'code'))
     assert listdata(resp, 'code', 'name', '_type') == [
-        ('ee', 'Estija', 'datasets/gov/example/country'),
-        ('lt', 'Lietuva', 'datasets/gov/example/country'),
-        ('lv', 'Latvija', 'datasets/gov/example/country'),
+        ('ee', 'Estija', 'datasets/gov/example/Country'),
+        ('lt', 'Lietuva', 'datasets/gov/example/Country'),
+        ('lv', 'Latvija', 'datasets/gov/example/Country'),
     ]
 
-    resp = app.get('/datasets/gov/example/city?sort(name)')
+    resp = app.get('/datasets/gov/example/City?sort(name)')
     data = listdata(resp, 'country._id', 'name', '_type', sort='name')
     data = [(codes.get(country), city, _type) for country, city, _type in data]
     assert data == [
-        ('lv', 'Ryga', 'datasets/gov/example/city'),
-        ('ee', 'Talinas', 'datasets/gov/example/city'),
-        ('lt', 'Vilnius', 'datasets/gov/example/city'),
+        ('lv', 'Ryga', 'datasets/gov/example/City'),
+        ('ee', 'Talinas', 'datasets/gov/example/City'),
+        ('lt', 'Vilnius', 'datasets/gov/example/City'),
     ]
 
 
-def test_select(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_select(context, rc, tmp_path, geodb):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source      | prepare | type   | ref     | level | access | uri | title   | description
        | datasets/gov/example     |             |         |        |         |       |        |     | Example |
        |   | data                 |             |         | sql    |         |       |        |     | Data    |
        |   |   |                  |             |         |        |         |       |        |     |         |
-       |   |   |   | country      | salis       |         |        | code    |       |        |     | Country |
+       |   |   |   | Country      | salis       |         |        | code    |       |        |     | Country |
        |   |   |   |   | code     | kodas       |         | string |         | 3     | open   |     | Code    |
        |   |   |   |   | name     | pavadinimas |         | string |         | 3     | open   |     | Name    |
     '''))
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country?select(code,name)')
+    resp = app.get('/datasets/gov/example/Country?select(code,name)')
     assert listdata(resp, 'code', 'name') == [
         ('ee', 'Estija'),
         ('lt', 'Lietuva'),
@@ -359,20 +359,20 @@ def test_select(rc, tmp_path, geodb):
 
 
 @pytest.mark.skip('TODO')
-def test_select_len(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_select_len(context, rc, tmp_path, geodb):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source      | prepare | type   | ref     | level | access | uri | title   | description
        | datasets/gov/example     |             |         |        |         |       |        |     | Example |
        |   | data                 |             |         | sql    |         |       |        |     | Data    |
        |   |   |                  |             |         |        |         |       |        |     |         |
-       |   |   |   | country      | salis       |         |        | code    |       |        |     | Country |
+       |   |   |   | Country      | salis       |         |        | code    |       |        |     | Country |
        |   |   |   |   | code     | kodas       |         | string |         | 3     | open   |     | Code    |
        |   |   |   |   | name     | pavadinimas |         | string |         | 3     | open   |     | Name    |
     '''))
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country?select(code,len(name))')
+    resp = app.get('/datasets/gov/example/Country?select(code,len(name))')
     assert listdata(resp, 'code', 'len(name)') == [
         ('ee', 6),
         ('lt', 7),
@@ -380,153 +380,153 @@ def test_select_len(rc, tmp_path, geodb):
     ]
 
 
-def test_filter_len(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_filter_len(context, rc, tmp_path, geodb):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source      | prepare | type   | ref     | level | access | uri | title   | description
        | datasets/gov/example     |             |         |        |         |       |        |     | Example |
        |   | data                 |             |         | sql    |         |       |        |     | Data    |
        |   |   |                  |             |         |        |         |       |        |     |         |
-       |   |   |   | country      | salis       |         |        | code    |       |        |     | Country |
+       |   |   |   | Country      | salis       |         |        | code    |       |        |     | Country |
        |   |   |   |   | code     | kodas       |         | string |         | 3     | open   |     | Code    |
        |   |   |   |   | name     | pavadinimas |         | string |         | 3     | open   |     | Name    |
     '''))
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country?select(code,name)&len(name)=7&sort(code)')
+    resp = app.get('/datasets/gov/example/Country?select(code,name)&len(name)=7&sort(code)')
     assert listdata(resp, 'code', 'name') == [
         ('lt', 'Lietuva'),
         ('lv', 'Latvija'),
     ]
 
 
-def test_private_property(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_private_property(context, rc, tmp_path, geodb):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source      | prepare    | type   | ref     | level | access  | uri | title   | description
        | datasets/gov/example     |             |            |        |         |       |         |     | Example |
        |   | data                 |             |            | sql    |         |       |         |     | Data    |
        |   |   |                  |             |            |        |         |       |         |     |         |
-       |   |   |   | country      | salis       | code!='ee' |        | code    |       |         |     | Country |
+       |   |   |   | Country      | salis       | code!='ee' |        | code    |       |         |     | Country |
        |   |   |   |   | code     | kodas       |            | string |         | 3     | private |     | Code    |
        |   |   |   |   | name     | pavadinimas |            | string |         | 3     | open    |     | Name    |
     '''))
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country')
+    resp = app.get('/datasets/gov/example/Country')
     assert listdata(resp) == [
         'Latvija',
         'Lietuva',
     ]
 
 
-def test_all_private_properties(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_all_private_properties(context, rc, tmp_path, geodb):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source      | prepare    | type   | ref     | level | access  | uri | title   | description
        | datasets/gov/example     |             |            |        |         |       |         |     | Example |
        |   | data                 |             |            | sql    |         |       |         |     | Data    |
        |   |   |                  |             |            |        |         |       |         |     |         |
-       |   |   |   | country      | salis       | code!='ee' |        | code    |       |         |     | Country |
+       |   |   |   | Country      | salis       | code!='ee' |        | code    |       |         |     | Country |
        |   |   |   |   | code     | kodas       |            | string |         | 3     | private |     | Code    |
        |   |   |   |   | name     | pavadinimas |            | string |         | 3     | private |     | Name    |
     '''))
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country')
+    resp = app.get('/datasets/gov/example/Country')
     assert error(resp, status=401) == 'AuthorizedClientsOnly'
 
 
-def test_default_access(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_default_access(context, rc, tmp_path, geodb):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source      | prepare    | type   | ref     | level | access  | uri | title   | description
        | datasets/gov/example     |             |            |        |         |       |         |     | Example |
        |   | data                 |             |            | sql    |         |       |         |     | Data    |
        |   |   |                  |             |            |        |         |       |         |     |         |
-       |   |   |   | country      | salis       | code!='ee' |        | code    |       |         |     | Country |
+       |   |   |   | Country      | salis       | code!='ee' |        | code    |       |         |     | Country |
        |   |   |   |   | code     | kodas       |            | string |         | 3     |         |     | Code    |
        |   |   |   |   | name     | pavadinimas |            | string |         | 3     |         |     | Name    |
     '''))
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country')
+    resp = app.get('/datasets/gov/example/Country')
     assert error(resp, status=401) == 'AuthorizedClientsOnly'
 
 
-def test_model_open_access(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_model_open_access(context, rc, tmp_path, geodb):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source      | prepare    | type   | ref     | level | access  | uri | title   | description
        | datasets/gov/example     |             |            |        |         |       |         |     | Example |
        |   | data                 |             |            | sql    |         |       |         |     | Data    |
        |   |   |                  |             |            |        |         |       |         |     |         |
-       |   |   |   | country      | salis       | code!='ee' |        | code    |       | open    |     | Country |
+       |   |   |   | Country      | salis       | code!='ee' |        | code    |       | open    |     | Country |
        |   |   |   |   | code     | kodas       |            | string |         | 3     |         |     | Code    |
        |   |   |   |   | name     | pavadinimas |            | string |         | 3     |         |     | Name    |
     '''))
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country')
+    resp = app.get('/datasets/gov/example/Country')
     assert listdata(resp) == [
         ('lt', 'Lietuva'),
         ('lv', 'Latvija'),
     ]
 
 
-def test_property_public_access(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_property_public_access(context, rc, tmp_path, geodb):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source      | prepare    | type   | ref     | level | access  | uri | title   | description
        | datasets/gov/example     |             |            |        |         |       |         |     | Example |
        |   | data                 |             |            | sql    |         |       |         |     | Data    |
        |   |   |                  |             |            |        |         |       |         |     |         |
-       |   |   |   | country      | salis       | code!='ee' |        | code    |       |         |     | Country |
+       |   |   |   | Country      | salis       | code!='ee' |        | code    |       |         |     | Country |
        |   |   |   |   | code     | kodas       |            | string |         | 3     | public  |     | Code    |
        |   |   |   |   | name     | pavadinimas |            | string |         | 3     | open    |     | Name    |
     '''))
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country')
+    resp = app.get('/datasets/gov/example/Country')
     assert listdata(resp) == [
         'Latvija',
         'Lietuva',
     ]
 
-    resp = app.get('/datasets/gov/example/country', headers={'Accept': 'text/html'})
+    resp = app.get('/datasets/gov/example/Country', headers={'Accept': 'text/html'})
     assert listdata(resp) == [
         'Latvija',
         'Lietuva',
     ]
 
 
-def test_select_protected_property(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_select_protected_property(context, rc, tmp_path, geodb):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source      | prepare    | type   | ref     | level | access  | uri | title   | description
        | datasets/gov/example     |             |            |        |         |       |         |     | Example |
        |   | data                 |             |            | sql    |         |       |         |     | Data    |
        |   |   |                  |             |            |        |         |       |         |     |         |
-       |   |   |   | country      | salis       | code!='ee' |        | code    |       |         |     | Country |
+       |   |   |   | Country      | salis       | code!='ee' |        | code    |       |         |     | Country |
        |   |   |   |   | code     | kodas       |            | string |         | 3     | public  |     | Code    |
        |   |   |   |   | name     | pavadinimas |            | string |         | 3     | open    |     | Name    |
     '''))
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country?select(code,name)')
+    resp = app.get('/datasets/gov/example/Country?select(code,name)')
     assert error(resp) == 'PropertyNotFound'
 
-    resp = app.get('/datasets/gov/example/country?select(code,name)', headers={'Accept': 'text/html'})
+    resp = app.get('/datasets/gov/example/Country?select(code,name)', headers={'Accept': 'text/html'})
     assert error(resp) == 'PropertyNotFound'
 
 
-def test_ns_getall(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_ns_getall(context, rc, tmp_path, geodb):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source      | prepare    | type   | ref     | level | access  | uri | title   | description
        | datasets/gov/example     |             |            |        |         |       |         |     | Example |
        |   | data                 |             |            | sql    |         |       |         |     | Data    |
        |   |   |                  |             |            |        |         |       |         |     |         |
-       |   |   |   | country      | salis       | code!='ee' |        | code    |       |         |     | Country |
+       |   |   |   | Country      | salis       | code!='ee' |        | code    |       |         |     | Country |
        |   |   |   |   | code     | kodas       |            | string |         | 3     | public  |     | Code    |
        |   |   |   |   | name     | pavadinimas |            | string |         | 3     | open    |     | Name    |
     '''))
@@ -535,17 +535,17 @@ def test_ns_getall(rc, tmp_path, geodb):
 
     resp = app.get('/datasets/gov/example')
     assert listdata(resp, 'name', 'title') == [
-        ('datasets/gov/example/country', 'Country'),
+        ('datasets/gov/example/Country', 'Country'),
     ]
 
     resp = app.get('/datasets/gov/example', headers={'Accept': 'text/html'})
     assert listdata(resp, 'name', 'title') == [
-        ('📄 country', 'Country'),
+        ('📄 Country', 'Country'),
     ]
 
 
-def test_push(postgresql, rc, cli: SpintaCliRunner, responses, tmp_path, geodb, request):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_push(context, postgresql, rc, cli: SpintaCliRunner, responses, tmp_path, geodb, request):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property| type   | ref     | source       | access
     datasets/gov/example    |        |         |              |
       | data                | sql    |         |              |
@@ -626,8 +626,8 @@ def test_push(postgresql, rc, cli: SpintaCliRunner, responses, tmp_path, geodb, 
     ]
 
 
-def test_push_dry_run(postgresql, rc, cli: SpintaCliRunner, responses, tmp_path, geodb, request):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_push_dry_run(context, postgresql, rc, cli: SpintaCliRunner, responses, tmp_path, geodb, request):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property| type   | ref     | source       | access
     datasets/gov/example    |        |         |              |
       | data                | sql    |         |              |
@@ -664,20 +664,20 @@ def test_push_dry_run(postgresql, rc, cli: SpintaCliRunner, responses, tmp_path,
     assert listdata(resp, 'code', 'name') == []
 
 
-def test_no_primary_key(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_no_primary_key(context, rc, tmp_path, geodb):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | source      | type   | ref | access
     datasets/gov/example     |             |        |     |
       | data                 |             | sql    |     |
       |   |                  |             |        |     |
-      |   |   | country      | salis       |        |     |
+      |   |   | Country      | salis       |        |     |
       |   |   |   | code     | kodas       | string |     | open
       |   |   |   | name     | pavadinimas | string |     | open
     '''))
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country')
+    resp = app.get('/datasets/gov/example/Country')
     codes = dict(listdata(resp, '_id', 'code'))
     data = listdata(resp, '_id', 'code', 'name', sort='code')
     data = [(codes.get(_id), code, name) for _id, code, name in data]
@@ -688,24 +688,25 @@ def test_no_primary_key(rc, tmp_path, geodb):
     ]
 
 
-def test_count(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_count(context, rc, tmp_path, geodb):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | source      | type   | ref | access
     datasets/gov/example     |             |        |     |
       | data                 |             | sql    |     |
       |   |                  |             |        |     |
-      |   |   | country      | salis       |        |     |
+      |   |   | Country      | salis       |        |     |
       |   |   |   | code     | kodas       | string |     | open
       |   |   |   | name     | pavadinimas | string |     | open
     '''))
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country?select(count())')
+    resp = app.get('/datasets/gov/example/Country?select(count())')
     assert listdata(resp) == [3]
 
 
 def test_push_chunks(
+    context,
     postgresql,
     rc,
     cli: SpintaCliRunner,
@@ -714,12 +715,12 @@ def test_push_chunks(
     geodb,
     request,
 ):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | source      | type   | ref     | access
     datasets/gov/example     |             |        |         |
       | data                 |             | sql    |         |
       |   |                  |             |        |         |
-      |   |   | country      | salis       |        | code    |
+      |   |   | Country      | salis       |        | code    |
       |   |   |   | code     | kodas       | string |         | open
       |   |   |   | name     | pavadinimas | string |         | open
     '''))
@@ -740,8 +741,8 @@ def test_push_chunks(
         '--chunk-size=1',
     ])
 
-    remote.app.authmodel('datasets/gov/example/country', ['getall'])
-    resp = remote.app.get('/datasets/gov/example/country')
+    remote.app.authmodel('datasets/gov/example/Country', ['getall'])
+    resp = remote.app.get('/datasets/gov/example/Country')
     assert listdata(resp, 'code', 'name') == [
         ('ee', 'Estija'),
         ('lt', 'Lietuva'),
@@ -749,13 +750,13 @@ def test_push_chunks(
     ]
 
 
-def test_push_state(postgresql, rc, cli: SpintaCliRunner, responses, tmp_path, geodb, request):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_push_state(context, postgresql, rc, cli: SpintaCliRunner, responses, tmp_path, geodb, request):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | source      | type   | ref     | access
     datasets/gov/example     |             |        |         |
       | data                 |             | sql    |         |
       |   |                  |             |        |         |
-      |   |   | country      | salis       |        | code    |
+      |   |   | Country      | salis       |        | code    |
       |   |   |   | code     | kodas       | string |         | open
       |   |   |   | name     | pavadinimas | string |         | open
     '''))
@@ -779,8 +780,8 @@ def test_push_state(postgresql, rc, cli: SpintaCliRunner, responses, tmp_path, g
         '--state', tmp_path / 'state.db',
     ])
 
-    remote.app.authmodel('datasets/gov/example/country', ['getall'])
-    resp = remote.app.get('/datasets/gov/example/country')
+    remote.app.authmodel('datasets/gov/example/Country', ['getall'])
+    resp = remote.app.get('/datasets/gov/example/Country')
     assert len(listdata(resp)) == 1
 
     cli.invoke(localrc, [
@@ -792,16 +793,16 @@ def test_push_state(postgresql, rc, cli: SpintaCliRunner, responses, tmp_path, g
         '--state', tmp_path / 'state.db',
     ])
 
-    resp = remote.app.get('/datasets/gov/example/country')
+    resp = remote.app.get('/datasets/gov/example/Country')
     assert len(listdata(resp)) == 2
 
 
-def test_prepared_property(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_prepared_property(context, rc, tmp_path, geodb):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property  | type   | ref  | source      | prepare | access
     datasets/gov/example      |        |      |             |         |
       | data                  | sql    |      |             |         |
-      |   |   | country       |        | code | salis       |         | open
+      |   |   | Country       |        | code | salis       |         | open
       |   |   |   | code      | string |      | kodas       |         |
       |   |   |   | name      | string |      | pavadinimas |         |
       |   |   |   | continent | string |      |             | 'EU'    |
@@ -809,7 +810,7 @@ def test_prepared_property(rc, tmp_path, geodb):
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country')
+    resp = app.get('/datasets/gov/example/Country')
     assert listdata(resp, 'continent', 'code', 'name') == [
         ('EU', 'ee', 'Estija'),
         ('EU', 'lt', 'Lietuva'),
@@ -817,8 +818,8 @@ def test_prepared_property(rc, tmp_path, geodb):
     ]
 
 
-def test_composite_keys(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_composite_keys(context, rc, tmp_path, sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | m | property     | type   | ref           | source    | prepare                 | access
     datasets/ds              |        |               |           |                         |
       | rs                   | sql    |               |           |                         |
@@ -897,8 +898,8 @@ def test_composite_keys(rc, tmp_path, sqlite):
     ]
 
 
-def test_composite_ref_keys(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_composite_ref_keys(context, rc, tmp_path, sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | m | property     | type    | ref                     | source       | prepare                 | access
     datasets/ds              |         |                         |              |                         |
       | rs                   | sql     |                         |              |                         |
@@ -988,8 +989,8 @@ def test_composite_ref_keys(rc, tmp_path, sqlite):
     ]
 
 
-def test_composite_non_pk_keys(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_composite_non_pk_keys(context, rc, tmp_path, sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | m | property     | type   | ref                     | source    | prepare                 | access
     datasets/ds              |        |                         |           |                         |
       | rs                   | sql    |                         |           |                         |
@@ -1067,8 +1068,8 @@ def test_composite_non_pk_keys(rc, tmp_path, sqlite):
     ]
 
 
-def test_composite_non_pk_keys_with_filter(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_composite_non_pk_keys_with_filter(context, rc, tmp_path, sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | m | property     | type   | ref                     | source    | prepare                 | access
     datasets/ds              |        |                         |           |                         |
       | rs                   | sql    |                         |           |                         |
@@ -1144,8 +1145,8 @@ def test_composite_non_pk_keys_with_filter(rc, tmp_path, sqlite):
     ]
 
 
-def test_access_private_primary_key(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_access_private_primary_key(context, rc, tmp_path, sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | m | property     | type   | ref     | source  | access
     datasets/ds              |        |         |         |
       | rs                   | sql    |         |         |
@@ -1215,8 +1216,8 @@ def test_access_private_primary_key(rc, tmp_path, sqlite):
     ]
 
 
-def test_enum(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_enum(context, rc, tmp_path, sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | m | property     | type   | ref     | source  | prepare | access
     datasets/gov/example     |        |         |         |         |
       | resource             | sql    |         |         |         |
@@ -1249,8 +1250,8 @@ def test_enum(rc, tmp_path, sqlite):
     ]
 
 
-def test_enum_ref(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_enum_ref(context, rc, tmp_path, sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | m | property | type   | ref  | source  | prepare | access
                          | enum   | side | l       | 'left'  | open
                          |        |      | r       | 'right' | open
@@ -1284,8 +1285,8 @@ def test_enum_ref(rc, tmp_path, sqlite):
     ]
 
 
-def test_enum_no_prepare(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_enum_no_prepare(context, rc, tmp_path, sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | m | property     | type   | ref     | source  | prepare | access
     datasets/gov/example     |        |         |         |         |
       | resource             | sql    |         |         |         |
@@ -1318,8 +1319,8 @@ def test_enum_no_prepare(rc, tmp_path, sqlite):
     ]
 
 
-def test_enum_empty_source(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_enum_empty_source(context, rc, tmp_path, sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | m | property     | type   | ref     | source  | prepare       | access
     datasets/gov/example     |        |         |         |               |
       | resource             | sql    |         |         |               |
@@ -1353,8 +1354,8 @@ def test_enum_empty_source(rc, tmp_path, sqlite):
     ]
 
 
-def test_enum_ref_empty_source(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_enum_ref_empty_source(context, rc, tmp_path, sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | m | property     | type   | ref     | source  | prepare       | access
                              | enum   | side    | l       |               | open
                              |        |         | r       |               | open
@@ -1388,8 +1389,8 @@ def test_enum_ref_empty_source(rc, tmp_path, sqlite):
     ]
 
 
-def test_enum_empty_integer_source(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_enum_empty_integer_source(context, rc, tmp_path, sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | m | property     | type   | ref     | source  | prepare | access
     datasets/gov/example     |        |         |         |         |
       | resource             | sql    |         |         |         |
@@ -1422,8 +1423,8 @@ def test_enum_empty_integer_source(rc, tmp_path, sqlite):
     ]
 
 
-def test_filter_by_enum_access(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_filter_by_enum_access(context, rc, tmp_path, sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | m | property     | type   | ref     | source  | prepare | access
     datasets/gov/example     |        |         |         |         |
       | resource             | sql    |         |         |         |
@@ -1455,8 +1456,8 @@ def test_filter_by_enum_access(rc, tmp_path, sqlite):
     ]
 
 
-def test_filter_by_ref_enum_access(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_filter_by_ref_enum_access(context, rc, tmp_path, sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | m | property     | type   | ref     | source  | prepare | access
                              | enum   | side    | 0       | 'l'     | private
                              |        |         | 1       | 'r'     | open
@@ -1488,8 +1489,8 @@ def test_filter_by_ref_enum_access(rc, tmp_path, sqlite):
     ]
 
 
-def test_filter_by_enum(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_filter_by_enum(context, rc, tmp_path, sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | m | property     | type   | ref     | source  | prepare | access
     datasets/gov/example     |        |         |         |         |
       | resource             | sql    |         |         |         |
@@ -1521,8 +1522,8 @@ def test_filter_by_enum(rc, tmp_path, sqlite):
     ]
 
 
-def test_filter_by_ref_enum(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_filter_by_ref_enum(context, rc, tmp_path, sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | m | property     | type   | ref     | source  | prepare | access
                              | enum   | side    | 0       | 'l'     | private
                              |        |         | 1       | 'r'     | open
@@ -1554,8 +1555,8 @@ def test_filter_by_ref_enum(rc, tmp_path, sqlite):
     ]
 
 
-def test_filter_by_enum_multi_value(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_filter_by_enum_multi_value(context, rc, tmp_path, sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | m | property     | type   | ref     | source  | prepare | access
     datasets/gov/example     |        |         |         |         |
       | resource             | sql    |         |         |         |
@@ -1588,8 +1589,8 @@ def test_filter_by_enum_multi_value(rc, tmp_path, sqlite):
     ]
 
 
-def test_filter_by_enum_list_value(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_filter_by_enum_list_value(context, rc, tmp_path, sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | m | property     | type   | ref     | source  | prepare | access
     datasets/gov/example     |        |         |         |         |
       | resource             | sql    |         |         |         |
@@ -1622,8 +1623,8 @@ def test_filter_by_enum_list_value(rc, tmp_path, sqlite):
     ]
 
 
-def test_implicit_filter(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_implicit_filter(context, rc, tmp_path, sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | m | property     | type   | ref     | source    | prepare          | access
     datasets/gov/example     |        |         |           |                  |
       | resource             | sql    |         |           |                  |
@@ -1670,8 +1671,8 @@ def test_implicit_filter(rc, tmp_path, sqlite):
     ]
 
 
-def test_implicit_filter_no_external_source(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_implicit_filter_no_external_source(context, rc, tmp_path, sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | m | property     | type   | ref     | source    | prepare     | access
     datasets/gov/example     |        |         |           |             |
       | resource             | sql    |         |           |             |
@@ -1713,8 +1714,8 @@ def test_implicit_filter_no_external_source(rc, tmp_path, sqlite):
     ]
 
 
-def test_implicit_filter_two_refs(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_implicit_filter_two_refs(context, rc, tmp_path, sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property     | type    | ref                | source             | prepare | access
     example/standards            |         |                    |                    |         |
       | sql                      | sql     |                    | sqlite://          |         |
@@ -1773,8 +1774,8 @@ def test_implicit_filter_two_refs(rc, tmp_path, sqlite):
     ]
 
 
-def test_implicit_filter_by_enum(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_implicit_filter_by_enum(context, rc, tmp_path, sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | m | property     | type   | ref     | source  | prepare | access
     datasets/gov/example     |        |         |         |         |
       | resource             | sql    |         |         |         |
@@ -1823,8 +1824,8 @@ def test_implicit_filter_by_enum(rc, tmp_path, sqlite):
     ]
 
 
-def test_implicit_filter_by_enum_empty_access(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_implicit_filter_by_enum_empty_access(context, rc, tmp_path, sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | m | property     | type   | ref     | source    | prepare          | access
     datasets/gov/example     |        |         |           |                  |
                              | enum   | Side    | 0         | 'l'              |
@@ -1876,8 +1877,8 @@ def test_implicit_filter_by_enum_empty_access(rc, tmp_path, sqlite):
     ]
 
 
-def test_file(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', '''
+def test_file(context, rc, tmp_path, sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', '''
     d | r | m | property  | type   | ref | source    | prepare                                   | access
     datasets/gov/example  |        |     |           |                                           |
       | resource          | sql    |     |           |                                           |
@@ -1919,6 +1920,7 @@ def test_file(rc, tmp_path, sqlite):
 
 
 def test_push_file(
+    context,
     postgresql,
     rc: RawConfig,
     cli: SpintaCliRunner,
@@ -1927,7 +1929,7 @@ def test_push_file(
     sqlite: Sqlite,
     request,
 ):
-    create_tabular_manifest(tmp_path / 'manifest.csv', '''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', '''
     d | r | m | property   | type   | ref | source    | prepare                                   | access
     datasets/gov/push/file |        |     |           |                                           |
       | resource           | sql    | sql |           |                                           |
@@ -1985,8 +1987,8 @@ def test_push_file(
     assert resp.content == b'DATA'
 
 
-def test_image(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', '''
+def test_image(context, rc, tmp_path, sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', '''
     d | r | m | property  | type   | ref | source    | prepare                                   | access
     datasets/gov/example  |        |     |           |                                           |
       | resource          | sql    |     |           |                                           |
@@ -2028,6 +2030,7 @@ def test_image(rc, tmp_path, sqlite):
 
 
 def test_image_file(
+    context,
     postgresql,
     rc: RawConfig,
     cli: SpintaCliRunner,
@@ -2036,7 +2039,7 @@ def test_image_file(
     sqlite: Sqlite,
     request,
 ):
-    create_tabular_manifest(tmp_path / 'manifest.csv', '''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', '''
     d | r | m | property   | type   | ref | source    | prepare                                   | access
     datasets/gov/push/file |        |     |           |                                           |
       | resource           | sql    | sql |           |                                           |
@@ -2095,6 +2098,7 @@ def test_image_file(
 
 
 def test_push_null_foreign_key(
+    context,
     postgresql,
     rc: RawConfig,
     cli: SpintaCliRunner,
@@ -2103,7 +2107,7 @@ def test_push_null_foreign_key(
     sqlite: Sqlite,
     request,
 ):
-    create_tabular_manifest(tmp_path / 'manifest.csv', '''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', '''
     d | r | b | m | property      | type     | ref          | source        | access
     example/null/fk               |          |              |               |
       | resource                  | sql      | sql          |               |
@@ -2199,6 +2203,7 @@ def test_push_null_foreign_key(
 
 
 def test_push_self_ref(
+    context,
     postgresql,
     rc: RawConfig,
     cli: SpintaCliRunner,
@@ -2207,7 +2212,7 @@ def test_push_self_ref(
     sqlite: Sqlite,
     request,
 ):
-    create_tabular_manifest(tmp_path / 'manifest.csv', '''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', '''
     d | r | b | m | property      | type     | ref          | source        | access
     example/self/ref              |          |              |               |
       | resource                  | sql      | sql          |               |
@@ -2267,6 +2272,7 @@ def test_push_self_ref(
 
 
 def _prep_error_handling(
+    context,
     tmp_path: pathlib.Path,
     sqlite: Sqlite,
     rc: RawConfig,
@@ -2275,7 +2281,7 @@ def _prep_error_handling(
     response: Tuple[int, Dict[str, str], str] = None,
     exception: Exception = None,
 ) -> RawConfig:
-    create_tabular_manifest(tmp_path / 'manifest.csv', '''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', '''
     d | r | b | m | property      | type     | ref          | source        | access
     example/errors                |          |              |               |
       | resource                  | sql      | sql          |               |
@@ -2328,6 +2334,7 @@ def _prep_error_handling(
 
 
 def test_error_handling_server_error(
+    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     responses: RequestsMock,
@@ -2335,7 +2342,7 @@ def test_error_handling_server_error(
     sqlite: Sqlite,
     caplog: LogCaptureFixture,
 ):
-    rc = _prep_error_handling(tmp_path, sqlite, rc, responses, response=(
+    rc = _prep_error_handling(context, tmp_path, sqlite, rc, responses, response=(
         400,
         {'content-type': 'application/json'},
         '{"errors":[{"type": "system", "message": "ERROR"}]}',
@@ -2358,6 +2365,7 @@ def test_error_handling_server_error(
 
 
 def test_error_handling_io_error(
+    context,
     rc: RawConfig,
     cli: SpintaCliRunner,
     responses: RequestsMock,
@@ -2366,6 +2374,7 @@ def test_error_handling_io_error(
     caplog: LogCaptureFixture,
 ):
     rc = _prep_error_handling(
+        context,
         tmp_path, sqlite, rc, responses,
         exception=IOError('I/O error.'),
     )
@@ -2386,8 +2395,8 @@ def test_error_handling_io_error(
     assert 'Error: I/O error.' in caplog.text
 
 
-def test_sql_views(rc: RawConfig, tmp_path: pathlib.Path, sqlite: Sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', '''
+def test_sql_views(context, rc: RawConfig, tmp_path: pathlib.Path, sqlite: Sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', '''
     d | r | b | m | property      | type     | ref          | source        | access
     example/views                 |          |              |               |
       | resource                  | sql      | sql          |               |
@@ -2420,6 +2429,7 @@ def test_sql_views(rc: RawConfig, tmp_path: pathlib.Path, sqlite: Sqlite):
 
 @pytest.mark.skip('TODO')
 def test_params(
+    context,
     postgresql,
     rc: RawConfig,
     cli: SpintaCliRunner,
@@ -2427,7 +2437,7 @@ def test_params(
     tmp_path,
     sqlite: Sqlite,
 ):
-    create_tabular_manifest(tmp_path / 'manifest.csv', '''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', '''
     d | r | b | m | property | type    | ref      | source   | prepare
     example/self/ref/param   |         |          |          |
       | resource             | sql     | sql      |          |
@@ -2468,6 +2478,7 @@ def test_params(
 
 
 def test_cast_string(
+    context,
     postgresql,
     rc: RawConfig,
     cli: SpintaCliRunner,
@@ -2476,7 +2487,7 @@ def test_cast_string(
     sqlite: Sqlite,
 ):
     dataset = 'example/func/cast/string'
-    create_tabular_manifest(tmp_path / 'manifest.csv', f'''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', f'''
     d | r | b | m | property  | type    | ref      | source   | prepare
     {dataset}                 |         |          |          |
       | resource              | sql     | sql      |          |
@@ -2500,8 +2511,8 @@ def test_cast_string(
 
 
 @pytest.mark.skip('todo')
-def test_type_text_push(postgresql, rc, cli: SpintaCliRunner, responses, tmpdir, geodb, request):
-    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+def test_type_text_push(context, postgresql, rc, cli: SpintaCliRunner, responses, tmpdir, geodb, request):
+    create_tabular_manifest(context, tmpdir / 'manifest.csv', striptable('''
         d | r | b | m | property| type   | ref     | source       | access
         datasets/gov/example/text_push    |        |         |              |
           | data                | sql    |         |              |
@@ -2539,6 +2550,7 @@ def test_type_text_push(postgresql, rc, cli: SpintaCliRunner, responses, tmpdir,
 
 
 def test_text_type_push_chunks(
+    context,
     postgresql,
     rc,
     cli: SpintaCliRunner,
@@ -2547,12 +2559,12 @@ def test_text_type_push_chunks(
     geodb,
     request,
 ):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | source      | type   | ref     | access
     datasets/gov/example/text_chunks     |             |        |         |
       | data                 |             | sql    |         |
       |   |                  |             |        |         |
-      |   |   | country      | salis       |        | code    |
+      |   |   | Country      | salis       |        | code    |
       |   |   |   | code     | kodas       | string |         | open
       |   |   |   | name@lt  | pavadinimas | string |         | open
       |   |   |   | name@en  | pavadinimas | string |         | open
@@ -2582,8 +2594,8 @@ def test_text_type_push_chunks(
         '--chunk-size=1',
     ])
 
-    remote.app.authmodel('datasets/gov/example/text_chunks/country', ['getall'])
-    resp = remote.app.get('/datasets/gov/example/text_chunks/country')
+    remote.app.authmodel('datasets/gov/example/text_chunks/Country', ['getall'])
+    resp = remote.app.get('/datasets/gov/example/text_chunks/Country')
     assert listdata(resp, 'code', 'name') == [
         ('ee', 'Estija'),
         ('lt', 'Lietuva'),
@@ -2591,13 +2603,13 @@ def test_text_type_push_chunks(
     ]
 
 
-def test_text_type_push_state(postgresql, rc, cli: SpintaCliRunner, responses, tmp_path, geodb, request):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_text_type_push_state(context, postgresql, rc, cli: SpintaCliRunner, responses, tmp_path, geodb, request):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | source      | type   | ref     | access
     datasets/gov/example/text     |             |        |         |
       | data                 |             | sql    |         |
       |   |                  |             |        |         |
-      |   |   | country      | salis       |        | code    |
+      |   |   | Country      | salis       |        | code    |
       |   |   |   | code     | kodas       | string |         | open
       |   |   |   | name@lt  | pavadinimas | string |         | open
     '''))
@@ -2621,8 +2633,8 @@ def test_text_type_push_state(postgresql, rc, cli: SpintaCliRunner, responses, t
         '--state', tmp_path / 'state.db',
     ])
 
-    remote.app.authmodel('/datasets/gov/example/text/country', ['getall'])
-    resp = remote.app.get('/datasets/gov/example/text/country')
+    remote.app.authmodel('/datasets/gov/example/text/Country', ['getall'])
+    resp = remote.app.get('/datasets/gov/example/text/Country')
     assert len(listdata(resp)) == 1
 
     cli.invoke(localrc, [
@@ -2634,11 +2646,12 @@ def test_text_type_push_state(postgresql, rc, cli: SpintaCliRunner, responses, t
         '--state', tmp_path / 'state.db',
     ])
 
-    resp = remote.app.get('/datasets/gov/example/text/country')
+    resp = remote.app.get('/datasets/gov/example/text/Country')
     assert len(listdata(resp)) == 2
 
 
 def test_cast_integer(
+    context,
     postgresql,
     rc: RawConfig,
     cli: SpintaCliRunner,
@@ -2647,7 +2660,7 @@ def test_cast_integer(
     sqlite: Sqlite,
 ):
     dataset = 'example/func/cast/integer'
-    create_tabular_manifest(tmp_path / 'manifest.csv', f'''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', f'''
     d | r | b | m | property  | type    | ref      | source   | prepare
     {dataset}                 |         |          |          |
       | resource              | sql     | sql      |          |
@@ -2671,6 +2684,7 @@ def test_cast_integer(
 
 
 def test_cast_integer_error(
+    context,
     postgresql,
     rc: RawConfig,
     cli: SpintaCliRunner,
@@ -2679,7 +2693,7 @@ def test_cast_integer_error(
     sqlite: Sqlite,
 ):
     dataset = 'example/func/cast/integer/error'
-    create_tabular_manifest(tmp_path / 'manifest.csv', f'''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', f'''
     d | r | b | m | property  | type    | ref      | source   | prepare
     {dataset}                 |         |          |          |
       | resource              | sql     | sql      |          |
@@ -2703,6 +2717,7 @@ def test_cast_integer_error(
 
 
 def test_point(
+    context,
     postgresql,
     rc: RawConfig,
     cli: SpintaCliRunner,
@@ -2711,7 +2726,7 @@ def test_point(
     sqlite: Sqlite,
 ):
     dataset = 'example/func/point'
-    create_tabular_manifest(tmp_path / 'manifest.csv', f'''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', f'''
     d | r | b | m | property | type     | ref | source | prepare     | access
     {dataset}                |          |     |        |             |
       | resource             | sql      | sql |        |             |
@@ -2743,20 +2758,20 @@ def test_point(
     assert listdata(resp) == [(1, 'POINT (4.5 2.5)')]
 
 
-def test_swap_single(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_swap_single(context, rc, tmp_path, geodb):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source      | type   | ref     | access | prepare
        | datasets/gov/example     |             |        |         |        |
        |   | data                 |             | sql    |         |        |
        |   |   |                  |             |        |         |        |
-       |   |   |   | country      | salis       |        | code    | open   |
+       |   |   |   | Country      | salis       |        | code    | open   |
        |   |   |   |   | code     | kodas       | string |         |        | swap('lt', 'LT')
        |   |   |   |   | name     | pavadinimas | string |         |        |
     '''))
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country')
+    resp = app.get('/datasets/gov/example/Country')
     assert listdata(resp, 'code', 'name') == [
         ('LT', 'Lietuva'),
         ('ee', 'Estija'),
@@ -2764,20 +2779,20 @@ def test_swap_single(rc, tmp_path, geodb):
     ]
 
 
-def test_swap_multi_with_dot(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_swap_multi_with_dot(context, rc, tmp_path, geodb):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source      | type   | ref     | access | prepare
        | datasets/gov/example     |             |        |         |        |
        |   | data                 |             | sql    |         |        |
        |   |   |                  |             |        |         |        |
-       |   |   |   | country      | salis       |        | code    | open   |
+       |   |   |   | Country      | salis       |        | code    | open   |
        |   |   |   |   | code     | kodas       | string |         |        | swap('lt', 'LT').swap('lv', 'LV')
        |   |   |   |   | name     | pavadinimas | string |         |        |
     '''))
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country')
+    resp = app.get('/datasets/gov/example/Country')
     assert listdata(resp, 'code', 'name') == [
         ('LT', 'Lietuva'),
         ('LV', 'Latvija'),
@@ -2785,13 +2800,13 @@ def test_swap_multi_with_dot(rc, tmp_path, geodb):
     ]
 
 
-def test_swap_multi_with_multi_lines(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_swap_multi_with_multi_lines(context, rc, tmp_path, geodb):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source      | type   | ref     | access | prepare
        | datasets/gov/example     |             |        |         |        |
        |   | data                 |             | sql    |         |        |
        |   |   |                  |             |        |         |        |
-       |   |   |   | country      | salis       |        | code    | open   |
+       |   |   |   | Country      | salis       |        | code    | open   |
        |   |   |   |   | code     | kodas       | string |         |        | swap('lt', 'LT')
        |   |   |   |   |          | lv        |        |         |        | swap('LV')
        |   |   |   |   | name     | pavadinimas | string |         |        |
@@ -2799,7 +2814,7 @@ def test_swap_multi_with_multi_lines(rc, tmp_path, geodb):
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country')
+    resp = app.get('/datasets/gov/example/Country')
     assert listdata(resp, 'code', 'name') == [
         ('LT', 'Lietuva'),
         ('LV', 'Latvija'),
@@ -2807,13 +2822,13 @@ def test_swap_multi_with_multi_lines(rc, tmp_path, geodb):
     ]
 
 
-def test_swap_multi_with_multi_lines_all_to_same(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_swap_multi_with_multi_lines_all_to_same(context, rc, tmp_path, geodb):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source      | type   | ref     | access | prepare
        | datasets/gov/example     |             |        |         |        |
        |   | data                 |             | sql    |         |        |
        |   |   |                  |             |        |         |        |
-       |   |   |   | country      | salis       |        | code    | open   |
+       |   |   |   | Country      | salis       |        | code    | open   |
        |   |   |   |   | code     | kodas       | string |         |        | swap('lt', 'CODE')
        |   |   |   |   |          | lv          |        |         |        | swap('CODE')
        |   |   |   |   |          |             |        |         |        | swap('ee', 'CODE')
@@ -2822,7 +2837,7 @@ def test_swap_multi_with_multi_lines_all_to_same(rc, tmp_path, geodb):
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country')
+    resp = app.get('/datasets/gov/example/Country')
     assert listdata(resp, 'code', 'name') == [
         ('CODE', 'Estija'),
         ('CODE', 'Latvija'),
@@ -2830,13 +2845,13 @@ def test_swap_multi_with_multi_lines_all_to_same(rc, tmp_path, geodb):
     ]
 
 
-def test_swap_multi_escape_source(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_swap_multi_escape_source(context, rc, tmp_path, geodb):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source          | type    | ref     | access | prepare
        | datasets/gov/example     |                 |         |         |        |
        |   | data                 |                 | sql     |         |        |
        |   |   |                  |                 |         |         |        |
-       |   |   |   | test         | test            |         | id      | open   |
+       |   |   |   | Test         | test            |         | id      | open   |
        |   |   |   |   | id       | id              | integer |         |        |
        |   |   |   |   | text     | text            | string  |         |        | swap("\\"TEST\\"", "NORMAL SWAPPED PREPARE")
        |   |   |   |   |          | 'TEST'          |         |         |        | swap("TESTAS")
@@ -2848,7 +2863,7 @@ def test_swap_multi_escape_source(rc, tmp_path, geodb):
 
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/test')
+    resp = app.get('/datasets/gov/example/Test')
     assert listdata(resp, 'old', 'text') == [
         ("'TEST'", 'TESTAS'),
         ("test 'TEST'", "TEST 'test'"),
@@ -2858,8 +2873,8 @@ def test_swap_multi_escape_source(rc, tmp_path, geodb):
     ]
 
 
-def test_advanced_denorm(rc, tmp_path, geodb_denorm):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_advanced_denorm(context, rc, tmp_path, geodb_denorm):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
         d | r | m | property            | type    | ref     | source       | prepare | access
     datasets/denorm                 |         |         |              |         |
       | rs                          | sql     |         |              |         |
@@ -2951,8 +2966,8 @@ def test_advanced_denorm(rc, tmp_path, geodb_denorm):
     }]
 
 
-def test_advanced_denorm_lvl_3(rc, tmp_path, geodb_denorm):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+def test_advanced_denorm_lvl_3(context, rc, tmp_path, geodb_denorm):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | m | property            | type    | ref     | source       | prepare | access | level
     datasets/denorm/lvl3            |         |         |              |         |        |
       | rs                          | sql     |         |              |         |        |

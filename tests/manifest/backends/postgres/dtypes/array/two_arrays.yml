@@ -1,6 +1,6 @@
 ---
 type: model
-name: backends/postgres/dtypes/array/two_arrays
+name: backends/postgres/dtypes/array/Two_arrays
 version:
   id: 1
   date: 2020-02-03

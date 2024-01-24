@@ -178,7 +178,7 @@ def test_inspect_manifest_resource_with_non_url_path(
          |   |   | code     | string  |     | CODE    |         | open    | Country code
        '''
 
-    create_tabular_manifest(tmp_path / 'manifest.csv', table)
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', table)
     app.authorize(["spinta_inspect"])
     with open(tmp_path / 'manifest.csv', "rb") as f:
         form_data = {

@@ -32,7 +32,7 @@ def _build(rc: RawConfig, manifest: str, model_name: str, query: str, page_mappi
     backend.schema = sa.MetaData()
     backend.tables = {}
     commands.prepare(context, backend, manifest)
-    model = manifest.models[model_name]
+    model = commands.get_model(context, manifest, model_name)
     query = asttoexpr(spyna.parse(query))
     if page_mapping:
         page = model.page
