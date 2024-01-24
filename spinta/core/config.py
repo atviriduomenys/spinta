@@ -650,20 +650,21 @@ def configure_rc(
                 'file': manifest.file,
                 'manifest': inline
             }
-        elif manifests:
-            for i, path in enumerate(manifests):
-                manifest_name = f'manifest{i}'
-                manifest = parse_manifest_path(rc, path)
-                config[f'manifests.{manifest_name}'] = {
-                    'type': manifest.type,
-                    'path': manifest.path,
-                    'file': manifest.file,
-                }
-                if isinstance(path, ResourceTuple) and path.prepare:
-                    parsed = spyna.parse(path.prepare)
-                    converted = asttoexpr(parsed)
-                    config[f'manifests.{manifest_name}']['prepare'] = converted
-                sync.append(manifest_name)
+        else:
+            if manifests:
+                for i, path in enumerate(manifests):
+                    manifest_name = f'manifest{i}'
+                    manifest = parse_manifest_path(rc, path)
+                    config[f'manifests.{manifest_name}'] = {
+                        'type': manifest.type,
+                        'path': manifest.path,
+                        'file': manifest.file,
+                    }
+                    if isinstance(path, ResourceTuple) and path.prepare:
+                        parsed = spyna.parse(path.prepare)
+                        converted = asttoexpr(parsed)
+                        config[f'manifests.{manifest_name}']['prepare'] = converted
+                    sync.append(manifest_name)
 
             config['manifests.default'] = {
                 'type': manifest_type,
