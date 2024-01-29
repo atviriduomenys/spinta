@@ -1,9 +1,9 @@
 import os
 import tempfile
-from pathlib import Path
 from uuid import UUID
 
 from spinta import commands
+from spinta.auth import check_scope
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.cli.migrate import MigrateMeta, MigrateRename
 from spinta.components import Context, UrlParams, Store, Model, Config, Node, ExtraMetaData, Property
@@ -16,7 +16,6 @@ from spinta.exceptions import NotSupportedManifestType, InvalidSchemaUrlPath, In
     FileSizeTooLarge, DatasetNameMissmatch, DatasetSchemaRequiresIds, \
     ModifySchemaRequiresFile, ModifyOneDatasetSchema
 from spinta.manifests.components import ManifestPath, Manifest
-from spinta.manifests.internal_sql.helpers import datasets_to_sql
 from spinta.manifests.tabular.helpers import datasets_to_tabular
 from spinta.utils.schema import NA
 from spinta.utils.types import is_str_uuid
@@ -151,6 +150,8 @@ async def _create_and_validate_tmp_file(context: Context, manifest: Manifest, re
 
 
 async def schema_api(context: Context, request: Request, params: UrlParams):
+    check_scope(context, 'schema_write')
+
     store: Store = context.get('store')
     manifest = store.manifest
 
