@@ -123,7 +123,7 @@ def _parse_and_validate_dataset_name(context: Context, manifest: Manifest, param
     return dataset_name
 
 
-def _create_and_validate_tmp_file(context: Context, manifest: Manifest, request: Request):
+async def _create_and_validate_tmp_file(context: Context, manifest: Manifest, request: Request):
     headers = request.headers
     if 'content-type' not in headers:
         raise ModifySchemaRequiresFile()
@@ -158,7 +158,7 @@ async def schema_api(context: Context, request: Request, params: UrlParams):
         raise NotSupportedManifestType(manifest, manifest_name=manifest.name, supported_type="dynamic", given_type="static")
 
     dataset_name = _parse_and_validate_dataset_name(context, manifest, params)
-    tmp_file = _create_and_validate_tmp_file(context, manifest, request)
+    tmp_file = await _create_and_validate_tmp_file(context, manifest, request)
 
     try:
         manifest_path = ManifestPath(type='csv', path=tmp_file.name)
