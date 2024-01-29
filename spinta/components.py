@@ -389,6 +389,7 @@ class MetaData(Node):
     """
 
     eid: EntryId
+    id: str
 
     schema = {
         'type': {'type': 'string', 'required': True},
@@ -838,7 +839,7 @@ class UrlParams:
 
     path_parts: List[str] = None
     path: Optional[str] = None
-    model: Optional[Model] = None
+    model: Optional[Model, Namespace] = None
     pk: Optional[str] = None
     prop: Optional[Property] = None
     # Tells if we accessing property content or reference. Applies only for some
@@ -881,6 +882,9 @@ class UrlParams:
 
     # If True, inspect POST request was made
     inspect: bool = False
+
+    # If True, schema POST request was made
+    schema: bool = False
 
     query: List[Dict[str, Any]] = None
 
@@ -1060,6 +1064,8 @@ class Config:
     push_page_size: int = None
     languages: List[str]
     check_names: bool = False
+    # MB
+    max_api_file_size: int
 
     def __init__(self):
         self.commands = _CommandsConfig()

@@ -193,6 +193,8 @@ def _prepare_urlparams_from_path(params: UrlParams):
                 params.select = args
         elif name == 'bbox':
             params.bbox = args
+        elif name == 'schema':
+            params.schema = True
         elif name == 'inspect':
             params.inspect = True
         elif name == 'fault-tolerant':
@@ -322,6 +324,8 @@ def get_model_from_params(
         return commands.get_namespace(context, manifest, name)
 
     else:
+        if params.schema:
+            return None
         raise ModelNotFound(model=name)
 
 

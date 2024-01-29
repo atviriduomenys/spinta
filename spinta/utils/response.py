@@ -11,6 +11,7 @@ from starlette.requests import Request
 
 from spinta import commands
 from spinta import exceptions
+from spinta.api.schema import schema_api
 from spinta.cli.helpers.errors import ErrorCounter
 from spinta.formats.components import Format
 from spinta.components import Action
@@ -193,6 +194,8 @@ async def create_http_response(
     else:
         if request.method == 'POST' and params.inspect:
             return await inspect_api(context, request, params)
+        elif request.method == 'POST' and params.schema:
+            return await schema_api(context, request, params)
         else:
             context.attach('transaction', manifest.backend.transaction, write=True)
             action = params.action

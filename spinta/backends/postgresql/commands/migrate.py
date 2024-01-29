@@ -49,6 +49,25 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
 
     tables = []
     models = commands.get_models(context, manifest)
+
+    # Filter if only specific dataset can be changed
+    if migrate_meta.datasets:
+        datasets = migrate_meta.datasets
+        filtered_models = {}
+        for key, model in models.items():
+            if model.external and model.external.dataset and model.external.dataset.name in datasets:
+                filtered_models[key] = model
+        models = filtered_models
+
+        filtered_names = []
+        for table_name in table_names:
+            for dataset_name in datasets:
+                if table_name.startswith(f'{dataset_name}/'):
+                    additional_check = table_name.replace(f'{dataset_name}/', '', 1)
+                    if '/' not in additional_check:
+                        filtered_names.append(table_name)
+        table_names = filtered_names
+
     for table in table_names:
         name = migrate_meta.rename.get_table_name(table)
         if name not in models.keys():

@@ -364,14 +364,17 @@ def _read_all_sql_manifest_rows(
     rename_duplicates: bool = True
 ):
     meta = sa.MetaData(conn)
-    table = get_table_structure(meta)
-    full_table = select_full_table(table)
-    stmt = full_table.order_by(
-        table.c.index
-    )
-    rows = conn.execute(stmt)
-    converted = convert_sql_to_tabular_rows(list(rows))
-    yield from _read_tabular_manifest_rows(path=path, rows=converted, rename_duplicates=rename_duplicates)
+    inspector = sa.inspect(conn.engine)
+    table_names = inspector.get_table_names()
+    if '_manifest' in table_names:
+        table = get_table_structure(meta)
+        full_table = select_full_table(table)
+        stmt = full_table.order_by(
+            table.c.index
+        )
+        rows = conn.execute(stmt)
+        converted = convert_sql_to_tabular_rows(list(rows))
+        yield from _read_tabular_manifest_rows(path=path, rows=converted, rename_duplicates=rename_duplicates)
 
 
 def write_internal_sql_manifest(context: Context, dsn: str, manifest: Manifest):

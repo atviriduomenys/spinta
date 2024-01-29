@@ -1293,3 +1293,11 @@ def set_dataset(context: Context, manifest: Manifest, dataset_name: str, dataset
     """Add dataset to manifest"""
 
 
+@command()
+def get_dataset_models(context: Context, manifest: Manifest, dataset_name: str, **kwargs):
+    """Get all models that belong to the dataset"""
+
+
+@command()
+def update_manifest_dataset_schema(context: Context, manifest: Manifest, target_manifest: Manifest, **kwargs):
+    """Updates schema of dataset (models, properties, etc)"""

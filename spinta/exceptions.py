@@ -836,3 +836,31 @@ class ManifestObjectNotDefined(UserError):
 
 class InvalidIdType(UserError):
     template = "Id {id!r} of {id_type!r} type is invalid."
+
+
+class NotSupportedManifestType(UserError):
+    template = "This feature is only supported with {supported_type} manifests, but {manifest_name!r} is a {given_type} manifest."
+
+
+class InvalidSchemaUrlPath(UserError):
+    template = "Cannot directly alter model or namespace schema. Only datasets are allowed."
+
+
+class ModifyOneDatasetSchema(UserError):
+    template = "Schema modification requires 1 dataset to be given, but {given_amount} were given."
+
+
+class DatasetNameMissmatch(UserError):
+    template = "Expected {expected_dataset!r} dataset, but were given {given_dataset!r}."
+
+
+class DatasetSchemaRequiresIds(UserError):
+    template = "All given schema rows require UUID to be set in the id field."
+
+
+class ModifySchemaRequiresFile(UserError):
+    template = "To modify dataset's schema, you are required to attach csv type manifest."
+
+
+class FileSizeTooLarge(UserError):
+    template = "Given file is too large, only up to {allowed_amount} {measure} is allowed."

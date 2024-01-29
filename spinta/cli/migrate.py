@@ -1,7 +1,7 @@
 import asyncio
 import json
 import os
-from typing import List, TypedDict, Dict
+from typing import List, TypedDict, Dict, Union
 from typing import Optional
 from typer import Option
 
@@ -73,22 +73,15 @@ def migrate(
     manifests = convert_str_to_manifest_path(manifests)
     context = configure_context(ctx.obj, manifests)
     store = prepare_manifest(context, ensure_config_dir=True)
-    with context:
-        require_auth(context)
-        manifest = store.manifest
-        backend = manifest.backend
-        migrate_meta = MigrateMeta(
-            plan=plan,
-            autocommit=autocommit,
-            rename=MigrateRename(
-                path=rename
-            )
+    manifest = store.manifest
+    migrate_meta = MigrateMeta(
+        plan=plan,
+        autocommit=autocommit,
+        rename=MigrateRename(
+            rename_src=rename
         )
-        _validate_migrate_rename(context, migrate_meta.rename, manifest)
-
-        if backend:
-            context.attach(f'transaction.{backend.name}', backend.begin)
-            commands.migrate(context, manifest, backend, migrate_meta)
+    )
+    commands.migrate(context, manifest, migrate_meta)
 
 
 def freeze(ctx: TyperContext):
@@ -116,9 +109,9 @@ class MigrateTableRename(TypedDict):
 class MigrateRename:
     tables: Dict[str, MigrateTableRename]
 
-    def __init__(self, path: str):
+    def __init__(self, rename_src: Union[str, dict]):
         self.tables = {}
-        self.parse_json_file(path)
+        self.parse_rename_src(rename_src)
 
     def insert_table(self, table_name: str):
         self.tables[table_name] = MigrateTableRename(
@@ -165,37 +158,36 @@ class MigrateRename:
                 return key
         return table_name
 
-    def parse_json_file(self, path: str):
-        if path:
-            if os.path.exists(path):
-                with open(path, 'r') as f:
-                    data = json.loads(f.read())
-                    for table, table_data in data.items():
-                        self.insert_table(table)
-                        for column, column_data in table_data.items():
-                            self.insert_column(table, column, column_data)
+    def parse_rename_src(self, rename_src: Union[str, dict]):
+        if rename_src:
+            if isinstance(rename_src, str):
+                if os.path.exists(rename_src):
+                    with open(rename_src, 'r') as f:
+                        data = json.loads(f.read())
+                        for table, table_data in data.items():
+                            self.insert_table(table)
+                            for column, column_data in table_data.items():
+                                self.insert_column(table, column, column_data)
+                else:
+                    raise FileNotFound(file=rename_src)
             else:
-                raise FileNotFound(file=path)
+                for table, table_data in rename_src.items():
+                    self.insert_table(table)
+                    for column, column_data in table_data.items():
+                        self.insert_column(table, column, column_data)
 
 
 class MigrateMeta:
     plan: bool
     autocommit: bool
     rename: MigrateRename
+    datasets: List[str]
 
-    def __init__(self, plan: bool, autocommit: bool, rename: MigrateRename):
+    def __init__(self, plan: bool, autocommit: bool, rename: MigrateRename, datasets: List[str] = None):
         self.plan = plan
         self.rename = rename
         self.autocommit = autocommit
+        self.datasets = datasets
 
 
-def _validate_migrate_rename(context: Context, rename: MigrateRename, manifest: Manifest):
-    tables = rename.tables.values()
-    for table in tables:
-        models = commands.get_models(context, manifest)
-        if table["new_name"] not in models.keys():
-            raise ModelNotFound(model=table["new_name"])
-        model = commands.get_model(context, manifest, table["new_name"])
-        for column in table["columns"].values():
-            if column not in model.properties.keys():
-                raise PropertyNotFound(property=column)
+

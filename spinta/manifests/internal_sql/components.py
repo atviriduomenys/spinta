@@ -11,6 +11,8 @@ class InternalSQLManifest(Manifest):
     engine: sa.engine.Engine = None
     table = None
 
+    dynamic = True
+
     @staticmethod
     def detect_from_path(path: str) -> bool:
         try:
