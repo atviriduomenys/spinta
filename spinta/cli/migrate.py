@@ -1,7 +1,7 @@
 import asyncio
 import json
 import os
-from typing import List, TypedDict, Dict, Union
+from typing import List, TypedDict, Dict, Union, Callable
 from typing import Optional
 from typer import Option
 
@@ -14,10 +14,8 @@ from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.manifest import convert_str_to_manifest_path
 from spinta.cli.helpers.store import load_store
 from spinta.cli.helpers.store import prepare_manifest
-from spinta.components import Context
 from spinta.core.context import configure_context
-from spinta.exceptions import FileNotFound, ModelNotFound, PropertyNotFound
-from spinta.manifests.components import Manifest
+from spinta.exceptions import FileNotFound
 
 
 def bootstrap(
@@ -182,12 +180,14 @@ class MigrateMeta:
     autocommit: bool
     rename: MigrateRename
     datasets: List[str]
+    migration_extension: Callable
 
-    def __init__(self, plan: bool, autocommit: bool, rename: MigrateRename, datasets: List[str] = None):
+    def __init__(self, plan: bool, autocommit: bool, rename: MigrateRename, datasets: List[str] = None, migration_extension: Callable = None):
         self.plan = plan
         self.rename = rename
         self.autocommit = autocommit
         self.datasets = datasets
+        self.migration_extension = migration_extension
 
 
 

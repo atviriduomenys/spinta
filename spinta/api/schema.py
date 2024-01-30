@@ -6,7 +6,7 @@ from spinta import commands
 from spinta.auth import check_scope
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.cli.migrate import MigrateMeta, MigrateRename
-from spinta.components import Context, UrlParams, Store, Model, Config, Node, ExtraMetaData, Property
+from spinta.components import Context, UrlParams, Store, Model, Config, Property
 from starlette.requests import Request
 
 from spinta.core.context import configure_context, create_context
@@ -19,6 +19,7 @@ from spinta.manifests.components import ManifestPath, Manifest
 from spinta.manifests.tabular.helpers import datasets_to_tabular
 from spinta.utils.schema import NA
 from spinta.utils.types import is_str_uuid
+from starlette.responses import JSONResponse
 
 
 def _clean_up_file(file):
@@ -175,14 +176,13 @@ async def schema_api(context: Context, request: Request, params: UrlParams):
             rename=MigrateRename(
                 rename_src=rename_data
             ),
-            datasets=[dataset_name]
+            datasets=[dataset_name],
+            migration_extension=(lambda: commands.update_manifest_dataset_schema(context, manifest, target_manifest))
         )
         commands.migrate(context, target_manifest, migrate_meta)
-        commands.update_manifest_dataset_schema(context, manifest, target_manifest)
 
+        _clean_up_file(tmp_file)
+        return JSONResponse({"status": "ok"}, status_code=200)
     except Exception as e:
-        # Ensure that tmp file is deleted if there is any exception
         _clean_up_file(tmp_file)
         raise e
-
-    _clean_up_file(tmp_file)

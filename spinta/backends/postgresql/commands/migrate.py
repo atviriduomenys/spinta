@@ -105,8 +105,18 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
                 op = Operations(ctx)
                 handler.run_migrations(op)
         else:
-            with ctx.begin_transaction():
+            if ctx.connection.in_transaction():
+                trx = ctx.connection._transaction
+            else:
+                trx = ctx.begin_transaction()
+            try:
                 handler.run_migrations(op)
+                if migrate_meta.migration_extension is not None:
+                    migrate_meta.migration_extension()
+                trx.commit()
+            except Exception as e:
+                trx.rollback()
+                raise e
     except sa.exc.OperationalError as error:
         exception = create_exception(manifest, error)
         raise exception
