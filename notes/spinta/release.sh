@@ -4,9 +4,9 @@ git checkout master
 git pull
 
 git tag -l -n1 | sort -h | tail -n5
-export CURRENT_VERSION=0.1.59
-export NEW_VERSION=0.1.60
-export FUTURE_VERSION=0.1.61
+export CURRENT_VERSION=0.1.60
+export NEW_VERSION=0.1.61
+export FUTURE_VERSION=0.1.62
 
 head CHANGES.rst
 
@@ -32,7 +32,7 @@ COMMIT;
 EOF
 
 poetry run pytest -vvx --tb=short tests
-#| 1553 passed, 41 skipped, 117 warnings in 305.24s (0:05:05)
+#| 1810 passed, 42 skipped, 99 warnings in 427.64s (0:07:07)
 
 poetry run rst2html.py CHANGES.rst var/changes.html
 xdg-open var/changes.html
@@ -211,7 +211,7 @@ spinta bootstrap
 
 export PAGER="cat"
 psql -h localhost -p 54321 -U admin spinta -c '\dt public.*'
-#| (2080 rows)
+#| (2436 rows)
 
 # Run server
 test -n "$PID" && kill $PID
@@ -221,6 +221,7 @@ tail -50 $BASEDIR/spinta.log
 # Check if server works
 http :8000
 http :8000/version
+http :8000/datasets/gov
 
 # Run some smoke tests
 
@@ -275,6 +276,7 @@ http GET ":8000/datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo/:changes"
 
 xdg-open http://localhost:8000/datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo
 xdg-open "http://localhost:8000/datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo?select(_id,ja_kodas,ja_pavadinimas,reg_data,forma.pavadinimas,statusas.pavadinimas)"
+xdg-open http://localhost:8000/datasets/gov/rc/ar/adresai/Adresas/264ae0f9-53eb-496b-a07c-ce1b9cbe510c
 xdg-open http://localhost:8000/datasets/gov/rc/ar/adresai/Adresas/:changes
 xdg-open http://localhost:8000/datasets/gov/rc/ar/adresai/Adresas/264ae0f9-53eb-496b-a07c-ce1b9cbe510c/:changes
 

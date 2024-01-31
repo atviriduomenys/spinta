@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "spinta"
-version = "0.1.61.dev0"
+version = "0.1.61"
 description = "A platform for describing, extracting, transforming, loading and serving open data."
 authors = ["Mantas Zimnickas <sirexas@gmail.com>"]
 license = "MIT"
@@ -72,7 +72,7 @@ uvicorn = { version = "^0.18.3", optional = false }
 
 # PostgreSQL backend dependencies
 alembic = { version = "^1.8.1", optional = false }
-asyncpg = { version = "^0.22.0", optional = false }
+asyncpg = { version = "*", optional = false }
 psycopg2-binary = { version = "^2.9.3", optional = false }
 # FIXME: https://github.com/python-poetry/poetry/issues/4402
 # sqlalchemy = "~1.4"
