@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import uuid
 from typing import Any
 from typing import Dict
@@ -19,7 +20,7 @@ from pytest import FixtureRequest
 from lxml.etree import _Element
 from requests import PreparedRequest
 
-from responses import RequestsMock, CallbackResponse, _URLPatternType, FalseBool
+from responses import RequestsMock, CallbackResponse, FalseBool
 from responses import POST
 
 from spinta import auth
@@ -294,7 +295,7 @@ class CustomCallbackResponse(CallbackResponse):
     def __init__(
         self,
         method: str,
-        url: _URLPatternType,
+        url: Union[re.Pattern[str], str],
         callback: Callable[[Any], Any],
         stream: Optional[bool] = None,
         content_type: Optional[str] = "text/plain",

@@ -3,10 +3,110 @@ git status
 git checkout master
 git pull
 
+# Check outdated packages
+xdg-open https://github.com/atviriduomenys/spinta/security/dependabot
+
+# Upgrade packages
+poetry update
+#| Removing commonmark (0.9.1)
+#| Removing jsonschema-specifications (2023.11.2)
+#| Removing referencing (0.32.0)
+#| Removing rpds-py (0.13.2)
+#| Removing tzdata (2023.4)
+#| Installing markdown-it-py (3.0.0)
+#| Installing mdurl (0.1.2)
+#| Installing rich (13.7.0)
+#| Updating certifi (2023.7.22 -> 2023.11.17)
+#| Updating charset-normalizer (3.2.0 -> 3.3.2)
+#| Updating idna (3.4 -> 3.6)
+#| Updating markupsafe (2.1.3 -> 2.1.4)
+#| Updating urllib3 (2.0.4 -> 2.2.0)
+#| Updating asttokens (2.2.1 -> 2.4.1)
+#| Updating babel (2.12.1 -> 2.14.0)
+#| Updating docutils (0.18.1 -> 0.20.1)
+#| Updating executing (1.2.0 -> 2.0.1)
+#| Updating jinja2 (3.1.2 -> 3.1.3)
+#| Updating packaging (23.1 -> 23.2)
+#| Updating pygments (2.16.1 -> 2.17.2)
+#| Updating traitlets (5.9.0 -> 5.14.1)
+#| Updating typing-extensions (4.7.1 -> 4.9.0)
+#| Updating wcwidth (0.2.6 -> 0.2.13)
+#| Updating attrs (23.1.0 -> 23.2.0)
+#| Updating cffi (1.15.1 -> 1.16.0)
+#| Updating click (8.1.6 -> 8.1.7)
+#| Updating frozenlist (1.4.0 -> 1.4.1)
+#| Updating greenlet (2.0.2 -> 3.0.3)
+#| Updating jedi (0.19.0 -> 0.19.1)
+#| Updating pexpect (4.8.0 -> 4.9.0)
+#| Updating pluggy (1.2.0 -> 1.4.0)
+#| Updating prompt-toolkit (3.0.39 -> 3.0.43)
+#| Updating sphinx (5.3.0 -> 7.1.2)
+#| Updating stack-data (0.6.2 -> 0.6.3)
+#| Updating toolz (0.12.0 -> 0.12.1)
+#| Updating tornado (6.3.2 -> 6.4)
+#| Updating zipp (3.16.2 -> 3.17.0)
+#| Updating anyio (3.7.1 -> 4.2.0)
+#| Updating async-timeout (4.0.2 -> 4.0.3)
+#| Updating cloudpickle (2.2.1 -> 3.0.0)
+#| Updating coverage (7.2.7 -> 7.4.1)
+#| Updating cryptography (41.0.3 -> 42.0.2)
+#| Updating dnspython (2.4.1 -> 2.5.0)
+#| Updating fsspec (2022.11.0 -> 2023.12.2)
+#| Updating httpcore (0.16.3 -> 1.0.2)
+#| Updating importlib-metadata (6.8.0 -> 7.0.1)
+#| Updating ipython (8.12.2 -> 8.12.3)
+#| Updating mako (1.2.4 -> 1.3.2)
+#| Updating mypy (1.5.1 -> 1.8.0)
+#| Updating partd (1.4.0 -> 1.4.1)
+#| Updating psutil (5.9.5 -> 5.9.8)
+#| Updating pytest (7.4.4 -> 8.0.0)
+#| Updating ruamel-yaml-clib (0.2.7 -> 0.2.8)
+#| Updating setuptools (65.7.0 -> 69.0.3)
+#| Updating sqlalchemy (1.4.49 -> 1.4.51)
+#| Updating typer (0.6.1 -> 0.9.0)
+#| Updating yarl (1.9.2 -> 1.9.4)
+#| Updating aiofiles (22.1.0 -> 23.2.1)
+#| Updating aiohttp (3.8.5 -> 3.9.3)
+#| Updating alembic (1.11.2 -> 1.13.1)
+#|  • Downgrading alembic (1.13.1 -> 1.11.3)
+#| Updating asyncpg (0.28.0 -> 0.29.0)
+#| Updating geoalchemy2 (0.9.4 -> 0.14.3)
+#| Updating gunicorn (20.1.0 -> 21.2.0)
+#| Updating httpx (0.23.3 -> 0.26.0)
+#| Updating lxml (4.9.3 -> 5.1.0)
+#| Updating memory-profiler (0.58.0 -> 0.61.0)
+#| Updating msgpack (1.0.5 -> 1.0.7)
+#| Updating multipledispatch (0.6.0 -> 1.0.0)
+#| Updating objprint (0.1.4 -> 0.2.3)
+#| Updating phonenumbers (8.13.18 -> 8.13.29)
+#| Updating psycopg2-binary (2.9.7 -> 2.9.9)
+#| Updating pymongo (4.4.1 -> 4.6.1)
+#| Updating pytest-asyncio (0.19.0 -> 0.23.4)
+#| Updating pytest-mock (3.11.1 -> 3.12.0)
+#| Updating python-dotenv (0.21.1 -> 1.0.1)
+#| Updating python-multipart (0.0.5 -> 0.0.6)
+#| Updating pytz (2022.7.1 -> 2023.4)
+#| Updating responses (0.21.0 -> 0.24.1)
+#| Updating ruamel-yaml (0.17.32 -> 0.18.5)
+#| Updating setuptools-scm (7.1.0 -> 8.0.4)
+#| Updating shapely (1.8.5.post1 -> 2.0.2)
+#| Updating sphinx-rtd-theme (1.2.2 -> 2.0.0)
+#| Updating sqlalchemy-utils (0.37.9 -> 0.41.1)
+#| Updating sqlean-py (0.21.8.4 -> 3.45.0)
+#| Updating starlette (0.21.0 -> 0.36.1)
+#| Updating tqdm (4.65.1 -> 4.66.1)
+#| Updating ujson (5.8.0 -> 5.9.0)
+#| Updating unidecode (1.3.6 -> 1.3.8)
+#| Updating uvicorn (0.18.3 -> 0.27.0.post1)
+#| Updating xlsxwriter (1.4.5 -> 3.1.9)
+#| Updating rich (12.6.0 -> 13.7.0)
+#| Updating shellingham (1.5.0.post1 -> 1.5.4)
+
+
 git tag -l -n1 | sort -h | tail -n5
-export CURRENT_VERSION=0.1.60
-export NEW_VERSION=0.1.61
-export FUTURE_VERSION=0.1.62
+export CURRENT_VERSION=0.1.61
+export NEW_VERSION=0.1.62
+export FUTURE_VERSION=0.1.63
 
 head CHANGES.rst
 
@@ -32,7 +132,7 @@ COMMIT;
 EOF
 
 poetry run pytest -vvx --tb=short tests
-#| 1810 passed, 42 skipped, 99 warnings in 427.64s (0:07:07)
+#| 1808 passed, 42 skipped, 50 warnings in 427.53s (0:07:07)
 
 poetry run rst2html.py CHANGES.rst var/changes.html
 xdg-open var/changes.html
@@ -207,7 +307,8 @@ COMMIT;
 EOF
 
 # Run migrations
-spinta bootstrap
+spinta --tb native migrate
+spinta --tb native bootstrap
 
 export PAGER="cat"
 psql -h localhost -p 54321 -U admin spinta -c '\dt public.*'
