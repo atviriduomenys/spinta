@@ -14,7 +14,7 @@ from spinta.backends.postgresql.helpers import get_pg_name
 @commands.prepare.register(Context, PostgreSQL, Array)
 def prepare(context: Context, backend: PostgreSQL, dtype: Array, **kwargs):
     prop = dtype.prop
-    columns = commands.prepare(context, backend, dtype.items, kwargs)
+    columns = commands.prepare(context, backend, dtype.items, **kwargs)
 
     assert columns is not None
     if not isinstance(columns, list):
