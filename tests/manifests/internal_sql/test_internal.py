@@ -26,6 +26,7 @@ def extract_integers_in_brackets(input_string):
 
 
 def compare_sql_to_required(sql_rows: list, required_rows: list):
+    assert len(sql_rows) == len(required_rows)
     for i, row in enumerate(sql_rows):
         converted_row = required_rows[i]
         if isinstance(converted_row[1], int):

@@ -42,6 +42,7 @@ from spinta.exceptions import ConflictingValue, RequiredProperty, LangNotDeclare
     UnableToDetermineRequiredLang, CoordinatesOutOfRange, InheritPropertyValueMissmatch
 from spinta.exceptions import NoItemRevision
 from spinta.formats.components import Format
+from spinta.manifests.components import Manifest
 from spinta.types.datatype import Array, ExternalRef, Denorm, Inherit, PageType, BackRef, ArrayBackRef, Integer, Boolean
 from spinta.types.datatype import Binary
 from spinta.types.datatype import DataType
@@ -211,8 +212,8 @@ def prepare_for_write(
 
 
 @prepare.register(Context, Backend, Property)
-def prepare(context: Context, backend: Backend, prop: Property):
-    return prepare(context, backend, prop.dtype)
+def prepare(context: Context, backend: Backend, prop: Property, **kwargs):
+    return prepare(context, backend, prop.dtype, **kwargs)
 
 
 @commands.simple_data_check.register(Context, DataItem, Model, Backend)
@@ -1813,6 +1814,11 @@ def cast_backend_to_python(
             for v in data
         ]
     return data
+
+
+@commands.reload_backend_metadata.register(Context, Manifest, Backend)
+def reload_backend_metadata(context, manifest, backend):
+    pass
 
 
 def _check_if_nan(value: Any) -> bool:

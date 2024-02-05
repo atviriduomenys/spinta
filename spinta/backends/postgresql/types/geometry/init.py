@@ -13,6 +13,7 @@ def prepare(
     context: Context,
     backend: PostgreSQL,
     dtype: Geometry,
+    **kwargs
 ) -> sa.Column:
     prop = dtype.prop
     name = get_column_name(prop)

@@ -20,16 +20,21 @@ from spinta.datasets.enums import Level
 
 @overload
 @commands.prepare.register(Context, PostgreSQL, Manifest)
-def prepare(context: Context, backend: PostgreSQL, manifest: Manifest):
+def prepare(context: Context, backend: PostgreSQL, manifest: Manifest, **kwargs):
     # Prepare backend for models.
     for model in commands.get_models(context, manifest).values():
         if model.backend and model.backend.name == backend.name:
-            commands.prepare(context, backend, model)
+            commands.prepare(context, backend, model, **kwargs)
 
 
 @overload
 @commands.prepare.register(Context, PostgreSQL, Model)
-def prepare(context: Context, backend: PostgreSQL, model: Model):
+def prepare(context: Context, backend: PostgreSQL, model: Model, ignore_duplicate: bool = False, **kwargs):
+    main_table_name = get_pg_name(get_table_name(model))
+
+    if main_table_name in backend.tables and ignore_duplicate:
+        return
+
     columns = []
     for prop in model.properties.values():
         # FIXME: _revision should has its own type and on database column type
@@ -37,7 +42,7 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
         if prop.name.startswith('_') and prop.name not in ('_id', '_revision'):
             continue
 
-        column = commands.prepare(context, backend, prop)
+        column = commands.prepare(context, backend, prop, **kwargs)
 
         if isinstance(column, list):
             columns.extend(column)
@@ -59,7 +64,7 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
             columns.append(sa.UniqueConstraint(*prop_list))
 
     # Create main table.
-    main_table_name = get_pg_name(get_table_name(model))
+
     pkey_type = commands.get_primary_key_type(context, backend)
     main_table = sa.Table(
         main_table_name, backend.schema,
@@ -78,7 +83,7 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
 
 @overload
 @commands.prepare.register(Context, PostgreSQL, DataType)
-def prepare(context: Context, backend: PostgreSQL, dtype: DataType):
+def prepare(context: Context, backend: PostgreSQL, dtype: DataType, **kwargs):
     if dtype.name in UNSUPPORTED_TYPES:
         return
     prop = dtype.prop
@@ -118,7 +123,7 @@ def get_primary_key_type(context: Context, backend: PostgreSQL):
 
 @overload
 @commands.prepare.register(Context, PostgreSQL, PrimaryKey)
-def prepare(context: Context, backend: PostgreSQL, dtype: PrimaryKey):
+def prepare(context: Context, backend: PostgreSQL, dtype: PrimaryKey, **kwargs):
     pkey_type = commands.get_primary_key_type(context, backend)
     base = dtype.prop.model.base
     if base and (base.level and base.level >= Level.identifiable or not base.level):

@@ -133,16 +133,26 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, old: sa
     table_name = rename.get_table_name(old.name)
 
     # Handle table renames
+    columns_to_remove = []
     for column in old.columns:
-        columns.append(rename.get_column_name(old.name, column.name))
+        renamed = rename.get_column_name(old.name, column.name)
+        if renamed in columns:
+            columns_to_remove.append(column)
+        else:
+            columns.append(renamed)
     if table_name != old.name:
         handler.add_action(ma.RenameTableMigrationAction(old.name, table_name))
         changelog_name = get_pg_name(f'{old.name}{TableType.CHANGELOG.value}')
         file_name = get_pg_name(f'{old.name}{TableType.FILE.value}')
         if inspector.has_table(changelog_name):
+            new_changelog_name = get_pg_name(f'{table_name}{TableType.CHANGELOG.value}')
             handler.add_action(ma.RenameTableMigrationAction(
                 old_table_name=changelog_name,
-                new_table_name=get_pg_name(f'{table_name}{TableType.CHANGELOG.value}')
+                new_table_name=new_changelog_name
+            ))
+            handler.add_action(ma.RenameSequenceMigrationAction(
+                old_name=get_pg_name(f'{changelog_name}__id_seq'),
+                new_name=get_pg_name(f'{new_changelog_name}__id_seq')
             ))
         for table in inspector.get_table_names():
             if table.startswith(file_name):
@@ -169,6 +179,9 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, old: sa
                 commands.migrate(context, backend, inspector, old, items, prop.dtype, handler, rename)
         elif isinstance(prop.dtype, Inherit):
             properties.remove(prop)
+
+    for column in columns_to_remove:
+        commands.migrate(context, backend, inspector, old, column, NA, handler, rename, False)
 
     props = zipitems(
         columns,
@@ -895,7 +908,7 @@ def _create_changelog_table(context: Context, new: Model, handler: MigrationHand
     handler.add_action(ma.CreateTableMigrationAction(
         table_name=table_name,
         columns=[
-            sa.Column('_id', BIGINT, primary_key=True),
+            sa.Column('_id', BIGINT, primary_key=True, autoincrement=True),
             sa.Column('_revision', sa.String),
             sa.Column('_txn', pkey_type, index=True),
             sa.Column('_rid', pkey_type),

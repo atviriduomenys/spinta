@@ -186,6 +186,6 @@ def configure(context: Context, keymap: SqlAlchemyKeyMap):
 
 
 @commands.prepare.register(Context, SqlAlchemyKeyMap)
-def prepare(context: Context, keymap: SqlAlchemyKeyMap):
+def prepare(context: Context, keymap: SqlAlchemyKeyMap, **kwargs):
     keymap.engine = sa.create_engine(keymap.dsn)
     keymap.metadata = sa.MetaData(keymap.engine)

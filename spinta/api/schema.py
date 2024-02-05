@@ -150,6 +150,16 @@ async def _create_and_validate_tmp_file(context: Context, manifest: Manifest, re
     return tmp
 
 
+def reset_affected_objects(context: Context, manifest: Manifest, dataset_name: str):
+    objects = manifest.get_objects()
+    if dataset_name in objects['dataset']:
+        del objects['dataset'][dataset_name]
+
+    for key, model in objects['model'].copy().items():
+        if model.external and model.external.dataset and model.external.dataset.name == dataset_name:
+            del objects['model'][key]
+
+
 async def schema_api(context: Context, request: Request, params: UrlParams):
     check_scope(context, 'schema_write')
 
@@ -180,6 +190,9 @@ async def schema_api(context: Context, request: Request, params: UrlParams):
             migration_extension=(lambda: commands.update_manifest_dataset_schema(context, manifest, target_manifest))
         )
         commands.migrate(context, target_manifest, migrate_meta)
+        backend = manifest.backend
+        commands.reload_backend_metadata(context, manifest, backend)
+        reset_affected_objects(context, manifest, dataset_name)
 
         _clean_up_file(tmp_file)
         return JSONResponse({"status": "ok"}, status_code=200)

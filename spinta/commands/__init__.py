@@ -293,6 +293,7 @@ def prepare(
     context: Context,
     backend: Backend,
     dtype: Manifest,
+    **kwargs
 ) -> None:
     """Prepare whole manifest
 
@@ -308,6 +309,7 @@ def prepare(
     context: Context,
     backend: Backend,
     dtype: Model,
+    **kwargs
 ) -> None:
     """Prepare model
 
@@ -320,6 +322,7 @@ def prepare(
     context: Context,
     backend: Backend,
     dtype: Property,
+    **kwargs
 ) -> Union[List[T], T, None]:
     """Prepare model property
 
@@ -334,6 +337,7 @@ def prepare(
     context: Context,
     backend: Backend,
     dtype: DataType,
+    **kwargs
 ) -> Union[List[T], T, None]:
     """Prepare model property data type
 
@@ -347,6 +351,7 @@ def prepare(
     params: UrlParams,
     version: Version,
     request: Request,
+    **kwargs
 ) -> UrlParams:
     """Prepare UrlParams from a Request."""
 
@@ -1301,3 +1306,8 @@ def get_dataset_models(context: Context, manifest: Manifest, dataset_name: str, 
 @command()
 def update_manifest_dataset_schema(context: Context, manifest: Manifest, target_manifest: Manifest, **kwargs):
     """Updates schema of dataset (models, properties, etc)"""
+
+
+@command()
+def reload_backend_metadata(context: Context, manifest: Manifest, backend: Backend):
+    """Refreshed backend specific data, in case updates were made and need to reflect the changes."""

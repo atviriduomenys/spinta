@@ -815,6 +815,8 @@ class Action(enum.Enum):
     CHANGES = 'changes'
 
     CHECK = 'check'
+    INSPECT = 'inspect'
+    SCHEMA = 'schema'
 
     @classmethod
     def has_value(cls, value):
@@ -879,12 +881,6 @@ class UrlParams:
     # If True, then HTTP HEAD request was made, this means no data must be
     # returned only headers.
     head: bool = False
-
-    # If True, inspect POST request was made
-    inspect: bool = False
-
-    # If True, schema POST request was made
-    schema: bool = False
 
     query: List[Dict[str, Any]] = None
 

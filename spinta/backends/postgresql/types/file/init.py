@@ -13,7 +13,7 @@ from spinta.backends.postgresql.helpers import get_column_name
 
 
 @commands.prepare.register(Context, PostgreSQL, File)
-def prepare(context: Context, backend: PostgreSQL, dtype: File):
+def prepare(context: Context, backend: PostgreSQL, dtype: File, **kwargs):
     prop = dtype.prop
     model = prop.model
 

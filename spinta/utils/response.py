@@ -14,7 +14,7 @@ from spinta import exceptions
 from spinta.api.schema import schema_api
 from spinta.cli.helpers.errors import ErrorCounter
 from spinta.formats.components import Format
-from spinta.components import Action
+from spinta.components import Action, Model
 from spinta.components import Context
 from spinta.components import Node
 from spinta.components import Store
@@ -115,6 +115,12 @@ async def create_http_response(
     if params.action == Action.CHECK:
         return await _check(context, request, params)
 
+    if request.method == 'POST' and params.action == Action.INSPECT:
+        return await inspect_api(context, request, params)
+
+    if request.method == 'POST' and params.action == Action.SCHEMA:
+        return await schema_api(context, request, params)
+
     if request.method in ('GET', 'HEAD'):
         context.attach('transaction', manifest.backend.transaction)
 
@@ -153,6 +159,8 @@ async def create_http_response(
             _enforce_limit(context, params)
             action = params.action
             model = params.model
+            if isinstance(model, Model):
+                model = commands.get_model(context, store.manifest, model.name)
             backend = model.backend
 
             if backend is not None:
@@ -192,40 +200,35 @@ async def create_http_response(
             )
 
     else:
-        if request.method == 'POST' and params.inspect:
-            return await inspect_api(context, request, params)
-        elif request.method == 'POST' and params.schema:
-            return await schema_api(context, request, params)
+        context.attach('transaction', manifest.backend.transaction, write=True)
+        action = params.action
+        if params.prop and params.propref:
+            return await commands.push(
+                context,
+                request,
+                params.prop.dtype,
+                params.model.backend,
+                action=action,
+                params=params,
+            )
+        elif params.prop:
+            return await commands.push(
+                context,
+                request,
+                params.prop.dtype,
+                params.prop.dtype.backend,
+                action=action,
+                params=params,
+            )
         else:
-            context.attach('transaction', manifest.backend.transaction, write=True)
-            action = params.action
-            if params.prop and params.propref:
-                return await commands.push(
-                    context,
-                    request,
-                    params.prop.dtype,
-                    params.model.backend,
-                    action=action,
-                    params=params,
-                )
-            elif params.prop:
-                return await commands.push(
-                    context,
-                    request,
-                    params.prop.dtype,
-                    params.prop.dtype.backend,
-                    action=action,
-                    params=params,
-                )
-            else:
-                return await commands.push(
-                    context,
-                    request,
-                    params.model,
-                    params.model.backend,
-                    action=action,
-                    params=params,
-                )
+            return await commands.push(
+                context,
+                request,
+                params.model,
+                params.model.backend,
+                action=action,
+                params=params,
+            )
 
 
 def _enforce_limit(context: Context, params: UrlParams):

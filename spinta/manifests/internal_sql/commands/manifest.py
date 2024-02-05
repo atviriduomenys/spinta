@@ -217,7 +217,9 @@ def get_model(context: Context, manifest: InternalSQLManifest, model: str, **kwa
             schemas = load_required_models(context, manifest, schemas, required_models)
             load_internal_manifest_nodes(context, manifest, schemas, link=True, ignore_types=['dataset', 'resource'])
             if model in objects['model']:
-                return objects['model'][model]
+                new_model = objects['model'][model]
+                commands.prepare(context, manifest.backend, new_model, ignore_duplicate=True)
+                return new_model
     raise ModelNotFound(model=model)
 
 
@@ -251,7 +253,11 @@ def has_namespace(context: Context, manifest: InternalSQLManifest, namespace: st
     elif conn is not None and not loaded:
         table = manifest.table
         ns = conn.execute(
-            sa.select(table).where(table.c.mpath.startswith(namespace)).limit(1)
+            sa.select(table).where(
+                sa.or_(
+                    table.c.mpath == namespace,
+                    table.c.mpath.startswith(f'{namespace}/')
+                )).limit(1)
         )
         if any(ns):
             return True
@@ -495,8 +501,10 @@ class RowMergeBuilder:
     def add_action(self, action: RowMergeAction):
         self.actions.append(action)
 
-    def execute_all(self, table, conn, starting_index=0, last_index=None):
+    def execute_all(self, table, conn, starting_index=None, last_index=None):
         index = starting_index
+        if index is None:
+            index = 0
 
         new_last_index = None
         for action in self.actions:
@@ -542,9 +550,9 @@ def update_manifest_dataset_schema(context: Context, manifest: InternalSQLManife
                 last_index = row['index']
         else:
             last_index_row = conn.execute(select_full_table(table).order_by(sa.desc(table.c.index)).limit(1))
-            initial_index = 0
+            initial_index = None
             for row in last_index_row:
-                initial_index = row['index']
+                initial_index = row['index'] + 1
 
         zipped_rows = zipitems(
             target_rows,
@@ -552,6 +560,7 @@ def update_manifest_dataset_schema(context: Context, manifest: InternalSQLManife
             _id_key
         )
         merge_builder = RowMergeBuilder()
+        models_to_unload = []
         for rows in zipped_rows:
             for new, old in rows:
                 if old is NA and new is not NA:
@@ -569,6 +578,9 @@ def update_manifest_dataset_schema(context: Context, manifest: InternalSQLManife
                     merge_builder.add_action(
                         RowMergeDeleteAction(old)
                     )
+                    if old['dim'] == 'model':
+                        if old['path'] not in models_to_unload:
+                            models_to_unload.append(old['path'])
 
         with manifest.engine.begin() as merge_connection:
             merge_builder.execute_all(
