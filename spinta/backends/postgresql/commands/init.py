@@ -30,9 +30,9 @@ def prepare(context: Context, backend: PostgreSQL, manifest: Manifest, **kwargs)
 @overload
 @commands.prepare.register(Context, PostgreSQL, Model)
 def prepare(context: Context, backend: PostgreSQL, model: Model, ignore_duplicate: bool = False, **kwargs):
-    main_table_name = get_pg_name(get_table_name(model))
-
-    if main_table_name in backend.tables and ignore_duplicate:
+    table_name = get_table_name(model)
+    main_table_name = get_pg_name(table_name)
+    if table_name in backend.tables and ignore_duplicate:
         return
 
     columns = []
