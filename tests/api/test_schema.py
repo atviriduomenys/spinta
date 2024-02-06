@@ -1,19 +1,15 @@
 import pathlib
 import uuid
-from io import BytesIO
 from pathlib import Path
 from typing import Union
 
 from pytest import FixtureRequest
-import pytest
 
 from spinta.api.schema import create_migrate_rename_mapping
-from spinta.backends import Backend
 from spinta.backends.constants import TableType
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_pg_name
 from spinta.core.config import RawConfig
-from spinta.formats.html.components import Cell
 from spinta.manifests.internal_sql.helpers import get_table_structure
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
@@ -1055,6 +1051,235 @@ def test_schema_update_model_multiple_times(
         assert listdata(result, "id", "code", "name") == [
             (0, "Lietuva", NA),
             (1, "Latvia", NA)
+        ]
+
+
+def test_schema_advanced(
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    dataset = uuid.uuid4()
+    place_model = uuid.uuid4()
+    place_prop_id = uuid.uuid4()
+    place_prop_name = uuid.uuid4()
+    place_base = uuid.uuid4()
+    country_model = uuid.uuid4()
+    country_prop_id = uuid.uuid4()
+    country_prop_name = uuid.uuid4()
+    country_prop_coordinates = uuid.uuid4()
+    city_model = uuid.uuid4()
+    city_prop_id = uuid.uuid4()
+    city_prop_name = uuid.uuid4()
+    city_prop_population = uuid.uuid4()
+    city_prop_country = uuid.uuid4()
+
+    original_manifest = f'''
+    id                         | d | r | base  | m | property      | type     | ref
+    {dataset}                  | api/schema/advanced               |          |
+    {place_model}              |   |   |       | Place             |          | id
+    {place_prop_id}            |   |   |       |   | id            | integer  |
+    {place_prop_name}          |   |   |       |   | name          | string   |
+    {place_base}               |   |   | Place |   |               |          |
+    {country_model}            |   |   |       | Country           |          | 
+    {country_prop_id}          |   |   |       |   | id            |          |
+    {country_prop_name}        |   |   |       |   | name          |          |
+    {country_prop_coordinates} |   |   |       |   | coordinates   | geometry |
+    {city_model}               |   |   |       | City              |          | 
+    {city_prop_id}             |   |   |       |   | id            |          |
+    {city_prop_name}           |   |   |       |   | name          |          |
+    {city_prop_population}     |   |   |       |   | population    | integer  |
+    '''
+
+    context = boostrap_manifest_with_drop(
+        rc,
+        original_manifest,
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type='internal_sql',
+        request=request,
+        full_load=True,
+        drop_list=[
+            'api/schema/advanced/City',
+            'api/schema/advanced/Country',
+            'api/schema/advanced/Place',
+        ]
+    )
+    store = context.get('store')
+    manifest = store.manifest
+    dsn = manifest.path
+    engine = sa.create_engine(dsn)
+
+    app = create_test_client(context)
+    app.authorize(["spinta_schema_write", "spinta_getall", "spinta_insert", "spinta_set_meta_fields"])
+
+    csv_manifest = convert_ascii_manifest_to_csv(f'''
+    id                         | d | r | base  | m | property      | type     | ref
+    {dataset}                  | api/schema/advanced               |          |
+    {place_model}              |   |   |       | Place             |          | id
+    {place_prop_id}            |   |   |       |   | id            | integer  |
+    {place_prop_name}          |   |   |       |   | code          | string   |
+    {place_base}               |   |   | Place |   |               |          |
+    {country_model}            |   |   |       | Country           |          | 
+    {country_prop_id}          |   |   |       |   | id            |          |
+    {country_prop_name}        |   |   |       |   | code          |          |
+    {country_prop_coordinates} |   |   |       |   | coords        | geometry |
+    {city_model}               |   |   |       | City              |          | 
+    {city_prop_id}             |   |   |       |   | id            |          |
+    {city_prop_name}           |   |   |       |   | code          |          |
+    {city_prop_population}     |   |   |       |   | population    | integer  |
+    {city_prop_country}        |   |   |       |   | country       | ref      | Country
+    ''')
+
+    with engine.connect() as conn:
+        meta = sa.MetaData(conn)
+        stmt = sa.select([
+            get_table_structure(meta)
+        ])
+        rows = conn.execute(stmt)
+        result_rows = []
+        for item in rows:
+            result_rows.append(list(item))
+
+        compare_rows = [
+            [0, 0, None, 0, 'api/schema/advanced', 'api/schema/advanced', 'dataset', 'api/schema/advanced', None, None, None, None, None, None, None, None, None],
+            [1, 1, 0, 1, 'api/schema/advanced/Place', 'api/schema/advanced/Place', 'model', 'Place', None, 'id', None, None, None, None, None, None, None],
+            [2, 2, 1, 2, 'api/schema/advanced/Place/id', 'api/schema/advanced/Place/id', 'property', 'id', 'integer', None, None, None, None, None, None, None, None],
+            [3, 3, 1, 2, 'api/schema/advanced/Place/name', 'api/schema/advanced/Place/name', 'property', 'name', 'string', None, None, None, None, None, None, None, None],
+            [4, 4, 0, 1, 'api/schema/advanced/Place', 'api/schema/advanced/Place', 'base', 'Place', None, None, None, None, None, None, None, None, None],
+            [5, 5, 4, 2, 'api/schema/advanced/Country', 'api/schema/advanced/Place/Country', 'model', 'Country', None, None, None, None, None, None, None, None, None],
+            [6, 6, 5, 3, 'api/schema/advanced/Country/id', 'api/schema/advanced/Place/Country/id', 'property', 'id', None, None, None, None, None, None, None, None, None],
+            [7, 7, 5, 3, 'api/schema/advanced/Country/name', 'api/schema/advanced/Place/Country/name', 'property', 'name', None, None, None, None, None, None, None, None, None],
+            [8, 8, 5, 3, 'api/schema/advanced/Country/coordinates', 'api/schema/advanced/Place/Country/coordinates', 'property', 'coordinates', 'geometry', None, None, None, None, None, None, None, None],
+            [9, 9, 4, 2, 'api/schema/advanced/City', 'api/schema/advanced/Place/City', 'model', 'City', None, None, None, None, None, None, None, None, None],
+            [10, 10, 9, 3, 'api/schema/advanced/City/id', 'api/schema/advanced/Place/City/id', 'property', 'id', None, None, None, None, None, None, None, None, None],
+            [11, 11, 9, 3, 'api/schema/advanced/City/name', 'api/schema/advanced/Place/City/name', 'property', 'name', None, None, None, None, None, None, None, None, None],
+            [12, 12, 9, 3, 'api/schema/advanced/City/population', 'api/schema/advanced/Place/City/population', 'property', 'population', 'integer', None, None, None, None, None, None, None, None]
+        ]
+        print(result_rows)
+        compare_sql_to_required(result_rows, compare_rows)
+
+        data = app.get('/api/schema/:ns/:all')
+        assert data.json()['_data'] == [
+            {
+                'description': '',
+                'name': 'api/schema/advanced/:ns',
+                'title': ''
+            },
+            {
+                'description': '',
+                'name': 'api/schema/advanced/City',
+                'title': '',
+            },
+            {
+                'description': '',
+                'name': 'api/schema/advanced/Country',
+                'title': '',
+            },
+            {
+                'description': '',
+                'name': 'api/schema/advanced/Place',
+                'title': '',
+            },
+        ]
+        lithuania_id = str(uuid.uuid4())
+        latvia_id = str(uuid.uuid4())
+        ryga_id = str(uuid.uuid4())
+        vilnius_id = str(uuid.uuid4())
+        app.post('api/schema/advanced/Place', json={
+            "_id": lithuania_id,
+            "id": 0,
+            "name": "Lithuania"
+        })
+        app.post('api/schema/advanced/Place', json={
+            "_id": latvia_id,
+            "id": 1,
+            "name": "Latvia"
+        })
+        app.post('api/schema/advanced/Place', json={
+            "_id": ryga_id,
+            "id": 2,
+            "name": "Ryga"
+        })
+        app.post('api/schema/advanced/Place', json={
+            "_id": vilnius_id,
+            "id": 3,
+            "name": "Vilnius"
+        })
+        app.post('api/schema/advanced/Country', json={
+            "_id": lithuania_id,
+            "coordinates": "POINT(0 0)"
+        })
+        app.post('api/schema/advanced/Country', json={
+            "_id": latvia_id,
+            "coordinates": "POINT(1 1)"
+        })
+        app.post('api/schema/advanced/City', json={
+            "_id": vilnius_id,
+            "population": 1000000
+        })
+        app.post('api/schema/advanced/City', json={
+            "_id": ryga_id,
+            "population": 1020000
+        })
+        result = app.get('api/schema/advanced/Place')
+        assert listdata(result, "id", "name") == [
+            (0, "Lithuania"),
+            (1, "Latvia"),
+            (2, "Ryga"),
+            (3, "Vilnius")
+        ]
+        result = app.get('api/schema/advanced/City')
+        assert listdata(result, "id", "name", "population") == [
+            (2, "Ryga", 1020000),
+            (3, "Vilnius", 1000000)
+        ]
+        result = app.get('api/schema/advanced/Country')
+        assert listdata(result, "id", "name", "coordinates") == [
+            (0, 'Lithuania', 'POINT (0 0)'),
+            (1, 'Latvia', 'POINT (1 1)')
+        ]
+        app.post('api/schema/advanced/:schema', content=csv_manifest, headers={'content-type': 'text/csv'})
+        rows = conn.execute(stmt)
+        result_rows = []
+        for item in rows:
+            result_rows.append(list(item))
+
+        compare_rows = [
+            [0, 0, None, 0, 'api/schema/advanced', 'api/schema/advanced', 'dataset', 'api/schema/advanced', None, None, None, None, None, None, None, None, None],
+            [1, 1, 0, 1, 'api/schema/advanced/Place', 'api/schema/advanced/Place', 'model', 'Place', None, 'id', None, None, None, None, None, None, None],
+            [2, 2, 1, 2, 'api/schema/advanced/Place/id', 'api/schema/advanced/Place/id', 'property', 'id', 'integer', None, None, None, None, None, None, None, None],
+            [3, 3, 1, 2, 'api/schema/advanced/Place/code', 'api/schema/advanced/Place/code', 'property', 'code', 'string', None, None, None, None, None, None, None, None],
+            [4, 4, 0, 1, 'api/schema/advanced/Place', 'api/schema/advanced/Place', 'base', 'Place', None, None, None, None, None, None, None, None, None],
+            [5, 5, 4, 2, 'api/schema/advanced/Country', 'api/schema/advanced/Place/Country', 'model', 'Country', None, None, None, None, None, None, None, None, None],
+            [6, 6, 5, 3, 'api/schema/advanced/Country/id', 'api/schema/advanced/Place/Country/id', 'property', 'id', None, None, None, None, None, None, None, None, None],
+            [7, 7, 5, 3, 'api/schema/advanced/Country/code', 'api/schema/advanced/Place/Country/code', 'property', 'code', None, None, None, None, None, None, None, None, None],
+            [8, 8, 5, 3, 'api/schema/advanced/Country/coords', 'api/schema/advanced/Place/Country/coords', 'property', 'coords', 'geometry', None, None, None, None, None, None, None, None],
+            [9, 9, 4, 2, 'api/schema/advanced/City', 'api/schema/advanced/Place/City', 'model', 'City', None, None, None, None, None, None, None, None, None],
+            [10, 10, 9, 3, 'api/schema/advanced/City/id', 'api/schema/advanced/Place/City/id', 'property', 'id', None, None, None, None, None, None, None, None, None],
+            [11, 11, 9, 3, 'api/schema/advanced/City/code', 'api/schema/advanced/Place/City/code', 'property', 'code', None, None, None, None, None, None, None, None, None],
+            [12, 12, 9, 3, 'api/schema/advanced/City/population', 'api/schema/advanced/Place/City/population', 'property', 'population', 'integer', None, None, None, None, None, None, None, None],
+            [13, 13, 9, 3, 'api/schema/advanced/City/country', 'api/schema/advanced/Place/City/country', 'property', 'country', 'ref', 'api/schema/advanced/Country', None, None, None, None, None, None, None]
+        ]
+
+        compare_sql_to_required(result_rows, compare_rows)
+        result = app.get('api/schema/advanced/Place')
+        assert listdata(result, "id", "code") == [
+            (0, "Lithuania"),
+            (1, "Latvia"),
+            (2, "Ryga"),
+            (3, "Vilnius")
+        ]
+        result = app.get('api/schema/advanced/City')
+        assert listdata(result, "id", "code", "population", "country") == [
+            (2, "Ryga", 1020000, None),
+            (3, "Vilnius", 1000000, None)
+        ]
+        result = app.get('api/schema/advanced/Country')
+        assert listdata(result, "id", "code", "coords") == [
+            (0, 'Lithuania', 'POINT (0 0)'),
+            (1, 'Latvia', 'POINT (1 1)')
         ]
 
 

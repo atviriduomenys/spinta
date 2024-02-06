@@ -509,7 +509,7 @@ def datasets_to_sql(
                             resource["mpath"] = item["mpath"]
                             resource["depth"] = item["depth"]
             elif external:
-                if not model.external.resource:
+                if resource["item"] is not None and not model.external.resource:
                     resource["item"] = None
                     base["item"] = None
 
