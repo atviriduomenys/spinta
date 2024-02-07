@@ -99,7 +99,7 @@ def wait(
                 print(f"  {backend.name}...")
             if commands.wait(context, backend, fail=fail):
                 backends.remove(backend)
-        if fail:
+        if fail or not backends:
             break
         else:
             time.sleep(1)

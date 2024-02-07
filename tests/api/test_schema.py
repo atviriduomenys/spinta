@@ -1157,7 +1157,6 @@ def test_schema_advanced(
             [11, 11, 9, 3, 'api/schema/advanced/City/name', 'api/schema/advanced/Place/City/name', 'property', 'name', None, None, None, None, None, None, None, None, None],
             [12, 12, 9, 3, 'api/schema/advanced/City/population', 'api/schema/advanced/Place/City/population', 'property', 'population', 'integer', None, None, None, None, None, None, None, None]
         ]
-        print(result_rows)
         compare_sql_to_required(result_rows, compare_rows)
 
         data = app.get('/api/schema/:ns/:all')

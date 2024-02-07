@@ -16,6 +16,7 @@ from spinta.manifests.components import Manifest
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.client import TestClient
 from spinta.testing.client import create_test_client
+from spinta.testing.config import CONFIG
 from spinta.testing.context import ContextForTests
 from spinta.testing.context import create_test_context
 from spinta.testing.datasets import Sqlite
@@ -143,6 +144,16 @@ def app(context) -> TestClient:
 def cli(rc: RawConfig):
     yield SpintaCliRunner(mix_stderr=False)
     _remove_push_state(rc)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_filesystem():
+    backends = CONFIG['environments']['test']['backends']
+    if 'fs' in backends:
+        path = backends['fs']['path']
+        if isinstance(path, pathlib.Path):
+            if not path.exists():
+                path.mkdir(parents=True, exist_ok=True)
 
 
 def pytest_addoption(parser):

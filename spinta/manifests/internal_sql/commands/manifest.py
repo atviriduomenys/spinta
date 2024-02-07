@@ -177,7 +177,7 @@ def get_model(context: Context, manifest: InternalSQLManifest, model: str, **kwa
                 props = conn.execute(
                     select_full_table(table).where(
                         sa.and_(
-                            table.c.path.startswith(model),
+                            table.c.path.startswith(f'{model}/'),
                             table.c.dim != 'model'
                         )
                     ).order_by(table.c.index)

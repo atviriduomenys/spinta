@@ -57,8 +57,4 @@ def load(
             commands.load(context, source, into=into or manifest, freezed=freezed)
 
 
-@commands.reload_backend_metadata.register(Context, Manifest, PostgreSQL)
-def reload_backend_metadata(context: Context, manifest: Manifest, backend: PostgreSQL):
-    backend.schema.clear()
-    backend.tables = {}
-    commands.prepare(context, backend, manifest, ignore_duplicate=True)
+
