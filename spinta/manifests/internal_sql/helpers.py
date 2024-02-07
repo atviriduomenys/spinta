@@ -513,7 +513,7 @@ def datasets_to_sql(
                     resource["item"] = None
                     base["item"] = None
 
-        if model.base and (not base["item"] or model.base.name != base["item"].name):
+        if model.base and (not base["item"] or model.base != base["item"]):
             base["item"] = model.base
             parent_id = None
             depth = 0
