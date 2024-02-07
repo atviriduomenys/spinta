@@ -406,6 +406,16 @@ def _handle_id(item_id: Any):
     return uuid.uuid4()
 
 
+def _compare_bases(base_0, base_1):
+    if isinstance(base_0, Base) and isinstance(base_1, Base):
+        converted_0 = list(_base_to_sql(base_0))[0]
+        converted_0["id"] = base_0.id
+        converted_1 = list(_base_to_sql(base_1))[0]
+        converted_1["id"] = base_1.id
+        return converted_0 == converted_1
+    return base_0 == base_1
+
+
 def datasets_to_sql(
     context: Context,
     manifest: Manifest,
@@ -513,7 +523,7 @@ def datasets_to_sql(
                     resource["item"] = None
                     base["item"] = None
 
-        if model.base and (not base["item"] or model.base != base["item"]):
+        if model.base and (not base["item"] or not _compare_bases(model.base, base["item"])):
             base["item"] = model.base
             parent_id = None
             depth = 0
