@@ -19,6 +19,7 @@ from spinta.cli.migrate import MigrateMeta, MigrateRename
 from spinta.commands import create_exception
 from spinta.datasets.enums import Level
 from spinta.types.datatype import DataType, Ref, File, Inherit, Array, Object
+from spinta.types.geometry.components import Geometry
 from spinta.types.namespace import sort_models_by_ref_and_base
 from spinta.utils.schema import NotAvailable, NA
 
@@ -220,11 +221,12 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, old: No
                 cols = commands.prepare(context, backend, prop)
                 if isinstance(cols, list):
                     for column in cols:
-                        if isinstance(column, sa.Column):
+                        if isinstance(column, (sa.Column, sa.Index)):
                             columns.append(column)
                 else:
                     if isinstance(cols, sa.Column):
                         columns.append(cols)
+
     handler.add_action(ma.CreateTableMigrationAction(
         table_name=table_name,
         columns=[
@@ -505,6 +507,19 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
     commands.migrate(context, backend, inspector, table, old, column, handler, rename, False)
 
 
+@commands.migrate.register(Context, PostgreSQL, Inspector, sa.Table, sa.Column, Geometry, MigrationHandler,
+                           MigrateRename)
+def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: sa.Table,
+            old: sa.Column, new: DataType, handler: MigrationHandler, rename: MigrateRename):
+    columns = commands.prepare(context, backend, new.prop)
+    col = None
+    for column in columns:
+        if isinstance(column, sa.Column):
+            col = column
+            break
+    commands.migrate(context, backend, inspector, table, old, col, handler, rename, False)
+
+
 @commands.migrate.register(Context, PostgreSQL, Inspector, sa.Table, sa.Column, sa.Column, MigrationHandler,
                            MigrateRename, bool)
 def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: sa.Table,
@@ -599,12 +614,13 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
         indexes = inspector.get_indexes(table_name=table.name)
         for index in indexes:
             if index["column_names"] == [old.name] and index["name"] not in removed:
+                index_name = get_pg_name(_rename_index_name(index["name"], table.name, table_name, old.name, new.name))
                 handler.add_action(
                     ma.DropIndexMigrationAction(
                         index_name=index["name"],
                         table_name=table_name
                     ), foreign_key)
-                index_name = get_pg_name(_rename_index_name(index["name"], table.name, table_name, old.name, new.name))
+
                 if new.index:
                     handler.add_action(ma.CreateIndexMigrationAction(
                         index_name=index_name,
@@ -962,9 +978,8 @@ def _check_if_renamed(old_table: str, new_table: str, old_property: str, new_pro
     return old_table != new_table or old_property != new_property
 
 
-def _rename_index_name(index: str, old_table: str, new_table: str, old_property: str, new_property:str):
-    new = index.replace(old_table, new_table)
-    new = new.replace(old_property, new_property)
+def _rename_index_name(index: str, old_table: str, new_table: str, old_property: str, new_property: str):
+    new = f'ix_{new_table}_{new_property}'
     return new
 
 
