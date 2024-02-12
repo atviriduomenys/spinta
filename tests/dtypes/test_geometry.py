@@ -101,7 +101,7 @@ def test_geometry_params_point(
     store: Store = context.get('store')
     backend = cast(PostgreSQL, store.backends['default'])
     coordinates = cast(sa.Column, backend.tables[model].columns['coordinates'])
-    assert coordinates.type.srid == -1
+    assert coordinates.type.srid == 4326
     assert coordinates.type.geometry_type == 'POINT'
 
     app = create_test_client(context)
@@ -228,8 +228,6 @@ osm_url = (
 @pytest.mark.parametrize('wkt, srid, link', [
     ('POINT (6061789 582964)', LKS94, osm_url),
     ('POINT (54.68569111173754 25.286688302053335)', WGS84, osm_url),
-    ('POINT (582170 6059232)', None, None),
-    ('POINT (25.273658402751387 54.662851967609136)', None, None),
 ])
 def test_geometry_coordinate_transformation(
     manifest_type: str,
@@ -257,7 +255,7 @@ def test_geometry_coordinate_transformation(
     prop = model.properties['coordinates']
 
     value = shapely.wkt.loads(wkt)
-    value = shape.from_shape(shape=value, srid=srid or -1)
+    value = shape.from_shape(shape=value, srid=srid or 4326)
 
     result = commands.prepare_dtype_for_response(
         context,

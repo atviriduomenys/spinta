@@ -836,3 +836,7 @@ class ManifestObjectNotDefined(UserError):
 
 class InvalidIdType(UserError):
     template = "Id {id!r} of {id_type!r} type is invalid."
+
+
+class SRIDNotSetForGeometry(BaseError):
+    template = "Geometry SRID is required, but was given None."

@@ -1953,7 +1953,7 @@ def test_migrate_modify_geometry_type(
         conn.execute(table.insert().values({
             "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7e",
             "someText": "Vilnius",
-            "someGeo": "POINT(15 15)",
+            "someGeo": "SRID=4326;POINT(15 15)",
             "someGeoLt": "SRID=3346;POINT(-471246.92725520115 1678519.8837915037)",
             "someGeoWorld": "SRID=4326;POINT(15 15)"
         }))
@@ -1989,11 +1989,10 @@ def test_migrate_modify_geometry_type(
         'BEGIN;\n'
         '\n'
         'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someGeo" TYPE '
-        'geometry(GEOMETRY,3346) USING ST_Transform(ST_SetSRID("someGeo", 4326), '
-        '3346);\n'
+        'geometry(GEOMETRY,3346) USING ST_Transform("someGeo", 3346);\n'
         '\n'
         'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someGeoLt" TYPE '
-        'geometry(GEOMETRY,-1) USING ST_Transform("someGeoLt", 4326);\n'
+        'geometry(GEOMETRY,4326) USING ST_Transform("someGeoLt", 4326);\n'
         '\n'
         'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someGeoWorld" TYPE '
         'geometry(GEOMETRY,3346) USING ST_Transform("someGeoWorld", 3346);\n'
@@ -2372,8 +2371,8 @@ def test_migrate_long_names(
         '    _id UUID NOT NULL, \n'
         '    _revision TEXT, \n'
         '    "veryLongPrimaryKeyName" TEXT, \n'
-        '    "veryLongGeometryPropertyName" geometry(GEOMETRY,-1), \n'
-        '    "veryLongGeometryPropertyNameOther" geometry(GEOMETRY,-1), \n'
+        '    "veryLongGeometryPropertyName" geometry(GEOMETRY,4326), \n'
+        '    "veryLongGeometryPropertyNameOther" geometry(GEOMETRY,4326), \n'
         '    PRIMARY KEY (_id)\n'
         ');\n'
         '\n'

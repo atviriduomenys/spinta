@@ -10,13 +10,18 @@ from shapely.ops import transform
 
 from shapely.geometry import Point
 
+from spinta.exceptions import SRIDNotSetForGeometry
+from spinta.types.geometry.components import Geometry
 from spinta.types.geometry.constants import WGS84
 
 
-def get_osm_link(value: WKBElement, srid: Optional[int]) -> Optional[str]:
+def get_osm_link(value: WKBElement, srid: Optional[Union[int, Geometry]]) -> Optional[str]:
+    if isinstance(srid, Geometry):
+        if srid.srid is None:
+            raise SRIDNotSetForGeometry(srid)
+        srid = srid.srid
+
     if srid is None:
-        # If we don't know how to correctly convert to WGS84, then we
-        # can't return a link OSM.
         return None
 
     shape = to_shape(value)
