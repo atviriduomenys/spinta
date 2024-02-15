@@ -11,6 +11,7 @@ from spinta.datasets.components import Attribute
 from spinta.datasets.helpers import load_resource_backend
 from spinta.dimensions.enum.helpers import load_enums
 from spinta.dimensions.lang.helpers import load_lang_data
+from spinta.dimensions.param.helpers import load_params
 from spinta.dimensions.prefix.helpers import load_prefixes
 from spinta.exceptions import MultipleErrors
 from spinta.exceptions import PropertyNotFound
@@ -95,6 +96,8 @@ def load(context: Context, resource: Resource, data: dict, manifest: Manifest):
     resource.given.name = data.get("given_name", None)
     # Models will be added on `link` command.
     resource.models = {}
+    resource.params = load_params(context, manifest, resource.params)
+    resource.manifest = manifest
     return resource
 
 
@@ -129,6 +132,8 @@ def load(context: Context, entity: Entity, data: dict, manifest: Manifest):
 
     if entity.prepare:
         entity.prepare = asttoexpr(entity.prepare)
+
+    entity.params = load_params(context, manifest, entity.params)
     return entity
 
 

@@ -4,6 +4,7 @@ from spinta import commands
 from spinta.components import Context
 from spinta.core.access import link_access_param
 from spinta.datasets.components import Dataset, Resource, Entity, Attribute
+from spinta.dimensions.param.helpers import link_params
 from spinta.exceptions import MissingReference
 from spinta.types.datatype import Partial, Ref
 from spinta.components import Property
@@ -19,7 +20,8 @@ def link(context: Context, dataset: Dataset):
 @commands.link.register(Context, Resource)
 def link(context: Context, resource: Resource):
     link_access_param(resource, (resource.dataset,))
-
+    if resource.params and resource.manifest:
+        link_params(context, resource.manifest, resource.params, resource.dataset)
 
 @commands.link.register(Context, Entity)
 def link(context: Context, entity: Entity):
@@ -53,6 +55,8 @@ def link(context: Context, entity: Entity):
             entity.resource = None
     else:
         entity.dataset = None
+
+    link_params(context, manifest, entity.params, entity.dataset)
 
 
 @commands.link.register(Context, Attribute)

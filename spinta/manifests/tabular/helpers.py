@@ -1241,8 +1241,11 @@ class ParamReader(TabularReader):
         }
 
     def _get_and_append_data(self, old: Dict, row: ManifestRow):
-        old["source"].append(row[SOURCE])
-        old["prepare"].append(_parse_spyna(self, row[PREPARE]))
+        source = row[SOURCE]
+        prepare = row[PREPARE]
+        if source or prepare:
+            old["source"].append(source)
+            old["prepare"].append(_parse_spyna(self, prepare))
 
     def _ensure_params_list(self, node: TabularReader, name: str) -> None:
         if 'params' not in node.data:

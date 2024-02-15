@@ -7,39 +7,49 @@ from spinta.components import Model
 from spinta.datasets.components import Param
 from spinta.dimensions.param.components import ParamBuilder
 from spinta.dimensions.param.components import ResolvedParams
+from spinta.manifests.components import Manifest
+from spinta.utils.schema import NA
 
 
 def _recursive_iter_params(
     context: Context,
-    model: Model,
+    manifest: Manifest,
     params: List[Param],
     values: ResolvedParams,
 ) -> Iterator[ResolvedParams]:
-    if len(params) == 1:
-        yield values
-    elif len(params) > 1:
+    if len(params) > 0:
         param = params[0]
+        values_memory = [values] if values else []
         for source, formula in zip(param.sources, param.formulas):
-            env = ParamBuilder(context)
-            env.update(model=model, params=values, this=source)
-            expr = env.resolve(formula)
-            result: Iterator[Any] = env.execute(expr)
-            if not isinstance(result, Iterator):
-                result = iter([result])
-            for value in result:
-                yield from _recursive_iter_params(
-                    context,
-                    model,
-                    params[1:],
-                    {**values, param.name: value},
-                )
+            for value_memory in values_memory.copy() or [values]:
+                env = ParamBuilder(context)
+                env.update(params=value_memory, target_param=param.name, this=source, manifest=manifest)
+                expr = env.resolve(formula)
+                if expr is not NA:
+                    result: Iterator[Any] = env.execute(expr)
+                else:
+                    result = source
+                if not isinstance(result, Iterator):
+                    result = iter([result])
+                for value in result:
+                    new_value = {**values, param.name: value}
+                    if new_value not in values_memory:
+                        values_memory.append(new_value)
+
+                    yield from _recursive_iter_params(
+                        context,
+                        manifest,
+                        params[1:],
+                        new_value,
+                    )
+    else:
+        yield values
 
 
-def iterparams(context: Context, model: Model) -> Iterator[ResolvedParams]:
+def iterparams(context: Context, manifest: Manifest, params: List[Param]) -> Iterator[ResolvedParams]:
     values = {}
-    params = model.external.params
+
     if params:
-        raise NotImplementedError()
-        yield from _recursive_iter_params(context, model, params, values)
+        yield from _recursive_iter_params(context, manifest, params, values)
     else:
         yield {}

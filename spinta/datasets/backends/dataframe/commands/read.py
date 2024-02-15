@@ -1,6 +1,7 @@
 import io
 import json
 import pathlib
+import re
 
 import numpy as np
 import urllib
@@ -14,7 +15,7 @@ from lxml import etree
 
 from spinta import commands
 from spinta.components import Context, Property, Model, UrlParams
-from spinta.core.ufuncs import Expr
+from spinta.core.ufuncs import Expr, asttoexpr
 from spinta.datasets.backends.dataframe.components import DaskBackend, Csv, Xml, Json
 from spinta.datasets.backends.dataframe.commands.query import DaskDataFrameQueryBuilder, Selected
 from spinta.datasets.backends.dataframe.ufuncs.components import TabularResource
@@ -24,6 +25,7 @@ from spinta.datasets.helpers import get_enum_filters, get_ref_filters
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.datasets.utils import iterparams
 from spinta.dimensions.enum.helpers import get_prop_enum
+from spinta.dimensions.param.components import ResolvedParams
 from spinta.exceptions import ValueNotInEnum, PropertyNotFound, NoExternalName
 from spinta.manifests.components import Manifest
 from spinta.manifests.dict.helpers import is_list_of_dicts, is_blank_node
@@ -340,6 +342,14 @@ def _get_dask_dataframe_meta(model: Model):
     return dask_meta
 
 
+PARAM_EXTRACTION_REGEX = re.compile("{\\w*}")
+
+
+def requires_parametrization(context: Context, base: str):
+    matched_values = PARAM_EXTRACTION_REGEX.findall(base)
+    return any(matched_values)
+
+
 @commands.getall.register(Context, Model, Json)
 def getall(
     context: Context,
@@ -347,9 +357,25 @@ def getall(
     backend: Json,
     *,
     query: Expr = None,
+    resolved_params: ResolvedParams = None,
     **kwargs
 ) -> Iterator[ObjectData]:
     base = model.external.resource.external
+    bases = []
+    if requires_parametrization(context, base):
+        if resolved_params is None:
+            params = model.external.resource.params
+            resolved_params = iterparams(context, model.manifest, params)
+            for item in resolved_params:
+                bases.append(base.format(**item))
+        else:
+            if not resolved_params:
+                return
+
+            bases = [base.format(**resolved_params)]
+    else:
+        bases = [base]
+
     builder = DaskDataFrameQueryBuilder(context)
     builder.update(model=model)
     props = {}
@@ -362,14 +388,18 @@ def getall(
                 "pkeys": _get_pkeys_if_ref(prop)
             }
 
-    for params in iterparams(context, model):
-        meta = _get_dask_dataframe_meta(model)
-        df = dask.bag.from_sequence([base]).map(
-            _get_data_json,
-            source=model.external.name,
-            model_props=props
-        ).flatten().to_dataframe(meta=meta)
-        yield from _dask_get_all(context, query, df, backend, model, builder)
+    model_formatted_bases = []
+    for formatted_base in bases:
+        for params in iterparams(context, model.manifest, model.params):
+            model_formatted_bases.append(formatted_base.format(params))
+
+    meta = _get_dask_dataframe_meta(model)
+    df = dask.bag.from_sequence(model_formatted_bases).map(
+        _get_data_json,
+        source=model.external.name,
+        model_props=props
+    ).flatten().to_dataframe(meta=meta)
+    yield from _dask_get_all(context, query, df, backend, model, builder)
 
 
 @commands.getall.register(Context, Model, Xml)
@@ -392,7 +422,7 @@ def getall(
                 "pkeys": _get_pkeys_if_ref(prop)
             }
 
-    for params in iterparams(context, model):
+    for params in iterparams(context, model.manifest, model.params):
         df = dask.bag.from_sequence([base]).map(
             _get_data_xml,
             source=model.external.name,
@@ -416,7 +446,7 @@ def getall(
 
     builder = DaskDataFrameQueryBuilder(context)
     builder.update(model=model)
-    for params in iterparams(context, model):
+    for params in iterparams(context, model.manifest, model.params):
         if base:
             url = urllib.parse.urljoin(base, model.external.name)
         else:

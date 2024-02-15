@@ -117,6 +117,7 @@ class Resource(External):
     given: ResourceGiven
     lang: LangData = None
     comments: List[Comment] = None
+    params: List[Param]
 
     schema = {
         'type': {'type': 'string'},
