@@ -60,10 +60,11 @@ def load_manifest_get_context(
     tmp_path: pathlib.Path = None,
     full_load: bool = True,
     ensure_config_dir: bool = False,
+    wipe_data: bool = True,
     **kwargs,
 ) -> TestContext:
     temp_rc = configure_rc(rc, None, **kwargs)
-    context = create_test_context(temp_rc)
+    context = create_test_context(temp_rc, wipe_data=wipe_data)
 
     if isinstance(manifest, str) and '|' in manifest:
         if manifest_type and manifest_type != 'ascii':
@@ -101,7 +102,7 @@ def load_manifest_get_context(
         manifests = manifest
     manifest_type = manifest_type if manifest_type != 'internal_sql' else 'internal'
     rc = configure_rc(rc, manifests, manifest_type='inline' if manifest_type != 'internal' else manifest_type, **kwargs)
-    context = create_test_context(rc, request)
+    context = create_test_context(rc, request, wipe_data=wipe_data)
     store = load_store(context, verbose=False, ensure_config_dir=ensure_config_dir)
     commands.load(context, store.manifest, load_internal=load_internal, full_load=full_load)
     commands.link(context, store.manifest)
@@ -155,6 +156,7 @@ def bootstrap_manifest(
     request: FixtureRequest = None,
     load_internal: bool = True,
     full_load: bool = True,
+    wipe_data: bool = True,
     **kwargs,
 ) -> TestContext:
     context = load_manifest_get_context(
@@ -162,6 +164,7 @@ def bootstrap_manifest(
         request=request,
         load_internal=load_internal,
         full_load=full_load,
+        wipe_data=wipe_data,
         **kwargs,
     )
     store: Store = context.get('store')

@@ -364,14 +364,17 @@ def _read_all_sql_manifest_rows(
     rename_duplicates: bool = True
 ):
     meta = sa.MetaData(conn)
-    table = get_table_structure(meta)
-    full_table = select_full_table(table)
-    stmt = full_table.order_by(
-        table.c.index
-    )
-    rows = conn.execute(stmt)
-    converted = convert_sql_to_tabular_rows(list(rows))
-    yield from _read_tabular_manifest_rows(path=path, rows=converted, rename_duplicates=rename_duplicates)
+    inspector = sa.inspect(conn.engine)
+    table_names = inspector.get_table_names()
+    if '_manifest' in table_names:
+        table = get_table_structure(meta)
+        full_table = select_full_table(table)
+        stmt = full_table.order_by(
+            table.c.index
+        )
+        rows = conn.execute(stmt)
+        converted = convert_sql_to_tabular_rows(list(rows))
+        yield from _read_tabular_manifest_rows(path=path, rows=converted, rename_duplicates=rename_duplicates)
 
 
 def write_internal_sql_manifest(context: Context, dsn: str, manifest: Manifest):
@@ -401,6 +404,16 @@ def _handle_id(item_id: Any):
         else:
             raise InvalidIdType(id=item_id, id_type=type(item_id))
     return uuid.uuid4()
+
+
+def _compare_bases(base_0, base_1):
+    if isinstance(base_0, Base) and isinstance(base_1, Base):
+        converted_0 = list(_base_to_sql(base_0))[0]
+        converted_0["id"] = base_0.id
+        converted_1 = list(_base_to_sql(base_1))[0]
+        converted_1["id"] = base_1.id
+        return converted_0 == converted_1
+    return base_0 == base_1
 
 
 def datasets_to_sql(
@@ -506,11 +519,11 @@ def datasets_to_sql(
                             resource["mpath"] = item["mpath"]
                             resource["depth"] = item["depth"]
             elif external:
-                if not model.external.resource:
+                if resource["item"] is not None and not model.external.resource:
                     resource["item"] = None
                     base["item"] = None
 
-        if model.base and (not base["item"] or model.base.name != base["item"].name):
+        if model.base and (not base["item"] or not _compare_bases(model.base, base["item"])):
             base["item"] = model.base
             parent_id = None
             depth = 0

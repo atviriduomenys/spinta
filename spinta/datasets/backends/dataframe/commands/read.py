@@ -40,7 +40,7 @@ def load(context: Context, backend: DaskBackend, config: Dict[str, Any]):
 
 
 @commands.prepare.register(Context, DaskBackend, Manifest)
-def prepare(context: Context, backend: DaskBackend, manifest: Manifest):
+def prepare(context: Context, backend: DaskBackend, manifest: Manifest, **kwargs):
     pass
 
 

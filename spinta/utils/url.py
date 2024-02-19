@@ -41,6 +41,9 @@ RULES = {
     },
     'inspect': {
         'maxargs': 0
+    },
+    'schema': {
+        'maxargs': 0
     }
 }
 

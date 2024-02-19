@@ -8,7 +8,7 @@ from spinta.backends.postgresql.helpers import get_column_name
 
 
 @commands.prepare.register(Context, PostgreSQL, ExternalRef)
-def prepare(context: Context, backend: PostgreSQL, dtype: ExternalRef):
+def prepare(context: Context, backend: PostgreSQL, dtype: ExternalRef, **kwargs):
     columns = []
     if dtype.prop.given.explicit:
         if dtype.model.given.pkeys or dtype.explicit:
@@ -51,7 +51,7 @@ def prepare(context: Context, backend: PostgreSQL, dtype: ExternalRef):
                 unique=dtype.unique,
             ))
     for key, value in dtype.properties.items():
-        res = commands.prepare(context, backend, value)
+        res = commands.prepare(context, backend, value, **kwargs)
         if res is not None:
             if isinstance(res, list):
                 columns.extend(res)

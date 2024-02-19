@@ -66,6 +66,8 @@ class Manifest(Component):
 
     given: ManifestGiven
 
+    dynamic: bool = False
+
     @staticmethod
     def detect_from_path(path: str) -> bool:
         return False

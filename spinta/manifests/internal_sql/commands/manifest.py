@@ -1,13 +1,18 @@
-from typing import Dict
+from abc import ABC, abstractmethod
+from typing import Dict, List
 import sqlalchemy as sa
 from spinta import commands
 from spinta.components import Model, Namespace, Context
 from spinta.datasets.components import Dataset
+from spinta.datasets.inspect.helpers import zipitems
 from spinta.exceptions import ModelNotFound, NamespaceNotFound, DatasetNotFound
+from spinta.manifests.components import Manifest
 from spinta.manifests.internal_sql.components import InternalSQLManifest
 from spinta.manifests.internal_sql.helpers import internal_to_schema, load_internal_manifest_nodes, get_object_from_id, \
-    select_full_table, update_schema_with_external, load_required_models, get_manifest, get_transaction_connection
+    select_full_table, update_schema_with_external, load_required_models, get_manifest, get_transaction_connection, \
+    datasets_to_sql
 from spinta.types.namespace import load_namespace_from_name
+from spinta.utils.schema import NA
 
 
 def get_model_name_list(context: Context, manifest: InternalSQLManifest, loaded: bool, namespace: str = None, recursive: bool = False):
@@ -172,7 +177,7 @@ def get_model(context: Context, manifest: InternalSQLManifest, model: str, **kwa
                 props = conn.execute(
                     select_full_table(table).where(
                         sa.and_(
-                            table.c.path.startswith(model),
+                            table.c.path.startswith(f'{model}/'),
                             table.c.dim != 'model'
                         )
                     ).order_by(table.c.index)
@@ -212,7 +217,9 @@ def get_model(context: Context, manifest: InternalSQLManifest, model: str, **kwa
             schemas = load_required_models(context, manifest, schemas, required_models)
             load_internal_manifest_nodes(context, manifest, schemas, link=True, ignore_types=['dataset', 'resource'])
             if model in objects['model']:
-                return objects['model'][model]
+                new_model = objects['model'][model]
+                commands.prepare(context, manifest.backend, new_model, ignore_duplicate=True)
+                return new_model
     raise ModelNotFound(model=model)
 
 
@@ -246,7 +253,11 @@ def has_namespace(context: Context, manifest: InternalSQLManifest, namespace: st
     elif conn is not None and not loaded:
         table = manifest.table
         ns = conn.execute(
-            sa.select(table).where(table.c.mpath.startswith(namespace)).limit(1)
+            sa.select(table).where(
+                sa.or_(
+                    table.c.mpath == namespace,
+                    table.c.mpath.startswith(f'{namespace}/')
+                )).limit(1)
         )
         if any(ns):
             return True
@@ -416,3 +427,169 @@ def get_datasets(context: Context, manifest: InternalSQLManifest, loaded: bool =
 def set_dataset(context: Context, manifest: InternalSQLManifest, dataset_name: str, dataset: Dataset, **kwargs):
     manifest.get_objects()['dataset'][dataset_name] = dataset
 
+
+@commands.get_dataset_models.register(Context, InternalSQLManifest, str)
+def get_dataset_models(context: Context, manifest: InternalSQLManifest, dataset_name: str, **kwargs):
+    model_names = get_model_name_list(context, manifest, False, dataset_name)
+    if commands.has_dataset(context, manifest, dataset_name):
+        dataset = commands.get_dataset(context, manifest, dataset_name)
+        filtered_list = {}
+        for name in model_names:
+            model = commands.get_model(context, manifest, name)
+            if model.external and model.external.dataset == dataset:
+                filtered_list[name] = model
+        return filtered_list
+    return {}
+
+
+class RowMergeAction(ABC):
+    row: dict
+
+    def __init__(self, row):
+        self.row = row
+
+    @abstractmethod
+    def query(self, table):
+        pass
+
+    def update_index(self, index):
+        self.row['index'] = index
+        return index + 1
+
+
+class RowMergeInsertAction(RowMergeAction):
+    def query(self, table):
+        return sa.insert(table).values(self.row)
+
+
+class RowMergeUpdateAction(RowMergeAction):
+    def query(self, table):
+        return sa.update(table).where(table.c.id == self.row['id']).values(self.row)
+
+
+class RowMergeDeleteAction(RowMergeAction):
+    def query(self, table):
+        return sa.delete(table).where(table.c.id == self.row['id'])
+
+    def update_index(self, index):
+        return index
+
+
+def _adjust_indexes(table, conn, from_index, starting_index):
+    if from_index is not None:
+        rows = conn.execute(
+            select_full_table(table).where(
+                table.c.index > from_index
+            )
+        )
+        index = starting_index + 1
+        for row in rows:
+            conn.execute(
+                sa.update(table).where(table.c.id == row['id']).values(
+                    index=index
+                )
+            )
+            index += 1
+
+
+class RowMergeBuilder:
+    actions: List[RowMergeAction]
+
+    def __init__(self):
+        self.actions = []
+
+    def add_action(self, action: RowMergeAction):
+        self.actions.append(action)
+
+    def execute_all(self, table, conn, starting_index=None, last_index=None):
+        index = starting_index
+        if index is None:
+            index = 0
+
+        new_last_index = None
+        for action in self.actions:
+            index = action.update_index(index)
+            new_last_index = index
+
+        if last_index is not None and new_last_index is not None:
+            _adjust_indexes(table, conn, last_index, new_last_index)
+
+        for action in self.actions:
+            conn.execute(
+                action.query(table)
+            )
+
+
+@commands.update_manifest_dataset_schema.register(Context, InternalSQLManifest, Manifest)
+def update_manifest_dataset_schema(context: Context, manifest: InternalSQLManifest, target_manifest: Manifest, **kwargs):
+    manifest = get_manifest(context, manifest)
+    conn = get_transaction_connection(context)
+
+    datasets = commands.get_datasets(context, target_manifest)
+    if conn is None:
+        raise Exception("NO CONNECTION")
+
+    table = manifest.table
+    target_rows = datasets_to_sql(context, target_manifest)
+
+    for dataset in datasets.values():
+        in_memory_existing_rows = []
+        initial_index = None
+        last_index = None
+        if has_dataset(context, manifest, dataset.name):
+            existing_data = conn.execute(
+                select_full_table(table).where(
+                    table.c.path.startswith(dataset.name),
+                ).order_by(table.c.index)
+            )
+
+            for row in existing_data:
+                in_memory_existing_rows.append(row)
+                if initial_index is None:
+                    initial_index = row['index']
+                last_index = row['index']
+        else:
+            last_index_row = conn.execute(select_full_table(table).order_by(sa.desc(table.c.index)).limit(1))
+            initial_index = None
+            for row in last_index_row:
+                initial_index = row['index'] + 1
+
+        zipped_rows = zipitems(
+            target_rows,
+            in_memory_existing_rows,
+            _id_key
+        )
+        merge_builder = RowMergeBuilder()
+        models_to_unload = []
+        for rows in zipped_rows:
+            for new, old in rows:
+                if old is NA and new is not NA:
+                    # Insert action
+                    merge_builder.add_action(
+                        RowMergeInsertAction(new)
+                    )
+                elif old is not NA and new is not NA:
+                    # Update action
+                    merge_builder.add_action(
+                        RowMergeUpdateAction(new)
+                    )
+                else:
+                    # Delete action
+                    merge_builder.add_action(
+                        RowMergeDeleteAction(old)
+                    )
+                    if old['dim'] == 'model':
+                        if old['path'] not in models_to_unload:
+                            models_to_unload.append(old['path'])
+
+        with manifest.engine.begin() as merge_connection:
+            merge_builder.execute_all(
+                table,
+                merge_connection,
+                initial_index,
+                last_index
+            )
+
+
+def _id_key(row: dict) -> str:
+    return row["id"]

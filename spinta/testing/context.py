@@ -24,13 +24,14 @@ def create_test_context(
     request: FixtureRequest = None,
     *,
     name: str = 'pytest',
+    wipe_data: bool = True
 ) -> TestContext:
     rc = rc.fork()
     Context_ = rc.get('components', 'core', 'context', cast=importstr)
     Context_ = type('ContextForTests', (ContextForTests, Context_), {})
     context = Context_(name)
     context = create_context(name, rc, context)
-    if request:
+    if request and wipe_data:
         request.addfinalizer(context.wipe_all)
     return context
 

@@ -5,6 +5,6 @@ from spinta.backends.mongo.components import Mongo
 
 
 @commands.prepare.register(Context, Mongo, Manifest)
-def prepare(context: Context, backend: Mongo, manifest: Manifest):
+def prepare(context: Context, backend: Mongo, manifest: Manifest, **kwargs):
     # Mongo does not need any table or database preparations
     pass

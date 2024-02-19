@@ -220,6 +220,11 @@ CONFIG = {
     # Last updated: 2023-11-08
     'languages': ['lt', 'ru', 'de', 'en', 'fr', 'it', 'es', 'pl', 'uk', 'ro', 'nl'],
 
+    # Used to determine max file size (MB) that can be uploaded using API (to prevent DoS attacks)
+    # If nothing is set, default is 100 MB
+    'max_file_size': 100,
+
+
     'environments': {
         'dev': {
             'keymaps.default': {
