@@ -864,3 +864,7 @@ class ModifySchemaRequiresFile(UserError):
 
 class FileSizeTooLarge(UserError):
     template = "Given file is too large, only up to {allowed_amount} {measure} is allowed."
+
+
+class SRIDNotSetForGeometry(BaseError):
+    template = "Geometry SRID is required, but was given None."

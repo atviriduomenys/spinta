@@ -39,7 +39,7 @@ from spinta.components import Node
 from spinta.components import Property
 from spinta.core.ufuncs import asttoexpr
 from spinta.exceptions import ConflictingValue, RequiredProperty, LangNotDeclared, TooManyLangsGiven, \
-    UnableToDetermineRequiredLang, CoordinatesOutOfRange, InheritPropertyValueMissmatch
+    UnableToDetermineRequiredLang, CoordinatesOutOfRange, InheritPropertyValueMissmatch, SRIDNotSetForGeometry
 from spinta.exceptions import NoItemRevision
 from spinta.formats.components import Format
 from spinta.manifests.components import Manifest
@@ -57,16 +57,11 @@ from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.types.datatype import String
 from spinta.types.geometry.components import Geometry
-from spinta.types.geometry.constants import WGS84
 from spinta.utils.config import asbool
-from spinta.utils.data import take
 from spinta.utils.encoding import encode_page_values
-from spinta.utils.nestedstruct import flatten_value
 from spinta.utils.schema import NA
 from spinta.utils.schema import NotAvailable
 from spinta.types.text.components import Text
-from spinta.exceptions import UserError
-from spinta.utils.errors import report_error
 
 
 @commands.prepare_for_write.register(Context, Model, Backend, dict)
@@ -401,7 +396,11 @@ def simple_data_check(
         else:
             shape = shapely.wkt.loads(value)
 
-        srid = dtype.srid or WGS84
+        srid = dtype.srid
+
+        if srid is None:
+            raise SRIDNotSetForGeometry(dtype)
+
         crs = CRS.from_user_input(srid)
         area = crs.area_of_use
         bounding_area = shapely.geometry.box(

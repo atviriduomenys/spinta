@@ -9,7 +9,7 @@ from spinta.exceptions import TooManyParameters
 from spinta.manifests.components import Manifest
 from spinta.types.datatype import DataType
 from spinta.types.geometry.components import Geometry
-
+from spinta.types.geometry.constants import WGS84
 
 GEOMETRY_TYPES = {
     'point',
@@ -60,6 +60,9 @@ def load(
         geometry_type = geometry_type.lower()
         if geometry_type not in GEOMETRY_TYPES:
             raise InvalidParameterValue(dtype, parameter='geometry_type')
+
+    if srid is None:
+        srid = WGS84
 
     dtype.srid = srid
     dtype.geometry_type = geometry_type

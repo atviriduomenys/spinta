@@ -3,8 +3,74 @@
 Changes
 #######
 
-0.1.61 (unreleased)
+0.1.62 (unreleased)
 ===================
+
+
+0.1.61 (2024-01-31)
+===================
+
+Backwards incompatible changes:
+
+- Check geometry boundaries (`#454`__). Previously you could publish spatial
+  data, with geometries out of CRS bounds, now if your geometry is out of CRS
+  bound, you will get error. To fix that, you need to check if you specify
+  correct SRID and if you pass geometries according to specified SRID
+  specifikation.
+
+  __ https://github.com/atviriduomenys/spinta/issues/454
+
+
+New features:
+
+- New type of manifest read from database, this enables live schema updates
+  (`#113`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/113
+
+- Automatic migrations with `spinta migrate` command, this command compares
+  manifest and database schema and migrates database schema, to match given
+  manifest table (`#372`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/372
+
+- HTTP API for inspect (`#477`__). Now it is possible to inspect data source
+  not only from CLI, but also via HTTP API.
+
+  __ https://github.com/atviriduomenys/spinta/issues/477
+
+
+Improvements:
+
+- Generate next page only for last object (`#529`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/529
+
+
+Bug fixes:
+
+- Fixing denormalized properties (`#379`__, `#380`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/379
+  __ https://github.com/atviriduomenys/spinta/issues/380
+
+- Fix join with base model (`#437`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/437
+
+- Fix WIPE timeout with large amounts of related data (`#432`__). This is fixed
+  by adding indexes on related columns.
+
+  __ https://github.com/atviriduomenys/spinta/issues/432
+
+- Fix changed dictionaly size error (`#554`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/554
+
+- Fix pagination infinite loop error (`#542`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/542
+
 
 
 0.1.60 (2023-11-21)

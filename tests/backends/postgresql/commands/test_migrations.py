@@ -1,8 +1,10 @@
+import itertools
 import json
 from pathlib import Path
 
 import pytest
 
+from spinta.backends.postgresql.helpers import get_pg_name
 from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.manifests.tabular.helpers import striptable
@@ -77,7 +79,7 @@ def override_manifest(context: Context, path, manifest):
 def _clean_up_tables(meta: sa.MetaData, tables: list):
     table_list = []
     for table in tables:
-        table_list.append(meta.tables[table])
+        table_list.append(meta.tables[get_pg_name(table)])
     meta.drop_all(tables=table_list)
 
 
@@ -1951,7 +1953,7 @@ def test_migrate_modify_geometry_type(
         conn.execute(table.insert().values({
             "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7e",
             "someText": "Vilnius",
-            "someGeo": "POINT(15 15)",
+            "someGeo": "SRID=4326;POINT(15 15)",
             "someGeoLt": "SRID=3346;POINT(-471246.92725520115 1678519.8837915037)",
             "someGeoWorld": "SRID=4326;POINT(15 15)"
         }))
@@ -1987,11 +1989,10 @@ def test_migrate_modify_geometry_type(
         'BEGIN;\n'
         '\n'
         'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someGeo" TYPE '
-        'geometry(GEOMETRY,3346) USING ST_Transform(ST_SetSRID("someGeo", 4326), '
-        '3346);\n'
+        'geometry(GEOMETRY,3346) USING ST_Transform("someGeo", 3346);\n'
         '\n'
         'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someGeoLt" TYPE '
-        'geometry(GEOMETRY,-1) USING ST_Transform("someGeoLt", 4326);\n'
+        'geometry(GEOMETRY,4326) USING ST_Transform("someGeoLt", 4326);\n'
         '\n'
         'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someGeoWorld" TYPE '
         'geometry(GEOMETRY,3346) USING ST_Transform("someGeoWorld", 3346);\n'
@@ -2304,3 +2305,115 @@ def test_migrate_rename_property(
 
         _clean_up_tables(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog',
                                 'migrate/example/Test/:file/newFile', 'migrate/example/Ref'])
+
+
+def test_migrate_long_names(
+    postgresql_migration: URL,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    cleanup_tables(postgresql_migration)
+    initial_manifest = '''
+     d               | r | b | m    | property     | type   | ref
+    '''
+    context, rc = _configure(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    override_manifest(context, tmp_path, '''
+     d               | r | b    | m    | property       | type           | ref | source
+     migrate/example/very/very/long/dataset/name |   |      |      |                |                |     |
+                     |   |      | ExtremelyLongModelName |                |                | veryLongPrimaryKeyName |
+                     |   |      |      | veryLongPrimaryKeyName       | string         |     |
+                     |   |      |      | veryLongGeometryPropertyName | geometry       |     |
+                     |   |      |      | veryLongGeometryPropertyNameOther | geometry       |     |
+    ''')
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p'
+    ])
+    pieces = [
+        (
+            'CREATE INDEX '
+            '"ix_migrate/example/very/very/long/dat_a891da56_ropertyNameOther" ON '
+            '"migrate/example/very/very/long/datase_0f562213_elyLongModelName" USING gist '
+            '("veryLongGeometryPropertyNameOther");\n'
+            '\n'
+        ),
+        (
+            'CREATE INDEX '
+            '"ix_migrate/example/very/very/long/dat_15d1f601_etryPropertyName" ON '
+            '"migrate/example/very/very/long/datase_0f562213_elyLongModelName" USING gist '
+            '("veryLongGeometryPropertyName");\n'
+            '\n'
+        ),
+        (
+            'CREATE INDEX "ix_migrate/example/very/very/long/datase_0f562213_elyLo_d813" '
+            'ON "migrate/example/very/very/long/datase_0f562213_elyLongModelName" '
+            '(_txn);\n'
+            '\n'
+        )
+    ]
+
+    combos = itertools.permutations(pieces, 3)
+    ordered = pieces[0]
+    for combo in combos:
+        parsed = ''.join(combo)
+        if parsed in result.output:
+            ordered = parsed
+            break
+
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'CREATE TABLE '
+        '"migrate/example/very/very/long/datase_0f562213_elyLongModelName" (\n'
+        '    _txn UUID, \n'
+        '    _created TIMESTAMP WITHOUT TIME ZONE, \n'
+        '    _updated TIMESTAMP WITHOUT TIME ZONE, \n'
+        '    _id UUID NOT NULL, \n'
+        '    _revision TEXT, \n'
+        '    "veryLongPrimaryKeyName" TEXT, \n'
+        '    "veryLongGeometryPropertyName" geometry(GEOMETRY,4326), \n'
+        '    "veryLongGeometryPropertyNameOther" geometry(GEOMETRY,4326), \n'
+        '    PRIMARY KEY (_id)\n'
+        ');\n'
+        '\n'
+        f'{ordered}'
+        'ALTER TABLE '
+        '"migrate/example/very/very/long/datase_0f562213_elyLongModelName" ADD '
+        'CONSTRAINT "migrate/example/very/very/long/datase_c824bbc4_imaryKeyName_key" '
+        'UNIQUE ("veryLongPrimaryKeyName");\n'
+        '\n'
+        'CREATE TABLE '
+        '"migrate/example/very/very/long/datase_d087b1e4_lName/:changelog" (\n'
+        '    _id BIGSERIAL NOT NULL, \n'
+        '    _revision VARCHAR, \n'
+        '    _txn UUID, \n'
+        '    _rid UUID, \n'
+        '    datetime TIMESTAMP WITHOUT TIME ZONE, \n'
+        '    action VARCHAR(8), \n'
+        '    data JSONB, \n'
+        '    PRIMARY KEY (_id)\n'
+        ');\n'
+        '\n'
+        'CREATE INDEX "ix_migrate/example/very/very/long/datase_d087b1e4_lName_c8ee" '
+        'ON "migrate/example/very/very/long/datase_d087b1e4_lName/:changelog" '
+        '(_txn);\n'
+        '\n'
+        'COMMIT;\n'
+        '\n')
+
+    cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv'
+    ])
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        table = tables[get_pg_name("migrate/example/very/very/long/dataset/name/ExtremelyLongModelName")]
+
+        _clean_up_tables(meta, ['migrate/example/very/very/long/dataset/name/ExtremelyLongModelName', 'migrate/example/very/very/long/dataset/name/ExtremelyLongModelName/:changelog'])
