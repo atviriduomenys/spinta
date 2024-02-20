@@ -1,5 +1,5 @@
-from collections.abc import Generator
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 
 from spinta import commands
 from spinta.components import Model
@@ -11,12 +11,12 @@ from spinta.dimensions.param.components import ParamBuilder, ParamLoader
 from spinta.utils.schema import NotAvailable
 
 
-class _Loop:
+class LoopExpr:
     expr: Expr
-    arg: Any
+    iterator: Iterator
 
-    def __init__(self, expr, arg):
-        self.arg = arg
+    def __init__(self, expr, iterator):
+        self.iterator = iterator
         self.expr = expr
 
 
@@ -26,38 +26,33 @@ def param(env: Env, bind: Bind) -> Any:
 
 
 @ufunc.resolver(ParamBuilder, Expr)
-def select(env: ParamBuilder, expr: Expr) -> Any:
-    if isinstance(env.this, Model):
-        data = commands.getall(env.context, env.this, env.this.backend, query=expr, resolved_params=env.params)
-        return data
-
-
-@ufunc.resolver(ParamBuilder, Expr, name="getattr")
-def getattr_(env: ParamBuilder, expr: Expr):
+def read(env: ParamBuilder, expr: Expr) -> Any:
     args, kwargs = expr.resolve(env)
-    resolved = env.call("getattr", *args)
-    yield from resolved
+    if not args:
+        if isinstance(env.this, Model):
+            return commands.getall(env.context, env.this, env.this.backend, resolved_params=env.params)
 
 
-@ufunc.resolver(ParamBuilder, Generator, object, name="getattr")
-def getattr_(env: ParamBuilder, generator: Generator, obj: object):
-    for item in generator:
-        yield from env.call("getattr", item, obj)
+@ufunc.resolver(ParamBuilder, Iterator, Bind, name="getattr")
+def getattr_(env: ParamBuilder, iterator: Iterator, bind: Bind):
+    for item in iterator:
+        yield from env.call("getattr", item, bind)
 
 
-@ufunc.resolver(ParamBuilder, _Loop, Bind, name="getattr")
-def getattr_(env: ParamBuilder, _loop: _Loop, bind: Bind):
-    data = env.call('getattr', _loop.arg, bind)
+@ufunc.resolver(ParamBuilder, LoopExpr, Bind, name="getattr")
+def getattr_(env: ParamBuilder, loop_: LoopExpr, bind: Bind):
+    data = env.call('getattr', loop_.iterator, bind)
     if isinstance(data, Iterator):
         for item in data:
-            if item:
+            if item is not None:
                 yield item
 
                 if item != env.params[env.target_param]:
                     env.params[env.target_param] = item
-                    args, kwargs = _loop.expr.resolve(env)
-                    for arg in args:
-                        yield from env.call('getattr', _Loop(_loop.expr, arg), bind)
+                    new_loops = env.call('loop', loop_.expr)
+                    for new_loop in new_loops:
+                        if isinstance(new_loop, LoopExpr):
+                            yield from env.call('getattr', new_loop, bind)
 
 
 @ufunc.resolver(ParamBuilder, dict, Bind, name="getattr")
@@ -70,18 +65,12 @@ def getattr_(env: ParamBuilder, data: dict, bind: Bind):
 def loop(env: ParamBuilder, expr: Expr):
     args, kwargs = expr.resolve(env)
     for arg in args:
-        yield _Loop(expr, arg)
-
-
-@ufunc.resolver(ParamBuilder, Generator, Bind)
-def loop(env: ParamBuilder, generator: Generator, bind: Bind):
-    for item in generator:
-        data = env.call("getattr", item, bind)
-        yield data
+        if isinstance(arg, Iterator):
+            yield LoopExpr(expr, arg)
 
 
 @ufunc.executor(ParamBuilder, NotAvailable)
-def select(env: ParamBuilder, na: NotAvailable) -> Any:
+def read(env: ParamBuilder, na: NotAvailable) -> Any:
     return env.this
 
 
@@ -95,7 +84,7 @@ def resolve_param(env: ParamLoader, params: list):
 def resolve_param(env: ParamLoader, parameter: Param):
     for i, (source, formula) in enumerate(zip(parameter.sources.copy(), parameter.formulas)):
         if isinstance(source, str) and formula:
-            requires_model = env.call("contains_select", formula)
+            requires_model = env.call("contains_read", formula)
             if requires_model:
                 new_name = source
                 if env.dataset and '/' not in source:
@@ -112,12 +101,12 @@ def resolve_param(env: ParamLoader, parameter: Param):
 
 
 @ufunc.resolver(ParamLoader, object)
-def contains_select(env: ParamLoader, obj: object):
+def contains_read(env: ParamLoader, obj: object):
     return False
 
 
 @ufunc.resolver(ParamLoader, Expr)
-def contains_select(env: ParamLoader, expr: Expr):
+def contains_read(env: ParamLoader, expr: Expr):
     for arg in expr.args:
         result = env.resolve(arg)
         if isinstance(result, bool) and result is True:
@@ -126,7 +115,7 @@ def contains_select(env: ParamLoader, expr: Expr):
 
 
 @ufunc.resolver(ParamLoader, object)
-def select(env: ParamLoader, any_: object):
+def read(env: ParamLoader, any_: object):
     return True
 
 

@@ -342,12 +342,19 @@ def _get_dask_dataframe_meta(model: Model):
     return dask_meta
 
 
-PARAM_EXTRACTION_REGEX = re.compile("{\\w*}")
-
-
 def requires_parametrization(context: Context, base: str):
-    matched_values = PARAM_EXTRACTION_REGEX.findall(base)
-    return any(matched_values)
+    if '{' in base:
+        if '}' in base:
+            first = base.index('{')
+            second = base.index('}')
+            return first < second
+    return False
+
+
+def mapped_basses(context: Context, model: Model, bases: list):
+    for formatted_base in bases:
+        for params in iterparams(context, model.manifest, model.params):
+            yield formatted_base.format(params)
 
 
 @commands.getall.register(Context, Model, Json)
@@ -388,13 +395,8 @@ def getall(
                 "pkeys": _get_pkeys_if_ref(prop)
             }
 
-    model_formatted_bases = []
-    for formatted_base in bases:
-        for params in iterparams(context, model.manifest, model.params):
-            model_formatted_bases.append(formatted_base.format(params))
-
     meta = _get_dask_dataframe_meta(model)
-    df = dask.bag.from_sequence(model_formatted_bases).map(
+    df = dask.bag.from_sequence(mapped_basses(context, model, bases)).map(
         _get_data_json,
         source=model.external.name,
         model_props=props
