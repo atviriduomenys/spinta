@@ -8,6 +8,7 @@ from spinta.manifests.components import Manifest
 
 class ParamBuilder(Env):
     manifest: Manifest
+    params: dict
     target_param: str
     stack: list
 

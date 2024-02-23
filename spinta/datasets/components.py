@@ -160,10 +160,26 @@ class Resource(External):
         self.params = {}
 
 
-class Param:
+class Param(ExtraMetaData):
     name: str
-    sources: List[str]
+    title: str
+    description: str
+    # Formatted values
+    sources: List[Any]
     formulas: List[Expr]
+
+    # Given values
+    source: List[Any]
+    prepare: List[Any]
+
+    schema = {
+        'type': {'type': 'string'},
+        'title': {'type': 'string'},
+        'description': {'type': 'string'},
+        'name': {'type': 'string'},
+        'source': {'type': 'list'},
+        'prepare': {'type': 'list'}
+    }
 
 
 class Entity(External):

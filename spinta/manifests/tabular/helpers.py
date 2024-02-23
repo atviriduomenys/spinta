@@ -32,7 +32,7 @@ from spinta import spyna
 from spinta.backends import Backend
 from spinta.backends.components import BackendOrigin
 from spinta.components import Context, Base, PrepareGiven
-from spinta.datasets.components import Resource
+from spinta.datasets.components import Resource, Param
 from spinta.dimensions.comments.components import Comment
 from spinta.dimensions.enum.components import EnumItem
 from spinta.components import Model
@@ -569,6 +569,26 @@ def _get_type_repr(dtype: [DataType, str]):
         return f'{dtype}{args}{required}{unique}'
 
 
+def combine_source_prepare(source, prepare):
+    result = prepare
+    if source:
+        if result:
+            split = result.split('.')
+            formula = split[0]
+            split_formula = formula.split('(')
+            formatted = source.replace('"', '\\"').replace("'", "\\'")
+
+            if split_formula[1].strip() == ')':
+                reconstructed = f'{split_formula[0]}("{formatted}"{"(".join(split_formula[1:])}'
+            else:
+                reconstructed = f'{split_formula[0]}("{formatted}", {"(".join(split_formula[1:])}'
+            split[0] = reconstructed
+            result = '.'.join(split)
+        else:
+            result = source
+    return result
+
+
 class PropertyReader(TabularReader):
     type: str = 'property'
     data: PropertyRow
@@ -585,19 +605,7 @@ class PropertyReader(TabularReader):
 
     def append(self, row: Dict[str, str]) -> None:
         if not row['property']:
-            result = row['prepare']
-
-            if row['source']:
-                if result:
-                    split = result.split('.')
-                    formula = split[0]
-                    split_formula = formula.split('(')
-                    formatted = row["source"].replace('"', '\\"').replace("'", "\\'")
-                    reconstructed = f'{split_formula[0]}("{formatted}", {"(".join(split_formula[1:])}'
-                    split[0] = reconstructed
-                    result = '.'.join(split)
-                else:
-                    result = row['source']
+            result = combine_source_prepare(row['source'], row['prepare'])
             if not result:
                 return
             self._append_prepare(row, result)
@@ -2052,30 +2060,29 @@ def _unique_to_tabular(model_unique_data, hide_list: List) -> Iterator[ManifestR
             })
 
 
-def _params_to_tabular(params_data) -> Iterator[ManifestRow]:
-    if not params_data:
+def _params_to_tabular(params: List[Param]) -> Iterator[ManifestRow]:
+    if not params:
         return
-    for param, values in params_data.items():
-        for i in range(len(values["source"])):
-            if isinstance(values["prepare"][i], NotAvailable):
+    for param in params:
+        for i, (source, prepare) in enumerate(zip(param.source, param.prepare)):
+            if isinstance(prepare, NotAvailable):
                 prepare = ''
             else:
-                prepare = spyna.unparse(values["prepare"][i])
-            if not (isinstance(values["prepare"][i], NotAvailable) and values['source'][i] == ''):
-                if i == 0:
-                    yield torow(DATASET, {
-                        'type': 'param',
-                        'ref': param,
-                        'source': values["source"][i],
-                        'prepare': prepare,
-                        'title': values["title"],
-                        'description': values["description"]
-                    })
-                else:
-                    yield torow(DATASET, {
-                        'source': values["source"][i],
-                        'prepare': prepare
-                    })
+                prepare = spyna.unparse(prepare)
+            if i == 0:
+                yield torow(DATASET, {
+                    'type': 'param',
+                    'ref': param.name,
+                    'source': source,
+                    'prepare': prepare,
+                    'title': param.title,
+                    'description': param.description
+                })
+            else:
+                yield torow(DATASET, {
+                    'source': source,
+                    'prepare': prepare
+                })
 
 
 def _dataset_to_tabular(

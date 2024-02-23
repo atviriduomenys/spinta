@@ -368,20 +368,12 @@ def getall(
     **kwargs
 ) -> Iterator[ObjectData]:
     base = model.external.resource.external
-    bases = []
-    if requires_parametrization(context, base):
-        if resolved_params is None:
-            params = model.external.resource.params
-            resolved_params = iterparams(context, model.manifest, params)
-            for item in resolved_params:
-                bases.append(base.format(**item))
-        else:
-            if not resolved_params:
-                return
-
-            bases = [base.format(**resolved_params)]
-    else:
-        bases = [base]
+    bases = parametrize_bases(
+        context,
+        model,
+        base,
+        resolved_params
+    )
 
     builder = DaskDataFrameQueryBuilder(context)
     builder.update(model=model)
@@ -396,7 +388,7 @@ def getall(
             }
 
     meta = _get_dask_dataframe_meta(model)
-    df = dask.bag.from_sequence(mapped_basses(context, model, bases)).map(
+    df = dask.bag.from_sequence(bases).map(
         _get_data_json,
         source=model.external.name,
         model_props=props
@@ -411,9 +403,16 @@ def getall(
     backend: Xml,
     *,
     query: Expr = None,
+    resolved_params: ResolvedParams = None,
     **kwargs
 ) -> Iterator[ObjectData]:
     base = model.external.resource.external
+    bases = parametrize_bases(
+        context,
+        model,
+        base,
+        resolved_params
+    )
     builder = DaskDataFrameQueryBuilder(context)
     builder.update(model=model)
     props = {}
@@ -424,13 +423,34 @@ def getall(
                 "pkeys": _get_pkeys_if_ref(prop)
             }
 
-    for params in iterparams(context, model.manifest, model.params):
-        df = dask.bag.from_sequence([base]).map(
-            _get_data_xml,
-            source=model.external.name,
-            model_props=props
-        ).flatten().to_dataframe(meta=_get_dask_dataframe_meta(model))
-        yield from _dask_get_all(context, query, df, backend, model, builder)
+    meta = _get_dask_dataframe_meta(model)
+    df = dask.bag.from_sequence(bases).map(
+        _get_data_xml,
+        source=model.external.name,
+        model_props=props
+    ).flatten().to_dataframe(meta=meta)
+    yield from _dask_get_all(context, query, df, backend, model, builder)
+
+
+def parametrize_bases(
+    context: Context,
+    model: Model,
+    base: str,
+    resolved_params: dict,
+    *args
+):
+    if requires_parametrization(context, base):
+        if not resolved_params:
+            params = model.external.resource.params
+            resolved_params = iterparams(context, model, model.manifest, params)
+            for item in resolved_params:
+                yield base.format(*args, **item)
+        else:
+            formatted = base.format(*args, **resolved_params)
+            if formatted != base:
+                yield formatted
+    else:
+        yield base
 
 
 @commands.getall.register(Context, Model, Csv)
@@ -507,7 +527,7 @@ def spinta_to_np_dtype(dtype: Integer):
 
 @commands.spinta_to_np_dtype.register(DateTime)
 def spinta_to_np_dtype(dtype: DateTime):
-    return "datetime64[ns]"
+    return "object"
 
 
 @commands.spinta_to_np_dtype.register(DataType)

@@ -11,26 +11,40 @@ from spinta.dimensions.param.components import ParamBuilder, ParamLoader
 from spinta.utils.schema import NotAvailable
 
 
-class LoopExpr:
-    expr: Expr
-    iterator: Iterator
-
-    def __init__(self, expr, iterator):
-        self.iterator = iterator
-        self.expr = expr
-
-
 @ufunc.resolver(Env, Bind)
 def param(env: Env, bind: Bind) -> Any:
     return env.params[bind.name]
 
 
-@ufunc.resolver(ParamBuilder, Expr)
-def read(env: ParamBuilder, expr: Expr) -> Any:
-    args, kwargs = expr.resolve(env)
-    if not args:
-        if isinstance(env.this, Model):
-            return commands.getall(env.context, env.this, env.this.backend, resolved_params=env.params)
+@ufunc.resolver(ParamBuilder, Model)
+def read(env: ParamBuilder, model: Model) -> Any:
+    return commands.getall(env.context, env.this, env.this.backend, resolved_params=env.params)
+
+
+@ufunc.resolver(ParamBuilder, str)
+def read(env: ParamBuilder, obj: str):
+    new_name = obj
+    if '/' not in obj:
+        model_ = env.this
+        if isinstance(model_, Model) and model_.external and model_.external.dataset:
+            new_name = '/'.join([
+                model_.external.dataset.name,
+                obj,
+            ])
+    if commands.has_model(env.context, env.manifest, new_name):
+        model = commands.get_model(env.context, env.manifest, new_name)
+        return env.call("read", model)
+    elif obj != new_name and commands.has_model(env.context, env.manifest, obj):
+        model = commands.get_model(env.context, env.manifest, obj)
+        return env.call("read", model)
+    raise Exception("COULD NOT MAP READ WITH", obj)
+
+
+@ufunc.resolver(ParamBuilder)
+def read(env: ParamBuilder) -> Any:
+    if isinstance(env.this, Model):
+        return env.call("read", env.this)
+    raise Exception("env.this needs to be Model", env.this, type(env.this))
 
 
 @ufunc.resolver(ParamBuilder, Iterator, Bind, name="getattr")
@@ -39,34 +53,25 @@ def getattr_(env: ParamBuilder, iterator: Iterator, bind: Bind):
         yield from env.call("getattr", item, bind)
 
 
-@ufunc.resolver(ParamBuilder, LoopExpr, Bind, name="getattr")
-def getattr_(env: ParamBuilder, loop_: LoopExpr, bind: Bind):
-    data = env.call('getattr', loop_.iterator, bind)
-    if isinstance(data, Iterator):
-        for item in data:
-            if item is not None:
-                yield item
-
-                if item != env.params[env.target_param]:
-                    env.params[env.target_param] = item
-                    new_loops = env.call('loop', loop_.expr)
-                    for new_loop in new_loops:
-                        if isinstance(new_loop, LoopExpr):
-                            yield from env.call('getattr', new_loop, bind)
-
-
 @ufunc.resolver(ParamBuilder, dict, Bind, name="getattr")
 def getattr_(env: ParamBuilder, data: dict, bind: Bind):
     if bind.name in data:
         yield data[bind.name]
 
 
-@ufunc.resolver(ParamBuilder, Expr)
-def loop(env: ParamBuilder, expr: Expr):
-    args, kwargs = expr.resolve(env)
-    for arg in args:
-        if isinstance(arg, Iterator):
-            yield LoopExpr(expr, arg)
+@ufunc.resolver(ParamBuilder, NotAvailable, name="getattr")
+def getattr_(env: ParamBuilder, _: NotAvailable):
+    return env.this
+
+
+# {'name': 'getattr', 'args': [{'name': 'loop', 'args': [{'name': 'read', 'args': []}], 'type': 'method'}, {'name': 'bind', 'args': ['more']}]}
+# getattr [ loop(read()), bind(more) ]
+#  1 -> stack = [1]
+#  loop stack [1]
+#  read(1) -> 2
+#  pop(1) from stack
+#  2 -> stack
+#  loop until stack is empty
 
 
 @ufunc.executor(ParamBuilder, NotAvailable)
@@ -82,35 +87,37 @@ def resolve_param(env: ParamLoader, params: list):
 
 @ufunc.resolver(ParamLoader, Param)
 def resolve_param(env: ParamLoader, parameter: Param):
-    for i, (source, formula) in enumerate(zip(parameter.sources.copy(), parameter.formulas)):
-        if isinstance(source, str) and formula:
-            requires_model = env.call("contains_read", formula)
-            if requires_model:
-                new_name = source
-                if env.dataset and '/' not in source:
-                    new_name = '/'.join([
-                        env.dataset.name,
-                        source,
-                    ])
-                if commands.has_model(env.context, env.manifest, new_name):
-                    model = commands.get_model(env.context, env.manifest, new_name)
-                    parameter.sources[i] = model
-                elif source != new_name and commands.has_model(env.context, env.manifest, source):
-                    model = commands.get_model(env.context, env.manifest, source)
-                    parameter.sources[i] = model
-
-
-@ufunc.resolver(ParamLoader, object)
-def contains_read(env: ParamLoader, obj: object):
-    return False
+    for i, (source, prepare) in enumerate(zip(parameter.sources.copy(), parameter.formulas)):
+        formula = None
+        if isinstance(prepare, Expr):
+            formula = Expr(prepare.name, *prepare.args, **prepare.kwargs)
+        requires_model = env.call("contains_read", formula)
+        if isinstance(source, str) and requires_model:
+            new_name = source
+            if env.dataset and '/' not in source:
+                new_name = '/'.join([
+                    env.dataset.name,
+                    source,
+                ])
+            if commands.has_model(env.context, env.manifest, new_name):
+                model = commands.get_model(env.context, env.manifest, new_name)
+                parameter.sources[i] = model
+            elif source != new_name and commands.has_model(env.context, env.manifest, source):
+                model = commands.get_model(env.context, env.manifest, source)
+                parameter.sources[i] = model
 
 
 @ufunc.resolver(ParamLoader, Expr)
 def contains_read(env: ParamLoader, expr: Expr):
-    for arg in expr.args:
-        result = env.resolve(arg)
-        if isinstance(result, bool) and result is True:
+    resolved, _ = expr.resolve(env)
+    for arg in resolved:
+        if isinstance(arg, bool) and arg is True:
             return True
+    return False
+
+
+@ufunc.resolver(ParamLoader, object)
+def contains_read(env: ParamLoader, obj: object):
     return False
 
 
@@ -119,11 +126,7 @@ def read(env: ParamLoader, any_: object):
     return True
 
 
-@ufunc.resolver(ParamLoader, Expr)
-def loop(env: ParamLoader, expr: Expr):
-    for arg in expr.args:
-        result = env.resolve(arg)
-        if result:
-            return result
-    return False
+@ufunc.resolver(ParamLoader)
+def read(env: ParamLoader):
+    return True
 
