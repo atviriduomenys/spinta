@@ -351,12 +351,6 @@ def requires_parametrization(context: Context, base: str):
     return False
 
 
-def mapped_basses(context: Context, model: Model, bases: list):
-    for formatted_base in bases:
-        for params in iterparams(context, model.manifest, model.params):
-            yield formatted_base.format(params)
-
-
 @commands.getall.register(Context, Model, Json)
 def getall(
     context: Context,
