@@ -146,16 +146,26 @@ def read_schema(manifest_type: DictFormat, path: str, dataset_name: str):
 
 
 def _fix_for_blank_nodes(values: Any):
+    return_values = values
     if isinstance(values, dict):
+        result = {}
         keys = list(values.keys())
-        if len(keys) == 1:
-            if isinstance(values[keys[0]], dict):
-                return {
-                    keys[0]: [
-                        values[keys[0]]
-                    ]
-                }
-    return values
+        while len(keys) == 1:
+            prev_key = keys[0]
+            values = values[prev_key]
+            result[prev_key] = values
+
+            if isinstance(values, dict):
+                keys = list(values.keys())
+            else:
+                result = return_values
+                break
+
+            if len(keys) != 1:
+                result[prev_key] = [values]
+
+        return_values = result
+    return return_values
 
 
 class _MappedProperties(TypedDict):
@@ -428,8 +438,16 @@ def is_blank_node(values: Union[list, dict]) -> bool:
         return True
     if isinstance(values, dict):
         val = values
-        if len(val.keys()) == 1:
-            return False
+        first_value = val[list(val.keys())[0]]
+        if len(val.keys()) == 1 and isinstance(first_value, dict):
+            while len(val.keys()) == 1 and isinstance(first_value, dict):
+                val = val[list(val.keys())[0]]
+                first_value = val[list(val.keys())[0]]
+                if len(val.keys()) != 1:
+                    return True
+                if isinstance(first_value, list):
+                    return False
+            return True
         else:
             for key, value in values.items():
                 if not isinstance(value, list):

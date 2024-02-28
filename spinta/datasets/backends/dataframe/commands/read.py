@@ -136,65 +136,70 @@ def _select_primary_key(model: Model, df: DataFrame):
     return Selected(prop=model.properties['_id'], prep=result)
 
 
+def _parse_xml_loop_model_properties(value, elem_list: list, added_root_elements: list, model_props: dict, namespaces: dict):
+    new_dict = {}
+
+    # Go through each prop source with xpath of root path
+    for prop in model_props.values():
+        v = value.xpath(prop["source"], namespaces=namespaces)
+        new_value = None
+        if v:
+            v = v[0]
+            if isinstance(v, etree._Element):
+
+                # Check if prop has pkeys (means its ref type)
+                # If pkeys exists iterate with xpath and get the values
+                pkeys = prop["pkeys"]
+
+                if pkeys and prop["source"].endswith(('.', '/')):
+                    ref_keys = []
+                    for key in pkeys:
+                        ref_item = v.xpath(key, namespaces=namespaces)
+                        if ref_item:
+                            ref_item = ref_item[0]
+                            if isinstance(ref_item, etree._Element):
+                                if ref_item.text:
+                                    ref_item = ref_item.text
+                                elif ref_item.attrib:
+                                    ref_item = ref_item.attrib
+                                else:
+                                    ref_item = None
+                            elif not ref_item:
+                                ref_item = None
+                            ref_keys.append(str(ref_item))
+                        if len(ref_keys) == 1:
+                            new_value = ref_keys[0]
+                        else:
+                            new_value = ref_keys
+                else:
+                    if v.text:
+                        new_value = str(v.text)
+                    elif v.attrib:
+                        new_value = v.attrib.values()
+                    else:
+                        new_value = None
+            elif v:
+                new_value = str(v)
+            else:
+                new_value = None
+        new_dict[prop["source"]] = new_value
+    elem_list.append(new_dict)
+    added_root_elements.append(value)
+
+
 def _parse_xml(data, source: str, model_props: Dict, namespaces={}):
     elem_list = []
     added_root_elements = []
     for action, elem in etree.iterparse(data, events=('start', 'end'), remove_blank_text=True):
         if action == 'start':
+
             values = elem.xpath(source, namespaces=namespaces)
 
             # Check if it already has been added
             if not set(values).issubset(added_root_elements):
                 for value in values:
                     if value not in added_root_elements:
-                        new_dict = {}
-
-                        # Go through each prop source with xpath of root path
-                        for prop in model_props.values():
-                            v = value.xpath(prop["source"], namespaces=namespaces)
-                            new_value = None
-                            if v:
-                                v = v[0]
-                                if isinstance(v, etree._Element):
-
-                                    # Check if prop has pkeys (means its ref type)
-                                    # If pkeys exists iterate with xpath and get the values
-                                    pkeys = prop["pkeys"]
-
-                                    if pkeys and prop["source"].endswith(('.', '/')):
-                                        ref_keys = []
-                                        for key in pkeys:
-                                            ref_item = v.xpath(key, namespaces=namespaces)
-                                            if ref_item:
-                                                ref_item = ref_item[0]
-                                                if isinstance(ref_item, etree._Element):
-                                                    if ref_item.text:
-                                                        ref_item = ref_item.text
-                                                    elif ref_item.attrib:
-                                                        ref_item = ref_item.attrib
-                                                    else:
-                                                        ref_item = None
-                                                elif not ref_item:
-                                                    ref_item = None
-                                                ref_keys.append(str(ref_item))
-                                            if len(ref_keys) == 1:
-                                                new_value = ref_keys[0]
-                                            else:
-                                                new_value = ref_keys
-                                    else:
-                                        if v.text:
-                                            new_value = str(v.text)
-                                        elif v.attrib:
-                                            new_value = v.attrib.values()
-                                        else:
-                                            new_value = None
-                                elif v:
-                                    new_value = str(v)
-                                else:
-                                    new_value = None
-                            new_dict[prop["source"]] = new_value
-                        elem_list.append(new_dict)
-                        added_root_elements.append(value)
+                        _parse_xml_loop_model_properties(value, elem_list, added_root_elements, model_props, namespaces)
 
             # Required for optimization
             elem.clear()
