@@ -1,17 +1,18 @@
-from typing import List
+from typing import List, Any
 
-from spinta import commands
+from spinta import commands, spyna
 from spinta.components import Context, Model
 from spinta.core.ufuncs import asttoexpr
 from spinta.datasets.components import Param, Dataset
 from spinta.dimensions.param.components import ParamLoader
 from spinta.manifests.components import Manifest
 from spinta.nodes import load_node
+from spinta.utils.schema import NA
 
 
-def load_params(context: Context, manifest: Manifest, param_data: dict) -> List[Param]:
+def load_params(context: Context, manifest: Manifest, param_data: Any) -> List[Param]:
     params = []
-    if param_data:
+    if isinstance(param_data, dict):
         for key, data in param_data.items():
             param = Param()
             load_node(context, param, data)
@@ -19,6 +20,26 @@ def load_params(context: Context, manifest: Manifest, param_data: dict) -> List[
             param.formulas = [asttoexpr(prep) for prep in data['prepare']]
             param.name = data['name']
             params.append(param)
+    elif isinstance(param_data, list):
+        for item in param_data:
+            if isinstance(item, dict) and len(item.keys()) == 1:
+                param = Param()
+                name = list(item.keys())[0]
+                prepare = item[name]
+                if isinstance(prepare, str):
+                    prepare = spyna.unparse(prepare)
+                data = {
+                    'name': name,
+                    'source': [NA],
+                    'prepare': [prepare],
+                    'title': '',
+                    'description': ''
+                }
+                load_node(context, param, data)
+                param.sources = data['source'].copy()
+                param.formulas = [asttoexpr(prep) for prep in data['prepare']]
+                param.name = data['name']
+                params.append(param)
     return params
 
 

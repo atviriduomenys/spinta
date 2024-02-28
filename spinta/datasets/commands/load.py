@@ -97,8 +97,9 @@ def load(context: Context, resource: Resource, data: dict, manifest: Manifest):
     resource.given.name = data.get("given_name", None)
     # Models will be added on `link` command.
     resource.models = {}
-    fieldnames = set([f_name for _, f_name, _, _ in Formatter().parse(resource.external) if f_name])
-    resource.source_params.update(fieldnames)
+    if resource.external:
+        fieldnames = set([f_name for _, f_name, _, _ in Formatter().parse(resource.external) if f_name])
+        resource.source_params.update(fieldnames)
     resource.params = load_params(context, manifest, resource.params)
     resource.manifest = manifest
     return resource
