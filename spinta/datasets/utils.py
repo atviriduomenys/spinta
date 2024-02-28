@@ -46,7 +46,7 @@ def _recursive_iter_params(
         yield values
 
 
-def iterparams(context: Context, model: Model, manifest: Manifest, params: List[Param]) -> Iterator[ResolvedParams]:
+def iterparams(context: Context, model: Model, manifest: Manifest, params: List[Param] = []) -> Iterator[ResolvedParams]:
     values = {}
 
     if params:
