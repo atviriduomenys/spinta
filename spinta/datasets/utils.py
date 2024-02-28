@@ -28,7 +28,7 @@ def _recursive_iter_params(
             resolve_formula = formula or source
             expr = env.resolve(resolve_formula)
             result: Iterator[Any] = env.execute(expr)
-            result = _recurse(env, model, resolve_formula, result)
+            result = _recurse(env, param, model, resolve_formula, result)
             if not isinstance(result, Iterator):
                 result = iter([result])
 
@@ -55,23 +55,17 @@ def iterparams(context: Context, model: Model, manifest: Manifest, params: List[
         yield {}
 
 
-def _recurse(env: ParamBuilder, source: Model, expr: Expr, values: Iterator) -> Iterator:
+def _recurse(env: ParamBuilder, param: Param, source: Model, expr: Expr, values: Iterator) -> Iterator:
     if not isinstance(values, Iterator):
         values = iter([values])
 
     for value in values:
-        recurse = False
         if value is not None:
             yield value
-            if isinstance(env.this, Model):
-                if source.external and env.this.external:
-                    if source.external.resource == env.this.external.resource:
-                        recurse = True
-            else:
-                recurse = True
 
-            if recurse and (env.target_param not in env.params or env.params[env.target_param] != value):
-                env.params[env.target_param] = value
-                if isinstance(expr, Expr):
-                    yield from _recurse(env, source, expr, env.resolve(expr))
+            if param.name in param.dependencies:
+                if env.target_param not in env.params or env.params[env.target_param] != value:
+                    env.params[env.target_param] = value
+                    if isinstance(expr, Expr):
+                        yield from _recurse(env, param, source, expr, env.resolve(expr))
 

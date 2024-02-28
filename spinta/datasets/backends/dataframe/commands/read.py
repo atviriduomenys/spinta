@@ -21,6 +21,7 @@ from spinta.datasets.backends.dataframe.commands.query import DaskDataFrameQuery
 from spinta.datasets.backends.dataframe.ufuncs.components import TabularResource
 
 from spinta.datasets.backends.helpers import handle_ref_key_assignment
+from spinta.datasets.components import Resource
 from spinta.datasets.helpers import get_enum_filters, get_ref_filters
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.datasets.utils import iterparams
@@ -135,12 +136,12 @@ def _select_primary_key(model: Model, df: DataFrame):
     return Selected(prop=model.properties['_id'], prep=result)
 
 
-def _parse_xml(data, source: str, model_props: Dict):
+def _parse_xml(data, source: str, model_props: Dict, namespaces={}):
     elem_list = []
     added_root_elements = []
     for action, elem in etree.iterparse(data, events=('start', 'end'), remove_blank_text=True):
         if action == 'start':
-            values = elem.xpath(source)
+            values = elem.xpath(source, namespaces=namespaces)
 
             # Check if it already has been added
             if not set(values).issubset(added_root_elements):
@@ -150,7 +151,7 @@ def _parse_xml(data, source: str, model_props: Dict):
 
                         # Go through each prop source with xpath of root path
                         for prop in model_props.values():
-                            v = value.xpath(prop["source"])
+                            v = value.xpath(prop["source"], namespaces=namespaces)
                             new_value = None
                             if v:
                                 v = v[0]
@@ -163,7 +164,7 @@ def _parse_xml(data, source: str, model_props: Dict):
                                     if pkeys and prop["source"].endswith(('.', '/')):
                                         ref_keys = []
                                         for key in pkeys:
-                                            ref_item = v.xpath(key)
+                                            ref_item = v.xpath(key, namespaces=namespaces)
                                             if ref_item:
                                                 ref_item = ref_item[0]
                                                 if isinstance(ref_item, etree._Element):
@@ -295,16 +296,16 @@ def _parse_json_with_params(data, source: list, model_props: dict):
     return result
 
 
-def _get_data_xml(url: str, source: str, model_props: Dict):
+def _get_data_xml(url: str, source: str, model_props: dict, namespaces: dict):
     if url.startswith(('http', 'https')):
         f = requests.get(url)
-        return _parse_xml(io.BytesIO(f.content), source, model_props)
+        return _parse_xml(io.BytesIO(f.content), source, model_props, namespaces)
     else:
         with open(url, 'rb') as f:
-            return _parse_xml(f, source, model_props)
+            return _parse_xml(f, source, model_props, namespaces)
 
 
-def _get_data_json(url: str, source: str, model_props: Dict):
+def _get_data_json(url: str, source: str, model_props: dict):
     if url.startswith(('http', 'https')):
         f = requests.get(url)
         return _parse_json(f.text, source, model_props)
@@ -342,15 +343,6 @@ def _get_dask_dataframe_meta(model: Model):
     return dask_meta
 
 
-def requires_parametrization(context: Context, base: str):
-    if '{' in base:
-        if '}' in base:
-            first = base.index('{')
-            second = base.index('}')
-            return first < second
-    return False
-
-
 @commands.getall.register(Context, Model, Json)
 def getall(
     context: Context,
@@ -361,11 +353,10 @@ def getall(
     resolved_params: ResolvedParams = None,
     **kwargs
 ) -> Iterator[ObjectData]:
-    base = model.external.resource.external
     bases = parametrize_bases(
         context,
         model,
-        base,
+        model.external.resource,
         resolved_params
     )
 
@@ -400,11 +391,10 @@ def getall(
     resolved_params: ResolvedParams = None,
     **kwargs
 ) -> Iterator[ObjectData]:
-    base = model.external.resource.external
     bases = parametrize_bases(
         context,
         model,
-        base,
+        model.external.resource,
         resolved_params
     )
     builder = DaskDataFrameQueryBuilder(context)
@@ -420,20 +410,30 @@ def getall(
     meta = _get_dask_dataframe_meta(model)
     df = dask.bag.from_sequence(bases).map(
         _get_data_xml,
+        namespaces=_gather_namespaces_from_model(context, model),
         source=model.external.name,
         model_props=props
     ).flatten().to_dataframe(meta=meta)
     yield from _dask_get_all(context, query, df, backend, model, builder)
 
 
+def _gather_namespaces_from_model(context: Context, model: Model):
+    result = {}
+    if model.external and model.external.dataset:
+        for key, prefix in model.external.dataset.prefixes.items():
+            result[key] = prefix.uri
+    return result
+
+
 def parametrize_bases(
     context: Context,
     model: Model,
-    base: str,
+    resource: Resource,
     resolved_params: dict,
     *args
 ):
-    if requires_parametrization(context, base):
+    base = resource.external
+    if len(resource.source_params) > 0:
         if not resolved_params:
             params = model.external.resource.params
             resolved_params = iterparams(context, model, model.manifest, params)

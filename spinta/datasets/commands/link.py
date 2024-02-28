@@ -23,6 +23,7 @@ def link(context: Context, resource: Resource):
     if resource.params and resource.manifest:
         link_params(context, resource.manifest, resource.params, resource.dataset)
 
+
 @commands.link.register(Context, Entity)
 def link(context: Context, entity: Entity):
     manifest = entity.model.manifest

@@ -38,7 +38,8 @@ def read_schema(manifest_type: DictFormat, path: str, dataset_name: str):
         mapping_meta["recursive_descent"] = "."
 
     elif manifest_type in (DictFormat.XML, DictFormat.HTML):
-        converted = xmltodict.parse(value)
+        converted = xmltodict.parse(value, cdata_key='text()')
+        converted = _fix_for_blank_nodes(converted)
         mapping_meta["seperator"] = "/"
         mapping_meta["recursive_descent"] = "/.."
         mapping_meta["model_source_prefix"] = "/"
@@ -142,6 +143,19 @@ def read_schema(manifest_type: DictFormat, path: str, dataset_name: str):
                 'description': '',
                 'properties': converted_props
             }
+
+
+def _fix_for_blank_nodes(values: Any):
+    if isinstance(values, dict):
+        keys = list(values.keys())
+        if len(keys) == 1:
+            if isinstance(values[keys[0]], dict):
+                return {
+                    keys[0]: [
+                        values[keys[0]]
+                    ]
+                }
+    return values
 
 
 class _MappedProperties(TypedDict):
@@ -414,16 +428,8 @@ def is_blank_node(values: Union[list, dict]) -> bool:
         return True
     if isinstance(values, dict):
         val = values
-        first_value = val[list(val.keys())[0]]
-        if len(val.keys()) == 1 and isinstance(first_value, dict):
-            while len(val.keys()) == 1 and isinstance(first_value, dict):
-                val = val[list(val.keys())[0]]
-                first_value = val[list(val.keys())[0]]
-                if len(val.keys()) != 1:
-                    return True
-                if isinstance(first_value, list):
-                    return False
-            return True
+        if len(val.keys()) == 1:
+            return False
         else:
             for key, value in values.items():
                 if not isinstance(value, list):

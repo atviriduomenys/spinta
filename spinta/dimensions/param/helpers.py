@@ -1,7 +1,7 @@
 from typing import List
 
 from spinta import commands
-from spinta.components import Context
+from spinta.components import Context, Model
 from spinta.core.ufuncs import asttoexpr
 from spinta.datasets.components import Param, Dataset
 from spinta.dimensions.param.components import ParamLoader
@@ -26,3 +26,16 @@ def link_params(context: Context, manifest: Manifest, params: List[Param], datas
     param_loader = ParamLoader(context)
     param_loader.update(manifest=manifest, dataset=dataset)
     param_loader.call("resolve_param", params)
+
+
+def finalize_param_link(context, manifest: Manifest):
+    datasets = commands.get_datasets(context, manifest)
+    for dataset in datasets.values():
+        for resource in dataset.resources.values():
+            if resource:
+                for param in resource.params:
+                    for source in param.sources:
+                        if isinstance(source, Model):
+                            if source.external and source.external.resource:
+                                param.dependencies.update(source.external.resource.source_params)
+

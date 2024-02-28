@@ -118,6 +118,7 @@ class Resource(External):
     lang: LangData = None
     comments: List[Comment] = None
     params: List[Param]
+    source_params: set
 
     schema = {
         'type': {'type': 'string'},
@@ -158,6 +159,7 @@ class Resource(External):
     def __init__(self):
         self.given = ResourceGiven()
         self.params = {}
+        self.source_params = set()
 
 
 class Param(ExtraMetaData):
@@ -167,6 +169,7 @@ class Param(ExtraMetaData):
     # Formatted values
     sources: List[Any]
     formulas: List[Expr]
+    dependencies: set = set()
 
     # Given values
     source: List[Any]
