@@ -854,9 +854,9 @@ def _params_to_sql(
                     'path': path,
                     'mpath': new_mpath,
                     'dim': 'param',
-                    'name': param,
+                    'name': param.name,
                     'type': 'param',
-                    'ref': param,
+                    'ref': param.name,
                     'source': source,
                     'title': param.title,
                     'description': param.description
