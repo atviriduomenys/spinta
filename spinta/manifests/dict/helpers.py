@@ -39,7 +39,6 @@ def read_schema(manifest_type: DictFormat, path: str, dataset_name: str):
 
     elif manifest_type in (DictFormat.XML, DictFormat.HTML):
         converted = xmltodict.parse(value, cdata_key='text()')
-        converted = _fix_for_blank_nodes(converted)
         mapping_meta["seperator"] = "/"
         mapping_meta["recursive_descent"] = "/.."
         mapping_meta["model_source_prefix"] = "/"
@@ -49,7 +48,8 @@ def read_schema(manifest_type: DictFormat, path: str, dataset_name: str):
             "xmlns": ["xmlns", "@xmlns"]
         }
 
-    namespaces = extract_namespaces(converted, mapping_meta)
+    namespaces = list(extract_namespaces(converted, mapping_meta))
+    converted = _fix_for_blank_nodes(converted)
     prefixes = {}
     for i, (key, value) in enumerate(namespaces):
         prefixes[key] = {
