@@ -3,8 +3,27 @@
 Changes
 #######
 
-0.1.62 (unreleased)
+0.1.62 (2024-02-29)
 ===================
+
+New features:
+
+- Add possibility to update manifest via HTTP API, without restarting server
+  (`#479`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/479
+
+Bug fixes:
+
+- Fixed error with index names exceeding 63 character limit on PostgreSQL
+  (`#566`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/566
+
+- Set WGS84 SRID for geometry tupe if SRID is not given as specified in
+  documentation (`#562`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/562
 
 
 0.1.61 (2024-01-31)

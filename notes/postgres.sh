@@ -1,9 +1,12 @@
 # Configure psql
 cat ~/.pgpass
-cat >> ~/.pgpass <<'EOF'
+cat > ~/.pgpass <<'EOF'
+localhost:54321:postgres:admin:admin123
 localhost:54321:spinta:admin:admin123
 localhost:54321:spinta_tests:admin:admin123
 EOF
+ls -l ~/.pgpass
+chmod 600 ~/.pgpass 
 
 
 # Show tables
