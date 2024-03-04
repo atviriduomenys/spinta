@@ -98,8 +98,8 @@ class DaskDataFrameQueryBuilder(Env):
         df = self.dataframe
 
         if self.limit is not None:
-            df = df.loc[:self.limit - 1]
-        #
+            df = df.head(self.limit, npartitions=-1, compute=False)
+
         if self.offset is not None:
             df = df.loc[self.offset:]
         return df
@@ -110,6 +110,26 @@ class DaskDataFrameQueryBuilder(Env):
 
     def default_resolver(self, expr, *args, **kwargs):
         raise UnknownMethod(name=expr.name, expr=str(expr(*args, **kwargs)))
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Expr, name='and')
+def and_(env: DaskDataFrameQueryBuilder, expr: Expr):
+    args, kwargs = expr.resolve(env)
+    args = [
+        env.call('_resolve_unresolved', arg)
+        for arg in args
+        if arg is not None
+    ]
+    return args
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder)
+def distinct(env: DaskDataFrameQueryBuilder):
+    if env.model and env.model.external and not env.model.external.unknown_primary_key:
+        extracted_columns = [prop.external.name for prop in env.model.external.pkeys if prop.external]
+        env.dataframe = env.dataframe.drop_duplicates(extracted_columns)
+    else:
+        env.dataframe = env.dataframe.drop_duplicates()
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, int)

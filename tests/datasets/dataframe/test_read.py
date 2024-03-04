@@ -1152,3 +1152,253 @@ def test_text_read_from_external_source(
 
     resp = app.get('example/countries/Country')
     assert listdata(resp, sort=False) == ['lietuva']
+
+
+def test_json_read_parametrize_simple_iterate_pages(rc: RawConfig, tmp_path: Path):
+    page_count = 10
+    for i in range(1, page_count):
+        current_page_file = tmp_path / f"page{i - 1}.json"
+        json_manifest = {
+            "page": {
+                "next": str(tmp_path / f"page{i}.json") if i != page_count - 1 else None,
+                "name": f"Page {i}"
+            }
+        }
+        current_page_file.write_text(json.dumps(json_manifest))
+
+    context, manifest = prepare_manifest(rc, f'''
+    d | r | b | m | property    | type    | ref  | source                 | prepare | access
+    example/json                |         |      |                        |         |
+      | resource                | json    |      | {{path}}               |         |
+      |   |   |                 | param   | path | {tmp_path / "page0.json"} |         |
+      |   |   |                 |         |      | Page                   | read().next |
+      |   |   | Page            |         | name | page                   |         |
+      |   |   |   | name        | string  |      | name                   |         | open
+      |   |   |   | next        | uri     |      | next                   |         | open
+    ''', mode=Mode.external)
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel('example/json/Page', ['getall'])
+
+    resp = app.get('/example/json/Page')
+    assert listdata(resp, "name", sort=False) == [
+        'Page 1', 'Page 2', 'Page 3', 'Page 4', 'Page 5', 'Page 6', 'Page 7', 'Page 8', 'Page 9'
+    ]
+
+
+def test_json_read_parametrize_iterate_pages_distinct(rc: RawConfig, tmp_path: Path):
+    page_count = 10
+    for i in range(1, page_count):
+        current_page_file = tmp_path / f"page{i - 1}.json"
+        json_manifest = {
+            "page": {
+                "next": str(tmp_path / f"page{i}.json") if i != page_count - 1 else None,
+                "name": f"Page"
+            }
+        }
+        current_page_file.write_text(json.dumps(json_manifest))
+
+    context, manifest = prepare_manifest(rc, f'''
+    d | r | b | m | property    | type    | ref  | source                 | prepare | access
+    example/json                |         |      |                        |         |
+      | resource                | json    |      | {{path}}               |         |
+      |   |   |                 | param   | path | {tmp_path / "page0.json"} |         |
+      |   |   |                 |         |      | Page                   | read().next |
+      |   |   | Page            |         | name | page                   |         |
+      |   |   |   | name        | string  |      | name                   |         | open
+      |   |   |   | next        | uri     |      | next                   |         | open
+      |   |   | PageDistinct    |         | name | page                   | distinct() |
+      |   |   |   | name        | string  |      | name                   |         | open
+      |   |   |   | next        | uri     |      | next                   |         | open
+    ''', mode=Mode.external)
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel('example/json/Page', ['getall'])
+    app.authmodel('example/json/PageDistinct', ['getall'])
+
+    resp = app.get('/example/json/Page')
+    assert listdata(resp, "name", sort=False) == [
+        'Page', 'Page', 'Page', 'Page', 'Page', 'Page', 'Page', 'Page', 'Page'
+    ]
+    resp = app.get('/example/json/PageDistinct')
+    assert listdata(resp, "name", sort=False) == [
+        'Page'
+    ]
+
+
+def test_json_read_parametrize_iterate_pages_limit(rc: RawConfig, tmp_path: Path):
+    page_count = 10
+    for i in range(1, page_count):
+        current_page_file = tmp_path / f"page{i - 1}.json"
+        json_manifest = {
+            "page": {
+                "next": str(tmp_path / f"page{i}.json") if i != page_count - 1 else None,
+                "name": f"Page{i%3}"
+            }
+        }
+        current_page_file.write_text(json.dumps(json_manifest))
+
+    context, manifest = prepare_manifest(rc, f'''
+    d | r | b | m | property    | type    | ref  | source                 | prepare | access
+    example/json                |         |      |                        |         |
+      | resource                | json    |      | {{path}}               |         |
+      |   |   |                 | param   | path | {tmp_path / "page0.json"} |         |
+      |   |   |                 |         |      | Page                   | read().next |
+      |   |   | Page            |         | name | page                   |         |
+      |   |   |   | name        | string  |      | name                   |         | open
+      |   |   |   | next        | uri     |      | next                   |         | open
+      |   |   | PageDistinct    |         | name | page                   | distinct() |
+      |   |   |   | name        | string  |      | name                   |         | open
+      |   |   |   | next        | uri     |      | next                   |         | open
+    ''', mode=Mode.external)
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel('example/json/Page', ['getall', 'search'])
+    app.authmodel('example/json/PageDistinct', ['getall', 'search'])
+
+    resp = app.get('/example/json/Page?limit(4)')
+    assert listdata(resp, "name", sort=False) == [
+        'Page1', 'Page2', 'Page0', 'Page1'
+    ]
+    resp = app.get('/example/json/PageDistinct?limit(4)')
+    assert listdata(resp, "name", sort=False) == [
+        'Page1', 'Page2', 'Page0'
+    ]
+
+
+def test_xml_read_parametrize_simple_iterate_pages(rc: RawConfig, tmp_path: Path):
+    page_count = 10
+    for i in range(1, page_count):
+        current_page_file = tmp_path / f"page{i - 1}.xml"
+        xml_manifest = f'''
+        <pages name="Page {i}">
+            <next>{str(tmp_path / f"page{i}.xml") if i != page_count - 1 else ''}</next>
+        </pages>
+        '''
+        current_page_file.write_text(xml_manifest)
+
+    context, manifest = prepare_manifest(rc, f'''
+    d | r | b | m | property    | type    | ref  | source                 | prepare | access
+    example/xml                 |         |      |                        |         |
+      | resource                | xml     |      | {{path}}               |         |
+      |   |   |                 | param   | path | {tmp_path / "page0.xml"} |         |
+      |   |   |                 |         |      | Page                   | read().next |
+      |   |   | Page            |         | name | ../pages               |         |
+      |   |   |   | name        | string  |      | @name                  |         | open
+      |   |   |   | next        | uri     |      | next/text()            |         | open
+    ''', mode=Mode.external)
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel('example/xml/Page', ['getall'])
+
+    resp = app.get('/example/xml/Page')
+    assert listdata(resp, "name", sort=False) == [
+        'Page 1', 'Page 2', 'Page 3', 'Page 4', 'Page 5', 'Page 6', 'Page 7', 'Page 8', 'Page 9'
+    ]
+
+
+def test_xml_json_combined_read_parametrize_advanced_iterate_pages(rc: RawConfig, tmp_path: Path):
+    page_count = 3
+    database_names = ["PostgresSQL", "SQLite", "MongoDB"]
+    max_count = page_count * len(database_names)
+    for db_id, db_name in enumerate(database_names):
+        for i in range(1, page_count + 1):
+            true_id = i + page_count * db_id
+            current_page_file = tmp_path / f"page{true_id - 1}.json"
+            json_manifest = {
+                "page": {
+                    "next": str(tmp_path / f"page{true_id}.json") if true_id != max_count else None,
+                    "name": f"Page {true_id}",
+                    "database": {
+                        "name": db_name,
+                        "id": db_id
+                    }
+                }
+            }
+            current_page_file.write_text(json.dumps(json_manifest))
+
+    for i, database_name in enumerate(database_names):
+        current_page_file = tmp_path / f"database{i}.xml"
+        xml_manifest = f'''
+        <databases>
+            <meta name="{database_name}">
+                <context>{database_name}{i}1</context>
+            </meta>
+            <meta name="{database_name}">
+                <context>{database_name}{i}2</context>
+            </meta>
+            <meta name="{database_name}">
+                <context>{database_name}{i}3</context>
+            </meta>
+        </databases>
+        '''
+        current_page_file.write_text(xml_manifest)
+
+    context, manifest = prepare_manifest(rc, f'''
+    d | r | b | m | property    | type    | ref     | source                            | prepare     | access
+    example/all                 |         |         |                                   |             |
+      | json_resource           | json    |         | {{path}}                          |             |
+      |   |   |                 | param   | path    | {tmp_path / "page0.json"}         |             |
+      |   |   |                 |         |         | Page                              | read().next |
+      |   |   | Page            |         | name    | page                              |             |
+      |   |   |   | name        | string  |         | name                              |             | open
+      |   |   |   | next        | uri     |         | next                              |             | open
+      |   |   | Database        |         | name    | page.database                     |             |
+      |   |   |   | name        | string  |         | name                              |             | open
+      |   |   |   | id          | integer |         | id                                |             | open
+      | xml_resource            | xml     |         | {tmp_path / "database"}{{id}}.xml |             |
+      |   |   |                 | param   | id      | Database                          | read().id   |
+      |   |   | Meta            |         | context | meta                              | distinct()  |
+      |   |   |   | name        | string  |         | @name                             |             | open
+      |   |   |   | context     | string  |         | context/text()                    |             | open
+      |   |   | MetaNotDistinct |         | context | meta                              |             |
+      |   |   |   | name        | string  |         | @name                             |             | open
+      |   |   |   | context     | string  |         | context/text()                    |             | open
+    ''', mode=Mode.external)
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel('example/all/Page', ['getall'])
+    app.authmodel('example/all/Database', ['getall'])
+    app.authmodel('example/all/Meta', ['getall'])
+    app.authmodel('example/all/MetaNotDistinct', ['getall'])
+
+    resp = app.get('/example/all/Page')
+    assert listdata(resp, "name", sort=False) == [
+        'Page 1', 'Page 2', 'Page 3', 'Page 4', 'Page 5', 'Page 6', 'Page 7', 'Page 8', 'Page 9'
+    ]
+    resp = app.get('/example/all/Database')
+    assert listdata(resp, "name", "id", sort=False) == [
+        ('PostgresSQL', 0),
+        ('PostgresSQL', 0),
+        ('PostgresSQL', 0),
+        ('SQLite', 1),
+        ('SQLite', 1),
+        ('SQLite', 1),
+        ('MongoDB', 2),
+        ('MongoDB', 2),
+        ('MongoDB', 2),
+    ]
+    resp = app.get('/example/all/Meta')
+    assert listdata(resp, "name", "context", sort=False) == [
+        ('PostgresSQL', 'PostgresSQL01'),
+        ('PostgresSQL', 'PostgresSQL02'),
+        ('PostgresSQL', 'PostgresSQL03'),
+        ('SQLite', 'SQLite11'),
+        ('SQLite', 'SQLite12'),
+        ('SQLite', 'SQLite13'),
+        ('MongoDB', 'MongoDB21'),
+        ('MongoDB', 'MongoDB22'),
+        ('MongoDB', 'MongoDB23'),
+    ]
+    resp = app.get('/example/all/MetaNotDistinct')
+    assert listdata(resp, "name", "context", sort=False) == [
+        ('PostgresSQL', 'PostgresSQL01'), ('PostgresSQL', 'PostgresSQL02'), ('PostgresSQL', 'PostgresSQL03'),
+        ('PostgresSQL', 'PostgresSQL01'), ('PostgresSQL', 'PostgresSQL02'), ('PostgresSQL', 'PostgresSQL03'),
+        ('PostgresSQL', 'PostgresSQL01'), ('PostgresSQL', 'PostgresSQL02'), ('PostgresSQL', 'PostgresSQL03'),
+        ('SQLite', 'SQLite11'), ('SQLite', 'SQLite12'), ('SQLite', 'SQLite13'),
+        ('SQLite', 'SQLite11'), ('SQLite', 'SQLite12'), ('SQLite', 'SQLite13'),
+        ('SQLite', 'SQLite11'), ('SQLite', 'SQLite12'), ('SQLite', 'SQLite13'),
+        ('MongoDB', 'MongoDB21'), ('MongoDB', 'MongoDB22'), ('MongoDB', 'MongoDB23'),
+        ('MongoDB', 'MongoDB21'), ('MongoDB', 'MongoDB22'), ('MongoDB', 'MongoDB23'),
+        ('MongoDB', 'MongoDB21'), ('MongoDB', 'MongoDB22'), ('MongoDB', 'MongoDB23'),
+    ]

@@ -18,7 +18,7 @@ def param(env: Env, bind: Bind) -> Any:
 
 @ufunc.resolver(ParamBuilder, Model)
 def read(env: ParamBuilder, model: Model) -> Any:
-    return commands.getall(env.context, env.this, env.this.backend, resolved_params=env.params)
+    return commands.getall(env.context, model, model.backend, resolved_params=env.params)
 
 
 @ufunc.resolver(ParamBuilder, str)
@@ -57,6 +57,8 @@ def getattr_(env: ParamBuilder, iterator: Iterator, bind: Bind):
 def getattr_(env: ParamBuilder, data: dict, bind: Bind):
     if bind.name in data:
         yield data[bind.name]
+    else:
+        raise Exception("Property: ", bind.name, "was not found")
 
 
 @ufunc.resolver(ParamBuilder, NotAvailable, name="getattr")
@@ -105,6 +107,10 @@ def resolve_param(env: ParamLoader, parameter: Param):
             elif source != new_name and commands.has_model(env.context, env.manifest, source):
                 model = commands.get_model(env.context, env.manifest, source)
                 parameter.sources[i] = model
+            else:
+                raise Exception("MODEL NOT FOUND")
+
+            env.call("validate_prepare", model, formula)
 
 
 @ufunc.resolver(ParamLoader, Expr)
@@ -119,6 +125,18 @@ def contains_read(env: ParamLoader, expr: Expr):
 @ufunc.resolver(ParamLoader, object)
 def contains_read(env: ParamLoader, obj: object):
     return False
+
+
+@ufunc.resolver(ParamLoader, Model, Expr)
+def validate_prepare(env: ParamLoader, model: Model, expr: Expr):
+    resolved, _ = expr.resolve(env)
+    for arg in resolved:
+        if isinstance(arg, str):
+            if arg not in model.properties:
+                raise Exception("ARGUMENT NOT FOUND IN MODEL")
+        elif isinstance(arg, Bind):
+            if arg.name not in model.properties:
+                raise Exception("ARGUMENT NOT FOUND IN MODEL")
 
 
 @ufunc.resolver(ParamLoader, object)

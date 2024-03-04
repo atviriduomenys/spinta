@@ -136,7 +136,7 @@ def _select_primary_key(model: Model, df: DataFrame):
     return Selected(prop=model.properties['_id'], prep=result)
 
 
-def _parse_xml_loop_model_properties(value, elem_list: list, added_root_elements: list, model_props: dict, namespaces: dict):
+def _parse_xml_loop_model_properties(value, added_root_elements: list, model_props: dict, namespaces: dict):
     new_dict = {}
 
     # Go through each prop source with xpath of root path
@@ -183,27 +183,19 @@ def _parse_xml_loop_model_properties(value, elem_list: list, added_root_elements
             else:
                 new_value = None
         new_dict[prop["source"]] = new_value
-    elem_list.append(new_dict)
+
     added_root_elements.append(value)
+    return new_dict
 
 
 def _parse_xml(data, source: str, model_props: Dict, namespaces={}):
-    elem_list = []
     added_root_elements = []
-    for action, elem in etree.iterparse(data, events=('start', 'end'), remove_blank_text=True):
-        if action == 'start':
-
-            values = elem.xpath(source, namespaces=namespaces)
-
-            # Check if it already has been added
-            if not set(values).issubset(added_root_elements):
-                for value in values:
-                    if value not in added_root_elements:
-                        _parse_xml_loop_model_properties(value, elem_list, added_root_elements, model_props, namespaces)
-
-            # Required for optimization
-            elem.clear()
-    return elem_list
+    iterparse = etree.iterparse(data, events=['start'], remove_blank_text=True)
+    _, root = next(iterparse)
+    values = root.xpath(source, namespaces=namespaces)
+    for value in values:
+        if value not in added_root_elements:
+            yield _parse_xml_loop_model_properties(value, added_root_elements, model_props, namespaces)
 
 
 def _parse_json(data, source: str, model_props: Dict):
@@ -221,12 +213,10 @@ def _parse_json(data, source: str, model_props: Dict):
             if prop["root_source"][0] != '.':
                 prop["root_source"].insert(0, '.')
 
-    values = _parse_json_with_params(data, source_list, model_props)
-    return values
+    yield from _parse_json_with_params(data, source_list, model_props)
 
 
 def _parse_json_with_params(data, source: list, model_props: dict):
-    result = []
 
     def get_prop_value(items, pkeys: list, prop_source: list):
         new_value = items
@@ -279,7 +269,7 @@ def _parse_json_with_params(data, source: list, model_props: dict):
                 else:
                     return
             if isinstance(item, list) and is_list_of_dicts(item):
-                traverse_json(item, current_value, current_path, True)
+                yield from traverse_json(item, current_value, current_path, True)
             else:
                 for prop in model_props.values():
                     prop_path = prop["root_source"]
@@ -287,36 +277,35 @@ def _parse_json_with_params(data, source: list, model_props: dict):
                     if prop_path == this_path:
                         current_value[prop["source"]] = get_prop_value(item, prop["pkeys"], prop["source"].split("."))
                 if current_path < len(source) - 1:
-                    traverse_json(item, current_value, current_path + 1, False)
+                    yield from traverse_json(item, current_value, current_path + 1, False)
                 else:
-                    result.append(current_value)
+                    yield current_value
         elif isinstance(items, list) and is_list_of_dicts(items):
             for item in items:
-                traverse_json(item, current_value.copy(), current_path, in_model)
+                yield from traverse_json(item, current_value.copy(), current_path, in_model)
 
     c_value = {}
     for prop in model_props.values():
         c_value[prop["source"]] = None
-    traverse_json(data, current_value=c_value)
-    return result
+    yield from traverse_json(data, current_value=c_value)
 
 
 def _get_data_xml(url: str, source: str, model_props: dict, namespaces: dict):
     if url.startswith(('http', 'https')):
         f = requests.get(url)
-        return _parse_xml(io.BytesIO(f.content), source, model_props, namespaces)
+        yield from _parse_xml(io.BytesIO(f.content), source, model_props, namespaces)
     else:
-        with open(url, 'rb') as f:
-            return _parse_xml(f, source, model_props, namespaces)
+        with pathlib.Path(url).open('rb') as f:
+            yield from _parse_xml(f, source, model_props, namespaces)
 
 
 def _get_data_json(url: str, source: str, model_props: dict):
     if url.startswith(('http', 'https')):
         f = requests.get(url)
-        return _parse_json(f.text, source, model_props)
+        yield from _parse_json(f.text, source, model_props)
     else:
         with pathlib.Path(url).open(encoding='utf-8-sig') as f:
-            return _parse_json(f.read(), source, model_props)
+            yield from _parse_json(f.read(), source, model_props)
 
 
 def _get_prop_full_source(source: str, prop_source: str):
@@ -378,7 +367,7 @@ def getall(
             }
 
     meta = _get_dask_dataframe_meta(model)
-    df = dask.bag.from_sequence(bases).map(
+    df = dask.bag.from_sequence(bases, partition_size=20).map(
         _get_data_json,
         source=model.external.name,
         model_props=props
@@ -413,7 +402,7 @@ def getall(
             }
 
     meta = _get_dask_dataframe_meta(model)
-    df = dask.bag.from_sequence(bases).map(
+    df = dask.bag.from_sequence(bases, partition_size=1).map(
         _get_data_xml,
         namespaces=_gather_namespaces_from_model(context, model),
         source=model.external.name,
@@ -467,7 +456,7 @@ def getall(
 
     builder = DaskDataFrameQueryBuilder(context)
     builder.update(model=model)
-    for params in iterparams(context, model.manifest, model.params):
+    for params in iterparams(context, model, model.manifest, model.params):
         if base:
             url = urllib.parse.urljoin(base, model.external.name)
         else:
