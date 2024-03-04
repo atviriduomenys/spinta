@@ -8,6 +8,7 @@ from spinta.core.ufuncs import Env
 from spinta.core.ufuncs import ufunc
 from spinta.datasets.components import Param
 from spinta.dimensions.param.components import ParamBuilder, ParamLoader
+from spinta.exceptions import PropertyNotFound, KeyNotFound, ModelNotFound, InvalidParamSource
 from spinta.utils.schema import NotAvailable
 
 
@@ -31,20 +32,23 @@ def read(env: ParamBuilder, obj: str):
                 model_.external.dataset.name,
                 obj,
             ])
+    model = None
     if commands.has_model(env.context, env.manifest, new_name):
         model = commands.get_model(env.context, env.manifest, new_name)
-        return env.call("read", model)
     elif obj != new_name and commands.has_model(env.context, env.manifest, obj):
         model = commands.get_model(env.context, env.manifest, obj)
-        return env.call("read", model)
-    raise Exception("COULD NOT MAP READ WITH", obj)
+    if not model:
+        raise ModelNotFound(model=obj)
+
+    env.this = model
+    return env.call("read", model)
 
 
 @ufunc.resolver(ParamBuilder)
 def read(env: ParamBuilder) -> Any:
     if isinstance(env.this, Model):
         return env.call("read", env.this)
-    raise Exception("env.this needs to be Model", env.this, type(env.this))
+    raise InvalidParamSource(param=env.target_param, source=env.this, given_type=type(env.this), expected_types=[type(Model)])
 
 
 @ufunc.resolver(ParamBuilder, Iterator, Bind, name="getattr")
@@ -58,7 +62,7 @@ def getattr_(env: ParamBuilder, data: dict, bind: Bind):
     if bind.name in data:
         yield data[bind.name]
     else:
-        raise Exception("Property: ", bind.name, "was not found")
+        raise KeyNotFound(env.this, key=bind.name, dict_keys=list(data.keys()))
 
 
 @ufunc.resolver(ParamBuilder, NotAvailable, name="getattr")
@@ -108,7 +112,7 @@ def resolve_param(env: ParamLoader, parameter: Param):
                 model = commands.get_model(env.context, env.manifest, source)
                 parameter.sources[i] = model
             else:
-                raise Exception("MODEL NOT FOUND")
+                raise ModelNotFound(model=source)
 
             env.call("validate_prepare", model, formula)
 
@@ -133,10 +137,10 @@ def validate_prepare(env: ParamLoader, model: Model, expr: Expr):
     for arg in resolved:
         if isinstance(arg, str):
             if arg not in model.properties:
-                raise Exception("ARGUMENT NOT FOUND IN MODEL")
+                raise PropertyNotFound(model, property=arg)
         elif isinstance(arg, Bind):
             if arg.name not in model.properties:
-                raise Exception("ARGUMENT NOT FOUND IN MODEL")
+                raise PropertyNotFound(model, property=arg.name)
 
 
 @ufunc.resolver(ParamLoader, object)

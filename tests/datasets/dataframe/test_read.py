@@ -1348,10 +1348,10 @@ def test_xml_json_combined_read_parametrize_advanced_iterate_pages(rc: RawConfig
       |   |   |   | id          | integer |         | id                                |             | open
       | xml_resource            | xml     |         | {tmp_path / "database"}{{id}}.xml |             |
       |   |   |                 | param   | id      | Database                          | read().id   |
-      |   |   | Meta            |         | context | meta                              | distinct()  |
+      |   |   | Meta            |         | context | databases/meta                    | distinct()  |
       |   |   |   | name        | string  |         | @name                             |             | open
       |   |   |   | context     | string  |         | context/text()                    |             | open
-      |   |   | MetaNotDistinct |         | context | meta                              |             |
+      |   |   | MetaNotDistinct |         | context | databases/meta                    |             |
       |   |   |   | name        | string  |         | @name                             |             | open
       |   |   |   | context     | string  |         | context/text()                    |             | open
     ''', mode=Mode.external)
