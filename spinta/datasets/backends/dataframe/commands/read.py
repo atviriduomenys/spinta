@@ -193,7 +193,7 @@ def _parse_xml(data, source: str, model_props: Dict, namespaces={}):
     iterparse = etree.iterparse(data, events=['start'], remove_blank_text=True)
     _, root = next(iterparse)
 
-    if not source.startswith('/'):
+    if not source.startswith(('/', '.')):
         source = f'/{source}'
 
     values = root.xpath(source, namespaces=namespaces)
