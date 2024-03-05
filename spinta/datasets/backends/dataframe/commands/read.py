@@ -371,7 +371,7 @@ def getall(
             }
 
     meta = _get_dask_dataframe_meta(model)
-    df = dask.bag.from_sequence(bases, partition_size=20).map(
+    df = dask.bag.from_sequence(bases).map(
         _get_data_json,
         source=model.external.name,
         model_props=props
@@ -406,7 +406,7 @@ def getall(
             }
 
     meta = _get_dask_dataframe_meta(model)
-    df = dask.bag.from_sequence(bases, partition_size=1).map(
+    df = dask.bag.from_sequence(bases).map(
         _get_data_xml,
         namespaces=_gather_namespaces_from_model(context, model),
         source=model.external.name,
@@ -421,6 +421,32 @@ def _gather_namespaces_from_model(context: Context, model: Model):
         for key, prefix in model.external.dataset.prefixes.items():
             result[key] = prefix.uri
     return result
+
+
+@commands.getall.register(Context, Model, Csv)
+def getall(
+    context: Context,
+    model: Model,
+    backend: Csv,
+    *,
+    query: Expr = None,
+    resolved_params: ResolvedParams = None,
+    **kwargs
+) -> Iterator[ObjectData]:
+    resource_builder = TabularResource(context)
+    resource_builder.resolve(model.external.resource.prepare)
+    bases = parametrize_bases(
+        context,
+        model,
+        model.external.resource,
+        resolved_params,
+        model.external.name
+    )
+
+    builder = DaskDataFrameQueryBuilder(context)
+    builder.update(model=model)
+    df = dask.dataframe.read_csv(list(bases), sep=resource_builder.seperator)
+    yield from _dask_get_all(context, query, df, backend, model, builder)
 
 
 def parametrize_bases(
@@ -445,31 +471,6 @@ def parametrize_bases(
         yield base
 
 
-@commands.getall.register(Context, Model, Csv)
-def getall(
-    context: Context,
-    model: Model,
-    backend: Csv,
-    *,
-    query: Expr = None,
-    **kwargs
-) -> Iterator[ObjectData]:
-    base = model.external.resource.external
-    resource_builder = TabularResource(context)
-    resource_builder.resolve(model.external.resource.prepare)
-
-    builder = DaskDataFrameQueryBuilder(context)
-    builder.update(model=model)
-    for params in iterparams(context, model, model.manifest, model.params):
-        if base:
-            url = urllib.parse.urljoin(base, model.external.name)
-        else:
-            url = model.external.name
-        url = url.format(**params)
-        df = dask.dataframe.read_csv(url, sep=resource_builder.seperator)
-        yield from _dask_get_all(context, query, df, backend, model, builder)
-
-
 def _dask_get_all(context: Context, query: Expr, df: dask.dataframe, backend: DaskBackend, model: Model, env: DaskDataFrameQueryBuilder):
     keymap: KeyMap = context.get(f'keymap.{model.keymap.name}')
 
@@ -480,6 +481,7 @@ def _dask_get_all(context: Context, query: Expr, df: dask.dataframe, backend: Da
     expr = env.resolve(query)
     where = env.execute(expr)
     qry = env.build(where)
+
     for i, row in qry.iterrows():
         row = row.to_dict()
         res = {

@@ -169,7 +169,7 @@ class Param(ExtraMetaData):
     # Formatted values
     sources: List[Any]
     formulas: List[Expr]
-    dependencies: set = set()
+    dependencies: set
 
     # Given values
     source: List[Any]
@@ -183,6 +183,9 @@ class Param(ExtraMetaData):
         'source': {'type': 'list'},
         'prepare': {'type': 'list'}
     }
+
+    def __init__(self):
+        self.dependencies = set()
 
 
 class Entity(External):
