@@ -3,7 +3,8 @@ from typing import TypedDict, Callable, Dict
 from spinta import commands
 from spinta.components import Namespace, Model, Node, Context
 from spinta.datasets.components import Dataset
-from spinta.exceptions import DatasetNotFound, NamespaceNotFound, ModelNotFound, ManifestObjectNotDefined
+from spinta.exceptions import DatasetNotFound, NamespaceNotFound, ModelNotFound, ManifestObjectNotDefined, \
+    NotImplementedFeature
 from spinta.manifests.components import Manifest
 
 
@@ -138,3 +139,19 @@ def get_datasets(context: Context, manifest: Manifest, **kwargs):
 @commands.set_dataset.register(Context, Manifest, str, Dataset)
 def set_dataset(context: Context, manifest: Manifest, dataset_name: str, dataset: Dataset, **kwargs):
     manifest.get_objects()['dataset'][dataset_name] = dataset
+
+
+@commands.get_dataset_models.register(Context, Manifest, str)
+def get_dataset_models(context: Context, manifest: Manifest, dataset_name: str, **kwargs):
+    dataset = commands.get_dataset(context, manifest, dataset_name)
+    models = commands.get_models(context, manifest)
+    filtered_list = {}
+    for key, model in models.items():
+        if model.external and model.external.dataset == dataset:
+            filtered_list[key] = model
+    return filtered_list
+
+
+@commands.update_manifest_dataset_schema.register(Context, Manifest, Manifest)
+def update_manifest_dataset_schema(context: Context, manifest: Manifest, target_manifest: Manifest, **kwargs):
+    raise NotImplementedFeature(manifest, "Ability to modify non-dynamic manifest's schema")

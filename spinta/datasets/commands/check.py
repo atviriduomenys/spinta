@@ -9,6 +9,10 @@ from spinta.exceptions import InvalidName
 namespace_re = re.compile(r'^[a-z](_?[a-z0-9]+)*(/[a-z](_?[a-z0-9]+)+)*$')
 
 
+def check_dataset_name(name: str):
+    return namespace_re.match(name) is not None
+
+
 @commands.check.register()
 def check(context: Context, dataset: Dataset):
     for resource in dataset.resources.values():

@@ -50,6 +50,25 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
 
     tables = []
     models = commands.get_models(context, manifest)
+
+    # Filter if only specific dataset can be changed
+    if migrate_meta.datasets:
+        datasets = migrate_meta.datasets
+        filtered_models = {}
+        for key, model in models.items():
+            if model.external and model.external.dataset and model.external.dataset.name in datasets:
+                filtered_models[key] = model
+        models = filtered_models
+
+        filtered_names = []
+        for table_name in table_names:
+            for dataset_name in datasets:
+                if table_name.startswith(f'{dataset_name}/'):
+                    additional_check = table_name.replace(f'{dataset_name}/', '', 1)
+                    if '/' not in additional_check:
+                        filtered_names.append(table_name)
+        table_names = filtered_names
+
     for table in table_names:
         name = migrate_meta.rename.get_table_name(table)
         if name not in models.keys():
@@ -87,8 +106,22 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
                 op = Operations(ctx)
                 handler.run_migrations(op)
         else:
-            with ctx.begin_transaction():
-                handler.run_migrations(op)
+            if migrate_meta.plan:
+                with ctx.begin_transaction():
+                    handler.run_migrations(op)
+            else:
+                if ctx._in_connection_transaction():
+                    trx = ctx.connection._transaction
+                else:
+                    trx = ctx.begin_transaction()
+                try:
+                    handler.run_migrations(op)
+                    if migrate_meta.migration_extension is not None:
+                        migrate_meta.migration_extension()
+                    trx.commit()
+                except Exception as e:
+                    trx.rollback()
+                    raise e
     except sa.exc.OperationalError as error:
         exception = create_exception(manifest, error)
         raise exception
@@ -101,16 +134,26 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, old: sa
     table_name = rename.get_table_name(old.name)
 
     # Handle table renames
+    columns_to_remove = []
     for column in old.columns:
-        columns.append(rename.get_column_name(old.name, column.name))
+        renamed = rename.get_column_name(old.name, column.name)
+        if renamed in columns:
+            columns_to_remove.append(column)
+        else:
+            columns.append(renamed)
     if table_name != old.name:
         handler.add_action(ma.RenameTableMigrationAction(old.name, table_name))
         changelog_name = get_pg_name(f'{old.name}{TableType.CHANGELOG.value}')
         file_name = get_pg_name(f'{old.name}{TableType.FILE.value}')
         if inspector.has_table(changelog_name):
+            new_changelog_name = get_pg_name(f'{table_name}{TableType.CHANGELOG.value}')
             handler.add_action(ma.RenameTableMigrationAction(
                 old_table_name=changelog_name,
-                new_table_name=get_pg_name(f'{table_name}{TableType.CHANGELOG.value}')
+                new_table_name=new_changelog_name
+            ))
+            handler.add_action(ma.RenameSequenceMigrationAction(
+                old_name=get_pg_name(f'{changelog_name}__id_seq'),
+                new_name=get_pg_name(f'{new_changelog_name}__id_seq')
             ))
         for table in inspector.get_table_names():
             if table.startswith(file_name):
@@ -137,6 +180,9 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, old: sa
                 commands.migrate(context, backend, inspector, old, items, prop.dtype, handler, rename)
         elif isinstance(prop.dtype, Inherit):
             properties.remove(prop)
+
+    for column in columns_to_remove:
+        commands.migrate(context, backend, inspector, old, column, NA, handler, rename, False)
 
     props = zipitems(
         columns,
@@ -878,7 +924,7 @@ def _create_changelog_table(context: Context, new: Model, handler: MigrationHand
     handler.add_action(ma.CreateTableMigrationAction(
         table_name=table_name,
         columns=[
-            sa.Column('_id', BIGINT, primary_key=True),
+            sa.Column('_id', BIGINT, primary_key=True, autoincrement=True),
             sa.Column('_revision', sa.String),
             sa.Column('_txn', pkey_type, index=True),
             sa.Column('_rid', pkey_type),

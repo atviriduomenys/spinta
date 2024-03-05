@@ -33,6 +33,7 @@ def prepare(
     params: UrlParams,
     version: Version,
     request: Request,
+    **kwargs
 ) -> UrlParams:
     params.parsetree = (
         urlutil.parse_url_path(request.path_params['path'].strip('/')) +
@@ -193,8 +194,10 @@ def _prepare_urlparams_from_path(params: UrlParams):
                 params.select = args
         elif name == 'bbox':
             params.bbox = args
+        elif name == 'schema':
+            params.action = Action.SCHEMA
         elif name == 'inspect':
-            params.inspect = True
+            params.action = Action.INSPECT
         elif name == 'fault-tolerant':
             params.fault_tolerant = True
         elif name == 'wipe':
@@ -322,6 +325,8 @@ def get_model_from_params(
         return commands.get_namespace(context, manifest, name)
 
     else:
+        if params.action == Action.SCHEMA:
+            return None
         raise ModelNotFound(model=name)
 
 

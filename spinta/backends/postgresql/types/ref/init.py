@@ -14,7 +14,7 @@ from spinta.backends.postgresql.helpers import get_column_name
 
 
 @commands.prepare.register(Context, PostgreSQL, Ref)
-def prepare(context: Context, backend: PostgreSQL, dtype: Ref):
+def prepare(context: Context, backend: PostgreSQL, dtype: Ref, **kwargs):
     pkey_type = commands.get_primary_key_type(context, backend)
     columns = []
 
@@ -26,7 +26,7 @@ def prepare(context: Context, backend: PostgreSQL, dtype: Ref):
             column_type=pkey_type,
         )
     for key, value in dtype.properties.items():
-        res = commands.prepare(context, backend, value)
+        res = commands.prepare(context, backend, value, **kwargs)
         if res is not None:
             if isinstance(res, list):
                 columns.extend(res)

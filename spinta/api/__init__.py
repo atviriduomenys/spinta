@@ -1,7 +1,4 @@
-import os
-import shutil
 import uuid
-import ruamel.yaml
 from typing import Type
 
 import pkg_resources as pres
@@ -264,7 +261,7 @@ async def homepage(request: Request):
     manifest = commands.create_request_manifest(context, store.manifest)
     context.set('request.manifest', manifest)
     commands.load_for_request(context, manifest)
-
+    commands.reload_backend_metadata(context, manifest, manifest.backend)
     params: UrlParams = prepare(context, UrlParams(), Version(), request)
     context.attach('accesslog', create_accesslog, context, loaders=(
         store,

@@ -7,12 +7,12 @@ from spinta.backends.fs.components import FileSystem
 
 
 @commands.prepare.register(Context, FileSystem, Manifest)
-def prepare(context: Context, backend: FileSystem, manifest: Manifest):
+def prepare(context: Context, backend: FileSystem, manifest: Manifest, **kwargs):
     pass
 
 
 @commands.prepare.register(Context, FileSystem, File)
-def prepare(context: Context, backend: FileSystem, dtype: File):
+def prepare(context: Context, backend: FileSystem, dtype: File, **kwargs):
     pass
 
 
