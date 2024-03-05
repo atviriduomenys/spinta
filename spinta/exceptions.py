@@ -827,7 +827,7 @@ class InheritPropertyValueMissmatch(UserError):
 
 
 class OutOfMemoryMigrate(UserError):
-    template = "Ran out of shared memory while migrating. Use '--autocommit' tag, or increase 'max_locks_per_transaction'."
+    template = "Ran out of shared memory while migrating. Use 'spinta migrate --autocommit' flag, or increase 'max_locks_per_transaction'."
 
 
 class ManifestObjectNotDefined(UserError):

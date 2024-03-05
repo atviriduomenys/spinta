@@ -64,9 +64,12 @@ EOF
 
 
 # Add client
-cat ~/.config/spinta/clients/test.yml
+tree ~/.config/spinta 
+cat ~/.config/spinta/clients/helpers/keymap.yml
+cat ~/.config/spinta/clients/id/67/eb/a9af-2984-4f21-aae8-a95e888b2834.yml
 poetry run spinta client add -n test -s secret --add-secret --scope - <<EOF
 spinta_set_meta_fields
+spinta_auth_clients
 spinta_getone
 spinta_getall
 spinta_search
@@ -77,7 +80,6 @@ spinta_update
 spinta_patch
 spinta_delete
 spinta_wipe
-spinta_auth_clients
 EOF
 
 

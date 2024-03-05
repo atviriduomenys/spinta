@@ -11,6 +11,7 @@ from geoalchemy2.types import Geometry
 from sqlalchemy.dialects import mysql
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects import oracle
+from sqlalchemy.dialects import mssql
 from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.types import TypeEngine
 
@@ -228,9 +229,13 @@ TYPES = [
     (postgresql.JSONB, 'object'),
     (postgresql.UUID, 'string'),
     (postgresql.INTERVAL, 'integer'),  # total number of seconds
+    (postgresql.OID, 'integer'),  # four-byte integer, https://www.postgresql.org/docs/current/datatype-oid.html
     (Geometry, 'geometry'),
     (oracle.ROWID, 'string'),
     (oracle.RAW, 'binary'),
+    (mssql.MONEY, 'number'),  # TODO: https://github.com/atviriduomenys/spinta/issues/40
+    (mssql.SMALLMONEY, 'number'),  # TODO: https://github.com/atviriduomenys/spinta/issues/40
+    (mssql.UNIQUEIDENTIFIER, 'string'),  # Example: 6F9619FF-8B86-D011-B42D-00C04FC964FF
 ]
 
 
