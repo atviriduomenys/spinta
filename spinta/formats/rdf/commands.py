@@ -30,6 +30,7 @@ from spinta.types.datatype import Date
 from spinta.types.datatype import Time
 from spinta.types.datatype import DateTime
 from spinta.types.datatype import Number
+from spinta.types.text.components import Text
 from spinta.utils.encoding import encode_page_values
 from spinta.utils.schema import NotAvailable
 
@@ -616,3 +617,25 @@ def prepare_dtype_for_response(
         )
     else:
         return None
+
+
+@commands.prepare_dtype_for_response.register(Context, Rdf, Text, str)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Rdf,
+    dtype: Text,
+    value: str,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None
+):
+    print("CALLED", dtype, value, data)
+    attributes = {
+        data['_about_name']: "Test"
+    }
+    return _create_element(
+        name=data['_elem_name'],
+        attributes=attributes,
+        text=str(value)
+    )
