@@ -296,7 +296,7 @@ def _parse_json_with_params(data, source: list, model_props: dict):
 
 def _get_data_xml(url: str, source: str, model_props: dict, namespaces: dict):
     if url.startswith(('http', 'https')):
-        f = requests.get(url)
+        f = requests.get(url, timeout=30)
         yield from _parse_xml(io.BytesIO(f.content), source, model_props, namespaces)
     else:
         with pathlib.Path(url).open('rb') as f:
@@ -305,7 +305,7 @@ def _get_data_xml(url: str, source: str, model_props: dict, namespaces: dict):
 
 def _get_data_json(url: str, source: str, model_props: dict):
     if url.startswith(('http', 'https')):
-        f = requests.get(url)
+        f = requests.get(url, timeout=30)
         yield from _parse_json(f.text, source, model_props)
     else:
         with pathlib.Path(url).open(encoding='utf-8-sig') as f:
