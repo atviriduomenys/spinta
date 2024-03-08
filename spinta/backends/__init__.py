@@ -1802,7 +1802,7 @@ def cast_backend_to_python(
     backend: Backend,
     data: List[Any],
 ) -> List[Any]:
-    if data:
+    if data and dtype:
         return [
             commands.cast_backend_to_python(
                 context,

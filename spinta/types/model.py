@@ -36,6 +36,7 @@ from spinta.dimensions.enum.components import Enums
 from spinta.dimensions.enum.helpers import link_enums
 from spinta.dimensions.enum.helpers import load_enums
 from spinta.dimensions.lang.helpers import load_lang_data
+from spinta.dimensions.param.helpers import load_params
 from spinta.exceptions import KeymapNotSet, InvalidLevel
 from spinta.exceptions import UndefinedEnum
 from spinta.exceptions import UnknownPropertyType
@@ -153,6 +154,8 @@ def load(
     builder = LoadBuilder(context)
     builder.update(model=model)
     builder.load_page()
+
+    model.params = load_params(context, manifest, model.params)
 
     if not model.name.startswith('_') and not model.basename[0].isupper():
         raise Exception(model.basename, "MODEL NAME NEEDS TO BE UPPER CASED")

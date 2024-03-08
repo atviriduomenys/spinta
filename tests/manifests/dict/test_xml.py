@@ -42,7 +42,7 @@ dataset                  |                |         |
     assert a == b
 
 
-def test_xml_blank_node(rc: RawConfig, tmp_path: Path):
+def test_xml_single_entry_initial_model(rc: RawConfig, tmp_path: Path):
     xml = '''
     <galaxy name="Milky">
         <solar_system name="Solar">
@@ -66,7 +66,8 @@ def test_xml_blank_node(rc: RawConfig, tmp_path: Path):
                 </countries>
             </planet>
         </solar_system>
-    </galaxy>'''
+    </galaxy>
+    '''
     path = tmp_path / 'manifest.xml'
     path.write_text(xml)
 
@@ -77,17 +78,17 @@ d | r | model   | property                        | type                    | re
 dataset                                     |                         |        |
   | resource                                | xml                     |        | manifest.xml
                                             |                         |        |
-  |   | Model1                              |                         |        | .
-  |   |   | galaxy_name                     | string required unique  |        | galaxy/@name
-  |   |   | galaxy_solar_system_name        | string required unique  |        | galaxy/solar_system/@name
-  |   |   | galaxy_solar_system_planet_name | string required unique  |        | galaxy/solar_system/planet/@name
+  |   | Galaxy                              |                         |        | /galaxy
+  |   |   | name                            | string required unique  |        | @name
+  |   |   | solar_system_name               | string required unique  |        | solar_system/@name
+  |   |   | solar_system_planet_name        | string required unique  |        | solar_system/planet/@name
                                             |                         |        |
   |   | Country                             |                         |        | /galaxy/solar_system/planet/countries/country
   |   |   | code                            | string required unique  |        | code
   |   |   | name                            | string required unique  |        | name
   |   |   | location_lat                    | integer required unique |        | location/@lat
   |   |   | location_lon                    | integer required unique |        | location/@lon
-  |   |   | parent                          | ref                     | Model1 | ../../../../..
+  |   |   | galaxy                          | ref                     | Galaxy | ../../../..
 
 ''', context)
     assert a == b
@@ -156,23 +157,23 @@ def test_xml_disallowed_namespace(rc: RawConfig, tmp_path: Path):
     context, manifest = load_manifest_and_context(rc, path)
     commands.get_dataset(context, manifest, "dataset").resources["resource"].external = "manifest.xml"
     a, b = compare_manifest(manifest, f'''
-d | r | model   | property      | type                | ref   | source                 | uri
-dataset                   |                     |       |                        |
-                          | prefix              | xmlns |                        | http://www.example.com/xmlns
-                          |                     | new   |                        | http://www.example.com/xmlns/new
-                          |                     | test  |                        | http://www.example.com/xmlns/test
-                          |                     |       |                        |
-  | resource              | xml                 |       | manifest.xml           |
-                          |                     |       |                        |
-  |   | Model1            |                     |       | .                      |
-  |   |   | countries_xsi | url required unique |       | countries/@test:xsi    |
-                          |                     |       |                        |
-  |   | Country           |                     |       | /countries/new:country |
-  |   |   | xsi_code      | string unique       |       | @xsi:code              |
-  |   |   | name          | string unique       |       | @name                  |
-  |   |   | location_lon  | integer unique      |       | location/test:lon      |
-  |   |   | location_lat  | integer unique      |       | location/test:lat      |
-  |   |   | parent        | ref                 | Model1 | ../..                  |
+d | r | model   | property      | type                | ref       | source                 | uri
+dataset                   |                     |           |                        |
+                          | prefix              | xmlns     |                        | http://www.example.com/xmlns
+                          |                     | new       |                        | http://www.example.com/xmlns/new
+                          |                     | test      |                        | http://www.example.com/xmlns/test
+                          |                     |           |                        |
+  | resource              | xml                 |           | manifest.xml           |
+                          |                     |           |                        |
+  |   | Countries         |                     |           | /countries             |
+  |   |   | xsi           | url required unique |           | @test:xsi              |
+                          |                     |           |                        |
+  |   | Country           |                     |           | /countries/new:country |
+  |   |   | xsi_code      | string unique       |           | @xsi:code              |
+  |   |   | name          | string unique       |           | @name                  |
+  |   |   | location_lon  | integer unique      |           | location/test:lon      |
+  |   |   | location_lat  | integer unique      |           | location/test:lat      |
+  |   |   | countries     | ref                 | Countries | ..                     |
 
 ''', context)
     assert a == b

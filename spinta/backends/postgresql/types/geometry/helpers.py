@@ -21,9 +21,6 @@ def get_osm_link(value: WKBElement, srid: Optional[Union[int, Geometry]]) -> Opt
             raise SRIDNotSetForGeometry(srid)
         srid = srid.srid
 
-    if srid is None:
-        return None
-
     shape = to_shape(value)
 
     if srid and srid != WGS84:

@@ -868,3 +868,11 @@ class FileSizeTooLarge(UserError):
 
 class SRIDNotSetForGeometry(BaseError):
     template = "Geometry SRID is required, but was given None."
+
+
+class KeyNotFound(UserError):
+    template = "{key!r} key is not in given data dictionary keys: {dict_keys!r}."
+
+
+class InvalidParamSource(UserError):
+    template = "Unable to recognize {param!r} param's source {source!r} type, given: {given_type!}, expected: {expected_types!r}."

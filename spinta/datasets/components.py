@@ -117,6 +117,8 @@ class Resource(External):
     given: ResourceGiven
     lang: LangData = None
     comments: List[Comment] = None
+    params: List[Param]
+    source_params: set
 
     schema = {
         'type': {'type': 'string'},
@@ -157,12 +159,33 @@ class Resource(External):
     def __init__(self):
         self.given = ResourceGiven()
         self.params = {}
+        self.source_params = set()
 
 
-class Param:
+class Param(ExtraMetaData):
     name: str
-    sources: List[str]
+    title: str
+    description: str
+    # Formatted values
+    sources: List[Any]
     formulas: List[Expr]
+    dependencies: set
+
+    # Given values
+    source: List[Any]
+    prepare: List[Any]
+
+    schema = {
+        'type': {'type': 'string'},
+        'title': {'type': 'string'},
+        'description': {'type': 'string'},
+        'name': {'type': 'string'},
+        'source': {'type': 'list'},
+        'prepare': {'type': 'list'}
+    }
+
+    def __init__(self):
+        self.dependencies = set()
 
 
 class Entity(External):
