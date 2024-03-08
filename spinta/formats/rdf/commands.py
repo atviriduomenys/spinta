@@ -157,6 +157,8 @@ def _create_element(
             if isinstance(child, Iterator):
                 for item in child:
                     elem.append(item)
+            else:
+                elem.append(child)
     return elem
 
 

@@ -54,6 +54,7 @@ def test_rdf_get_all_without_uri(
                   f'<rdf:RDF\n' \
                   f' xmlns:rdf="http://www.rdf.com"\n' \
                   f' xmlns:pav="http://purl.org/pav/"\n' \
+                  f' xmlns:xml="http://www.w3.org/XML/1998/namespace"\n' \
                   f' xmlns="https://testserver/">\n'\
                   f'<rdf:Description rdf:about="/example/rdf/City/{city2["_id"]}" rdf:type="example/rdf/City" ' \
                   f'pav:version="{city2["_revision"]}">\n' \
@@ -116,6 +117,7 @@ def test_rdf_get_all_with_uri(
                   f'<rdf:RDF\n' \
                   f' xmlns:rdf="http://www.rdf.com"\n' \
                   f' xmlns:pav="http://purl.org/pav/"\n' \
+                  f' xmlns:xml="http://www.w3.org/XML/1998/namespace"\n' \
                   f' xmlns:dcat="http://www.dcat.com"\n' \
                   f' xmlns:dct="http://dct.com"\n' \
                   f' xmlns="https://testserver/">\n' \
@@ -176,6 +178,7 @@ def test_rdf_get_one(
                   f'<rdf:RDF\n' \
                   f' xmlns:rdf="http://www.rdf.com"\n' \
                   f' xmlns:pav="http://purl.org/pav/"\n' \
+                  f' xmlns:xml="http://www.w3.org/XML/1998/namespace"\n' \
                   f' xmlns:dcat="http://www.dcat.com"\n' \
                   f' xmlns:dct="http://dct.com"\n' \
                   f' xmlns="https://testserver/">\n' \
@@ -230,6 +233,7 @@ def test_rdf_with_file(
                   f'<rdf:RDF\n' \
                   f' xmlns:rdf="http://www.rdf.com"\n' \
                   f' xmlns:pav="http://purl.org/pav/"\n' \
+                  f' xmlns:xml="http://www.w3.org/XML/1998/namespace"\n' \
                   f' xmlns:dcat="http://www.dcat.com"\n' \
                   f' xmlns:dct="http://dct.com"\n' \
                   f' xmlns="https://testserver/">\n' \
@@ -281,6 +285,7 @@ def test_rdf_get_with_uri_model_rename(
                   f'<rdf:RDF\n' \
                   f' xmlns:rdf="http://www.rdf.com"\n' \
                   f' xmlns:pav="http://purl.org/pav/"\n' \
+                  f' xmlns:xml="http://www.w3.org/XML/1998/namespace"\n' \
                   f' xmlns:dcat="http://www.dcat.com"\n' \
                   f' xmlns:dct="http://dct.com"\n' \
                   f' xmlns="https://testserver/">\n' \
@@ -339,6 +344,7 @@ def test_rdf_get_with_uri_ref_rename(
                   f'<rdf:RDF\n' \
                   f' xmlns:rdf="http://www.rdf.com"\n' \
                   f' xmlns:pav="http://purl.org/pav/"\n' \
+                  f' xmlns:xml="http://www.w3.org/XML/1998/namespace"\n' \
                   f' xmlns:dcat="http://www.dcat.com"\n' \
                   f' xmlns:dct="http://dct.com"\n' \
                   f' xmlns="https://testserver/">\n' \
@@ -391,6 +397,7 @@ def test_rdf_empty_ref(
                   f'<rdf:RDF\n' \
                   f' xmlns:rdf="http://www.rdf.com"\n' \
                   f' xmlns:pav="http://purl.org/pav/"\n' \
+                  f' xmlns:xml="http://www.w3.org/XML/1998/namespace"\n' \
                   f' xmlns:dcat="http://www.dcat.com"\n' \
                   f' xmlns:dct="http://dct.com"\n' \
                   f' xmlns="https://testserver/">\n' \
@@ -449,6 +456,7 @@ def test_rdf_mixed_ref(
                   f'<rdf:RDF\n' \
                   f' xmlns:rdf="http://www.rdf.com"\n' \
                   f' xmlns:pav="http://purl.org/pav/"\n' \
+                  f' xmlns:xml="http://www.w3.org/XML/1998/namespace"\n' \
                   f' xmlns:dcat="http://www.dcat.com"\n' \
                   f' xmlns:dct="http://dct.com"\n' \
                   f' xmlns="https://testserver/">\n' \
@@ -535,6 +543,7 @@ def test_rdf_namespace_all(
                   f'<rdf:RDF\n' \
                   f' xmlns:rdf="http://www.rdf.com"\n' \
                   f' xmlns:pav="http://purl.org/pav/"\n' \
+                  f' xmlns:xml="http://www.w3.org/XML/1998/namespace"\n' \
                   f' xmlns:dcat="http://www.dcat.com"\n' \
                   f' xmlns:dct="http://dct.com"\n' \
                   f' xmlns:test="http://test.com"\n' \
