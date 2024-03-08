@@ -91,7 +91,7 @@ def get_column(backend: PostgreSQL, dtype: Text, table: sa.Table = None, langs: 
     if not lang_prop:
         lang_prop = dtype.langs[existing_langs[0]]
     column = convert_str_to_column(table, prop, column_name)
-    column = column[lang_prop.name].label(prop.place)
+    column = column[lang_prop.name].label(f'{prop.place}.{lang_prop.name}')
     return column
 
 

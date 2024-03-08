@@ -888,6 +888,8 @@ class UrlParams:
 
     expand: Optional[List[str]] = None
 
+    lang: Optional[List[str]] = None
+
     accept_langs: Optional[List[str]] = None
     content_langs: Optional[List[str]] = None
 

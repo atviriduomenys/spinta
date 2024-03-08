@@ -22,9 +22,10 @@ from spinta.datasets.enums import Level
 from spinta.exceptions import EmptyStringSearch, PropertyNotFound, LangNotDeclared, NoneValueComparison
 from spinta.exceptions import UnknownMethod
 from spinta.exceptions import FieldNotInResource
-from spinta.components import Model, Property, Action, Page, UrlParams
+from spinta.components import Model, Property, Action, Page
 from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, merge_with_page_sort, \
     merge_with_page_limit, merge_with_page_selected_list, QueryParams
+from spinta.ufuncs.basequerybuilder.ufuncs import Star
 from spinta.utils.data import take
 from spinta.types.datatype import DataType, ExternalRef, Inherit, BackRef, Time, ArrayBackRef, Denorm
 from spinta.types.datatype import Array
@@ -369,10 +370,6 @@ class Positive(Func):
     arg: Any
 
 
-class Star:
-    pass
-
-
 @dataclasses.dataclass
 class Recurse(Func):
     args: List[Union[DataType, Func]] = None
@@ -382,14 +379,6 @@ class Recurse(Func):
 class ReservedProperty(Func):
     dtype: DataType
     param: str
-
-
-@ufunc.resolver(PgQueryBuilder, str, name='op')
-def op_(env, arg: str):
-    if arg == '*':
-        return Star()
-    else:
-        raise NotImplementedError
 
 
 @ufunc.resolver(PgQueryBuilder, Bind, Bind, name='getattr')

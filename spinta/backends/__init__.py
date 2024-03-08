@@ -1410,6 +1410,24 @@ def prepare_dtype_for_response(
     return {'_id': value}
 
 
+@commands.prepare_dtype_for_response.register(Context, Format, Text, dict)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: Text,
+    value: dict,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    if len(value) == 1:
+        for key, data in value.items():
+            if key not in select.keys():
+                return data
+    return value
+
+
 def get_property_base_model(model: Model, name: str):
     model = model
     base_model = None

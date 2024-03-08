@@ -812,7 +812,16 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
+    if len(value) == 1:
+        for key, data in value.items():
+            if key not in select.keys():
+                return _value_or_null(data)
+
     return {
-        k: Cell(v) if v is not None else Cell('', color=Color.null)
+        k: _value_or_null(v)
         for k, v in value.items()
     }
+
+
+def _value_or_null(value):
+    return Cell(value) if value is not None else Cell('', color=Color.null)

@@ -16,7 +16,10 @@ from spinta.components import Config
 from spinta.components import Context, Node
 from spinta.components import Model
 from spinta.components import Namespace
+from spinta.core.ufuncs import Bind
 from spinta.manifests.components import Manifest
+from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder
+from spinta.ufuncs.basequerybuilder.ufuncs import Star
 from spinta.utils import url as urlutil
 from spinta.components import UrlParams, Version
 from spinta.commands import is_object_id
@@ -92,6 +95,7 @@ def prepare_urlparams(context: Context, params: UrlParams, request: Request):
     params.format = get_response_type(context, request, params)
     params.accept_langs = get_preferred_accept_lang(request, params)
     params.content_langs = get_preferred_content_lang(request, params)
+    params.lang = get_required_lang(context, params)
     config: Config = context.get('config')
     params.fmt = config.exporters[params.format if params.format else 'json']
 
@@ -233,6 +237,13 @@ def _prepare_urlparams_from_path(params: UrlParams):
                 params.expand = args
             else:
                 params.expand += args
+        elif name == 'lang':
+            if not args:
+                raise Exception("LANG REQUIRES ARGS")
+            if params.lang is None:
+                params.lang = args
+            else:
+                params.lang += args
         else:
             if params.query is None:
                 params.query = []
@@ -417,6 +428,31 @@ def parse_accept_lang_header(lang_string):
     # Don't attempt to parse if there is only one language-range value which is
     # longer than the maximum allowed length and so truncated.
     return []
+
+
+def get_required_lang(context: Context, params: UrlParams):
+    env = BaseQueryBuilder(context)
+    langs = []
+    if params.lang:
+        stared = False
+        for lang in params.lang:
+            result = lang
+            if isinstance(lang, dict):
+                result = env.call(lang.get("name", ""), *lang.get("args", []), **lang.get("kwargs", {}))
+
+            if isinstance(result, Bind):
+                result = result.name
+
+            if isinstance(result, Star):
+                stared = True
+                if len(langs) > 0:
+                    raise Exception("STARED NEEDS TO BE ONLY ARGUMENT")
+                langs.append(result)
+            elif isinstance(result, str):
+                if stared:
+                    raise Exception("STARED NEEDS TO BE ONLY ARGUMENT")
+                langs.append(result)
+    return langs
 
 
 def get_preferred_accept_lang(
