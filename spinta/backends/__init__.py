@@ -1421,7 +1421,7 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    if len(value) == 1:
+    if len(value) == 1 and select:
         for key, data in value.items():
             if key not in select.keys():
                 return data
