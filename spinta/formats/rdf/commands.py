@@ -1,5 +1,5 @@
 import datetime
-from collections.abc import Iterator
+
 from decimal import Decimal
 from typing import Any, Union, Tuple
 from typing import Dict
@@ -154,9 +154,10 @@ def _create_element(
         elem.attrib[key] = value
     for child in children:
         if child is not None:
-            if isinstance(child, Iterator):
+            if isinstance(child, list):
                 for item in child:
-                    elem.append(item)
+                    if item is not None:
+                        elem.append(item)
             else:
                 elem.append(child)
     return elem
@@ -654,17 +655,20 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None
 ):
+    result = []
     for key, item in value.items():
-        prefixes = data['_available_prefixes']
-        attributes = None
-        if key != "C":
-            attributes = {
-                _get_attribute_name("lang", XML, prefixes): key
-            }
-        yield _create_element(
-            name=data['_elem_name'],
-            attributes=attributes,
-            text=str(item)
-        )
+        if item is not None:
+            prefixes = data['_available_prefixes']
+            attributes = None
+            if key != "C":
+                attributes = {
+                    _get_attribute_name("lang", XML, prefixes): key
+                }
+            result.append(_create_element(
+                name=data['_elem_name'],
+                attributes=attributes,
+                text=str(item)
+            ))
+    return result
 
 
