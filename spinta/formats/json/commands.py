@@ -78,10 +78,4 @@ def prepare_dtype_for_response(
 ):
     if 'C' in value:
         value[''] = value.pop('C')
-
-    if len(value) == 1 and select:
-        for key, data in value.items():
-            if key not in select.keys():
-                return data
-
     return value
