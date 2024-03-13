@@ -124,7 +124,7 @@ def _get_dtype_header(
                 dtype.langs,
                 select,
             ):
-                name_ = name + '.' + prop.name
+                name_ = f'{name}.{prop.name}'
                 yield from _get_dtype_header(prop.dtype, sel, name_, langs)
     elif isinstance(dtype, Inherit):
         if select and select != {'*': {}}:
@@ -204,7 +204,12 @@ def get_model_tabular_header(
                 select,
                 reserved=reserved,
             )
-        header = list(_get_model_header(model, names, select, reserved, params.lang))
+
+        langs = params.lang
+        if params.changes:
+            langs = [Star()]
+
+        header = list(_get_model_header(model, names, select, reserved, langs))
     return header
 
 
