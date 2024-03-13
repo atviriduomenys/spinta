@@ -983,3 +983,71 @@ def test_html_text_with_lang(
             'name.lt': {'value': 'Anglija'}
         }
     ]
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_html_changes_text(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property | type    | ref     | access  | level | uri
+    example/html/text/changes |         |         |         |       | 
+      |   |   |   |          | prefix  | rdf     |         |       | http://www.rdf.com
+      |   |   |   |          |         | pav     |         |       | http://purl.org/pav/
+      |   |   |   |          |         | dcat    |         |       | http://www.dcat.com
+      |   |   |   |          |         | dct     |         |       | http://dct.com
+      |   |   | Country      |         | name    |         |       | 
+      |   |   |   | id       | integer |         |         |       |
+      |   |   |   | name     | text    |         | open    | 3     |
+      |   |   |   | name@en  | string  |         | open    |       |
+      |   |   |   | name@lt  | string  |         | open    |       |
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    app = create_test_client(context)
+    app.authmodel('example/html', ['insert', 'getall', 'search', 'changes'])
+
+    pushdata(app, f'/example/html/text/changes/Country', {
+        'id': 0,
+        'name': {
+            'lt': 'Lietuva',
+            'en': 'Lithuania',
+            'C': 'LT'
+        }
+    })
+    pushdata(app, f'/example/html/text/changes/Country', {
+        'id': 1,
+        'name': {
+            'lt': 'Anglija',
+            'en': 'England',
+            'C': 'UK'
+        }
+    })
+
+    resp = app.get("/example/html/text/changes/Country/:changes/-10/:format/html?select(id,name)", headers=Headers(headers={
+        'accept-language': 'lt'
+    }))
+
+    assert _table_with_header(resp) == [
+        {
+            'id': {'value': 0},
+            'name.C': {'value': 'LT'},
+            'name.en': {'value': 'Lithuania'},
+            'name.lt': {'value': 'Lietuva'},
+        },
+        {
+            'id': {'value': 1},
+            'name.C': {'value': 'UK'},
+            'name.en': {'value': 'England'},
+            'name.lt': {'value': 'Anglija'},
+        }
+    ]

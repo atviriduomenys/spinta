@@ -419,3 +419,60 @@ def test_csv_text_with_lang(
         ['0', 'Lithuania', 'Lietuva'],
         ['1', 'England', 'Anglija'],
     ]
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_csv_changes_text(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property | type    | ref     | access  | level | uri
+    example/csv/text/changes |         |         |         |       | 
+      |   |   |   |          | prefix  | rdf     |         |       | http://www.rdf.com
+      |   |   |   |          |         | pav     |         |       | http://purl.org/pav/
+      |   |   |   |          |         | dcat    |         |       | http://www.dcat.com
+      |   |   |   |          |         | dct     |         |       | http://dct.com
+      |   |   | Country      |         | name    |         |       | 
+      |   |   |   | id       | integer |         |         |       |
+      |   |   |   | name     | text    |         | open    | 3     |
+      |   |   |   | name@en  | string  |         | open    |       |
+      |   |   |   | name@lt  | string  |         | open    |       |
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    app = create_test_client(context)
+    app.authmodel('example/csv', ['insert', 'getall', 'search', 'changes'])
+
+    pushdata(app, f'/example/csv/text/changes/Country', {
+        'id': 0,
+        'name': {
+            'lt': 'Lietuva',
+            'en': 'Lithuania',
+            'C': 'LT'
+        }
+    })
+    pushdata(app, f'/example/csv/text/changes/Country', {
+        'id': 1,
+        'name': {
+            'lt': 'Anglija',
+            'en': 'England',
+            'C': 'UK'
+        }
+    })
+
+    assert parse_csv(app.get("/example/csv/text/changes/Country/:changes/-10/:format/csv?select(id,name)", headers=Headers(headers={
+        'accept-language': 'lt'
+    }))) == [
+        ['id', 'name.C', 'name.en', 'name.lt'],
+        ['0', 'LT', 'Lithuania', 'Lietuva'],
+        ['1', 'UK', 'England', 'Anglija'],
+    ]
