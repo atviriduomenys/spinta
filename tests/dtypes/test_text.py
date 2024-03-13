@@ -466,9 +466,7 @@ def test_text_unknown_language(
     assert select_by_prop.status_code == 200
     assert len(select_by_prop.json()['_data']) == 1
     assert select_by_prop.json()['_data'] == [{
-        'name': {
-            '': 'LT',
-        }
+        'name': 'LT'
     }]
 
 
