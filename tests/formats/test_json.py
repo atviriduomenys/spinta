@@ -252,7 +252,7 @@ def test_json_text_with_lang(
         'name': {
             'lt': 'Lietuva',
             'en': 'Lithuania',
-            'C': 'LT'
+            '': 'LT'
         }
     })
     pushdata(app, f'/example/json/text/lang/Country', {
@@ -260,7 +260,7 @@ def test_json_text_with_lang(
         'name': {
             'lt': 'Anglija',
             'en': 'England',
-            'C': 'UK'
+            '': 'UK'
         }
     })
 
@@ -272,7 +272,7 @@ def test_json_text_with_lang(
         {
             'id': 0,
             'name': {
-                'C': 'LT',
+                '': 'LT',
                 'en': 'Lithuania',
                 'lt': 'Lietuva'
             }
@@ -280,7 +280,7 @@ def test_json_text_with_lang(
         {
             'id': 1,
             'name': {
-                'C': 'UK',
+                '': 'UK',
                 'en': 'England',
                 'lt': 'Anglija'
             }
