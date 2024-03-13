@@ -1219,7 +1219,7 @@ def test_push_with_text_unknown(
     countries = remote.app.get('textunknown/City?select(id,name@lt,name@pl,name@C)')
     assert countries.status_code == 200
     assert listdata(countries, 'id', 'name', sort=True) == [
-        (1, {'C': 'VLN', 'lt': 'Vilnius', 'pl': 'Vilna'}),
+        (1, {'': 'VLN', 'lt': 'Vilnius', 'pl': 'Vilna'}),
     ]
 
 
