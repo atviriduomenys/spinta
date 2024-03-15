@@ -2,6 +2,8 @@ import datetime
 import json
 import operator
 import hashlib
+from pathlib import Path
+from starlette.datastructures import Headers
 
 import pytest
 from _pytest.fixtures import FixtureRequest
@@ -144,5 +146,254 @@ def test_jsonl_last_page(
         {
             '_page': {'next': encode_page_values_manually({'name': 'Vilnius', '_id': result['_id']})},
             'name': 'Vilnius'
+        }
+    ]
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_jsonl_text(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property | type    | ref     | access  | level | uri
+    example/jsonl/text         |         |         |         |       | 
+      |   |   |   |          | prefix  | rdf     |         |       | http://www.rdf.com
+      |   |   |   |          |         | pav     |         |       | http://purl.org/pav/
+      |   |   |   |          |         | dcat    |         |       | http://www.dcat.com
+      |   |   |   |          |         | dct     |         |       | http://dct.com
+      |   |   | Country      |         | name    |         |       | 
+      |   |   |   | id       | integer |         |         |       |
+      |   |   |   | name     | text    |         | open    | 3     |
+      |   |   |   | name@en  | string  |         | open    |       |
+      |   |   |   | name@lt  | string  |         | open    |       |
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    app = create_test_client(context)
+    app.authmodel('example/jsonl', ['insert', 'getall', 'search'])
+
+    pushdata(app, f'/example/jsonl/text/Country', {
+        'id': 0,
+        'name': {
+            'lt': 'Lietuva',
+            'en': 'Lithuania',
+            '': 'LT'
+        }
+    })
+    pushdata(app, f'/example/jsonl/text/Country', {
+        'id': 1,
+        'name': {
+            'lt': 'Anglija',
+            'en': 'England',
+            '': 'UK'
+        }
+    })
+
+    resp = app.get("/example/jsonl/text/Country/:format/jsonl?select(id,name)", headers=Headers(headers={
+        'accept-language': 'lt'
+    }))
+    data = [json.loads(d) for d in resp.text.splitlines()]
+
+    assert data == [
+        {
+            'id': 0,
+            'name': 'Lietuva'
+        },
+        {
+            'id': 1,
+            'name': 'Anglija'
+        }
+    ]
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_jsonl_text_with_lang(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property | type    | ref     | access  | level | uri
+    example/jsonl/text/lang    |         |         |         |       | 
+      |   |   |   |          | prefix  | rdf     |         |       | http://www.rdf.com
+      |   |   |   |          |         | pav     |         |       | http://purl.org/pav/
+      |   |   |   |          |         | dcat    |         |       | http://www.dcat.com
+      |   |   |   |          |         | dct     |         |       | http://dct.com
+      |   |   | Country      |         | name    |         |       | 
+      |   |   |   | id       | integer |         |         |       |
+      |   |   |   | name     | text    |         | open    | 3     |
+      |   |   |   | name@en  | string  |         | open    |       |
+      |   |   |   | name@lt  | string  |         | open    |       |
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    app = create_test_client(context)
+    app.authmodel('example/jsonl', ['insert', 'getall', 'search'])
+
+    pushdata(app, f'/example/jsonl/text/lang/Country', {
+        'id': 0,
+        'name': {
+            'lt': 'Lietuva',
+            'en': 'Lithuania',
+            '': 'LT'
+        }
+    })
+    pushdata(app, f'/example/jsonl/text/lang/Country', {
+        'id': 1,
+        'name': {
+            'lt': 'Anglija',
+            'en': 'England',
+            '': 'UK'
+        }
+    })
+
+    resp = app.get("/example/jsonl/text/lang/Country/:format/jsonl?lang(*)&select(id,name)", headers=Headers(headers={
+        'accept-language': 'lt'
+    }))
+    data = [json.loads(d) for d in resp.text.splitlines()]
+
+    assert data == [
+        {
+            'id': 0,
+            'name': {
+                '': 'LT',
+                'en': 'Lithuania',
+                'lt': 'Lietuva'
+            }
+        },
+        {
+            'id': 1,
+            'name': {
+                '': 'UK',
+                'en': 'England',
+                'lt': 'Anglija'
+            }
+        }
+    ]
+
+    resp = app.get("/example/jsonl/text/lang/Country/:format/jsonl?lang(en)&select(id,name)", headers=Headers(headers={
+        'accept-language': 'lt'
+    }))
+    data = [json.loads(d) for d in resp.text.splitlines()]
+
+    assert data == [
+        {
+            'id': 0,
+            'name': 'Lithuania',
+        },
+        {
+            'id': 1,
+            'name': 'England',
+        }
+    ]
+
+    resp = app.get("/example/jsonl/text/lang/Country/:format/jsonl?lang(en,lt)&select(id,name)", headers=Headers(headers={
+        'accept-language': 'lt'
+    }))
+    data = [json.loads(d) for d in resp.text.splitlines()]
+
+    assert data == [
+        {
+            'id': 0,
+            'name': {
+                'en': 'Lithuania',
+                'lt': 'Lietuva'
+            }
+        },
+        {
+            'id': 1,
+            'name': {
+                'en': 'England',
+                'lt': 'Anglija'
+            }
+        }
+    ]
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_jsonl_changes_text(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property | type    | ref     | access  | level | uri
+    example/jsonl/text/changes |         |         |         |       | 
+      |   |   |   |          | prefix  | rdf     |         |       | http://www.rdf.com
+      |   |   |   |          |         | pav     |         |       | http://purl.org/pav/
+      |   |   |   |          |         | dcat    |         |       | http://www.dcat.com
+      |   |   |   |          |         | dct     |         |       | http://dct.com
+      |   |   | Country      |         | name    |         |       | 
+      |   |   |   | id       | integer |         |         |       |
+      |   |   |   | name     | text    |         | open    | 3     |
+      |   |   |   | name@en  | string  |         | open    |       |
+      |   |   |   | name@lt  | string  |         | open    |       |
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    app = create_test_client(context)
+    app.authmodel('example/jsonl', ['insert', 'getall', 'search', 'changes'])
+
+    pushdata(app, f'/example/jsonl/text/changes/Country', {
+        'id': 0,
+        'name': {
+            'lt': 'Lietuva',
+            'en': 'Lithuania',
+            'C': 'LT'
+        }
+    })
+    pushdata(app, f'/example/jsonl/text/changes/Country', {
+        'id': 1,
+        'name': {
+            'lt': 'Anglija',
+            'en': 'England',
+            'C': 'UK'
+        }
+    })
+
+    resp = app.get("/example/jsonl/text/changes/Country/:changes/-10/:format/jsonl?select(id,name)", headers=Headers(headers={
+        'accept-language': 'lt'
+    }))
+    data = [json.loads(d) for d in resp.text.splitlines()]
+
+    assert data == [
+        {
+            'id': 0,
+            'name': {
+                '': 'LT',
+                'en': 'Lithuania',
+                'lt': 'Lietuva'
+            }
+        },
+        {
+            'id': 1,
+            'name': {
+                '': 'UK',
+                'en': 'England',
+                'lt': 'Anglija'
+            }
         }
     ]

@@ -22,9 +22,12 @@ from spinta.datasets.enums import Level
 from spinta.exceptions import EmptyStringSearch, PropertyNotFound, LangNotDeclared, NoneValueComparison
 from spinta.exceptions import UnknownMethod
 from spinta.exceptions import FieldNotInResource
-from spinta.components import Model, Property, Action, Page, UrlParams
+from spinta.components import Model, Property, Action, Page
+from spinta.types.text.helpers import determine_language_for_text
 from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, merge_with_page_sort, \
     merge_with_page_limit, merge_with_page_selected_list, QueryParams
+from spinta.ufuncs.basequerybuilder.helpers import get_column_with_extra, get_language_column
+from spinta.ufuncs.basequerybuilder.ufuncs import Star
 from spinta.utils.data import take
 from spinta.types.datatype import DataType, ExternalRef, Inherit, BackRef, Time, ArrayBackRef, Denorm
 from spinta.types.datatype import Array
@@ -369,10 +372,6 @@ class Positive(Func):
     arg: Any
 
 
-class Star:
-    pass
-
-
 @dataclasses.dataclass
 class Recurse(Func):
     args: List[Union[DataType, Func]] = None
@@ -382,14 +381,6 @@ class Recurse(Func):
 class ReservedProperty(Func):
     dtype: DataType
     param: str
-
-
-@ufunc.resolver(PgQueryBuilder, str, name='op')
-def op_(env, arg: str):
-    if arg == '*':
-        return Star()
-    else:
-        raise NotImplementedError
 
 
 @ufunc.resolver(PgQueryBuilder, Bind, Bind, name='getattr')
@@ -527,6 +518,11 @@ class Selected:
         return False
 
 
+@ufunc.resolver(PgQueryBuilder, Property)
+def select(env, prop):
+    return env.call("select", prop.dtype)
+
+
 @ufunc.resolver(PgQueryBuilder, DataType)
 def select(env, dtype):
     table = env.backend.get_table(env.model)
@@ -554,11 +550,36 @@ def select(env, dtype):
 @ufunc.resolver(PgQueryBuilder, Text)
 def select(env, dtype):
     env.call('validate_dtype_for_select', dtype, _gather_selected_properties(env))
-    if dtype.prop.list is None:
-        column = _get_column_with_extra(env, dtype.prop)
-    else:
+    if dtype.prop.list:
         column = env.backend.get_column(env.table, dtype.prop.list)
-    return Selected(column, dtype.prop)
+        return Selected(column, dtype.prop)
+
+    if env.query_params.push:
+        result = [
+            env.call('select', prop).item
+            for key, prop in dtype.langs.items()
+        ]
+        return Selected(result, prop=dtype.prop)
+
+    if env.query_params.lang:
+        for lang in env.query_params.lang:
+            if isinstance(lang, Star):
+                result = [
+                    env.call('select', prop).item
+                    for key, prop in dtype.langs.items()
+                ]
+                return Selected(result, prop=dtype.prop)
+            break
+
+        result = [
+            env.call('select', prop).item
+            for key, prop in dtype.langs.items() if key in env.query_params.lang
+        ]
+        return Selected(result, prop=dtype.prop)
+
+    default_langs = env.context.get('config').languages
+    lang_prop = determine_language_for_text(dtype, env.query_params.lang_priority, default_langs)
+    return Selected(env.call('select', lang_prop).item, prop=dtype.prop)
 
 
 @ufunc.resolver(PgQueryBuilder, Object)
@@ -968,7 +989,7 @@ def eq(env, dtype, value):
 
 @ufunc.resolver(PgQueryBuilder, Text, (str, Bind, type(None)))
 def eq(env, dtype, value):
-    column = _get_column_with_extra(env, dtype.prop)
+    column = get_language_column(env, dtype.prop)
     cond = _sa_compare('eq', column, value)
     return _prepare_condition(env, dtype.prop, cond)
 
@@ -1086,7 +1107,7 @@ def lower(env, recurse):
 def compare(env, op, fn, value):
     if op in ('startswith', 'contains'):
         _ensure_non_empty(op, value)
-    column = _get_column_with_extra(env, fn.dtype.prop)
+    column = get_column_with_extra(env, fn.dtype.prop)
     column = sa.func.lower(column)
     cond = _sa_compare(op, column, value)
     return _prepare_condition(env, fn.dtype.prop, cond)
@@ -1177,7 +1198,7 @@ def ne(env, dtype, value):
 
 @ufunc.resolver(PgQueryBuilder, Text, str)
 def ne(env, dtype, value):
-    column = _get_column_with_extra(env, dtype.prop)
+    column = get_language_column(env, dtype)
     return _ne_compare(env, dtype.prop, column, value)
 
 
@@ -1264,7 +1285,7 @@ def compare(env, op, dtype, value):
 
 @ufunc.resolver(PgQueryBuilder, Lower, str)
 def ne(env, fn, value):
-    column = _get_column_with_extra(env, fn.dtype.prop)
+    column = get_column_with_extra(env, fn.dtype.prop)
     column = sa.func.lower(column)
     return _ne_compare(env, fn.dtype.prop, column, value)
 
@@ -1447,14 +1468,8 @@ def sort(env, name, dtype: Array):
     return env.call(name, dtype.items.dtype)
 
 
-def _get_column_with_extra(env: PgQueryBuilder, prop: Property):
-    default_langs = env.context.get('config').languages
-    column = env.backend.get_column(env.table, prop, langs=env.query_params.lang_priority, push=env.query_params.push, default_langs=default_langs)
-    return column
-
-
 def _get_sort_column(env: PgQueryBuilder, prop: Property):
-    column = _get_column_with_extra(env, prop)
+    column = get_column_with_extra(env, prop)
 
     if prop.list is None:
         return column

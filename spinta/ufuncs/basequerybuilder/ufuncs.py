@@ -1,4 +1,3 @@
-from pprint import pprint
 from typing import Union, List
 
 from spinta.components import Page, Property, PageBy
@@ -38,6 +37,19 @@ def expand(env, expr):
             resolved = env.resolve(arg)
             selected = env.call('select', resolved)
             env.expand.append(selected.prop)
+
+
+class Star:
+    def __str__(self):
+        return '*'
+
+
+@ufunc.resolver(BaseQueryBuilder, str, name='op')
+def op_(env, arg: str):
+    if arg == '*':
+        return Star()
+    else:
+        raise NotImplementedError
 
 
 @ufunc.resolver(BaseQueryBuilder, Expr, name='page')

@@ -1,9 +1,7 @@
-import base64
-import json
 from typing import Any, List
 
 from spinta.components import Page, PageBy, Model, Property, UrlParams
-from spinta.core.ufuncs import Env, Negative, Bind, Expr
+from spinta.core.ufuncs import Env, Expr
 from spinta.datasets.components import ExternalBackend
 from spinta.exceptions import FieldNotInResource
 
@@ -24,6 +22,7 @@ class QueryPage:
 class QueryParams:
     prioritize_uri: bool = False
     lang_priority: List[str] = None
+    lang: List = None
     push: bool = False
 
 
@@ -148,3 +147,4 @@ def merge_with_page_limit(limit: int, page: QueryPage):
 def update_query_with_url_params(query_params: QueryParams, url_params: UrlParams):
     query_params.prioritize_uri = url_params.fmt.prioritize_uri
     query_params.lang_priority = url_params.accept_langs
+    query_params.lang = url_params.lang

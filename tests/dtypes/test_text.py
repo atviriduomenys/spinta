@@ -455,7 +455,7 @@ def test_text_unknown_language(
     ])
     resp = app.post(f'/{model}', json={
         'name': {
-            'C': 'LT',
+            '': 'LT',
             'lt': 'Lietuva'
         }
     })
@@ -467,7 +467,7 @@ def test_text_unknown_language(
     assert len(select_by_prop.json()['_data']) == 1
     assert select_by_prop.json()['_data'] == [{
         'name': {
-            'C': 'LT',
+            '': 'LT'
         }
     }]
 

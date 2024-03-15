@@ -206,6 +206,19 @@ def prepare_for_write(
     return result
 
 
+@commands.prepare_for_write.register(Context, Text, Backend, dict, UrlParams)
+def prepare_for_write(
+    context: Context,
+    dtype: Text,
+    backend: Backend,
+    value: dict,
+    params: UrlParams
+) -> Any:
+    if '' in value:
+        value['C'] = value.pop('')
+    return value
+
+
 @prepare.register(Context, Backend, Property)
 def prepare(context: Context, backend: Backend, prop: Property, **kwargs):
     return prepare(context, backend, prop.dtype, **kwargs)
@@ -320,6 +333,8 @@ def simple_data_check(
     langs = dtype.langs
     for lang, val in value.items():
         if lang not in langs:
+            if lang == '' and 'C' in langs:
+                continue
             raise LangNotDeclared(dtype, lang=lang)
 
 
@@ -1408,6 +1423,24 @@ def prepare_dtype_for_response(
     select: dict = None,
 ):
     return {'_id': value}
+
+
+@commands.prepare_dtype_for_response.register(Context, Format, Text, dict)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: Text,
+    value: dict,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    if len(value) == 1 and select:
+        for key, data in value.items():
+            if key not in select.keys():
+                return data
+    return value
 
 
 def get_property_base_model(model: Model, name: str):
