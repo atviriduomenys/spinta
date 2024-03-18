@@ -275,3 +275,47 @@ def test_getall_paginate_with_nulls_unique(context, rc, tmp_path, geodb_with_nul
         (None, 3, 0, None),
         (None, None, 2, None),
     ]
+
+
+def test_getall_distinct(context, rc, tmp_path):
+    with create_sqlite_db({
+        'cities': [
+            sa.Column('name', sa.Text),
+            sa.Column('country', sa.Text),
+        ]
+    }) as db:
+        db.write('cities', [
+            {'name': 'Vilnius', 'country': 'Lietuva'},
+            {'name': 'Kaunas', 'country': 'Lietuva'}
+        ])
+        create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+        id | d | r | b | m | property    | source          | type    | ref      | access | prepare    | level
+           | external/distinct           |                 |         |          |        |            |
+           |   | data                    |                 | sql     |          |        |            |
+           |   |   |                     |                 |         |          |        |            |
+           |   |   |   | City            | cities          |         | name     | open   |            |
+           |   |   |   |   | name        | name            | string  |          |        |            |
+           |   |   |   |   | country     | country         | ref     | Country  |        |            | 3
+           |   |   |   | Country         | cities          |         | name     | open   |            |
+           |   |   |   |   | name        | country         | string  |          |        |            |
+           |   |   |   | CountryDistinct | cities          |         | name     | open   | distinct() |
+           |   |   |   |   | name        | country         | string  |          |        |            |
+        '''))
+
+        app = create_client(rc, tmp_path, db)
+        resp = app.get('/external/distinct/City')
+        assert listdata(resp, 'name', 'country') == [
+            ('Kaunas', {'name': 'Lietuva'}),
+            ('Vilnius', {'name': 'Lietuva'})
+        ]
+
+        resp = app.get('/external/distinct/Country')
+        assert listdata(resp, 'name') == [
+            'Lietuva',
+            'Lietuva'
+        ]
+
+        resp = app.get('/external/distinct/CountryDistinct')
+        assert listdata(resp, 'name') == [
+            'Lietuva',
+        ]
