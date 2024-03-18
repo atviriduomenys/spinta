@@ -282,11 +282,13 @@ def test_getall_distinct(context, rc, tmp_path):
         'cities': [
             sa.Column('name', sa.Text),
             sa.Column('country', sa.Text),
+            sa.Column('id', sa.Integer)
         ]
     }) as db:
         db.write('cities', [
-            {'name': 'Vilnius', 'country': 'Lietuva'},
-            {'name': 'Kaunas', 'country': 'Lietuva'}
+            {'name': 'Vilnius', 'country': 'Lietuva', 'id': 0},
+            {'name': 'Kaunas', 'country': 'Lietuva', 'id': 0},
+            {'name': 'Siauliai', 'country': 'Lietuva', 'id': 1},
         ])
         create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
         id | d | r | b | m | property    | source          | type    | ref      | access | prepare    | level
@@ -298,24 +300,46 @@ def test_getall_distinct(context, rc, tmp_path):
            |   |   |   |   | country     | country         | ref     | Country  |        |            | 3
            |   |   |   | Country         | cities          |         | name     | open   |            |
            |   |   |   |   | name        | country         | string  |          |        |            |
+           |   |   |   |   | id          | id              | integer |          |        |            |     
            |   |   |   | CountryDistinct | cities          |         | name     | open   | distinct() |
            |   |   |   |   | name        | country         | string  |          |        |            |
+           |   |   |   |   | id          | id              | integer |          |        |            |        
+           |   |   |   | CountryMultiDistinct | cities          |         | name, id | open   | distinct() |
+           |   |   |   |   | name        | country         | string  |          |        |            |
+           |   |   |   |   | id          | id              | integer |          |        |            |       
+           |   |   |   | CountryAllDistinct | cities          |         |        | open   | distinct() |
+           |   |   |   |   | name        | country         | string  |          |        |            |
+           |   |   |   |   | id          | id              | integer |          |        |            |   
         '''))
 
         app = create_client(rc, tmp_path, db)
         resp = app.get('/external/distinct/City')
         assert listdata(resp, 'name', 'country') == [
             ('Kaunas', {'name': 'Lietuva'}),
+            ('Siauliai', {'name': 'Lietuva'}),
             ('Vilnius', {'name': 'Lietuva'})
         ]
 
         resp = app.get('/external/distinct/Country')
-        assert listdata(resp, 'name') == [
-            'Lietuva',
-            'Lietuva'
+        assert listdata(resp, 'name', 'id') == [
+            ('Lietuva', 0),
+            ('Lietuva', 0),
+            ('Lietuva', 1)
         ]
 
         resp = app.get('/external/distinct/CountryDistinct')
-        assert listdata(resp, 'name') == [
-            'Lietuva',
+        assert listdata(resp, 'name', 'id') == [
+            ('Lietuva', 0),
+        ]
+
+        resp = app.get('/external/distinct/CountryMultiDistinct')
+        assert listdata(resp, 'name', 'id') == [
+            ('Lietuva', 0),
+            ('Lietuva', 1)
+        ]
+
+        resp = app.get('/external/distinct/CountryAllDistinct')
+        assert listdata(resp, 'name', 'id') == [
+            ('Lietuva', 0),
+            ('Lietuva', 1)
         ]

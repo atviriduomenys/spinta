@@ -175,8 +175,7 @@ class SqlQueryBuilder(BaseQueryBuilder):
             qry = qry.offset(self.offset)
 
         if self.group_by is not None:
-            expr = sa.and_(*self.group_by)
-            qry = qry.group_by(expr)
+            qry = qry.group_by(*self.group_by)
 
         if self.distinct:
             qry = qry.distinct()
