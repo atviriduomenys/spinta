@@ -32,7 +32,7 @@ from spinta.dimensions.param.components import ResolvedParams
 from spinta.exceptions import PropertyNotFound, SourceCannotBeList, LangNotDeclared
 from spinta.exceptions import UnknownMethod
 from spinta.exceptions import UnableToCast
-from spinta.types.datatype import DataType, Denorm
+from spinta.types.datatype import DataType, Denorm, Object
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.types.datatype import String
@@ -785,6 +785,16 @@ def select(env, dtype: Denorm):
                     root_parent = parent
         fpr = ForeignProperty(fpr, root_parent.dtype, dtype.rel_prop.dtype)
         return env.call("select", fpr)
+
+
+@ufunc.resolver(SqlQueryBuilder, Object)
+def select(env, dtype: Object):
+    prep = {}
+    for prop in take(dtype.properties).values():
+        sel = env.call('select', prop.dtype)
+        prep[prop.name] = sel
+
+    return Selected(prop=dtype.prop, prep=prep)
 
 
 @ufunc.resolver(SqlQueryBuilder, Page)

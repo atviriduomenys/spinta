@@ -4,6 +4,8 @@ from spinta.components import Page, PageBy, Model, Property, UrlParams
 from spinta.core.ufuncs import Env, Expr
 from spinta.datasets.components import ExternalBackend
 from spinta.exceptions import FieldNotInResource
+from spinta.types.datatype import String
+from spinta.types.text.components import Text
 
 
 class QueryPage:
@@ -90,8 +92,8 @@ class LoadBuilder(Env):
                     args.remove('_id')
             for arg in args:
                 key = arg
-                if arg in self.model.properties:
-                    prop = self.model.properties[arg]
+                if arg in self.model.flatprops:
+                    prop = self.model.flatprops[arg]
                     page.by.update({
                         key: PageBy(prop)
                     })
@@ -100,9 +102,16 @@ class LoadBuilder(Env):
 
         # Disable page if given properties are not possible to access
         for page_by in page.by.values():
-            if not isinstance(page_by.prop.dtype, get_allowed_page_property_types()):
+            page_prop = page_by.prop
+            if not isinstance(page_prop.dtype, get_allowed_page_property_types()):
                 page.is_enabled = False
                 break
+            elif isinstance(page_prop.dtype, String):
+                # Disable Text from pagination
+                if isinstance(page_prop.parent, Property) and isinstance(page_prop.parent.dtype, Text):
+                    page.is_enabled = False
+                    break
+
         self.model.page = page
         page.model = self.model
 
@@ -117,7 +126,7 @@ def get_page_values(env: BaseQueryBuilder, row: dict):
         if isinstance(env.model.backend, ExternalBackend):
             return [row[item.prop.external.name] for item in env.page.page_.by.values()]
         else:
-            return [row[item.prop.name] for item in env.page.page_.by.values()]
+            return [row[item.prop.place.replace('@', '.')] for item in env.page.page_.by.values()]
 
 
 def merge_with_page_selected_list(select_list: list, page: QueryPage):

@@ -575,8 +575,7 @@ def prepare_dtype_for_response(
         return Cell('', color=Color.null)
 
     props = dtype.properties.copy()
-    props.update(dtype.model.properties)
-
+    props.update(dtype.model.flatprops)
     if select and select != {'*': {}}:
         names = get_select_prop_names(
             context,

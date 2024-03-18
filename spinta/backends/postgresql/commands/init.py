@@ -4,10 +4,10 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from spinta import commands
-from spinta.components import Context, Model
+from spinta.components import Context, Model, Property
 from spinta.core.enums import Access
 from spinta.manifests.components import Manifest
-from spinta.types.datatype import DataType, PrimaryKey, Ref, BackRef
+from spinta.types.datatype import DataType, PrimaryKey, Ref, BackRef, String
 from spinta.backends.constants import TableType
 from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.constants import UNSUPPORTED_TYPES
@@ -16,6 +16,7 @@ from spinta.backends.postgresql.helpers import get_pg_name
 from spinta.backends.postgresql.helpers import get_column_name
 from spinta.backends.postgresql.helpers.changes import get_changes_table
 from spinta.datasets.enums import Level
+from spinta.types.text.components import Text
 
 
 @overload
@@ -53,15 +54,11 @@ def prepare(context: Context, backend: PostgreSQL, model: Model, ignore_duplicat
         for constraint in model.unique:
             prop_list = []
             for prop in constraint:
-                name = prop.name
-                if isinstance(prop.dtype, Ref):
-                    if prop.level is None or prop.level > Level.open:
-                        name = f'{name}._id'
-                    elif prop.dtype:
-                        name = f'{name}.{prop.dtype.refprops[0].name}'
-                prop_list.append(name)
-
-            columns.append(sa.UniqueConstraint(*prop_list))
+                name = _get_prop_name_for_prepare(prop)
+                if name is not None:
+                    prop_list.append(name)
+            if prop_list:
+                columns.append(sa.UniqueConstraint(*prop_list))
 
     # Create main table.
 
@@ -135,3 +132,16 @@ def prepare(context: Context, backend: PostgreSQL, dtype: PrimaryKey, **kwargs):
             )
         ]
     return sa.Column('_id', pkey_type, primary_key=True)
+
+
+def _get_prop_name_for_prepare(prop: Property):
+    name = prop.name
+    if isinstance(prop.dtype, String) and isinstance(prop.parent, Property) and isinstance(prop.parent.dtype, Text):
+        return None
+
+    if isinstance(prop.dtype, Ref):
+        if prop.level is None or prop.level > Level.open:
+            name = f'{name}._id'
+        elif prop.dtype:
+            name = f'{name}.{prop.dtype.refprops[0].name}'
+    return name

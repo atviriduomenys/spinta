@@ -352,13 +352,28 @@ def simple_data_check(
     ]
 
     if dtype.model.given.pkeys or dtype.explicit:
-        allowed_keys = [prop.name for prop in dtype.refprops]
+        allowed_keys = [prop.place for prop in dtype.refprops]
     else:
         allowed_keys = ['_id']
     allowed_keys.extend(denorm_prop_keys)
-    for key in value.keys():
+    for key, value in value.items():
         if key not in allowed_keys:
-            raise exceptions.FieldNotInResource(prop, property=key)
+            found_key = False
+            for allowed_key in allowed_keys:
+                if found_key:
+                    break
+
+                if allowed_key.startswith(key):
+                    formatted = allowed_key.replace('.', ' ').replace('@', ' ')
+                    split_props = formatted.split()
+                    pointer = value
+                    for split_prop in split_props:
+                        found_key = False
+                        if split_prop in pointer:
+                            found_key = True
+                            pointer = pointer[split_prop]
+            if not found_key:
+                raise exceptions.FieldNotInResource(prop, property=key)
         elif key in denorm_prop_keys:
             commands.simple_data_check(
                 context,
