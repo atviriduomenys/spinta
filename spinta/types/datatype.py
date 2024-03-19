@@ -205,6 +205,10 @@ class Ref(DataType):
     }
 
     def get_child(self, name: str):
+        for refprop in self.refprops:
+            if refprop.name == name:
+                return refprop
+
         if name in self.properties:
             return self.properties[name]
 
