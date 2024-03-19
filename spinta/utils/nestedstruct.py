@@ -47,7 +47,7 @@ def _combine_with_separator(parent: Union[Model, Property], parent_name: str, ch
 
     if not parent_name:
         return_name = child_name
-        if isinstance(parent, Model):
+        if isinstance(parent, Model) and return_name in parent.properties:
             return_parent = parent.properties[return_name]
 
         return return_name, return_parent
