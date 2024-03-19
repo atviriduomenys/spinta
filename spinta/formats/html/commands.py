@@ -232,7 +232,7 @@ def build_template_context(
     params: UrlParams,
     rows: Iterable[Dict[str, Cell]],
 ):
-    rows = flatten(rows)
+    rows = flatten(rows, model)
 
     rows, empty = _is_empty(rows)
     header = _get_model_tabular_header(context, model, action, params)

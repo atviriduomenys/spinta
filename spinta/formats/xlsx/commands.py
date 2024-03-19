@@ -39,7 +39,7 @@ def render(
     headers = headers or {}
     headers['Content-Disposition'] = f'attachment; filename="{model.basename}.xlsx"'
 
-    rows = flatten(data)
+    rows = flatten(data, model)
     cols = get_model_tabular_header(context, model, action, params)
     return StreamingResponse(
         aiter(_render_xlsx(rows, cols)),

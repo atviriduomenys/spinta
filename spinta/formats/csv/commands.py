@@ -91,7 +91,7 @@ def _render_model_csv(
     params: UrlParams,
     data: Iterator[Dict[str, Any]],
 ):
-    rows = flatten(data)
+    rows = flatten(data, model)
     # Rename _page to _page.next
     rows = rename_page_col(rows)
     cols = get_model_tabular_header(context, model, action, params)

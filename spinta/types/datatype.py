@@ -14,6 +14,7 @@ from spinta import exceptions
 from spinta.commands import load, is_object_id
 from spinta.components import Context, Component, Property
 from spinta.components import Model
+from spinta.exceptions import PropertyNotFound
 from spinta.manifests.components import Manifest
 from spinta.types.helpers import set_dtype_backend
 from spinta.utils.schema import NA, NotAvailable
@@ -51,6 +52,8 @@ class DataType(Component):
     requires_source: bool = True
     inherited: bool = False
 
+    tabular_separator = '.'
+
     def __repr__(self):
         return f'<{self.prop.name}:{self.name}>'
 
@@ -65,6 +68,9 @@ class DataType(Component):
         result = cls.__new__(cls)
         result.__dict__.update(self.__dict__)
         return result
+
+    def get_child(self, name: str):
+        raise Exception(f"{self}, THIS DATATYPE DOES NOT SUPPORT CHILD GET")
 
 
 class PrimaryKey(DataType):
@@ -198,6 +204,12 @@ class Ref(DataType):
         'properties': {'type': 'object'},
     }
 
+    def get_child(self, name: str):
+        if name in self.properties:
+            return self.properties[name]
+
+        raise PropertyNotFound(self, property=name)
+
 
 class BackRef(DataType):
     model: Model
@@ -231,6 +243,7 @@ class Array(DataType):
 
     items: Property = None
     expandable = True
+
     def load(self, value: Any):
         if value is None or value is NA:
             return value
@@ -246,6 +259,12 @@ class Partial(DataType):
         'properties': {'type': 'object'},
     }
     properties: Dict[str, Property] = None
+
+    def get_child(self, name: str):
+        if name in self.properties:
+            return self.properties[name]
+
+        raise PropertyNotFound(self, property=name)
 
 
 class Object(DataType):
@@ -263,6 +282,12 @@ class Object(DataType):
             return dict(value)
         else:
             raise exceptions.InvalidValue(self)
+
+    def get_child(self, name: str):
+        if name in self.properties:
+            return self.properties[name]
+
+        raise PropertyNotFound(self, property=name)
 
 
 class File(DataType):

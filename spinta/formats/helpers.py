@@ -22,6 +22,7 @@ from spinta.types.datatype import Ref
 from spinta.types.text.components import Text
 from spinta.ufuncs.basequerybuilder.ufuncs import Star
 from spinta.utils.data import take
+from spinta.utils.nestedstruct import get_separated_name
 
 
 def _get_dtype_header(
@@ -37,7 +38,7 @@ def _get_dtype_header(
             dtype.properties,
             select,
         ):
-            name_ = name + '.' + prop.name
+            name_ = get_separated_name(dtype, name, prop.name)
             yield from _get_dtype_header(prop.dtype, sel, name_, langs)
 
     elif isinstance(dtype, Array):
@@ -52,8 +53,8 @@ def _get_dtype_header(
         yield from _get_dtype_header(dtype.refprop.dtype, select, name, langs)
 
     elif isinstance(dtype, File):
-        yield f'{name}._id'
-        yield f'{name}._content_type'
+        yield get_separated_name(dtype, name, '_id')
+        yield get_separated_name(dtype, name, '_content_type')
 
     elif isinstance(dtype, ExternalRef):
         if select is None or select == {'*': {}}:
@@ -63,10 +64,10 @@ def _get_dtype_header(
                 props = [dtype.model.properties['_id']]
             processed_props = []
             for prop in props:
-                processed_props.append(name + '.' + prop.place)
+                processed_props.append(get_separated_name(dtype, name, prop.place))
 
             for key, prop in dtype.properties.items():
-                for processed_name in _get_dtype_header(prop.dtype, select, name + '.' + key, langs):
+                for processed_name in _get_dtype_header(prop.dtype, select, get_separated_name(dtype, name, key), langs):
                     if processed_name not in processed_props:
                         processed_props.append(processed_name)
             yield from processed_props
@@ -77,15 +78,15 @@ def _get_dtype_header(
                 dtype.model.properties,
                 select,
             ):
-                name_ = name + '.' + prop.name
+                name_ = get_separated_name(dtype, name, prop.name)
                 yield from _get_dtype_header(prop.dtype, sel, name_, langs)
 
     elif isinstance(dtype, Ref):
         if select is None or select == {'*': {}}:
             if dtype.prop.given.explicit:
-                yield name + '._id'
+                yield get_separated_name(dtype, name, '_id')
             for key, prop in dtype.properties.items():
-                yield from _get_dtype_header(prop.dtype, select, name + '.' + key, langs)
+                yield from _get_dtype_header(prop.dtype, select, get_separated_name(dtype, name, key), langs)
         else:
             for prop, sel in select_only_props(
                 dtype.prop,
@@ -93,7 +94,7 @@ def _get_dtype_header(
                 dtype.model.properties,
                 select,
             ):
-                name_ = name + '.' + prop.name
+                name_ = get_separated_name(dtype, name, prop.name)
                 yield from _get_dtype_header(prop.dtype, sel, name_, langs)
     elif isinstance(dtype, Text):
         if select is None or select == {'*': {}}:
@@ -102,7 +103,7 @@ def _get_dtype_header(
                 if len(langs) == 1 and isinstance(langs[0], Star):
                     for lang in dtype.langs.keys():
                         yield_text_count += 1
-                        yield f'{name}.{lang}'
+                        yield get_separated_name(dtype, name, lang)
                 elif len(langs) == 1:
                     yield_text_count += 1
                     yield name
@@ -110,7 +111,7 @@ def _get_dtype_header(
                     for lang in langs:
                         if lang in dtype.langs:
                             yield_text_count += 1
-                            yield f'{name}.{lang}'
+                            yield get_separated_name(dtype, name, lang)
             else:
                 yield_text_count += 1
                 yield name
@@ -124,7 +125,7 @@ def _get_dtype_header(
                 dtype.langs,
                 select,
             ):
-                name_ = f'{name}.{prop.name}'
+                name_ = get_separated_name(dtype, name, prop.name)
                 yield from _get_dtype_header(prop.dtype, sel, name_, langs)
     elif isinstance(dtype, Inherit):
         if select and select != {'*': {}}:
@@ -138,7 +139,7 @@ def _get_dtype_header(
                 properties,
                 select,
             ):
-                name_ = name + '.' + prop.name
+                name_ = get_separated_name(dtype, name, prop.name)
                 yield from _get_dtype_header(prop.dtype, sel, name_, langs)
         else:
             yield name

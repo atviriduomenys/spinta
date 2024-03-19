@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Union
 from typing import Iterator
 from typing import List
 from typing import Optional
@@ -6,53 +6,81 @@ from typing import Set
 
 import itertools
 
+from spinta.components import Model, Property
+from spinta.types.datatype import DataType
 
-def flatten(value, sep='.', array_sep='[]', omit_none: bool = True):
-    value, lists = _flatten(value, sep, array_sep, omit_none=omit_none)
+
+def get_separated_name(parent: DataType, parent_name: str, child_name: str):
+    return f'{parent_name}{parent.tabular_separator}{child_name}'
+
+
+def flatten(value, parent: Union[Model, Property] = None, separator: str = '.', omit_none: bool = True):
+    value, lists = _flatten(value, parent, separator, omit_none=omit_none)
 
     if value is None:
         for k, vals in lists:
             for v in vals:
                 if v is not None or not omit_none:
-                    yield from flatten(v, sep, omit_none=omit_none)
+                    yield from flatten(v, parent, separator, omit_none=omit_none)
 
     elif lists:
         keys, lists = zip(*lists)
         for vals in itertools.product(*lists):
             val = {
-                sep.join(k): v
+                k: v
                 for k, v in zip(keys, vals) if v is not None or not omit_none
             }
             val.update(value)
-            yield from flatten(val, sep, omit_none=omit_none)
+            yield from flatten(val, parent, separator, omit_none=omit_none)
 
     else:
         yield value
 
 
-def _flatten(value, sep, array_sep, key=(), omit_none: bool = True):
+def _combine_with_separator(parent: Union[Model, Property], parent_name: str, child_name: str, seperator: str):
+    return_name = parent_name
+    return_parent = parent
+
+    if not return_parent:
+        return_name = seperator.join([parent_name, child_name] if parent_name else [child_name])
+        return return_name, return_parent
+
+    if not parent_name:
+        return_name = child_name
+        if isinstance(parent, Model):
+            return_parent = parent.properties[return_name]
+
+        return return_name, return_parent
+
+    if isinstance(parent, Property):
+        parent_dtype = parent.dtype
+        return_name = get_separated_name(parent_dtype, parent_name, child_name)
+        return_parent = parent_dtype.get_child(child_name)
+    return return_name, return_parent
+
+
+def _flatten(value, parent: Union[Model, Property], separator: str, key: str = '', omit_none: bool = True):
     if isinstance(value, dict):
         data = {}
         lists = []
         for k, v in value.items():
             if v is not None or not omit_none:
-                v, more = _flatten(v, sep, array_sep, key + (k,), omit_none=omit_none)
+                new_name, new_parent = _combine_with_separator(parent, key, k, separator)
+                v, more = _flatten(v, new_parent, separator, new_name, omit_none=omit_none)
                 data.update(v or {})
                 lists += more
         return data, lists
 
     elif isinstance(value, (list, Iterator)):
         if value:
-            if len(key) > 0:
-                key = list(key)
-                key[-1] = f'{key[-1]}{array_sep}'
-                key = tuple(key)
+            if key:
+                key = f'{key}[]'
             return None, [(key, value)] if value is not None or not omit_none else []
         else:
             return None, []
 
     else:
-        return {sep.join(key): value} if value is not None or not omit_none else {}, []
+        return {key: value} if value is not None or not omit_none else {}, []
 
 
 def build_select_tree(select: List[str]) -> Dict[str, Set[Optional[str]]]:

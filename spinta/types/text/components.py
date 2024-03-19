@@ -2,6 +2,7 @@ from typing import Dict
 from typing import Optional
 
 from spinta.components import Property
+from spinta.exceptions import PropertyNotFound
 from spinta.types.datatype import DataType
 
 
@@ -12,3 +13,11 @@ class Text(DataType):
     }
     requires_source = False
     langs: Optional[Dict[str, Property]]
+
+    tabular_separator = '@'
+
+    def get_child(self, name: str):
+        if name in self.langs:
+            return self.langs[name]
+
+        raise PropertyNotFound(self, property=name)
