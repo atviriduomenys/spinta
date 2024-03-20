@@ -1,3 +1,5 @@
+from spinta.components import Model, Property
+from spinta.types.text.components import Text
 from spinta.utils.nestedstruct import flatten, build_select_tree
 
 
@@ -48,6 +50,17 @@ def test_flatten_two_lists():
         {'a': 6, 'b[]': 7, 'c[]': 8},
         {'a': 6, 'b[]': 7, 'c[]': 9},
     ]
+
+
+def test_flatten_text_type():
+    prop = Property()
+    text_dtype = Text()
+    text_dtype.langs = {'en': Property()}
+    prop.dtype = text_dtype
+    model = Model()
+    model.properties['name'] = prop
+    assert list(flatten({'name': {'en': 'Test'}}, parent=model)) == [{'name@en': 'Test'}]
+    assert list(flatten({'name': {'en': 'Test'}})) == [{'name.en': 'Test'}]
 
 
 def test_flatten_list_dict():
