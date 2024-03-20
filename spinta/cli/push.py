@@ -1306,7 +1306,7 @@ def _check_push_state(
         for row in group:
             if row.send and not row.error and row.op != "delete":
                 _id = row.data['_id']
-                row.checksum = _get_data_checksum(row.data, model)
+                row.checksum = _get_data_checksum(row.data, row.model)
                 saved = saved_rows.get(_id)
                 if saved is None:
                     row.op = "insert"

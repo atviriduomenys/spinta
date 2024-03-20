@@ -14,6 +14,7 @@ from spinta import exceptions
 from spinta.commands import load, is_object_id
 from spinta.components import Context, Component, Property
 from spinta.components import Model
+from spinta.datasets.enums import Level
 from spinta.exceptions import PropertyNotFound
 from spinta.manifests.components import Manifest
 from spinta.types.helpers import set_dtype_backend
@@ -211,6 +212,9 @@ class Ref(DataType):
 
         if name in self.properties:
             return self.properties[name]
+
+        if self.prop.level is None or self.prop.level > Level.open and name == '_id':
+            return self.model.properties['_id']
 
         raise PropertyNotFound(self, property=name)
 
