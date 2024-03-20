@@ -71,7 +71,7 @@ class DataType(Component):
         return result
 
     def get_child(self, name: str):
-        raise Exception(f"{self}, THIS DATATYPE DOES NOT SUPPORT CHILD GET")
+        return None
 
 
 class PrimaryKey(DataType):
