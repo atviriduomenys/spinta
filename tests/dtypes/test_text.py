@@ -157,8 +157,8 @@ def test_html(
             link='/example/Country/262f6c72-4284-4d26-b9b0-e282bfe46a46',
             color=None,
         ),
-        'name.lt': Cell(value='Lietuva', link=None, color=None),
-        'name.en': Cell(value='Lithuania', link=None, color=None),
+        'name@lt': Cell(value='Lietuva', link=None, color=None),
+        'name@en': Cell(value='Lithuania', link=None, color=None),
     }
 
 

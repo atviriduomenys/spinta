@@ -216,6 +216,9 @@ class Ref(DataType):
         if self.prop.level is None or self.prop.level > Level.open and name == '_id':
             return self.model.properties['_id']
 
+        if self.model.external and self.model.external.unknown_primary_key:
+            return self.model.properties['_id']
+
         raise PropertyNotFound(self, property=name)
 
 
