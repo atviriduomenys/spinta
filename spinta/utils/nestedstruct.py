@@ -114,6 +114,6 @@ def flat_dicts_to_nested(value):
     return res
 
 
-def flatten_value(value, sep=".", key=()):
-    value, _ = _flatten(value, sep, key)
+def flatten_value(value, parent: Property, sep=".", key=()):
+    value, _ = _flatten(value, parent, sep, key)
     return value

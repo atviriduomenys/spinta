@@ -1125,7 +1125,7 @@ def before_write(
         patch['_id'] = str(patch['_id'])
 
     return {
-        f'{dtype.prop.place}.{k}': v for k, v in patch.items()
+        f'{dtype.prop.place}{dtype.tabular_separator}{k}': v for k, v in patch.items()
     }
 
 
@@ -1137,9 +1137,9 @@ def before_write(
     *,
     data: DataSubItem,
 ) -> dict:
-    patch = flatten_value(data.patch)
+    patch = flatten_value(data.patch, dtype.prop)
     return {
-        f'{dtype.prop.place}.{k}': v for k, v in patch.items() if k
+        f'{dtype.prop.place}{dtype.tabular_separator}{k}': v for k, v in patch.items() if k
     }
 
 
@@ -1151,7 +1151,7 @@ def before_write(
     *,
     data: DataSubItem,
 ) -> dict:
-    patch = flatten_value(data.patch)
+    patch = flatten_value(data.patch, dtype.prop)
     key = dtype.prop.place.split('.', maxsplit=1)[-1]
     if patch.get(key):
         return {dtype.prop.place: patch.get(key)}
