@@ -20,7 +20,7 @@ from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.components import ManifestRow
 from spinta.manifests.tabular.constants import DATASET
 from spinta.manifests.tabular.helpers import datasets_to_tabular, write_csv
-from spinta.utils.nestedstruct import flatten
+from spinta.utils.nestedstruct import flatten, sepgetter
 from spinta.utils.response import aiter
 
 
@@ -91,7 +91,7 @@ def _render_model_csv(
     params: UrlParams,
     data: Iterator[Dict[str, Any]],
 ):
-    rows = flatten(data, model)
+    rows = flatten(data, sepgetter(model))
     # Rename _page to _page.next
     rows = rename_page_col(rows)
     cols = get_model_tabular_header(context, model, action, params)

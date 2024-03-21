@@ -13,11 +13,3 @@ class Text(DataType):
     }
     requires_source = False
     langs: Optional[Dict[str, Property]]
-
-    tabular_separator = '@'
-
-    def get_child(self, name: str):
-        if name in self.langs:
-            return self.langs[name]
-
-        raise PropertyNotFound(self, property=name)

@@ -64,7 +64,7 @@ from spinta.ufuncs.basequerybuilder.components import QueryParams
 from spinta.utils.data import take
 from spinta.utils.itertools import peek
 from spinta.utils.json import fix_data_for_json
-from spinta.utils.nestedstruct import flatten
+from spinta.utils.nestedstruct import flatten, sepgetter
 from spinta.utils.units import tobytes
 from spinta.utils.units import toseconds
 from spinta.utils.sqlite import migrate_table
@@ -1254,7 +1254,7 @@ def _get_model(row: _PushRow) -> Model:
 
 def _get_data_checksum(data: dict, model: Model):
     data = fix_data_for_json(take(data))
-    data = flatten([data], model)
+    data = flatten([data], sepgetter(model))
     data = [[k, v] for x in data for k, v in sorted(x.items())]
     data = msgpack.dumps(data, strict_types=True)
     checksum = hashlib.sha1(data).hexdigest()

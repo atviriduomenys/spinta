@@ -1,6 +1,6 @@
 from spinta.components import Model, Property
 from spinta.types.text.components import Text
-from spinta.utils.nestedstruct import flatten, build_select_tree
+from spinta.utils.nestedstruct import flatten, build_select_tree, sepgetter
 
 
 def test_flatten():
@@ -59,7 +59,7 @@ def test_flatten_text_type():
     prop.dtype = text_dtype
     model = Model()
     model.properties['name'] = prop
-    assert list(flatten({'name': {'en': 'Test'}}, parent=model)) == [{'name@en': 'Test'}]
+    assert list(flatten({'name': {'en': 'Test'}}, sep_getter=sepgetter(model))) == [{'name@en': 'Test'}]
     assert list(flatten({'name': {'en': 'Test'}})) == [{'name.en': 'Test'}]
 
 

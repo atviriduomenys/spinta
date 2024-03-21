@@ -1,4 +1,5 @@
-from typing import Dict, Union
+from multipledispatch import dispatch
+from typing import Dict, Union, Any, Callable, Tuple
 from typing import Iterator
 from typing import List
 from typing import Optional
@@ -7,21 +8,109 @@ from typing import Set
 import itertools
 
 from spinta.components import Model, Property
-from spinta.types.datatype import DataType
+from spinta.datasets.enums import Level
+from spinta.types.datatype import DataType, Ref, Partial, Object
+from spinta.types.text.components import Text
 
 
+SEP_GETTER_TYPE = Callable[[str], Tuple[Callable, str]]
+
+
+@dispatch(type(None))
+def _get_seperator(target):
+    return None
+
+
+@dispatch((Model, DataType))
+def _get_seperator(target):
+    return '.'
+
+
+@dispatch(Property)
+def _get_seperator(target: Property):
+    return _get_seperator(target.dtype)
+
+
+@dispatch(Text)
+def _get_seperator(target: Text):
+    return '@'
+
+
+@dispatch((Model, Object, Partial), str)
+def _get_child(parent: Union[Model, Object, Partial], target: str):
+    if target in parent.properties:
+        return parent.properties[target]
+
+
+@dispatch(Property, str)
+def _get_child(parent: Property, target: str):
+    return _get_child(parent.dtype, target)
+
+
+@dispatch(DataType, str)
+def _get_child(parent: DataType, target: str):
+    return None
+
+
+@dispatch(type(None), str)
+def _get_child(parent, target):
+    return None
+
+
+@dispatch(Ref, str)
+def _get_child(parent: Ref, name: str):
+    for refprop in parent.refprops:
+        if refprop.name == name:
+            return refprop
+
+    if name in parent.properties:
+        return parent.properties[name]
+
+    if parent.prop.level is None or parent.prop.level > Level.open and name == '_id':
+        return parent.model.properties['_id']
+
+    if parent.model.external and parent.model.external.unknown_primary_key:
+        return parent.model.properties['_id']
+
+
+@dispatch(Text, str)
+def _get_child(parent: Text, name: str):
+    if name in parent.langs:
+        return parent.langs[name]
+
+
+def sepgetter(parent: Any = None, default_seperator='.') -> SEP_GETTER_TYPE:
+    def _sepgetter(target: str):
+        child = _get_child(parent, target)
+        seperator = _get_seperator(parent)
+        if seperator is None:
+            seperator = default_seperator
+        return sepgetter(child, default_seperator=default_seperator), seperator
+
+    return _sepgetter
+
+
+@dispatch(DataType, str, str)
 def get_separated_name(parent: DataType, parent_name: str, child_name: str):
-    return f'{parent_name}{parent.tabular_separator}{child_name}'
+    seperator = _get_seperator(parent)
+    return get_separated_name(seperator, parent_name, child_name)
 
 
-def flatten(value, parent: Union[Model, Property] = None, separator: str = '.', omit_none: bool = True):
-    value, lists = _flatten(value, parent, separator, omit_none=omit_none)
+@dispatch(str, str, str)
+def get_separated_name(seperator: str, parent_name: str, child_name: str):
+    if parent_name:
+        return f'{parent_name}{seperator}{child_name}'
+    return child_name
+
+
+def flatten(value, sep_getter: SEP_GETTER_TYPE = sepgetter(), omit_none: bool = True):
+    value, lists = _flatten(value, sep_getter, omit_none=omit_none)
 
     if value is None:
         for k, vals in lists:
             for v in vals:
                 if v is not None or not omit_none:
-                    yield from flatten(v, parent, separator, omit_none=omit_none)
+                    yield from flatten(v, sep_getter, omit_none=omit_none)
 
     elif lists:
         keys, lists = zip(*lists)
@@ -31,42 +120,21 @@ def flatten(value, parent: Union[Model, Property] = None, separator: str = '.', 
                 for k, v in zip(keys, vals) if v is not None or not omit_none
             }
             val.update(value)
-            yield from flatten(val, parent, separator, omit_none=omit_none)
+            yield from flatten(val, sep_getter, omit_none=omit_none)
 
     else:
         yield value
 
 
-def _combine_with_separator(parent: Union[Model, Property], parent_name: str, child_name: str, seperator: str):
-    return_name = parent_name
-    return_parent = parent
-
-    if not return_parent:
-        return_name = seperator.join([parent_name, child_name] if parent_name else [child_name])
-        return return_name, return_parent
-
-    if not parent_name:
-        return_name = child_name
-        if isinstance(parent, Model) and return_name in parent.properties:
-            return_parent = parent.properties[return_name]
-
-        return return_name, return_parent
-
-    if isinstance(parent, Property):
-        parent_dtype = parent.dtype
-        return_name = get_separated_name(parent_dtype, parent_name, child_name)
-        return_parent = parent_dtype.get_child(child_name)
-    return return_name, return_parent
-
-
-def _flatten(value, parent: Union[Model, Property], separator: str, key: str = '', omit_none: bool = True):
+def _flatten(value, sep_getter: SEP_GETTER_TYPE, key: str = '', omit_none: bool = True):
     if isinstance(value, dict):
         data = {}
         lists = []
         for k, v in value.items():
             if v is not None or not omit_none:
-                new_name, new_parent = _combine_with_separator(parent, key, k, separator)
-                v, more = _flatten(v, new_parent, separator, new_name, omit_none=omit_none)
+                new_sep_getter, seperator = sep_getter(k)
+                new_name = get_separated_name(seperator, key, k)
+                v, more = _flatten(v, new_sep_getter, new_name, omit_none=omit_none)
                 data.update(v or {})
                 lists += more
         return data, lists
@@ -115,5 +183,5 @@ def flat_dicts_to_nested(value):
 
 
 def flatten_value(value, parent: Property, sep=".", key=()):
-    value, _ = _flatten(value, parent, sep, key)
+    value, _ = _flatten(value, sepgetter(parent, default_seperator=sep), key)
     return value

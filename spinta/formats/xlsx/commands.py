@@ -19,7 +19,7 @@ from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.components import ManifestRow
 from spinta.manifests.tabular.constants import DATASET
 from spinta.manifests.tabular.helpers import datasets_to_tabular, write_xlsx
-from spinta.utils.nestedstruct import flatten
+from spinta.utils.nestedstruct import flatten, sepgetter
 from spinta.utils.response import aiter
 
 
@@ -39,7 +39,7 @@ def render(
     headers = headers or {}
     headers['Content-Disposition'] = f'attachment; filename="{model.basename}.xlsx"'
 
-    rows = flatten(data, model)
+    rows = flatten(data, sepgetter(model))
     cols = get_model_tabular_header(context, model, action, params)
     return StreamingResponse(
         aiter(_render_xlsx(rows, cols)),

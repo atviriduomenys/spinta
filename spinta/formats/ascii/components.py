@@ -6,7 +6,7 @@ from spinta.components import Context, Action, UrlParams, Model
 from spinta.formats.ascii.helpers import get_widths, get_displayed_cols, draw_border, draw_header, draw_row
 from spinta.manifests.components import Manifest
 from spinta.formats.components import Format
-from spinta.utils.nestedstruct import flatten
+from spinta.utils.nestedstruct import flatten, sepgetter
 from spinta.formats.helpers import get_model_tabular_header, rename_page_col
 
 
@@ -56,7 +56,7 @@ class Ascii(Format):
                 yield f'\n\nTable: {name}\n'
                 model = commands.get_model(context, manifest, name)
 
-            rows = flatten(group, model)
+            rows = flatten(group, sepgetter(model))
             rows = rename_page_col(rows)
             cols = get_model_tabular_header(context, model, action, params)
             cols = [col if col != '_page' else '_page.next' for col in cols]

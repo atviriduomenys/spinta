@@ -51,7 +51,7 @@ from spinta.types.datatype import JSON
 from spinta.types.datatype import Inherit
 from spinta.types.text.components import Text
 from spinta.utils.encoding import is_url_safe_base64, encode_page_values
-from spinta.utils.nestedstruct import flatten
+from spinta.utils.nestedstruct import flatten, sepgetter
 from spinta.utils.schema import NotAvailable
 from spinta.utils.url import build_url_path
 
@@ -232,7 +232,7 @@ def build_template_context(
     params: UrlParams,
     rows: Iterable[Dict[str, Cell]],
 ):
-    rows = flatten(rows, model)
+    rows = flatten(rows, sepgetter(model))
 
     rows, empty = _is_empty(rows)
     header = _get_model_tabular_header(context, model, action, params)

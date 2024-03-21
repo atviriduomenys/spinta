@@ -53,8 +53,6 @@ class DataType(Component):
     requires_source: bool = True
     inherited: bool = False
 
-    tabular_separator = '.'
-
     def __repr__(self):
         return f'<{self.prop.name}:{self.name}>'
 
@@ -69,9 +67,6 @@ class DataType(Component):
         result = cls.__new__(cls)
         result.__dict__.update(self.__dict__)
         return result
-
-    def get_child(self, name: str):
-        return None
 
 
 class PrimaryKey(DataType):
@@ -205,22 +200,6 @@ class Ref(DataType):
         'properties': {'type': 'object'},
     }
 
-    def get_child(self, name: str):
-        for refprop in self.refprops:
-            if refprop.name == name:
-                return refprop
-
-        if name in self.properties:
-            return self.properties[name]
-
-        if self.prop.level is None or self.prop.level > Level.open and name == '_id':
-            return self.model.properties['_id']
-
-        if self.model.external and self.model.external.unknown_primary_key:
-            return self.model.properties['_id']
-
-        raise PropertyNotFound(self, property=name)
-
 
 class BackRef(DataType):
     model: Model
@@ -271,12 +250,6 @@ class Partial(DataType):
     }
     properties: Dict[str, Property] = None
 
-    def get_child(self, name: str):
-        if name in self.properties:
-            return self.properties[name]
-
-        raise PropertyNotFound(self, property=name)
-
 
 class Object(DataType):
     schema = {
@@ -293,12 +266,6 @@ class Object(DataType):
             return dict(value)
         else:
             raise exceptions.InvalidValue(self)
-
-    def get_child(self, name: str):
-        if name in self.properties:
-            return self.properties[name]
-
-        raise PropertyNotFound(self, property=name)
 
 
 class File(DataType):
