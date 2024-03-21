@@ -396,4 +396,4 @@ def read_schema(context: Context, path: str, prepare: str = None, dataset_name: 
         # parsed_model["external"] = resource_external_info
         pprint(parsed_model)
 
-        # yield parsed_model
+        yield parsed_model
