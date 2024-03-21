@@ -12,7 +12,7 @@ from spinta.utils.naming import to_property_name, to_model_name
 # DSA datatypes: https://atviriduomenys.readthedocs.io/dsa/duomenu-tipai.html#duomenu-tipai
 # todo finish mapping and make sure all things are mapped correctly
 DATATYPES_MAPPING = {
-    "string": "text",
+    "string": "string",
     "boolean": "boolean",
     "decimal": "number",
     "float": "number",
@@ -119,9 +119,8 @@ def _node_to_partial_property(node: etree.Element) -> tuple[str, dict]:
     This function only processes things common to attributes and elements"""
     prop = dict()
     prop["description"] = _get_description(node)
-    property_name = to_property_name(node.get("name"))
-    property_id = property_name
-    prop["external"] = {"name": property_name}
+    property_id = to_property_name(node.get("name"))
+    prop["external"] = {"name": node.get("name")}
     prop["type"] = _get_property_type(node)
 
     return property_id, prop
@@ -131,13 +130,15 @@ def _element_to_property(element: etree.Element) -> tuple[str, dict]:
     """
     Receives an element and returns a tuple containing the id of the property and the property itself
     Elements can be properties in those cases when they have only description (annotation/documentation)
+    or when they don't have any elements inside of them, i.e. when it's simple type.
     """
     property_id, prop = _node_to_partial_property(element)
+    prop["external"]["name"] = f"{prop["external"]["name"]}/text()"
 
     # if maxOccurs > 1, then it's a list. specific to elements.
     max_occurs = element.get("maxOccurs", 1)
     if max_occurs > 1:
-        prop["external"]["name"] += "[]"
+        property_id += "[]"
 
     # specific to elements
     min_occurs = element.get("minOccurs", 1)
@@ -145,8 +146,6 @@ def _element_to_property(element: etree.Element) -> tuple[str, dict]:
         prop["required"] = True
     else:
         prop["required"] = False
-
-    prop["source"] = f"{element.get("name", "").upper()}"
 
     return property_id, prop
 
@@ -159,7 +158,7 @@ def _attributes_to_properties(element: etree.Element) -> dict:
         property_id, prop = _node_to_partial_property(attribute)
 
         # property source
-        prop["source"] = f"@{prop["external"]["name"]}"
+        prop["external"]["name"] = f"@{prop["external"]["name"]}"
 
         # property required or not. For attributes only.
         use = attribute.get("use")
@@ -214,6 +213,20 @@ def _get_properties(element: _Element, source_path: str) -> dict:
     For example, if minOccurs="0" were added to xsd:element children of xsd:all, element order would be insignificant,
     but not all child elements would have to be present:
     """
+    # sequences of elements
+    # at the moment only the final ones
+    # todo handle references and other situations where it's not final
+    complex_type_node = element.xpath(f'./*[local-name() = "complexType"]')[0]
+    print("COMPLEX TYPE NODE:", complex_type_node)
+    if complex_type_node.xpath(f'./*[local-name() = "sequence"]'):
+        sequence_node = complex_type_node.xpath(f'./*[local-name() = "sequence"]')[0]
+        sequence_node_length = len(sequence_node)
+        if sequence_node_length > 1:
+            elements = sequence_node.xpath(f'./*[local-name() = "element"]')
+            for element in elements:
+                property_id, prop = _element_to_property(element)
+                properties[property_id] = prop
+
     return properties
 
 
@@ -222,15 +235,14 @@ def _parse_element(node: _Element, models: list, source_path: str = "") -> dict:
     Parses an element. If it is a complete model, it will be added to the models list.
     """
 
-    source_path = f"/{source_path}{node.get('name')}"
+    source_path = f"{source_path}/{node.get('name')}"
 
     parsed_model = {
         "type": "model",
         "description": "",
         "external": {
-            "name": to_model_name(node.get("name")),
+            "name": source_path,
         },
-        "source": source_path,
     }
 
     # for element in node:
@@ -243,12 +255,33 @@ def _parse_element(node: _Element, models: list, source_path: str = "") -> dict:
 
 
     # todo handle sequences
+
+    # 1. There is only one element in the sequence. Then we just go deeper and add this model to the next model's path.
+    if node.xpath(f'./*[local-name() = "complexType"]'):
+        complex_type_node = node.xpath(f'./*[local-name() = "complexType"]')[0]
+        print("COMPLEX TYPE NODE:", complex_type_node)
+        if complex_type_node.xpath(f'./*[local-name() = "sequence"]'):
+            sequence_node = complex_type_node.xpath(f'./*[local-name() = "sequence"]')[0]
+            sequence_node_length = len(sequence_node)
+            if sequence_node_length == 1:
+                print("SEQUENCE NODE:", sequence_node)
+                element = sequence_node.xpath(f'./*[local-name() = "element"]')[0]
+                _parse_element(element, models, source_path=source_path)
+            else:
+                models.append(parsed_model)
+    else:
+        # final model, we don't go any deeper
+        # todo handle cases where we need to go deeper if the complex type is described separately,
+        # todo or where it's a reference to another element but doesn't have anything of it's own
+
+        models.append(parsed_model)
+
     # if we have sequences, we need to grab each element from this sequence and
 
     # print(element.xpath("xs:documentation", namespaces={'xs': 'http://www.w3.org/2001/XMLSchema'})[0].text)
 
     # print(etree.tostring(element, encoding="utf8"))
-    return parsed_model
+    # return parsed_model
 
 
 def _get_external_info(path: str, document: _ElementTree) -> dict:
@@ -299,17 +332,20 @@ def read_schema(context: Context, path: str, prepare: str = None, dataset_name: 
     Element can be as a choice in more than one other element.
 
     """
-    document = etree.parse(urlopen(path))
-    print(type(document))
-
-    objectify.deannotate(document, cleanup_namespaces=True)
-    root = document.getroot()
-    print(type(root))
+    if path.startswith("http"):
+        document = etree.parse(urlopen(path))
+        objectify.deannotate(document, cleanup_namespaces=True)
+        root = document.getroot()
+        print(type(root))
+    else:
+        with open(path) as file:
+            text = file.read()
+            root = etree.fromstring(text)
 
     custom_types = _extract_custom_types(root)
 
     # Resource model
-    resource_external_info = _get_external_info(path, document)
+    resource_external_info = _get_external_info(path, root)
     resource_external_info["name"] = "Resource"
 
     resource_model = {
@@ -345,7 +381,6 @@ def read_schema(context: Context, path: str, prepare: str = None, dataset_name: 
               ((node.xpath(f'./*[local-name() = "annotation"]') and
                   node.xpath(f'./*[local-name() = "simpleType"]') and len(node) == 2))):
 
-            # todo find out what this id really is
             property_id, prop = _element_to_property(node)
             resource_model["properties"][property_id] = {
                 "type": _get_property_type(node),
@@ -353,10 +388,12 @@ def read_schema(context: Context, path: str, prepare: str = None, dataset_name: 
                 "description": _get_description(node)
             }
 
-    models.append(resource_model)
+    if resource_model["properties"]:
+        resource_model["external"] = resource_external_info
+        models.append(resource_model)
 
     for parsed_model in models:
-        parsed_model["external"] = resource_external_info
+        # parsed_model["external"] = resource_external_info
         pprint(parsed_model)
 
-        # yield model
+        # yield parsed_model
