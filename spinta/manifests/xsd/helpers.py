@@ -5,6 +5,7 @@ from lxml import etree, objectify
 from urllib.request import urlopen
 from pprint import pprint
 
+from spinta.utils.naming import to_property_name, to_model_name
 
 # mapping of XSD datatypes to DSA datatypes
 # XSD datatypes: https://www.w3.org/TR/xmlschema11-2/#built-in-datatypes
@@ -69,6 +70,16 @@ DATATYPES_MAPPING = {
 
 }
 
+"""
+format of custom types:
+{
+    "type_name": {
+        "base": "type_base"
+    }
+}
+"""
+custom_types = {}
+
 
 def _get_description(element: etree.Element) -> str:
     annotation = element.xpath(f'./*[local-name() = "annotation"]')
@@ -79,14 +90,7 @@ def _get_description(element: etree.Element) -> str:
     return ""
 
 
-def _node_to_partial_property(node: etree.Element) -> tuple[str, dict]:
-    """Node can be either element or attribute. only process things common to attributes and elements"""
-    prop = dict()
-    prop["description"] = _get_description(node)
-    property_name = node.get("name").lower()
-    property_id = property_name
-    prop["external"] = {"name": property_name}
-
+def _get_property_type(node: etree.Element) -> str:
     property_type = node.get("type")
     if not property_type:
         # this is a self defined simple type, so we take it's base as type
@@ -98,7 +102,27 @@ def _node_to_partial_property(node: etree.Element) -> tuple[str, dict]:
     # getting rid of the prefix
     if ":" in property_type:
         property_type = property_type.split(":")[1]
-    prop["type"] = DATATYPES_MAPPING[property_type]
+
+    if property_type in DATATYPES_MAPPING:
+        property_type = DATATYPES_MAPPING[property_type]
+    elif property_type in custom_types:
+        # todo handle other custom types. like data_ir_laikas to datetime
+        property_type = custom_types.get(property_type).get("base", "")
+    else:
+        property_type = ""
+
+    return property_type
+
+
+def _node_to_partial_property(node: etree.Element) -> tuple[str, dict]:
+    """Node can be either element or attribute.
+    This function only processes things common to attributes and elements"""
+    prop = dict()
+    prop["description"] = _get_description(node)
+    property_name = to_property_name(node.get("name"))
+    property_id = property_name
+    prop["external"] = {"name": property_name}
+    prop["type"] = _get_property_type(node)
 
     return property_id, prop
 
@@ -122,7 +146,7 @@ def _element_to_property(element: etree.Element) -> tuple[str, dict]:
     else:
         prop["required"] = False
 
-    prop["source"] = f"{prop["external"]["name"].upper()}"
+    prop["source"] = f"{element.get("name", "").upper()}"
 
     return property_id, prop
 
@@ -149,7 +173,7 @@ def _attributes_to_properties(element: etree.Element) -> dict:
     return properties
 
 
-def _get_properties(element: _ElementTree, source_path: str) -> dict:
+def _get_properties(element: _Element, source_path: str) -> dict:
     """
     XSD attributes will get turned into properties
 
@@ -193,36 +217,48 @@ def _get_properties(element: _ElementTree, source_path: str) -> dict:
     return properties
 
 
-def parse_element(element: _Element, models: list, source_path: str = "") -> dict:
+def _parse_element(node: _Element, models: list, source_path: str = "") -> dict:
     """
     Parses an element. If it is a complete model, it will be added to the models list.
     """
 
-    source_path = f"/{source_path}{element.get('name')}"
+    source_path = f"/{source_path}{node.get('name')}"
 
     parsed_model = {
         "type": "model",
         "description": "",
-        "name": element.get("name").capitalize(),
-        "title": element.get("name").capitalize(),
+        "external": {
+            "name": to_model_name(node.get("name")),
+        },
         "source": source_path,
     }
 
-    for element in element:
-        # print(element.prefix)
-        # element.tag = etree.QName(element).localname
-        parsed_model["description"] = _get_description(element)
-        parsed_model["properties"] = _get_properties(element, source_path)
+    # for element in node:
+    print("ELEMENT:", node)
+    # element.tag = etree.QName(element).localname
+    parsed_model["description"] = _get_description(node)
+    parsed_model["properties"] = _get_properties(node, source_path)
 
-        # print(element.xpath("xs:documentation", namespaces={'xs': 'http://www.w3.org/2001/XMLSchema'})[0].text)
+    # if we have either description or
 
-        # print(etree.tostring(element, encoding="utf8"))
+
+    # todo handle sequences
+    # if we have sequences, we need to grab each element from this sequence and
+
+    # print(element.xpath("xs:documentation", namespaces={'xs': 'http://www.w3.org/2001/XMLSchema'})[0].text)
+
+    # print(etree.tostring(element, encoding="utf8"))
     return parsed_model
 
 
-def get_external_info(path: str, document: _ElementTree) -> dict:
+def _get_external_info(path: str, document: _ElementTree) -> dict:
     # todo finish this
-    pass
+    return {}
+
+
+def _extract_custom_types(node: _ElementTree) -> dict:
+    # todo finish this
+    return {}
 
 
 def read_schema(context: Context, path: str, prepare: str = None, dataset_name: str = '') -> dict:
@@ -233,13 +269,16 @@ def read_schema(context: Context, path: str, prepare: str = None, dataset_name: 
     At the moment we assume that model is an element that might have at least one of those inside:
     <xs:annotation>
     <xs:complexType>
-    There are 3 cases:
+    There are those different cases:
+    1. The element has only annotation. In this case we create a special Resource model and
+       add this element as a property to that Resource model
+
+
+
     1. If this element has only complexType, we leave the description of the model empty
     2. If this element has, both annotation and complexType,
        then we assign annotation/documentation to description, and we parse complexType
        and assign the parsed results to properties of the model
-    3. If this element has only annotation, we create a special Resource model and
-       add this element as property to that Resource model
     4. If this element has only sequence with references, and none of its references has
        minOccurs set to 1, then we don't create model out of it but go deeper into all refs
     5. If this element has only sequence with, and some of the references have minOccurs set to 1,
@@ -267,38 +306,57 @@ def read_schema(context: Context, path: str, prepare: str = None, dataset_name: 
     root = document.getroot()
     print(type(root))
 
-    external_info = get_external_info(path, document)
+    custom_types = _extract_custom_types(root)
+
+    # Resource model
+    resource_external_info = _get_external_info(path, document)
+    resource_external_info["name"] = "Resource"
 
     resource_model = {
         "type": "model",
         "description": "Įvairūs duomenys",
-        "properties": [],
-        "name": "Resource",
-        "external": external_info,
+        "properties": {},
+        "external": resource_external_info,
+
+        # todo ask where uri needs to be, here or in "external"
         "uri": "http://www.w3.org/2000/01/rdf-schema#Resource",
     }
     models = []
-    for element in root:
+
+    for node in root:
 
         # first we need to check if this model has complexType.
         # If it has, we create a separate model.
         # If it doesn't have, we add a special model Resource and add this element as a property to it
         # model.tag = etree.QName(model).localname
-        print(element.xpath("*"))
-        print(element.attrib)
+        print(node.xpath("*"))
+        print(node.attrib)
+        print(node.tag)
 
-        # todo complexContent is also an option. It doesn't seem to be used by RC but possible option for future
+        # todo complexContent is also an option.
         # todo there is also an option where complex type is on the same level as element, referenced by type
-        if element.xpath(f'./*[local-name() = "complexType"]'):
+        if node.xpath(f'./*[local-name() = "complexType"]'):
+            _parse_element(node, models)
 
-            parse_element(element, models)
+        # if we only have annotation, this means that it's a text-only element with no attributes, so we
+        # add it to the Resource model
+        # Same if we have annotation and simpleType, only then we need to parse the simple type too
+        elif ((node.xpath(f'./*[local-name() = "annotation"]') and len(node) == 1) or
+              ((node.xpath(f'./*[local-name() = "annotation"]') and
+                  node.xpath(f'./*[local-name() = "simpleType"]') and len(node) == 2))):
 
-        else:
-            # todo add logic for adding this as a property to the Resource model
-            pass
+            # todo find out what this id really is
+            property_id, prop = _element_to_property(node)
+            resource_model["properties"][property_id] = {
+                "type": _get_property_type(node),
+                "external": {"name": property_id},
+                "description": _get_description(node)
+            }
+
+    models.append(resource_model)
 
     for parsed_model in models:
-        parsed_model["external"] = external_info
+        parsed_model["external"] = resource_external_info
         pprint(parsed_model)
 
         # yield model
