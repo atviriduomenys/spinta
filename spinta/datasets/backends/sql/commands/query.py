@@ -145,6 +145,8 @@ class SqlQueryBuilder(BaseQueryBuilder):
             sort=[],
             limit=None,
             offset=None,
+            distinct=False,
+            group_by=None,
             page=QueryPage(),
         )
         result.init_query_params(params)
@@ -171,6 +173,12 @@ class SqlQueryBuilder(BaseQueryBuilder):
 
         if self.offset is not None:
             qry = qry.offset(self.offset)
+
+        if self.group_by is not None:
+            qry = qry.group_by(*self.group_by)
+
+        if self.distinct:
+            qry = qry.distinct()
         return qry
 
     def execute(self, expr: Any):
@@ -1269,3 +1277,17 @@ def point(env: SqlResultBuilder, x: Selected, y: Selected) -> Expr:
     x = env.data[x.item]
     y = env.data[y.item]
     return f'POINT ({x} {y})'
+
+
+@ufunc.resolver(SqlQueryBuilder)
+def distinct(env: SqlQueryBuilder):
+    if env.model and env.model.external and not env.model.external.unknown_primary_key:
+        extracted_columns = [env.backend.get_column(env.table, prop) for prop in env.model.external.pkeys if prop.external]
+        if env.group_by is None:
+            env.group_by = extracted_columns
+        else:
+            for column in extracted_columns:
+                if column not in env.group_by:
+                    env.group_by.append(column)
+    else:
+        env.distinct = True
