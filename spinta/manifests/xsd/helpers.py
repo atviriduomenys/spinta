@@ -137,11 +137,11 @@ def _element_to_property(element: etree.Element) -> tuple[str, dict]:
 
     # if maxOccurs > 1, then it's a list. specific to elements.
     max_occurs = element.get("maxOccurs", 1)
-    if max_occurs > 1:
+    if max_occurs == "unbounded" or int(max_occurs) > 1:
         property_id += "[]"
 
     # specific to elements
-    min_occurs = element.get("minOccurs", 1)
+    min_occurs = int(element.get("minOccurs", 1))
     if min_occurs > 0:
         prop["required"] = True
     else:
@@ -216,16 +216,18 @@ def _get_properties(element: _Element, source_path: str) -> dict:
     # sequences of elements
     # at the moment only the final ones
     # todo handle references and other situations where it's not final
-    complex_type_node = element.xpath(f'./*[local-name() = "complexType"]')[0]
-    print("COMPLEX TYPE NODE:", complex_type_node)
-    if complex_type_node.xpath(f'./*[local-name() = "sequence"]'):
-        sequence_node = complex_type_node.xpath(f'./*[local-name() = "sequence"]')[0]
-        sequence_node_length = len(sequence_node)
-        if sequence_node_length > 1:
-            elements = sequence_node.xpath(f'./*[local-name() = "element"]')
-            for element in elements:
-                property_id, prop = _element_to_property(element)
-                properties[property_id] = prop
+    complex_type_node = element.xpath(f'./*[local-name() = "complexType"]')
+    if len(complex_type_node) > 0:
+        complex_type_node = complex_type_node[0]
+        print("COMPLEX TYPE NODE:", complex_type_node)
+        if complex_type_node.xpath(f'./*[local-name() = "sequence"]'):
+            sequence_node = complex_type_node.xpath(f'./*[local-name() = "sequence"]')[0]
+            sequence_node_length = len(sequence_node)
+            if sequence_node_length > 1:
+                elements = sequence_node.xpath(f'./*[local-name() = "element"]')
+                for element in elements:
+                    property_id, prop = _element_to_property(element)
+                    properties[property_id] = prop
 
     return properties
 
@@ -286,11 +288,11 @@ def _parse_element(node: _Element, models: list, source_path: str = "/") -> dict
 def _get_external_info(path: str = None, document: _ElementTree = None, **kwargs) -> dict:
     # todo finish this
     external = {
-        "dataset": "dataset1",
-        "resource": {
-            "name": "resource1",
-            "type": "xml",
-        }
+        # "dataset": "dataset1",
+        # "resource": {
+        #     "name": "resource1",
+        #     "type": "xml",
+        # }
     }
     external.update(kwargs)
     return external
