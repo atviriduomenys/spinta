@@ -2,6 +2,7 @@ from typing import Dict
 from typing import Optional
 
 from spinta.components import Property
+from spinta.exceptions import PropertyNotFound
 from spinta.types.datatype import DataType
 
 

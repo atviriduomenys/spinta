@@ -14,6 +14,8 @@ from spinta import exceptions
 from spinta.commands import load, is_object_id
 from spinta.components import Context, Component, Property
 from spinta.components import Model
+from spinta.datasets.enums import Level
+from spinta.exceptions import PropertyNotFound
 from spinta.manifests.components import Manifest
 from spinta.types.helpers import set_dtype_backend
 from spinta.utils.schema import NA, NotAvailable
@@ -231,6 +233,7 @@ class Array(DataType):
 
     items: Property = None
     expandable = True
+
     def load(self, value: Any):
         if value is None or value is NA:
             return value

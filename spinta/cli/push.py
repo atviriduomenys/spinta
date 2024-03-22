@@ -64,7 +64,7 @@ from spinta.ufuncs.basequerybuilder.components import QueryParams
 from spinta.utils.data import take
 from spinta.utils.itertools import peek
 from spinta.utils.json import fix_data_for_json
-from spinta.utils.nestedstruct import flatten
+from spinta.utils.nestedstruct import flatten, sepgetter
 from spinta.utils.units import tobytes
 from spinta.utils.units import toseconds
 from spinta.utils.sqlite import migrate_table
@@ -697,7 +697,7 @@ def _read_rows_by_pages(
         if data_row and state_row:
             row = _PushRow(model, data_row)
             row.op = 'insert'
-            row.checksum = _get_data_checksum(row.data)
+            row.checksum = _get_data_checksum(row.data, model)
 
             equals = _compare_data_with_state_rows(data_row, state_row, model_table)
             if equals:
@@ -734,7 +734,7 @@ def _read_rows_by_pages(
             if data_row:
                 row = _PushRow(model, data_row)
                 row.op = 'insert'
-                row.checksum = _get_data_checksum(row.data)
+                row.checksum = _get_data_checksum(row.data, model)
                 yield row
 
                 data_push_count += 1
@@ -1252,9 +1252,9 @@ def _get_model(row: _PushRow) -> Model:
     return row.model
 
 
-def _get_data_checksum(data: dict):
+def _get_data_checksum(data: dict, model: Model):
     data = fix_data_for_json(take(data))
-    data = flatten([data])
+    data = flatten([data], sepgetter(model))
     data = [[k, v] for x in data for k, v in sorted(x.items())]
     data = msgpack.dumps(data, strict_types=True)
     checksum = hashlib.sha1(data).hexdigest()
@@ -1306,7 +1306,7 @@ def _check_push_state(
         for row in group:
             if row.send and not row.error and row.op != "delete":
                 _id = row.data['_id']
-                row.checksum = _get_data_checksum(row.data)
+                row.checksum = _get_data_checksum(row.data, row.model)
                 saved = saved_rows.get(_id)
                 if saved is None:
                     row.op = "insert"
@@ -1992,7 +1992,7 @@ def _prepare_rows_with_errors(
             if not data:
                 yield _prepare_deleted_row(model, _id, error=True)
             # Was inserted or updated without errors
-            elif checksum == _get_data_checksum(resp):
+            elif checksum == _get_data_checksum(resp, model):
                 conn.execute(
                     table.update().
                     where(

@@ -547,7 +547,7 @@ def test_ascii_text_with_lang(
     })).text
     assert res == (
         '--  ------  ---------  -------\n'
-        'id  name.C  name.en    name.lt\n'
+        'id  name@C  name@en    name@lt\n'
         '0   LT      Lithuania  Lietuva\n'
         '1   UK      England    Anglija\n'
         '--  ------  ---------  -------\n'
@@ -569,7 +569,7 @@ def test_ascii_text_with_lang(
     })).text
     assert res == (
         '--  ---------  -------\n'
-        'id  name.en    name.lt\n'
+        'id  name@en    name@lt\n'
         '0   Lithuania  Lietuva\n'
         '1   England    Anglija\n'
         '--  ---------  -------\n'
@@ -630,7 +630,7 @@ def test_ascii_changes_text(
 
     assert resp == (
         '--  ------  ---------  -------\n'
-        'id  name.C  name.en    name.lt\n'
+        'id  name@C  name@en    name@lt\n'
         '0   LT      Lithuania  Lietuva\n'
         '1   UK      England    Anglija\n'
         '--  ------  ---------  -------\n'

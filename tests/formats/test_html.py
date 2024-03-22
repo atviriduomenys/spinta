@@ -940,15 +940,15 @@ def test_html_text_with_lang(
     assert _table_with_header(resp) == [
         {
             'id': {'value': 0},
-            'name.C': {'value': 'LT'},
-            'name.en': {'value': 'Lithuania'},
-            'name.lt': {'value': 'Lietuva'}
+            'name@C': {'value': 'LT'},
+            'name@en': {'value': 'Lithuania'},
+            'name@lt': {'value': 'Lietuva'}
         },
         {
             'id': {'value': 1},
-            'name.C': {'value': 'UK'},
-            'name.en': {'value': 'England'},
-            'name.lt': {'value': 'Anglija'}
+            'name@C': {'value': 'UK'},
+            'name@en': {'value': 'England'},
+            'name@lt': {'value': 'Anglija'}
         }
     ]
 
@@ -974,13 +974,13 @@ def test_html_text_with_lang(
     assert _table_with_header(resp) == [
         {
             'id': {'value': 0},
-            'name.en': {'value': 'Lithuania'},
-            'name.lt': {'value': 'Lietuva'}
+            'name@en': {'value': 'Lithuania'},
+            'name@lt': {'value': 'Lietuva'}
         },
         {
             'id': {'value': 1},
-            'name.en': {'value': 'England'},
-            'name.lt': {'value': 'Anglija'}
+            'name@en': {'value': 'England'},
+            'name@lt': {'value': 'Anglija'}
         }
     ]
 
@@ -1040,14 +1040,14 @@ def test_html_changes_text(
     assert _table_with_header(resp) == [
         {
             'id': {'value': 0},
-            'name.C': {'value': 'LT'},
-            'name.en': {'value': 'Lithuania'},
-            'name.lt': {'value': 'Lietuva'},
+            'name@C': {'value': 'LT'},
+            'name@en': {'value': 'Lithuania'},
+            'name@lt': {'value': 'Lietuva'},
         },
         {
             'id': {'value': 1},
-            'name.C': {'value': 'UK'},
-            'name.en': {'value': 'England'},
-            'name.lt': {'value': 'Anglija'},
+            'name@C': {'value': 'UK'},
+            'name@en': {'value': 'England'},
+            'name@lt': {'value': 'Anglija'},
         }
     ]

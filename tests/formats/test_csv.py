@@ -399,7 +399,7 @@ def test_csv_text_with_lang(
     assert parse_csv(app.get("/example/csv/text/lang/Country/:format/csv?lang(*)&select(id,name)", headers=Headers(headers={
         'accept-language': 'lt'
     }))) == [
-        ['id', 'name.C', 'name.en', 'name.lt'],
+        ['id', 'name@C', 'name@en', 'name@lt'],
         ['0', 'LT', 'Lithuania', 'Lietuva'],
         ['1', 'UK', 'England', 'Anglija'],
     ]
@@ -415,7 +415,7 @@ def test_csv_text_with_lang(
     assert parse_csv(app.get("/example/csv/text/lang/Country/:format/csv?lang(en,lt)&select(id,name)", headers=Headers(headers={
         'accept-language': 'lt'
     }))) == [
-        ['id', 'name.en', 'name.lt'],
+        ['id', 'name@en', 'name@lt'],
         ['0', 'Lithuania', 'Lietuva'],
         ['1', 'England', 'Anglija'],
     ]
@@ -472,7 +472,7 @@ def test_csv_changes_text(
     assert parse_csv(app.get("/example/csv/text/changes/Country/:changes/-10/:format/csv?select(id,name)", headers=Headers(headers={
         'accept-language': 'lt'
     }))) == [
-        ['id', 'name.C', 'name.en', 'name.lt'],
+        ['id', 'name@C', 'name@en', 'name@lt'],
         ['0', 'LT', 'Lithuania', 'Lietuva'],
         ['1', 'UK', 'England', 'Anglija'],
     ]
