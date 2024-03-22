@@ -133,7 +133,7 @@ def _element_to_property(element: etree.Element) -> tuple[str, dict]:
     or when they don't have any elements inside of them, i.e. when it's simple type.
     """
     property_id, prop = _node_to_partial_property(element)
-    prop["external"]["name"] = f"{prop["external"]["name"]}/text()"
+    prop["external"]["name"] = f'{prop["external"]["name"]}/text()'
 
     # if maxOccurs > 1, then it's a list. specific to elements.
     max_occurs = element.get("maxOccurs", 1)
@@ -158,7 +158,7 @@ def _attributes_to_properties(element: etree.Element) -> dict:
         property_id, prop = _node_to_partial_property(attribute)
 
         # property source
-        prop["external"]["name"] = f"@{prop["external"]["name"]}"
+        prop["external"]["name"] = f'@{prop["external"]["name"]}'
 
         # property required or not. For attributes only.
         use = attribute.get("use")
@@ -230,7 +230,7 @@ def _get_properties(element: _Element, source_path: str) -> dict:
     return properties
 
 
-def _parse_element(node: _Element, models: list, source_path: str = "") -> dict:
+def _parse_element(node: _Element, models: list, source_path: str = "/") -> dict:
     """
     Parses an element. If it is a complete model, it will be added to the models list.
     """
@@ -240,9 +240,8 @@ def _parse_element(node: _Element, models: list, source_path: str = "") -> dict:
     parsed_model = {
         "type": "model",
         "description": "",
-        "external": {
-            "name": source_path,
-        },
+        "name": to_model_name(node.get('name')),
+        "external": _get_external_info(name=source_path),
     }
 
     # for element in node:
@@ -284,9 +283,18 @@ def _parse_element(node: _Element, models: list, source_path: str = "") -> dict:
     # return parsed_model
 
 
-def _get_external_info(path: str, document: _ElementTree) -> dict:
+def _get_external_info(path: str = None, document: _ElementTree = None, **kwargs) -> dict:
     # todo finish this
-    return {}
+    external = {
+        "dataset": "dataset1",
+        "resource": {
+            "name": "resource1",
+            "type": "xml",
+        }
+    }
+    external.update(kwargs)
+    return external
+
 
 
 def _extract_custom_types(node: _ElementTree) -> dict:
@@ -345,11 +353,12 @@ def read_schema(context: Context, path: str, prepare: str = None, dataset_name: 
     custom_types = _extract_custom_types(root)
 
     # Resource model
-    resource_external_info = _get_external_info(path, root)
-    resource_external_info["name"] = "Resource"
+    resource_external_info = _get_external_info(path, root, name="Resource")
 
     resource_model = {
         "type": "model",
+        # todo what if data has the Resource model also?
+        "name": "Resource",
         "description": "Įvairūs duomenys",
         "properties": {},
         "external": resource_external_info,
@@ -396,4 +405,4 @@ def read_schema(context: Context, path: str, prepare: str = None, dataset_name: 
         # parsed_model["external"] = resource_external_info
         pprint(parsed_model)
 
-        yield parsed_model
+        yield None, parsed_model
