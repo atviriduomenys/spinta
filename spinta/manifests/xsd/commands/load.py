@@ -5,15 +5,15 @@ from spinta.components import Context
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
 from spinta.manifests.xsd.helpers import read_schema
-from spinta.manifests.xsd.components import XSDManifest
+from spinta.manifests.xsd.components import XsdManifest
 
 log = logging.getLogger(__name__)
 
 
-@commands.load.register(Context, XSDManifest)
+@commands.load.register(Context, XsdManifest)
 def load(
     context: Context,
-    manifest: XSDManifest,
+    manifest: XsdManifest,
     *,
     into: Manifest = None,
     freezed: bool = True,

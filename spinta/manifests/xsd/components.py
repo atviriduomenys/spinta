@@ -1,7 +1,7 @@
 from spinta.manifests.components import Manifest
 
 
-class XSDManifest(Manifest):
+class XsdManifest(Manifest):
     type = 'xsd'
 
     @staticmethod
