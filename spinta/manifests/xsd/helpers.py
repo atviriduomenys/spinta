@@ -343,17 +343,7 @@ def read_schema(context: Context, path: str, prepare: str = None, dataset_name: 
 
     """
 
-    #  Dataset and resource info
-    yield None, {
-        'type': 'dataset',
-        'name': "dataset1",
-        'resources': {
-            "resource1": {
-                'type': 'xml',
-            },
-        },
-        'given_name': dataset_name
-    }
+
 
     if path.startswith("http"):
         document = etree.parse(urlopen(path))
@@ -421,3 +411,15 @@ def read_schema(context: Context, path: str, prepare: str = None, dataset_name: 
         pprint(parsed_model)
 
         yield None, parsed_model
+
+    #  Dataset and resource info
+    yield None, {
+        'type': 'dataset',
+        'name': "dataset1",
+        'resources': {
+            "resource1": {
+                'type': 'xml',
+            },
+        },
+        'given_name': dataset_name
+    }
