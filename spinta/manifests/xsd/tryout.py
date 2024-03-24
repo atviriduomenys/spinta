@@ -14,4 +14,6 @@ result = read_schema(context=Context("xsd"), path="/home/karina/work/ivpk/spinta
 # 765
 # 588
 # 5501
-
+# rc249jadis-israsas - tipai aprasomi isoriniam dokumente
+# 437
+# 722

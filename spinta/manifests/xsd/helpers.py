@@ -342,6 +342,19 @@ def read_schema(context: Context, path: str, prepare: str = None, dataset_name: 
     Element can be as a choice in more than one other element.
 
     """
+
+    #  Dataset and resource info
+    yield None, {
+        'type': 'dataset',
+        'name': "dataset1",
+        'resources': {
+            "resource1": {
+                'type': 'xml',
+            },
+        },
+        'given_name': dataset_name
+    }
+
     if path.startswith("http"):
         document = etree.parse(urlopen(path))
         objectify.deannotate(document, cleanup_namespaces=True)
