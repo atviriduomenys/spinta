@@ -126,15 +126,13 @@ def _node_to_partial_property(node: etree.Element) -> tuple[str, dict]:
     ref = to_model_name(node.get("ref"))
 
     property_name = node.get("name")
-    property_id = to_property_name(property_name)
     if not property_name:
         property_name = ref
 
+    property_id = to_property_name(property_name)
+    prop["external"] = {"name": property_name}
     if ref:
         prop["model"] = ref
-    else:
-        prop["external"] = {"name": property_name}
-
     prop["type"] = _get_property_type(node)
 
     return property_id, prop
@@ -152,6 +150,8 @@ def _element_to_property(element: etree.Element) -> tuple[str, dict]:
     property_id, prop = _node_to_partial_property(element)
     if prop["type"] != "ref":
         prop["external"]["name"] = f'{prop["external"]["name"]}/text()'
+    else:
+        prop["external"]["name"] = f''
 
     # if maxOccurs > 1, then it's a list. specific to elements.
     max_occurs = element.get("maxOccurs", 1)
@@ -211,11 +211,14 @@ def _get_properties(element: _Element, source_path: str) -> dict:
                 }
             },
          },
+
+
     """
     properties = {}
 
     attributes = _attributes_to_properties(element)
     properties.update(attributes)
+    # todo add sequences and choices
 
     """
     source: https://stackoverflow.com/questions/36286056/the-difference-between-all-sequence-choice-and-group-in-xsd
@@ -251,6 +254,7 @@ def _get_properties(element: _Element, source_path: str) -> dict:
             properties.update(text_property)
         if complex_type_node.xpath(f'./*[local-name() = "sequence"]'):
             sequence_node = complex_type_node.xpath(f'./*[local-name() = "sequence"]')[0]
+            sequence_node_length = len(sequence_node)
             elements = sequence_node.xpath(f'./*[local-name() = "element"]')
 
             # if we already have properties, which means that this node consists not only of elements (but attributes or text)
@@ -287,7 +291,7 @@ def _parse_element(node: _Element, models: list, source_path: str = "/") -> dict
     # if we have either description or
 
 
-    # todo handle choices
+    # todo handle sequences
 
     # 1. There is only one element in the sequence. Then we just go deeper and add this model to the next model's path.
     if node.xpath(f'./*[local-name() = "complexType"]'):
@@ -374,7 +378,8 @@ def read_schema(context: Context, path: str, prepare: str = None, dataset_name: 
     """
 
     #  Dataset and resource info
-    dataset_and_resource_info = {
+    # todo add logic to get the data from the document/url
+    dataset_and_resource_info =  {
         'type': 'dataset',
         'name': "dataset1",
         'resources': {
