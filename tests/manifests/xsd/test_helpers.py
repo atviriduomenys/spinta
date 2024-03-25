@@ -1,6 +1,7 @@
 from lxml import etree
 
-from spinta.manifests.xsd.helpers import _get_description, _get_property_type, _node_to_partial_property
+from spinta.manifests.xsd.helpers import _get_description, _get_property_type, _node_to_partial_property, \
+    _element_to_property
 
 
 def test_get_description():
@@ -121,7 +122,7 @@ def test_element_to_property():
     """
     schema = etree.fromstring(element_string)
     element = schema.xpath('*[local-name() = "element"]')[0]
-    result1, result2 = _node_to_partial_property(element)
+    result1, result2 = _element_to_property(element)
     assert result1 == "ct_e200_forma"
     assert result2 == {
         "description": "E200 medicininės formos pavadinimas",
@@ -129,7 +130,7 @@ def test_element_to_property():
             "name": "CT_E200_FORMA/text()",
         },
         "type": "string",
-        "required": False
+        "required": True
     }
 
 
