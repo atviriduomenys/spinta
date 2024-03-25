@@ -1,0 +1,1014 @@
+<xs:schema id="DocumentDS" targetNamespace="http://eTaarPlat.ServiceContracts/2007/08/" attributeFormDefault="qualified" elementFormDefault="qualified" xmlns:mstns="http://eTaarPlat.ServiceContracts/2007/08/" xmlns="http://eTaarPlat.ServiceContracts/2007/08/" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata" xmlns:msprop="urn:schemas-microsoft-com:xml-msprop">
+                     <xs:element name="DocumentDS" msdata:IsDataSet="true" msdata:UseCurrentLocale="true">
+                        <xs:complexType>
+                           <xs:choice minOccurs="0" maxOccurs="unbounded">
+                              <xs:element name="TEMPDOCUMENT" msprop:REFCursorName="REFCursor2">
+                                 <xs:complexType>
+                                    <xs:sequence>
+                                       <xs:element name="DOCUMENTID" msprop:OraDbType="111" type="xs:decimal"/>
+                                       <xs:element name="DOCUMENTNUMBER" msprop:OraDbType="126">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="20"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                       <xs:element name="DOCUMENTTYPE" msprop:OraDbType="126" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="1"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                       <xs:element name="DOCUMENTSTATUS" msprop:OraDbType="126" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="1"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                       <xs:element name="DOCUMENTGETDATETIME" msprop:OraDbType="106" type="xs:dateTime" minOccurs="0"/>
+                                       <xs:element name="DOCUMENTREGDATETIME" msprop:OraDbType="106" type="xs:dateTime" minOccurs="0"/>
+                                       <xs:element name="DOCUMENTINSTITNAME" msprop:OraDbType="126" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="2000"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                       <xs:element name="DOCUMENTINSTITADDRESS" msprop:OraDbType="126" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="2000"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                       <xs:element name="DOCUMENTINSTITPERSONPOSITION" msprop:OraDbType="126" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="2000"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                       <xs:element name="DOCUMENTINSTITPERSONNAME" msprop:OraDbType="126" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="2000"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                       <xs:element name="DOCUMENTPASSDATETIME" msprop:OraDbType="106" type="xs:dateTime" minOccurs="0"/>
+                                       <xs:element name="DOCUMENTPASSPLACE" msprop:OraDbType="126" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="2000"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                       <xs:element name="DOCUMENTACT" msprop:OraDbType="126" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="2000"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                       <xs:element name="DOCUMENTCHGETDATETIME" msprop:OraDbType="106" type="xs:dateTime" minOccurs="0"/>
+                                       <xs:element name="DOCUMENTCHREGDATETIME" msprop:OraDbType="106" type="xs:dateTime" minOccurs="0"/>
+                                       <xs:element name="DOCUMENTCHINSTITNAME" msprop:OraDbType="126" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="2000"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                       <xs:element name="DOCUMENTCHINSTITADDRESS" msprop:OraDbType="126" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="2000"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                       <xs:element name="DOCUMENTCHINSTITPERSONPOSITION" msprop:OraDbType="126" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="2000"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                       <xs:element name="DOCUMENTCHINSTITPERSONNAME" msprop:OraDbType="126" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="2000"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                       <xs:element name="DOCUMENTCHPASSDATETIME" msprop:OraDbType="106" type="xs:dateTime" minOccurs="0"/>
+                                       <xs:element name="DOCUMENTCHPASSPLACE" msprop:OraDbType="126" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="2000"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                       <xs:element name="DOCUMENTCHACT" msprop:OraDbType="126" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="2000"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                       <xs:element name="DOCUMENTBASE" msprop:OraDbType="126" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="2000"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                       <xs:element name="DOCUMENTWAYS" msprop:OraDbType="126" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="2000"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                       <xs:element name="DOCUMENTAMOUNT" msprop:OraDbType="126" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="2000"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                       <xs:element name="DOCUMENTLIMITS" msprop:OraDbType="126" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="4000"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                       <xs:element name="DOCUMENTCOMMENTS" msprop:OraDbType="126" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="2000"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                       <xs:element name="DOCUMENTCHACT_1" msprop:OraDbType="126" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="2000"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                       <xs:element name="DOCUMENTNAME" msprop:OraDbType="126" type="xs:string" minOccurs="0"/>
+                                       <xs:element name="DOCUMENTBASEACTION" msprop:OraDbType="111" type="xs:int" minOccurs="0"/>
+                                       <xs:element name="DOCUMENTWAYSACTION" msprop:OraDbType="111" type="xs:int" minOccurs="0"/>
+                                       <xs:element name="DOCUMENTAMOUNTACTION" msprop:OraDbType="111" type="xs:int" minOccurs="0"/>
+                                       <xs:element name="DOCUMENTCOMMENTSACTION" msprop:OraDbType="111" type="xs:int" minOccurs="0"/>
+                                       <xs:element name="DOCUMENTLIMITSACTION" msprop:OraDbType="111" type="xs:int" minOccurs="0"/>
+                                       <xs:element name="DOCUMENTCERTNR" msprop:OraDbType="126" type="xs:string" minOccurs="0"/>
+                                       <xs:element name="DOCUMENTAUTOISREGPRIEZ" msprop:OraDbType="126" type="xs:string" minOccurs="0"/>
+                                       <xs:element name="DOCUMENTISIESKEIL" msprop:OraDbType="126" type="xs:string" minOccurs="0"/>
+                                       <xs:element name="DOCUMENTISIESKEILACTION" msprop:OraDbType="111" type="xs:short" minOccurs="0"/>
+                                       <xs:element name="DOCUMENTGAUTODOKRUSIS" msprop:OraDbType="126" type="xs:string" minOccurs="0"/>
+                                       <xs:element name="TEMPCREDITORDEBTOR" msprop:REFCursorName="REFCursor1" minOccurs="0" maxOccurs="unbounded">
+                                          <xs:annotation>
+                                             <xs:appinfo>
+                                                <msdata:Relationship name="TEMPDOCUMENT_TEMPCREDITORDEBTOR" msdata:parent="TEMPDOCUMENT" msdata:child="TEMPCREDITORDEBTOR" msdata:parentkey="DOCUMENTID" msdata:childkey="DOCUMENTID"/>
+                                             </xs:appinfo>
+                                          </xs:annotation>
+                                          <xs:complexType>
+                                             <xs:sequence>
+                                                <xs:element name="DOCUMENTID" msprop:OraDbType="111" type="xs:decimal"/>
+                                                <xs:element name="CR_DB_ID" msprop:OraDbType="111" type="xs:decimal"/>
+                                                <xs:element name="CR_DB_ACTION" msprop:OraDbType="111" type="xs:decimal" minOccurs="0"/>
+                                                <xs:element name="CR_DB_METATYPE" msprop:OraDbType="126" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="1"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="CR_DB_TYPE" msprop:OraDbType="126" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="1"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="CR_DB_CODE" msprop:OraDbType="126" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="50"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="CR_DB_NAME" msprop:OraDbType="126" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="200"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="CR_DB_ADDRESS" msprop:OraDbType="126" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="200"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="CR_DB_REASON" msprop:OraDbType="126" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="200"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="CR_DB_ID_PAIR" msprop:OraDbType="111" type="xs:decimal" minOccurs="0"/>
+                                                <xs:element name="CR_DB_BIRTHDATE" msprop:OraDbType="106" type="xs:dateTime" minOccurs="0"/>
+                                                <xs:element name="CR_DB_CHANGED" msprop:OraDbType="111" type="xs:int" minOccurs="0"/>
+                                                <xs:element name="CR_DB_FOREIGN" msprop:OraDbType="111" type="xs:string" minOccurs="0"/>
+                                             </xs:sequence>
+                                          </xs:complexType>
+                                       </xs:element>
+                                       <xs:element name="TEMPASSET" msprop:REFCursorName="REFCursor" minOccurs="0" maxOccurs="unbounded">
+                                          <xs:annotation>
+                                             <xs:appinfo>
+                                                <msdata:Relationship name="TEMPDOCUMENT_TEMPASSET" msdata:parent="TEMPDOCUMENT" msdata:child="TEMPASSET" msdata:parentkey="DOCUMENTID" msdata:childkey="DOCUMENTID"/>
+                                             </xs:appinfo>
+                                          </xs:annotation>
+                                          <xs:complexType>
+                                             <xs:sequence>
+                                                <xs:element name="ASSETID" msprop:OraDbType="112" type="xs:decimal"/>
+                                                <xs:element name="ASSETCODE" msprop:OraDbType="112" type="xs:decimal" minOccurs="0"/>
+                                                <xs:element name="ASSETACTION" msprop:OraDbType="111" type="xs:decimal" minOccurs="0"/>
+                                                <xs:element name="DOCUMENTID" msprop:OraDbType="111" type="xs:decimal" minOccurs="0"/>
+                                                <xs:element name="ASSETTYPE" msprop:OraDbType="111" type="xs:decimal" minOccurs="0"/>
+                                                <xs:element name="ASSETVALUE1" msprop:OraDbType="126" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="15"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE2" msprop:OraDbType="126" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="30"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE3" msprop:OraDbType="126" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="11"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE4" msprop:OraDbType="126" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="2000"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE5" msprop:OraDbType="126" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="50"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE6" msprop:OraDbType="126" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="20"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE7" msprop:OraDbType="126" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="200"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE8" msprop:OraDbType="126" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="200"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE9" msprop:OraDbType="126" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="200"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE10" msprop:OraDbType="126" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="240"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE11" msprop:OraDbType="126" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="20"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE12" msprop:OraDbType="126" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="12"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE13" msprop:OraDbType="126" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="12"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE14" msprop:OraDbType="126" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="10"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE15" msprop:OraDbType="126" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="16"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE16" msprop:OraDbType="126" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="150"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE17" msprop:OraDbType="126" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="1000"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETREASON" msprop:OraDbType="126" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="200"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETARRESTTERM" msprop:OraDbType="126" type="xs:string" minOccurs="0"/>
+                                                <xs:element name="ASSETCHANGED" msprop:OraDbType="111" type="xs:int" minOccurs="0"/>
+                                                <xs:element name="ASSETARRESTTERMAPLINKYBE" msprop:OraDbType="126" type="xs:string" minOccurs="0"/>
+                                                <xs:element name="VISOTURTOTIPAS" msprop:OraDbType="126" type="xs:string" minOccurs="0"/>
+                                                <xs:element name="LAISVAIDISPSUMA" msprop:OraDbType="126" type="xs:string" minOccurs="0"/>
+                                                <xs:element name="APRIBOTASUMA" msprop:OraDbType="126" type="xs:string" minOccurs="0"/>
+                                                <xs:element name="KOMENTARAS" msprop:OraDbType="126" type="xs:string" minOccurs="0"/>
+                                                <xs:element name="ASSETVALUE18" msprop:OraDbType="126" type="xs:string" minOccurs="0"/>
+                                                <xs:element name="TEMPOWNER" msprop:REFCursorName="REFCursor3" minOccurs="0" maxOccurs="unbounded">
+                                                   <xs:annotation>
+                                                      <xs:appinfo>
+                                                         <msdata:Relationship name="TEMPASSET_TEMPOWNER" msdata:parent="TEMPASSET" msdata:child="TEMPOWNER" msdata:parentkey="ASSETID" msdata:childkey="ASSETID"/>
+                                                      </xs:appinfo>
+                                                   </xs:annotation>
+                                                   <xs:complexType>
+                                                      <xs:sequence>
+                                                         <xs:element name="ASSETID" msprop:OraDbType="112" type="xs:decimal"/>
+                                                         <xs:element name="OWNERACTION" msprop:OraDbType="111" type="xs:decimal" minOccurs="0"/>
+                                                         <xs:element name="OWNERMETATYPE" msprop:OraDbType="126" minOccurs="0">
+                                                            <xs:simpleType>
+                                                               <xs:restriction base="xs:string">
+                                                                  <xs:maxLength value="3"/>
+                                                               </xs:restriction>
+                                                            </xs:simpleType>
+                                                         </xs:element>
+                                                         <xs:element name="OWNERTYPE" msprop:OraDbType="126" minOccurs="0">
+                                                            <xs:simpleType>
+                                                               <xs:restriction base="xs:string">
+                                                                  <xs:maxLength value="1"/>
+                                                               </xs:restriction>
+                                                            </xs:simpleType>
+                                                         </xs:element>
+                                                         <xs:element name="OWNERNAME" msprop:OraDbType="126" minOccurs="0">
+                                                            <xs:simpleType>
+                                                               <xs:restriction base="xs:string">
+                                                                  <xs:maxLength value="200"/>
+                                                               </xs:restriction>
+                                                            </xs:simpleType>
+                                                         </xs:element>
+                                                         <xs:element name="OWNERCODE" msprop:OraDbType="126" minOccurs="0">
+                                                            <xs:simpleType>
+                                                               <xs:restriction base="xs:string">
+                                                                  <xs:maxLength value="50"/>
+                                                               </xs:restriction>
+                                                            </xs:simpleType>
+                                                         </xs:element>
+                                                         <xs:element name="OWNERADDRESS" msprop:OraDbType="126" minOccurs="0">
+                                                            <xs:simpleType>
+                                                               <xs:restriction base="xs:string">
+                                                                  <xs:maxLength value="200"/>
+                                                               </xs:restriction>
+                                                            </xs:simpleType>
+                                                         </xs:element>
+                                                         <xs:element name="OWNEROWNEDPART" msprop:OraDbType="126" minOccurs="0">
+                                                            <xs:simpleType>
+                                                               <xs:restriction base="xs:string">
+                                                                  <xs:maxLength value="100"/>
+                                                               </xs:restriction>
+                                                            </xs:simpleType>
+                                                         </xs:element>
+                                                         <xs:element name="OWNERPERIOD" msprop:OraDbType="106" type="xs:dateTime" minOccurs="0"/>
+                                                         <xs:element name="OWNERREASON" msprop:OraDbType="126" minOccurs="0">
+                                                            <xs:simpleType>
+                                                               <xs:restriction base="xs:string">
+                                                                  <xs:maxLength value="200"/>
+                                                               </xs:restriction>
+                                                            </xs:simpleType>
+                                                         </xs:element>
+                                                         <xs:element name="OWNERID" msprop:OraDbType="112" type="xs:decimal" minOccurs="0"/>
+                                                         <xs:element name="OWNERBIRTHDATE" msprop:OraDbType="106" type="xs:dateTime" minOccurs="0"/>
+                                                         <xs:element name="OWNERCHANGED" msprop:OraDbType="111" type="xs:short" minOccurs="0"/>
+                                                         <xs:element name="OWNERUZSIENIETIS" msprop:OraDbType="111" type="xs:string" minOccurs="0"/>
+                                                      </xs:sequence>
+                                                   </xs:complexType>
+                                                </xs:element>
+                                             </xs:sequence>
+                                          </xs:complexType>
+                                       </xs:element>
+                                       <xs:element name="TEMPNATASSET" minOccurs="0" maxOccurs="unbounded">
+                                          <xs:annotation>
+                                             <xs:appinfo>
+                                                <msdata:Relationship name="TEMPDOCUMENT_TEMPNATASSET" msdata:parent="TEMPDOCUMENT" msdata:child="TEMPNATASSET" msdata:parentkey="DOCUMENTID" msdata:childkey="DOCUMENTID"/>
+                                             </xs:appinfo>
+                                          </xs:annotation>
+                                          <xs:complexType>
+                                             <xs:sequence>
+                                                <xs:element name="ASSETID" type="xs:decimal"/>
+                                                <xs:element name="ASSETCODE" type="xs:decimal" minOccurs="0"/>
+                                                <xs:element name="DOCUMENTID" type="xs:decimal" minOccurs="0"/>
+                                                <xs:element name="ASSETTYPE" type="xs:decimal" minOccurs="0"/>
+                                                <xs:element name="ASSETVALUE1" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="15"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE2" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="30"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE3" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="11"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE4" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="2000"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE5" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="53"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE6" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="20"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE7" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="200"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE8" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="200"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE9" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="200"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE10" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="240"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE11" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="20"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE12" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="12"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE13" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="12"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE14" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="10"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE15" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="16"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE16" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="150"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE17" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="1000"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETREASON" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="200"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETARRESTTERM" type="xs:string" minOccurs="0"/>
+                                                <xs:element name="ASSETCHANGED" type="xs:int" minOccurs="0"/>
+                                                <xs:element name="ASSETARRESTTERMAPLINKYBE" type="xs:string" minOccurs="0"/>
+                                                <xs:element name="TEMPNATOWNER" minOccurs="0" maxOccurs="unbounded">
+                                                   <xs:annotation>
+                                                      <xs:appinfo>
+                                                         <msdata:Relationship name="TEMPNATASSET_TEMPNATOWNER" msdata:parent="TEMPNATASSET" msdata:child="TEMPNATOWNER" msdata:parentkey="ASSETID" msdata:childkey="ASSETID"/>
+                                                      </xs:appinfo>
+                                                   </xs:annotation>
+                                                   <xs:complexType>
+                                                      <xs:sequence>
+                                                         <xs:element name="ASSETID" type="xs:decimal"/>
+                                                         <xs:element name="OWNERACTION" type="xs:decimal" default="1" minOccurs="0"/>
+                                                         <xs:element name="OWNERMETATYPE" default="SAV" minOccurs="0">
+                                                            <xs:simpleType>
+                                                               <xs:restriction base="xs:string">
+                                                                  <xs:maxLength value="3"/>
+                                                               </xs:restriction>
+                                                            </xs:simpleType>
+                                                         </xs:element>
+                                                         <xs:element name="OWNERTYPE" minOccurs="0">
+                                                            <xs:simpleType>
+                                                               <xs:restriction base="xs:string">
+                                                                  <xs:maxLength value="1"/>
+                                                               </xs:restriction>
+                                                            </xs:simpleType>
+                                                         </xs:element>
+                                                         <xs:element name="OWNERNAME" minOccurs="0">
+                                                            <xs:simpleType>
+                                                               <xs:restriction base="xs:string">
+                                                                  <xs:maxLength value="200"/>
+                                                               </xs:restriction>
+                                                            </xs:simpleType>
+                                                         </xs:element>
+                                                         <xs:element name="OWNERCODE" minOccurs="0">
+                                                            <xs:simpleType>
+                                                               <xs:restriction base="xs:string">
+                                                                  <xs:maxLength value="50"/>
+                                                               </xs:restriction>
+                                                            </xs:simpleType>
+                                                         </xs:element>
+                                                         <xs:element name="OWNERADDRESS" minOccurs="0">
+                                                            <xs:simpleType>
+                                                               <xs:restriction base="xs:string">
+                                                                  <xs:maxLength value="500"/>
+                                                               </xs:restriction>
+                                                            </xs:simpleType>
+                                                         </xs:element>
+                                                         <xs:element name="OWNEROWNEDPART" minOccurs="0">
+                                                            <xs:simpleType>
+                                                               <xs:restriction base="xs:string">
+                                                                  <xs:maxLength value="100"/>
+                                                               </xs:restriction>
+                                                            </xs:simpleType>
+                                                         </xs:element>
+                                                         <xs:element name="OWNERPERIOD" type="xs:dateTime" default="1992-01-05T00:00:00+02:00" minOccurs="0"/>
+                                                         <xs:element name="OWNERREASON" minOccurs="0">
+                                                            <xs:simpleType>
+                                                               <xs:restriction base="xs:string">
+                                                                  <xs:maxLength value="200"/>
+                                                               </xs:restriction>
+                                                            </xs:simpleType>
+                                                         </xs:element>
+                                                         <xs:element name="OWNERID" type="xs:decimal" default="1" minOccurs="0"/>
+                                                         <xs:element name="OWNERBIRTHDATE" type="xs:dateTime" minOccurs="0"/>
+                                                         <xs:element name="OWNERCHANGED" type="xs:short" default="0" minOccurs="0"/>
+                                                         <xs:element name="OWNERUZSIENIETIS" type="xs:string" minOccurs="0"/>
+                                                      </xs:sequence>
+                                                   </xs:complexType>
+                                                </xs:element>
+                                             </xs:sequence>
+                                          </xs:complexType>
+                                       </xs:element>
+                                       <xs:element name="TEMPASSET2" minOccurs="0" maxOccurs="unbounded">
+                                          <xs:annotation>
+                                             <xs:appinfo>
+                                                <msdata:Relationship name="TEMPDOCUMENT_TEMPASSET2" msdata:parent="TEMPDOCUMENT" msdata:child="TEMPASSET2" msdata:parentkey="DOCUMENTID" msdata:childkey="DOCUMENTID"/>
+                                             </xs:appinfo>
+                                          </xs:annotation>
+                                          <xs:complexType>
+                                             <xs:sequence>
+                                                <xs:element name="ASSETID" type="xs:decimal"/>
+                                                <xs:element name="ASSETCODE" type="xs:decimal" minOccurs="0"/>
+                                                <xs:element name="ASSETACTION" type="xs:decimal" minOccurs="0"/>
+                                                <xs:element name="DOCUMENTID" type="xs:decimal" minOccurs="0"/>
+                                                <xs:element name="ASSETTYPE" type="xs:decimal" minOccurs="0"/>
+                                                <xs:element name="ASSETVALUE1" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="15"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE2" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="30"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE3" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="11"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE4" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="2000"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE5" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="53"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE6" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="20"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE7" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="200"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE8" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="200"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE9" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="200"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE10" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="240"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE11" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="20"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE12" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="12"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE13" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="12"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE14" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="10"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE15" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="16"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE16" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="150"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETVALUE17" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="1000"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETREASON" minOccurs="0">
+                                                   <xs:simpleType>
+                                                      <xs:restriction base="xs:string">
+                                                         <xs:maxLength value="200"/>
+                                                      </xs:restriction>
+                                                   </xs:simpleType>
+                                                </xs:element>
+                                                <xs:element name="ASSETARRESTTERM" type="xs:string" minOccurs="0"/>
+                                                <xs:element name="ASSETCHANGED" type="xs:int" minOccurs="0"/>
+                                                <xs:element name="ASSETARRESTTERMAPLINKYBE" type="xs:string" minOccurs="0"/>
+                                                <xs:element name="TEMPOWNER2" minOccurs="0" maxOccurs="unbounded">
+                                                   <xs:annotation>
+                                                      <xs:appinfo>
+                                                         <msdata:Relationship name="TEMPASSET2_TEMPOWNER2" msdata:parent="TEMPASSET2" msdata:child="TEMPOWNER2" msdata:parentkey="ASSETID" msdata:childkey="ASSETID"/>
+                                                      </xs:appinfo>
+                                                   </xs:annotation>
+                                                   <xs:complexType>
+                                                      <xs:sequence>
+                                                         <xs:element name="ASSETID" type="xs:decimal"/>
+                                                         <xs:element name="OWNERACTION" type="xs:decimal" default="1" minOccurs="0"/>
+                                                         <xs:element name="OWNERMETATYPE" default="SAV" minOccurs="0">
+                                                            <xs:simpleType>
+                                                               <xs:restriction base="xs:string">
+                                                                  <xs:maxLength value="3"/>
+                                                               </xs:restriction>
+                                                            </xs:simpleType>
+                                                         </xs:element>
+                                                         <xs:element name="OWNERTYPE" minOccurs="0">
+                                                            <xs:simpleType>
+                                                               <xs:restriction base="xs:string">
+                                                                  <xs:maxLength value="1"/>
+                                                               </xs:restriction>
+                                                            </xs:simpleType>
+                                                         </xs:element>
+                                                         <xs:element name="OWNERNAME" minOccurs="0">
+                                                            <xs:simpleType>
+                                                               <xs:restriction base="xs:string">
+                                                                  <xs:maxLength value="200"/>
+                                                               </xs:restriction>
+                                                            </xs:simpleType>
+                                                         </xs:element>
+                                                         <xs:element name="OWNERCODE" minOccurs="0">
+                                                            <xs:simpleType>
+                                                               <xs:restriction base="xs:string">
+                                                                  <xs:maxLength value="50"/>
+                                                               </xs:restriction>
+                                                            </xs:simpleType>
+                                                         </xs:element>
+                                                         <xs:element name="OWNERADDRESS" minOccurs="0">
+                                                            <xs:simpleType>
+                                                               <xs:restriction base="xs:string">
+                                                                  <xs:maxLength value="500"/>
+                                                               </xs:restriction>
+                                                            </xs:simpleType>
+                                                         </xs:element>
+                                                         <xs:element name="OWNEROWNEDPART" minOccurs="0">
+                                                            <xs:simpleType>
+                                                               <xs:restriction base="xs:string">
+                                                                  <xs:maxLength value="100"/>
+                                                               </xs:restriction>
+                                                            </xs:simpleType>
+                                                         </xs:element>
+                                                         <xs:element name="OWNERPERIOD" type="xs:dateTime" default="1992-01-05T00:00:00+02:00" minOccurs="0"/>
+                                                         <xs:element name="OWNERREASON" minOccurs="0">
+                                                            <xs:simpleType>
+                                                               <xs:restriction base="xs:string">
+                                                                  <xs:maxLength value="200"/>
+                                                               </xs:restriction>
+                                                            </xs:simpleType>
+                                                         </xs:element>
+                                                         <xs:element name="OWNERID" type="xs:decimal" default="1" minOccurs="0"/>
+                                                         <xs:element name="OWNERBIRTHDATE" type="xs:dateTime" default="1992-01-05T00:00:00+02:00" minOccurs="0"/>
+                                                         <xs:element name="OWNERCHANGED" type="xs:short" default="0" minOccurs="0"/>
+                                                         <xs:element name="OWNERUZSIENIETIS" type="xs:string" minOccurs="0"/>
+                                                      </xs:sequence>
+                                                   </xs:complexType>
+                                                </xs:element>
+                                             </xs:sequence>
+                                          </xs:complexType>
+                                       </xs:element>
+                                    </xs:sequence>
+                                 </xs:complexType>
+                              </xs:element>
+                              <xs:element name="TEMPINFO" msprop:REFCursorName="REFCursor6">
+                                 <xs:complexType>
+                                    <xs:sequence>
+                                       <xs:element name="TEMPINFO_TAAR" msprop:OraDbType="126" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="200"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                       <xs:element name="TEMPINFO_HIPDOCS" msprop:OraDbType="126" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="200"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                       <xs:element name="TEMPINFO_HIPALERTS" msprop:OraDbType="126" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="200"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                    </xs:sequence>
+                                 </xs:complexType>
+                              </xs:element>
+                              <xs:element name="TEMPTAARDOCS" msprop:REFCursorName="REFCursor7">
+                                 <xs:complexType>
+                                    <xs:sequence>
+                                       <xs:element name="TAARDOCS_CODE" msprop:OraDbType="126" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="200"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                       <xs:element name="TAARDOCS_STATE" msprop:OraDbType="126" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="200"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                       <xs:element name="TAARDOCS_REGDATE" msprop:OraDbType="126" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="200"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                    </xs:sequence>
+                                 </xs:complexType>
+                              </xs:element>
+                              <xs:element name="TEMPHIPDOCUMENTS" msprop:REFCursorName="REFCursor4">
+                                 <xs:complexType>
+                                    <xs:sequence>
+                                       <xs:element name="HIPCODE" msprop:OraDbType="126" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="2000"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                       <xs:element name="HIPTYPE" msprop:OraDbType="126" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="2000"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                       <xs:element name="HIPDATE" msprop:OraDbType="126" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="2000"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                    </xs:sequence>
+                                 </xs:complexType>
+                              </xs:element>
+                              <xs:element name="TEMPHIPALERT" msprop:REFCursorName="REFCursor5">
+                                 <xs:complexType>
+                                    <xs:sequence>
+                                       <xs:element name="ALERTCODE" msprop:OraDbType="126" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="2000"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                       <xs:element name="ALERTTYPE" msprop:OraDbType="126" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="2000"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                       <xs:element name="ALERTDATE" msprop:OraDbType="126" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="2000"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                    </xs:sequence>
+                                 </xs:complexType>
+                              </xs:element>
+                              <xs:element name="TEMPTAARDOCSEW">
+                                 <xs:complexType>
+                                    <xs:sequence>
+                                       <xs:element name="TAARDOCS_DOCTYPE" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="200"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                       <xs:element name="TAARDOCS_JOURNALNO" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="200"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                       <xs:element name="TAARDOCS_DOCRECVDATE" minOccurs="0">
+                                          <xs:simpleType>
+                                             <xs:restriction base="xs:string">
+                                                <xs:maxLength value="200"/>
+                                             </xs:restriction>
+                                          </xs:simpleType>
+                                       </xs:element>
+                                    </xs:sequence>
+                                 </xs:complexType>
+                              </xs:element>
+                           </xs:choice>
+                        </xs:complexType>
+                     </xs:element>
+                  </xs:schema>

@@ -1,0 +1,609 @@
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:js="http://www.registrucentras.lt/jadis/webservices/schemas" elementFormDefault="qualified" targetNamespace="http://www.registrucentras.lt/jadis/webservices/schemas">
+	<xs:include schemaLocation="https://ws.registrucentras.lt/jadis-webservices/broker?xsd=xsd/jadis-common.xsd"/>
+	<xs:element name="Israsas_Request">
+		<xs:annotation>
+			<xs:documentation>
+                Išrašo gavimo užklausa.
+                var_id - vartotojo identifikatorius
+                ja_kodas - juridinio asmens (JA) kodas
+                israso_tipas - išrašo tipas
+            </xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="var_id" type="js:Var_Id"/>
+				<xs:element name="ja_kodas" type="js:JA_Kodas"/>
+				<xs:element name="israso_tipas" type="js:Israso_Tipas"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="Israsas_Response">
+		<xs:annotation>
+			<xs:documentation>
+                Išrašo gavimo atsakymo rezultatai.
+                busena - atsakymo būsena
+                suformavimo_kriterijai - suformavimo kriterijai
+                israsas - išrašas
+            </xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="busena" type="js:Rezultato_Busena"/>
+				<xs:element name="suformavimo_kriterijai" type="js:Israso_Suformavimo_Kriterijai"/>
+				<xs:element minOccurs="0" name="israsas" type="js:Israsas"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:complexType name="Israsas">
+		<xs:annotation>
+			<xs:documentation>
+                Išrašo įrašas.
+                juridinis_asmuo - JA
+                dalyviu_sarasai - dalyvių sąrašai (išrašo su istorija atveju, tai dalyvių sąrašai su skirtingom teisinėm
+                formom)
+                versijos_data - paskutinio galiojančio dalyvių sąrašo data
+            </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="juridinis_asmuo" type="js:Juridinis_Asmuo"/>
+			<xs:element name="dalyviu_sarasai" type="js:Dalyviu_Sarasai"/>
+			<xs:element name="versijos_data" type="xs:date"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="Dalyviu_Sarasai">
+		<xs:annotation>
+			<xs:documentation>
+                Dalyvių sąrašus apjungiantis tipas.
+            </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element maxOccurs="unbounded" name="dalyviu_sarasas" type="js:Dalyviu_Sarasas"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="Dalyviu_Sarasas">
+		<xs:annotation>
+			<xs:documentation>
+                Išrašo dalyvių sąrašas, kai nesikeitė JA teisinė forma.
+                istatiniai_kapitalai - uždarosios akcinės bendrovės (UAB) įstatiniai kapitalai (pildoma tik UAB atveju)
+                akcininkai - UAB akcininkai (pildoma tik UAB atveju)
+                nariai - mažosios bendrijos (MB) arba kooperatinės bendrovės (KO), arba žemės ūkio bendrovės (ŽUB)
+                nariai (pildoma MB, KO bei ŽUB atvejais)
+                dalininkai - viešosios įstaigos (VŠ) ir labdaros ir paramos fondo (LPF) dalininkai (pildoma tik VŠ arba
+                LPF atveju)
+				tikrieji_nariai - tikrosios ūkinės bendrijos (TŪB) ir komanditinės ūkinės bendrijos (KŪB) tikrieji nariai
+				komanditoriai - komanditinės ūkinės bendrijos (KŪB) komanditoriai
+            </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element minOccurs="0" name="istatiniai_kapitalai" type="js:Istatiniai_Kapitalai"/>
+			<xs:element minOccurs="0" name="akcininkai" type="js:Akcininkai"/>
+			<xs:element minOccurs="0" name="nariai" type="js:Nariai"/>
+			<xs:element minOccurs="0" name="pajininkai" type="js:Pajininkai"/>
+			<xs:element minOccurs="0" name="dalininkai" type="js:Dalininkai"/>
+			<xs:element minOccurs="0" name="tikrieji_nariai" type="js:Tikrieji_Nariai"/>
+			<xs:element minOccurs="0" name="komanditoriai" type="js:Komanditoriai"/>
+			<xs:element minOccurs="0" name="nezinomiAkcininkai" type="js:Nezinomi_Akcininkai"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="Juridinis_Asmuo">
+		<xs:annotation>
+			<xs:documentation>
+                JA.
+                obj_id - įmonės dirbtinis identifikatorius JA registre
+                ja_kodas - unikalus įmonės kodas JA registre
+                pavadinimas - įmonės pavadinimas JA registre
+                buveines_adresas - įmonės buveinės tekstinis adresas
+            </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="obj_id" type="xs:long"/>
+			<xs:element name="ja_kodas" type="js:JA_Kodas"/>
+			<xs:element name="ja_pavadinimas" type="xs:string"/>
+			<xs:element name="ja_buveines_adresas" type="xs:string"/>
+<!--			<xs:element name="taikomos_sankcijos" type="xs:boolean" minOccurs="0"/>-->
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="Istatiniai_Kapitalai">
+		<xs:annotation>
+			<xs:documentation>
+                Įstatinius kapitalus apjungiantis tipas. Aktualaus išrašo atveju bus tik vienas įstatinis kapitalas,
+                išrašo su istorija atveju gali būti daugiau nei vienas įstatinis kapitalas. Išrašo su istorija atveju
+				įstatinių kapitalų bus tiek, kiek buvo įstatinio kapitalo pasikeitimų keičiantis akcijų skaičiui arba nominaliai vertei.
+            </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element maxOccurs="unbounded" name="istatinis_kapitalas" type="js:Istatinis_Kapitalas"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="Istatinis_Kapitalas">
+		<xs:annotation>
+			<xs:documentation>
+                Įstatinis kapitalas.
+                istatinis_kapitalo_dydis - struktūrizuotas įstatinio kapitalo dydis
+                registravimo_data - akcijų skaičiaus arba nominalios vertės pasikeitimo data
+                akciju_klases - skirtingų tipų akcijų klasės, kurių skaičius arba nominalios vertės paskeitimas
+                įregistruotas tą pačią dieną
+                istatinio_kapitalo_atributas - įstatinio kapitalo JAR atributas
+            </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="istatinis_kapitalo_dydis" type="js:Verte"/>
+			<xs:element name="registravimo_data" type="xs:date"/>
+			<xs:element name="akciju_klases" type="js:Akciju_Klases"/>
+			<xs:element name="istatinio_kapitalo_atributas" type="js:Atributas"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="Akcininkai">
+		<xs:annotation>
+			<xs:documentation>
+			    Akcininkus arba akcininkus, kai akcijos priklauso bendrosios nuosavybės teise apjungiantis tipas.
+            </xs:documentation>
+		</xs:annotation>
+		<xs:choice maxOccurs="unbounded">
+			<xs:element name="bendraturciai" type="js:Bendraturciai"/>
+			<xs:element name="akcininkas" type="js:Akcininkas_Asmuo"/>
+		</xs:choice>
+	</xs:complexType>
+	<xs:complexType name="Bendraturciai">
+		<xs:annotation>
+			<xs:documentation>
+				Akcininkai, kai akcija (-os) priklauso bendrosios nuosavybės teise
+                    akcininkai - bendraturčiai
+                    akcijos - akcijos priklausančios bendrosios nuosavybės teise
+            </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="akcininkai" type="js:Bendraturciai_Nariai"/>
+			<xs:element name="akcijos" type="js:Akciju_Grupe"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="Bendraturciai_Nariai">
+		<xs:annotation>
+			<xs:documentation>
+				Bendraturčiai (akcininkai).
+            </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element maxOccurs="unbounded" name="akcininkas" type="js:Bendraturtis"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="Asmuo">
+		<xs:annotation>
+			<xs:documentation>
+				Asmens (dalyvio) tipas bendras tiek uždarosios akcinės bendrovės (UAB) bendraturčiui, tiek UAB
+                akcininkui, tiek mažosios bendrijos (MB) nariui, tiek viešosios įstaigos (VŠ) arba labdaros ir paramos
+                fondo (LPF) dalininkui, tiek tikrosios ūkinės bendrijos (TŪB) ir komanditinės ūkinės bendrijos (KŪB)
+				tikriesiems nariams, tiek komanditinės ūkinės bendrijos (KŪB) komanditoriams
+                amn_id - asmens identifikatorius
+                amn_id_tp_igyv - asmens teises ir pareigas įgyvendinančios institucijos identifikatorius (pildoma, jei
+                asmuo yra Lietuvos Respublika arba Lietuvos Respublikos savivaldybė)
+                tipas - asmens tipas
+                kodas - asmens kodas (pildoma ir fondo atveju jeigu fondas turi kodą)
+                pavadinimas - pavadinimas (pildoma, jei asmuo yra juridinis),(pildoma jei asmuo yra fondas)
+                vardas, pavarde - vardas, pavardė (pildoma, jei asmuo yra fizinis)
+                igyvendinancios_institucijos_kodas - asmens teises ir pareigas įgyvendinančios institucijos kodas
+                (pildoma, jei asmuo yra Lietuvos Respublika arba Lietuvos Respublikos savivaldybė)
+                igyvendinancios_institucijos_pavadinimas - asmens teises ir pareigas įgyvendinančios institucijos
+                pavadinimas (pildoma, jei asmuo yra Lietuvos Respublika arba Lietuvos Respublikos savivaldybė)
+                gimimo_data - gimimo data (pildoma, jei asmuo yra užsienio fizinis)
+                adresas_tekstinis - tekstinis adresas (pildoma, jei asmuo yra fizinis, užsienio fizinis arba užsienio
+                juridinis)
+                adresas_strukturizuotas - struktūrizuotas adresas (pildoma, jei asmuo yra fizinis arba užsienio fizinis)
+                salies_triraidis_kodas - tautybės šalies triraidis kodas (pildoma, jei asmuo yra užsienietis)
+                valdymo_imone - valdymo imone (pildoma jei asmuo yra fondas ir turi valdymo imone)
+					data_nuo, data_iki - dalyvavimo data nuo/iki (buvimas UAB akcininku arba bendraturčiu, MB atveju - nepildoma)
+				taikomos_sankcijos - pildoma, jei taikomos sankcijos
+            </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="amn_id" type="xs:long"/>
+			<xs:element minOccurs="0" name="amn_id_tp_igyv" type="xs:long"/>
+			<xs:element name="tipas" type="js:Asmens_Tipas"/>
+			<xs:element minOccurs="0" name="kodas" type="xs:string"/>
+			<xs:element minOccurs="0" name="pavadinimas" type="xs:string"/>
+			<xs:element minOccurs="0" name="vardas" type="xs:string"/>
+			<xs:element minOccurs="0" name="pavarde" type="xs:string"/>
+			<xs:element minOccurs="0" name="igyvendinancios_institucijos_kodas" type="xs:string"/>
+			<xs:element minOccurs="0" name="igyvendinancios_institucijos_pavadinimas" type="xs:string"/>
+			<xs:element minOccurs="0" name="gimimo_data" type="xs:date"/>
+			<xs:element minOccurs="0" name="adresas_tekstinis" type="xs:string"/>
+			<xs:element minOccurs="0" name="adresas_strukturizuotas" type="js:Adresas"/>
+			<xs:element minOccurs="0" name="salies_triraidis_kodas" type="js:Triraidis_Kodas"/>
+			<xs:element minOccurs="0" name="valdymo_imone" type="js:Valdymo_imone"/>
+			<xs:element minOccurs="0" name="taikomos_sankcijos" type="xs:boolean"/>
+			<xs:element minOccurs="0" name="data_nuo" type="xs:date"/>
+			<xs:element minOccurs="0" name="data_iki" type="xs:date"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:simpleType name="Asmens_Tipas">
+		<xs:annotation>
+			<xs:documentation>
+				Asmens tipas (fizinis, juridinis, užsienio fizinis, užsienio juridinis, Lietuvos Respublikos savivaldybė, Lietuvos Respublika, Fondas ir kiti).
+            </xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="FIZINIS"/>
+			<xs:enumeration value="JURIDINIS"/>
+			<xs:enumeration value="UZSIENIO_FIZINIS"/>
+			<xs:enumeration value="UZSIENIO_JURIDINIS"/>
+			<xs:enumeration value="LR_SAVIVALDYBE"/>
+			<xs:enumeration value="LIETUVOS_RESPUBLIKA"/>
+			<xs:enumeration value="INVESTICINIS_FONDAS"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:complexType name="Adresas">
+		<xs:annotation>
+			<xs:documentation>
+                Adreso tipas.
+                adr_id - adreso identifikatorius
+                valstybes_triraidis_kodas - valstybės triraidis kodas
+                adm_id - savivaldybės id
+                gyv_id - vietovės id
+                gat_id - gatvės id
+                namo_numeris - namo numeris
+                korpuso_numeris - korpuso numeris
+                buto_numeris - buto numeris
+            </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="adr_id" type="xs:long"/>
+			<xs:element minOccurs="0" name="valstybes_triraidis_kodas" type="js:Triraidis_Kodas"/>
+			<xs:element minOccurs="0" name="adm_id" type="xs:long"/>
+			<xs:element minOccurs="0" name="gyv_id" type="xs:long"/>
+			<xs:element minOccurs="0" name="gat_id" type="xs:long"/>
+			<xs:element minOccurs="0" name="namo_numeris" type="xs:string"/>
+			<xs:element minOccurs="0" name="korpuso_numeris" type="xs:string"/>
+			<xs:element minOccurs="0" name="buto_numeris" type="xs:string"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="Bendraturtis">
+		<xs:annotation>
+			<xs:documentation>
+				Bendraturtis.
+					igaliotas_asmuo - požymis, nurodantis bendraturčių įgaliotą asmenį
+					igalioto_asmens_paskyrimo_data - bendraturčių įgalioto asmens paskyrimo data
+					teisine_forma - užsienio juridinio asmens teisinė forma JA registre (pildoma, jei asmuo yra užsienio juridinis)
+					registras - užsienio valstybės registras įregistravęs užsienio juridinį asmenį JA regsitre (pildoma, jei asmuo yra užsienio juridinis)
+            </xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="js:Asmuo">
+				<xs:sequence>
+					<xs:element minOccurs="0" name="igaliotas_asmuo" type="xs:boolean"/>
+					<xs:element minOccurs="0" name="igalioto_asmens_paskyrimo_data" type="xs:date"/>
+					<xs:element minOccurs="0" name="teisine_forma" type="xs:string"/>
+					<xs:element minOccurs="0" name="registras" type="xs:string"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="Akcininkas_Asmuo">
+		<xs:annotation>
+			<xs:documentation>
+                Akcininkas.
+                akcijos - asmens akcijos
+                teisine_forma - steigėjo teisinė forma JA regsitre
+					registras - užsienio valstybės registras įregistravęs steigėją JA registre (pildoma, jei asmuo yra užsienio juridinis)
+            </xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="js:Asmuo">
+				<xs:sequence>
+					<xs:element name="akcijos" type="js:Akciju_Grupe"/>
+					<xs:element minOccurs="0" name="teisine_forma" type="xs:string"/>
+					<xs:element minOccurs="0" name="registras" type="xs:string"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="Nezinomi_Akcininkai">
+		<xs:annotation>
+			<xs:documentation>
+                Nežinomi akcininkai.
+                akcijos - nežinomų akcininkų akcijos
+            </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="akcijos" type="js:Akciju_Klases"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="Nariai">
+		<xs:annotation>
+			<xs:documentation>
+                MB, KO bei ŽŪB narius apjungiantis tipas.
+            </xs:documentation>
+		</xs:annotation>
+		<xs:choice maxOccurs="unbounded">
+			<xs:element name="nariu_grupe" type="js:Nariu_Grupe"/>
+			<xs:element name="narys" type="js:Narys"/>
+		</xs:choice>
+	</xs:complexType>
+	<xs:complexType name="Narys">
+		<xs:annotation>
+			<xs:documentation>
+                MB arba KO, arba ŽŪB narys.
+            </xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="js:Asmuo">
+				<xs:sequence>
+					<xs:element name="pakeitimai" type="js:Pakeitimai"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="Nariu_Grupe">
+		<xs:annotation>
+			<xs:documentation>
+				MB, KO narių grupė.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="nariai" type="js:Nariu_Grupes_Nariai"/>
+			<xs:element name="pakeitimai" type="js:Pakeitimai"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="Nariu_Grupes_Nariai">
+		<xs:annotation>
+			<xs:documentation>
+				MB, KO narių grupės nariai.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element maxOccurs="unbounded" name="narys" type="js:Bendraturtis"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="Pajininkai">
+		<xs:annotation>
+			<xs:documentation>
+                ŽŪB pajininkus apjungiantis tipas.
+            </xs:documentation>
+		</xs:annotation>
+		<xs:choice maxOccurs="unbounded" minOccurs="0">
+			<xs:element name="pajininku_grupe" type="js:Pajininku_Grupe"/>
+			<xs:element name="pajininkas" type="js:Pajininkas"/>
+		</xs:choice>
+	</xs:complexType>
+	<xs:complexType name="Pajininkas">
+		<xs:annotation>
+			<xs:documentation>
+                ŽŪB pajininkas.
+            </xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="js:Asmuo">
+				<xs:sequence>
+					<xs:element name="pakeitimai" type="js:Pakeitimai"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="Pajininku_Grupe">
+		<xs:annotation>
+			<xs:documentation>
+				ŽŪB pajininkų grupė.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="pajininkai" type="js:Pajininku_Grupes_Nariai"/>
+			<xs:element name="pakeitimai" type="js:Pakeitimai"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="Pajininku_Grupes_Nariai">
+		<xs:annotation>
+			<xs:documentation>
+				ŽŪB pajininkų grupės nariai.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element maxOccurs="unbounded" name="pajininkas" type="js:Bendraturtis"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="Pakeitimai">
+		<xs:annotation>
+			<xs:documentation>
+				MB, ŽŪB, TŪB, KŪB dalyvių pakeitimus apjungiantis tipas.
+            </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element maxOccurs="unbounded" minOccurs="0" name="pakeitimas" type="js:Pakeitimas"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="Pakeitimas">
+		<xs:annotation>
+			<xs:documentation>
+				MB, ŽŪB, TŪB, KŪB dalyvių pakeitimai.
+                data_nuo, data_iki - buvimas dalyviu data nuo/iki
+                data_keitimo - įnašo dydžio valiutos išraiškos keitimo į eurus data arba įnašo dydžio keitimo data
+                piniginis_inasas - piniginis įnašas
+                nepiniginis_inasas - nepiniginis įnašas
+            </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element minOccurs="0" name="data_nuo" type="xs:date"/>
+			<xs:element minOccurs="0" name="data_iki" type="xs:date"/>
+			<xs:element minOccurs="0" name="data_keitimo" type="xs:date"/>
+			<xs:element name="piniginis_inasas" type="js:Verte"/>
+			<xs:element name="nepiniginis_inasas" type="js:Verte"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="Dalininkai">
+		<xs:annotation>
+			<xs:documentation>
+                VŠ arba LPF dalininkus apjungiantis tipas.
+            </xs:documentation>
+		</xs:annotation>
+		<xs:choice maxOccurs="unbounded">
+			<xs:element name="dalininku_grupe" type="js:Dalininku_Grupe"/>
+			<xs:element name="dalininkas" type="js:Dalininkas"/>
+		</xs:choice>
+	</xs:complexType>
+	<xs:complexType name="Dalininkas">
+		<xs:annotation>
+			<xs:documentation>
+                VŠ arba LPF dalininkas.
+            </xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="js:Asmuo">
+				<xs:sequence>
+					<xs:element name="pakeitimai" type="js:VS_LPF_Pakeitimai"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="Dalininku_Grupes_Nariai">
+		<xs:annotation>
+			<xs:documentation>
+                LPF dalininkų grupės nariai.
+            </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element maxOccurs="unbounded" name="dalininkas" type="js:Bendraturtis"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="Dalininku_Grupe">
+		<xs:annotation>
+			<xs:documentation>
+                LPF dalininkų grupė.
+            </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="dalininkai" type="js:Dalininku_Grupes_Nariai"/>
+			<xs:element name="pakeitimai" type="js:VS_LPF_Pakeitimai"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="Tikrasis_Narys">
+		<xs:annotation>
+			<xs:documentation>
+				TŪB, KŪB tikrasis narys.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="js:Asmuo">
+				<xs:sequence>
+					<xs:element name="pakeitimai" type="js:Pakeitimai"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="Tikrieji_Nariai">
+		<xs:annotation>
+			<xs:documentation>
+				TŪB, KŪB tikruosius narius apjungiantis tipas.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:choice maxOccurs="unbounded">
+			<xs:element name="tikruju_nariu_grupe" type="js:Tikruju_Nariu_Grupe"/>
+			<xs:element name="tikrasis_narys" type="js:Tikrasis_Narys"/>
+		</xs:choice>
+	</xs:complexType>
+	<xs:complexType name="Tikruju_Nariu_Grupe">
+		<xs:annotation>
+			<xs:documentation>
+				TŪB, KŪB tikrųjų narių grupė.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="tikrieji_nariai_bendraturciai" type="js:Tikruju_Nariu_Grupes_Nariai"/>
+			<xs:element name="pakeitimai" type="js:Pakeitimai"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="Tikruju_Nariu_Grupes_Nariai">
+		<xs:annotation>
+			<xs:documentation>
+				TŪB, KŪB tikrųjų narių grupės nariai.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element maxOccurs="unbounded" name="tikrasis_narys" type="js:Bendraturtis"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="Komanditorius">
+		<xs:annotation>
+			<xs:documentation>
+				KŪB komanditorius.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="js:Asmuo">
+				<xs:sequence>
+					<xs:element name="pakeitimai" type="js:Pakeitimai"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="Komanditoriai">
+		<xs:annotation>
+			<xs:documentation>
+				KŪB komanditorius apjungiantis tipas.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:choice maxOccurs="unbounded">
+			<xs:element name="komanditoriu_grupe" type="js:Komanditoriu_Grupe"/>
+			<xs:element name="komanditorius" type="js:Komanditorius"/>
+		</xs:choice>
+	</xs:complexType>
+	<xs:complexType name="Komanditoriu_Grupe">
+		<xs:annotation>
+			<xs:documentation>
+				KŪB komanditorių grupė.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="komanditoriai_bendraturciai" type="js:Komanditoriu_Grupes_Nariai"/>
+			<xs:element name="pakeitimai" type="js:Pakeitimai"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="Komanditoriu_Grupes_Nariai">
+		<xs:annotation>
+			<xs:documentation>
+				KŪB komanditorių grupės nariai.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element maxOccurs="unbounded" name="komanditorius" type="js:Bendraturtis"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="VS_LPF_Pakeitimai">
+		<xs:annotation>
+			<xs:documentation>
+                VŠ arba LPF dalininko pakeitimus apjungiantis tipas.
+            </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element maxOccurs="unbounded" name="pakeitimas" type="js:VS_LPF_Pakeitimas"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="VS_LPF_Pakeitimas">
+		<xs:annotation>
+			<xs:documentation>
+                VŠ arba LPF dalininko pakeitimas.
+                data_nuo, data_iki - buvimas VŠ dalininku data nuo/iki
+                data_keitimo - įnašo dydžio keitimo data
+                inasas - įnašas
+            </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element minOccurs="0" name="data_nuo" type="xs:date"/>
+			<xs:element minOccurs="0" name="data_iki" type="xs:date"/>
+			<xs:element minOccurs="0" name="data_keitimo" type="xs:date"/>
+			<xs:element name="inasas" type="js:Verte"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="Valdymo_imone">
+		<xs:annotation>
+			<xs:documentation>
+                Valdymo Imone.
+					amn_id - Juridinio asmens unikalus identifikatorius Asmenu posistemeje
+                kodas - Lietuvos arba užsienio juridinio asmens kodas
+                pavadinimas - Lietuvos arba užsienio juridinio asmens pavadinimas
+            </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="amn_id" type="xs:long"/>
+			<xs:element minOccurs="0" name="kodas" type="xs:string"/>
+			<xs:element name="pavadinimas" type="xs:string"/>
+		</xs:sequence>
+	</xs:complexType>
+</xs:schema>
