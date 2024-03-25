@@ -1,0 +1,63 @@
+<xs:schema
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  elementFormDefault="qualified">
+
+<!--
+/**
+ * RC broker ws produkto #722 atsako XSD failas
+ * @author A.Krikščiūnas, a.kriksciunas@registrucentras.lt
+ * @version V.1806-28
+ */
+-->
+
+<xs:element name="IKR_REZERVACIJA">
+  <xs:annotation><xs:documentation>IKR rezervacijos patikrinimo atsakymas</xs:documentation></xs:annotation>
+
+
+  <xs:complexType mixed="true">
+    <xs:choice maxOccurs="unbounded">
+
+      <xs:element name="STATUSAS"           minOccurs="1" maxOccurs="1" type="xs:integer">
+        <xs:annotation><xs:documentation>1-rezervacija yra, 0-nėėra</xs:documentation></xs:annotation>
+      </xs:element>
+
+      <xs:element name="PADA_ID"           minOccurs="1" maxOccurs="1" type="xs:integer">
+        <xs:annotation><xs:documentation>padalinio, kuriame atlikta rezervacija, identifikatorius [ikr.padaliniai.pada_id]</xs:documentation></xs:annotation>
+      </xs:element>
+
+      <xs:element name="KODAS_TERMINALUI"           minOccurs="1" maxOccurs="1" type="xs:integer">
+        <xs:annotation><xs:documentation>kodas terminalui</xs:documentation></xs:annotation>
+      </xs:element>
+
+      <xs:element name="PASG_ID"           minOccurs="1" maxOccurs="1" type="xs:integer">
+        <xs:annotation><xs:documentation>paslaugų grupės identifikatorius [ikr.pasl_grupes.pasg_id]</xs:documentation></xs:annotation>
+      </xs:element>
+
+      <xs:element name="PASG_PAVADINIMAS"           minOccurs="1" maxOccurs="1" type="xs:integer">
+        <xs:annotation><xs:documentation>paslaugų grupės pavadinimas [ikr.pasl_grupes.pasg_pavadinimas]</xs:documentation></xs:annotation>
+      </xs:element>
+
+      <xs:element name="PAST_PAVADINIMAS"           minOccurs="1" maxOccurs="1" type="xs:integer">
+        <xs:annotation><xs:documentation>paslaugų temos pavadinimas [ikr.pasl_temos.past_pavadinimas]</xs:documentation></xs:annotation>
+      </xs:element>
+
+      <xs:element name="KLIENTAS"           minOccurs="1" maxOccurs="1" type="xs:string">
+        <xs:annotation><xs:documentation>Rezervaciją atlikusio asmens vardas ir pavardė</xs:documentation></xs:annotation>
+      </xs:element>
+
+      <xs:element name="LAIKAS_NUO"           minOccurs="1" maxOccurs="1" type="xs:string">
+        <xs:annotation><xs:documentation>Rezervuoto laiko pradžia</xs:documentation></xs:annotation>
+      </xs:element>
+
+      <xs:element name="LAIKAS_IKI"           minOccurs="1" maxOccurs="1" type="xs:string">
+        <xs:annotation><xs:documentation>Rezervuoto laiko pabaiga</xs:documentation></xs:annotation>
+      </xs:element>
+
+    </xs:choice>
+  </xs:complexType>
+</xs:element>
+
+
+
+
+</xs:schema>

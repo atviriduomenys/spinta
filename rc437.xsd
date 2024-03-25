@@ -1,0 +1,535 @@
+<xs:schema
+        xmlns:xs="http://www.w3.org/2001/XMLSchema"
+        targetNamespace="https://naudosgavejai.registrucentras.lt/ws/schemas"
+        xmlns:tns="https://naudosgavejai.registrucentras.lt/ws/schemas"
+        elementFormDefault="qualified"
+        version="1.6">
+
+    <xs:element name="getIsrasasRequest">
+        <xs:annotation>
+            <xs:documentation>
+                Išrašų gavimo užklausa kartu su vartotojo sesija. Užpildo RC Broker: [ssoId] -- sesijos ID, [ip] --
+                kliento IP adresas, [veiksmoTipas] -- išrašo identifikatorius, [parametrai] -- į RC Broker perduoti
+                parametrai, reikalingi išrašui sugeneruoti.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="ssoId" type="xs:string"/>
+                <xs:element name="ip" type="xs:string"/>
+                <xs:element name="veiksmoTipas" type="xs:long"/>
+                <xs:element name="parametrai" type="tns:israsoParametrai"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="getIsrasasResponse">
+        <xs:annotation>
+            <xs:documentation>
+                Užklausos įvykdymo rezultatas. [busena] -- ar sėkmingai įvykdytas kvietimas.
+                [israsas] -- duomenų rinkinys pagal užklausą, jeigu rastas.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="busena" type="tns:israsoBusena"/>
+                <xs:element ref="tns:israsas" minOccurs="0"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:complexType name="israsoParametrai">
+        <xs:annotation>
+            <xs:documentation>
+                Išrašo gavimo užklausos parametrai. [asmensParametrai] -- jur./fiz.asmuo arba inv.bendrovė/fondas, apie
+                kurį ieškoma duomenų. [data] -- datos parametras, tądien pakeistų naudos gavėjų sąrašams gauti.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:choice>
+                <xs:element name="asmuo" type="tns:asmensParametrai"/>
+                <xs:element name="data" type="xs:dateTime" minOccurs="0"/>
+            </xs:choice>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="asmensParametrai">
+        <xs:annotation>
+            <xs:documentation>
+                Asmens paieškos kriterijai. Parametrų rinkinys pildomas priklausomai nuo tipo.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="tipas" type="tns:asmensParametruTipas"/>
+            <xs:element name="kodas" type="xs:string" minOccurs="0"/>
+            <xs:element name="vardas" type="xs:string" minOccurs="0"/>
+            <xs:element name="pavarde" type="xs:string" minOccurs="0"/>
+            <xs:element name="gimimoData" type="xs:date" minOccurs="0"/>
+            <xs:element name="saliesKodas" type="xs:long" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="israsoBusena">
+        <xs:annotation>
+            <xs:documentation>
+                Metodo iškvietimo atsakymo būsena. [kodas] -- ar sėkmingai įvykdytas metodo kvietimas.
+                [pranesimas] -- klaidos aprašymas nesėkmės atveju.
+                Kodas:
+                 1  - Sekmingas,
+                 0  - Duomenys nerasti,
+                -1 - Nurodytas vartotojas nerastas arba neturi teisių vykdyti užklausą,
+                -2 - Neteisingi užklausos parametrai,
+                -3 - Neleistina operacija,
+                -4 - Įvyko vidinė sistemos klaida.;
+            </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="kodas" type="xs:int"/>
+            <xs:element name="pranesimas" type="xs:string" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:element name="israsas">
+        <xs:annotation>
+            <xs:documentation>
+                Duomenų rinkinys pgl užklausą. [pavadinimas] -- įvardijamas išrašo tipas. [sarasai] -- vienas ar daugiau
+                duomenu rinkinių, priklausomai nuo užklausos. [israsoData] -- kada buvo suformuotas išrašas.
+                [dokumentas] -- išrašas PDF formatu, priklausomai nuo išrašo.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="pavadinimas" type="xs:string"/>
+                <xs:choice>
+                    <xs:element name="sarasai" minOccurs="0">
+                        <xs:complexType>
+                            <xs:sequence>
+                                <xs:element name="sarasas" type="tns:sarasas" minOccurs="0" maxOccurs="unbounded"/>
+                            </xs:sequence>
+                        </xs:complexType>
+                    </xs:element>
+                    <xs:element name="dokumentas" type="xs:base64Binary" minOccurs="0"/>
+                </xs:choice>
+                <xs:element name="israsoData" type="xs:dateTime"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:complexType name="sarasas">
+        <xs:annotation>
+            <xs:documentation>
+                Naudos gavėjų sąrašas. [sarasoId] -- unikalus sąrašo identifikatorius. [teikiantisAsmuo] --
+                subjektas, apie kurį pateikti naudos gavėjai. [busena] -- ar sąrašas (ne)aktualus/anuliuotas.
+                [aktualusNuo] -- nuo kada sąrašas aktualus. [aktualusIki] -- iki kada sąrašas aktualus.
+                [sarasoElementai] -- subjekto kontrolės medis, pateiktas sąrašo forma.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="sarasoId" type="xs:long"/>
+            <xs:element name="teikiantisAsmuo" type="tns:asmuo"/>
+            <xs:element name="busena" type="tns:sarasoBusena"/>
+            <xs:element name="aktualusNuo" type="xs:dateTime"/>
+            <xs:element name="aktualusIki" type="xs:dateTime" minOccurs="0"/>
+            <xs:element name="sarasoElementai" minOccurs="0">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="sarasoElementas" type="tns:sarasoElementas" maxOccurs="unbounded"/>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="asmuo">
+        <xs:annotation>
+            <xs:documentation>
+                Subjektas, nurodantis fiz., jur. ar kt. asmenį.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:choice>
+            <xs:element name="fizinisAsmuo" type="tns:fizinisAsmuo"/>
+            <xs:element name="juridinisAsmuo" type="tns:juridinisAsmuo"/>
+            <xs:element name="investicineBendroveFondas" type="tns:investicineBendroveFondas"/>
+            <xs:element name="institucija" type="tns:institucija"/>
+            <xs:element name="platintojasPlatforma" type="tns:kodasPavadinimas"/>
+        </xs:choice>
+    </xs:complexType>
+
+    <xs:complexType name="fizinisAsmuo">
+        <xs:annotation>
+            <xs:documentation>
+                Fizinį asmenį identifikuojantys duomenys. [asmensId] -- unikalus identifikatorius asmenų posistemėje.
+                [asmensNr] -- unikalus identifikatorius gyventojų registre. [fizinioAsmensId] -- unikalus
+                identifikatorius juridinių asmenų registre (užsienio fiz.asmenims).
+            </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="asmensId" type="xs:long" nillable="true"/>
+            <xs:element name="asmensNr" type="xs:long" minOccurs="0"/>
+            <xs:element name="fizinioAsmensId" type="xs:long" minOccurs="0"/>
+            <xs:element name="vardas" type="xs:string" minOccurs="0"/>
+            <xs:element name="pavarde" type="xs:string" minOccurs="0"/>
+            <xs:element name="asmensKodas" type="xs:string" minOccurs="0"/>
+            <xs:element name="gimimoData" type="xs:date" minOccurs="0"/>
+            <xs:element name="gimimoMetaiMenuo" type="xs:gYearMonth" minOccurs="0"/>
+            <xs:element name="mirtiesData" type="xs:date" minOccurs="0"/>
+            <xs:element name="mirtiesMetaiMenuo" type="xs:gYearMonth" minOccurs="0"/>
+            <xs:element name="asmensDokumentoValstybe" type="tns:idPavadinimas" minOccurs="0"/>
+            <xs:element name="rezidavimoValstybes" minOccurs="0">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="valstybe" type="tns:idPavadinimas" maxOccurs="unbounded"/>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+            <xs:element name="pilietybesValstybes" minOccurs="0">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="valstybe" type="tns:idPavadinimas" maxOccurs="unbounded"/>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+            <xs:element name="mokesciuRezidavimoValstybes" minOccurs="0">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="valstybe" type="tns:idPavadinimas" maxOccurs="unbounded"/>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+            <xs:element name="gyvenamojiVieta" type="tns:adresas" minOccurs="0"/>
+            <xs:element name="arSankcionuotas" type="xs:boolean" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="kodasPavadinimas">
+        <xs:annotation>
+            <xs:documentation>
+                Klasifikatoriaus įrašas.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="kodas" type="xs:string"/>
+            <xs:element name="pavadinimas" type="xs:string"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="adresas">
+        <xs:annotation>
+            <xs:documentation>
+                Adreso struktūra. Jei turima, pateikiami visi struktūriniai elementai. Priešingu atveju, pateikiamas tik
+                suformatuotas [tekstinisAdresas].
+            </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="adresoId" type="xs:long" minOccurs="0"/>
+            <xs:element name="adminitracinisVienetas" type="tns:idPavadinimas" minOccurs="0"/>
+            <xs:element name="valstybe" type="tns:idPavadinimas" minOccurs="0"/>
+            <xs:element name="gyvenamojiVietove" type="tns:idPavadinimas" minOccurs="0"/>
+            <xs:element name="gatve1" type="tns:idPavadinimas" minOccurs="0"/>
+            <xs:element name="namoNr1" type="xs:string" minOccurs="0"/>
+            <xs:element name="gatve2" type="tns:idPavadinimas" minOccurs="0"/>
+            <xs:element name="namoNr2" type="xs:string" minOccurs="0"/>
+            <xs:element name="korpusoNr" type="xs:string" minOccurs="0"/>
+            <xs:element name="butoNr" type="xs:string" minOccurs="0"/>
+            <xs:element name="tekstinisAdresas" type="xs:string"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="idPavadinimas">
+        <xs:annotation>
+            <xs:documentation>
+                Klasifikatoriaus įrašas.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="id" type="xs:long" nillable="true"/>
+            <xs:element name="pavadinimas" type="xs:string"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="juridinisAsmuo">
+        <xs:annotation>
+            <xs:documentation>
+                Juridinio asmens duomenys. [asmensId] -- unikalus identifikatorius asmenų posistemėje. [objektoId] --
+                unikalus identifikatorius juridinių asmenų registre. [teisineForma] -- teisinių formų klasifikatoriaus
+                įrašas, pvz (310, "Uždaroji akcinė bendrovė").
+            </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="asmensId" type="xs:long" nillable="true"/>
+            <xs:element name="objektoId" type="xs:long" nillable="true"/>
+            <xs:element name="pavadinimas" type="xs:string"/>
+            <xs:element name="kodas" type="xs:string"/>
+            <xs:element name="teisineForma" type="tns:idPavadinimas" minOccurs="0"/>
+            <xs:element name="buveinesAdresas" type="tns:adresas" minOccurs="0"/>
+            <xs:element name="iregistravimoData" type="xs:date" minOccurs="0"/>
+            <xs:element name="registravimoValstybe" type="tns:idPavadinimas" minOccurs="0"/>
+            <xs:element name="registras" type="xs:string" minOccurs="0"/>
+            <xs:element name="teisinisStatusas" type="xs:string" minOccurs="0"/>
+            <xs:element name="teisinioStatusoData" type="xs:date" minOccurs="0"/>
+            <xs:element name="reguliuojamaRinka" type="xs:string" minOccurs="0"/>
+            <xs:element name="arSankcionuotas" type="xs:boolean" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="investicineBendroveFondas">
+        <xs:annotation>
+            <xs:documentation>
+                Investicinė bendrovė ar fondas, kaip nurodo [tipas] požymis. [juridinisAsmuo] -- duomenys inv.bendrovės
+                atveju. [fondas] -- duomenys inv.fondo atveju. [valdymoImone] -- subjektą valdantis jur.asmuo.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="tipas" type="tns:investicinesBendrovesFondoTipas"/>
+            <xs:choice>
+                <xs:element name="juridinisAsmuo" type="tns:juridinisAsmuo"/>
+                <xs:element name="fondas" type="tns:fondas"/>
+            </xs:choice>
+            <xs:element name="valdymoImone" type="tns:juridinisAsmuo" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="fondas">
+        <xs:annotation>
+            <xs:documentation>
+                Investicinio fondo informacija. [asmensId] -- unikalus identifikatorius asmenų posistemėje.
+                [teisineForma] -- teisinių formų klasifikatoriaus įrašas, pvz (310, "Uždaroji akcinė bendrovė").
+            </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="asmensId" type="xs:long"/>
+            <xs:element name="kodas" type="xs:string"/>
+            <xs:element name="pavadinimas" type="xs:string"/>
+            <xs:element name="registravimoValstybe" type="tns:idPavadinimas" minOccurs="0"/>
+            <xs:element name="registras" type="xs:string" minOccurs="0"/>
+            <xs:element name="aktyvusNuo" type="xs:date" minOccurs="0"/>
+            <xs:element name="aktyvusIki" type="xs:date" minOccurs="0"/>
+            <xs:element name="teisineForma" type="tns:idPavadinimas" minOccurs="0"/>
+            <xs:element name="vadovaPaskyrusiImone" type="tns:juridinisAsmuo" minOccurs="0"/>
+            <xs:element name="arSankcionuotas" type="xs:boolean" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="institucija">
+        <xs:annotation>
+            <xs:documentation>
+                Valstybė, savivaldybė ar užsienio institucija, kaip nurodo [tipas] požymis. [asmensId] -- unikalus
+                identifikatorius asmenų posistemėje. [nejuridinioAsmensId] -- unikalus identifikatorius juridinių
+                asmenų registre. [teisineForma] -- teisinių formų klasifikatoriaus įrašas, pvz (310, "Uždaroji akcinė
+                bendrovė"). [igyvendinantiInstitucija] -- juridinis asmuo, kuris įgyvendina subjekto teises ir pareigas.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="asmensId" type="xs:long"/>
+            <xs:element name="nejuridinioAsmensId" type="xs:long"/>
+            <xs:element name="tipas" type="tns:institucijosTipas"/>
+            <xs:element name="pavadinimas" type="xs:string"/>
+            <xs:element name="kodas" type="xs:string"/>
+            <xs:element name="valstybe" type="tns:idPavadinimas"/>
+            <xs:element name="teisineForma" type="tns:idPavadinimas"/>
+            <xs:element name="buveinesAdresas" type="tns:adresas" minOccurs="0"/>
+            <xs:choice minOccurs="0">
+                <xs:element name="igyvendinantisJuridinisAsmuo" type="tns:juridinisAsmuo"/>
+                <xs:element name="igyvendinantiInstitucija" type="tns:institucija"/>
+            </xs:choice>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="sarasoElementas">
+        <xs:annotation>
+            <xs:documentation>
+                Subjektas, dalyvaujantis jur.asmens ar inv.bendrovės/fondo kontrolėje. [elementoId] ir [elementoTevoId]
+                identifikatoriai nusako elemento poziciją elementų medyje. [elementoTipas] -- nusako sąrašo elemento
+                tipą. [asmuo] -- subjektas elementų medyje, atitinkamai pagal [elementoTipas] požymį. Bendraturčių,
+                balsavimo teisių perleidimo sutarčių ir patikos elementai turi nurodytą [asmenuGrupe] atributą, o šių
+                elementų vaikai -- [asmenuGrupesNarys]. [tiesiogineKontrole] įvardina subjekto kontrolės dydį tėvinio
+                sąrašo elemento atžvilgiu, o [netiesiogineKontrole] -- sąrašo teikiančio subjekto atžvilgiu.
+                [komentaras] saugo bendro tipo pastabas.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="elementoId" type="xs:long"/>
+            <xs:element name="elementoTevoId" type="xs:long" minOccurs="0"/>
+            <xs:element name="elementoTipas" type="tns:elementoTipas"/>
+            <xs:element name="asmuo" type="tns:asmuo" minOccurs="0"/>
+            <xs:element name="asmenuGrupe" type="tns:asmenuGrupe" minOccurs="0"/>
+            <xs:element name="asmenuGrupesNarys" type="tns:asmenuGrupesNarys" minOccurs="0"/>
+            <xs:element name="tiesiogineKontrole" type="tns:kontrole" minOccurs="0"/>
+            <xs:element name="netiesiogineKontrole" type="tns:kontrole" minOccurs="0"/>
+            <xs:element name="komentaras" type="xs:string" minOccurs="0"/>
+            <xs:element name="reguliuojamaRinka" type="xs:string" minOccurs="0"/>
+            <xs:element name="balsuPerleistaProcentas" type="xs:decimal" minOccurs="0"/>
+            <xs:element name="balsuGautaProcentas" type="xs:decimal" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="kontrole">
+        <xs:annotation>
+            <xs:documentation>
+                Šis tipas apibūdina fizinį asmenį, turintį ženklią nuosavybės dalį susietame asmenyje: [turtoProcentas]
+                ir [balsuProcentas] įvardina subjekto kontrolės dydį tiesioginio tėvinio sąrašo elemento atžvilgiu.
+                [naudosGavejoRoles] -- "Tiesioginis savininkas", "Netiesioginis savininkas", "Kontroliuoja kitais
+                būdais", kt. (tiesioginėje kontrolėje tik viena) [kontrolesBudas] -- "Teisė skirti vadovus", "Teisė
+                vetuoti juridinio asmens valdymo organų sprendimus", kt.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="turtoProcentas" type="xs:decimal" minOccurs="0"/>
+            <xs:element name="balsuProcentas" type="xs:decimal" minOccurs="0"/>
+            <xs:element name="naudosGavejoRoles" minOccurs="0">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="naudosGavejoRole" type="tns:idPavadinimas" maxOccurs="unbounded"/>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+            <xs:element name="kontrolesBudas" type="tns:idPavadinimas" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="asmenuGrupe">
+        <xs:annotation>
+            <xs:documentation>
+                Asmenų grupėje (1) balsavimo teisių perleidimo sutartims ir (2) patikai nurodomi [sutartiesNr] ir
+                [sudarymoData]. Patikai papildomai nurodoma [patikosRegistravimoValstybe], o balsavimo teisių perleidimo
+                sutarmis -- [basluPerleidimasGaliojaNuo], [basluPerleidimasGaliojaIki], [balsuPerleidimai].
+                Bendraturčių asmenų grupė atributų neturi.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="sutartiesNr" type="xs:string" minOccurs="0"/>
+            <xs:element name="sudarymoData" type="xs:date" minOccurs="0"/>
+            <xs:element name="patikosRegistravimoValstybe" type="tns:idPavadinimas" minOccurs="0"/>
+            <xs:element name="balsuPerleidimasGaliojaNuo" type="xs:date" minOccurs="0"/>
+            <xs:element name="balsuPerleidimasGaliojaIki" type="xs:date" minOccurs="0"/>
+            <xs:element name="balsuPerleidimai" minOccurs="0">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="balsuPerleidimas" type="tns:balsuPerleidimas" maxOccurs="unbounded"/>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="balsuPerleidimas">
+        <xs:annotation>
+            <xs:documentation>
+                Informacija apie balsų teisų perleidimo dalyvį, kuris perleido balsų teises.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="perleidusioElementoId" type="xs:long"/>
+            <xs:element name="balsuPerleistaProcentas" type="xs:decimal"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="asmenuGrupesNarys">
+        <xs:annotation>
+            <xs:documentation>
+                (1) Bendraturčių grupės nariams nurodomi [bendraturciuIgaliotasAsmuo] (ar tai įgaliotas asmuo
+                bendraturčių grupėje) ir [bendraturciuIgaliojimoData] (kada įgaliojimas suteiktas). (2) Patikos šalims
+                nurodoma [patikojeRoles] (pvz. "Patikėtojas", "Patikėtinis", "Saugotojas", kt.), [patikojeNaudosPobudis]
+                ir [patikojeKontrolesPriemone].
+            </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="bendraturciuIgaliotasAsmuo" type="xs:boolean" minOccurs="0"/>
+            <xs:element name="bendraturciuIgaliotoAsmensPaskyrimoData" type="xs:date" minOccurs="0"/>
+            <xs:element name="patikosRoles" minOccurs="0">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="patikosRole" type="tns:patikosRole" maxOccurs="unbounded"/>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="patikosRole">
+        <xs:annotation>
+            <xs:documentation>
+                Informacija apie asmenų grupės narį patikoje.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="role" type="tns:idPavadinimas"/>
+            <xs:element name="naudosPobudis" type="xs:string" minOccurs="0"/>
+            <xs:element name="kontrolesPriemone" type="xs:string" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:simpleType name="investicinesBendrovesFondoTipas">
+        <xs:annotation>
+            <xs:documentation>
+                Investicinė bendrovė ar investicinis fondas.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="BENDROVE"/>
+            <xs:enumeration value="FONDAS"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="institucijosTipas">
+        <xs:annotation>
+            <xs:documentation>
+                Juridinis asmuo pats iš savęs (lot. per se).
+            </xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="VALSTYBE"/>
+            <xs:enumeration value="SAVIVALDYBE"/>
+            <xs:enumeration value="INSTITUCIJA"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="sarasoBusena">
+        <xs:annotation>
+            <xs:documentation>
+                Naudos gavėjų sąrašo būsena. Vienas sąrašas yra aktualus, kiti -- nebe aktualūs arba anuliuoti.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="AKTUALUS"/>
+            <xs:enumeration value="NEAKTUALUS"/>
+            <xs:enumeration value="ANULIUOTAS"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="elementoTipas">
+        <xs:annotation>
+            <xs:documentation>
+                Naudos gavėjų sąrašo elemento tipai.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="NAUDOS_GAVEJAS"/>
+            <xs:enumeration value="JURIDINIS_ASMUO"/>
+            <xs:enumeration value="INVESTICINE_BENDROVE_FONDAS"/>
+            <xs:enumeration value="BENDRATURCIAI"/>
+            <xs:enumeration value="BALSU_PERLEIDIMAS"/>
+            <xs:enumeration value="INSTITUCIJA"/>
+            <xs:enumeration value="PATIKA"/>
+            <xs:enumeration value="FIZINIS_ASMUO"/>
+            <xs:enumeration value="PLATFORMA"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="asmensParametruTipas">
+        <xs:annotation>
+            <xs:documentation>
+                Pagal kokius parametrus bus ieškomas asmuo: FIZINIS_ASMUO (LR pgl kodas, o užsienio pgl kodas?, vardas,
+                pavarde, gimimoData, saliesKodas), JURIDINIS_ASMUO (kodas), INVESTICINE_BENDROVE (kodas),
+                INVESTICINIS_FONDAS (kodas, saliesKodas).
+            </xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="FIZINIS_ASMUO"/>
+            <xs:enumeration value="JURIDINIS_ASMUO"/>
+            <xs:enumeration value="INVESTICINE_BENDROVE"/>
+            <xs:enumeration value="INVESTICINIS_FONDAS"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+</xs:schema>
