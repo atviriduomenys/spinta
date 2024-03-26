@@ -183,7 +183,7 @@ def test_attributes_to_properties():
     element = schema.xpath('*[local-name() = "element"]')[0]
     result = _attributes_to_properties(element)
     assert "neid_fiz_id" in result.keys()
-    assert "fiz_pastabps" in result.keys()
+    assert "fiz_pastabos" in result.keys()
     assert result["neid_fiz_id"] == {
         "type": "integer",
         "required": True,
@@ -192,5 +192,5 @@ def test_attributes_to_properties():
                 "name": "@NEID_FIZ_ID"
             }
     }
-    assert result["fiz_pastabps"]["type"] == "string"
+    assert result["fiz_pastabos"]["type"] == "string"
 # def test_get_external_info():
