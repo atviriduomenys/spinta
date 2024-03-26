@@ -185,6 +185,7 @@ def test_attributes_to_properties():
     assert "neid_fiz_id" in result.keys()
     assert "fiz_pastabos" in result.keys()
     assert result["neid_fiz_id"] == {
+        "description": "",
         "type": "integer",
         "required": True,
         "external":
