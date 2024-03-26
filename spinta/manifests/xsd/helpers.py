@@ -311,7 +311,6 @@ def _parse_element(node: _Element, models: list, source_path: str = "/") -> dict
     else:
         # final model, we don't go any deeper
         # todo handle cases where we need to go deeper if the complex type is described separately,
-        # todo or where it's a reference to another element but doesn't have anything of it's own
 
         models.append(parsed_model)
 

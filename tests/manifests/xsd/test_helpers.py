@@ -1,7 +1,7 @@
 from lxml import etree
 
 from spinta.manifests.xsd.helpers import _get_description, _get_property_type, _node_to_partial_property, \
-    _element_to_property
+    _element_to_property, _attributes_to_properties
 
 
 def test_get_description():
@@ -134,4 +134,61 @@ def test_element_to_property():
     }
 
 
+def test_attributes_to_properties():
+    element_string = """
+    <xs:element name="FIZINIAI_ASMENYS_NEID">
+<xs:annotation>
+<xs:documentation> Neidentifikuoti fiziniai asmenys. Atributų reikšmės: NEID_FIZ_ID - Neidentifikuoto fizinio asmens dirbtinis identifikatorius. FIZ_SAL_KODAS - Šalies kodas. FIZ_PASTABOS - Pastabos. FIZ_GIMIMO_DATA - Gimimo data. FAV_VARDAS - Vardas. FAV_PAVARDE - Pavardė. ASM_ADRESAS - Adresas. ARO_KODAS - Juridinio asmens aktualaus adreso kodas. ADR_BUS - Adreso būsena. Reikšmės: 1 - adresas užregistruotas adresų registre, 0 - Adreso Adresų registre nėra arba jis negaliojantis. </xs:documentation>
+</xs:annotation>
+<xs:complexType>
+<xs:attribute name="NEID_FIZ_ID" type="xs:int" use="required"/>
+<xs:attribute name="FIZ_SAL_KODAS" type="xs:short"/>
+<xs:attribute name="FIZ_PASTABOS">
+<xs:simpleType>
+<xs:restriction base="xs:string">
+<xs:maxLength value="250"/>
+</xs:restriction>
+</xs:simpleType>
+</xs:attribute>
+<xs:attribute name="FIZ_GIMIMO_DATA" type="xs:date"/>
+<xs:attribute name="FAV_VARDAS" use="required">
+<xs:simpleType>
+<xs:restriction base="xs:string">
+<xs:maxLength value="50"/>
+</xs:restriction>
+</xs:simpleType>
+</xs:attribute>
+<xs:attribute name="FAV_PAVARDE" use="required">
+<xs:simpleType>
+<xs:restriction base="xs:string">
+<xs:maxLength value="50"/>
+</xs:restriction>
+</xs:simpleType>
+</xs:attribute>
+<xs:attribute name="ASM_ADRESAS">
+<xs:simpleType>
+<xs:restriction base="xs:string">
+<xs:maxLength value="250"/>
+</xs:restriction>
+</xs:simpleType>
+</xs:attribute>
+<xs:attribute name="ARO_KODAS" type="xs:int"/>
+<xs:attribute name="ADR_BUS"/>
+</xs:complexType>
+</xs:element>
+"""
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('*[local-name() = "element"]')[0]
+    result = _attributes_to_properties(element)
+    assert "neid_fiz_id" in result.keys()
+    assert "fiz_pastabps" in result.keys()
+    assert result["neid_fiz_id"] == {
+        "type": "integer",
+        "required": True,
+        "external":
+            {
+                "name": "@NEID_FIZ_ID"
+            }
+    }
+    assert result["fiz_pastabps"]["type"] == "string"
 # def test_get_external_info():
