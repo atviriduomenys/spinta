@@ -1,7 +1,7 @@
 from lxml import etree
 
 from spinta.manifests.xsd.helpers import _get_description, _get_property_type, _node_to_partial_property, \
-    _element_to_property, _attributes_to_properties
+    _element_to_property, _attributes_to_properties, _get_external_info
 
 
 def test_get_description():
@@ -194,4 +194,20 @@ def test_attributes_to_properties():
             }
     }
     assert result["fiz_pastabos"]["type"] == "string"
-# def test_get_external_info():
+
+
+def test_get_external_info():
+    result = _get_external_info()
+    assert result == {
+        "dataset": "dataset1",
+        "resource": "resource1"
+    }
+
+
+def test_get_external_info_kwargs():
+    result = _get_external_info(name = "data")
+    assert result == {
+        "dataset": "dataset1",
+        "resource": "resource1",
+        "name": "data"
+    }
