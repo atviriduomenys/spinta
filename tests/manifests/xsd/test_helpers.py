@@ -177,6 +177,7 @@ def test_attributes_to_properties():
 <xs:attribute name="ADR_BUS"/>
 </xs:complexType>
 </xs:element>
+</xs:schema>
 """
     schema = etree.fromstring(element_string)
     element = schema.xpath('*[local-name() = "element"]')[0]
