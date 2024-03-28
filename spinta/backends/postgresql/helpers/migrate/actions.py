@@ -1,8 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Tuple
 
 import sqlalchemy as sa
-
 from alembic.operations import Operations
 
 
@@ -102,7 +101,8 @@ class CreateUniqueConstraintMigrationAction(MigrationAction):
         self.columns = columns
 
     def execute(self, op: Operations):
-        op.create_unique_constraint(constraint_name=self.constraint_name, table_name=self.table_name, columns=self.columns)
+        op.create_unique_constraint(constraint_name=self.constraint_name, table_name=self.table_name,
+                                    columns=self.columns)
 
 
 class CreatePrimaryKeyMigrationAction(MigrationAction):
@@ -123,7 +123,8 @@ class CreateIndexMigrationAction(MigrationAction):
         self.using = using
 
     def execute(self, op: Operations):
-        op.create_index(index_name=self.index_name, table_name=self.table_name, columns=self.columns, postgresql_using=self.using)
+        op.create_index(index_name=self.index_name, table_name=self.table_name, columns=self.columns,
+                        postgresql_using=self.using)
 
 
 class DowngradeTransferDataMigrationAction(MigrationAction):
@@ -169,7 +170,8 @@ class UpgradeTransferDataMigrationAction(MigrationAction):
 
 
 class CreateForeignKeyMigrationAction(MigrationAction):
-    def __init__(self, source_table: str, referent_table: str, constraint_name: str, local_cols: list, remote_cols: list):
+    def __init__(self, source_table: str, referent_table: str, constraint_name: str, local_cols: list,
+                 remote_cols: list):
         self.constraint_name = constraint_name
         self.source_table = source_table
         self.referent_table = referent_table
@@ -191,8 +193,49 @@ class RenameSequenceMigrationAction(MigrationAction):
         self.query = f'ALTER SEQUENCE "{old_name}" RENAME TO "{new_name}"'
 
     def execute(self, op: Operations):
-        replaced = self.query.replace(":", "\:")
+        replaced = self.query.replace(":", "\\:")
         op.execute(replaced)
+
+
+class TransferJSONDataMigrationAction(MigrationAction):
+    def __init__(self, table: sa.Table, source: sa.Column, columns: List[Tuple[str, sa.Column]]):
+        # Hack to transfer data if columns do not exist
+        # Create new table with just required columns exist
+        # SQLAlchemy does not allow the use table actions when those columns do not exist
+        temp_table = sa.Table(
+            table.name,
+            sa.MetaData(),
+            source._copy(),
+            *[column._copy() for _, column in columns]
+        )
+        self.query = temp_table.update().values(**{column.name: source[key].astext for key, column in columns})
+
+    def execute(self, op: Operations):
+        op.execute(self.query)
+
+
+class RenameJSONAttributeMigrationAction(MigrationAction):
+    def __init__(self, table: sa.Table, source: sa.Column, old_key: str, new_key: str):
+        self.query = table.update().values(
+            **{
+                source.name: source - old_key + sa.func.jsonb_build_object(new_key, source[old_key])
+            }
+        ).where(source.has_key(old_key))
+
+    def execute(self, op: Operations):
+        op.execute(self.query)
+
+
+class RemoveJSONAttributeMigrationAction(MigrationAction):
+    def __init__(self, table: sa.Table, source: sa.Column, key: str):
+        self.query = table.update().values(
+            **{
+                source.name: source - key
+            }
+        ).where(source.has_key(key))
+
+    def execute(self, op: Operations):
+        op.execute(self.query)
 
 
 class MigrationHandler:

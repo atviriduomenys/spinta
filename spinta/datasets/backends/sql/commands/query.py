@@ -39,7 +39,7 @@ from spinta.types.datatype import String
 from spinta.types.datatype import Integer
 from spinta.types.file.components import FileData
 from spinta.types.text.components import Text
-from spinta.types.text.helpers import determine_language_for_text
+from spinta.types.text.helpers import determine_language_property_for_text
 from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, merge_with_page_selected_list, \
     merge_with_page_sort, merge_with_page_limit, QueryParams
 from spinta.ufuncs.basequerybuilder.helpers import get_language_column
@@ -760,7 +760,7 @@ def select(env, dtype):
         return Selected(prop=dtype.prop, prep=result)
 
     default_langs = env.context.get('config').languages
-    lang_prop = determine_language_for_text(dtype, env.query_params.lang_priority, default_langs)
+    lang_prop = determine_language_property_for_text(dtype, env.query_params.lang_priority, default_langs)
     return Selected(prop=dtype.prop, prep={
         lang_prop.name: env.call('select', lang_prop)
     })

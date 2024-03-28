@@ -23,7 +23,7 @@ from spinta.exceptions import EmptyStringSearch, PropertyNotFound, LangNotDeclar
 from spinta.exceptions import UnknownMethod
 from spinta.exceptions import FieldNotInResource
 from spinta.components import Model, Property, Action, Page
-from spinta.types.text.helpers import determine_language_for_text
+from spinta.types.text.helpers import determine_language_property_for_text
 from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, merge_with_page_sort, \
     merge_with_page_limit, merge_with_page_selected_list, QueryParams
 from spinta.ufuncs.basequerybuilder.helpers import get_column_with_extra, get_language_column
@@ -578,7 +578,7 @@ def select(env, dtype):
         return Selected(result, prop=dtype.prop)
 
     default_langs = env.context.get('config').languages
-    lang_prop = determine_language_for_text(dtype, env.query_params.lang_priority, default_langs)
+    lang_prop = determine_language_property_for_text(dtype, env.query_params.lang_priority, default_langs)
     return Selected(env.call('select', lang_prop).item, prop=dtype.prop)
 
 

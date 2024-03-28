@@ -126,23 +126,29 @@ class MigrateRename:
         else:
             self.tables[table_name]["columns"][column_name] = new_column_name
 
-    def get_column_name(self, table_name: str, column_name: str):
-        new_name = column_name.split(".")
+    def get_column_name(self, table_name: str, column_name: str, only_root: bool = True):
         if table_name in self.tables.keys():
             table = self.tables[table_name]
-            if new_name[0] in table["columns"].keys():
-                new_name[0] = table["columns"][new_name[0]]
-                return '.'.join(new_name)
+            if not only_root:
+                if column_name in table["columns"].keys():
+                    return table["columns"][column_name]
+            else:
+                root_name = column_name.split('.')[0].split('@')[0]
+                if root_name in table["columns"].keys():
+                    return table["columns"][root_name]
+                for old, new in table["columns"].items():
+                    if old.split('.')[0].split('@')[0] == root_name:
+                        return new
         return column_name
 
-    def get_old_column_name(self, table_name: str, column_name: str):
-        new_name = column_name.split(".")
+    def get_old_column_name(self, table_name: str, column_name: str, root_only: bool = True):
+        root_name = column_name.split(".")[0].split('@')[0] if root_only else column_name
         if table_name in self.tables.keys():
             table = self.tables[table_name]
             for column, new_column_name in table["columns"].items():
-                if new_column_name == new_name[0]:
-                    new_name[0] = column
-                    return '.'.join(new_name)
+                if new_column_name == root_name:
+                    root_name = column
+                    return root_name
         return column_name
 
     def get_table_name(self, table_name: str):
