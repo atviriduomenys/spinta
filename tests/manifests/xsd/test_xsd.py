@@ -152,7 +152,7 @@ def test_xsd(rc: RawConfig, tmp_path: Path):
 d | r | b | m | property        | type    | ref | source                            | prepare | level | access | uri | title | description
 dataset1                        |         |     |                                   |         |       |        |     |       |
   | resource1                   | xml     |     |                                   |         |       |        |     |       |
-  |   |   | /Administracinis    |         |     | /ADMINISTRACINIAI/ADMINISTRACINIS |         |       |        |     |       |
+  |   |   |  Administracinis    |         |     | /ADMINISTRACINIAI/ADMINISTRACINIS |         |       |        |     |       |
   |   |   |   | adm_kodas       | integer |     | ADM_KODAS/text()                  |         |       |        |     |       |
   |   |   |   | adm_id          | integer |     | ADM_ID/text()                     |         |       |        |     |       |
   |   |   |   | tipas           | string  |     | TIPAS/text()                      |         |       |        |     |       |
@@ -166,7 +166,7 @@ dataset1                        |         |     |                               
   |   |   |   | adm_nuo         | date    |     | ADM_NUO/text()                    |         |       |        |     |       |
   |   |   |   | adm_iki         | date    |     | ADM_IKI/text()                    |         |       |        |     |       |
                                 |         |     |                                   |         |       |        |     |       |
-  |   |   | /Gyvenviete         |         |     | /GYVENVIETES/GYVENVIETE           |         |       |        |     |       |
+  |   |   |  Gyvenviete         |         |     | /GYVENVIETES/GYVENVIETE           |         |       |        |     |       |
   |   |   |   | gyv_kodas       | integer |     | GYV_KODAS/text()                  |         |       |        |     |       |
   |   |   |   | gyv_id          | integer |     | GYV_ID/text()                     |         |       |        |     |       |
   |   |   |   | tipas           | string  |     | TIPAS/text()                      |         |       |        |     |       |
@@ -181,7 +181,7 @@ dataset1                        |         |     |                               
   |   |   |   | gyv_nuo         | date    |     | GYV_NUO/text()                    |         |       |        |     |       |
   |   |   |   | gyv_iki         | date    |     | GYV_IKI/text()                    |         |       |        |     |       |
                                 |         |     |                                   |         |       |        |     |       |
-  |   |   | /Gatve              |         |     | /GATVES/GATVE                     |         |       |        |     |       |
+  |   |   |  Gatve              |         |     | /GATVES/GATVE                     |         |       |        |     |       |
   |   |   |   | gat_kodas       | integer |     | GAT_KODAS/text()                  |         |       |        |     |       |
   |   |   |   | gat_id          | integer |     | GAT_ID/text()                     |         |       |        |     |       |
   |   |   |   | tipas           | string  |     | TIPAS/text()                      |         |       |        |     |       |
@@ -194,7 +194,7 @@ dataset1                        |         |     |                               
   |   |   |   | gat_nuo         | date    |     | GAT_NUO/text()                    |         |       |        |     |       |
   |   |   |   | gat_iki         | date    |     | GAT_IKI/text()                    |         |       |        |     |       |
                                 |         |     |                                   |         |       |        |     |       |
-  |   |   | /Adresas            |         |     | /ADRESAI/ADRESAS                  |         |       |        |     |       |
+  |   |   |  Adresas            |         |     | /ADRESAI/ADRESAS                  |         |       |        |     |       |
   |   |   |   | aob_kodas       | integer |     | AOB_KODAS/text()                  |         |       |        |     |       |
   |   |   |   | aob_id          | integer |     | AOB_ID/text()                     |         |       |        |     |       |
   |   |   |   | gyv_kodas       | integer |     | GYV_KODAS/text()                  |         |       |        |     |       |
@@ -207,7 +207,7 @@ dataset1                        |         |     |                               
   |   |   |   | aob_nuo         | date    |     | AOB_NUO/text()                    |         |       |        |     |       |
   |   |   |   | aob_iki         | date    |     | AOB_IKI/text()                    |         |       |        |     |       |
                                 |         |     |                                   |         |       |        |     |       |
-  |   |   | /Patalpa            |         |     | /PATALPOS/PATALPA                 |         |       |        |     |       |
+  |   |   |  Patalpa            |         |     | /PATALPOS/PATALPA                 |         |       |        |     |       |
   |   |   |   | pat_kodas       | integer |     | PAT_KODAS/text()                  |         |       |        |     |       |
   |   |   |   | pat_id          | integer |     | PAT_ID/text()                     |         |       |        |     |       |
   |   |   |   | aob_kodas       | integer |     | AOB_KODAS/text()                  |         |       |        |     |       |
@@ -217,7 +217,7 @@ dataset1                        |         |     |                               
   |   |   |   | pat_nuo         | date    |     | PAT_NUO/text()                    |         |       |        |     |       |
   |   |   |   | pat_iki         | date    |     | PAT_IKI/text()                    |         |       |        |     |       |
                                 |         |     |                                   |         |       |        |     |       |
-  |   |   | /Kodas              |         |     | /KODAI/KODAS                      |         |       |        |     |       |
+  |   |   |  Kodas              |         |     | /KODAI/KODAS                      |         |       |        |     |       |
   |   |   |   | pasto_kodas     | string  |     | PASTO_KODAS/text()                |         |       |        |     |       |
   |   |   |   | pasto_viet_pav  | string  |     | PASTO_VIET_PAV/text()             |         |       |        |     |       |
   |   |   |   | nuo             | date    |     | NUO/text()                        |         |       |        |     |       |
