@@ -122,11 +122,8 @@ def load(
         for unique_set in model.unique:
             prop_set = []
             for prop_name in unique_set:
-                if "." in prop_name:
-                    prop_name = prop_name.split(".")[0]
-                if prop_name not in model.properties:
-                    raise PropertyNotFound(model, property=prop_name)
-                prop_set.append(model.properties[prop_name])
+                prop = get_property_from_name(model, prop_name)
+                prop_set.append(prop)
             if prop_set:
                 unique_properties.append(prop_set)
         model.unique = unique_properties
@@ -524,3 +521,10 @@ def get_error_context(prop: Page, *, prefix='this') -> Dict[str, str]:
     context = commands.get_error_context(prop.model, prefix=f'{prefix}.model')
     context['page'] = f'{prefix}.get_repr_for_error()'
     return context
+
+
+def get_property_from_name(model: Model, prop_name: str):
+    if prop_name in model.flatprops:
+        return model.flatprops[prop_name]
+    else:
+        raise PropertyNotFound(model, property=prop_name)

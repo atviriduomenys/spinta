@@ -514,7 +514,12 @@ class Selected:
 
     def __eq__(self, other):
         if isinstance(other, Selected):
-            return self.prop == other.prop
+            if self.prop == other.prop:
+                return True
+
+            if hasattr(self.item, "name") and hasattr(other.item, "name"):
+                if self.item.name == other.item.name:
+                    return True
         return False
 
 

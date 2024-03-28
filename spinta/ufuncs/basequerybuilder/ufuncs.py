@@ -19,7 +19,7 @@ def paginate(env, expr):
             if not page.filter_only:
                 env.page.select = env.call('select', page)
                 for by, page_by in page.by.items():
-                    sorted_ = env.call('sort', Negative(page_by.prop.name) if by.startswith("-") else Bind(page_by.prop.name))
+                    sorted_ = env.call('sort', Negative(page_by.prop.place) if by.startswith("-") else Bind(page_by.prop.place))
                     if sorted_ is not None:
                         env.page.sort.append(sorted_)
             env.page.page_ = page
