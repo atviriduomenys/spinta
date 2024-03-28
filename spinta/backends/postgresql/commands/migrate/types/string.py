@@ -30,7 +30,7 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
             json_column = col
             break
 
-    contains_key = False
+    #contains_key = False
     requires_removal = True
 
     # Check if column was renamed and if there already existed column of the new name
