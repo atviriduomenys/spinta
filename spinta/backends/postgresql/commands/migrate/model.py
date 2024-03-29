@@ -1,30 +1,27 @@
-from typing import Union
-
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.engine.reflection import Inspector
 
 import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
 from spinta.backends.constants import TableType
 from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers import get_pg_name, get_column_name
-from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
+from spinta.backends.postgresql.helpers import get_pg_name
 from spinta.backends.postgresql.helpers.migrate.migrate import drop_all_indexes_and_constraints, handle_new_file_type, \
-    get_remove_name, get_root_attr, get_prop_names, create_changelog_table, property_and_column_name_key, \
-    property_and_column_name_key
-from spinta.cli.migrate import MigrateRename
-from spinta.components import Context, Model, Property
+    get_remove_name, get_prop_names, create_changelog_table, property_and_column_name_key, MigratePostgresMeta, \
+    MigrateModelMeta
+from spinta.components import Context, Model
 from spinta.datasets.inspect.helpers import zipitems
-from spinta.types.datatype import File, JSON
-from spinta.types.text.components import Text
+from spinta.types.datatype import File
 from spinta.utils.schema import NotAvailable, NA
 
 
-@commands.migrate.register(Context, PostgreSQL, Inspector, sa.Table, Model, MigrationHandler, MigrateRename)
-def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, old: sa.Table, new: Model,
-            handler: MigrationHandler, rename: MigrateRename):
+@commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, sa.Table, Model)
+def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, old: sa.Table, new: Model, **kwargs):
+    rename = meta.rename
+    handler = meta.handler
+    inspector = meta.inspector
+
     columns = list(old.columns)
     table_name = rename.get_table_name(old.name)
 
@@ -51,6 +48,15 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, old: sa
                 ))
 
     properties = list(new.properties.values())
+
+    model_meta = MigrateModelMeta()
+    for column in columns:
+        if isinstance(column.type, JSONB):
+            model_meta.add_json_column(
+                backend,
+                old,
+                column
+            )
 
     props = zipitems(
         columns,
@@ -79,14 +85,14 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, old: sa
         if new_properties:
             for prop in new_properties:
                 if not prop:
-                    commands.migrate(context, backend, inspector, old, old_columns, prop, handler, rename, False)
+                    commands.migrate(context, backend, meta, old, old_columns, prop, model_meta=model_meta, foreign_key=False, **kwargs)
                 else:
-                    commands.migrate(context, backend, inspector, old, old_columns, prop, handler, rename)
+                    commands.migrate(context, backend, meta, old, old_columns, prop, model_meta=model_meta, **kwargs)
         else:
             # Remove from JSONB clean up
             if isinstance(old_columns, sa.Column) and isinstance(old_columns.type, JSONB):
                 columns.remove(old_columns)
-            commands.migrate(context, backend, inspector, old, old_columns, NA, handler, rename, False)
+            commands.migrate(context, backend, meta, old, old_columns, NA, model_meta=model_meta, foreign_key=False, **kwargs)
 
     required_unique_constraints = []
     if new.unique:
@@ -137,26 +143,50 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, old: sa
                         constraint_name=constraint["name"]
                     ))
 
-    # Clean up JSONB columns (old Text, JSON properties)
-    for column in columns:
-        if isinstance(column.type, JSONB):
-            flag_for_removal = True
-            name = rename.get_column_name(old.name, column.name, only_root=False)
-            for prop in new.properties.values():
-                if name == prop.name:
-                    if isinstance(prop.dtype, JSON) or isinstance(prop.dtype, Text):
-                        flag_for_removal = False
-                        break
+    # Handle JSON renames and removes at the end
+    for json_meta in model_meta.json_columns.values():
+        if json_meta.new_keys and json_meta.cast_to is None:
+            removed_keys = [key for key, new_key in json_meta.new_keys.items() if new_key == f'__{key}']
 
-            if flag_for_removal:
-                commands.migrate(context, backend, inspector, old, column, NA, handler, rename, False)
+            if removed_keys == json_meta.keys or json_meta.full_remove:
+                commands.migrate(context, backend, meta, old, json_meta.column, NA)
+            else:
+                for old_key, new_key in json_meta.new_keys.items():
+                    if new_key in json_meta.keys:
+                        handler.add_action(ma.RemoveJSONAttributeMigrationAction(
+                            old,
+                            json_meta.column,
+                            new_key
+                        ))
+                    handler.add_action(ma.RenameJSONAttributeMigrationAction(
+                        old,
+                        json_meta.column,
+                        old_key,
+                        new_key
+                    ))
+        elif isinstance(json_meta.cast_to, tuple) and len(json_meta.cast_to) == 2:
+            new_column = json_meta.cast_to[0]
+            key = json_meta.cast_to[1]
+            commands.migrate(context, backend, meta, old, json_meta.column, NA)
+            commands.migrate(context, backend, meta, old, NA, new_column, foreign_key=False, model_meta=model_meta, **kwargs)
+            renamed = json_meta.column._copy()
+            renamed.name = f'__{json_meta.column.name}'
+            handler.add_action(
+                ma.TransferJSONDataMigrationAction(
+                    old,
+                    renamed,
+                    [(key, new_column)]
+                )
+            )
 
 
-@commands.migrate.register(Context, PostgreSQL, Inspector, NotAvailable, Model, MigrationHandler, MigrateRename)
-def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, old: NotAvailable, new: Model,
-            handler: MigrationHandler, rename: MigrateRename):
+@commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, NotAvailable, Model)
+def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, old: NotAvailable, new: Model, **kwargs):
+    rename = meta.rename
+    handler = meta.handler
+    inspector = meta.inspector
+
     table_name = get_pg_name(get_table_name(new))
-
     pkey_type = commands.get_primary_key_type(context, backend)
 
     columns = []
@@ -203,9 +233,11 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, old: No
     create_changelog_table(context, new, handler, rename)
 
 
-@commands.migrate.register(Context, PostgreSQL, Inspector, sa.Table, NotAvailable, MigrationHandler, MigrateRename)
-def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, old: sa.Table, new: NotAvailable,
-            handler: MigrationHandler, rename: MigrateRename):
+@commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, sa.Table, NotAvailable)
+def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, old: sa.Table, new: NotAvailable):
+    handler = meta.handler
+    inspector = meta.inspector
+
     old_name = old.name
     remove_name = get_remove_name(old_name)
 

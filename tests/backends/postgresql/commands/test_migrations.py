@@ -2591,6 +2591,8 @@ def test_migrate_text_to_string_simple(
      migrate/example |   |      |      |                |          |          |
                      |   |      | Test |                |          |          |
                      |   |      |      | text@lt        | string   |          |
+                     |   |      |      | other@lt       | string   |          |
+                     |   |      |      | other@en       | string   |          |
     '''
     context, rc = _configure(rc, tmp_path, initial_manifest)
 
@@ -2606,13 +2608,17 @@ def test_migrate_text_to_string_simple(
             tables.keys())
         table = tables["migrate/example/Test"]
         columns = table.columns
-        assert {'text'}.issubset(columns.keys())
+        assert {'text', 'other'}.issubset(columns.keys())
 
         conn.execute(table.insert().values({
             "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7e",
             "text": {
                 "lt": "Test"
             },
+            "other": {
+                "lt": "Testas",
+                "en": "Test"
+            }
         }))
 
     override_manifest(context, tmp_path, '''
@@ -2620,11 +2626,13 @@ def test_migrate_text_to_string_simple(
      migrate/example |   |      |      |                |          |          |
                      |   |      | Test |                |          |          |
                      |   |      |      | text_lt        | string   |          |
+                     |   |      |      | other_lt       | string   |          |
     ''')
 
     rename_file = {
         "migrate/example/Test": {
             "text@lt": "text_lt",
+            "other@lt": "other_lt"
         },
     }
     path = tmp_path / 'rename.json'
@@ -2642,11 +2650,14 @@ def test_migrate_text_to_string_simple(
         'UPDATE "migrate/example/Test" SET text_lt=("migrate/example/Test".text ->> '
         "'lt');\n"
         '\n'
-        'UPDATE "migrate/example/Test" SET text=("migrate/example/Test".text - \'lt\' '
-        '|| jsonb_build_object(\'__lt\', ("migrate/example/Test".text -> \'lt\'))) '
-        'WHERE "migrate/example/Test".text ? \'lt\';\n'
+        'ALTER TABLE "migrate/example/Test" ADD COLUMN other_lt TEXT;\n'
+        '\n'
+        'UPDATE "migrate/example/Test" SET other_lt=("migrate/example/Test".other ->> '
+        "'lt');\n"
         '\n'
         'ALTER TABLE "migrate/example/Test" RENAME text TO __text;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test" RENAME other TO __other;\n'
         '\n'
         'COMMIT;\n'
         '\n')
@@ -2662,17 +2673,22 @@ def test_migrate_text_to_string_simple(
 
         table = tables["migrate/example/Test"]
         columns = table.columns
-        assert {'text_lt', '__text'}.issubset(
+        assert {'text_lt', '__text', 'other_lt', '__other'}.issubset(
             columns.keys())
-        assert not {'text'}.issubset(
+        assert not {'text', 'other'}.issubset(
             columns.keys())
 
         result = conn.execute(table.select())
         for row in result:
             assert row['__text'] == {
-                '__lt': 'Test'
+                'lt': 'Test'
+            }
+            assert row['__other'] == {
+                'lt': 'Testas',
+                'en': 'Test'
             }
             assert row['text_lt'] == 'Test'
+            assert row['other_lt'] == 'Testas'
         _clean_up_tables(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog'])
 
 
@@ -2734,16 +2750,11 @@ def test_migrate_text_to_string_direct(
     assert result.output.endswith(
         'BEGIN;\n'
         '\n'
-        'ALTER TABLE "migrate/example/Test" ADD COLUMN text_lt TEXT;\n'
-        '\n'
-        'UPDATE "migrate/example/Test" SET text_lt=("migrate/example/Test".text ->> '
-        "'lt');\n"
-        '\n'
-        'UPDATE "migrate/example/Test" SET text=("migrate/example/Test".text - \'lt\' '
-        '|| jsonb_build_object(\'__lt\', ("migrate/example/Test".text -> \'lt\'))) '
-        'WHERE "migrate/example/Test".text ? \'lt\';\n'
-        '\n'
         'ALTER TABLE "migrate/example/Test" RENAME text TO __text;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test" ADD COLUMN text TEXT;\n'
+        '\n'
+        'UPDATE "migrate/example/Test" SET text=(__text ->> \'lt\');\n'
         '\n'
         'COMMIT;\n'
         '\n')
@@ -2759,19 +2770,17 @@ def test_migrate_text_to_string_direct(
 
         table = tables["migrate/example/Test"]
         columns = table.columns
-        assert {'text_lt', '__text'}.issubset(
-            columns.keys())
-        assert not {'text'}.issubset(
+        assert {'text', '__text'}.issubset(
             columns.keys())
 
         result = conn.execute(table.select())
         for row in result:
             assert row['__text'] == {
-                '__lt': 'Test'
+                'lt': 'Testas',
+                "en": "Test"
             }
-            assert row['text_lt'] == 'Test'
+            assert row['text'] == 'Testas'
         _clean_up_tables(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog'])
-
 
 
 def test_migrate_text_to_string_multi(
@@ -2845,27 +2854,15 @@ def test_migrate_text_to_string_multi(
         'UPDATE "migrate/example/Test" SET text_lt=("migrate/example/Test".text ->> '
         "'lt');\n"
         '\n'
-        'UPDATE "migrate/example/Test" SET text=("migrate/example/Test".text - \'lt\' '
-        '|| jsonb_build_object(\'__lt\', ("migrate/example/Test".text -> \'lt\'))) '
-        'WHERE "migrate/example/Test".text ? \'lt\';\n'
-        '\n'
         'ALTER TABLE "migrate/example/Test" ADD COLUMN text_en TEXT;\n'
         '\n'
         'UPDATE "migrate/example/Test" SET text_en=("migrate/example/Test".text ->> '
         "'en');\n"
         '\n'
-        'UPDATE "migrate/example/Test" SET text=("migrate/example/Test".text - \'en\' '
-        '|| jsonb_build_object(\'__en\', ("migrate/example/Test".text -> \'en\'))) '
-        'WHERE "migrate/example/Test".text ? \'en\';\n'
-        '\n'
         'ALTER TABLE "migrate/example/Test" ADD COLUMN text_lv TEXT;\n'
         '\n'
         'UPDATE "migrate/example/Test" SET text_lv=("migrate/example/Test".text ->> '
         "'lv');\n"
-        '\n'
-        'UPDATE "migrate/example/Test" SET text=("migrate/example/Test".text - \'lv\' '
-        '|| jsonb_build_object(\'__lv\', ("migrate/example/Test".text -> \'lv\'))) '
-        'WHERE "migrate/example/Test".text ? \'lv\';\n'
         '\n'
         'ALTER TABLE "migrate/example/Test" RENAME text TO __text;\n'
         '\n'
@@ -2891,9 +2888,9 @@ def test_migrate_text_to_string_multi(
         result = conn.execute(table.select())
         for row in result:
             assert row['__text'] == {
-                '__lt': 'LT',
-                '__en': 'EN',
-                '__lv': 'LV'
+                'lt': 'LT',
+                'en': 'EN',
+                'lv': 'LV'
             }
             assert row['text_lt'] == 'LT'
             assert row['text_lv'] == 'LV'

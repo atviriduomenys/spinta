@@ -3,40 +3,37 @@ from typing import List
 import geoalchemy2.types
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.engine.reflection import Inspector
 
 import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_pg_name
-from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
-from spinta.backends.postgresql.helpers.migrate.migrate import check_if_renamed, rename_index_name
-from spinta.cli.migrate import MigrateRename
+from spinta.backends.postgresql.helpers.migrate.migrate import check_if_renamed, rename_index_name, MigratePostgresMeta
 from spinta.components import Context
 from spinta.types.datatype import DataType
 from spinta.utils.schema import NotAvailable, NA
 
 
-@commands.migrate.register(Context, PostgreSQL, Inspector, sa.Table, NotAvailable, DataType, MigrationHandler,
-                           MigrateRename)
-def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: sa.Table,
-            old: NotAvailable, new: DataType, handler: MigrationHandler, rename: MigrateRename):
+@commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, sa.Table, NotAvailable, DataType)
+def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, table: sa.Table,
+            old: NotAvailable, new: DataType, **kwargs):
     column = commands.prepare(context, backend, new.prop)
-    commands.migrate(context, backend, inspector, table, old, column, handler, rename, False)
+    if column is not None and column != []:
+        commands.migrate(context, backend, meta, table, old, column, foreign_key=False, **kwargs)
 
 
-@commands.migrate.register(Context, PostgreSQL, Inspector, sa.Table, sa.Column, DataType, MigrationHandler,
-                           MigrateRename)
-def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: sa.Table,
-            old: sa.Column, new: DataType, handler: MigrationHandler, rename: MigrateRename):
+@commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, sa.Table, sa.Column, DataType)
+def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, table: sa.Table,
+            old: sa.Column, new: DataType, **kwargs):
     column = commands.prepare(context, backend, new.prop)
-    commands.migrate(context, backend, inspector, table, old, column, handler, rename, False)
+    commands.migrate(context, backend, meta, table, old, column, foreign_key=False, **kwargs)
 
 
-@commands.migrate.register(Context, PostgreSQL, Inspector, sa.Table, list, DataType, MigrationHandler,
-                           MigrateRename)
-def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: sa.Table,
-            old: List[sa.Column], new: DataType, handler: MigrationHandler, rename: MigrateRename):
+@commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, sa.Table, list, DataType)
+def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, table: sa.Table,
+            old: List[sa.Column], new: DataType, **kwargs):
+    rename = meta.rename
+
     column: sa.Column = commands.prepare(context, backend, new.prop)
     old_name = rename.get_old_column_name(table.name, column.name)
 
@@ -45,19 +42,21 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
     if column.name != old_name:
         for col in old:
             if col.name == column.name:
-                commands.migrate(context, backend, inspector, table, col, NA, handler, rename, False)
+                commands.migrate(context, backend, meta, table, col, NA, foreign_key=False, **kwargs)
                 columns.remove(col)
                 break
 
     for col in columns:
-        commands.migrate(context, backend, inspector, table, col, column, handler, rename, False)
+        commands.migrate(context, backend, meta, table, col, column, foreign_key=False, **kwargs)
 
 
-@commands.migrate.register(Context, PostgreSQL, Inspector, sa.Table, sa.Column, sa.Column, MigrationHandler,
-                           MigrateRename, bool)
-def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: sa.Table,
-            old: sa.Column, new: sa.Column, handler: MigrationHandler, rename: MigrateRename,
-            foreign_key: bool = False):
+@commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, sa.Table, sa.Column, sa.Column)
+def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, table: sa.Table,
+            old: sa.Column, new: sa.Column, foreign_key: bool = False, **kwargs):
+    rename = meta.rename
+    inspector = meta.inspector
+    handler = meta.handler
+
     column_name = new.name
     table_name = rename.get_table_name(table.name)
     new_type = new.type.compile(dialect=postgresql.dialect())
@@ -204,11 +203,13 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
                         ), foreign_key)
 
 
-@commands.migrate.register(Context, PostgreSQL, Inspector, sa.Table, NotAvailable, sa.Column, MigrationHandler,
-                           MigrateRename, bool)
-def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: sa.Table,
-            old: NotAvailable, new: sa.Column, handler: MigrationHandler, rename: MigrateRename,
-            foreign_key: bool = False):
+@commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, sa.Table, NotAvailable, sa.Column)
+def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, table: sa.Table,
+            old: NotAvailable, new: sa.Column, foreign_key: bool = False, **kwargs):
+    rename = meta.rename
+    inspector = meta.inspector
+    handler = meta.handler
+
     table_name = get_pg_name(rename.get_table_name(table.name))
     handler.add_action(ma.AddColumnMigrationAction(
         table_name=table_name,
@@ -233,19 +234,20 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
         ))
 
 
-@commands.migrate.register(Context, PostgreSQL, Inspector, sa.Table, list, NotAvailable, MigrationHandler,
-                           MigrateRename, bool)
-def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: sa.Table,
-            old: list, new: NotAvailable, handler: MigrationHandler, rename: MigrateRename, foreign_key: bool = False):
+@commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, sa.Table, list, NotAvailable)
+def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, table: sa.Table,
+            old: list, new: NotAvailable, foreign_key: bool = False, **kwargs):
     for item in old:
-        commands.migrate(context, backend, inspector, table, item, new, handler, rename, foreign_key)
+        commands.migrate(context, backend, meta, table, item, new, foreign_key=foreign_key, **kwargs)
 
 
-@commands.migrate.register(Context, PostgreSQL, Inspector, sa.Table, sa.Column, NotAvailable, MigrationHandler,
-                           MigrateRename, bool)
-def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: sa.Table,
-            old: sa.Column, new: NotAvailable, handler: MigrationHandler, rename: MigrateRename,
-            foreign_key: bool = False):
+@commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, sa.Table, sa.Column, NotAvailable)
+def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, table: sa.Table,
+            old: sa.Column, new: NotAvailable, foreign_key: bool = False, **kwargs):
+    rename = meta.rename
+    inspector = meta.inspector
+    handler = meta.handler
+
     if not old.name.startswith("_"):
         table_name = rename.get_table_name(table.name)
         columns = inspector.get_columns(table.name)

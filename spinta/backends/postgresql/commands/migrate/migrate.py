@@ -12,7 +12,8 @@ from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_pg_name, get_column_name
 from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
-from spinta.backends.postgresql.helpers.migrate.migrate import drop_all_indexes_and_constraints
+from spinta.backends.postgresql.helpers.migrate.migrate import drop_all_indexes_and_constraints, model_name_key, \
+    MigratePostgresMeta
 from spinta.cli.migrate import MigrateMeta
 from spinta.cli.migrate import MigrateRename
 from spinta.commands import create_exception
@@ -73,9 +74,14 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
     models = zipitems(
         sorted_model_names,
         tables,
-        _model_name_key
+        model_name_key
     )
     handler = MigrationHandler()
+    meta = MigratePostgresMeta(
+        inspector=inspector,
+        handler=handler,
+        rename=migrate_meta.rename
+    )
     for items in models:
         for new_model, old_model in items:
             if old_model and any(value in old_model for value in (TableType.CHANGELOG.value, TableType.FILE.value)):
@@ -86,7 +92,7 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
             if old_model:
                 old = metadata.tables[migrate_meta.rename.get_old_table_name(old_model)]
             new = commands.get_model(context, manifest, new_model) if new_model else new_model
-            commands.migrate(context, backend, inspector, old, new, handler, migrate_meta.rename)
+            commands.migrate(context, backend, meta, old, new)
     _handle_foreign_key_constraints(inspector, sorted_models, handler, migrate_meta.rename)
     _clean_up_file_type(inspector, sorted_models, handler, migrate_meta.rename)
     try:
@@ -119,10 +125,6 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
     except sa.exc.OperationalError as error:
         exception = create_exception(manifest, error)
         raise exception
-
-
-def _model_name_key(model: str) -> str:
-    return get_pg_name(model)
 
 
 def _handle_foreign_key_constraints(inspector: Inspector, models: List[Model], handler: MigrationHandler,

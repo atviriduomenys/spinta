@@ -1,6 +1,5 @@
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import BIGINT, ARRAY
-from sqlalchemy.engine.reflection import Inspector
 
 import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
@@ -8,18 +7,19 @@ from spinta.backends.components import BackendFeatures
 from spinta.backends.constants import TableType
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_pg_name, get_column_name
-from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
-from spinta.backends.postgresql.helpers.migrate.migrate import get_root_attr
-from spinta.cli.migrate import MigrateRename
+from spinta.backends.postgresql.helpers.migrate.migrate import get_root_attr, MigratePostgresMeta
 from spinta.components import Context
 from spinta.types.datatype import File
 from spinta.utils.schema import NotAvailable
 
 
-@commands.migrate.register(Context, PostgreSQL, Inspector, sa.Table, NotAvailable, File, MigrationHandler,
-                           MigrateRename)
-def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: sa.Table,
-            old: NotAvailable, new: File, handler: MigrationHandler, rename: MigrateRename):
+@commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, sa.Table, NotAvailable, File)
+def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, table: sa.Table,
+            old: NotAvailable, new: File, **kwargs):
+    rename = meta.rename
+    inspector = meta.inspector
+    handler = meta.handler
+
     name = get_column_name(new.prop)
     nullable = not new.required
     table_name = rename.get_table_name(table.name)
@@ -57,10 +57,13 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
         ))
 
 
-@commands.migrate.register(Context, PostgreSQL, Inspector, sa.Table, list, File, MigrationHandler, MigrateRename)
-def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: sa.Table,
-            old: list, new: File, handler: MigrationHandler, rename: MigrateRename):
-    old_table_name = rename.get_old_table_name(table.name)
+@commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, sa.Table, list, File)
+def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, table: sa.Table,
+            old: list, new: File, **kwargs):
+    rename = meta.rename
+    inspector = meta.inspector
+    handler = meta.handler
+
     column_name = rename.get_column_name(table.name, new.prop.name)
     old_name = rename.get_old_column_name(table.name, new.prop.name)
     for item in old:

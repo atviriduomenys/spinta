@@ -1,4 +1,5 @@
-from typing import Any, List, Union
+import dataclasses
+from typing import Any, List, Union, Dict, Tuple
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB, BIGINT, ARRAY
@@ -69,7 +70,7 @@ def create_changelog_table(context: Context, new: Model, handler: MigrationHandl
 
 
 def handle_new_file_type(context: Context, backend: PostgreSQL, inspector: Inspector, prop: Property, pkey_type: Any,
-                          handler: MigrationHandler) -> list:
+                         handler: MigrationHandler) -> list:
     name = get_column_name(prop)
     nullable = not prop.dtype.required
     columns = []
@@ -96,7 +97,7 @@ def handle_new_file_type(context: Context, backend: PostgreSQL, inspector: Inspe
 
 
 def handle_new_array_type(context: Context, backend: PostgreSQL, inspector: Inspector, prop: Property, pkey_type: Any,
-                           handler: MigrationHandler):
+                          handler: MigrationHandler):
     columns = []
     if isinstance(prop.dtype, Array) and prop.dtype.items:
         if prop.list is None:
@@ -133,7 +134,7 @@ def handle_new_array_type(context: Context, backend: PostgreSQL, inspector: Insp
 
 
 def handle_new_object_type(context: Context, backend: PostgreSQL, inspector: Inspector, prop: Property, pkey_type: Any,
-                            handler: MigrationHandler):
+                           handler: MigrationHandler):
     columns = []
     if isinstance(prop.dtype, Object) and prop.dtype.properties:
         for new_prop in prop.dtype.properties.values():
@@ -203,11 +204,15 @@ def jsonb_keys(backend: PostgreSQL, column: sa.Column, table: sa.Table):
         query = sa.select(
             [keys]
         ).select_from(table).group_by(keys)
-        return connection.execute(query).scalar()
+        return [result[0] for result in connection.execute(query)]
 
 
 def name_key(name: str):
     return name
+
+
+def model_name_key(model: str) -> str:
+    return get_pg_name(model)
 
 
 def property_and_column_name_key(item: Union[sa.Column, Property], rename, table) -> str:
@@ -219,3 +224,35 @@ def property_and_column_name_key(item: Union[sa.Column, Property], rename, table
         name = get_column_name(item)
         name = rename.get_old_column_name(table, name)
     return get_root_attr(get_pg_name(name))
+
+
+@dataclasses.dataclass
+class MigratePostgresMeta:
+    inspector: Inspector
+    rename: MigrateRename
+    handler: MigrationHandler
+
+
+@dataclasses.dataclass
+class JSONColumnMigrateMeta:
+    column: sa.Column
+    keys: List[str] = dataclasses.field(default_factory=list)
+    new_keys: Dict[str, str] = dataclasses.field(default_factory=dict)
+    full_remove: bool = dataclasses.field(default=True)
+    cast_to: Tuple[sa.Column, str] = dataclasses.field(default=None)
+
+    def initialize(self, backend, table):
+        self.keys = jsonb_keys(backend, self.column, table)
+
+
+@dataclasses.dataclass
+class MigrateModelMeta:
+    json_columns: Dict[str, JSONColumnMigrateMeta] = dataclasses.field(default_factory=dict)
+
+    def add_json_column(self, backend: PostgreSQL, table: sa.Table, column: sa.Column):
+        meta = JSONColumnMigrateMeta(
+            column=column,
+        )
+        meta.initialize(backend, table)
+        self.json_columns[column.name] = meta
+
