@@ -223,5 +223,10 @@ dataset1                        |         |     |                               
   |   |   |   | nuo             | date    |     | NUO/text()                        |         |       |        |     |       |
   |   |   |   | iki             | date    |     | IKI/text()                        |         |       |        |     |       |
   """
-    a, b = a, b = compare_manifest(manifest, result, context)
 
+    a, b = compare_manifest(manifest, result, context)
+
+    print(a)
+    print(b)
+
+    assert a == b

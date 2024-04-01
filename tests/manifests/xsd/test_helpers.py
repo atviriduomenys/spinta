@@ -1,8 +1,8 @@
 from lxml import etree
 
 from spinta.manifests.xsd.helpers import _get_description, _get_property_type, _node_to_partial_property, \
-    _element_to_property, _attributes_to_properties, _get_external_info, _simple_element_to_property, \
-    _get_dataset_and_resource_info, _node_is_simple_type_or_inline, _is_array
+    _attributes_to_properties, _get_external_info, _simple_element_to_property, \
+    _get_dataset_and_resource_info, _node_is_simple_type_or_inline, _is_array, _extract_custom_types
 
 
 def test_get_description():
@@ -348,4 +348,22 @@ def test_is_required():
     result = _is_array(element)
     assert result is False
 
-
+def test_extract_custom_types():
+    element_string = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+        <xs:simpleType name="data_laikas">
+            <xs:annotation><xs:documentation>Data ir laikas</xs:documentation></xs:annotation>
+            <xs:restriction base="xs:string">
+                <xs:pattern value="\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}"/>
+            </xs:restriction>
+        </xs:simpleType>
+    </xs:schema>
+    """
+    schema = etree.fromstring(element_string)
+    result = _extract_custom_types(schema)
+    assert result == {
+        "data_laikas":
+            {
+                "base": "string"
+            }
+    }

@@ -70,6 +70,8 @@ DATATYPES_MAPPING = {
 
 }
 
+custom_types = {}
+
 """
 format of custom types:
 {
@@ -78,7 +80,6 @@ format of custom types:
     }
 }
 """
-custom_types = {}
 
 
 def _get_external_info(path: str = None, document: _ElementTree = None, **kwargs) -> dict:
@@ -91,9 +92,22 @@ def _get_external_info(path: str = None, document: _ElementTree = None, **kwargs
     return external
 
 
-def _extract_custom_types(node: _ElementTree) -> dict:
-    # todo finish this
-    return {}
+def _extract_custom_types(node: _Element) -> dict:
+    custom_types_nodes = node.xpath(f'./*[local-name() = "simpleType"]')
+    custom_types = {}
+    for type_node in custom_types_nodes:
+        type_name = type_node.get("name")
+        restrictions = node.xpath(f'./*[local-name() = "simpleType"]/*[local-name() = "restriction"]')
+        if restrictions:
+            property_type_base = restrictions[0].get("base", "")
+            property_type_base = property_type_base.split(":")[1]
+        else:
+            property_type_base = ""
+
+        custom_types[type_name] = {
+            "base": property_type_base
+        }
+    return custom_types
 
 
 def _get_text_property():
@@ -111,7 +125,6 @@ def _get_document_root(path):
         document = etree.parse(urlopen(path))
         objectify.deannotate(document, cleanup_namespaces=True)
         root = document.getroot()
-        print(type(root))
     else:
         with open(path) as file:
             text = file.read()
@@ -155,18 +168,19 @@ def _node_is_ref(node):
     return False
 
 
-def _properties_from_simple_elements(node):
+def _properties_from_simple_elements(node: _Element, from_sequence: bool = True):
     properties = {}
     elements = node.xpath(f'./*[local-name() = "element"]')
     for element in elements:
         if _node_is_simple_type_or_inline(element) and not _node_is_ref(element):
             property_id, prop = _simple_element_to_property(element)
+            if not from_sequence:
+                prop["required"] = False
             properties[property_id] = prop
     return properties
 
 def _get_property_type(node: etree.Element) -> str:
     if node.get("ref"):
-        # todo decide whether this is a ref or a backref
         return "ref"
     property_type = node.get("type")
     if not property_type:
@@ -183,7 +197,6 @@ def _get_property_type(node: etree.Element) -> str:
     if property_type in DATATYPES_MAPPING:
         property_type = DATATYPES_MAPPING[property_type]
     elif property_type in custom_types:
-        # todo handle other custom types. like data_ir_laikas to datetime
         property_type = custom_types.get(property_type).get("base", "")
     else:
         property_type = ""
@@ -245,7 +258,13 @@ def _is_required(element: _Element) -> bool:
 
 
 def _simple_element_to_property(element: _Element):
+    # simple element is an element which is either
+    # an inline or simple type element and doesn't have a ref
+
     property_id, prop = _node_to_partial_property(element)
+    if _node_is_ref(element):
+        prop["external"]["name"] = element.get("ref")
+        property_id = to_property_name(element.get("ref"))
     prop["external"]["name"] = f'{prop["external"]["name"]}/text()'
     if _is_array(element):
         property_id += "[]"
@@ -255,57 +274,7 @@ def _simple_element_to_property(element: _Element):
         prop["required"] = False
     return property_id, prop
 
-
-def _element_to_property(element: _Element, root: _Element = None) -> tuple[str, dict]:
-    """
-    Receives an element and returns a tuple containing the id of the property and the property itself
-    Elements can be properties in those cases when they have only description (annotation/documentation)
-    or when they don't have any elements inside of them, i.e. when it's simple type.
-    """
-    # todo if this element has a reference, we need to decide if we add the data from reference here,
-    # or if we make it ref type and have it pointed to another model
-    # todo handle backrefs
-    ref = to_model_name(element.get("ref"))
-    property_id, prop = _node_to_partial_property(element)
-
-    if _is_array(element):
-        property_id += "[]"
-
-    if not prop["external"]["name"]:
-        prop["external"]["name"] = ref
-
-    if ref:
-        prop["model"] = ref
-        prop["external"]["name"] = f'{prop["external"]["name"]}/text()'
-
-    if _is_required(element):
-        prop["required"] = True
-    else:
-        prop["required"] = False
-
-    if ref:
-
-        # if it's a reference, we first check if the referenced element can be a property
-        # it can only be a property if maxOccurs isn't more than 1
-        # https://atviriduomenys.readthedocs.io/dsa/duomenu-tipai.html#array
-        # https://atviriduomenys.readthedocs.io/dsa/duomenu-tipai.html#backref
-        max_occurs = element.get("maxOccurs", 1)
-        if max_occurs == 1:
-            referenced_element = root.xpath(f'/*[local-name() = "element"]')
-            if ((referenced_element.xpath(f'./*[local-name() = "annotation"]') and len(referenced_element) == 1) or
-                (referenced_element.xpath(f'./*[local-name() = "simpleType"]'))):
-                property_id, prop = _element_to_property(referenced_element)
-
-    return property_id, prop
-
-
-
-
-
-def _complex_node_with_sequence_to_properties(complex_type_node: _Element, source_path: str, root: _Element = None) -> dict:
-    """
-    XSD attributes will get turned into properties
-
+"""
     Example:
 
         'properties': {
@@ -322,9 +291,7 @@ def _complex_node_with_sequence_to_properties(complex_type_node: _Element, sourc
          },
 
 
-    """
 
-    """
     source: https://stackoverflow.com/questions/36286056/the-difference-between-all-sequence-choice-and-group-in-xsd
     When to use xsd:all, xsd:sequence, xsd:choice, or xsd:group:
 
@@ -338,48 +305,76 @@ def _complex_node_with_sequence_to_properties(complex_type_node: _Element, sourc
     For example, if minOccurs="0" were added to xsd:element children of xsd:all, element order would be insignificant,
     but not all child elements would have to be present:
     """
+
+
+def _properties_from_references(node: _Element, model_name: str, models: list, source_path: str = "", root: _Element = None):
     properties = {}
-    complex_type_node = complex_type_node[0]
-    print("COMPLEX TYPE NODE:", complex_type_node)
+    for ref_element in node.xpath("./*[@ref]"):
 
-    # complex_type can be "mixed" which means that there might be text between sequence elements
-    if complex_type_node.get("mixed"):
-        properties.update(_get_text_property())
-    if complex_type_node.xpath(f'./*[local-name() = "sequence"]'):
-        sequence_node = complex_type_node.xpath(f'./*[local-name() = "sequence"]')[0]
-        elements = sequence_node.xpath(f'./*[local-name() = "element"]')
+        # if a node's maxOccurs is 1, then it's one item that's referenced to another item,
+        # so we create a ref and parse that element as a new model, with a path added to this one's path
+        if not _is_array(ref_element):
+            ref = ref_element.get("ref")
+            xpath_query = f"//*[@name='{ref}']"
+            # todo should probably be a better xpath query
+            referenced_element = root.xpath(xpath_query)[0]
+            referenced_model_name = _parse_element(referenced_element, models, source_path, root)
+            property_id, prop = _simple_element_to_property(ref_element)
+            prop["external"]["name"] = ""
+            prop["type"] = "ref"
+            prop["model"] = "dataset1/" + (f"{to_model_name(source_path)}{to_model_name(referenced_model_name)}")
+            properties[property_id] = prop
 
-        # if we already have properties, which means that this node consists not only of elements (but attributes or text)
-        # then we treat it as final and create a model out of it
-        # otherwise we can add it to the path as a part of path to a  model
-        if properties or len(elements) > 1:
-            # todo finish this
-            pass
+        # If node's maxOccurs is > 1 then it's an array. In this case the type of this is backref.
+        # We also need to add a ref element to that model which would reference this model
+        else:
+            ref = ref_element.get("ref")
+            xpath_query = f"//*[@name='{ref}']"
+            # todo should probably be a better xpath query
+            referenced_element = root.xpath(xpath_query)[0]
+            referenced_element_properties = {
+                to_property_name(model_name):
+                {
+                    "type": "ref",
+                    "model": f"dataset1/{to_model_name(source_path)}"
+                }
+            }
+            referenced_model_name = _parse_element(
+                referenced_element, models, source_path, root, referenced_element_properties)
+            property_id, prop = _simple_element_to_property(ref_element)
+            prop["type"] = "backref"
+            prop["external"]["name"] = ""
+            prop["model"] = "dataset1/" + (f"{to_model_name(source_path)}{to_model_name(referenced_model_name)}")
+            properties[property_id] = prop
 
     return properties
 
 
-def _parse_element(node: _Element, models: list, source_path: str = "", root: _Element = None):
+def _parse_element(node: _Element, models: list, source_path: str = "", root: _Element = None, additional_properties: dict = None) -> str:
     """
     Parses an element. If it is a complete model, it will be added to the models list.
     """
+    if additional_properties is None:
+        additional_properties = {}
+
+    properties = {}
+
     final = False
+
+    source_path = f"{source_path}/{node.get('name')}"
 
     model = {
         "type": "model",
         "description": "",
+        "properties": properties,
         "name": to_model_name(node.get('name')),
+        # todo add source path to name too
         "external": _get_external_info(name=source_path),
     }
 
-    model["name"] = f'{model["external"]["dataset"]}/{model["name"]}'
-
-    source_path = f"{source_path}/{node.get('name')}"
-
     print("ELEMENT:", node)
     model["description"] = _get_description(node)
-    model["properties"] = _attributes_to_properties(node)
-    model["properties"].update(_properties_from_simple_elements(node))
+    model["properties"].update(_attributes_to_properties(node))
 
     if model["properties"]:
         final = True
@@ -387,36 +382,62 @@ def _parse_element(node: _Element, models: list, source_path: str = "", root: _E
     if node.xpath(f'./*[local-name() = "complexType"]'):
 
         complex_type_node = node.xpath(f'./*[local-name() = "complexType"]')[0]
+        # if complextype node's property mixed is tru, it allows text inside
+        if complex_type_node.get("mixed") == "true":
+            final = True
+            model["properties"].update(_get_text_property())
         if complex_type_node.xpath(f'./*[local-name() = "sequence"]'):
-            complex_type_with_sequence_node = complex_type_node.xpath(f'./*[local-name() = "sequence"]')[0]
-            complex_type_with_sequence_node_length = len(complex_type_with_sequence_node)
-
+            sequence_node = complex_type_node.xpath(f'./*[local-name() = "sequence"]')[0]
+            sequence_node_length = len(sequence_node)
             # There is only one element in the complex node sequence, and it doesn't have annotation.
             # Then we just go deeper and add this model to the next model's path.
-            if complex_type_with_sequence_node_length == 1 and not complex_type_with_sequence_node.xpath(f'./*[local-name() = "element"]')[0].get("ref"):
-                print("SEQUENCE NODE:", complex_type_with_sequence_node)
-                element = complex_type_with_sequence_node.xpath(f'./*[local-name() = "element"]')[0]
-                _parse_element(element, models, source_path=source_path, root=root)
-            #
-            elif complex_type_with_sequence_node_length > 1:
-                properties = _complex_node_with_sequence_to_properties(complex_type_node, source_path)
-                model["properties"].update(properties)
+            if sequence_node_length == 1 and not final:
+                # todo final is also decided by maxOccurs
+                if not sequence_node.xpath(f'./*[local-name() = "element"]')[0].get("ref"):
+                    print("SEQUENCE NODE:", sequence_node)
+                    element = sequence_node.xpath(f'./*[local-name() = "element"]')[0]
+                    _parse_element(element, models, source_path=source_path, root=root)
+                else:
+                    # ref = sequence_node.xpath(f'./*[local-name() = "element"]')[0].get("ref")
+                    # xpath_query = f"//*[@name='{ref}']"
+                    # element = root.xpath(xpath_query)[0]
+                    # todo if reference is to an inline or simpleType element,
+                    #  and maxOccurs of it is 1,
+                    #  then do not create reference, but add to the same
+
+
+                    model["properties"].update(
+                        _properties_from_references(sequence_node, model["name"], models, source_path, root))
+                    model["properties"].update(additional_properties)
+                    models.append(model)
+            elif sequence_node_length > 1 or final:
+
+                # properties from simple type or inline elements without references
+                model["properties"].update(_properties_from_simple_elements(sequence_node))
+
+                # references
+                model["properties"].update(
+                    _properties_from_references(sequence_node, model["name"], models, source_path, root))
+
+                # properties = _complex_node_with_sequence_to_properties(complex_type_node, source_path)
+                # model["properties"].update(properties)
+                model["properties"].update(additional_properties)
                 models.append(model)
             else:
+                model["properties"].update(additional_properties)
                 models.append(model)
         else:
+            model["properties"].update(additional_properties)
             models.append(model)
     else:
-        # final model, we don't go any deeper
-        # todo handle cases where we need to go deeper if the complex type is described separately,
-
+        model["properties"].update(additional_properties)
         models.append(model)
 
-    # if we have sequences, we need to grab each element from this sequence and
 
     # print(element.xpath("xs:documentation", namespaces={'xs': 'http://www.w3.org/2001/XMLSchema'})[0].text)
 
     # print(etree.tostring(element, encoding="utf8"))
+    return model["name"]
 
 
 def _parse_root_node(root_node: _Element, models: list, path):
@@ -435,14 +456,13 @@ def _parse_root_node(root_node: _Element, models: list, path):
         "uri": "http://www.w3.org/2000/01/rdf-schema#Resource",
     }
 
-    resource_model_properties = _properties_from_simple_elements(root_node)
-
+    resource_model["properties"] = _properties_from_simple_elements(root_node, from_sequence = False)
     if resource_model["properties"]:
         models.append(resource_model)
 
     for node in root_node:
         if not _node_is_simple_type_or_inline(node):
-            _parse_element(node, models, source_path="/")
+            _parse_element(node, models, root=root_node)
 
         # todo complexContent is also an option.
         # todo there is also an option where complex type is on the same level as element, referenced by type
@@ -461,8 +481,6 @@ def read_schema(context: Context, path: str, prepare: str = None, dataset_name: 
     3. Complex type
 
     Elements can have annotations, which we add as description to either a model or a property.
-
-
 
     1. Simple type.
         a) not a reference. It's a property
@@ -521,6 +539,8 @@ def read_schema(context: Context, path: str, prepare: str = None, dataset_name: 
 
     root = _get_document_root(path)
 
+    global custom_types
+
     custom_types = _extract_custom_types(root)
 
     models = list()
@@ -528,7 +548,12 @@ def read_schema(context: Context, path: str, prepare: str = None, dataset_name: 
 
     _parse_root_node(root, models, path)
 
+    # models = reversed(models)
+
     for parsed_model in models:
+
+        if "external" in parsed_model:
+            parsed_model["name"] = f'{parsed_model["external"]["dataset"]}/{to_model_name(parsed_model["external"]["name"])}'
         pprint(parsed_model)
 
         yield None, parsed_model
