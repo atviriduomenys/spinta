@@ -151,77 +151,78 @@ def test_xsd(rc: RawConfig, tmp_path: Path):
     result = """
 d | r | b | m | property        | type    | ref | source                            | prepare | level | access | uri | title | description
 dataset1                        |         |     |                                   |         |       |        |     |       |
-  | resource1                   | xml     |     |                                   |         |       |        |     |       |
+  | resource1                   | xml     |     | manifest.xsd                      |         |       |        |     |       |
+                                |         |     |                                   |         |       |        |     |       |
   |   |   |  Administracinis    |         |     | /ADMINISTRACINIAI/ADMINISTRACINIS |         |       |        |     |       |
-  |   |   |   | adm_kodas       | integer |     | ADM_KODAS/text()                  |         |       |        |     |       |
-  |   |   |   | adm_id          | integer |     | ADM_ID/text()                     |         |       |        |     |       |
-  |   |   |   | tipas           | string  |     | TIPAS/text()                      |         |       |        |     |       |
-  |   |   |   | tipo_santrumpa  | string  |     | TIPO_SANTRUMPA/text()             |         |       |        |     |       |
-  |   |   |   | vardas_k        | string  |     | VARDAS_K/text()                   |         |       |        |     |       |
-  |   |   |   | vardas_k_lot    | string  |     | VARDAS_K_LOT/text()               |         |       |        |     |       |
-  |   |   |   | priklauso_kodas | integer |     | PRIKLAUSO_KODAS/text()            |         |       |        |     |       |
-  |   |   |   | gyv_kodas       | integer |     | GYV_KODAS/text()                  |         |       |        |     |       |
-  |   |   |   | nuo             | date    |     | NUO/text()                        |         |       |        |     |       |
-  |   |   |   | iki             | date    |     | IKI/text()                        |         |       |        |     |       |
-  |   |   |   | adm_nuo         | date    |     | ADM_NUO/text()                    |         |       |        |     |       |
-  |   |   |   | adm_iki         | date    |     | ADM_IKI/text()                    |         |       |        |     |       |
+  |   |   |   | adm_kodas       | integer required |     | ADM_KODAS/text()                  |         |       |        |     |       |
+  |   |   |   | adm_id          | integer required |     | ADM_ID/text()                     |         |       |        |     |       |
+  |   |   |   | tipas           | string required |     | TIPAS/text()                      |         |       |        |     |       |
+  |   |   |   | tipo_santrumpa  | string required |     | TIPO_SANTRUMPA/text()             |         |       |        |     |       |
+  |   |   |   | vardas_k        | string required |     | VARDAS_K/text()                   |         |       |        |     |       |
+  |   |   |   | vardas_k_lot    | string required |     | VARDAS_K_LOT/text()               |         |       |        |     |       |
+  |   |   |   | priklauso_kodas | integer required |     | PRIKLAUSO_KODAS/text()            |         |       |        |     |       |
+  |   |   |   | gyv_kodas       | integer required |     | GYV_KODAS/text()                  |         |       |        |     |       |
+  |   |   |   | nuo             | date required |     | NUO/text()                        |         |       |        |     |       |
+  |   |   |   | iki             | date required |     | IKI/text()                        |         |       |        |     |       |
+  |   |   |   | adm_nuo         | date required |     | ADM_NUO/text()                    |         |       |        |     |       |
+  |   |   |   | adm_iki         | date required |     | ADM_IKI/text()                    |         |       |        |     |       |
                                 |         |     |                                   |         |       |        |     |       |
   |   |   |  Gyvenviete         |         |     | /GYVENVIETES/GYVENVIETE           |         |       |        |     |       |
-  |   |   |   | gyv_kodas       | integer |     | GYV_KODAS/text()                  |         |       |        |     |       |
-  |   |   |   | gyv_id          | integer |     | GYV_ID/text()                     |         |       |        |     |       |
-  |   |   |   | tipas           | string  |     | TIPAS/text()                      |         |       |        |     |       |
-  |   |   |   | tipo_santrumpa  | string  |     | TIPO_SANTRUMPA/text()             |         |       |        |     |       |
-  |   |   |   | vardas_v        | string  |     | VARDAS_V/text()                   |         |       |        |     |       |
-  |   |   |   | vardas_v_lot    | string  |     | VARDAS_V_LOT/text()               |         |       |        |     |       |
-  |   |   |   | vardas_k        | string  |     | VARDAS_K/text()                   |         |       |        |     |       |
-  |   |   |   | vardas_k_lot    | string  |     | VARDAS_K_LOT/text()               |         |       |        |     |       |
-  |   |   |   | adm_kodas       | integer |     | ADM_KODAS/text()                  |         |       |        |     |       |
-  |   |   |   | nuo             | date    |     | NUO/text()                        |         |       |        |     |       |
-  |   |   |   | iki             | date    |     | IKI/text()                        |         |       |        |     |       |
-  |   |   |   | gyv_nuo         | date    |     | GYV_NUO/text()                    |         |       |        |     |       |
-  |   |   |   | gyv_iki         | date    |     | GYV_IKI/text()                    |         |       |        |     |       |
+  |   |   |   | gyv_kodas       | integer required |     | GYV_KODAS/text()                  |         |       |        |     |       |
+  |   |   |   | gyv_id          | integer required |     | GYV_ID/text()                     |         |       |        |     |       |
+  |   |   |   | tipas           | string required |     | TIPAS/text()                      |         |       |        |     |       |
+  |   |   |   | tipo_santrumpa  | string required |     | TIPO_SANTRUMPA/text()             |         |       |        |     |       |
+  |   |   |   | vardas_v        | string required |     | VARDAS_V/text()                   |         |       |        |     |       |
+  |   |   |   | vardas_v_lot    | string required |     | VARDAS_V_LOT/text()               |         |       |        |     |       |
+  |   |   |   | vardas_k        | string required |     | VARDAS_K/text()                   |         |       |        |     |       |
+  |   |   |   | vardas_k_lot    | string required |     | VARDAS_K_LOT/text()               |         |       |        |     |       |
+  |   |   |   | adm_kodas       | integer required |     | ADM_KODAS/text()                  |         |       |        |     |       |
+  |   |   |   | nuo             | date required |     | NUO/text()                        |         |       |        |     |       |
+  |   |   |   | iki             | date required |     | IKI/text()                        |         |       |        |     |       |
+  |   |   |   | gyv_nuo         | date required |     | GYV_NUO/text()                    |         |       |        |     |       |
+  |   |   |   | gyv_iki         | date required |     | GYV_IKI/text()                    |         |       |        |     |       |
                                 |         |     |                                   |         |       |        |     |       |
   |   |   |  Gatve              |         |     | /GATVES/GATVE                     |         |       |        |     |       |
-  |   |   |   | gat_kodas       | integer |     | GAT_KODAS/text()                  |         |       |        |     |       |
-  |   |   |   | gat_id          | integer |     | GAT_ID/text()                     |         |       |        |     |       |
-  |   |   |   | tipas           | string  |     | TIPAS/text()                      |         |       |        |     |       |
-  |   |   |   | tipo_santrumpa  | string  |     | TIPO_SANTRUMPA/text()             |         |       |        |     |       |
-  |   |   |   | vardas_k        | string  |     | VARDAS_K/text()                   |         |       |        |     |       |
-  |   |   |   | vardas_k_lot    | string  |     | VARDAS_K_LOT/text()               |         |       |        |     |       |
-  |   |   |   | gyv_kodas       | integer |     | GYV_KODAS/text()                  |         |       |        |     |       |
-  |   |   |   | nuo             | date    |     | NUO/text()                        |         |       |        |     |       |
-  |   |   |   | iki             | date    |     | IKI/text()                        |         |       |        |     |       |
-  |   |   |   | gat_nuo         | date    |     | GAT_NUO/text()                    |         |       |        |     |       |
-  |   |   |   | gat_iki         | date    |     | GAT_IKI/text()                    |         |       |        |     |       |
+  |   |   |   | gat_kodas       | integer required |     | GAT_KODAS/text()                  |         |       |        |     |       |
+  |   |   |   | gat_id          | integer required |     | GAT_ID/text()                     |         |       |        |     |       |
+  |   |   |   | tipas           | string required |     | TIPAS/text()                      |         |       |        |     |       |
+  |   |   |   | tipo_santrumpa  | string required |     | TIPO_SANTRUMPA/text()             |         |       |        |     |       |
+  |   |   |   | vardas_k        | string required |     | VARDAS_K/text()                   |         |       |        |     |       |
+  |   |   |   | vardas_k_lot    | string required |     | VARDAS_K_LOT/text()               |         |       |        |     |       |
+  |   |   |   | gyv_kodas       | integer required |     | GYV_KODAS/text()                  |         |       |        |     |       |
+  |   |   |   | nuo             | date required |     | NUO/text()                        |         |       |        |     |       |
+  |   |   |   | iki             | date required |     | IKI/text()                        |         |       |        |     |       |
+  |   |   |   | gat_nuo         | date required |     | GAT_NUO/text()                    |         |       |        |     |       |
+  |   |   |   | gat_iki         | date required |     | GAT_IKI/text()                    |         |       |        |     |       |
                                 |         |     |                                   |         |       |        |     |       |
   |   |   |  Adresas            |         |     | /ADRESAI/ADRESAS                  |         |       |        |     |       |
-  |   |   |   | aob_kodas       | integer |     | AOB_KODAS/text()                  |         |       |        |     |       |
-  |   |   |   | aob_id          | integer |     | AOB_ID/text()                     |         |       |        |     |       |
-  |   |   |   | gyv_kodas       | integer |     | GYV_KODAS/text()                  |         |       |        |     |       |
-  |   |   |   | gat_kodas       | integer |     | GAT_KODAS/text()                  |         |       |        |     |       |
-  |   |   |   | nr              | string  |     | NR/text()                         |         |       |        |     |       |
-  |   |   |   | korpuso_nr      | string  |     | KORPUSO_NR/text()                 |         |       |        |     |       |
-  |   |   |   | pasto_kodas     | string  |     | PASTO_KODAS/text()                |         |       |        |     |       |
-  |   |   |   | nuo             | date    |     | NUO/text()                        |         |       |        |     |       |
-  |   |   |   | iki             | date    |     | IKI/text()                        |         |       |        |     |       |
-  |   |   |   | aob_nuo         | date    |     | AOB_NUO/text()                    |         |       |        |     |       |
-  |   |   |   | aob_iki         | date    |     | AOB_IKI/text()                    |         |       |        |     |       |
+  |   |   |   | aob_kodas       | integer required |     | AOB_KODAS/text()                  |         |       |        |     |       |
+  |   |   |   | aob_id          | integer required |     | AOB_ID/text()                     |         |       |        |     |       |
+  |   |   |   | gyv_kodas       | integer required |     | GYV_KODAS/text()                  |         |       |        |     |       |
+  |   |   |   | gat_kodas       | integer required |     | GAT_KODAS/text()                  |         |       |        |     |       |
+  |   |   |   | nr              | string required |     | NR/text()                         |         |       |        |     |       |
+  |   |   |   | korpuso_nr      | string required |     | KORPUSO_NR/text()                 |         |       |        |     |       |
+  |   |   |   | pasto_kodas     | string required |     | PASTO_KODAS/text()                |         |       |        |     |       |
+  |   |   |   | nuo             | date required |     | NUO/text()                        |         |       |        |     |       |
+  |   |   |   | iki             | date required |     | IKI/text()                        |         |       |        |     |       |
+  |   |   |   | aob_nuo         | date required |     | AOB_NUO/text()                    |         |       |        |     |       |
+  |   |   |   | aob_iki         | date required |     | AOB_IKI/text()                    |         |       |        |     |       |
                                 |         |     |                                   |         |       |        |     |       |
   |   |   |  Patalpa            |         |     | /PATALPOS/PATALPA                 |         |       |        |     |       |
-  |   |   |   | pat_kodas       | integer |     | PAT_KODAS/text()                  |         |       |        |     |       |
-  |   |   |   | pat_id          | integer |     | PAT_ID/text()                     |         |       |        |     |       |
-  |   |   |   | aob_kodas       | integer |     | AOB_KODAS/text()                  |         |       |        |     |       |
-  |   |   |   | patalpos_nr     | string  |     | PATALPOS_NR/text()                |         |       |        |     |       |
-  |   |   |   | nuo             | date    |     | NUO/text()                        |         |       |        |     |       |
-  |   |   |   | iki             | date    |     | IKI/text()                        |         |       |        |     |       |
-  |   |   |   | pat_nuo         | date    |     | PAT_NUO/text()                    |         |       |        |     |       |
-  |   |   |   | pat_iki         | date    |     | PAT_IKI/text()                    |         |       |        |     |       |
+  |   |   |   | pat_kodas       | integer required |     | PAT_KODAS/text()                  |         |       |        |     |       |
+  |   |   |   | pat_id          | integer required |     | PAT_ID/text()                     |         |       |        |     |       |
+  |   |   |   | aob_kodas       | integer required |     | AOB_KODAS/text()                  |         |       |        |     |       |
+  |   |   |   | patalpos_nr     | string required |     | PATALPOS_NR/text()                |         |       |        |     |       |
+  |   |   |   | nuo             | date required |     | NUO/text()                        |         |       |        |     |       |
+  |   |   |   | iki             | date required |     | IKI/text()                        |         |       |        |     |       |
+  |   |   |   | pat_nuo         | date required |     | PAT_NUO/text()                    |         |       |        |     |       |
+  |   |   |   | pat_iki         | date required |     | PAT_IKI/text()                    |         |       |        |     |       |
                                 |         |     |                                   |         |       |        |     |       |
   |   |   |  Kodas              |         |     | /KODAI/KODAS                      |         |       |        |     |       |
-  |   |   |   | pasto_kodas     | string  |     | PASTO_KODAS/text()                |         |       |        |     |       |
-  |   |   |   | pasto_viet_pav  | string  |     | PASTO_VIET_PAV/text()             |         |       |        |     |       |
-  |   |   |   | nuo             | date    |     | NUO/text()                        |         |       |        |     |       |
-  |   |   |   | iki             | date    |     | IKI/text()                        |         |       |        |     |       |
+  |   |   |   | pasto_kodas     | string required |     | PASTO_KODAS/text()                |         |       |        |     |       |
+  |   |   |   | pasto_viet_pav  | string required |     | PASTO_VIET_PAV/text()             |         |       |        |     |       |
+  |   |   |   | nuo             | date required |     | NUO/text()                        |         |       |        |     |       |
+  |   |   |   | iki             | date required |     | IKI/text()                        |         |       |        |     |       |
   """
 
     a, b = compare_manifest(manifest, result, context)
