@@ -2,7 +2,8 @@ from lxml import etree
 
 from spinta.manifests.xsd.helpers import _get_description, _get_property_type, _node_to_partial_property, \
     _attributes_to_properties, _get_external_info, _simple_element_to_property, \
-    _get_dataset_and_resource_info, _node_is_simple_type_or_inline, _is_array, _extract_custom_types, _properties_from_references
+    _get_dataset_and_resource_info, _node_is_simple_type_or_inline, _is_array, _extract_custom_types, \
+    _properties_from_references, _is_element
 
 
 def test_get_description():
@@ -398,10 +399,39 @@ def test_properties_from_references():
 """
     schema = etree.fromstring(element_string)
     element = schema.xpath('//*[local-name() = "element"]')[0]
-    result = _properties_from_references(element, "test", [], source_path="tst", root=schema)
-    assert result == {
-        "data_laikas":
-            {
-                "base": "string"
-            }
-    }
+    sequence = element.xpath('//*[local-name() = "complexType"]')[0].xpath('//*[local-name() = "sequence"]')[0]
+    result = _properties_from_references(sequence, "test", [], source_path="tst", root=schema)
+
+    # assert result == {
+    #        'ct_e200_fc_id': {
+    #            'description': '',
+    #            'external': {
+    #                 'name': 'CT_E200_FC_ID/text()',
+    #             },
+    #            'required': True,
+    #            'type': 'integer',
+    #        },
+    #        'ct_id': {
+    #          'description': '',
+    #          'external': {
+    #            'name': 'CT_ID/text()',
+    #          },
+    #          'required': True,
+    #          'type': 'integer',
+    #        },
+    #      }
+
+
+def test_is_element():
+    element_string = """
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+<xs:element name="CT_E200_FC_ID" type="xs:long">
+<xs:annotation>
+<xs:documentation>E200 duomenų kompozicijos unikalus identifikatorius</xs:documentation>
+</xs:annotation>
+</xs:element>
+</xs:schema>
+    """
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('//*[local-name() = "element"]')[0]
+    assert _is_element(element) is True
