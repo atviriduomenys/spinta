@@ -2,7 +2,7 @@ import dataclasses
 from typing import Any, List, Union, Dict, Tuple
 
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import JSONB, BIGINT, ARRAY
+from sqlalchemy.dialects.postgresql import JSONB, BIGINT, ARRAY, JSON
 from sqlalchemy.engine.reflection import Inspector
 
 import spinta.backends.postgresql.helpers.migrate.actions as ma
@@ -17,6 +17,8 @@ from spinta.cli.migrate import MigrateRename
 from spinta.components import Context, Model, Property
 from spinta.datasets.enums import Level
 from spinta.types.datatype import Ref, File, Array, Object
+from spinta.types.text.components import Text
+from spinta.utils.nestedstruct import get_root_attr
 
 
 def check_if_renamed(old_table: str, new_table: str, old_property: str, new_property: str):
@@ -182,14 +184,6 @@ def get_prop_names(prop: Property):
     yield name
 
 
-def get_root_attr(text: str):
-    return text.split(".")[0].split("@")[0]
-
-
-def get_last_attr(text: str):
-    return text.split(".")[-1].split("@")[-1]
-
-
 def json_has_key(backend: PostgreSQL, column: sa.Column, table: sa.Table, key: str):
     with backend.engine.begin() as connection:
         query = sa.select(table.select().where(column.has_key(key)).exists())
@@ -215,15 +209,71 @@ def model_name_key(model: str) -> str:
     return get_pg_name(model)
 
 
+def is_name_complex(name: str):
+    return '.' in name or '@' in name
+
+
+def is_name_or_property_complex(name: str, prop: Property):
+    is_complex = is_name_complex(name)
+    if not is_complex:
+        return isinstance(prop.dtype, (Text, File, Ref))
+    return is_complex
+
+
+def is_name_or_column_complex(name: str, col: sa.Column):
+    is_complex = is_name_complex(name)
+    if not is_complex:
+        return is_column_complex(col)
+    return is_complex
+
+
+def is_column_complex(col: sa.Column):
+    return isinstance(col.type, (JSONB, JSON))
+
+
 def property_and_column_name_key(item: Union[sa.Column, Property], rename, table) -> str:
-    name = ''
+    # Mapping concept is to prioritize complex types over simple
+    # new types take priority over old
+    # Column is always old, Property is always new
+
     if isinstance(item, sa.Column):
         name = item.name
-        name = rename.get_old_column_name(table, name)
+        new_name = rename.get_column_name(table, name, True)
+        full_name = rename.get_column_name(table, name)
+        actual_target = rename.get_old_column_name(table, full_name)
+
+        is_target_complex = is_name_complex(actual_target)
+        is_old_column_complex = is_column_complex(item)
+        is_new_complex = is_name_complex(full_name)
+
+        # Check for edge case when you have old columns: column_one, column_two
+        # new manifest only hase column_one, but
+        # rename provides "column_two": "column_one"
+        # meaning, you need to remove old "column_one" and rename old "column_two" to "column_one"
+        if not has_been_renamed(name, new_name):
+            old_name = rename.get_old_column_name(table, name, False)
+            if has_been_renamed(name, old_name):
+                return get_root_attr(old_name)
+
+        # First checks if we transfer data between simple and complex, eg: "text_lt": "text@lt", we get "text" key, since complex takes priority
+        # Second checks for complex renames, eg: text = Text type, and we have "text": "other" (other is Text type), we get "other" key (since new complex property takes priority)
+        if (
+            (not is_old_column_complex and is_new_complex) or
+            (has_been_renamed(full_name, actual_target) and is_old_column_complex and not is_target_complex and not is_new_complex)
+        ):
+            return get_root_attr(new_name)
+        return get_root_attr(name)
     elif isinstance(item, Property):
         name = get_column_name(item)
-        name = rename.get_old_column_name(table, name)
-    return get_root_attr(get_pg_name(name))
+        old_name = rename.get_old_column_name(table, name, True)
+        full_name = rename.get_old_column_name(table, name)
+
+        is_old_complex = is_name_complex(full_name)
+        is_new_complex = is_name_or_property_complex(name, item)
+
+        if not is_old_complex and is_new_complex:
+            return get_root_attr(name)
+        return get_root_attr(old_name)
 
 
 @dataclasses.dataclass
@@ -240,9 +290,14 @@ class JSONColumnMigrateMeta:
     new_keys: Dict[str, str] = dataclasses.field(default_factory=dict)
     full_remove: bool = dataclasses.field(default=True)
     cast_to: Tuple[sa.Column, str] = dataclasses.field(default=None)
+    new_name: str = dataclasses.field(default=None)
 
     def initialize(self, backend, table):
         self.keys = jsonb_keys(backend, self.column, table)
+
+    def add_new_key(self, old_key: str, new_key: str):
+        if old_key in self.keys and old_key not in self.new_keys:
+            self.new_keys[old_key] = new_key
 
 
 @dataclasses.dataclass
@@ -256,3 +311,6 @@ class MigrateModelMeta:
         meta.initialize(backend, table)
         self.json_columns[column.name] = meta
 
+
+def has_been_renamed(old: str, new: str):
+    return old != new

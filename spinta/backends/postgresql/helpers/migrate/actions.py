@@ -214,6 +214,33 @@ class TransferJSONDataMigrationAction(MigrationAction):
         op.execute(self.query)
 
 
+class TransferColumnDataToJSONMigrationAction(MigrationAction):
+    def __init__(self, table: sa.Table, source: sa.Column, columns: List[Tuple[str, sa.Column]]):
+        # # Hack to transfer data if columns do not exist
+        # # Create new table with just required columns exist
+        # # SQLAlchemy does not allow the use table actions when those columns do not exist
+        temp_table = sa.Table(
+            table.name,
+            sa.MetaData(),
+            source._copy(),
+            *[column._copy() for _, column in columns]
+        )
+        results = []
+        for key, value in columns:
+            results.append(key)
+            results.append(value)
+        self.query = temp_table.update().values(
+            **{
+                source.name: source + sa.func.jsonb_build_object(
+                    *results
+                )
+            }
+        )
+
+    def execute(self, op: Operations):
+        op.execute(self.query)
+
+
 class RenameJSONAttributeMigrationAction(MigrationAction):
     def __init__(self, table: sa.Table, source: sa.Column, old_key: str, new_key: str):
         self.query = table.update().values(

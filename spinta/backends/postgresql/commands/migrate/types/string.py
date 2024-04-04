@@ -6,11 +6,12 @@ from sqlalchemy.dialects.postgresql import JSONB
 import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers.migrate.migrate import get_last_attr, json_has_key, get_root_attr, jsonb_keys, \
-    MigratePostgresMeta, MigrateModelMeta
+from spinta.backends.postgresql.helpers.migrate.migrate import json_has_key, get_root_attr, jsonb_keys, \
+    MigratePostgresMeta, MigrateModelMeta, has_been_renamed
 from spinta.components import Context
 from spinta.types.datatype import String
 from spinta.types.text.helpers import determine_langauge_for_text
+from spinta.utils.nestedstruct import get_last_attr
 from spinta.utils.schema import NA
 
 
@@ -39,7 +40,7 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
 
     # Check if column was renamed and if there already existed column of the new name
     # If it did, remove it
-    if column.name != old_name:
+    if has_been_renamed(column.name, old_name):
         if json_column is not None:
             key = get_last_attr(old_name)
             if json_column_meta and json_column_meta.keys:
@@ -53,7 +54,7 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
 
         if requires_removal:
             for col in old:
-                if col.name == column.name:
+                if not has_been_renamed(col.name, column.name):
                     commands.migrate(context, backend, meta, table, col, NA, foreign_key=False, **kwargs)
                     columns.remove(col)
                     break
@@ -69,7 +70,7 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
     if len(columns) <= 1:
         col = columns[0] if len(columns) == 1 else NA
         if col != NA and isinstance(col.type, JSONB):
-            old_name = rename.get_old_column_name(table.name, column.name)
+            old_name = rename.get_old_column_name(table.name, column.name, root_only=False)
             key = get_last_attr(old_name)
 
             # No key was extracted
@@ -99,7 +100,7 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
                         ma.RenameJSONAttributeMigrationAction(table, col, key, renamed_key)
                     )
                 else:
-                    json_column_meta.new_keys[key] = renamed_key
+                    json_column_meta.add_new_key(key, renamed_key)
         else:
             commands.migrate(context, backend, meta, table, col, column, foreign_key=False, **kwargs)
     else:

@@ -178,6 +178,13 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ol
                     [(key, new_column)]
                 )
             )
+        # Rename column
+        if json_meta.new_name:
+            handler.add_action(ma.AlterColumnMigrationAction(
+                old.name,
+                json_meta.column.name,
+                new_column_name=json_meta.new_name
+            ))
 
 
 @commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, NotAvailable, Model)
