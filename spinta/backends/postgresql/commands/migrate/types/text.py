@@ -22,6 +22,13 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
     column: sa.Column = commands.prepare(context, backend, new.prop)
     columns = old.copy()
 
+    table_name = rename.get_table_name(table.name)
+
+    # Affected keys, are keys that have already been processed, since
+    # scalar -> text conversion is done separately as well as lang rename
+    # we need to make sure that we only remove / add langs that have not yet been processed
+    affected_keys = []
+
     # Search for json column, to see if one existed beforehand
     # Remove if from columns list, to handle it separately at the end
     json_column = None
@@ -31,15 +38,18 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
             columns.remove(json_column)
             break
 
+    # By default, json columns are all removed, if you find it, then handle removal manually
     json_column_meta = None
     if json_column is not None and model_meta is not None:
         if json_column.name in model_meta.json_columns:
             json_column_meta = model_meta.json_columns[json_column.name]
             json_column_meta.full_remove = False
 
+    # Add empty jsonb column, if it was not found
     if json_column_meta is None and json_column is None:
         commands.migrate(context, backend, meta, table, NA, column, model_meta=model_meta, foreign_key=False, **kwargs)
 
+    # Handle scalar -> text conversion
     for item in columns.copy():
         full_name = rename.get_column_name(table.name, item.name)
         key = get_last_attr(full_name)
@@ -49,31 +59,55 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
                 renamed_key = f'__{key}'
                 if json_has_key(backend, json_column, table, renamed_key):
                     handler.add_action(
-                        ma.RemoveJSONAttributeMigrationAction(table, json_column, renamed_key)
+                        ma.RemoveJSONAttributeMigrationAction(table_name, json_column, renamed_key)
                     )
                 handler.add_action(
-                    ma.RenameJSONAttributeMigrationAction(table, json_column, key, renamed_key)
+                    ma.RenameJSONAttributeMigrationAction(table_name, json_column, key, renamed_key)
                 )
 
         col = json_column if json_column is not None else column
         handler.add_action(
-            ma.TransferColumnDataToJSONMigrationAction(table, col, [
+            ma.TransferColumnDataToJSONMigrationAction(table_name, col, [
                 (key, item)
             ])
         )
+        affected_keys.append(key)
         commands.migrate(context, backend, meta, table, item, NA, model_meta=model_meta, **kwargs)
         columns.remove(item)
 
+    # Handle lang rename, remove and add
     if json_column is not None:
         if json_column_meta:
             missing_keys = set(json_column_meta.keys).symmetric_difference(set(new.langs.keys()))
+
+            # Handle renaming of keys
+            for key in missing_keys:
+                if key not in affected_keys:
+                    formatted_name = f'{json_column.name}@{key}'
+                    new_name = rename.get_column_name(table.name, formatted_name)
+                    if has_been_renamed(formatted_name, new_name):
+                        extracted_key = get_last_attr(new_name)
+                        json_column_meta.add_new_key(
+                            key, extracted_key
+                        )
+                        affected_keys.append(extracted_key)
+            missing_keys -= set(affected_keys)
             for missing_key in missing_keys:
-                if missing_key not in json_column_meta.new_keys:
+                if missing_key not in json_column_meta.keys:
+                    handler.add_action(ma.AddEmptyAttributeToJSONMigrationAction(
+                        table=table_name,
+                        source=json_column,
+                        key=missing_key
+                    ))
+                elif missing_key not in json_column_meta.new_keys:
                     json_column_meta.add_new_key(missing_key, f'__{missing_key}')
 
-    # Rename column
+    # Handle column rename, which will be run at the end
     if json_column is not None and has_been_renamed(json_column.name, column.name):
-        json_column_meta.new_name = column.name
+        if json_column_meta:
+            json_column_meta.new_name = column.name
+        else:
+            commands.migrate(context, backend, meta, table, json_column, column, model_meta=model_meta, **kwargs)
 
 
 @commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, sa.Table, sa.Column, Text)

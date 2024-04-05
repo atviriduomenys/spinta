@@ -25,6 +25,8 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
     old_name = rename.get_old_column_name(table.name, column.name, root_only=False)
     columns = old.copy()
 
+    table_name = rename.get_table_name(table.name)
+
     json_column = None
     for col in old:
         if isinstance(col.type, JSONB):
@@ -69,6 +71,8 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
 
     if len(columns) <= 1:
         col = columns[0] if len(columns) == 1 else NA
+
+        # Check if it's text -> string, or just normal string migration
         if col != NA and isinstance(col.type, JSONB):
             old_name = rename.get_old_column_name(table.name, column.name, root_only=False)
             key = get_last_attr(old_name)
@@ -86,7 +90,7 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
             else:
                 commands.migrate(context, backend, meta, table, NA, column, foreign_key=False, **kwargs)
                 handler.add_action(
-                    ma.TransferJSONDataMigrationAction(table, col, columns=[
+                    ma.TransferJSONDataMigrationAction(table_name, col, columns=[
                         (key, column)
                     ])
                 )
@@ -94,10 +98,10 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
                 if json_column_meta is None:
                     if json_has_key(backend, col, table, renamed_key):
                         handler.add_action(
-                            ma.RemoveJSONAttributeMigrationAction(table, col, renamed_key)
+                            ma.RemoveJSONAttributeMigrationAction(table_name, col, renamed_key)
                         )
                     handler.add_action(
-                        ma.RenameJSONAttributeMigrationAction(table, col, key, renamed_key)
+                        ma.RenameJSONAttributeMigrationAction(table_name, col, key, renamed_key)
                     )
                 else:
                     json_column_meta.add_new_key(key, renamed_key)

@@ -143,7 +143,7 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ol
                         constraint_name=constraint["name"]
                     ))
 
-    # Handle JSON renames and removes at the end
+    # Handle JSON migrations, that need to be run at the end
     for json_meta in model_meta.json_columns.values():
         if json_meta.new_keys and json_meta.cast_to is None:
             removed_keys = [key for key, new_key in json_meta.new_keys.items() if new_key == f'__{key}']
@@ -154,12 +154,12 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ol
                 for old_key, new_key in json_meta.new_keys.items():
                     if new_key in json_meta.keys:
                         handler.add_action(ma.RemoveJSONAttributeMigrationAction(
-                            old,
+                            table_name,
                             json_meta.column,
                             new_key
                         ))
                     handler.add_action(ma.RenameJSONAttributeMigrationAction(
-                        old,
+                        table_name,
                         json_meta.column,
                         old_key,
                         new_key
@@ -171,9 +171,10 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ol
             commands.migrate(context, backend, meta, old, NA, new_column, foreign_key=False, model_meta=model_meta, **kwargs)
             renamed = json_meta.column._copy()
             renamed.name = f'__{json_meta.column.name}'
+            renamed.key = f'__{json_meta.column.name}'
             handler.add_action(
                 ma.TransferJSONDataMigrationAction(
-                    old,
+                    table_name,
                     renamed,
                     [(key, new_column)]
                 )
@@ -181,7 +182,7 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ol
         # Rename column
         if json_meta.new_name:
             handler.add_action(ma.AlterColumnMigrationAction(
-                old.name,
+                table_name,
                 json_meta.column.name,
                 new_column_name=json_meta.new_name
             ))

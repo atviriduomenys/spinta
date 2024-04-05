@@ -1217,7 +1217,6 @@ def test_migrate_remove_ref_column(
     result = cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv', '-p'
     ])
-    #pprint(result.output)
     assert result.output.endswith(
         'BEGIN;\n'
         '\n'
@@ -1484,7 +1483,6 @@ def test_migrate_adjust_ref_levels(
     result = cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv', '-p'
     ])
-    pprint(result.output)
     assert result.output.endswith(
         'BEGIN;\n'
         '\n'
@@ -1988,7 +1986,6 @@ def test_migrate_modify_geometry_type(
     result = cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv', '-p'
     ])
-    pprint(result.output)
     assert result.output.endswith(
         'BEGIN;\n'
         '\n'
@@ -2226,7 +2223,6 @@ def test_migrate_rename_property(
     result = cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv', '-p', '-r', path
     ])
-    pprint(result.output)
     assert result.output.endswith(
         'BEGIN;\n'
         '\n'
@@ -2473,7 +2469,6 @@ def test_migrate_rename_already_existing_property(
     result = cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv', '-p', '-r', path
     ])
-    pprint(result.output)
     assert result.output.endswith(
         'BEGIN;\n'
         '\n'
@@ -2549,7 +2544,6 @@ def test_migrate_text_full_remove(
     result = cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv', '-p', '-r', path
     ])
-    pprint(result.output)
     assert result.output.endswith(
         'BEGIN;\n'
         '\n'
@@ -2642,7 +2636,6 @@ def test_migrate_text_to_string_simple(
     result = cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv', '-p', '-r', path
     ])
-    pprint(result.output)
     assert result.output.endswith(
         'BEGIN;\n'
         '\n'
@@ -2747,7 +2740,6 @@ def test_migrate_text_to_string_direct(
     result = cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv', '-p', '-r', path
     ])
-    pprint(result.output)
     assert result.output.endswith(
         'BEGIN;\n'
         '\n'
@@ -2846,7 +2838,6 @@ def test_migrate_text_to_string_multi(
     result = cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv', '-p', '-r', path
     ])
-    pprint(result.output)
     assert result.output.endswith(
         'BEGIN;\n'
         '\n'
@@ -2959,7 +2950,6 @@ def test_migrate_text_to_string_multi_individual(
     result = cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv', '-p', '-r', path
     ])
-    pprint(result.output)
     assert result.output.endswith(
         'BEGIN;\n'
         '\n'
@@ -3410,4 +3400,377 @@ def test_migrate_string_to_text_advanced_with_rename(
                 '__en': 'EN'
             }
             assert row['__text_lt'] == 'LT'
+        _clean_up_tables(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog'])
+
+
+def test_migrate_text_add_empty(
+    postgresql_migration: URL,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    cleanup_tables(postgresql_migration)
+    initial_manifest = '''
+     d               | r | b    | m    | property       | type     | ref      | level
+     migrate/example |   |      |      |                |          |          |
+                     |   |      | Test |                |          |          |
+                     |   |      |      | text@lt        | string   |          |
+                     |   |      |      | text@en        | string   |          |
+    '''
+    context, rc = _configure(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {'migrate/example/Test', 'migrate/example/Test/:changelog'}.issubset(
+            tables.keys())
+        table = tables["migrate/example/Test"]
+        columns = table.columns
+        assert {'text'}.issubset(columns.keys())
+
+        conn.execute(table.insert().values({
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7e",
+            "text": {
+                "lt": "LT",
+                "en": "EN"
+            }
+        }))
+
+    override_manifest(context, tmp_path, '''
+     d               | r | b    | m    | property       | type     | ref      | level
+     migrate/example |   |      |      |                |          |          |
+                     |   |      | Test |                |          |          |
+                     |   |      |      | text@lt        | string   |          |
+                     |   |      |      | text@en        | string   |          |
+                     |   |      |      | text@lv        | string   |          |
+    ''')
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p',
+    ])
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'UPDATE "migrate/example/Test" SET text=("migrate/example/Test".text || '
+        "jsonb_build_object('lv', NULL));\n"
+        '\n'
+        'COMMIT;\n'
+        '\n')
+
+    cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv',
+    ])
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {'migrate/example/Test', 'migrate/example/Test/:changelog'}.issubset(tables.keys())
+
+        table = tables["migrate/example/Test"]
+        columns = table.columns
+        assert {'text'}.issubset(
+            columns.keys())
+        assert not {'__text'}.issubset(
+            columns.keys())
+
+        result = conn.execute(table.select())
+        for row in result:
+            assert row['text'] == {
+                'lt': 'LT',
+                'en': 'EN',
+                'lv': None
+            }
+        _clean_up_tables(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog'])
+
+
+def test_migrate_text_rename_lang(
+    postgresql_migration: URL,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    cleanup_tables(postgresql_migration)
+    initial_manifest = '''
+     d               | r | b    | m    | property       | type     | ref      | level
+     migrate/example |   |      |      |                |          |          |
+                     |   |      | Test |                |          |          |
+                     |   |      |      | text@lt        | string   |          |
+                     |   |      |      | text@en        | string   |          |
+                     |   |      |      | text@lv        | string   |          |
+    '''
+    context, rc = _configure(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {'migrate/example/Test', 'migrate/example/Test/:changelog'}.issubset(
+            tables.keys())
+        table = tables["migrate/example/Test"]
+        columns = table.columns
+        assert {'text'}.issubset(columns.keys())
+
+        conn.execute(table.insert().values({
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7e",
+            "text": {
+                "lt": "LT",
+                "en": "EN",
+                "lv": "LV"
+            }
+        }))
+
+    override_manifest(context, tmp_path, '''
+     d               | r | b    | m    | property       | type     | ref      | level
+     migrate/example |   |      |      |                |          |          |
+                     |   |      | Test |                |          |          |
+                     |   |      |      | text@lt        | string   |          |
+                     |   |      |      | text@en        | string   |          |
+                     |   |      |      | text@sp        | string   |          |
+    ''')
+
+    rename_file = {
+        "migrate/example/Test": {
+            "text@lv": "text@sp",
+        },
+    }
+    path = tmp_path / 'rename.json'
+    path.write_text(json.dumps(rename_file))
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p', '-r', path
+    ])
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'UPDATE "migrate/example/Test" SET text=("migrate/example/Test".text - \'lv\' '
+        '|| jsonb_build_object(\'sp\', ("migrate/example/Test".text -> \'lv\'))) '
+        'WHERE "migrate/example/Test".text ? \'lv\';\n'
+        '\n'
+        'COMMIT;\n'
+        '\n')
+
+    cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv','-r', path
+    ])
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {'migrate/example/Test', 'migrate/example/Test/:changelog'}.issubset(tables.keys())
+
+        table = tables["migrate/example/Test"]
+        columns = table.columns
+        assert {'text'}.issubset(
+            columns.keys())
+        assert not {'__text'}.issubset(
+            columns.keys())
+
+        result = conn.execute(table.select())
+        for row in result:
+            assert row['text'] == {
+                'lt': 'LT',
+                'en': 'EN',
+                'sp': 'LV'
+            }
+        _clean_up_tables(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog'])
+
+
+def test_migrate_text_remove_lang(
+    postgresql_migration: URL,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    cleanup_tables(postgresql_migration)
+    initial_manifest = '''
+     d               | r | b    | m    | property       | type     | ref      | level
+     migrate/example |   |      |      |                |          |          |
+                     |   |      | Test |                |          |          |
+                     |   |      |      | text@lt        | string   |          |
+                     |   |      |      | text@en        | string   |          |
+                     |   |      |      | text@lv        | string   |          |
+    '''
+    context, rc = _configure(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {'migrate/example/Test', 'migrate/example/Test/:changelog'}.issubset(
+            tables.keys())
+        table = tables["migrate/example/Test"]
+        columns = table.columns
+        assert {'text'}.issubset(columns.keys())
+
+        conn.execute(table.insert().values({
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7e",
+            "text": {
+                "lt": "LT",
+                "en": "EN",
+                "lv": "LV"
+            }
+        }))
+
+    override_manifest(context, tmp_path, '''
+     d               | r | b    | m    | property       | type     | ref      | level
+     migrate/example |   |      |      |                |          |          |
+                     |   |      | Test |                |          |          |
+                     |   |      |      | text@lt        | string   |          |
+                     |   |      |      | text@en        | string   |          |
+    ''')
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p',
+    ])
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'UPDATE "migrate/example/Test" SET text=("migrate/example/Test".text - \'lv\' '
+        '|| jsonb_build_object(\'__lv\', ("migrate/example/Test".text -> \'lv\'))) '
+        'WHERE "migrate/example/Test".text ? \'lv\';\n'
+        '\n'
+        'COMMIT;\n'
+        '\n')
+
+    cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv',
+    ])
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {'migrate/example/Test', 'migrate/example/Test/:changelog'}.issubset(tables.keys())
+
+        table = tables["migrate/example/Test"]
+        columns = table.columns
+        assert {'text'}.issubset(
+            columns.keys())
+        assert not {'__text'}.issubset(
+            columns.keys())
+
+        result = conn.execute(table.select())
+        for row in result:
+            assert row['text'] == {
+                'lt': 'LT',
+                'en': 'EN',
+                '__lv': 'LV'
+            }
+        _clean_up_tables(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog'])
+
+
+def test_migrate_scalar_to_ref(
+    postgresql_migration: URL,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    cleanup_tables(postgresql_migration)
+    initial_manifest = '''
+     d               | r | b    | m       | property       | type     | ref      | level
+     migrate/example |   |      |         |                |          |          |
+                     |   |      | City    |                |          | id       |
+                     |   |      |         | id             | integer  |          |
+                     |   |      |         | country        | integer  |          |
+                     |   |      | Country |                |          | id       |
+                     |   |      |         | id             | integer  |          |
+    '''
+    context, rc = _configure(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {
+            'migrate/example/City',
+            'migrate/example/City/:changelog',
+            'migrate/example/Country',
+            'migrate/example/Country/:changelog'
+        }.issubset(
+            tables.keys())
+        city = tables["migrate/example/City"]
+        country = tables["migrate/example/Country"]
+        assert {'id', 'country'}.issubset(city.columns.keys())
+        assert {'id'}.issubset(country.columns.keys())
+
+        conn.execute(city.insert().values({
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7e",
+            "id": 0,
+            "country": 0
+        }))
+
+        conn.execute(country.insert().values({
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7a",
+            "id": 0,
+        }))
+
+    override_manifest(context, tmp_path, '''
+     d               | r | b    | m       | property       | type     | ref      | level
+     migrate/example |   |      |         |                |          |          |
+                     |   |      | City    |                |          | id       |
+                     |   |      |         | id             | string   |          |
+                     |   |      |         | country        | ref      | Country  | 4
+                     |   |      | Country |                |          | id       |
+                     |   |      |         | id             | integer  |          |
+    ''')
+    # rename_file = {
+    #     "migrate/example/City": {
+    #         "country": "country.id",
+    #     },
+    # }
+    # path = tmp_path / 'rename.json'
+    # path.write_text(json.dumps(rename_file))
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p'
+    ])
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'UPDATE "migrate/example/Test" SET text=("migrate/example/Test".text - \'lv\' '
+        '|| jsonb_build_object(\'__lv\', ("migrate/example/Test".text -> \'lv\'))) '
+        'WHERE "migrate/example/Test".text ? \'lv\';\n'
+        '\n'
+        'COMMIT;\n'
+        '\n')
+
+    cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv',
+    ])
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {'migrate/example/Test', 'migrate/example/Test/:changelog'}.issubset(tables.keys())
+
+        table = tables["migrate/example/Test"]
+        columns = table.columns
+        assert {'text'}.issubset(
+            columns.keys())
+        assert not {'__text'}.issubset(
+            columns.keys())
+
+        result = conn.execute(table.select())
+        for row in result:
+            assert row['text'] == {
+                'lt': 'LT',
+                'en': 'EN',
+                '__lv': 'LV'
+            }
         _clean_up_tables(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog'])

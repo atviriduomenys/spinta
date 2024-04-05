@@ -198,40 +198,47 @@ class RenameSequenceMigrationAction(MigrationAction):
 
 
 class TransferJSONDataMigrationAction(MigrationAction):
-    def __init__(self, table: sa.Table, source: sa.Column, columns: List[Tuple[str, sa.Column]]):
+    def __init__(self, table: str, source: sa.Column, columns: List[Tuple[str, sa.Column]]):
         # Hack to transfer data if columns do not exist
         # Create new table with just required columns exist
         # SQLAlchemy does not allow the use table actions when those columns do not exist
+        meta = sa.MetaData()
         temp_table = sa.Table(
-            table.name,
-            sa.MetaData(),
+            table,
+            meta,
             source._copy(),
             *[column._copy() for _, column in columns]
         )
-        self.query = temp_table.update().values(**{column.name: source[key].astext for key, column in columns})
+        self.query = temp_table.update().values(
+            **{
+                temp_table.columns[column.name].name: source[key].astext
+                for key, column in columns
+            }
+        )
 
     def execute(self, op: Operations):
         op.execute(self.query)
 
 
 class TransferColumnDataToJSONMigrationAction(MigrationAction):
-    def __init__(self, table: sa.Table, source: sa.Column, columns: List[Tuple[str, sa.Column]]):
+    def __init__(self, table: str, source: sa.Column, columns: List[Tuple[str, sa.Column]]):
         # # Hack to transfer data if columns do not exist
         # # Create new table with just required columns exist
         # # SQLAlchemy does not allow the use table actions when those columns do not exist
         temp_table = sa.Table(
-            table.name,
+            table,
             sa.MetaData(),
             source._copy(),
             *[column._copy() for _, column in columns]
         )
+        copied_source = temp_table.columns[source.name]
         results = []
         for key, value in columns:
             results.append(key)
-            results.append(value)
+            results.append(temp_table.columns[value.name])
         self.query = temp_table.update().values(
             **{
-                source.name: source + sa.func.jsonb_build_object(
+                copied_source.name: copied_source + sa.func.jsonb_build_object(
                     *results
                 )
             }
@@ -241,25 +248,57 @@ class TransferColumnDataToJSONMigrationAction(MigrationAction):
         op.execute(self.query)
 
 
-class RenameJSONAttributeMigrationAction(MigrationAction):
-    def __init__(self, table: sa.Table, source: sa.Column, old_key: str, new_key: str):
-        self.query = table.update().values(
+class AddEmptyAttributeToJSONMigrationAction(MigrationAction):
+    def __init__(self, table: str, source: sa.Column, key: str):
+        temp_table = sa.Table(
+            table,
+            sa.MetaData(),
+            source._copy(),
+        )
+        copied_source = temp_table.columns[source.name]
+        self.query = temp_table.update().values(
             **{
-                source.name: source - old_key + sa.func.jsonb_build_object(new_key, source[old_key])
+                copied_source.name: copied_source + sa.func.jsonb_build_object(
+                    key, None
+                )
             }
-        ).where(source.has_key(old_key))
+        )
+
+    def execute(self, op: Operations):
+        op.execute(self.query)
+
+
+class RenameJSONAttributeMigrationAction(MigrationAction):
+    def __init__(self, table: str, source: sa.Column, old_key: str, new_key: str):
+        temp_table = sa.Table(
+            table,
+            sa.MetaData(),
+            source._copy(),
+        )
+        copied_source = temp_table.columns[source.name]
+        self.query = temp_table.update().values(
+            **{
+                copied_source.name: copied_source - old_key + sa.func.jsonb_build_object(new_key, copied_source[old_key])
+            }
+        ).where(copied_source.has_key(old_key))
 
     def execute(self, op: Operations):
         op.execute(self.query)
 
 
 class RemoveJSONAttributeMigrationAction(MigrationAction):
-    def __init__(self, table: sa.Table, source: sa.Column, key: str):
-        self.query = table.update().values(
+    def __init__(self, table: str, source: sa.Column, key: str):
+        temp_table = sa.Table(
+            table,
+            sa.MetaData(),
+            source._copy(),
+        )
+        copied_source = temp_table.columns[source.name]
+        self.query = temp_table.update().values(
             **{
-                source.name: source - key
+                copied_source.name: copied_source - key
             }
-        ).where(source.has_key(key))
+        ).where(copied_source.has_key(key))
 
     def execute(self, op: Operations):
         op.execute(self.query)
