@@ -131,7 +131,7 @@ def test_get_property_type_unknown():
     xsd = XSDReader("test.xsd", "dataset1")
     result = xsd._get_property_type(element)
 
-    assert result == ""
+    assert result == "string"
 
 
 def test_node_to_partial_property():
@@ -163,6 +163,31 @@ def test_node_to_partial_property():
         "type": "string"
     }
 # todo test properties with refs
+
+
+def test_node_to_partial_property_gYear():
+    element_string = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+    <xs:element name="CT_E200_FORMA" type="gYear">
+    </xs:element>
+    </xs:schema>
+    """
+
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('*[local-name() = "element"]')[0]
+    xsd = XSDReader("test.xsd", "dataset1")
+    result1, result2 = xsd._node_to_partial_property(element)
+
+    assert result1 == "ct_e200_forma"
+    assert result2 == {
+        "description": "",
+        "enums": {},
+        "external": {
+            "name": "CT_E200_FORMA",
+        },
+        "type": "date",
+        "ref": "Y"
+    }
 
 
 def test_simple_element_to_property():

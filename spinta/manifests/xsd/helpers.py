@@ -43,31 +43,31 @@ class XSDReader:
         "dateTime": "datetime",
         "time": "time",
         "date": "date",
-        "gYearMonth": "",
-        "gYear": "",
-        "gMonthDay": "",
-        "gDay": "",
-        "gMonth": "",
-        "hexBinary": "",
-        "base64Binary": "",
+        "gYearMonth": "date;ref:M",
+        "gYear": "date;ref:Y",
+        "gMonthDay": "string",
+        "gDay": "string",
+        "gMonth": "string",
+        "hexBinary": "string",
+        "base64Binary": "string",
         "anyURI": "uri",
-        "QName": "",
-        "NOTATION": "",
+        "QName": "string",
+        "NOTATION": "string",
         "normalizedString": "string",
         "token": "string",
         "language": "string",
         "NMTOKEN": "string",
-        "NMTOKENS": "",
-        "Name": "",
-        "NCName": "",
-        "ID": "",
-        "IDREF": "",
-        "IDREFS": "",
-        "ENTITY": "",
-        "ENTITIES": "",
+        "NMTOKENS": "string",
+        "Name": "string",
+        "NCName": "string",
+        "ID": "string",
+        "IDREF": "string",
+        "IDREFS": "string",
+        "ENTITY": "string",
+        "ENTITIES": "string",
         "integer": "integer",
-        "nonPositiveInteger": "",
-        "negativeInteger": "",
+        "nonPositiveInteger": "integer",
+        "negativeInteger": "integer",
         "long": "integer",
         "int": "integer",
         "short": "integer",
@@ -78,10 +78,10 @@ class XSDReader:
         "unsignedShort": "integer",
         "unsignedByte": "integer",
         "positiveInteger": "integer",
-        "yearMonthDuration": "",
-        "dayTimeDuration": "",
-        "dateTimeStamp": "",
-        "": "",
+        "yearMonthDuration": "integer",
+        "dayTimeDuration": "integer",
+        "dateTimeStamp": "datetime",
+        "": "string",
 
     }
 
@@ -156,7 +156,8 @@ class XSDReader:
         if annotation:
             documentation = annotation[0].xpath(f'./*[local-name() = "documentation"]')
             for documentation_part in documentation:
-                description = f"{description}{documentation_part.text} "
+                if documentation_part.text is not None:
+                    description = f"{description}{documentation_part.text} "
         return description.strip()
 
     def _get_separate_complex_type_node(self, node):
@@ -249,7 +250,7 @@ class XSDReader:
         elif property_type in self._custom_types:
             property_type = self._custom_types.get(property_type).get("base", "")
         else:
-            property_type = ""
+            property_type = "string"
 
         return property_type
 
@@ -263,6 +264,9 @@ class XSDReader:
         prop["external"] = {"name": property_name}
         property_id = to_property_name(property_name)
         prop["type"] = self._get_property_type(node)
+        if ";" in prop["type"]:
+            prop["ref"] = prop["type"].split(";")[1].split(":")[1]
+            prop["type"] = prop["type"].split(";")[0]
         prop["enums"] = self._get_enums(node)
 
         return property_id, prop
@@ -343,21 +347,6 @@ class XSDReader:
                     }
                 },
              },
-    
-    
-    
-        source: https://stackoverflow.com/questions/36286056/the-difference-between-all-sequence-choice-and-group-in-xsd
-        When to use xsd:all, xsd:sequence, xsd:choice, or xsd:group:
-    
-        Use xsd:all when all child elements must be present, independent of order.
-        Use xsd:sequence when child elements must be present per their occurrence constraints and order does matters.
-        Use xsd:choice when one of the child element must be present.
-        Use xsd:group as a way to wrap any of the above in order to name and reuse in multiple locations within an XSD.
-        Note that occurrence constraints can appear on xsd:all, xsd:sequence, or xsd:choice in addition to the 
-        child elements to achieve various cardinality effects.
-    
-        For example, if minOccurs="0" were added to xsd:element children of xsd:all, element order would be insignificant,
-        but not all child elements would have to be present:
         """
 
     def _properties_from_references(self, node: _Element, model_name: str, source_path: str = ""):
@@ -447,6 +436,18 @@ class XSDReader:
 
             if complex_type_node.xpath(f'./*[local-name() = "sequence"]') or complex_type_node.xpath(f'./*[local-name() = "all"]'):
                 sequence_or_all_nodes = complex_type_node.xpath(f'./*[local-name() = "sequence"]')
+                """
+                source: https://stackoverflow.com/questions/36286056/the-difference-between-all-sequence-choice-and-group-in-xsd
+                    When to use xsd:all, xsd:sequence, xsd:choice, or xsd:group:
+                
+                    Use xsd:all when all child elements must be present, independent of order.
+                    Use xsd:sequence when child elements must be present per their occurrence constraints and order does matters.
+                    Use xsd:choice when one of the child element must be present.
+                    Use xsd:group as a way to wrap any of the above in order to name and reuse in multiple locations within an XSD.
+                    Note that occurrence constraints can appear on xsd:all, xsd:sequence, or xsd:choice in addition to the 
+                    child elements to achieve various cardinality effects. For example, if minOccurs="0" were added to xsd:element children of xsd:all, element order would be insignificant,
+                    but not all child elements would have to be present.
+                """
                 if sequence_or_all_nodes:
                     sequence_or_all_node = sequence_or_all_nodes[0]
                 else:
@@ -517,7 +518,7 @@ class XSDReader:
             "description": "Įvairūs duomenys",
             "properties": {},
             "external": resource_model_external_info,
-            "uri": "http://www.w3.org/2000/01/rdf-schema#Resource",
+            "uri": "http://www.w3.org/2000/01/rdf-schema#Resource"
         }
         self.resource_model["properties"] = self._properties_from_simple_elements(self.root, from_sequence=False)
         if self.resource_model["properties"]:
