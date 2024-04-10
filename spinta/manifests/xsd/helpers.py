@@ -394,7 +394,6 @@ class XSDReader:
         """
         Parses an element. If it is a complete model, it will be added to the models list.
         """
-
         final = False
 
         if additional_properties is None:
@@ -427,7 +426,6 @@ class XSDReader:
                 complex_type_node = complex_type_node.xpath(f'./*[local-name() = "choice"]')[0]
                 choices = complex_type_node.xpath(f'./*[local-name() = "sequence"]')
 
-
                 # if we get choice, this means we are already in one of the split models
                 # if we don't get choices, this means that we are in the initial model
                 # and need to create a model for each choice
@@ -438,7 +436,7 @@ class XSDReader:
                 model_names = []
                 for index, choice in enumerate(choices):
                     # create options of this model
-                    model_names = self._create_model(node, source_path, choice=index)
+                    model_names = self._create_model(node, source_path, choice=index, additional_properties=additional_properties)
                     model_names.extend(model_names)
                 return model_names
 
@@ -641,7 +639,6 @@ def read_schema(context: Context, path: str, prepare: str = None, dataset_name: 
     Element can be as a ref in more than one other element.
 
     Other things to handle: Resource model, custom types, enumerations, choices
-
 
     Element can be turned into:
         1. A property (including reference properties)
