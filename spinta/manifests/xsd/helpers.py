@@ -655,10 +655,10 @@ def read_schema(context: Context, path: str, prepare: str = None, dataset_name: 
 
     xsd.start()
 
-    # yield None, xsd.dataset_and_resource_info
+    yield None, xsd.dataset_and_resource_info
 
     for parsed_model in xsd.models:
 
         pprint(parsed_model)
 
-        # yield None, parsed_model
+        yield None, parsed_model
