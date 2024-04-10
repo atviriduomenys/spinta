@@ -380,7 +380,9 @@ class XSDReader:
 
                 for referenced_model_name in referenced_model_names:
                     property_id, prop = self._simple_element_to_property(ref_element)
-                    property_id = self.deduplicate_property_name(property_id)
+                    if "[]" in property_id:
+                        property_id = self.deduplicate_property_name(property_id.split("[")[0]) + "[]"
+
                     prop["external"]["name"] = ""
                     prop["type"] = property_type
                     prop["model"] = f"{self.dataset_name}/{referenced_model_name}"
