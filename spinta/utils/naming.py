@@ -31,7 +31,7 @@ def to_model_name(name: str) -> str:
     if name.isupper() or name.islower():
         words = [w.title() for w in words if w]
     else:
-        words = [w.title() if w.islower() else w for w in words if w]
+        words = [w.title() if w[0].islower() else w for w in words if w]
     return _cleanup(''.join(words))
 
 
