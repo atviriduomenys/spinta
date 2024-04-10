@@ -548,7 +548,7 @@ class XSDReader:
         }
         self.resource_model["properties"] = self._properties_from_simple_elements(self.root, from_sequence=False)
         if self.resource_model["properties"]:
-            self.resource_model["name"] = self.deduplicate_model_name("Resource")
+            self.resource_model["name"] = self.deduplicate_model_name(f"{self.dataset_name}/Resource")
             self.models.append(self.resource_model)
 
     def _parse_root_node(self):
