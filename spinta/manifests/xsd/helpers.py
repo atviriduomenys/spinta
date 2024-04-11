@@ -294,7 +294,7 @@ class XSDReader:
             prop["required"] = required
             properties[property_id] = prop
 
-        # todo attribute can be a ref to an externally defined attribute also
+        # todo attribute can be a ref to an externally defined attribute also. Not in RC though
 
         return properties
 
@@ -433,7 +433,6 @@ class XSDReader:
                 # if we don't get choices, this means that we are in the initial model
                 # and need to create a model for each choice
                 # this is only for the case where each choice has sequence in it. It's the most common one.
-                # todo cover other cases
 
             if choices and choice is None:
                 model_names = []
@@ -469,7 +468,6 @@ class XSDReader:
                     # todo final is also decided by maxOccurs
 
                     if sequence_or_all_node.xpath(f'./*[local-name() = "element"]'):
-                        # todo, cover option, where choice is inside sequence(437, line 49)
                         if not sequence_or_all_node.xpath(f'./*[local-name() = "element"]')[0].get("ref"):
                             element = sequence_or_all_node.xpath(f'./*[local-name() = "element"]')[0]
 
@@ -555,7 +553,6 @@ class XSDReader:
 
     def _parse_root_node(self):
         # get properties from elements
-
         # Resource model - special case
 
         for node in self.root:
