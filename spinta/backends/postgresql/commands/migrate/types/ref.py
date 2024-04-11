@@ -8,10 +8,10 @@ from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_column_name
 from spinta.backends.postgresql.helpers.migrate.migrate import name_key, MigratePostgresMeta, is_internal_ref, \
-    adjust_kwargs
+    adjust_kwargs, is_name_complex, extract_literal_name_from_column, generate_type_missmatch_exception_details
 from spinta.components import Context
 from spinta.datasets.inspect.helpers import zipitems
-from spinta.exceptions import MigrateScalarToRefTooManyKeys
+from spinta.exceptions import MigrateScalarToRefTooManyKeys, MigrateScalarToRefTypeMissmatch
 from spinta.types.datatype import Ref
 from spinta.utils.schema import NotAvailable, NA
 
@@ -80,7 +80,21 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
                     if model_external and not model_external.unknown_primary_key and model_external.pkeys:
                         if len(model_external.pkeys) > 1:
                             raise MigrateScalarToRefTooManyKeys(new, primary_keys=[pkey.name for pkey in model_external.pkeys])
-                        key = model_external.pkeys[0].name
+                        target = model_external.pkeys[0]
+                        target_column = commands.prepare(context, backend, target)
+                        key = target.name
+                        old_type = extract_literal_name_from_column(old_column)
+                        new_type = extract_literal_name_from_column(target_column)
+                        if old_type != new_type:
+                            raise MigrateScalarToRefTypeMissmatch(new,
+                                  details=generate_type_missmatch_exception_details(
+                                      [
+                                          (
+                                              (old_column.name, old_type),
+                                              (key, new_type)
+                                          )
+                                      ]
+                                  ))
 
                 column_list[key] = sa.Column(new_name, old_column.type)
                 if old_column.name != f'{old_prop_name}._id':
@@ -101,17 +115,45 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
             for col in drop_list:
                 commands.migrate(context, backend, meta, table, col, NA, **adjusted_kwargs)
     else:
-        if len(old) == 1 and old[0].name == f'{old_prop_name}._id':
+        old_name_with_id = f'{old_prop_name}._id'
+        # Might going to need to add better check to see if its transform or rename
+        # This will prob not work with nested structure
+        if len(old) == 1 and (
+            old[0].name == old_name_with_id or
+            not is_name_complex(old[0].name)
+        ):
+            column = old[0]
             requires_drop = True
+            if len(new_columns) > 1 and column.name != old_name_with_id:
+                raise MigrateScalarToRefTooManyKeys(new, primary_keys=[col.name.split('.')[-1] for col in new_columns])
+
+            target = '_id'
+
+            # Scalar to ref checks and adjustments
+            if not column.name.endswith('._id') and len(new_columns) == 1 and isinstance(new_columns[0], sa.Column):
+                target_column = new_columns[0]
+                target = target_column.name.split('.')[-1]
+                old_type = extract_literal_name_from_column(column)
+                new_type = extract_literal_name_from_column(target_column)
+                if old_type != new_type:
+                    raise MigrateScalarToRefTypeMissmatch(new, details=generate_type_missmatch_exception_details(
+                        [
+                            (
+                                (column.name, old_type),
+                                (target_column.name, new_type)
+                            )
+                        ]
+                    ))
+
             for new_column in new_columns:
                 if isinstance(new_column, sa.Column):
-                    if new_column.name == f'{old_prop_name}._id':
+                    if new_column.name == old_name_with_id:
                         requires_drop = False
                         commands.migrate(context, backend, meta, table, old[0], new_column, **adjusted_kwargs)
                     else:
                         commands.migrate(context, backend, meta, table, NA, new_column, **adjusted_kwargs)
             column_list = dict()
-            column = old[0]
+
             for item in new_columns:
                 name = item.name
                 column_list[name] = sa.Column(name.split('.')[-1], item.type)
@@ -121,7 +163,8 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
                         table_name=table_name,
                         foreign_table_name=get_table_name(new.refprops[0]),
                         source=column,
-                        columns=column_list
+                        columns=column_list,
+                        target=target
                     ), True
                 )
             if requires_drop:

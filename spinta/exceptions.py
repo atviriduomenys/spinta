@@ -880,6 +880,13 @@ class InvalidParamSource(UserError):
 
 class MigrateScalarToRefTooManyKeys(UserError):
     template = '''
-    Migration between scalar types and Ref type (level > 3) is only supported when targeted Ref's model contains
-    only 1 primary key, but were given: {primary_keys}
+    Migration between scalar types and Ref type is only supported when targeted Ref's model contains
+    only 1 primary key (except Ref level 3 to scalar), but were given: {primary_keys}
+    '''
+
+
+class MigrateScalarToRefTypeMissmatch(UserError):
+    template = '''
+    Migration between scalar types and Ref requires, that mapped columns match their types.
+    {details}
     '''

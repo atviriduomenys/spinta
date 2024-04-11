@@ -134,7 +134,8 @@ class DowngradeTransferDataMigrationAction(MigrationAction):
         table_name: str,
         foreign_table_name: str,
         source: sa.Column,
-        columns: dict
+        columns: dict,
+        target: str = '_id'
     ):
         target_table = sa.Table(
             table_name,
@@ -154,7 +155,7 @@ class DowngradeTransferDataMigrationAction(MigrationAction):
                 for key, column in columns.items()
             }
         ).where(
-            target_table.columns[source.name] == foreign_table.columns['_id']
+            target_table.columns[source.name] == foreign_table.columns[target]
         )
 
     def execute(self, op: Operations):

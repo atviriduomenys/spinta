@@ -5,7 +5,7 @@ import sqlalchemy as sa
 from sqlalchemy.engine.url import URL
 
 from spinta.core.config import RawConfig
-from spinta.exceptions import MigrateScalarToRefTooManyKeys
+from spinta.exceptions import MigrateScalarToRefTooManyKeys, MigrateScalarToRefTypeMissmatch
 from spinta.testing.cli import SpintaCliRunner
 from tests.backends.postgresql.commands.migrate.test_migrations import cleanup_tables, override_manifest, \
     cleanup_table_list, configure_migrate, get_table_unique_constraint_columns, get_table_foreign_key_constraint_columns
@@ -906,6 +906,262 @@ def test_migrate_scalar_to_ref_simple_level_4(
         ])
 
 
+def test_migrate_scalar_to_ref_simple_level_3(
+    postgresql_migration: URL,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    cleanup_tables(postgresql_migration)
+    initial_manifest = '''
+     d               | r | b    | m       | property       | type     | ref      | level
+     migrate/example |   |      |         |                |          |          |
+                     |   |      | City    |                |          | id       |
+                     |   |      |         | id             | integer  |          |
+                     |   |      |         | country        | integer  |          |
+                     |   |      | Country |                |          | id       |
+                     |   |      |         | id             | integer  |          |
+    '''
+    context, rc = configure_migrate(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {
+            'migrate/example/City',
+            'migrate/example/City/:changelog',
+            'migrate/example/Country',
+            'migrate/example/Country/:changelog'
+        }.issubset(
+            tables.keys())
+        city = tables["migrate/example/City"]
+        country = tables["migrate/example/Country"]
+        assert {'id', 'country'}.issubset(city.columns.keys())
+        assert {'id'}.issubset(country.columns.keys())
+
+        conn.execute(city.insert().values({
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7e",
+            "id": 0,
+            "country": 0
+        }))
+
+        conn.execute(country.insert().values({
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7a",
+            "id": 0,
+        }))
+
+    override_manifest(context, tmp_path, '''
+     d               | r | b    | m       | property       | type     | ref      | level
+     migrate/example |   |      |         |                |          |          |
+                     |   |      | City    |                |          | id       |
+                     |   |      |         | id             | integer  |          |
+                     |   |      |         | country        | ref      | Country  | 3
+                     |   |      | Country |                |          | id       |
+                     |   |      |         | id             | integer  |          |
+    ''')
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p'
+    ])
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/City" ADD COLUMN "country.id" INTEGER;\n'
+        '\n'
+        'UPDATE "migrate/example/City" SET "country.id"="migrate/example/Country".id '
+        'FROM "migrate/example/Country" WHERE "migrate/example/City".country = '
+        '"migrate/example/Country".id;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/City" RENAME country TO __country;\n'
+        '\n'
+        'COMMIT;\n'
+        '\n')
+
+    cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv',
+    ])
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {'migrate/example/City', 'migrate/example/City/:changelog',
+                'migrate/example/Country', 'migrate/example/Country/:changelog'}.issubset(tables.keys())
+
+        table = tables["migrate/example/City"]
+        columns = table.columns
+        assert {'id', 'country.id', '__country'}.issubset(
+            columns.keys())
+        assert not {'country'}.issubset(
+            columns.keys())
+
+        result = conn.execute(table.select())
+        for row in result:
+            assert row['country.id'] == 0
+            assert row['id'] == 0
+            assert row['__country'] == 0
+        cleanup_table_list(meta, [
+            'migrate/example/City',
+            'migrate/example/City/:changelog',
+            'migrate/example/Country',
+            'migrate/example/Country/:changelog'
+        ])
+
+
+def test_migrate_scalar_to_ref_level_3_error(
+    postgresql_migration: URL,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    cleanup_tables(postgresql_migration)
+    initial_manifest = '''
+     d               | r | b    | m       | property       | type     | ref      | level
+     migrate/example |   |      |         |                |          |          |
+                     |   |      | City    |                |          | id       |
+                     |   |      |         | id             | integer  |          |
+                     |   |      |         | country        | integer  |          |
+                     |   |      | Country |                |          | id, name |
+                     |   |      |         | id             | integer  |          |
+                     |   |      |         | name           | string   |          |
+    '''
+    context, rc = configure_migrate(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {
+            'migrate/example/City',
+            'migrate/example/City/:changelog',
+            'migrate/example/Country',
+            'migrate/example/Country/:changelog'
+        }.issubset(
+            tables.keys())
+        city = tables["migrate/example/City"]
+        country = tables["migrate/example/Country"]
+        assert {'id', 'country'}.issubset(city.columns.keys())
+        assert {'id'}.issubset(country.columns.keys())
+
+        conn.execute(city.insert().values({
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7e",
+            "id": 0,
+            "country": 0
+        }))
+
+        conn.execute(country.insert().values({
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7a",
+            "id": 0,
+        }))
+
+        override_manifest(context, tmp_path, '''
+         d               | r | b    | m       | property       | type     | ref      | level
+         migrate/example |   |      |         |                |          |          |
+                         |   |      | City    |                |          | id       |
+                         |   |      |         | id             | integer  |          |
+                         |   |      |         | country        | ref      | Country  | 3
+                         |   |      | Country |                |          | id, name |
+                         |   |      |         | id             | integer  |          |
+                         |   |      |         | name           | string   |          |
+        ''')
+
+        result = cli.invoke(rc, [
+            'migrate', f'{tmp_path}/manifest.csv', '-p'
+        ], fail=False)
+        assert result.exit_code != 0
+        assert isinstance(result.exception, MigrateScalarToRefTooManyKeys)
+
+        cleanup_table_list(meta, [
+            'migrate/example/City',
+            'migrate/example/City/:changelog',
+            'migrate/example/Country',
+            'migrate/example/Country/:changelog'
+        ])
+
+
+def test_migrate_scalar_to_ref_level_3_type_error(
+    postgresql_migration: URL,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    cleanup_tables(postgresql_migration)
+    initial_manifest = '''
+     d               | r | b    | m       | property       | type     | ref      | level
+     migrate/example |   |      |         |                |          |          |
+                     |   |      | City    |                |          | id       |
+                     |   |      |         | id             | integer  |          |
+                     |   |      |         | country        | string   |          |
+                     |   |      | Country |                |          | id       |
+                     |   |      |         | id             | integer  |          |
+                     |   |      |         | name           | string   |          |
+    '''
+    context, rc = configure_migrate(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {
+            'migrate/example/City',
+            'migrate/example/City/:changelog',
+            'migrate/example/Country',
+            'migrate/example/Country/:changelog'
+        }.issubset(
+            tables.keys())
+        city = tables["migrate/example/City"]
+        country = tables["migrate/example/Country"]
+        assert {'id', 'country'}.issubset(city.columns.keys())
+        assert {'id'}.issubset(country.columns.keys())
+
+        conn.execute(city.insert().values({
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7e",
+            "id": 0,
+            "country": "0"
+        }))
+
+        conn.execute(country.insert().values({
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7a",
+            "id": 0,
+        }))
+
+        override_manifest(context, tmp_path, '''
+         d               | r | b    | m       | property       | type     | ref      | level
+         migrate/example |   |      |         |                |          |          |
+                         |   |      | City    |                |          | id       |
+                         |   |      |         | id             | integer  |          |
+                         |   |      |         | country        | ref      | Country  | 3
+                         |   |      | Country |                |          | id       |
+                         |   |      |         | id             | integer  |          |
+                         |   |      |         | name           | string   |          |
+        ''')
+
+        result = cli.invoke(rc, [
+            'migrate', f'{tmp_path}/manifest.csv', '-p'
+        ], fail=False)
+        assert result.exit_code != 0
+        assert isinstance(result.exception, MigrateScalarToRefTypeMissmatch)
+
+        cleanup_table_list(meta, [
+            'migrate/example/City',
+            'migrate/example/City/:changelog',
+            'migrate/example/Country',
+            'migrate/example/Country/:changelog'
+        ])
+
+
 def test_migrate_scalar_to_ref_level_4_error(
     postgresql_migration: URL,
     rc: RawConfig,
@@ -972,6 +1228,80 @@ def test_migrate_scalar_to_ref_level_4_error(
         ], fail=False)
         assert result.exit_code != 0
         assert isinstance(result.exception, MigrateScalarToRefTooManyKeys)
+        cleanup_table_list(meta, [
+            'migrate/example/City',
+            'migrate/example/City/:changelog',
+            'migrate/example/Country',
+            'migrate/example/Country/:changelog'
+        ])
+
+
+def test_migrate_scalar_to_ref_level_4_type_error(
+    postgresql_migration: URL,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    cleanup_tables(postgresql_migration)
+    initial_manifest = '''
+     d               | r | b    | m       | property       | type     | ref      | level
+     migrate/example |   |      |         |                |          |          |
+                     |   |      | City    |                |          | id       |
+                     |   |      |         | id             | integer  |          |
+                     |   |      |         | country        | string   |          |
+                     |   |      | Country |                |          | id       |
+                     |   |      |         | id             | integer  |          |
+                     |   |      |         | name           | string   |          |
+    '''
+    context, rc = configure_migrate(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {
+            'migrate/example/City',
+            'migrate/example/City/:changelog',
+            'migrate/example/Country',
+            'migrate/example/Country/:changelog'
+        }.issubset(
+            tables.keys())
+        city = tables["migrate/example/City"]
+        country = tables["migrate/example/Country"]
+        assert {'id', 'country'}.issubset(city.columns.keys())
+        assert {'id'}.issubset(country.columns.keys())
+
+        conn.execute(city.insert().values({
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7e",
+            "id": 0,
+            "country": "0"
+        }))
+
+        conn.execute(country.insert().values({
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7a",
+            "id": 0,
+            "name": "test"
+        }))
+
+        override_manifest(context, tmp_path, '''
+         d               | r | b    | m       | property       | type     | ref      | level
+         migrate/example |   |      |         |                |          |          |
+                         |   |      | City    |                |          | id       |
+                         |   |      |         | id             | integer  |          |
+                         |   |      |         | country        | ref      | Country  | 4
+                         |   |      | Country |                |          | id       |
+                         |   |      |         | id             | integer  |          |
+                         |   |      |         | name           | string   |          |
+        ''')
+        result = cli.invoke(rc, [
+            'migrate', f'{tmp_path}/manifest.csv', '-p'
+        ], fail=False)
+        assert result.exit_code != 0
+        assert isinstance(result.exception, MigrateScalarToRefTypeMissmatch)
         cleanup_table_list(meta, [
             'migrate/example/City',
             'migrate/example/City/:changelog',

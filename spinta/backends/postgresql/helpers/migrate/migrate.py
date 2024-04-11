@@ -4,6 +4,7 @@ from typing import Any, List, Union, Dict, Tuple
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB, BIGINT, ARRAY, JSON
 from sqlalchemy.engine.reflection import Inspector
+from sqlalchemy.dialects import postgresql
 
 import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
@@ -425,3 +426,36 @@ def adjust_kwargs(kwargs: dict, key: str, value: Any) -> dict:
     copied = kwargs.copy()
     copied[key] = value
     return copied
+
+
+def extract_literal_name_from_column(
+    column: sa.Column,
+) -> str:
+    type_ = column.type.compile(dialect=postgresql.dialect())
+
+    # Convert sa.Float, to postgresql DOUBLE PRECISION type
+    if isinstance(column.type, sa.Float):
+        type_ = 'DOUBLE PRECISION'
+
+    return type_
+
+
+# Match [
+#   (
+#       (old_column_name, old_type),
+#       (new_column_name, new_type)
+#   )
+# ]
+def generate_type_missmatch_exception_details(
+    columns: list
+):
+    result = ''
+    for pair in columns:
+        old_data = pair[0]
+        new_data = pair[1]
+        result += f'\t\'{old_data[0]}\' [{old_data[1]}] -> \'{new_data[0]}\' [{new_data[1]}]\t'
+        if old_data[1] == new_data[1]:
+            result += f'\'{old_data[1]}\' == \'{new_data[1]}\'\n'
+        else:
+            result += f'\'{old_data[1]}\' != \'{new_data[1]}\'\t<= Incorrect\n'
+    return result

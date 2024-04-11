@@ -2,14 +2,13 @@ from typing import List
 
 import geoalchemy2.types
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_pg_name
 from spinta.backends.postgresql.helpers.migrate.migrate import check_if_renamed, rename_index_name, MigratePostgresMeta, \
-    adjust_kwargs
+    adjust_kwargs, extract_literal_name_from_column
 from spinta.components import Context
 from spinta.types.datatype import DataType
 from spinta.utils.schema import NotAvailable, NA
@@ -60,13 +59,11 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
 
     column_name = new.name
     table_name = rename.get_table_name(table.name)
-    new_type = new.type.compile(dialect=postgresql.dialect())
-    old_type = old.type.compile(dialect=postgresql.dialect())
+    old_type = extract_literal_name_from_column(old)
+    new_type = extract_literal_name_from_column(new)
     using = None
-    # Convert sa.Float, to postgresql DOUBLE PRECISION type
+
     requires_cast = True
-    if isinstance(new.type, sa.Float):
-        new_type = 'DOUBLE PRECISION'
     if isinstance(old.type, geoalchemy2.types.Geometry) and isinstance(new.type, geoalchemy2.types.Geometry):
         if old.type.srid != new.type.srid:
             srid_name = old
