@@ -401,7 +401,8 @@ class XSDReader:
         if additional_properties is None:
             additional_properties = {}
 
-        properties = additional_properties
+        properties = {}
+        properties.update(additional_properties)
         new_source_path = f"{source_path}/{node.get('name')}"
 
         model_name = self.deduplicate_model_name(to_model_name(node.get("name")))
@@ -439,7 +440,6 @@ class XSDReader:
                 for index, choice in enumerate(choices):
                     # create options of this model
                     model_names = self._create_model(node, source_path, choice=index, additional_properties=additional_properties)
-                    model_names.extend(model_names)
                 return model_names
 
             if complex_type_node.xpath(f'./*[local-name() = "sequence"]') or complex_type_node.xpath(f'./*[local-name() = "all"]'):
