@@ -361,6 +361,8 @@ class XSDReader:
 
             if self._node_is_simple_type_or_inline(referenced_element):
                 property_id, prop = self._simple_element_to_property(referenced_element)
+                if not self._is_required(ref_element):
+                    prop["required"] = False
                 properties[property_id] = prop
             else:
                 if not self._is_array(ref_element):
