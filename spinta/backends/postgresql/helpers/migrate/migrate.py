@@ -16,9 +16,11 @@ from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
 from spinta.cli.migrate import MigrateRename
 from spinta.components import Context, Model, Property
 from spinta.datasets.enums import Level
+from spinta.exceptions import MigrateScalarToRefTooManyKeys
 from spinta.types.datatype import Ref, File, Array, Object
 from spinta.types.text.components import Text
 from spinta.utils.nestedstruct import get_root_attr
+from spinta.utils.schema import NA
 
 
 def check_if_renamed(old_table: str, new_table: str, old_property: str, new_property: str):
@@ -213,10 +215,14 @@ def is_name_complex(name: str):
     return '.' in name or '@' in name
 
 
+def is_prop_complex(prop: Property):
+    return isinstance(prop.dtype, (Text, File, Ref))
+
+
 def is_name_or_property_complex(name: str, prop: Property):
     is_complex = is_name_complex(name)
     if not is_complex:
-        return isinstance(prop.dtype, (Text, File, Ref))
+        return is_prop_complex(prop)
     return is_complex
 
 
@@ -231,48 +237,56 @@ def is_column_complex(col: sa.Column):
     return isinstance(col.type, (JSONB, JSON))
 
 
-def property_and_column_name_key(item: Union[sa.Column, Property], rename, table) -> str:
+def property_and_column_name_key(item: Union[sa.Column, Property], rename, table: sa.Table, model: Model) -> str:
     # Mapping concept is to prioritize complex types over simple
     # new types take priority over old
     # Column is always old, Property is always new
 
     if isinstance(item, sa.Column):
         name = item.name
-        new_name = rename.get_column_name(table, name, True)
-        full_name = rename.get_column_name(table, name)
-        actual_target = rename.get_old_column_name(table, full_name)
+        is_complex = is_name_or_column_complex(name, item)
+        new_name = rename.get_column_name(table.name, name, True)
+        full_name = rename.get_column_name(table.name, name)
 
-        is_target_complex = is_name_complex(actual_target)
-        is_old_column_complex = is_column_complex(item)
-        is_new_complex = is_name_complex(full_name)
+        root_changed = has_been_renamed(name, new_name)
+        full_changed = has_been_renamed(name, full_name)
 
         # Check for edge case when you have old columns: column_one, column_two
         # new manifest only hase column_one, but
         # rename provides "column_two": "column_one"
         # meaning, you need to remove old "column_one" and rename old "column_two" to "column_one"
-        if not has_been_renamed(name, new_name):
-            old_name = rename.get_old_column_name(table, name, False)
+        if not root_changed:
+            old_name = rename.get_old_column_name(table.name, name)
             if has_been_renamed(name, old_name):
                 return get_root_attr(old_name)
 
-        # First checks if we transfer data between simple and complex, eg: "text_lt": "text@lt", we get "text" key, since complex takes priority
-        # Second checks for complex renames, eg: text = Text type, and we have "text": "other" (other is Text type), we get "other" key (since new complex property takes priority)
-        if (
-            (not is_old_column_complex and is_new_complex) or
-            (has_been_renamed(full_name, actual_target) and is_old_column_complex and not is_target_complex and not is_new_complex)
-        ):
-            return get_root_attr(new_name)
+        if full_changed:
+            new_prop = model.flatprops[full_name]
+            if is_name_or_property_complex(full_name, new_prop) or is_complex:
+                return get_root_attr(full_name)
+
+        if root_changed:
+            new_prop = model.flatprops[new_name]
+            if is_name_or_property_complex(new_name, new_prop):
+                return get_root_attr(new_name)
+            elif not full_changed:
+                return name
+
         return get_root_attr(name)
     elif isinstance(item, Property):
         name = get_column_name(item)
-        old_name = rename.get_old_column_name(table, name, True)
-        full_name = rename.get_old_column_name(table, name)
+        old_name = rename.get_old_column_name(table.name, name, True)
+        old_full_name = rename.get_old_column_name(table.name, name)
 
-        is_old_complex = is_name_complex(full_name)
-        is_new_complex = is_name_or_property_complex(name, item)
-
-        if not is_old_complex and is_new_complex:
+        if is_name_or_property_complex(name, item):
             return get_root_attr(name)
+
+        if has_been_renamed(name, old_full_name):
+            if old_full_name in table.columns:
+                col = table.columns[old_full_name]
+                if is_name_or_column_complex(old_full_name, col):
+                    return get_root_attr(name)
+
         return get_root_attr(old_name)
 
 
@@ -314,3 +328,100 @@ class MigrateModelMeta:
 
 def has_been_renamed(old: str, new: str):
     return old != new
+
+
+def is_internal_ref(dtype: Ref):
+    prop = dtype.prop
+    return prop.level is None or prop.level > Level.open
+
+
+def handle_internal_ref_to_scalar_conversion(
+    context: Context,
+    backend: PostgreSQL,
+    meta: MigratePostgresMeta,
+    table: sa.Table,
+    old_columns: List[sa.Column],
+    new_property: Property,
+    **kwargs
+) -> bool:
+    if isinstance(old_columns, sa.Column):
+        old_columns = [old_columns]
+
+    if not old_columns or not new_property:
+        return False
+
+    # Check if columns are from ref 4 (can only have 1 column)
+    if not (len(old_columns) == 1 and isinstance(old_columns[0], sa.Column)):
+        return False
+
+    inspector = meta.inspector
+    handler = meta.handler
+    rename = meta.rename
+
+    ref_col = old_columns[0]
+    manifest = new_property.model.manifest
+
+    # Skip ref 4 -> ref 3
+    if isinstance(new_property.dtype, Ref):
+        return False
+
+    if ref_col.name.endswith('._id'):
+        constraints = inspector.get_foreign_keys(table.name)
+        ref_model = None
+        for constraint in constraints:
+            if constraint['constrained_columns'] == [ref_col.name]:
+                table_name = constraint['referred_table']
+                if commands.has_model(context, manifest, table_name):
+                    ref_model = commands.get_model(context, manifest, table_name)
+                else:
+                    # In case table name has been truncated, need to loop through all models and convert their names to pg
+                    all_models = commands.get_models(context, manifest)
+                    for model in all_models.values():
+                        if get_pg_name(model.name) == table_name:
+                            ref_model = model
+                            break
+                break
+
+        if isinstance(ref_model, Model):
+            if ref_model.external and not ref_model.external.unknown_primary_key:
+                pkeys = ref_model.external.pkeys
+                mapped_data: dict = dict()
+                if len(pkeys) > 1:
+                    raise MigrateScalarToRefTooManyKeys(new_property.dtype, primary_keys=[key.name for key in pkeys])
+
+                target_key = pkeys[0]
+                prop_col = commands.prepare(context, backend, target_key)
+                mapped_data[get_pg_name(new_property.name)] = prop_col
+                updated_kwargs = adjust_kwargs(kwargs, 'foreign_key', True)
+
+                commands.migrate(context, backend, meta, table, NA, new_property, **updated_kwargs)
+                table_name = rename.get_table_name(table.name)
+                foreign_table_name = get_table_name(ref_model)
+                handler.add_action(
+                    ma.DowngradeTransferDataMigrationAction(
+                        table_name,
+                        foreign_table_name,
+                        ref_col,
+                        mapped_data
+                    ),
+                    foreign_key=True
+                )
+                commands.migrate(context, backend, meta, table, ref_col, NA, **updated_kwargs)
+                return True
+
+    return False
+
+
+def extract_target_column(rename: MigrateRename, columns: list, table: sa.Table, prop: Property):
+    full_name = rename.get_old_column_name(table.name, prop.name)
+    if isinstance(columns, list):
+        for col in columns:
+            if isinstance(col, sa.Column) and col.name == full_name:
+                return [col]
+    return columns
+
+
+def adjust_kwargs(kwargs: dict, key: str, value: Any) -> dict:
+    copied = kwargs.copy()
+    copied[key] = value
+    return copied

@@ -2,7 +2,7 @@ import sqlalchemy as sa
 
 from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers.migrate.migrate import MigratePostgresMeta
+from spinta.backends.postgresql.helpers.migrate.migrate import MigratePostgresMeta, adjust_kwargs
 from spinta.components import Context
 from spinta.types.datatype import DataType
 from spinta.types.geometry.components import Geometry
@@ -17,4 +17,4 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
         if isinstance(column, sa.Column):
             col = column
             break
-    commands.migrate(context, backend, meta, table, old, col, foreign_key=False, **kwargs)
+    commands.migrate(context, backend, meta, table, old, col, **kwargs)

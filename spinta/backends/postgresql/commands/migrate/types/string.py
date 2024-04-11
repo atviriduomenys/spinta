@@ -7,7 +7,7 @@ import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers.migrate.migrate import json_has_key, get_root_attr, jsonb_keys, \
-    MigratePostgresMeta, MigrateModelMeta, has_been_renamed
+    MigratePostgresMeta, MigrateModelMeta, has_been_renamed, adjust_kwargs
 from spinta.components import Context
 from spinta.types.datatype import String
 from spinta.types.text.helpers import determine_langauge_for_text
@@ -57,7 +57,7 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
         if requires_removal:
             for col in old:
                 if not has_been_renamed(col.name, column.name):
-                    commands.migrate(context, backend, meta, table, col, NA, foreign_key=False, **kwargs)
+                    commands.migrate(context, backend, meta, table, col, NA, **kwargs)
                     columns.remove(col)
                     break
 
@@ -88,7 +88,7 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
                 key = determine_langauge_for_text(all_keys, [], default_langs)
                 json_column_meta.cast_to = (column, key)
             else:
-                commands.migrate(context, backend, meta, table, NA, column, foreign_key=False, **kwargs)
+                commands.migrate(context, backend, meta, table, NA, column, **kwargs)
                 handler.add_action(
                     ma.TransferJSONDataMigrationAction(table_name, col, columns=[
                         (key, column)
@@ -106,7 +106,7 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
                 else:
                     json_column_meta.add_new_key(key, renamed_key)
         else:
-            commands.migrate(context, backend, meta, table, col, column, foreign_key=False, **kwargs)
+            commands.migrate(context, backend, meta, table, col, column, **kwargs)
     else:
         raise Exception("String cannot migrate to multiple columns")
 

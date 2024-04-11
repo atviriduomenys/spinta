@@ -9,7 +9,7 @@ from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_pg_name
 from spinta.backends.postgresql.helpers.migrate.migrate import drop_all_indexes_and_constraints, handle_new_file_type, \
     get_remove_name, get_prop_names, create_changelog_table, property_and_column_name_key, MigratePostgresMeta, \
-    MigrateModelMeta
+    MigrateModelMeta, handle_internal_ref_to_scalar_conversion
 from spinta.components import Context, Model
 from spinta.datasets.inspect.helpers import zipitems
 from spinta.types.datatype import File
@@ -61,7 +61,7 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ol
     props = zipitems(
         columns,
         properties,
-        lambda x: property_and_column_name_key(x, rename, old.name)
+        lambda x: property_and_column_name_key(x, rename, old, new)
     )
     for items in props:
         old_columns = []
@@ -87,7 +87,16 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ol
                 if not prop:
                     commands.migrate(context, backend, meta, old, old_columns, prop, model_meta=model_meta, foreign_key=False, **kwargs)
                 else:
-                    commands.migrate(context, backend, meta, old, old_columns, prop, model_meta=model_meta, **kwargs)
+                    handled = handle_internal_ref_to_scalar_conversion(
+                        context,
+                        backend,
+                        meta,
+                        old,
+                        old_columns,
+                        prop
+                    )
+                    if not handled:
+                        commands.migrate(context, backend, meta, old, old_columns, prop, model_meta=model_meta, **kwargs)
         else:
             # Remove from JSONB clean up
             if isinstance(old_columns, sa.Column) and isinstance(old_columns.type, JSONB):

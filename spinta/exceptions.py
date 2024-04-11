@@ -876,3 +876,10 @@ class KeyNotFound(UserError):
 
 class InvalidParamSource(UserError):
     template = "Unable to recognize {param!r} param's source {source!r} type, given: {given_type!}, expected: {expected_types!r}."
+
+
+class MigrateScalarToRefTooManyKeys(UserError):
+    template = '''
+    Migration between scalar types and Ref type (level > 3) is only supported when targeted Ref's model contains
+    only 1 primary key, but were given: {primary_keys}
+    '''

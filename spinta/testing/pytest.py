@@ -8,6 +8,7 @@ import pprintpp
 import pytest
 import sqlalchemy as sa
 import sqlalchemy_utils as su
+from sqlalchemy.engine.url import make_url, URL
 from responses import RequestsMock
 
 from spinta.core.config import RawConfig
@@ -246,3 +247,33 @@ def pytest_assertrepr_compare(op: str, left: Any, right: Any):
             _diff_line(line)
             for line in Differ().compare(left, right)
         ]
+
+
+MIGRATION_DATABASE = "spinta_tests_migration"
+
+
+@pytest.fixture(scope='module')
+def postgresql_migration(rc) -> URL:
+    url = make_url(rc.get('backends', 'default', 'dsn', required=True))
+    url = url.set(database=MIGRATION_DATABASE)
+
+    if su.database_exists(url):
+        _prepare_migration_postgresql(url)
+        yield url
+    else:
+        su.create_database(url)
+        _prepare_migration_postgresql(url)
+        yield url
+        su.drop_database(url)
+
+
+def _prepare_migration_postgresql(dsn: URL) -> None:
+    engine = sa.create_engine(dsn)
+    with engine.connect() as conn:
+        conn.execute(sa.text("DROP SCHEMA public CASCADE"))
+        conn.execute(sa.text("CREATE SCHEMA public"))
+        conn.execute(sa.text("CREATE EXTENSION btree_gist"))
+        conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis"))
+        conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis_topology"))
+        conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS fuzzystrmatch"))
+        conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis_tiger_geocoder"))

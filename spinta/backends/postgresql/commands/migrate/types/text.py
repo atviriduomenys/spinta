@@ -47,7 +47,7 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
 
     # Add empty jsonb column, if it was not found
     if json_column_meta is None and json_column is None:
-        commands.migrate(context, backend, meta, table, NA, column, model_meta=model_meta, foreign_key=False, **kwargs)
+        commands.migrate(context, backend, meta, table, NA, column, **kwargs)
 
     # Handle scalar -> text conversion
     for item in columns.copy():
@@ -72,7 +72,7 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
             ])
         )
         affected_keys.append(key)
-        commands.migrate(context, backend, meta, table, item, NA, model_meta=model_meta, **kwargs)
+        commands.migrate(context, backend, meta, table, item, NA, **kwargs)
         columns.remove(item)
 
     # Handle lang rename, remove and add
@@ -107,7 +107,7 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
         if json_column_meta:
             json_column_meta.new_name = column.name
         else:
-            commands.migrate(context, backend, meta, table, json_column, column, model_meta=model_meta, **kwargs)
+            commands.migrate(context, backend, meta, table, json_column, column, **kwargs)
 
 
 @commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, sa.Table, sa.Column, Text)

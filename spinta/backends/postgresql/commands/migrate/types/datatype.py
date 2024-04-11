@@ -8,7 +8,8 @@ import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_pg_name
-from spinta.backends.postgresql.helpers.migrate.migrate import check_if_renamed, rename_index_name, MigratePostgresMeta
+from spinta.backends.postgresql.helpers.migrate.migrate import check_if_renamed, rename_index_name, MigratePostgresMeta, \
+    adjust_kwargs
 from spinta.components import Context
 from spinta.types.datatype import DataType
 from spinta.utils.schema import NotAvailable, NA
@@ -19,14 +20,14 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
             old: NotAvailable, new: DataType, **kwargs):
     column = commands.prepare(context, backend, new.prop)
     if column is not None and column != []:
-        commands.migrate(context, backend, meta, table, old, column, foreign_key=False, **kwargs)
+        commands.migrate(context, backend, meta, table, old, column, **kwargs)
 
 
 @commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, sa.Table, sa.Column, DataType)
 def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, table: sa.Table,
             old: sa.Column, new: DataType, **kwargs):
     column = commands.prepare(context, backend, new.prop)
-    commands.migrate(context, backend, meta, table, old, column, foreign_key=False, **kwargs)
+    commands.migrate(context, backend, meta, table, old, column, **kwargs)
 
 
 @commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, sa.Table, list, DataType)
@@ -42,12 +43,12 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
     if column.name != old_name:
         for col in old:
             if col.name == column.name:
-                commands.migrate(context, backend, meta, table, col, NA, foreign_key=False, **kwargs)
+                commands.migrate(context, backend, meta, table, col, NA, **kwargs)
                 columns.remove(col)
                 break
 
     for col in columns:
-        commands.migrate(context, backend, meta, table, col, column, foreign_key=False, **kwargs)
+        commands.migrate(context, backend, meta, table, col, column, **kwargs)
 
 
 @commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, sa.Table, sa.Column, sa.Column)
@@ -68,13 +69,13 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
         new_type = 'DOUBLE PRECISION'
     if isinstance(old.type, geoalchemy2.types.Geometry) and isinstance(new.type, geoalchemy2.types.Geometry):
         if old.type.srid != new.type.srid:
-            srid_name = f'"{old.name}"'
+            srid_name = old
             srid = new.type.srid
             if old.type.srid == -1:
-                srid_name = f'ST_SetSRID({srid_name}, 4326)'
+                srid_name = sa.func.ST_SetSRID(old, 4326)
             if new.type.srid == -1:
                 srid = 4326
-            using = f'ST_Transform({srid_name}, {srid})'
+            using = sa.func.ST_Transform(srid_name, srid).compile(compile_kwargs={"literal_binds": True})
             requires_cast = False
 
     nullable = new.nullable if new.nullable != old.nullable else None
@@ -82,7 +83,7 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
     new_name = column_name if old.name != new.name else None
 
     if type_ and requires_cast:
-        using = f'CAST({old.name} AS {new_type})'
+        using = sa.func.cast(old, type_).compile(compile_kwargs={"literal_binds": True})
 
     if nullable is not None or type_ is not None or new_name is not None or using is not None:
         handler.add_action(ma.AlterColumnMigrationAction(
@@ -238,7 +239,7 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
 def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, table: sa.Table,
             old: list, new: NotAvailable, foreign_key: bool = False, **kwargs):
     for item in old:
-        commands.migrate(context, backend, meta, table, item, new, foreign_key=foreign_key, **kwargs)
+        commands.migrate(context, backend, meta, table, item, new, **adjust_kwargs(kwargs, 'foreign_key', foreign_key))
 
 
 @commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, sa.Table, sa.Column, NotAvailable)
