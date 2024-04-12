@@ -513,7 +513,8 @@ class XSDReader:
                                         paths[index] = f"/{path}"
                                 new_source_path = "/".join(paths)
 
-                    final = True
+                    if properties:
+                        final = True
                 else:
                     final = True
 
@@ -523,7 +524,7 @@ class XSDReader:
         else:
             final = True
 
-        if final and properties:
+        if final:
             model = {
                 "type": "model",
                 "description": description,
