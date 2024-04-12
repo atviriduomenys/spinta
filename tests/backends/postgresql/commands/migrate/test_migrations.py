@@ -1383,3 +1383,125 @@ def test_migrate_rename_already_existing_property(
             columns.keys())
 
         cleanup_table_list(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog'])
+
+
+def test_migrate_change_basic_type(
+    postgresql_migration: URL,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    cleanup_tables(postgresql_migration)
+    initial_manifest = '''
+     d               | r | b    | m    | property       | type     | ref      | level
+     migrate/example |   |      |      |                |          |          |
+                     |   |      | Test |                |          |          |
+                     |   |      |      | someInt        | string   |          |
+                     |   |      |      | someFloat      | string   |          |
+    '''
+    context, rc = configure_migrate(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {'migrate/example/Test', 'migrate/example/Test/:changelog'}.issubset(
+            tables.keys())
+        table = tables["migrate/example/Test"]
+        columns = table.columns
+        assert {'someInt', 'someFloat'}.issubset(columns.keys())
+        conn.execute(table.insert().values({
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7a",
+            "someInt": "1",
+            "someFloat": "1.5"
+        }))
+
+    override_manifest(context, tmp_path, '''
+     d               | r | b    | m    | property       | type     | ref      | level
+     migrate/example |   |      |      |                |          |          |
+                     |   |      | Test |                |          |          |
+                     |   |      |      | someInt        | integer  |          |
+                     |   |      |      | someFloat      | number   |          |
+    ''')
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p'
+    ])
+
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someInt" TYPE INTEGER USING '
+        'CAST("migrate/example/Test"."someInt" AS INTEGER);\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someFloat" TYPE FLOAT USING '
+        'CAST("migrate/example/Test"."someFloat" AS FLOAT);\n'
+        '\n'
+        'COMMIT;\n'
+        '\n')
+
+    cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv',
+    ])
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {'migrate/example/Test', 'migrate/example/Test/:changelog'}.issubset(tables.keys())
+
+        table = tables["migrate/example/Test"]
+        columns = table.columns
+        assert {'someFloat', 'someInt'}.issubset(
+            columns.keys())
+
+        result = conn.execute(table.select())
+        for row in result:
+            assert row['someInt'] == 1
+            assert row['someFloat'] == 1.5
+
+    override_manifest(context, tmp_path, '''
+     d               | r | b    | m    | property       | type     | ref      | level
+     migrate/example |   |      |      |                |          |          |
+                     |   |      | Test |                |          |          |
+                     |   |      |      | someInt        | string   |          |
+                     |   |      |      | someFloat      | string   |          |
+    ''')
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p'
+    ])
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someInt" TYPE TEXT USING '
+        'CAST("migrate/example/Test"."someInt" AS TEXT);\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someFloat" TYPE TEXT USING '
+        'CAST("migrate/example/Test"."someFloat" AS TEXT);\n'
+        '\n'
+        'COMMIT;\n'
+        '\n')
+
+    cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv',
+    ])
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {'migrate/example/Test', 'migrate/example/Test/:changelog'}.issubset(tables.keys())
+
+        table = tables["migrate/example/Test"]
+        columns = table.columns
+        assert {'someFloat', 'someInt'}.issubset(
+            columns.keys())
+
+        result = conn.execute(table.select())
+        for row in result:
+            assert row['someInt'] == "1"
+            assert row['someFloat'] == "1.5"
+        cleanup_table_list(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog'])
