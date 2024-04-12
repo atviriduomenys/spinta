@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import List
+from sqlalchemy.dialects.postgresql import UUID
+from typing import List, Tuple
 
 import sqlalchemy as sa
-
 from alembic.operations import Operations
 
 
@@ -102,7 +102,8 @@ class CreateUniqueConstraintMigrationAction(MigrationAction):
         self.columns = columns
 
     def execute(self, op: Operations):
-        op.create_unique_constraint(constraint_name=self.constraint_name, table_name=self.table_name, columns=self.columns)
+        op.create_unique_constraint(constraint_name=self.constraint_name, table_name=self.table_name,
+                                    columns=self.columns)
 
 
 class CreatePrimaryKeyMigrationAction(MigrationAction):
@@ -123,53 +124,81 @@ class CreateIndexMigrationAction(MigrationAction):
         self.using = using
 
     def execute(self, op: Operations):
-        op.create_index(index_name=self.index_name, table_name=self.table_name, columns=self.columns, postgresql_using=self.using)
+        op.create_index(index_name=self.index_name, table_name=self.table_name, columns=self.columns,
+                        postgresql_using=self.using)
 
 
 class DowngradeTransferDataMigrationAction(MigrationAction):
-    def __init__(self, table_name: str, foreign_table_name: str, columns: List[str]):
-        set_string = []
-        main_ref = ""
-        for column in columns:
-            split = column.split(".")
-            main_ref = '.'.join(split[:-1])
-            split = split[-1]
-            set_string.append(f'\n"{main_ref}.{split}" = new."{split}"')
-
-        self.query = f'''
-        UPDATE "{table_name}" AS old
-        SET {','.join(set_string)}
-        FROM "{foreign_table_name}" as new
-        WHERE old."{main_ref}._id" = new."_id"
-        '''
+    def __init__(
+        self,
+        table_name: str,
+        foreign_table_name: str,
+        source: sa.Column,
+        columns: dict,
+        target: str = '_id'
+    ):
+        target_table = sa.Table(
+            table_name,
+            sa.MetaData(),
+            source._copy(),
+            *[sa.Column(key, column.type) for key, column in columns.items()]
+        )
+        foreign_table = sa.Table(
+            foreign_table_name,
+            sa.MetaData(),
+            sa.Column('_id', UUID),
+            *[column._copy() for column in columns.values()]
+        )
+        self.query = target_table.update().values(
+            **{
+                key: foreign_table.columns[column.name]
+                for key, column in columns.items()
+            }
+        ).where(
+            target_table.columns[source.name] == foreign_table.columns[target]
+        )
 
     def execute(self, op: Operations):
         op.execute(self.query)
 
 
 class UpgradeTransferDataMigrationAction(MigrationAction):
-    def __init__(self, table_name: str, foreign_table_name: str, columns: List[str]):
-        where_string = []
-        main_ref = ""
-        for column in columns:
-            split = column.split(".")
-            main_ref = '.'.join(split[:-1])
-            split = split[-1]
-            where_string.append(f'\nold."{main_ref}.{split}" = new."{split}"')
-
-        self.query = f'''
-        UPDATE "{table_name}" AS old
-        SET "{main_ref}._id" = new."_id"
-        FROM "{foreign_table_name}" AS new
-        WHERE {' AND '.join(where_string)}
-        '''
+    def __init__(
+        self,
+        table_name: str,
+        foreign_table_name: str,
+        target: sa.Column,
+        columns: dict
+    ):
+        target_table = sa.Table(
+            table_name,
+            sa.MetaData(),
+            target._copy(),
+            *[column._copy() for column in columns.values()]
+        )
+        foreign_table = sa.Table(
+            foreign_table_name,
+            sa.MetaData(),
+            sa.Column('_id', UUID),
+            *[sa.Column(key, column.type) for key, column in columns.items()]
+        )
+        self.query = target_table.update().values(
+            **{
+                target.name: foreign_table.columns['_id']
+            }
+        ).where(
+            sa.and_(
+                *[target_table.columns[column.name] == foreign_table.columns[key] for key, column in columns.items()]
+            )
+        )
 
     def execute(self, op: Operations):
         op.execute(self.query)
 
 
 class CreateForeignKeyMigrationAction(MigrationAction):
-    def __init__(self, source_table: str, referent_table: str, constraint_name: str, local_cols: list, remote_cols: list):
+    def __init__(self, source_table: str, referent_table: str, constraint_name: str, local_cols: list,
+                 remote_cols: list):
         self.constraint_name = constraint_name
         self.source_table = source_table
         self.referent_table = referent_table
@@ -191,8 +220,115 @@ class RenameSequenceMigrationAction(MigrationAction):
         self.query = f'ALTER SEQUENCE "{old_name}" RENAME TO "{new_name}"'
 
     def execute(self, op: Operations):
-        replaced = self.query.replace(":", "\:")
+        replaced = self.query.replace(":", "\\:")
         op.execute(replaced)
+
+
+class TransferJSONDataMigrationAction(MigrationAction):
+    def __init__(self, table: str, source: sa.Column, columns: List[Tuple[str, sa.Column]]):
+        # Hack to transfer data if columns do not exist
+        # Create new table with just required columns exist
+        # SQLAlchemy does not allow the use table actions when those columns do not exist
+        meta = sa.MetaData()
+        temp_table = sa.Table(
+            table,
+            meta,
+            source._copy(),
+            *[column._copy() for _, column in columns]
+        )
+        self.query = temp_table.update().values(
+            **{
+                temp_table.columns[column.name].name: source[key].astext
+                for key, column in columns
+            }
+        )
+
+    def execute(self, op: Operations):
+        op.execute(self.query)
+
+
+class TransferColumnDataToJSONMigrationAction(MigrationAction):
+    def __init__(self, table: str, source: sa.Column, columns: List[Tuple[str, sa.Column]]):
+        # # Hack to transfer data if columns do not exist
+        # # Create new table with just required columns exist
+        # # SQLAlchemy does not allow the use table actions when those columns do not exist
+        temp_table = sa.Table(
+            table,
+            sa.MetaData(),
+            source._copy(),
+            *[column._copy() for _, column in columns]
+        )
+        copied_source = temp_table.columns[source.name]
+        results = []
+        for key, value in columns:
+            results.append(key)
+            results.append(temp_table.columns[value.name])
+        self.query = temp_table.update().values(
+            **{
+                copied_source.name: copied_source + sa.func.jsonb_build_object(
+                    *results
+                )
+            }
+        )
+
+    def execute(self, op: Operations):
+        op.execute(self.query)
+
+
+class AddEmptyAttributeToJSONMigrationAction(MigrationAction):
+    def __init__(self, table: str, source: sa.Column, key: str):
+        temp_table = sa.Table(
+            table,
+            sa.MetaData(),
+            source._copy(),
+        )
+        copied_source = temp_table.columns[source.name]
+        self.query = temp_table.update().values(
+            **{
+                copied_source.name: copied_source + sa.func.jsonb_build_object(
+                    key, None
+                )
+            }
+        )
+
+    def execute(self, op: Operations):
+        op.execute(self.query)
+
+
+class RenameJSONAttributeMigrationAction(MigrationAction):
+    def __init__(self, table: str, source: sa.Column, old_key: str, new_key: str):
+        temp_table = sa.Table(
+            table,
+            sa.MetaData(),
+            source._copy(),
+        )
+        copied_source = temp_table.columns[source.name]
+        self.query = temp_table.update().values(
+            **{
+                copied_source.name: copied_source - old_key + sa.func.jsonb_build_object(new_key, copied_source[old_key])
+            }
+        ).where(copied_source.has_key(old_key))
+
+    def execute(self, op: Operations):
+        op.execute(self.query)
+
+
+class RemoveJSONAttributeMigrationAction(MigrationAction):
+    def __init__(self, table: str, source: sa.Column, key: str):
+        temp_table = sa.Table(
+            table,
+            sa.MetaData(),
+            source._copy(),
+        )
+        copied_source = temp_table.columns[source.name]
+        self.query = temp_table.update().values(
+            **{
+                copied_source.name: copied_source - key
+            }
+        ).where(copied_source.has_key(key))
+
+    def execute(self, op: Operations):
+        op.execute(self.query)
 
 
 class MigrationHandler:

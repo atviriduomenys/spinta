@@ -185,3 +185,11 @@ def flat_dicts_to_nested(value):
 def flatten_value(value, parent: Property, sep=".", key=""):
     value, _ = _flatten(value, sepgetter(parent, default_seperator=sep), key)
     return value
+
+
+def get_root_attr(value: str):
+    return value.split('@')[0].split('.')[0]
+
+
+def get_last_attr(value: str):
+    return value.split("@")[-1].split(".")[-1]

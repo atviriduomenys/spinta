@@ -14,7 +14,7 @@ def _validate_migrate_rename(context: Context, rename: MigrateRename, manifest: 
             raise ModelNotFound(model=table["new_name"])
         model = commands.get_model(context, manifest, table["new_name"])
         for column in table["columns"].values():
-            if column not in model.properties.keys():
+            if column not in model.flatprops.keys():
                 raise PropertyNotFound(property=column)
 
 

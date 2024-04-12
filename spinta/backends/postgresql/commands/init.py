@@ -1,21 +1,20 @@
 from typing import overload
-import sqlalchemy as sa
 
+import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from spinta import commands
-from spinta.components import Context, Model
-from spinta.core.enums import Access
-from spinta.manifests.components import Manifest
-from spinta.types.datatype import DataType, PrimaryKey, Ref, BackRef
 from spinta.backends.constants import TableType
 from spinta.backends.helpers import get_table_name
-from spinta.backends.postgresql.constants import UNSUPPORTED_TYPES
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers import get_pg_name
+from spinta.backends.postgresql.constants import UNSUPPORTED_TYPES
 from spinta.backends.postgresql.helpers import get_column_name
+from spinta.backends.postgresql.helpers import get_pg_name
 from spinta.backends.postgresql.helpers.changes import get_changes_table
+from spinta.components import Context, Model
 from spinta.datasets.enums import Level
+from spinta.manifests.components import Manifest
+from spinta.types.datatype import DataType, PrimaryKey, Ref
 
 
 @overload
@@ -90,7 +89,6 @@ def prepare(context: Context, backend: PostgreSQL, dtype: DataType, **kwargs):
     name = get_column_name(prop)
     types = {
         'string': sa.Text,
-        'text': JSONB,
         'date': sa.Date,
         'time': sa.Time,
         'datetime': sa.DateTime,
