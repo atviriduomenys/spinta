@@ -1,4 +1,5 @@
 import os
+from copy import deepcopy
 
 from lxml.etree import _Element
 
@@ -392,9 +393,37 @@ class XSDReader:
 
         return properties
 
-    def _create_model(self, node: _Element, source_path: str = "", additional_properties: dict = None, choice: int = None) -> list:
+    def _split_models(self, node, source_path, additional_properties):
         """
-        Parses an element. If it is a complete model, it will be added to the models list.
+        If there are choices in the element,
+        we need to split it and create a separate model per each choice
+        """
+        model_names = []
+        node_copy = deepcopy(node)
+        if self._node_has_separate_complex_type(node_copy):
+            complex_type_node = self._get_separate_complex_type_node(node_copy)
+        else:
+            complex_type_node = node_copy.xpath(f'./*[local-name() = "complexType"]')[0]
+
+        choice_nodes = complex_type_node.xpath(f'./*[local-name() = "choice"]')
+        if choice_nodes:
+            choice_node = choice_nodes[0]
+        else:
+            choice_node = complex_type_node.xpath(f'./*[local-name() = "sequence"]/*[local-name() = "choice"]')[0]
+        if choice_node:
+            choice_node_copy = deepcopy(choice_node)
+            choice_node_parent = choice_node.getparent()
+            choice_node_parent.remove(choice_node)
+
+            for choice in choice_node_copy:
+                # new_node = deepcopy(node_copy)
+                choice_node_parent.insert(0, choice)
+                model_names.extend(self._create_model(node_copy, source_path, additional_properties))
+        return model_names
+
+    def _create_model(self, node: _Element, source_path: str = "", additional_properties: dict = None) -> list:
+        """
+        Parses an element and makes a model out of it. If it is a complete model, it will be added to the models list.
         """
         final = False
 
@@ -419,28 +448,18 @@ class XSDReader:
                 complex_type_node = self._get_separate_complex_type_node(node)
             else:
                 complex_type_node = node.xpath(f'./*[local-name() = "complexType"]')[0]
+
+            # if there is choices, we need to create a separate model for each choice
+            choices = complex_type_node.xpath(f'./*[local-name() = "choice"]')
+            if not choices:
+                choices = complex_type_node.xpath(f'./*[local-name() = "sequence"]/*[local-name() = "choice"]')
+            if choices:
+                return self._split_models(node, source_path, additional_properties=additional_properties)
+
             # if complextype node's property mixed is true, it allows text inside
             if complex_type_node.get("mixed") == "true":
                 final = True
                 properties.update(self._get_text_property())
-
-            choices = None
-            if complex_type_node.xpath(f'./*[local-name() = "choice"]'):
-                complex_type_node = complex_type_node.xpath(f'./*[local-name() = "choice"]')[0]
-                choices = complex_type_node.xpath(f'./*[local-name() = "sequence"]')
-
-                # if we get choice, this means we are already in one of the split models
-                # if we don't get choices, this means that we are in the initial model
-                # and need to create a model for each choice
-                # this is only for the case where each choice has sequence in it. It's the most common one.
-
-            if choices and choice is None:
-                model_names = []
-                for index, choice in enumerate(choices):
-                    # create options of this model
-                    model_names = self._create_model(node, source_path, choice=index, additional_properties=additional_properties)
-                return model_names
-
             if complex_type_node.xpath(f'./*[local-name() = "sequence"]') or complex_type_node.xpath(f'./*[local-name() = "all"]'):
                 sequence_or_all_nodes = complex_type_node.xpath(f'./*[local-name() = "sequence"]')
                 """
@@ -459,8 +478,6 @@ class XSDReader:
                     sequence_or_all_node = sequence_or_all_nodes[0]
                 else:
                     sequence_or_all_node = complex_type_node.xpath(f'./*[local-name() = "all"]')[0]
-                if choice is not None:
-                    sequence_or_all_node = choices[choice]
                 sequence_or_all_node_length = len(sequence_or_all_node)
                 # There is only one element in the complex node sequence, and it doesn't have annotation.
                 # Then we just go deeper and add this model to the next model's path.
