@@ -266,7 +266,7 @@ class XSDReader:
         prop["type"] = self._get_property_type(node)
         # todo prepare for base64binary
         if ";" in prop["type"]:
-            prop["ref"] = prop["type"].split(";")[1].split(":")[1]
+            prop["type_args"] = prop["type"].split(";")[1].split(":")[1]
             prop["type"] = prop["type"].split(";")[0]
         prop["enums"] = self._get_enums(node)
 
@@ -410,7 +410,7 @@ class XSDReader:
             choice_node = choice_nodes[0]
         else:
             choice_node = complex_type_node.xpath(f'./*[local-name() = "sequence"]/*[local-name() = "choice"]')[0]
-        if choice_node:
+        if len(choice_node) > 0:
             choice_node_copy = deepcopy(choice_node)
             choice_node_parent = choice_node.getparent()
             choice_node_parent.remove(choice_node)
@@ -419,6 +419,7 @@ class XSDReader:
                 # new_node = deepcopy(node_copy)
                 choice_node_parent.insert(0, choice)
                 model_names.extend(self._create_model(node_copy, source_path, additional_properties))
+                choice_node_parent.remove(choice)
         return model_names
 
     def _create_model(self, node: _Element, source_path: str = "", additional_properties: dict = None) -> list:
@@ -460,7 +461,9 @@ class XSDReader:
             if complex_type_node.get("mixed") == "true":
                 final = True
                 properties.update(self._get_text_property())
-            if complex_type_node.xpath(f'./*[local-name() = "sequence"]') or complex_type_node.xpath(f'./*[local-name() = "all"]'):
+            if complex_type_node.xpath(f'./*[local-name() = "sequence"]') \
+                    or complex_type_node.xpath(f'./*[local-name() = "all"]')\
+                    or len(complex_type_node) > 0:
                 sequence_or_all_nodes = complex_type_node.xpath(f'./*[local-name() = "sequence"]')
                 """
                 source: https://stackoverflow.com/questions/36286056/the-difference-between-all-sequence-choice-and-group-in-xsd
@@ -477,7 +480,11 @@ class XSDReader:
                 if sequence_or_all_nodes:
                     sequence_or_all_node = sequence_or_all_nodes[0]
                 else:
-                    sequence_or_all_node = complex_type_node.xpath(f'./*[local-name() = "all"]')[0]
+                    sequence_or_all_nodes = complex_type_node.xpath(f'./*[local-name() = "all"]')
+                    if sequence_or_all_nodes:
+                        sequence_or_all_node = sequence_or_all_nodes[0]
+                    else:
+                        sequence_or_all_node = complex_type_node
                 sequence_or_all_node_length = len(sequence_or_all_node)
                 # There is only one element in the complex node sequence, and it doesn't have annotation.
                 # Then we just go deeper and add this model to the next model's path.
@@ -541,7 +548,7 @@ class XSDReader:
         else:
             final = True
 
-        if final:
+        if final or properties:
             model = {
                 "type": "model",
                 "description": description,
@@ -552,7 +559,8 @@ class XSDReader:
             model["name"] = f'{model["external"]["dataset"]}/{model["name"]}'
             self.models.append(model)
 
-        return [model_name, ]
+            return [model_name, ]
+        return []
 
     def _get_resource_model(self):
         resource_model_external_info = self._get_model_external_info(name="/")
