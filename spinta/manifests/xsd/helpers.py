@@ -523,7 +523,7 @@ class XSDReader:
         else:
             final = True
 
-        if final:
+        if final and properties:
             model = {
                 "type": "model",
                 "description": description,
