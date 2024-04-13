@@ -95,7 +95,8 @@ def link(context: Context, dtype: BackRef) -> None:
         raise OneToManyBackRefNotSupported(dtype)
 
     # relationship needs to add unique
-    # dtype.refprop.dtype.unique = True
+    # fixme at least in some cases (one to many relationship, for example) this is setting unique incorrectly
+    dtype.refprop.dtype.unique = True
 
 
 @commands.link.register(Context, ArrayBackRef)
