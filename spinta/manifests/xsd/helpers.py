@@ -10,99 +10,302 @@ from pprint import pprint
 
 from spinta.utils.naming import to_property_name, to_model_name, Deduplicator
 
+# mapping of XSD datatypes to DSA datatypes
+# XSD datatypes: https://www.w3.org/TR/xmlschema11-2/#built-in-datatypes
+# DSA datatypes: https://atviriduomenys.readthedocs.io/dsa/duomenu-tipai.html#duomenu-tipai
+# todo finish mapping and make sure all things are mapped correctly
+DATATYPES_MAPPING = {
+    "string": "string",
+    "boolean": "boolean",
+    "decimal": "number",
+    "float": "number",
+    "double": "number",
+
+    # Duration reikia mapinti su number arba integer, greičiausiai su integer ir XML duration
+    # reikšmė konvertuoti į integer reikšmę nurodant prepare funkciją, kuri konveruoti duration
+    # į integer, papildomai property.ref stulpelyje reikia nurodyti laiko vienetus:
+    # https://atviriduomenys.readthedocs.io/dsa/vienetai.html#laiko-vienetai
+    # todo add prepare functions
+    "duration": "",
+
+    "dateTime": "datetime",
+    "time": "time",
+    "date": "date",
+    "gYearMonth": "date;ref:M",
+    "gYear": "date;ref:Y",
+    "gMonthDay": "string",
+    "gDay": "string",
+    "gMonth": "string",
+    "hexBinary": "string",
+    "base64Binary": "string",
+    "anyURI": "uri",
+    "QName": "string",
+    "NOTATION": "string",
+    "normalizedString": "string",
+    "token": "string",
+    "language": "string",
+    "NMTOKEN": "string",
+    "NMTOKENS": "string",
+    "Name": "string",
+    "NCName": "string",
+    "ID": "string",
+    "IDREF": "string",
+    "IDREFS": "string",
+    "ENTITY": "string",
+    "ENTITIES": "string",
+    "integer": "integer",
+    "nonPositiveInteger": "integer",
+    "negativeInteger": "integer",
+    "long": "integer",
+    "int": "integer",
+    "short": "integer",
+    "byte": "integer",
+    "nonNegativeInteger": "integer",
+    "unsignedLong": "integer",
+    "unsignedInt": "integer",
+    "unsignedShort": "integer",
+    "unsignedByte": "integer",
+    "positiveInteger": "integer",
+    "yearMonthDuration": "integer",
+    "dayTimeDuration": "integer",
+    "dateTimeStamp": "datetime",
+    "": "string",
+
+}
+
+"""
+format of custom types:
+{
+    "type_name": {
+        "base": "type_base"
+    }
+}
+"""
+
+
+class Deduplicator2:
+
+    def __init__(self, template: str = '{}'):
+        self._names = set()
+        self._template = template
+
+    def __call__(self, name: str):
+        name_ = name
+        i = 0
+        while name_ in self._names:
+            i += 1
+            name_ = name + self._template.format(i)
+        self._names.add(name_)
+        return name_
+
+
+class XSDModel:
+    """
+    Class for creating and handling DSA models from XSD files.
+
+    Example of model data:
+    {
+        "type": "model",
+        "name": "",
+        "description": "Įvairūs duomenys",
+        "properties": {},
+        "external": resource_model_external_info,
+        "uri": "http://www.w3.org/2000/01/rdf-schema#Resource"
+    }
+    """
+
+    def __init__(self, xsd, node=None):
+        self.deduplicate = Deduplicator2()
+
+        self.xsd = xsd
+        self.dataset_name = xsd.dataset_name
+        self.node = node
+        self.type = None
+        self.name = None
+        self.external = None
+        self.properties = None
+        self.external = None
+        self.uri = None
+        self.description = None
+
+    def get_data(self):
+        model_data = {
+            "type": "model",
+            "name": self.name
+        }
+        if self.description is not None:
+            model_data["description"] = self.description
+        if self.properties is not None:
+            model_data["properties"] = self.properties
+        if self.external is not None:
+            model_data["external"] = self.external
+        if self.uri is not None:
+            model_data["uri"] = self.uri
+
+        return model_data
+
+    def add_external_info(self, external_name):
+        self.external = {
+            "dataset": self.dataset_name,
+            "resource": "resource1",
+            "name": external_name
+        }
+
+    def set_name(self, name):
+        self.name = f"{self.dataset_name}/{name}"
+
+    def _get_property_type(self, node: _Element) -> str:
+        if node.get("ref"):
+            return "ref"
+        property_type = node.get("type")
+        if not property_type:
+            # this is a self defined simple type, so we take it's base as type
+            restrictions = node.xpath(f'./*[local-name() = "simpleType"]/*[local-name() = "restriction"]')
+            if restrictions:
+                property_type = restrictions[0].get("base", "")
+            else:
+                property_type = ""
+        # getting rid of the prefix
+        if ":" in property_type:
+            property_type = property_type.split(":")[1]
+
+        if property_type in self.xsd.custom_types:
+            property_type = self.xsd.custom_types.get(property_type).get("base", "")
+        if property_type in DATATYPES_MAPPING:
+            property_type = DATATYPES_MAPPING[property_type]
+        else:
+            property_type = "string"
+
+        return property_type
+
+    @staticmethod
+    def _get_enums(node: _Element):
+        enums = {}
+        enum_value = {}
+        restrictions = node.xpath(f'./*[local-name() = "simpleType"]/*[local-name() = "restriction"]')
+        if restrictions:
+            # can be enum
+            enumerations = restrictions[0].xpath('./*[local-name() = "enumeration"]')
+            for enumeration in enumerations:
+                enum_item = {
+                    "source": enumeration.get("value")
+                }
+                enum_value.update({enumeration.get("value"): enum_item})
+            enums[""] = enum_value
+        return enums
+
+    def _node_to_partial_property(self, node: etree.Element) -> tuple[str, dict]:
+        """Node can be either element or attribute.
+        This function only processes things common to attributes and elements"""
+        prop = dict()
+
+        prop["description"] = XSDReader.get_description(node)
+        property_name = node.get("name")
+        prop["external"] = {"name": property_name}
+        property_id = to_property_name(property_name)
+        prop["type"] = self._get_property_type(node)
+        # todo prepare for base64binary
+        if ";" in prop["type"]:
+            prop["type_args"] = prop["type"].split(";")[1].split(":")[1]
+            prop["type"] = prop["type"].split(";")[0]
+        prop["enums"] = self._get_enums(node)
+
+        return self.deduplicate(property_id), prop
+
+    def attributes_to_properties(self, element: etree.Element) -> dict:
+        properties = {}
+        attributes = element.xpath(f'./*[local-name() = "attribute"]')
+        complex_type = element.xpath(f'./*[local-name() = "complexType"]')
+        if complex_type:
+            properties.update(self.attributes_to_properties(complex_type[0]))
+        for attribute in attributes:
+
+            property_id, prop = self._node_to_partial_property(attribute)
+            if not prop["type"]:
+                prop["type"] = "string"
+            # property source
+            prop["external"]["name"] = f'@{prop["external"]["name"]}'
+
+            # property required or not. For attributes only.
+            use = attribute.get("use")
+            if use == "required":
+                required = True
+            else:
+                required = False
+            prop["required"] = required
+            properties[property_id] = prop
+
+        # todo attribute can be a ref to an externally defined attribute also. Not in RC though
+
+        return properties
+
+    def simple_element_to_property(self, element: _Element):
+        # simple element is an element which is either
+        # an inline or simple type element and doesn't have a ref
+
+        property_id, prop = self._node_to_partial_property(element)
+        if XSDReader.node_is_ref(element):
+            prop["external"]["name"] = element.get("ref")
+            property_id = to_property_name(element.get("ref"))
+        prop["external"]["name"] = f'{prop["external"]["name"]}/text()'
+        if prop.get("type") == "":
+            prop["type"] = "string"
+        if XSDReader.is_array(element):
+            property_id += "[]"
+        if XSDReader.is_required(element):
+            prop["required"] = True
+        else:
+            prop["required"] = False
+        return property_id, prop
+
+    """
+        Example:
+
+            'properties': {
+                'id': {
+                    'type': 'integer',
+                    'type_args': None,
+                    'required': True,
+                    'unique': True,
+                    'external': {
+                        'name': 'ID',
+                        'prepare': NA,
+                    }
+                },
+             },
+        """
+    def properties_from_simple_elements(self, node: _Element, from_sequence: bool = True):
+        properties = {}
+        elements = node.xpath(f'./*[local-name() = "element"]')
+        for element in elements:
+            if self.xsd.node_is_simple_type_or_inline(element) and not XSDReader.node_is_ref(element):
+                property_id, prop = self.simple_element_to_property(element)
+                if not from_sequence:
+                    prop["required"] = False
+                properties[property_id] = prop
+        return properties
+
+    def get_text_property(self):
+        return {
+            self.deduplicate('text'): {
+                'type': 'string',
+                'external': {
+                    'name': 'text()',
+                }
+            }}
+
 
 class XSDReader:
 
     def __init__(self, path, dataset_name):
         self._path = path
-        self.models = []
-        self._custom_types = {}
+        self.models: list[XSDModel] = []
+        self.custom_types = {}
         self._dataset_given_name = dataset_name
         self._set_dataset_and_resource_info()
         self.deduplicate = Deduplicator()
 
-
-    # mapping of XSD datatypes to DSA datatypes
-    # XSD datatypes: https://www.w3.org/TR/xmlschema11-2/#built-in-datatypes
-    # DSA datatypes: https://atviriduomenys.readthedocs.io/dsa/duomenu-tipai.html#duomenu-tipai
-    # todo finish mapping and make sure all things are mapped correctly
-    DATATYPES_MAPPING = {
-        "string": "string",
-        "boolean": "boolean",
-        "decimal": "number",
-        "float": "number",
-        "double": "number",
-
-        # Duration reikia mapinti su number arba integer, greičiausiai su integer ir XML duration
-        # reikšmė konvertuoti į integer reikšmę nurodant prepare funkciją, kuri konveruoti duration
-        # į integer, papildomai property.ref stulpelyje reikia nurodyti laiko vienetus:
-        # https://atviriduomenys.readthedocs.io/dsa/vienetai.html#laiko-vienetai
-        # todo add prepare functions
-        "duration": "",
-
-        "dateTime": "datetime",
-        "time": "time",
-        "date": "date",
-        "gYearMonth": "date;ref:M",
-        "gYear": "date;ref:Y",
-        "gMonthDay": "string",
-        "gDay": "string",
-        "gMonth": "string",
-        "hexBinary": "string",
-        "base64Binary": "string",
-        "anyURI": "uri",
-        "QName": "string",
-        "NOTATION": "string",
-        "normalizedString": "string",
-        "token": "string",
-        "language": "string",
-        "NMTOKEN": "string",
-        "NMTOKENS": "string",
-        "Name": "string",
-        "NCName": "string",
-        "ID": "string",
-        "IDREF": "string",
-        "IDREFS": "string",
-        "ENTITY": "string",
-        "ENTITIES": "string",
-        "integer": "integer",
-        "nonPositiveInteger": "integer",
-        "negativeInteger": "integer",
-        "long": "integer",
-        "int": "integer",
-        "short": "integer",
-        "byte": "integer",
-        "nonNegativeInteger": "integer",
-        "unsignedLong": "integer",
-        "unsignedInt": "integer",
-        "unsignedShort": "integer",
-        "unsignedByte": "integer",
-        "positiveInteger": "integer",
-        "yearMonthDuration": "integer",
-        "dayTimeDuration": "integer",
-        "dateTimeStamp": "datetime",
-        "": "string",
-
-    }
-
-    """
-    format of custom types:
-    {
-        "type_name": {
-            "base": "type_base"
-        }
-    }
-    """
-
-    def _get_model_external_info(self, name) -> dict:
-        external = {
-            "dataset": self.dataset_name,
-            "resource": "resource1",
-            "name": name
-        }
-        return external
-
-    def _extract_custom_types(self, node: _Element) -> dict:
+    def _extract_custom_types(self, node: _Element):
         custom_types_nodes = node.xpath(f'./*[local-name() = "simpleType"]')
         custom_types = {}
         for type_node in custom_types_nodes:
@@ -114,17 +317,32 @@ class XSDReader:
             custom_types[type_name] = {
                 "base": property_type_base
             }
-        return custom_types
+        self.custom_types = custom_types
 
-    def _get_text_property(self):
-        return {
-            self.deduplicate('text'): {
-                'type': 'string',
-                'external': {
-                    'name': 'text()',
-                }
-            }}
+    @staticmethod
+    def get_description(element: etree.Element) -> str:
+        annotation = element.xpath(f'./*[local-name() = "annotation"]')
+        if not annotation:
+            annotation = element.xpath(f'./*[local-name() = "simpleType"]/*[local-name() = "annotation"]')
+        description = ""
+        if annotation:
+            documentation = annotation[0].xpath(f'./*[local-name() = "documentation"]')
+            for documentation_part in documentation:
+                if documentation_part.text is not None:
+                    description = f"{description}{documentation_part.text} "
+        return description.strip()
 
+    @staticmethod
+    def node_is_ref(node: _Element):
+        if node.get("ref"):
+            return True
+        return False
+
+    @staticmethod
+    def is_array(element: _Element) -> bool:
+        max_occurs = element.get("maxOccurs", 1)
+        return max_occurs == "unbounded" or int(max_occurs) > 1
+    
     def _extract_root(self):
         if self._path.startswith("http"):
             document = etree.parse(urlopen(self._path))
@@ -148,20 +366,7 @@ class XSDReader:
             'given_name': self._dataset_given_name
         }
 
-    def _get_description(self, element: etree.Element) -> str:
-        annotation = element.xpath(f'./*[local-name() = "annotation"]')
-        if not annotation:
-            annotation = element.xpath(f'./*[local-name() = "simpleType"]/*[local-name() = "annotation"]')
-        description = ""
-        if annotation:
-            documentation = annotation[0].xpath(f'./*[local-name() = "documentation"]')
-            for documentation_part in documentation:
-                if documentation_part.text is not None:
-                    description = f"{description}{documentation_part.text} "
-        return description.strip()
-
     def _get_separate_complex_type_node(self, node):
-        # todo move this to a separate function
         node_type = node.get('type')
         if node_type is not None:
             node_type = node_type.split(":")
@@ -169,7 +374,7 @@ class XSDReader:
                 node_type = node_type[1]
             else:
                 node_type = node_type[0]
-        if node_type not in self.DATATYPES_MAPPING:
+        if node_type not in DATATYPES_MAPPING:
             complex_types = self.root.xpath(f'./*[local-name() = "complexType"]')
             for node in complex_types:
                 if node.get("name") == node_type:
@@ -183,14 +388,14 @@ class XSDReader:
                 node_type = node_type[1]
             else:
                 node_type = node_type[0]
-            if node_type not in self.DATATYPES_MAPPING:
+            if node_type not in DATATYPES_MAPPING:
                 complex_types = self.root.xpath(f'./*[local-name() = "complexType"]')
                 for node in complex_types:
                     if node.get("name") == node_type:
                         return True
         return False
 
-    def _node_is_simple_type_or_inline(self, node: _Element):
+    def node_is_simple_type_or_inline(self, node: _Element):
         if self._node_has_separate_complex_type(node):
             return False
         return bool(
@@ -199,158 +404,20 @@ class XSDReader:
             (len(node.getchildren()) == 0)
         )
 
-    def _node_is_ref(self, node):
-        if node.get("ref"):
-            return True
-        return False
-
-    def _properties_from_simple_elements(self, node: _Element, from_sequence: bool = True):
-        properties = {}
-        elements = node.xpath(f'./*[local-name() = "element"]')
-        for element in elements:
-            if self._node_is_simple_type_or_inline(element) and not self._node_is_ref(element):
-                property_id, prop = self._simple_element_to_property(element)
-                if not from_sequence:
-                    prop["required"] = False
-                properties[property_id] = prop
-        return properties
-
-    def _get_enums(self, node: _Element):
-        enums = {}
-        enum_value = {}
-        restrictions = node.xpath(f'./*[local-name() = "simpleType"]/*[local-name() = "restriction"]')
-        if restrictions:
-            # can be enum
-            enumerations = restrictions[0].xpath('./*[local-name() = "enumeration"]')
-            for enumeration in enumerations:
-                enum_item = {
-                    "source": enumeration.get("value")
-                }
-                enum_value.update( {enumeration.get("value"): enum_item})
-            enums[""] = enum_value
-        return enums
-
-    def _get_property_type(self, node: _Element) -> str:
-        if node.get("ref"):
-            return "ref"
-        property_type = node.get("type")
-        if not property_type:
-            # this is a self defined simple type, so we take it's base as type
-            restrictions = node.xpath(f'./*[local-name() = "simpleType"]/*[local-name() = "restriction"]')
-            if restrictions:
-                property_type = restrictions[0].get("base", "")
-            else:
-                property_type = ""
-        # getting rid of the prefix
-        if ":" in property_type:
-            property_type = property_type.split(":")[1]
-
-        if property_type in self._custom_types:
-            property_type = self._custom_types.get(property_type).get("base", "")
-        if property_type in self.DATATYPES_MAPPING:
-            property_type = self.DATATYPES_MAPPING[property_type]
-        else:
-            property_type = "string"
-
-        return property_type
-
-    def _node_to_partial_property(self, node: etree.Element) -> tuple[str, dict]:
-        """Node can be either element or attribute.
-        This function only processes things common to attributes and elements"""
-        prop = dict()
-
-        prop["description"] = self._get_description(node)
-        property_name = node.get("name")
-        prop["external"] = {"name": property_name}
-        property_id = to_property_name(property_name)
-        prop["type"] = self._get_property_type(node)
-        # todo prepare for base64binary
-        if ";" in prop["type"]:
-            prop["type_args"] = prop["type"].split(";")[1].split(":")[1]
-            prop["type"] = prop["type"].split(";")[0]
-        prop["enums"] = self._get_enums(node)
-
-        return self.deduplicate(property_id), prop
-
-    def _attributes_to_properties(self, element: etree.Element) -> dict:
-        properties = {}
-        attributes = element.xpath(f'./*[local-name() = "attribute"]')
-        complex_type = element.xpath(f'./*[local-name() = "complexType"]')
-        if complex_type:
-            properties.update(self._attributes_to_properties(complex_type[0]))
-        for attribute in attributes:
-
-            property_id, prop = self._node_to_partial_property(attribute)
-            if not prop["type"]:
-                prop["type"] = "string"
-            # property source
-            prop["external"]["name"] = f'@{prop["external"]["name"]}'
-
-            # property required or not. For attributes only.
-            use = attribute.get("use")
-            if use == "required":
-                required = True
-            else:
-                required = False
-            prop["required"] = required
-            properties[property_id] = prop
-
-        # todo attribute can be a ref to an externally defined attribute also. Not in RC though
-
-        return properties
-
-    def _is_array(self, element: _Element) -> bool:
-        max_occurs = element.get("maxOccurs", 1)
-        return max_occurs == "unbounded" or int(max_occurs) > 1
-
-    def _is_element(self, node):
+    @staticmethod
+    def _is_element(node):
         if node.xpath('local-name()') == "element":
             return True
         return False
 
-    def _is_required(self, element: _Element) -> bool:
+    @staticmethod
+    def is_required(element: _Element) -> bool:
         min_occurs = int(element.get("minOccurs", 1))
         if min_occurs > 0:
             return True
         return False
 
-    def _simple_element_to_property(self, element: _Element):
-        # simple element is an element which is either
-        # an inline or simple type element and doesn't have a ref
-
-        property_id, prop = self._node_to_partial_property(element)
-        if self._node_is_ref(element):
-            prop["external"]["name"] = element.get("ref")
-            property_id = to_property_name(element.get("ref"))
-        prop["external"]["name"] = f'{prop["external"]["name"]}/text()'
-        if prop.get("type") == "":
-            prop["type"] = "string"
-        if self._is_array(element):
-            property_id += "[]"
-        if self._is_required(element):
-            prop["required"] = True
-        else:
-            prop["required"] = False
-        return property_id, prop
-
-    """
-        Example:
-    
-            'properties': {
-                'id': {
-                    'type': 'integer',
-                    'type_args': None,
-                    'required': True,
-                    'unique': True,
-                    'external': {
-                        'name': 'ID',
-                        'prepare': NA,
-                    }
-                },
-             },
-        """
-
-    def _properties_from_references(self, node: _Element, model_name: str, source_path: str = ""):
+    def _properties_from_references(self, node: _Element, model: XSDModel, source_path: str = ""):
         properties = {}
         for ref_element in node.xpath("./*[@ref]"):
 
@@ -360,33 +427,33 @@ class XSDReader:
             xpath_query = f"//*[@name='{ref}']"
             referenced_element = self.root.xpath(xpath_query)[0]
 
-            if self._node_is_simple_type_or_inline(referenced_element):
-                property_id, prop = self._simple_element_to_property(referenced_element)
-                if not self._is_required(ref_element):
+            if self.node_is_simple_type_or_inline(referenced_element):
+                property_id, prop = model.simple_element_to_property(referenced_element)
+                if not XSDReader.is_required(ref_element):
                     prop["required"] = False
                 properties[property_id] = prop
             else:
-                if not self._is_array(ref_element):
+                if not XSDReader.is_array(ref_element):
                     referenced_model_names = self._create_model(referenced_element, source_path)
                     property_type = "ref"
                 else:
                     referenced_element_properties = {
-                        to_property_name(model_name):
-                            {
-                                "type": "ref",
-                                "model": f"{self.dataset_name}/{model_name}"
-                            }
+                        to_property_name(model.name):
+                        {
+                            "type": "ref",
+                            "model": f"{model.name}"
+                        }
                     }
                     property_type = "backref"
                     referenced_model_names = self._create_model(referenced_element, source_path,
                                                                 additional_properties=referenced_element_properties)
 
                 for referenced_model_name in referenced_model_names:
-                    property_id, prop = self._simple_element_to_property(ref_element)
+                    property_id, prop = model.simple_element_to_property(ref_element)
 
                     prop["external"]["name"] = ""
                     prop["type"] = property_type
-                    prop["model"] = f"{self.dataset_name}/{referenced_model_name}"
+                    prop["model"] = f"{referenced_model_name}"
                     properties[property_id] = prop
 
         return properties
@@ -424,6 +491,7 @@ class XSDReader:
         """
         Parses an element and makes a model out of it. If it is a complete model, it will be added to the models list.
         """
+        model = XSDModel(self)
         final = False
 
         if additional_properties is None:
@@ -431,12 +499,13 @@ class XSDReader:
 
         properties = {}
         properties.update(additional_properties)
+
         new_source_path = f"{source_path}/{node.get('name')}"
 
-        model_name = self.deduplicate(to_model_name(node.get("name")))
+        model.set_name(self.deduplicate(to_model_name(node.get("name"))))
 
-        description = self._get_description(node)
-        properties.update(self._attributes_to_properties(node))
+        description = self.get_description(node)
+        properties.update(model.attributes_to_properties(node))
 
         if properties:
             final = True
@@ -458,7 +527,7 @@ class XSDReader:
             # if complextype node's property mixed is true, it allows text inside
             if complex_type_node.get("mixed") == "true":
                 final = True
-                properties.update(self._get_text_property())
+                properties.update(model.get_text_property())
             if complex_type_node.xpath(f'./*[local-name() = "sequence"]') \
                     or complex_type_node.xpath(f'./*[local-name() = "all"]')\
                     or len(complex_type_node) > 0:
@@ -510,15 +579,15 @@ class XSDReader:
                             #  then do not create reference, but add to the same
 
                             properties.update(
-                                self._properties_from_references(sequence_or_all_node, model_name, new_source_path))
+                                self._properties_from_references(sequence_or_all_node, model, new_source_path))
                             final = True
                 elif sequence_or_all_node_length > 1 or final:
                     # properties from simple type or inline elements without references
-                    properties.update(self._properties_from_simple_elements(sequence_or_all_node))
+                    properties.update(model.properties_from_simple_elements(sequence_or_all_node))
 
                     # references
                     properties.update(
-                        self._properties_from_references(sequence_or_all_node, model_name, new_source_path))
+                        self._properties_from_references(sequence_or_all_node, model, new_source_path))
 
                     # complex type child nodes - to models
                     for child_node in sequence_or_all_node:
@@ -547,40 +616,31 @@ class XSDReader:
             final = True
 
         if final or properties:
-            model = {
-                "type": "model",
-                "description": description,
-                "properties": properties,
-                "name": model_name,
-                "external": self._get_model_external_info(name=new_source_path),
-            }
-            model["name"] = f'{model["external"]["dataset"]}/{model["name"]}'
+            model.properties = properties
+            model.add_external_info(external_name=new_source_path)
+            model.description = description
             self.models.append(model)
 
-            return [model_name, ]
+            return [model.name, ]
         return []
 
     def _get_resource_model(self):
-        resource_model_external_info = self._get_model_external_info(name="/")
-        self.resource_model = {
-            "type": "model",
-            "name": "",
-            "description": "Įvairūs duomenys",
-            "properties": {},
-            "external": resource_model_external_info,
-            "uri": "http://www.w3.org/2000/01/rdf-schema#Resource"
-        }
-        self.resource_model["properties"] = self._properties_from_simple_elements(self.root, from_sequence=False)
-        if self.resource_model["properties"]:
-            self.resource_model["name"] = self.deduplicate(f"{self.dataset_name}/Resource")
-            self.models.append(self.resource_model)
+        resource_model = XSDModel(self)
+        resource_model.add_external_info(external_name="/")
+        resource_model.type = "model"
+        resource_model.description = "Įvairūs duomenys",
+        resource_model.uri = "http://www.w3.org/2000/01/rdf-schema#Resource"
+        resource_model.properties = resource_model.properties_from_simple_elements(self.root, from_sequence=False)
+        if resource_model.properties:
+            resource_model.set_name(self.deduplicate(f"Resource"))
+            self.models.append(resource_model)
 
     def _parse_root_node(self):
         # get properties from elements
         # Resource model - special case
 
         for node in self.root:
-            if self._is_element(node) and (not self._node_is_simple_type_or_inline(node) or self._node_is_ref(node)):
+            if self._is_element(node) and (not self.node_is_simple_type_or_inline(node) or self.node_is_ref(node)):
                 self._create_model(node)
 
             # todo complexContent is also an option.
@@ -590,7 +650,7 @@ class XSDReader:
 
     def start(self):
         self._extract_root()
-        self._custom_types = self._extract_custom_types(self.root)
+        self._extract_custom_types(self.root)
         self._get_resource_model()
 
         self._parse_root_node()
@@ -682,6 +742,6 @@ def read_schema(context: Context, path: str, prepare: str = None, dataset_name: 
 
     for parsed_model in xsd.models:
 
-        pprint(parsed_model)
+        pprint(parsed_model.get_data())
 
-        yield None, parsed_model
+        yield None, parsed_model.get_data()
