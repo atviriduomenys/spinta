@@ -290,7 +290,7 @@ class XSDModel:
             self.deduplicate('text'): {
                 'type': 'string',
                 'external': {
-                    'name': 'text()',
+                    'name': 'text()'
                 }
             }}
 
@@ -628,7 +628,7 @@ class XSDReader:
         resource_model = XSDModel(self)
         resource_model.add_external_info(external_name="/")
         resource_model.type = "model"
-        resource_model.description = "Įvairūs duomenys",
+        resource_model.description = "Įvairūs duomenys"
         resource_model.uri = "http://www.w3.org/2000/01/rdf-schema#Resource"
         resource_model.properties = resource_model.properties_from_simple_elements(self.root, from_sequence=False)
         if resource_model.properties:
