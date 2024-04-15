@@ -139,7 +139,7 @@ def test_get_property_type_custom():
     schema = etree.fromstring(element_string)
     element = schema.xpath('*[local-name() = "element"]')[0]
     xsd = XSDReader("test.xsd", "dataset1")
-    xsd._custom_types = {"some_type": {"base": "string"}}
+    xsd.custom_types = {"some_type": {"base": "string"}}
     result = xsd._get_property_type(element)
 
     assert result == "string"
@@ -510,7 +510,7 @@ def test_node_is_simple_type_or_inline():
     element = schema.xpath('*[local-name() = "element"]')[0]
     xsd = XSDReader("test.xsd", "dataset1")
     xsd.root = schema
-    result = xsd._node_is_simple_type_or_inline(element)
+    result = xsd.node_is_simple_type_or_inline(element)
     assert result is True
 
 
@@ -526,7 +526,7 @@ def test_node_is_simple_type_or_inline_annotation_only():
     element = schema.xpath('*[local-name() = "element"]')[0]
     xsd = XSDReader("test.xsd", "dataset1")
     xsd.root = schema
-    result = xsd._node_is_simple_type_or_inline(element)
+    result = xsd.node_is_simple_type_or_inline(element)
     assert result is True
 
 
@@ -540,7 +540,7 @@ def test_node_is_simple_type_or_inline_inline():
     element = schema.xpath('*[local-name() = "element"]')[0]
     xsd = XSDReader("test.xsd", "dataset1")
     xsd.root = schema
-    result = xsd._node_is_simple_type_or_inline(element)
+    result = xsd.node_is_simple_type_or_inline(element)
     assert result is True
 
 
@@ -560,7 +560,7 @@ def test_node_is_simple_type_or_inline_complex():
     element = schema.xpath('*[local-name() = "element"]')[0]
     xsd = XSDReader("test.xsd", "dataset1")
     xsd.root = schema
-    result = xsd._node_is_simple_type_or_inline(element)
+    result = xsd.node_is_simple_type_or_inline(element)
     assert result is False
 
 
@@ -582,7 +582,7 @@ def test_node_is_simple_type_or_inline_complex_separate():
     element = schema.xpath('*[local-name() = "element"]')[0]
     xsd = XSDReader("test.xsd", "dataset1")
     xsd.root = schema
-    result = xsd._node_is_simple_type_or_inline(element)
+    result = xsd.node_is_simple_type_or_inline(element)
     assert result is False
 
 
@@ -601,7 +601,7 @@ def test_is_array():
     schema = etree.fromstring(element_string)
     element = schema.xpath('//*[local-name() = "element"]')[1]
     xsd = XSDReader("test.xsd", "dataset1")
-    result = xsd._is_array(element)
+    result = xsd.is_array(element)
     assert result is True
 
 
@@ -620,7 +620,7 @@ def test_is_array_false():
     schema = etree.fromstring(element_string)
     element = schema.xpath('//*[local-name() = "element"]')[1]
     xsd = XSDReader("test.xsd", "dataset1")
-    result = xsd._is_array(element)
+    result = xsd.is_array(element)
     assert result is False
 
 
@@ -639,7 +639,7 @@ def test_is_required():
     schema = etree.fromstring(element_string)
     element = schema.xpath('//*[local-name() = "element"]')[1]
     xsd = XSDReader("test.xsd", "dataset1")
-    result = xsd._is_required(element)
+    result = xsd.is_required(element)
     assert result is False
 
 
@@ -998,7 +998,7 @@ def test_is_element():
     element = schema.xpath('//*[local-name() = "element"]')[0]
     xsd = XSDReader("test.xsd", "dataset1")
     xsd.root = schema
-    assert xsd._is_element(element) is True
+    assert xsd._is_element() is True
 
 
 def test_is_element_false():
@@ -1015,7 +1015,7 @@ def test_is_element_false():
     element = schema.xpath('//*[local-name() = "attribute"]')[0]
     xsd = XSDReader("test.xsd", "dataset1")
     xsd.root = schema
-    assert xsd._is_element(element) is False
+    assert xsd._is_element() is False
 
 
 def test_get_text_property():
