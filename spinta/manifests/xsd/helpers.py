@@ -19,6 +19,7 @@ class XSDReader:
         self._custom_types = {}
         self._dataset_given_name = dataset_name
         self._set_dataset_and_resource_info()
+        self.deduplicate = Deduplicator()
 
 
     # mapping of XSD datatypes to DSA datatypes
@@ -93,9 +94,6 @@ class XSDReader:
     }
     """
 
-    deduplicate_model_name = Deduplicator()
-    deduplicate_property_name = Deduplicator()
-
     def _get_model_external_info(self, name) -> dict:
         external = {
             "dataset": self.dataset_name,
@@ -120,7 +118,7 @@ class XSDReader:
 
     def _get_text_property(self):
         return {
-            'text': {
+            self.deduplicate('text'): {
                 'type': 'string',
                 'external': {
                     'name': 'text()',
@@ -272,7 +270,7 @@ class XSDReader:
             prop["type"] = prop["type"].split(";")[0]
         prop["enums"] = self._get_enums(node)
 
-        return property_id, prop
+        return self.deduplicate(property_id), prop
 
     def _attributes_to_properties(self, element: etree.Element) -> dict:
         properties = {}
@@ -385,8 +383,6 @@ class XSDReader:
 
                 for referenced_model_name in referenced_model_names:
                     property_id, prop = self._simple_element_to_property(ref_element)
-                    if "[]" in property_id:
-                        property_id = self.deduplicate_property_name(property_id.split("[")[0]) + "[]"
 
                     prop["external"]["name"] = ""
                     prop["type"] = property_type
@@ -437,7 +433,7 @@ class XSDReader:
         properties.update(additional_properties)
         new_source_path = f"{source_path}/{node.get('name')}"
 
-        model_name = self.deduplicate_model_name(to_model_name(node.get("name")))
+        model_name = self.deduplicate(to_model_name(node.get("name")))
 
         description = self._get_description(node)
         properties.update(self._attributes_to_properties(node))
@@ -576,7 +572,7 @@ class XSDReader:
         }
         self.resource_model["properties"] = self._properties_from_simple_elements(self.root, from_sequence=False)
         if self.resource_model["properties"]:
-            self.resource_model["name"] = self.deduplicate_model_name(f"{self.dataset_name}/Resource")
+            self.resource_model["name"] = self.deduplicate(f"{self.dataset_name}/Resource")
             self.models.append(self.resource_model)
 
     def _parse_root_node(self):
