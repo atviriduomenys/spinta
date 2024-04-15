@@ -40,6 +40,33 @@ def test_get_description_longer():
     assert result == "Klaidos atveju - klaidos pranešimas Klaidos atveju - klaidos pranešimas"
 
 
+def test_get_description_simple_type():
+    element_string = """
+    <s:schema xmlns:s="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+        <s:element minOccurs="1" maxOccurs="1" name="responseCode">
+            <s:simpleType>
+                <s:annotation>
+                    <s:documentation>1 = OK (užklausa įvykdyta, atsakymas grąžintas)</s:documentation>
+                    <s:documentation>0 = NOTFOUND (užklausa įvykdyta, duomenų nerasta)</s:documentation>
+                    <s:documentation>-1 = ERROR (įvyko sistemos klaida, užklausa neįvykdyta)</s:documentation>
+                </s:annotation>
+                <s:restriction base="s:int">
+                    <s:enumeration value="-1" />
+                    <s:enumeration value="0" />
+                    <s:enumeration value="1" />
+                </s:restriction>
+            </s:simpleType>
+            </s:element>
+    </s:schema>
+    """
+
+    schema = etree.fromstring(element_string)
+    element = schema.xpath('*[local-name() = "element"]')[0]
+    xsd = XSDReader("test.xsd", "dataset1")
+    result = xsd._get_description(element)
+
+    assert result == "1 = OK (užklausa įvykdyta, atsakymas grąžintas) 0 = NOTFOUND (užklausa įvykdyta, duomenų nerasta) -1 = ERROR (įvyko sistemos klaida, užklausa neįvykdyta)"
+
 def test_get_property_type():
     element_string = """
     <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
@@ -186,7 +213,7 @@ def test_node_to_partial_property_gYear():
             "name": "CT_E200_FORMA",
         },
         "type": "date",
-        "ref": "Y"
+        "type_args": "Y"
     }
 
 
