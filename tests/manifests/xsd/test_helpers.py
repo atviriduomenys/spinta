@@ -1196,7 +1196,8 @@ def test_properties_from_simple_elements_mix():
     # element = schema.xpath('*[local-name() = "element"]')[0]
     xsd = XSDReader("test.xsd", "dataset1")
     xsd.root = schema
-    result = xsd._properties_from_simple_elements(schema)
+    model = XSDModel(xsd, schema)
+    result = model.properties_from_simple_elements(schema)
     assert result == {
         'ct_e200_forma': {
             'description': '',
@@ -1228,7 +1229,8 @@ def test_properties_from_simple_elements_empty():
     # element = schema.xpath('*[local-name() = "element"]')[0]
     xsd = XSDReader("test.xsd", "dataset1")
     xsd.root = schema
-    result = xsd._properties_from_simple_elements(schema)
+    model = XSDModel(xsd, schema)
+    result = model.properties_from_simple_elements(schema)
     assert result == {}
 
 
@@ -1242,7 +1244,8 @@ def test_properties_from_simple_elements_not_from_sequence():
     # element = schema.xpath('*[local-name() = "element"]')[0]
     xsd = XSDReader("test.xsd", "dataset1")
     xsd.root = schema
-    result = xsd._properties_from_simple_elements(schema, from_sequence=False)
+    model = XSDModel(xsd, schema)
+    result = model.properties_from_simple_elements(schema)
     assert result == {
         'ct_e200_forma': {
             'description': '',
@@ -1250,7 +1253,7 @@ def test_properties_from_simple_elements_not_from_sequence():
             'external': {
                 'name': 'CT_E200_FORMA/text()',
             },
-            'required': False,
+            'required': True,
             'type': 'string',
         },
     }
@@ -1289,7 +1292,8 @@ def test_get_enums():
     schema = etree.fromstring(element_string)
     element = schema.xpath('//*[local-name() = "attribute"]')[0]
     xsd = XSDReader("test.xsd", "dataset1")
-    result = xsd._get_enums(element)
+    model = XSDModel(xsd, schema)
+    result = model._get_enums(element)
     assert result == {
         "": {
             "202": {"source": "202"},
