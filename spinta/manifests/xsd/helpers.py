@@ -152,6 +152,8 @@ class XSDReader:
 
     def _get_description(self, element: etree.Element) -> str:
         annotation = element.xpath(f'./*[local-name() = "annotation"]')
+        if not annotation:
+            annotation = element.xpath(f'./*[local-name() = "simpleType"]/*[local-name() = "annotation"]')
         description = ""
         if annotation:
             documentation = annotation[0].xpath(f'./*[local-name() = "documentation"]')
