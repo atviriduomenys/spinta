@@ -247,7 +247,7 @@ class XSDModel:
         property_id, prop = self._node_to_partial_property(element)
         if XSDReader.node_is_ref(element):
             prop["external"]["name"] = element.get("ref")
-            property_id = to_property_name(element.get("ref"))
+            property_id = self.deduplicate(to_property_name(element.get("ref")))
         prop["external"]["name"] = f'{prop["external"]["name"]}/text()'
         if prop.get("type") == "":
             prop["type"] = "string"
