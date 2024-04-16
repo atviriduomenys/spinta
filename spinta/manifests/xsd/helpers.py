@@ -415,6 +415,9 @@ class XSDReader:
     def is_required(element: _Element) -> bool:
         min_occurs = int(element.get("minOccurs", 1))
         if min_occurs > 0:
+            nillable = element.get("nillable", False)
+            if nillable == "true":
+                return False
             return True
         return False
 
@@ -742,7 +745,5 @@ def read_schema(context: Context, path: str, prepare: str = None, dataset_name: 
     yield None, xsd.dataset_and_resource_info
 
     for parsed_model in xsd.models:
-
-        pprint(parsed_model.get_data())
 
         yield None, parsed_model.get_data()
