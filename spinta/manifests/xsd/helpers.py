@@ -311,7 +311,7 @@ class XSDReader:
         custom_types = {}
         for type_node in custom_types_nodes:
             type_name = type_node.get("name")
-            restrictions = node.xpath(f'./*[local-name() = "simpleType"]/*[local-name() = "restriction"]')
+            restrictions = type_node.xpath(f'./*[local-name() = "restriction"]')
             property_type_base = restrictions[0].get("base", "")
             property_type_base = property_type_base.split(":")[1]
 
