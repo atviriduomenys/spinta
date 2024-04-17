@@ -21,7 +21,10 @@ def paginate(env, expr):
                 for by, page_by in page.by.items():
                     sorted_ = env.call('sort', Negative(page_by.prop.name) if by.startswith("-") else Bind(page_by.prop.name))
                     if sorted_ is not None:
-                        env.page.sort.append(sorted_)
+                        if isinstance(sorted_, (list, set, tuple)):
+                            env.page.sort += sorted_
+                        else:
+                            env.page.sort.append(sorted_)
             env.page.page_ = page
             env.page.size = page.size
             return env.resolve(_get_pagination_compare_query(page))

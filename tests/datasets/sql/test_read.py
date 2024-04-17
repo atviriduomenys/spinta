@@ -1,4 +1,5 @@
 from spinta import commands
+from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.datasets.backends.sql.commands.read import _get_row_value
 from spinta.exceptions import TooShortPageSize
@@ -70,7 +71,11 @@ def test__get_row_value_null(rc: RawConfig):
     assert _get_row_value(context, row, sel) is None
 
 
-def test_getall_paginate_null_check_value(context, rc, tmp_path, geodb_null_check):
+def test_getall_paginate_null_check_value_sqlite(context, rc, tmp_path, geodb_null_check):
+    __test_getall_paginate_null_check_value(context, rc, tmp_path, geodb_null_check)
+
+
+def __test_getall_paginate_null_check_value(context: Context, rc: RawConfig, tmp_path, db):
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source          | type    | ref     | access | prepare
        | external/paginate        |                 |         |         |        |
@@ -81,7 +86,7 @@ def test_getall_paginate_null_check_value(context, rc, tmp_path, geodb_null_chec
        |   |   |   |   | name     | name            | string  |         |        | 
     '''))
 
-    app = create_client(rc, tmp_path, geodb_null_check)
+    app = create_client(rc, tmp_path, db)
 
     resp = app.get('/external/paginate/City')
     assert listdata(resp, 'id', 'name') == [
