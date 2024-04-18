@@ -2,12 +2,10 @@ import os
 from copy import deepcopy
 
 from lxml.etree import _Element
-from tqdm import tqdm
 
 from spinta.components import Context
 from lxml import etree, objectify
 from urllib.request import urlopen
-from pprint import pprint
 
 from spinta.utils.naming import to_property_name, to_model_name, Deduplicator
 
@@ -22,12 +20,12 @@ DATATYPES_MAPPING = {
     "float": "number",
     "double": "number",
 
-    # Duration reikia mapinti su number arba integer, greičiausiai su integer ir XML duration
-    # reikšmė konvertuoti į integer reikšmę nurodant prepare funkciją, kuri konveruoti duration
-    # į integer, papildomai property.ref stulpelyje reikia nurodyti laiko vienetus:
+    # duration has to be mapped to integer. In addition to this, we need a prepare function.
+    # This prepare function takes in given duration and turns it into integer (timedelta).
+    # More about time entities here:
     # https://atviriduomenys.readthedocs.io/dsa/vienetai.html#laiko-vienetai
-    # todo add prepare functions
-    "duration": "",
+    # todo add prepare function for duration
+    "duration": "string",
 
     "dateTime": "datetime",
     "time": "time",
