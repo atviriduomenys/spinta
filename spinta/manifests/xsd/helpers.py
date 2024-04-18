@@ -207,7 +207,7 @@ class XSDModel:
         prop["type"] = self._get_property_type(node)
         # todo prepare for base64binary
         if ";" in prop["type"]:
-            prop["type_args"] = prop["type"].split(";")[1].split(":")[1]
+            # prop["units"] = prop["type"].split(";")[1].split(":")[1]
             prop["type"] = prop["type"].split(";")[0]
         prop["enums"] = self._get_enums(node)
 
@@ -246,8 +246,11 @@ class XSDModel:
 
         property_id, prop = self._node_to_partial_property(element)
         if XSDReader.node_is_ref(element):
-            prop["external"]["name"] = element.get("ref")
-            property_id = self.deduplicate(to_property_name(element.get("ref")))
+            ref: str = element.get("ref")
+            if ":" in ref:
+                ref = ref.split(":")[1]
+            prop["external"]["name"] = ref
+            property_id = self.deduplicate(to_property_name(ref))
         prop["external"]["name"] = f'{prop["external"]["name"]}/text()'
         if prop.get("type") == "":
             prop["type"] = "string"
@@ -569,13 +572,12 @@ class XSDReader:
                             # check for recursion
                             # todo maybe move this to a separate function
                             paths = new_source_path.split("/")
-                            if not element.get("name") in paths:
+                            if self.node_is_simple_type_or_inline(element) and not self.node_is_ref(element):
+                                properties.update(model.properties_from_simple_elements(sequence_or_all_node))
 
+                            if not element.get("name") in paths:
                                 # this can sometimes happen when choice node has been split or maybe in some other cases too
-                                if self.node_is_simple_type_or_inline(element) and not self.node_is_ref(element):
-                                    properties.update(model.properties_from_simple_elements(sequence_or_all_node))
-                                else:
-                                    self._create_model(element, source_path=new_source_path)
+                                self._create_model(element, source_path=new_source_path)
                             else:
                                 for index, path in enumerate(paths):
                                     if path == element.get("name"):
