@@ -1,6 +1,7 @@
 import textwrap
 from typing import Type
 
+import pytest
 import sqlalchemy as sa
 from sqlalchemy.sql import Select
 from sqlalchemy.sql.type_api import TypeEngine
@@ -12,6 +13,7 @@ from spinta.core.config import RawConfig
 from spinta.datasets.backends.sql.commands.query import SqlQueryBuilder
 from spinta.datasets.backends.sql.components import Sql
 from spinta.manifests.components import Manifest
+from spinta.testing.datasets import use_dialect_functions
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.types.datatype import DataType
 from spinta.types.datatype import Ref
@@ -19,6 +21,10 @@ from spinta.ufuncs.basequerybuilder.ufuncs import add_page_expr
 from spinta.ufuncs.helpers import merge_formulas
 from spinta.datasets.helpers import get_enum_filters
 from spinta.datasets.helpers import get_ref_filters
+
+
+_SUPPORT_NULLS = ["postgresql", "oracle", "sqlite"]
+_DEFAULT_NULL_IMPL = ['mysql', 'mssql', 'other']
 
 
 def _qry(qry: Select, indent: int = 4) -> str:
@@ -242,7 +248,9 @@ def test_explicit_ref(rc: RawConfig):
     '''
 
 
-def test_paginate_none_values(rc: RawConfig):
+@pytest.mark.parametrize('db_dialect', _SUPPORT_NULLS)
+def test_paginate_none_values(db_dialect: str, rc: RawConfig, mocker):
+    use_dialect_functions(mocker, db_dialect)
     assert _build(rc, '''
     d | r | b | m | property | type   | ref     | source     | prepare | access
     example                  |        |         |            |         |
@@ -260,6 +268,29 @@ def test_paginate_none_values(rc: RawConfig):
       "PLANET"."CODE",
       "PLANET"."NAME"
     FROM "PLANET" ORDER BY "PLANET"."ID" ASC NULLS LAST
+    '''
+
+
+@pytest.mark.parametrize('db_dialect', _DEFAULT_NULL_IMPL)
+def test_paginate_none_values(db_dialect: str, rc: RawConfig, mocker):
+    use_dialect_functions(mocker, db_dialect)
+    assert _build(rc, '''
+    d | r | b | m | property | type   | ref     | source     | prepare | access
+    example                  |        |         |            |         |
+      | data                 | sql    |         |            |         |
+      |   |                  |        |         |            |         |
+      |   |   | Planet       |        | id      | PLANET     |         |
+      |   |   |   | id       | string |         | ID         |         | open
+      |   |   |   | code     | string |         | CODE       |         | open
+      |   |   |   | name     | string |         | NAME       |         | open
+        ''', 'example/Planet', {
+        'id': None
+    }) == '''
+    SELECT
+      "PLANET"."ID",
+      "PLANET"."CODE",
+      "PLANET"."NAME"
+    FROM "PLANET" ORDER BY CASE WHEN ("PLANET"."ID" IS NULL) THEN 1 ELSE 0 END, "PLANET"."ID" ASC
     '''
 
 
@@ -283,7 +314,9 @@ def test_paginate_given_values_page_and_ref_not_given(rc: RawConfig):
     '''
 
 
-def test_paginate_given_values_page_not_given(rc: RawConfig):
+@pytest.mark.parametrize('db_dialect', _SUPPORT_NULLS)
+def test_paginate_given_values_page_not_given(db_dialect: str, rc: RawConfig, mocker):
+    use_dialect_functions(mocker, db_dialect)
     assert _build(rc, '''
     d | r | b | m | property | type   | ref     | source     | prepare | access
     example                  |        |         |            |         |
@@ -305,7 +338,33 @@ def test_paginate_given_values_page_not_given(rc: RawConfig):
     '''
 
 
-def test_paginate_given_values_size_given(rc: RawConfig):
+@pytest.mark.parametrize('db_dialect', _DEFAULT_NULL_IMPL)
+def test_paginate_given_values_page_not_given(db_dialect: str, rc: RawConfig, mocker):
+    use_dialect_functions(mocker, db_dialect)
+    assert _build(rc, '''
+    d | r | b | m | property | type   | ref     | source     | prepare | access
+    example                  |        |         |            |         |
+      | data                 | sql    |         |            |         |
+      |   |                  |        |         |            |         |
+      |   |   | Planet       |        | name    | PLANET     |         |
+      |   |   |   | id       | string |         | ID         |         | open
+      |   |   |   | code     | string |         | CODE       |         | open
+      |   |   |   | name     | string |         | NAME       |         | open
+        ''', 'example/Planet', {
+        'name': 'test'
+    }) == '''
+    SELECT
+      "PLANET"."NAME",
+      "PLANET"."ID",
+      "PLANET"."CODE"
+    FROM "PLANET"
+    WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL ORDER BY CASE WHEN ("PLANET"."NAME" IS NULL) THEN 1 ELSE 0 END, "PLANET"."NAME" ASC
+    '''
+
+
+@pytest.mark.parametrize('db_dialect', _SUPPORT_NULLS)
+def test_paginate_given_values_size_given(db_dialect: str, rc: RawConfig, mocker):
+    use_dialect_functions(mocker, db_dialect)
     assert _build(rc, '''
     d | r | b | m | property | type   | ref     | source     | prepare             | access
     example                  |        |         |            |                     |
@@ -328,7 +387,34 @@ def test_paginate_given_values_size_given(rc: RawConfig):
     '''
 
 
-def test_paginate_given_values_private(rc: RawConfig):
+@pytest.mark.parametrize('db_dialect', _DEFAULT_NULL_IMPL)
+def test_paginate_given_values_size_given(db_dialect: str, rc: RawConfig, mocker):
+    use_dialect_functions(mocker, db_dialect)
+    assert _build(rc, '''
+    d | r | b | m | property | type   | ref     | source     | prepare             | access
+    example                  |        |         |            |                     |
+      | data                 | sql    |         |            |                     |
+      |   |                  |        |         |            |                     |
+      |   |   | Planet       |        | name    | PLANET     | page(name, size: 2) |
+      |   |   |   | id       | string |         | ID         |                     | open
+      |   |   |   | code     | string |         | CODE       |                     | open
+      |   |   |   | name     | string |         | NAME       |                     | open
+        ''', 'example/Planet', {
+        'name': 'test'
+    }) == '''
+    SELECT
+      "PLANET"."NAME",
+      "PLANET"."ID",
+      "PLANET"."CODE"
+    FROM "PLANET"
+    WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL ORDER BY CASE WHEN ("PLANET"."NAME" IS NULL) THEN 1 ELSE 0 END, "PLANET"."NAME" ASC
+     LIMIT :param_1
+    '''
+
+
+@pytest.mark.parametrize('db_dialect', _SUPPORT_NULLS)
+def test_paginate_given_values_private(db_dialect: str, rc: RawConfig, mocker):
+    use_dialect_functions(mocker, db_dialect)
     assert _build(rc, '''
     d | r | b | m | property | type   | ref     | source     | prepare          | access
     example                  |        |         |            |                  |
@@ -352,7 +438,35 @@ def test_paginate_given_values_private(rc: RawConfig):
     '''
 
 
-def test_paginate_given_values_two_keys(rc: RawConfig):
+@pytest.mark.parametrize('db_dialect', _DEFAULT_NULL_IMPL)
+def test_paginate_given_values_private(db_dialect: str, rc: RawConfig, mocker):
+    use_dialect_functions(mocker, db_dialect)
+    assert _build(rc, '''
+    d | r | b | m | property | type   | ref     | source     | prepare          | access
+    example                  |        |         |            |                  |
+      | data                 | sql    |         |            |                  |
+      |   |                  |        |         |            |                  |
+      |   |   | Planet       |        | name    | PLANET     | page(name, code) |
+      |   |   |   | id       | string |         | ID         |                  | open
+      |   |   |   | code     | string |         | CODE       |                  | private
+      |   |   |   | name     | string |         | NAME       |                  | open
+        ''', 'example/Planet', {
+        'name': 'test',
+        'code': 5,
+    }) == '''
+    SELECT
+      "PLANET"."NAME",
+      "PLANET"."ID",
+      "PLANET"."CODE"
+    FROM "PLANET"
+    WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL OR "PLANET"."NAME" = :NAME_2
+      AND ("PLANET"."CODE" > :CODE_1 OR "PLANET"."CODE" IS NULL) ORDER BY CASE WHEN ("PLANET"."NAME" IS NULL) THEN 1 ELSE 0 END, "PLANET"."NAME" ASC, CASE WHEN ("PLANET"."CODE" IS NULL) THEN 1 ELSE 0 END, "PLANET"."CODE" ASC
+    '''
+
+
+@pytest.mark.parametrize('db_dialect', _SUPPORT_NULLS)
+def test_paginate_given_values_two_keys(db_dialect: str, rc: RawConfig, mocker):
+    use_dialect_functions(mocker, db_dialect)
     assert _build(rc, '''
     d | r | b | m | property | type   | ref     | source     | prepare          | access
     example                  |        |         |            |                  |
@@ -376,7 +490,35 @@ def test_paginate_given_values_two_keys(rc: RawConfig):
     '''
 
 
-def test_paginate_given_values_two_keys_ref_not_given(rc: RawConfig):
+@pytest.mark.parametrize('db_dialect', _DEFAULT_NULL_IMPL)
+def test_paginate_given_values_two_keys(db_dialect: str, rc: RawConfig, mocker):
+    use_dialect_functions(mocker, db_dialect)
+    assert _build(rc, '''
+    d | r | b | m | property | type   | ref     | source     | prepare          | access
+    example                  |        |         |            |                  |
+      | data                 | sql    |         |            |                  |
+      |   |                  |        |         |            |                  |
+      |   |   | Planet       |        | name    | PLANET     | page(name, code) |
+      |   |   |   | id       | string |         | ID         |                  | open
+      |   |   |   | code     | string |         | CODE       |                  | open
+      |   |   |   | name     | string |         | NAME       |                  | open
+        ''', 'example/Planet', {
+        'name': 'test',
+        'code': 5,
+    }) == '''
+    SELECT
+      "PLANET"."NAME",
+      "PLANET"."ID",
+      "PLANET"."CODE"
+    FROM "PLANET"
+    WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL OR "PLANET"."NAME" = :NAME_2
+      AND ("PLANET"."CODE" > :CODE_1 OR "PLANET"."CODE" IS NULL) ORDER BY CASE WHEN ("PLANET"."NAME" IS NULL) THEN 1 ELSE 0 END, "PLANET"."NAME" ASC, CASE WHEN ("PLANET"."CODE" IS NULL) THEN 1 ELSE 0 END, "PLANET"."CODE" ASC
+    '''
+
+
+@pytest.mark.parametrize('db_dialect', _SUPPORT_NULLS)
+def test_paginate_given_values_two_keys_ref_not_given(db_dialect: str, rc: RawConfig, mocker):
+    use_dialect_functions(mocker, db_dialect)
     assert _build(rc, '''
     d | r | b | m | property | type   | ref     | source     | prepare          | access
     example                  |        |         |            |                  |
@@ -400,7 +542,35 @@ def test_paginate_given_values_two_keys_ref_not_given(rc: RawConfig):
     '''
 
 
-def test_paginate_desc(rc: RawConfig):
+@pytest.mark.parametrize('db_dialect', _DEFAULT_NULL_IMPL)
+def test_paginate_given_values_two_keys_ref_not_given(db_dialect: str, rc: RawConfig, mocker):
+    use_dialect_functions(mocker, db_dialect)
+    assert _build(rc, '''
+    d | r | b | m | property | type   | ref     | source     | prepare          | access
+    example                  |        |         |            |                  |
+      | data                 | sql    |         |            |                  |
+      |   |                  |        |         |            |                  |
+      |   |   | Planet       |        |         | PLANET     | page(name, code) |
+      |   |   |   | id       | string |         | ID         |                  | open
+      |   |   |   | code     | string |         | CODE       |                  | open
+      |   |   |   | name     | string |         | NAME       |                  | open
+        ''', 'example/Planet', {
+        'name': 'test',
+        'code': 5,
+    }) == '''
+    SELECT
+      "PLANET"."CODE",
+      "PLANET"."ID",
+      "PLANET"."NAME"
+    FROM "PLANET"
+    WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL OR "PLANET"."NAME" = :NAME_2
+      AND ("PLANET"."CODE" > :CODE_1 OR "PLANET"."CODE" IS NULL) ORDER BY CASE WHEN ("PLANET"."NAME" IS NULL) THEN 1 ELSE 0 END, "PLANET"."NAME" ASC, CASE WHEN ("PLANET"."CODE" IS NULL) THEN 1 ELSE 0 END, "PLANET"."CODE" ASC
+    '''
+
+
+@pytest.mark.parametrize('db_dialect', _SUPPORT_NULLS)
+def test_paginate_desc(db_dialect: str, rc: RawConfig, mocker):
+    use_dialect_functions(mocker, db_dialect)
     assert _build(rc, '''
     d | r | b | m | property | type   | ref     | source     | prepare          | access
     example                  |        |         |            |                  |
@@ -421,6 +591,32 @@ def test_paginate_desc(rc: RawConfig):
     FROM "PLANET"
     WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL OR "PLANET"."NAME" = :NAME_2
       AND "PLANET"."CODE" < :CODE_1 ORDER BY "PLANET"."NAME" ASC NULLS LAST, "PLANET"."CODE" DESC NULLS FIRST
+    '''
+
+
+@pytest.mark.parametrize('db_dialect', _DEFAULT_NULL_IMPL)
+def test_paginate_desc(db_dialect: str, rc: RawConfig, mocker):
+    use_dialect_functions(mocker, db_dialect)
+    assert _build(rc, '''
+    d | r | b | m | property | type   | ref     | source     | prepare          | access
+    example                  |        |         |            |                  |
+      | data                 | sql    |         |            |                  |
+      |   |                  |        |         |            |                  |
+      |   |   | Planet       |        |         | PLANET     | page(name, -code) |
+      |   |   |   | id       | string |         | ID         |                  | open
+      |   |   |   | code     | string |         | CODE       |                  | open
+      |   |   |   | name     | string |         | NAME       |                  | open
+        ''', 'example/Planet', {
+        'name': 'test',
+        '-code': 5,
+    }) == '''
+    SELECT
+      "PLANET"."CODE",
+      "PLANET"."ID",
+      "PLANET"."NAME"
+    FROM "PLANET"
+    WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL OR "PLANET"."NAME" = :NAME_2
+      AND "PLANET"."CODE" < :CODE_1 ORDER BY CASE WHEN ("PLANET"."NAME" IS NULL) THEN 1 ELSE 0 END, "PLANET"."NAME" ASC, CASE WHEN ("PLANET"."CODE" IS NOT NULL) THEN 1 ELSE 0 END, "PLANET"."CODE" DESC
     '''
 
 

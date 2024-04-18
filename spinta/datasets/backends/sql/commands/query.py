@@ -26,6 +26,7 @@ from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import Negative
 from spinta.core.ufuncs import ufunc
 from spinta.datasets.backends.sql.components import Sql
+from spinta.datasets.backends.sql.helpers import dialect_specific_desc, dialect_specific_asc
 from spinta.datasets.backends.sql.ufuncs.components import SqlResultBuilder
 from spinta.dimensions.enum.helpers import prepare_enum_value
 from spinta.dimensions.param.components import ResolvedParams
@@ -1087,7 +1088,10 @@ def sort(env: SqlQueryBuilder, expr: Expr):
     env.sort = []
     for key in args:
         result = env.call('sort', key)
-        env.sort.append(result)
+        if isinstance(result, (list, set, tuple)):
+            env.sort += result
+        else:
+            env.sort.append(result)
 
 
 @ufunc.resolver(SqlQueryBuilder, DataType)
@@ -1116,25 +1120,25 @@ def sort(env, field):
 @ufunc.resolver(SqlQueryBuilder, DataType)
 def asc(env, dtype):
     column = env.backend.get_column(env.table, dtype.prop)
-    return sa.sql.expression.nullslast(column.asc())
+    return dialect_specific_asc(env.backend.engine, column)
 
 
 @ufunc.resolver(SqlQueryBuilder, Text)
 def asc(env, dtype):
     column = get_language_column(env, dtype)
-    return sa.sql.expression.nullslast(column.asc())
+    return dialect_specific_asc(env.backend.engine, column)
 
 
 @ufunc.resolver(SqlQueryBuilder, DataType)
 def desc(env, dtype):
     column = env.backend.get_column(env.table, dtype.prop)
-    return sa.sql.expression.nullsfirst(column.desc())
+    return dialect_specific_desc(env.backend.engine, column)
 
 
 @ufunc.resolver(SqlQueryBuilder, Text)
 def desc(env, dtype):
     column = get_language_column(env, dtype)
-    return sa.sql.expression.nullsfirst(column.desc())
+    return dialect_specific_desc(env.backend.engine, column)
 
 
 def _get_from_flatprops(model: Model, prop: str):
