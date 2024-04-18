@@ -221,7 +221,6 @@ def test_node_to_partial_property_gYear():
             "name": "CT_E200_FORMA",
         },
         "type": "date",
-        "type_args": "Y"
     }
 
 
