@@ -23,7 +23,7 @@ def does_dialect_match(src_dialect: str, target_dialect: Union[str, Tuple[str]])
     return False
 
 
-def _postgresql_asc(column: sa.Column):
+def _nulls_asc(column: sa.Column):
     return sa.sql.expression.nullslast(column.asc())
 
 
@@ -42,7 +42,7 @@ def _default_asc(column: sa.Column):
     ), column.asc()
 
 
-def _postgresql_desc(column: sa.Column):
+def _nulls_desc(column: sa.Column):
     return sa.sql.expression.nullsfirst(column.desc())
 
 
@@ -65,11 +65,11 @@ _DEFAULT_DIALECT_KEY = ""
 
 
 _DESC_DIALECT_MAPPER = {
-    ("postgresql", "oracle", "sqlite"): _postgresql_desc,
+    ("postgresql", "oracle", "sqlite"): _nulls_desc,
     _DEFAULT_DIALECT_KEY: _default_desc
 }
 _ASC_DIALECT_MAPPER = {
-    ("postgresql", "oracle", "sqlite"): _postgresql_asc,
+    ("postgresql", "oracle", "sqlite"): _nulls_asc,
     _DEFAULT_DIALECT_KEY: _default_asc
 }
 
