@@ -7,7 +7,7 @@ from spinta.components import Context
 from lxml import etree, objectify
 from urllib.request import urlopen
 
-from spinta.utils.naming import to_property_name, to_model_name, Deduplicator
+from spinta.utils.naming import to_property_name, to_model_name, Deduplicator, to_dataset_name
 
 # mapping of XSD datatypes to DSA datatypes
 # XSD datatypes: https://www.w3.org/TR/xmlschema11-2/#built-in-datatypes
@@ -25,6 +25,7 @@ DATATYPES_MAPPING = {
     # More about time entities here:
     # https://atviriduomenys.readthedocs.io/dsa/vienetai.html#laiko-vienetai
     # todo add prepare function for duration
+    #  https://github.com/atviriduomenys/spinta/issues/594
     "duration": "string",
 
     "dateTime": "datetime",
@@ -113,22 +114,22 @@ class XSDModel:
     }
     """
 
-    def __init__(self, xsd, node=None):
+    def __init__(self, xsd: 'XSDReader', node: _Element = None):
         self.deduplicate = Deduplicator2()
 
-        self.xsd = xsd
-        self.dataset_name = xsd.dataset_name
-        self.node = node
-        self.type = None
-        self.name = None
-        self.external = None
-        self.properties = None
-        self.external = None
-        self.uri = None
-        self.description = None
+        self.xsd: 'XSDReader' = xsd
+        self.dataset_name: str = xsd.dataset_name
+        self.node: _Element = node
+        self.type: str = "model"
+        self.name: str | None = None
+        self.standalone_name: str | None = None
+        self.external: dict | None = None
+        self.properties: dict | None = None
+        self.uri: str | None = None
+        self.description: str | None = None
 
     def get_data(self):
-        model_data = {
+        model_data: dict = {
             "type": "model",
             "name": self.name
         }
@@ -143,24 +144,24 @@ class XSDModel:
 
         return model_data
 
-    def add_external_info(self, external_name):
+    def add_external_info(self, external_name: str):
         self.external = {
             "dataset": self.dataset_name,
             "resource": "resource1",
             "name": external_name
         }
 
-    def set_name(self, name):
+    def set_name(self, name: str):
         self.standalone_name = name
         self.name = f"{self.dataset_name}/{name}"
 
     def _get_property_type(self, node: _Element) -> str:
         if node.get("ref"):
             return "ref"
-        property_type = node.get("type")
+        property_type: str = node.get("type")
         if not property_type:
             # this is a self defined simple type, so we take it's base as type
-            restrictions = node.xpath(f'./*[local-name() = "simpleType"]/*[local-name() = "restriction"]')
+            restrictions: list = node.xpath(f'./*[local-name() = "simpleType"]/*[local-name() = "restriction"]')
             if restrictions:
                 property_type = restrictions[0].get("base", "")
             else:
@@ -179,7 +180,7 @@ class XSDModel:
         return property_type
 
     @staticmethod
-    def _get_enums(node: _Element):
+    def _get_enums(node: _Element) -> dict:
         enums = {}
         enum_value = {}
         restrictions = node.xpath(f'./*[local-name() = "simpleType"]/*[local-name() = "restriction"]')
@@ -239,7 +240,7 @@ class XSDModel:
 
         return properties
 
-    def simple_element_to_property(self, element: _Element):
+    def simple_element_to_property(self, element: _Element) -> tuple[str, dict]:
         # simple element is an element which is either
         # an inline or simple type element and doesn't have a ref
 
@@ -274,7 +275,7 @@ class XSDModel:
                 },
              },
         """
-    def properties_from_simple_elements(self, node: _Element, from_sequence: bool = True):
+    def properties_from_simple_elements(self, node: _Element, from_sequence: bool = True) -> dict:
         properties = {}
         elements = node.xpath(f'./*[local-name() = "element"]')
         for element in elements:
@@ -285,7 +286,7 @@ class XSDModel:
                 properties[property_id] = prop
         return properties
 
-    def get_text_property(self):
+    def get_text_property(self) -> dict:
         return {
             self.deduplicate('text'): {
                 'type': 'string',
@@ -297,13 +298,13 @@ class XSDModel:
 
 class XSDReader:
 
-    def __init__(self, path, dataset_name):
-        self._path = path
+    def __init__(self, path, dataset_name: str):
+        self._path: str = path
         self.models: list[XSDModel] = []
-        self.custom_types = {}
-        self._dataset_given_name = dataset_name
+        self.custom_types: dict = {}
+        self._dataset_given_name: str = dataset_name
         self._set_dataset_and_resource_info()
-        self.deduplicate = Deduplicator()
+        self.deduplicate: Deduplicator = Deduplicator()
 
     def _extract_custom_types(self, node: _Element):
         custom_types_nodes = node.xpath(f'./*[local-name() = "simpleType"]')
@@ -333,14 +334,14 @@ class XSDReader:
         return description.strip()
 
     @staticmethod
-    def node_is_ref(node: _Element):
+    def node_is_ref(node: _Element) -> bool:
         if node.get("ref"):
             return True
         return False
 
     @staticmethod
     def is_array(element: _Element) -> bool:
-        max_occurs = element.get("maxOccurs", 1)
+        max_occurs: str = element.get("maxOccurs", "1")
         return max_occurs == "unbounded" or int(max_occurs) > 1
     
     def _extract_root(self):
@@ -354,7 +355,7 @@ class XSDReader:
                 self.root = etree.fromstring(bytes(text, encoding='utf-8'))
 
     def _set_dataset_and_resource_info(self):
-        self.dataset_name = os.path.splitext(os.path.basename(self._path))[0]
+        self.dataset_name = to_dataset_name(os.path.splitext(os.path.basename(self._path))[0])
         self.dataset_and_resource_info = {
             'type': 'dataset',
             'name': self.dataset_name,
@@ -366,8 +367,8 @@ class XSDReader:
             'given_name': self._dataset_given_name
         }
 
-    def _get_separate_complex_type_node(self, node):
-        node_type = node.get('type')
+    def _get_separate_complex_type_node(self, node: _Element) -> _Element:
+        node_type: str | list = node.get('type')
         if node_type is not None:
             node_type = node_type.split(":")
             if len(node_type) > 1:
@@ -380,8 +381,8 @@ class XSDReader:
                 if node.get("name") == node_type:
                     return node
 
-    def _node_has_separate_complex_type(self, node: _Element):
-        node_type = node.get('type')
+    def _node_has_separate_complex_type(self, node: _Element) -> bool:
+        node_type: str | list = node.get('type')
         if node_type is not None:
             node_type = node_type.split(":")
             if len(node_type) > 1:
@@ -395,7 +396,7 @@ class XSDReader:
                         return True
         return False
 
-    def node_is_simple_type_or_inline(self, node: _Element):
+    def node_is_simple_type_or_inline(self, node: _Element) -> bool:
         if self._node_has_separate_complex_type(node):
             return False
         return bool(
@@ -405,7 +406,7 @@ class XSDReader:
         )
 
     @staticmethod
-    def _is_element(node):
+    def _is_element(node: _Element) -> bool:
         if node.xpath('local-name()') == "element":
             return True
         return False
@@ -420,7 +421,7 @@ class XSDReader:
             return True
         return False
 
-    def _properties_from_references(self, node: _Element, model: XSDModel, source_path: str = ""):
+    def _properties_from_references(self, node: _Element, model: XSDModel, source_path: str = "") -> dict:
         properties = {}
         for ref_element in node.xpath("./*[@ref]"):
 
@@ -461,7 +462,7 @@ class XSDReader:
 
         return properties
 
-    def _split_choice(self, node, source_path, additional_properties):
+    def _split_choice(self, node: _Element, source_path: str, additional_properties: dict) -> list:
         """
         If there are choices in the element,
         we need to split it and create a separate model per each choice
@@ -632,7 +633,7 @@ class XSDReader:
             return [model.name, ]
         return []
 
-    def _get_resource_model(self):
+    def _add_resource_model(self):
         resource_model = XSDModel(self)
         resource_model.add_external_info(external_name="/")
         resource_model.type = "model"
@@ -659,7 +660,7 @@ class XSDReader:
     def start(self):
         self._extract_root()
         self._extract_custom_types(self.root)
-        self._get_resource_model()
+        self._add_resource_model()
 
         self._parse_root_node()
 
