@@ -1,10 +1,12 @@
-from typing import Union, List, Tuple
+from typing import Union, Tuple
 
 import sqlalchemy as sa
 
 
 def extract_dialect(engine: sa.engine.Engine):
-    return engine.dialect.name
+    if engine is not None:
+        return engine.dialect.name
+    return _DEFAULT_DIALECT_KEY
 
 
 def does_dialect_match(src_dialect: str, target_dialect: Union[str, Tuple[str]]):
@@ -25,16 +27,38 @@ def _postgresql_asc(column: sa.Column):
     return sa.sql.expression.nullslast(column.asc())
 
 
+# Reason for column == None is NULLS LAST, because
+# if it's NULL it will return 1 and if it's not NULL it will return 0
+# when ordering 0 takes priority over 1, so then it will sort first values that are not NULL
 def _default_asc(column: sa.Column):
-    return column != None, column.asc()
+    return sa.case(
+        [
+            (
+                column == None,
+                sa.literal_column('1', type_=sa.Integer)
+            )
+        ],
+        else_=sa.literal_column('0', type_=sa.Integer)
+    ), column.asc()
 
 
 def _postgresql_desc(column: sa.Column):
     return sa.sql.expression.nullsfirst(column.desc())
 
 
+# Reason for column != None is NULLS FIRST, because
+# if it's NULL it will return 0 and if it's not NULL it will return 1
+# when ordering 0 takes priority over 1, so then it will sort first values that are NULL
 def _default_desc(column: sa.Column):
-    return column == None, column.desc()
+    return sa.case(
+        [
+            (
+                column != None,
+                sa.literal_column('1', type_=sa.Integer)
+            )
+        ],
+        else_=sa.literal_column('0', type_=sa.Integer)
+    ), column.desc()
 
 
 _DEFAULT_DIALECT_KEY = ""

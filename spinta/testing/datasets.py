@@ -12,6 +12,14 @@ from spinta.testing.cli import SpintaCliRunner
 Schema = Dict[str, List[sa.Column]]
 
 
+def use_default_dialect_functions(mocker):
+    mocker.patch('spinta.datasets.backends.sql.helpers.does_dialect_match', return_value=False)
+
+
+def use_dialect_functions(mocker, dialect: str):
+    mocker.patch('spinta.datasets.backends.sql.helpers.extract_dialect', return_value=dialect)
+
+
 def pull(cli: SpintaCliRunner, rc, dataset, model=None, *, push=True):
     result = cli.invoke(rc, [
         'pull', dataset,
