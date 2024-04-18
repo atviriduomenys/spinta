@@ -2,6 +2,7 @@ import os
 from copy import deepcopy
 
 from lxml.etree import _Element
+from tqdm import tqdm
 
 from spinta.components import Context
 from lxml import etree, objectify
@@ -462,7 +463,7 @@ class XSDReader:
 
         return properties
 
-    def _split_models(self, node, source_path, additional_properties):
+    def _split_choice(self, node, source_path, additional_properties):
         """
         If there are choices in the element,
         we need to split it and create a separate model per each choice
@@ -526,7 +527,7 @@ class XSDReader:
             if not choices:
                 choices = complex_type_node.xpath(f'./*[local-name() = "sequence"]/*[local-name() = "choice"]')
             if choices:
-                return self._split_models(node, source_path, additional_properties=additional_properties)
+                return self._split_choice(node, source_path, additional_properties=additional_properties)
 
             # if complextype node's property mixed is true, it allows text inside
             if complex_type_node.get("mixed") == "true":
@@ -570,7 +571,12 @@ class XSDReader:
                             # todo maybe move this to a separate function
                             paths = new_source_path.split("/")
                             if not element.get("name") in paths:
-                                self._create_model(element, source_path=new_source_path)
+
+                                # this can sometimes happen when choice node has been split or maybe in some other cases too
+                                if self.node_is_simple_type_or_inline(element) and not self.node_is_ref(element):
+                                    properties.update(model.properties_from_simple_elements(sequence_or_all_node))
+                                else:
+                                    self._create_model(element, source_path=new_source_path)
                             else:
                                 for index, path in enumerate(paths):
                                     if path == element.get("name"):
