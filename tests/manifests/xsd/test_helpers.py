@@ -677,7 +677,8 @@ def test_extract_custom_types():
     assert xsd.custom_types == {
         "data_laikas":
             {
-                "base": "string"
+                "base": "string",
+                "enums": {'': {}}
             }
     }
 
