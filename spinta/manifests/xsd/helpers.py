@@ -179,20 +179,18 @@ class XSDModel:
 
         return property_type
 
-    @staticmethod
-    def _get_enums(node: _Element) -> dict:
+    def _get_enums(self, node: _Element) -> dict:
         enums = {}
-        enum_value = {}
-        restrictions = node.xpath(f'./*[local-name() = "simpleType"]/*[local-name() = "restriction"]')
-        if restrictions:
-            # can be enum
-            enumerations = restrictions[0].xpath('./*[local-name() = "enumeration"]')
-            for enumeration in enumerations:
-                enum_item = {
-                    "source": enumeration.get("value")
-                }
-                enum_value.update({enumeration.get("value"): enum_item})
-            enums[""] = enum_value
+        simple_type = node.xpath(f'./*[local-name() = "simpleType"]')
+        if simple_type:
+            enums = self.xsd.get_enums_from_simple_type(simple_type[0])
+        else:
+            node_type = node.get("type")
+            if node_type and ":" in node_type:
+                node_type = node_type.split(":")[1]
+            if node_type in self.xsd.custom_types:
+                enums = self.xsd.custom_types[node_type]["enums"]
+
         return enums
 
     def _node_to_partial_property(self, node: etree.Element) -> tuple[str, dict]:
@@ -309,6 +307,23 @@ class XSDReader:
         self._set_dataset_and_resource_info()
         self.deduplicate: Deduplicator = Deduplicator()
 
+    @staticmethod
+    def get_enums_from_simple_type(node: _Element):
+        enums = {}
+        enum_value = {}
+        restrictions = node.xpath(f'./*[local-name() = "restriction"]')
+        if restrictions:
+            # can be enum
+            enumerations = restrictions[0].xpath('./*[local-name() = "enumeration"]')
+            for enumeration in enumerations:
+                enum_item = {
+                    "source": enumeration.get("value")
+                }
+                enum_value.update({enumeration.get("value"): enum_item})
+            enums[""] = enum_value
+
+        return enums
+
     def _extract_custom_types(self, node: _Element):
         custom_types_nodes = node.xpath(f'./*[local-name() = "simpleType"]')
         custom_types = {}
@@ -318,8 +333,12 @@ class XSDReader:
             property_type_base = restrictions[0].get("base", "")
             property_type_base = property_type_base.split(":")[1]
 
+            # enums
+            enums = self.get_enums_from_simple_type(type_node)
+
             custom_types[type_name] = {
-                "base": property_type_base
+                "base": property_type_base,
+                "enums": enums
             }
         self.custom_types = custom_types
 
@@ -514,9 +533,6 @@ class XSDReader:
         description = self.get_description(node)
         properties.update(model.attributes_to_properties(node))
 
-        if properties:
-            final = True
-
         if node.xpath(f'./*[local-name() = "complexType"]') or self._node_has_separate_complex_type(node):
 
             if self._node_has_separate_complex_type(node):
@@ -533,7 +549,6 @@ class XSDReader:
 
             # if complextype node's property mixed is true, it allows text inside
             if complex_type_node.get("mixed") == "true":
-                final = True
                 properties.update(model.get_text_property())
             if complex_type_node.xpath(f'./*[local-name() = "sequence"]') \
                     or complex_type_node.xpath(f'./*[local-name() = "all"]')\
@@ -562,7 +577,7 @@ class XSDReader:
                 sequence_or_all_node_length = len(sequence_or_all_node)
                 # There is only one element in the complex node sequence, and it doesn't have annotation.
                 # Then we just go deeper and add this model to the next model's path.
-                if sequence_or_all_node_length == 1 and not final:
+                if sequence_or_all_node_length == 1 and not properties:
                     # todo final is also decided by maxOccurs
 
                     if sequence_or_all_node.xpath(f'./*[local-name() = "element"]'):
@@ -591,8 +606,8 @@ class XSDReader:
 
                             properties.update(
                                 self._properties_from_references(sequence_or_all_node, model, new_source_path))
-                            final = True
-                elif sequence_or_all_node_length > 1 or final:
+
+                elif sequence_or_all_node_length > 1 or properties:
                     # properties from simple type or inline elements without references
                     properties.update(model.properties_from_simple_elements(sequence_or_all_node))
 
@@ -615,18 +630,7 @@ class XSDReader:
                                         paths[index] = f"/{path}"
                                 new_source_path = "/".join(paths)
 
-                    if properties:
-                        final = True
-                else:
-                    final = True
-
-            else:
-                final = True
-
-        else:
-            final = True
-
-        if final or properties:
+        if properties:
             model.properties = properties
             model.add_external_info(external_name=new_source_path)
             model.description = description
