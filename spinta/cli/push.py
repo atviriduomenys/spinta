@@ -694,7 +694,7 @@ def _read_rows_by_pages(
         if data_row is None and state_row is None:
             break
 
-        if data_row and state_row:
+        if data_row is not None and state_row is not None:
             row = _PushRow(model, data_row)
             row.op = 'insert'
             row.checksum = _get_data_checksum(row.data, model)
@@ -731,7 +731,7 @@ def _read_rows_by_pages(
                     _update_model_page_with_new(model.page, model_table, data_row=data_row)
                     data_row = next(rows, None)
         else:
-            if data_row:
+            if data_row is not None:
                 row = _PushRow(model, data_row)
                 row.op = 'insert'
                 row.checksum = _get_data_checksum(row.data, model)
@@ -740,7 +740,7 @@ def _read_rows_by_pages(
                 data_push_count += 1
                 _update_model_page_with_new(model.page, model_table, data_row=data_row)
                 data_row = next(rows, None)
-            else:
+            elif state_row is not None:
                 conn.execute(
                     sa.update(model_table).where(model_table.c.id == state_row["id"]).values(pushed=None)
                 )

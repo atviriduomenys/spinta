@@ -1064,6 +1064,7 @@ class Config:
     check_names: bool = False
     # MB
     max_api_file_size: int
+    max_error_count_on_insert: int
 
     def __init__(self):
         self.commands = _CommandsConfig()

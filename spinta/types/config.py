@@ -88,6 +88,7 @@ def load(context: Context, config: Config) -> Config:
     config.check_names = rc.get('check', 'names', default=False)
     config.root = rc.get('root', default=None)
     config.max_api_file_size = rc.get('max_file_size', default=100)
+    config.max_error_count_on_insert = rc.get('max_error_count_on_insert', default=100)
     if config.root is not None:
         config.root = config.root.strip().strip('/')
 
