@@ -1292,6 +1292,64 @@ def test_push_postgresql(
     su.drop_database(db)
 
 
+def test_push_postgresql_big_datastream(
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    request,
+    geodb,
+):
+    db = f'{postgresql}/push_db'
+    if su.database_exists(db):
+        su.drop_database(db)
+    su.create_database(db)
+    engine = sa.create_engine(db)
+    with engine.connect() as conn:
+        meta = sa.MetaData(conn)
+        table = sa.Table(
+            'cities',
+            meta,
+            sa.Column('id', sa.Integer),
+            sa.Column('name', sa.Text)
+        )
+        meta.create_all()
+        conn.execute(
+            table.insert((sa.func.generate_series(1, 2000), "Test"))
+        )
+    table = f'''
+        d | r | b | m | property | type    | ref                             | source         | level | access
+        postgrespush              |         |                                |                |       |
+          | db                   | sql     |                                 | {db}           |       |
+          |   |   | City         |         | id                              | cities         | 4     |
+          |   |   |   | id       | integer |                                 | id             | 4     | open
+          |   |   |   | name     | string  |                                 | name           | 2     | open
+        '''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(table))
+
+    # Configure local server with SQL backend
+    tmp = Sqlite(db)
+    localrc = create_rc(rc, tmp_path, tmp)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    result = cli.invoke(localrc, [
+        'push',
+        '-o', remote.url,
+        '--credentials', remote.credsfile
+    ], fail=False)
+    assert result.exit_code == 0
+    assert 'PUSH: 100%' in result.stderr
+    assert '2000/2000' in result.stderr
+    su.drop_database(db)
+
+
 def test_push_with_nulls(
     context,
     postgresql,
@@ -1346,3 +1404,65 @@ def test_push_with_nulls(
         (None, 'Test', None),
     ]
     assert len(listdata(resp_city, 'id', 'name', 'country')) == 9
+
+
+def test_push_with_errors_rollback(
+    context,
+    postgresql,
+    rc,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    request,
+    sqlite: Sqlite,
+):
+    sqlite.init({
+        'countries': [
+            sa.Column('id', sa.Integer),
+            sa.Column('name', sa.String),
+            sa.Column('code', sa.String)
+        ],
+        'cities': [
+            sa.Column('id', sa.Integer),
+            sa.Column('name', sa.String),
+            sa.Column('country', sa.Integer)
+        ]
+    })
+    sqlite.write('countries', [{'id': i, 'name': f'test{i}', 'code': 'test'} for i in range(10)])
+    sqlite.write('cities', [{'id': i, 'name': f'test{i}', 'country': i} for i in range(12)])
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    d | r | b | m | property | type     | ref      | source      | level | access
+    errordataset             |          |          |             |       |
+      | db                   | sql      |          |             |       |
+      |   |   | City         |          | id       | cities      | 4     |
+      |   |   |   | id       | integer  |          | id          | 4     | open
+      |   |   |   | name     | string   |          | name        | 4     | open
+      |   |   |   | country  | ref      | Country  | country     | 4     | open
+      |   |   |   |          |          |          |             |       |
+      |   |   | Country      |          | id       | countries   | 4     |
+      |   |   |   | code     | string   |          | code        | 4     | open
+      |   |   |   | name     | string   |          | name        | 4     | open
+      |   |   |   | id       | integer  |          | id          | 4     | open
+    '''))
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, sqlite)
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    result = cli.invoke(localrc, [
+        'push',
+        '-d', 'errordataset',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--no-progress-bar',
+    ], fail=False)
+    assert result.exit_code != 0
+    remote.app.authmodel('errordataset/City', ['getall', 'search'])
+    cities = remote.app.get('errordataset/City')
+    assert cities.status_code == 200
+    assert listdata(cities, 'id', 'name', sort=True) == []
+

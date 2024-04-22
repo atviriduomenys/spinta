@@ -20,11 +20,12 @@ async def insert(
     stop_on_error: bool = True,
 ):
     transaction = context.get('transaction')
+    config = context.get('config')
     connection = transaction.connection
     table = backend.get_table(model)
 
     # Need to set specific amount of max errors, to prevent memory problems
-    max_error_count = 100
+    max_error_count = config.max_error_count_on_insert
     error_list = []
     savepoint_transaction_start = connection.begin_nested()
     rollback_full = False
@@ -41,13 +42,14 @@ async def insert(
             )
             connection.execute(qry, patch)
             commands.after_write(context, model, backend, data=data)
+            savepoint.commit()
         except exc.DatabaseError as error:
             rollback_full = True
             savepoint.rollback()
             exception = create_exception(data, error)
             error_list.append(exception)
             data.error = exception
-            if len(error_list) >= max_error_count:
+            if len(error_list) >= max_error_count or stop_on_error:
                 yield data
                 savepoint_transaction_start.rollback()
                 raise exceptions.MultipleErrors(error_list)
@@ -56,6 +58,7 @@ async def insert(
     if rollback_full:
         savepoint_transaction_start.rollback()
         raise exceptions.MultipleErrors(error_list)
+    savepoint_transaction_start.commit()
 
 
 @commands.update.register(Context, Model, PostgreSQL)
@@ -68,11 +71,12 @@ async def update(
     stop_on_error: bool = True,
 ):
     transaction = context.get('transaction')
+    config = context.get('config')
     connection = transaction.connection
     table = backend.get_table(model)
 
     # Need to set specific amount of max errors, to prevent memory problems
-    max_error_count = 100
+    max_error_count = config.max_error_count_on_insert
     error_list = []
     savepoint_transaction_start = connection.begin_nested()
     rollback_full = False
@@ -98,6 +102,7 @@ async def update(
                     f"{result.rowcount} rows."
                 )
             commands.after_write(context, model, backend, data=data)
+            savepoint.commit()
         except exc.DatabaseError as error:
             rollback_full = True
             savepoint.rollback()
@@ -114,6 +119,7 @@ async def update(
     if rollback_full:
         savepoint_transaction_start.rollback()
         raise exceptions.MultipleErrors(error_list)
+    savepoint_transaction_start.commit()
 
 
 @commands.delete.register(Context, Model, PostgreSQL)
@@ -126,11 +132,12 @@ async def delete(
     stop_on_error: bool = True,
 ):
     transaction = context.get('transaction')
+    config = context.get('config')
     connection = transaction.connection
     table = backend.get_table(model)
 
     # Need to set specific amount of max errors, to prevent memory problems
-    max_error_count = 100
+    max_error_count = config.max_error_count_on_insert
     error_list = []
     savepoint_transaction_start = connection.begin_nested()
     rollback_full = False
@@ -143,6 +150,7 @@ async def delete(
                 where(table.c._id == data.saved['_id'])
             )
             commands.after_write(context, model, backend, data=data)
+            savepoint.commit()
         except exc.DatabaseError as error:
             rollback_full = True
             savepoint.rollback()
@@ -159,6 +167,7 @@ async def delete(
     if rollback_full:
         savepoint_transaction_start.rollback()
         raise exceptions.MultipleErrors(error_list)
+    savepoint_transaction_start.commit()
 
 
 @commands.before_write.register(Context, Model, PostgreSQL)

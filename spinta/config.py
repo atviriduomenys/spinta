@@ -224,6 +224,8 @@ CONFIG = {
     # If nothing is set, default is 100 MB
     'max_file_size': 100,
 
+    # Used to determine max amount of errors can be thrown while writing, before canceling writing stream
+    'max_error_count_on_insert': 100,
 
     'environments': {
         'dev': {
