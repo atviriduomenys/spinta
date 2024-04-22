@@ -860,7 +860,7 @@ def _get_state_rows(
                 stmt
             )
 
-        yield from get_paginated_values(model_page, page_meta, rows)
+        yield from get_paginated_values(model_page, page_meta, rows, _extract_state_page_keys)
 
 
 def _prepare_rows_for_push(rows: Iterable[_PushRow]) -> Iterator[_PushRow]:
@@ -1738,7 +1738,7 @@ def _get_deleted_rows_with_page(
             ).order_by(*order_by).limit(size)
         )
 
-        yield from get_paginated_values(from_page, page_meta, rows)
+        yield from get_paginated_values(from_page, page_meta, rows, _extract_state_page_keys)
 
 
 def _prepare_deleted_row(
@@ -2053,3 +2053,11 @@ def _load_page_from_dict(model: Model, values: dict):
         prop = model.properties.get(key)
         if prop:
             model.page.add_prop(key, prop, item)
+
+
+def _extract_state_page_keys(row: dict):
+    result = []
+    for key, value in row.items():
+        if 'page.' in key:
+            result.append(value)
+    return result
