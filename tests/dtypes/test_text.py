@@ -157,8 +157,8 @@ def test_html(
             link='/example/Country/262f6c72-4284-4d26-b9b0-e282bfe46a46',
             color=None,
         ),
-        'name.lt': Cell(value='Lietuva', link=None, color=None),
-        'name.en': Cell(value='Lithuania', link=None, color=None),
+        'name@lt': Cell(value='Lietuva', link=None, color=None),
+        'name@en': Cell(value='Lithuania', link=None, color=None),
     }
 
 
@@ -455,7 +455,7 @@ def test_text_unknown_language(
     ])
     resp = app.post(f'/{model}', json={
         'name': {
-            'C': 'LT',
+            '': 'LT',
             'lt': 'Lietuva'
         }
     })
@@ -467,7 +467,7 @@ def test_text_unknown_language(
     assert len(select_by_prop.json()['_data']) == 1
     assert select_by_prop.json()['_data'] == [{
         'name': {
-            'C': 'LT',
+            '': 'LT'
         }
     }]
 

@@ -11,7 +11,7 @@ from spinta.backends.components import BackendOrigin
 from spinta.components import Namespace, Base, Model, Property, Context, Config, EntryId, MetaData, Action
 from spinta.core.enums import Access
 from spinta.core.ufuncs import Expr
-from spinta.datasets.components import Dataset, Resource
+from spinta.datasets.components import Dataset, Resource, Param
 from spinta.dimensions.comments.components import Comment
 from spinta.dimensions.enum.components import Enums
 from spinta.dimensions.lang.components import LangData
@@ -843,48 +843,47 @@ def _dataset_to_sql(
 
 
 def _params_to_sql(
-    params_data: dict,
+    params: List[Param],
     parent_id: uuid.UUID = None,
     depth: int = 0,
     path: str = None,
     mpath: str = None
 ) -> Iterator[InternalManifestRow]:
-    if not params_data:
+    if not params:
         return
-    for param, values in params_data.items():
+    for param in params:
         param_base_id = _handle_id("")
-        new_mpath = '/'.join([mpath, param] if mpath else [param])
-        for i in range(len(values["source"])):
+        new_mpath = '/'.join([mpath, param.name] if mpath else [param.name])
+        for i, (source, prepare) in enumerate(zip(param.source, param.prepare)):
             new_id = _handle_id('')
-            if "id" in values.keys():
-                new_id = _handle_id(values["id"][i])
-            prepare = _handle_prepare(values["prepare"][i])
-            if not (isinstance(values["prepare"][i], NotAvailable) and values['source'][i] is None):
-                if i == 0:
-                    yield to_row(INTERNAL_MANIFEST_COLUMNS, {
-                        'id': param_base_id,
-                        'parent': parent_id,
-                        'depth': depth,
-                        'path': path,
-                        'mpath': new_mpath,
-                        'dim': 'param',
-                        'name': param,
-                        'type': 'param',
-                        'ref': param,
-                        'source': values["source"][i],
-                        'title': values["title"],
-                        'description': values["description"]
-                    })
+            if param.id is not None:
+                new_id = _handle_id(param.id)
+            prepare = _handle_prepare(prepare)
+            if i == 0:
                 yield to_row(INTERNAL_MANIFEST_COLUMNS, {
-                    'id': new_id,
-                    'parent': param_base_id,
-                    'depth': depth + 1,
+                    'id': param_base_id,
+                    'parent': parent_id,
+                    'depth': depth,
                     'path': path,
-                    'mpath': '/'.join([new_mpath, str(new_id)] if new_mpath else [str(new_id)]),
-                    'dim': 'param.item',
-                    'source': values["source"][i],
-                    'prepare': prepare
+                    'mpath': new_mpath,
+                    'dim': 'param',
+                    'name': param.name,
+                    'type': 'param',
+                    'ref': param.name,
+                    'source': source,
+                    'title': param.title,
+                    'description': param.description
                 })
+            yield to_row(INTERNAL_MANIFEST_COLUMNS, {
+                'id': new_id,
+                'parent': param_base_id,
+                'depth': depth + 1,
+                'path': path,
+                'mpath': '/'.join([new_mpath, str(new_id)] if new_mpath else [str(new_id)]),
+                'dim': 'param.item',
+                'source': source,
+                'prepare': prepare
+            })
 
 
 def _resource_to_sql(

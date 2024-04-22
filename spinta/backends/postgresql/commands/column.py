@@ -64,37 +64,6 @@ def get_column(backend: PostgreSQL, dtype: String, table: sa.Table = None, **kwa
     return column
 
 
-@commands.get_column.register(PostgreSQL, Text)
-def get_column(backend: PostgreSQL, dtype: Text, table: sa.Table = None, langs: list = [], default_langs: list = [],
-               push: bool = False, **kwargs):
-    prop = dtype.prop
-    column_name = gcn(dtype.prop)
-    if table is None:
-        table = get_table(backend, prop)
-
-    if push:
-        column = convert_str_to_column(table, prop, column_name)
-        return column
-
-    existing_langs = list(dtype.langs.keys())
-    lang_prop = None
-    if langs:
-        for lang in langs:
-            if lang in dtype.langs:
-                lang_prop = dtype.langs[lang]
-                break
-    if not lang_prop and default_langs:
-        for lang in default_langs:
-            if lang in dtype.langs:
-                lang_prop = dtype.langs[lang]
-                break
-    if not lang_prop:
-        lang_prop = dtype.langs[existing_langs[0]]
-    column = convert_str_to_column(table, prop, column_name)
-    column = column[lang_prop.name].label(prop.place)
-    return column
-
-
 @commands.get_column.register(PostgreSQL, Ref)
 def get_column(backend: PostgreSQL, dtype: Ref, table: sa.Table = None, **kwargs):
     column = gcn(dtype.prop, replace=not dtype.prop.given.explicit)

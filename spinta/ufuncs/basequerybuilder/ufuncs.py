@@ -1,4 +1,3 @@
-from pprint import pprint
 from typing import Union, List
 
 from spinta.components import Page, Property, PageBy
@@ -22,7 +21,10 @@ def paginate(env, expr):
                 for by, page_by in page.by.items():
                     sorted_ = env.call('sort', Negative(page_by.prop.name) if by.startswith("-") else Bind(page_by.prop.name))
                     if sorted_ is not None:
-                        env.page.sort.append(sorted_)
+                        if isinstance(sorted_, (list, set, tuple)):
+                            env.page.sort += sorted_
+                        else:
+                            env.page.sort.append(sorted_)
             env.page.page_ = page
             env.page.size = page.size
             return env.resolve(_get_pagination_compare_query(page))
@@ -38,6 +40,19 @@ def expand(env, expr):
             resolved = env.resolve(arg)
             selected = env.call('select', resolved)
             env.expand.append(selected.prop)
+
+
+class Star:
+    def __str__(self):
+        return '*'
+
+
+@ufunc.resolver(BaseQueryBuilder, str, name='op')
+def op_(env, arg: str):
+    if arg == '*':
+        return Star()
+    else:
+        raise NotImplementedError
 
 
 @ufunc.resolver(BaseQueryBuilder, Expr, name='page')

@@ -88,7 +88,7 @@ def getall(
     query = merge_formulas(query, get_enum_filters(context, model))
     query = merge_formulas(query, get_ref_filters(context, model))
     keymap: KeyMap = context.get(f'keymap.{model.keymap.name}')
-    for model_params in iterparams(context, model):
+    for model_params in iterparams(context, model, model.manifest):
         table = model.external.name.format(**model_params)
         table = backend.get_table(model, table)
         env = builder.init(backend, table, params)

@@ -1,5 +1,5 @@
 from copy import copy
-from typing import Any, List, Union
+from typing import Any, List, Union, Generator
 from typing import Callable
 from typing import Dict
 from typing import Hashable
@@ -762,57 +762,67 @@ def zipitems(
     ] = {}
 
     for v in a:
-        k = key(v)
-        if isinstance(k, Tuple):
-            for keys in res.keys():
-                if set(k) == set(keys):
-                    res[keys].append([v, NA])
-                    break
-            else:
-                res[k] = [[v, NA]]
+        k_list = key(v)
+        if isinstance(k_list, Generator):
+            k_list = list(k_list)
         else:
-            index = k
-            if isinstance(k, PriorityKey):
-                for item in res.keys():
-                    if k == item:
-                        index = item
+            k_list = [k_list]
+        for k in k_list:
+            if isinstance(k, Tuple):
+                for keys in res.keys():
+                    if set(k) == set(keys):
+                        res[keys].append([v, NA])
                         break
-            if index not in list(res.keys()):
-                res[index] = []
-            res[index].append([v, NA])
-    for v in b:
-        k = key(v)
-        if isinstance(k, Tuple):
-            found = False
-            for keys in res.keys():
-                if set(k).issubset(set(keys)):
-                    found = True
-                    additional = []
-                    for item in res[keys]:
-                        if item[1] is NA:
-                            item[1] = v
-                        else:
-                            additional.append([item[0], v])
-                    res[keys] += additional
-            if not found:
-                res[k] = [[NA, v]]
-        else:
-            if k in list(res.keys()):
+                else:
+                    res[k] = [[v, NA]]
+            else:
                 index = k
                 if isinstance(k, PriorityKey):
                     for item in res.keys():
                         if k == item:
                             index = item
                             break
-                additional = []
-                for item in res[index]:
-                    if item[1] is NA:
-                        item[1] = v
-                    else:
-                        additional.append([item[0], v])
-                res[index] += additional
+                if index not in list(res.keys()):
+                    res[index] = []
+                res[index].append([v, NA])
+    for v in b:
+        k_list = key(v)
+        if isinstance(k_list, Generator):
+            k_list = list(k_list)
+        else:
+            k_list = [k_list]
+        for k in k_list:
+            if isinstance(k, Tuple):
+                found = False
+                for keys in res.keys():
+                    if set(k).issubset(set(keys)):
+                        found = True
+                        additional = []
+                        for item in res[keys]:
+                            if item[1] is NA:
+                                item[1] = v
+                            else:
+                                additional.append([item[0], v])
+                        res[keys] += additional
+                if not found:
+                    res[k] = [[NA, v]]
             else:
-                res[k] = [[NA, v]]
+                if k in list(res.keys()):
+                    index = k
+                    if isinstance(k, PriorityKey):
+                        for item in res.keys():
+                            if k == item:
+                                index = item
+                                break
+                    additional = []
+                    for item in res[index]:
+                        if item[1] is NA:
+                            item[1] = v
+                        else:
+                            additional.append([item[0], v])
+                    res[index] += additional
+                else:
+                    res[k] = [[NA, v]]
     yield from res.values()
 
 

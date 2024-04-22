@@ -7,6 +7,7 @@ from spinta.core.config import RawConfig
 from spinta.testing.client import create_test_client
 from spinta.testing.data import pushdata, encode_page_values_manually
 from spinta.testing.manifest import bootstrap_manifest
+from starlette.datastructures import Headers
 import pytest
 
 
@@ -50,14 +51,15 @@ def test_rdf_get_all_without_uri(
     })
 
     res = app.get("/example/rdf/City/:format/rdf").text
-    assert res == f'<?xml version="1.0" encoding="UTF-8"?>\n'\
+    assert res == f'<?xml version="1.0" encoding="UTF-8"?>\n' \
                   f'<rdf:RDF\n' \
                   f' xmlns:rdf="http://www.rdf.com"\n' \
                   f' xmlns:pav="http://purl.org/pav/"\n' \
-                  f' xmlns="https://testserver/">\n'\
+                  f' xmlns:xml="http://www.w3.org/XML/1998/namespace"\n' \
+                  f' xmlns="https://testserver/">\n' \
                   f'<rdf:Description rdf:about="/example/rdf/City/{city2["_id"]}" rdf:type="example/rdf/City" ' \
                   f'pav:version="{city2["_revision"]}">\n' \
-                  f'  <_page>{encode_page_values_manually({ "name": city2["name"], "_id": city2["_id"]})}</_page>\n' \
+                  f'  <_page>{encode_page_values_manually({"name": city2["name"], "_id": city2["_id"]})}</_page>\n' \
                   f'  <name>{city2["name"]}</name>\n' \
                   f'  <country rdf:resource="/example/rdf/Country/{country["_id"]}"/>\n' \
                   f'</rdf:Description>\n' \
@@ -112,10 +114,11 @@ def test_rdf_get_all_with_uri(
     })
 
     res = app.get("/example/rdf/City/:format/rdf").text
-    assert res == f'<?xml version="1.0" encoding="UTF-8"?>\n'\
+    assert res == f'<?xml version="1.0" encoding="UTF-8"?>\n' \
                   f'<rdf:RDF\n' \
                   f' xmlns:rdf="http://www.rdf.com"\n' \
                   f' xmlns:pav="http://purl.org/pav/"\n' \
+                  f' xmlns:xml="http://www.w3.org/XML/1998/namespace"\n' \
                   f' xmlns:dcat="http://www.dcat.com"\n' \
                   f' xmlns:dct="http://dct.com"\n' \
                   f' xmlns="https://testserver/">\n' \
@@ -128,9 +131,9 @@ def test_rdf_get_all_with_uri(
                   f'<dcat:city rdf:about="/example/rdf/City/{city1["_id"]}" rdf:type="example/rdf/City" ' \
                   f'pav:version="{city1["_revision"]}">\n' \
                   f'  <_page>{encode_page_values_manually({"name": city1["name"], "_id": city1["_id"]})}</_page>\n' \
-                  f'  <dct:name>{city1["name"]}</dct:name>\n'\
+                  f'  <dct:name>{city1["name"]}</dct:name>\n' \
                   f'  <dct:country rdf:resource="/example/rdf/Country/{country["_id"]}"/>\n' \
-                  f'</dcat:city>\n'\
+                  f'</dcat:city>\n' \
                   f'</rdf:RDF>\n'
 
 
@@ -172,18 +175,19 @@ def test_rdf_get_one(
     })
 
     res = app.get(f"/example/rdf/City/{city['_id']}/:format/rdf").text
-    assert res == f'<?xml version="1.0" encoding="UTF-8"?>\n'\
+    assert res == f'<?xml version="1.0" encoding="UTF-8"?>\n' \
                   f'<rdf:RDF\n' \
                   f' xmlns:rdf="http://www.rdf.com"\n' \
                   f' xmlns:pav="http://purl.org/pav/"\n' \
+                  f' xmlns:xml="http://www.w3.org/XML/1998/namespace"\n' \
                   f' xmlns:dcat="http://www.dcat.com"\n' \
                   f' xmlns:dct="http://dct.com"\n' \
                   f' xmlns="https://testserver/">\n' \
                   f'<dcat:city rdf:about="/example/rdf/City/{city["_id"]}" rdf:type="example/rdf/City" ' \
                   f'pav:version="{city["_revision"]}">\n' \
-                  f'  <dct:name>{city["name"]}</dct:name>\n'\
+                  f'  <dct:name>{city["name"]}</dct:name>\n' \
                   f'  <dct:country rdf:resource="/example/rdf/Country/{country["_id"]}"/>\n' \
-                  f'</dcat:city>\n'\
+                  f'</dcat:city>\n' \
                   f'</rdf:RDF>\n'
 
 
@@ -226,19 +230,20 @@ def test_rdf_with_file(
     })
 
     res = app.get(f"/example/rdf/file/Country/{country['_id']}/:format/rdf").text
-    assert res == f'<?xml version="1.0" encoding="UTF-8"?>\n'\
+    assert res == f'<?xml version="1.0" encoding="UTF-8"?>\n' \
                   f'<rdf:RDF\n' \
                   f' xmlns:rdf="http://www.rdf.com"\n' \
                   f' xmlns:pav="http://purl.org/pav/"\n' \
+                  f' xmlns:xml="http://www.w3.org/XML/1998/namespace"\n' \
                   f' xmlns:dcat="http://www.dcat.com"\n' \
                   f' xmlns:dct="http://dct.com"\n' \
                   f' xmlns="https://testserver/">\n' \
                   f'<dcat:country rdf:about="/example/rdf/file/Country/{country["_id"]}" ' \
                   f'rdf:type="example/rdf/file/Country" ' \
                   f'pav:version="{country["_revision"]}">\n' \
-                  f'  <dct:name>{country["name"]}</dct:name>\n'\
+                  f'  <dct:name>{country["name"]}</dct:name>\n' \
                   f'  <dct:flag rdf:about="/example/rdf/file/Country/{country["_id"]}/flag"/>\n' \
-                  f'</dcat:country>\n'\
+                  f'</dcat:country>\n' \
                   f'</rdf:RDF>\n'
 
 
@@ -277,10 +282,11 @@ def test_rdf_get_with_uri_model_rename(
     })
 
     res = app.get("/example/rdf/rename/Country/:format/rdf").text
-    assert res == f'<?xml version="1.0" encoding="UTF-8"?>\n'\
+    assert res == f'<?xml version="1.0" encoding="UTF-8"?>\n' \
                   f'<rdf:RDF\n' \
                   f' xmlns:rdf="http://www.rdf.com"\n' \
                   f' xmlns:pav="http://purl.org/pav/"\n' \
+                  f' xmlns:xml="http://www.w3.org/XML/1998/namespace"\n' \
                   f' xmlns:dcat="http://www.dcat.com"\n' \
                   f' xmlns:dct="http://dct.com"\n' \
                   f' xmlns="https://testserver/">\n' \
@@ -288,8 +294,8 @@ def test_rdf_get_with_uri_model_rename(
                   f'rdf:type="example/rdf/rename/Country" ' \
                   f'pav:version="{country["_revision"]}">\n' \
                   f'  <_page>{encode_page_values_manually({"name": country["name"], "_id": country["_id"]})}</_page>\n' \
-                  f'  <dct:name>{country["name"]}</dct:name>\n'\
-                  f'</dcat:country>\n'\
+                  f'  <dct:name>{country["name"]}</dct:name>\n' \
+                  f'</dcat:country>\n' \
                   f'</rdf:RDF>\n'
 
 
@@ -335,10 +341,11 @@ def test_rdf_get_with_uri_ref_rename(
     })
 
     res = app.get("/example/rdf/rename/City/:format/rdf").text
-    assert res == f'<?xml version="1.0" encoding="UTF-8"?>\n'\
+    assert res == f'<?xml version="1.0" encoding="UTF-8"?>\n' \
                   f'<rdf:RDF\n' \
                   f' xmlns:rdf="http://www.rdf.com"\n' \
                   f' xmlns:pav="http://purl.org/pav/"\n' \
+                  f' xmlns:xml="http://www.w3.org/XML/1998/namespace"\n' \
                   f' xmlns:dcat="http://www.dcat.com"\n' \
                   f' xmlns:dct="http://dct.com"\n' \
                   f' xmlns="https://testserver/">\n' \
@@ -387,10 +394,11 @@ def test_rdf_empty_ref(
     })
 
     res = app.get("/example/rdf/ref/City/:format/rdf").text
-    assert res == f'<?xml version="1.0" encoding="UTF-8"?>\n'\
+    assert res == f'<?xml version="1.0" encoding="UTF-8"?>\n' \
                   f'<rdf:RDF\n' \
                   f' xmlns:rdf="http://www.rdf.com"\n' \
                   f' xmlns:pav="http://purl.org/pav/"\n' \
+                  f' xmlns:xml="http://www.w3.org/XML/1998/namespace"\n' \
                   f' xmlns:dcat="http://www.dcat.com"\n' \
                   f' xmlns:dct="http://dct.com"\n' \
                   f' xmlns="https://testserver/">\n' \
@@ -445,10 +453,11 @@ def test_rdf_mixed_ref(
     })
 
     res = app.get("/example/rdf/ref/multi/City/:format/rdf").text
-    assert res == f'<?xml version="1.0" encoding="UTF-8"?>\n'\
+    assert res == f'<?xml version="1.0" encoding="UTF-8"?>\n' \
                   f'<rdf:RDF\n' \
                   f' xmlns:rdf="http://www.rdf.com"\n' \
                   f' xmlns:pav="http://purl.org/pav/"\n' \
+                  f' xmlns:xml="http://www.w3.org/XML/1998/namespace"\n' \
                   f' xmlns:dcat="http://www.dcat.com"\n' \
                   f' xmlns:dct="http://dct.com"\n' \
                   f' xmlns="https://testserver/">\n' \
@@ -531,10 +540,11 @@ def test_rdf_namespace_all(
     })
 
     res = app.get("/example/rdf/ref/:all/:format/rdf").text
-    assert res == f'<?xml version="1.0" encoding="UTF-8"?>\n'\
+    assert res == f'<?xml version="1.0" encoding="UTF-8"?>\n' \
                   f'<rdf:RDF\n' \
                   f' xmlns:rdf="http://www.rdf.com"\n' \
                   f' xmlns:pav="http://purl.org/pav/"\n' \
+                  f' xmlns:xml="http://www.w3.org/XML/1998/namespace"\n' \
                   f' xmlns:dcat="http://www.dcat.com"\n' \
                   f' xmlns:dct="http://dct.com"\n' \
                   f' xmlns:test="http://test.com"\n' \
@@ -566,3 +576,274 @@ def test_rdf_namespace_all(
                   f'  <dct:name>{ryga_mix["name"]}</dct:name>\n' \
                   f'</dcat:city>\n' \
                   f'</rdf:RDF>\n'
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_rdf_text(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property | type    | ref     | access  | level | uri
+    example/rdf/text         |         |         |         |       | 
+      |   |   |   |          | prefix  | rdf     |         |       | http://www.rdf.com
+      |   |   |   |          |         | pav     |         |       | http://purl.org/pav/
+      |   |   |   |          |         | dcat    |         |       | http://www.dcat.com
+      |   |   |   |          |         | dct     |         |       | http://dct.com
+      |   |   | Country      |         | name    |         |       | 
+      |   |   |   | id       | integer |         |         |       |
+      |   |   |   | name     | text    |         | open    | 3     |
+      |   |   |   | name@en  | string  |         | open    |       |
+      |   |   |   | name@lt  | string  |         | open    |       |
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    app = create_test_client(context)
+    app.authmodel('example/rdf', ['insert', 'getall'])
+
+    lt = pushdata(app, f'/example/rdf/text/Country', {
+        'id': 0,
+        'name': {
+            'lt': 'Lietuva',
+            'en': 'Lithuania',
+            'C': 'LT'
+        }
+    })
+    uk = pushdata(app, f'/example/rdf/text/Country', {
+        'id': 1,
+        'name': {
+            'lt': 'Anglija',
+            'en': 'England',
+            'C': 'UK'
+        }
+    })
+
+    res = app.get("/example/rdf/text/Country/:format/rdf", headers=Headers(headers={
+        'accept-language': 'lt'
+    })).text
+    assert res == f'<?xml version="1.0" encoding="UTF-8"?>\n' \
+                  f'<rdf:RDF\n' \
+                  f' xmlns:rdf="http://www.rdf.com"\n' \
+                  f' xmlns:pav="http://purl.org/pav/"\n' \
+                  f' xmlns:xml="http://www.w3.org/XML/1998/namespace"\n' \
+                  f' xmlns:dcat="http://www.dcat.com"\n' \
+                  f' xmlns:dct="http://dct.com"\n' \
+                  f' xmlns="https://testserver/">\n' \
+                  f'<rdf:Description rdf:about="/example/rdf/text/Country/{lt["_id"]}" rdf:type="example/rdf/text/Country" ' \
+                  f'pav:version="{lt["_revision"]}">\n' \
+                  f'  <id>{lt["id"]}</id>\n' \
+                  f'  <name xml:lang="lt">Lietuva</name>\n' \
+                  f'</rdf:Description>\n' \
+                  f'<rdf:Description rdf:about="/example/rdf/text/Country/{uk["_id"]}" rdf:type="example/rdf/text/Country" ' \
+                  f'pav:version="{uk["_revision"]}">\n' \
+                  f'  <id>{uk["id"]}</id>\n' \
+                  f'  <name xml:lang="lt">Anglija</name>\n' \
+                  f'</rdf:Description>\n' \
+                  f'</rdf:RDF>\n'
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_rdf_text_with_lang(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property | type    | ref     | access  | level | uri
+    example/rdf/text/lang    |         |         |         |       | 
+      |   |   |   |          | prefix  | rdf     |         |       | http://www.rdf.com
+      |   |   |   |          |         | pav     |         |       | http://purl.org/pav/
+      |   |   |   |          |         | dcat    |         |       | http://www.dcat.com
+      |   |   |   |          |         | dct     |         |       | http://dct.com
+      |   |   | Country      |         | name    |         |       | 
+      |   |   |   | id       | integer |         |         |       |
+      |   |   |   | name     | text    |         | open    | 3     |
+      |   |   |   | name@en  | string  |         | open    |       |
+      |   |   |   | name@lt  | string  |         | open    |       |
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    app = create_test_client(context)
+    app.authmodel('example/rdf', ['insert', 'getall'])
+
+    lt = pushdata(app, f'/example/rdf/text/lang/Country', {
+        'id': 0,
+        'name': {
+            'lt': 'Lietuva',
+            'en': 'Lithuania',
+            'C': 'LT'
+        }
+    })
+    uk = pushdata(app, f'/example/rdf/text/lang/Country', {
+        'id': 1,
+        'name': {
+            'lt': 'Anglija',
+            'en': 'England',
+            'C': 'UK'
+        }
+    })
+
+    res = app.get("/example/rdf/text/lang/Country/:format/rdf?lang(*)", headers=Headers(headers={
+        'accept-language': 'lt'
+    })).text
+    assert res == f'<?xml version="1.0" encoding="UTF-8"?>\n' \
+                  f'<rdf:RDF\n' \
+                  f' xmlns:rdf="http://www.rdf.com"\n' \
+                  f' xmlns:pav="http://purl.org/pav/"\n' \
+                  f' xmlns:xml="http://www.w3.org/XML/1998/namespace"\n' \
+                  f' xmlns:dcat="http://www.dcat.com"\n' \
+                  f' xmlns:dct="http://dct.com"\n' \
+                  f' xmlns="https://testserver/">\n' \
+                  f'<rdf:Description rdf:about="/example/rdf/text/lang/Country/{lt["_id"]}" rdf:type="example/rdf/text/lang/Country" ' \
+                  f'pav:version="{lt["_revision"]}">\n' \
+                  f'  <id>{lt["id"]}</id>\n' \
+                  f'  <name>LT</name>\n' \
+                  f'  <name xml:lang="en">Lithuania</name>\n' \
+                  f'  <name xml:lang="lt">Lietuva</name>\n' \
+                  f'</rdf:Description>\n' \
+                  f'<rdf:Description rdf:about="/example/rdf/text/lang/Country/{uk["_id"]}" rdf:type="example/rdf/text/lang/Country" ' \
+                  f'pav:version="{uk["_revision"]}">\n' \
+                  f'  <id>{uk["id"]}</id>\n' \
+                  f'  <name>UK</name>\n' \
+                  f'  <name xml:lang="en">England</name>\n' \
+                  f'  <name xml:lang="lt">Anglija</name>\n' \
+                  f'</rdf:Description>\n' \
+                  f'</rdf:RDF>\n'
+
+    res = app.get("/example/rdf/text/lang/Country/:format/rdf?lang(en)", headers=Headers(headers={
+        'accept-language': 'lt'
+    })).text
+    assert res == f'<?xml version="1.0" encoding="UTF-8"?>\n' \
+                  f'<rdf:RDF\n' \
+                  f' xmlns:rdf="http://www.rdf.com"\n' \
+                  f' xmlns:pav="http://purl.org/pav/"\n' \
+                  f' xmlns:xml="http://www.w3.org/XML/1998/namespace"\n' \
+                  f' xmlns:dcat="http://www.dcat.com"\n' \
+                  f' xmlns:dct="http://dct.com"\n' \
+                  f' xmlns="https://testserver/">\n' \
+                  f'<rdf:Description rdf:about="/example/rdf/text/lang/Country/{lt["_id"]}" rdf:type="example/rdf/text/lang/Country" ' \
+                  f'pav:version="{lt["_revision"]}">\n' \
+                  f'  <id>{lt["id"]}</id>\n' \
+                  f'  <name xml:lang="en">Lithuania</name>\n' \
+                  f'</rdf:Description>\n' \
+                  f'<rdf:Description rdf:about="/example/rdf/text/lang/Country/{uk["_id"]}" rdf:type="example/rdf/text/lang/Country" ' \
+                  f'pav:version="{uk["_revision"]}">\n' \
+                  f'  <id>{uk["id"]}</id>\n' \
+                  f'  <name xml:lang="en">England</name>\n' \
+                  f'</rdf:Description>\n' \
+                  f'</rdf:RDF>\n'
+
+    res = app.get("/example/rdf/text/lang/Country/:format/rdf?lang(en,lt)", headers=Headers(headers={
+        'accept-language': 'lt'
+    })).text
+    assert res == f'<?xml version="1.0" encoding="UTF-8"?>\n' \
+                  f'<rdf:RDF\n' \
+                  f' xmlns:rdf="http://www.rdf.com"\n' \
+                  f' xmlns:pav="http://purl.org/pav/"\n' \
+                  f' xmlns:xml="http://www.w3.org/XML/1998/namespace"\n' \
+                  f' xmlns:dcat="http://www.dcat.com"\n' \
+                  f' xmlns:dct="http://dct.com"\n' \
+                  f' xmlns="https://testserver/">\n' \
+                  f'<rdf:Description rdf:about="/example/rdf/text/lang/Country/{lt["_id"]}" rdf:type="example/rdf/text/lang/Country" ' \
+                  f'pav:version="{lt["_revision"]}">\n' \
+                  f'  <id>{lt["id"]}</id>\n' \
+                  f'  <name xml:lang="en">Lithuania</name>\n' \
+                  f'  <name xml:lang="lt">Lietuva</name>\n' \
+                  f'</rdf:Description>\n' \
+                  f'<rdf:Description rdf:about="/example/rdf/text/lang/Country/{uk["_id"]}" rdf:type="example/rdf/text/lang/Country" ' \
+                  f'pav:version="{uk["_revision"]}">\n' \
+                  f'  <id>{uk["id"]}</id>\n' \
+                  f'  <name xml:lang="en">England</name>\n' \
+                  f'  <name xml:lang="lt">Anglija</name>\n' \
+                  f'</rdf:Description>\n' \
+                  f'</rdf:RDF>\n'
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_rdf_changes_text(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property | type    | ref     | access  | level | uri
+    example/rdf/text/changes |         |         |         |       | 
+      |   |   |   |          | prefix  | rdf     |         |       | http://www.rdf.com
+      |   |   |   |          |         | pav     |         |       | http://purl.org/pav/
+      |   |   |   |          |         | dcat    |         |       | http://www.dcat.com
+      |   |   |   |          |         | dct     |         |       | http://dct.com
+      |   |   | Country      |         | name    |         |       | 
+      |   |   |   | id       | integer |         |         |       |
+      |   |   |   | name     | text    |         | open    | 3     |
+      |   |   |   | name@en  | string  |         | open    |       |
+      |   |   |   | name@lt  | string  |         | open    |       |
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    app = create_test_client(context)
+    app.authmodel('example/rdf', ['insert', 'getall', 'search', 'changes'])
+
+    lt = pushdata(app, f'/example/rdf/text/changes/Country', {
+        'id': 0,
+        'name': {
+            'lt': 'Lietuva',
+            'en': 'Lithuania',
+            'C': 'LT'
+        }
+    })
+    uk = pushdata(app, f'/example/rdf/text/changes/Country', {
+        'id': 1,
+        'name': {
+            'lt': 'Anglija',
+            'en': 'England',
+            'C': 'UK'
+        }
+    })
+
+    resp = app.get("/example/rdf/text/changes/Country/:changes/-10/:format/rdf?select(id,name)",
+                   headers=Headers(headers={
+                       'accept-language': 'lt'
+                   })).text
+    assert resp == f'<?xml version="1.0" encoding="UTF-8"?>\n' \
+                   f'<rdf:RDF\n' \
+                   f' xmlns:rdf="http://www.rdf.com"\n' \
+                   f' xmlns:pav="http://purl.org/pav/"\n' \
+                   f' xmlns:xml="http://www.w3.org/XML/1998/namespace"\n' \
+                   f' xmlns:dcat="http://www.dcat.com"\n' \
+                   f' xmlns:dct="http://dct.com"\n' \
+                   f' xmlns="https://testserver/">\n' \
+                   f'<rdf:Description rdf:type="example/rdf/text/changes/Country">\n' \
+                   f'  <id>{lt["id"]}</id>\n' \
+                   f'  <name>LT</name>\n' \
+                   f'  <name xml:lang="en">Lithuania</name>\n' \
+                   f'  <name xml:lang="lt">Lietuva</name>\n' \
+                   f'</rdf:Description>\n' \
+                   f'<rdf:Description rdf:type="example/rdf/text/changes/Country">\n' \
+                   f'  <id>{uk["id"]}</id>\n' \
+                   f'  <name>UK</name>\n' \
+                   f'  <name xml:lang="en">England</name>\n' \
+                   f'  <name xml:lang="lt">Anglija</name>\n' \
+                   f'</rdf:Description>\n' \
+                   f'</rdf:RDF>\n'

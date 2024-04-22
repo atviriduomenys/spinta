@@ -888,6 +888,8 @@ class UrlParams:
 
     expand: Optional[List[str]] = None
 
+    lang: Optional[List[str]] = None
+
     accept_langs: Optional[List[str]] = None
     content_langs: Optional[List[str]] = None
 
@@ -1062,6 +1064,7 @@ class Config:
     check_names: bool = False
     # MB
     max_api_file_size: int
+    max_error_count_on_insert: int
 
     def __init__(self):
         self.commands = _CommandsConfig()

@@ -1,4 +1,5 @@
 from spinta import commands
+from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.datasets.backends.sql.commands.read import _get_row_value
 from spinta.exceptions import TooShortPageSize
@@ -6,7 +7,7 @@ from spinta.manifests.tabular.helpers import striptable
 import pytest
 from spinta.testing.client import create_client
 from spinta.testing.data import listdata
-from spinta.testing.datasets import create_sqlite_db
+from spinta.testing.datasets import create_sqlite_db, use_default_dialect_functions
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.datasets.backends.sql.commands.query import Selected
 from spinta.testing.tabular import create_tabular_manifest
@@ -15,12 +16,12 @@ import sqlalchemy as sa
 
 @pytest.fixture(scope='module')
 def geodb_null_check():
-    with create_sqlite_db({
+    with (create_sqlite_db({
         'cities': [
             sa.Column('id', sa.Integer, primary_key=True),
             sa.Column('name', sa.Text),
         ]
-    }) as db:
+    }) as db):
         db.write('cities', [
             {'id': 0, 'name': 'Vilnius'},
         ])
@@ -70,7 +71,11 @@ def test__get_row_value_null(rc: RawConfig):
     assert _get_row_value(context, row, sel) is None
 
 
-def test_getall_paginate_null_check_value(context, rc, tmp_path, geodb_null_check):
+@pytest.mark.parametrize("use_default_dialect", [True, False])
+def test_getall_paginate_null_check_value(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path, geodb_null_check, mocker):
+    if use_default_dialect:
+        use_default_dialect_functions(mocker)
+
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source          | type    | ref     | access | prepare
        | external/paginate        |                 |         |         |        |
@@ -89,7 +94,11 @@ def test_getall_paginate_null_check_value(context, rc, tmp_path, geodb_null_chec
     ]
 
 
-def test_getall_paginate_with_nulls_page_too_small(context, rc, tmp_path, geodb_with_nulls):
+@pytest.mark.parametrize("use_default_dialect", [True, False])
+def test_getall_paginate_with_nulls_page_too_small(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path, geodb_with_nulls, mocker):
+    if use_default_dialect:
+        use_default_dialect_functions(mocker)
+
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source          | type    | ref     | access | prepare
        | external/paginate        |                 |         |         |        |
@@ -110,7 +119,11 @@ def test_getall_paginate_with_nulls_page_too_small(context, rc, tmp_path, geodb_
         assert isinstance(exceptions[0], TooShortPageSize)
 
 
-def test_getall_paginate_with_nulls(context, rc, tmp_path, geodb_with_nulls):
+@pytest.mark.parametrize("use_default_dialect", [True, False])
+def test_getall_paginate_with_nulls(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path, geodb_with_nulls, mocker):
+    if use_default_dialect:
+        use_default_dialect_functions(mocker)
+
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source          | type    | ref     | access | prepare
        | external/paginate/null0  |                 |         |         |        |
@@ -140,7 +153,11 @@ def test_getall_paginate_with_nulls(context, rc, tmp_path, geodb_with_nulls):
     ]
 
 
-def test_getall_paginate_with_nulls_multi_key(context, rc, tmp_path, geodb_with_nulls):
+@pytest.mark.parametrize("use_default_dialect", [True, False])
+def test_getall_paginate_with_nulls_multi_key(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path, geodb_with_nulls, mocker):
+    if use_default_dialect:
+        use_default_dialect_functions(mocker)
+
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source          | type    | ref      | access | prepare
        | external/paginate/null1  |                 |         |          |        |
@@ -170,7 +187,11 @@ def test_getall_paginate_with_nulls_multi_key(context, rc, tmp_path, geodb_with_
     ]
 
 
-def test_getall_paginate_with_nulls_all_keys(context, rc, tmp_path, geodb_with_nulls):
+@pytest.mark.parametrize("use_default_dialect", [True, False])
+def test_getall_paginate_with_nulls_all_keys(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path, geodb_with_nulls, mocker):
+    if use_default_dialect:
+        use_default_dialect_functions(mocker)
+
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source          | type    | ref      | access | prepare
        | external/paginate/null1  |                 |         |          |        |
@@ -200,7 +221,11 @@ def test_getall_paginate_with_nulls_all_keys(context, rc, tmp_path, geodb_with_n
     ]
 
 
-def test_getall_paginate_with_nulls_and_sort(context, rc, tmp_path, geodb_with_nulls):
+@pytest.mark.parametrize("use_default_dialect", [True, False])
+def test_getall_paginate_with_nulls_and_sort(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path, geodb_with_nulls, mocker):
+    if use_default_dialect:
+        use_default_dialect_functions(mocker)
+
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source          | type    | ref      | access | prepare
        | external/paginate/null2        |                 |         |          |        |
@@ -230,7 +255,11 @@ def test_getall_paginate_with_nulls_and_sort(context, rc, tmp_path, geodb_with_n
     ]
 
 
-def test_getall_paginate_with_nulls_unique(context, rc, tmp_path, geodb_with_nulls):
+@pytest.mark.parametrize("use_default_dialect", [True, False])
+def test_getall_paginate_with_nulls_unique(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path, geodb_with_nulls, mocker):
+    if use_default_dialect:
+        use_default_dialect_functions(mocker)
+
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source          | type    | ref      | access | prepare
        | external/paginate/null3        |                 |         |          |        |
@@ -275,3 +304,71 @@ def test_getall_paginate_with_nulls_unique(context, rc, tmp_path, geodb_with_nul
         (None, 3, 0, None),
         (None, None, 2, None),
     ]
+
+
+def test_getall_distinct(context, rc, tmp_path):
+    with create_sqlite_db({
+        'cities': [
+            sa.Column('name', sa.Text),
+            sa.Column('country', sa.Text),
+            sa.Column('id', sa.Integer)
+        ]
+    }) as db:
+        db.write('cities', [
+            {'name': 'Vilnius', 'country': 'Lietuva', 'id': 0},
+            {'name': 'Kaunas', 'country': 'Lietuva', 'id': 0},
+            {'name': 'Siauliai', 'country': 'Lietuva', 'id': 1},
+        ])
+        create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+        id | d | r | b | m | property    | source          | type    | ref      | access | prepare    | level
+           | external/distinct           |                 |         |          |        |            |
+           |   | data                    |                 | sql     |          |        |            |
+           |   |   |                     |                 |         |          |        |            |
+           |   |   |   | City            | cities          |         | name     | open   |            |
+           |   |   |   |   | name        | name            | string  |          |        |            |
+           |   |   |   |   | country     | country         | ref     | Country  |        |            | 3
+           |   |   |   | Country         | cities          |         | name     | open   |            |
+           |   |   |   |   | name        | country         | string  |          |        |            |
+           |   |   |   |   | id          | id              | integer |          |        |            |     
+           |   |   |   | CountryDistinct | cities          |         | name     | open   | distinct() |
+           |   |   |   |   | name        | country         | string  |          |        |            |
+           |   |   |   |   | id          | id              | integer |          |        |            |        
+           |   |   |   | CountryMultiDistinct | cities          |         | name, id | open   | distinct() |
+           |   |   |   |   | name        | country         | string  |          |        |            |
+           |   |   |   |   | id          | id              | integer |          |        |            |       
+           |   |   |   | CountryAllDistinct | cities          |         |        | open   | distinct() |
+           |   |   |   |   | name        | country         | string  |          |        |            |
+           |   |   |   |   | id          | id              | integer |          |        |            |   
+        '''))
+
+        app = create_client(rc, tmp_path, db)
+        resp = app.get('/external/distinct/City')
+        assert listdata(resp, 'name', 'country') == [
+            ('Kaunas', {'name': 'Lietuva'}),
+            ('Siauliai', {'name': 'Lietuva'}),
+            ('Vilnius', {'name': 'Lietuva'})
+        ]
+
+        resp = app.get('/external/distinct/Country')
+        assert listdata(resp, 'name', 'id') == [
+            ('Lietuva', 0),
+            ('Lietuva', 0),
+            ('Lietuva', 1)
+        ]
+
+        resp = app.get('/external/distinct/CountryDistinct')
+        assert listdata(resp, 'name', 'id') == [
+            ('Lietuva', 0),
+        ]
+
+        resp = app.get('/external/distinct/CountryMultiDistinct')
+        assert listdata(resp, 'name', 'id') == [
+            ('Lietuva', 0),
+            ('Lietuva', 1)
+        ]
+
+        resp = app.get('/external/distinct/CountryAllDistinct')
+        assert listdata(resp, 'name', 'id') == [
+            ('Lietuva', 0),
+            ('Lietuva', 1)
+        ]

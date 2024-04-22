@@ -64,7 +64,7 @@ from spinta.ufuncs.basequerybuilder.components import QueryParams
 from spinta.utils.data import take
 from spinta.utils.itertools import peek
 from spinta.utils.json import fix_data_for_json
-from spinta.utils.nestedstruct import flatten
+from spinta.utils.nestedstruct import flatten, sepgetter
 from spinta.utils.units import tobytes
 from spinta.utils.units import toseconds
 from spinta.utils.sqlite import migrate_table
@@ -694,10 +694,10 @@ def _read_rows_by_pages(
         if data_row is None and state_row is None:
             break
 
-        if data_row and state_row:
+        if data_row is not None and state_row is not None:
             row = _PushRow(model, data_row)
             row.op = 'insert'
-            row.checksum = _get_data_checksum(row.data)
+            row.checksum = _get_data_checksum(row.data, model)
 
             equals = _compare_data_with_state_rows(data_row, state_row, model_table)
             if equals:
@@ -731,16 +731,16 @@ def _read_rows_by_pages(
                     _update_model_page_with_new(model.page, model_table, data_row=data_row)
                     data_row = next(rows, None)
         else:
-            if data_row:
+            if data_row is not None:
                 row = _PushRow(model, data_row)
                 row.op = 'insert'
-                row.checksum = _get_data_checksum(row.data)
+                row.checksum = _get_data_checksum(row.data, model)
                 yield row
 
                 data_push_count += 1
                 _update_model_page_with_new(model.page, model_table, data_row=data_row)
                 data_row = next(rows, None)
-            else:
+            elif state_row is not None:
                 conn.execute(
                     sa.update(model_table).where(model_table.c.id == state_row["id"]).values(pushed=None)
                 )
@@ -860,7 +860,7 @@ def _get_state_rows(
                 stmt
             )
 
-        yield from get_paginated_values(model_page, page_meta, rows)
+        yield from get_paginated_values(model_page, page_meta, rows, _extract_state_page_keys)
 
 
 def _prepare_rows_for_push(rows: Iterable[_PushRow]) -> Iterator[_PushRow]:
@@ -1252,9 +1252,9 @@ def _get_model(row: _PushRow) -> Model:
     return row.model
 
 
-def _get_data_checksum(data: dict):
+def _get_data_checksum(data: dict, model: Model):
     data = fix_data_for_json(take(data))
-    data = flatten([data])
+    data = flatten([data], sepgetter(model))
     data = [[k, v] for x in data for k, v in sorted(x.items())]
     data = msgpack.dumps(data, strict_types=True)
     checksum = hashlib.sha1(data).hexdigest()
@@ -1306,7 +1306,7 @@ def _check_push_state(
         for row in group:
             if row.send and not row.error and row.op != "delete":
                 _id = row.data['_id']
-                row.checksum = _get_data_checksum(row.data)
+                row.checksum = _get_data_checksum(row.data, row.model)
                 saved = saved_rows.get(_id)
                 if saved is None:
                     row.op = "insert"
@@ -1738,7 +1738,7 @@ def _get_deleted_rows_with_page(
             ).order_by(*order_by).limit(size)
         )
 
-        yield from get_paginated_values(from_page, page_meta, rows)
+        yield from get_paginated_values(from_page, page_meta, rows, _extract_state_page_keys)
 
 
 def _prepare_deleted_row(
@@ -1992,7 +1992,7 @@ def _prepare_rows_with_errors(
             if not data:
                 yield _prepare_deleted_row(model, _id, error=True)
             # Was inserted or updated without errors
-            elif checksum == _get_data_checksum(resp):
+            elif checksum == _get_data_checksum(resp, model):
                 conn.execute(
                     table.update().
                     where(
@@ -2053,3 +2053,11 @@ def _load_page_from_dict(model: Model, values: dict):
         prop = model.properties.get(key)
         if prop:
             model.page.add_prop(key, prop, item)
+
+
+def _extract_state_page_keys(row: dict):
+    result = []
+    for key, value in row.items():
+        if 'page.' in key:
+            result.append(value)
+    return result

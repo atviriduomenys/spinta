@@ -38,7 +38,7 @@ def read_schema(manifest_type: DictFormat, path: str, dataset_name: str):
         mapping_meta["recursive_descent"] = "."
 
     elif manifest_type in (DictFormat.XML, DictFormat.HTML):
-        converted = xmltodict.parse(value)
+        converted = xmltodict.parse(value, cdata_key='text()')
         mapping_meta["seperator"] = "/"
         mapping_meta["recursive_descent"] = "/.."
         mapping_meta["model_source_prefix"] = "/"
@@ -48,7 +48,8 @@ def read_schema(manifest_type: DictFormat, path: str, dataset_name: str):
             "xmlns": ["xmlns", "@xmlns"]
         }
 
-    namespaces = extract_namespaces(converted, mapping_meta)
+    namespaces = list(extract_namespaces(converted, mapping_meta))
+    converted = _fix_for_blank_nodes(converted)
     prefixes = {}
     for i, (key, value) in enumerate(namespaces):
         prefixes[key] = {
@@ -142,6 +143,29 @@ def read_schema(manifest_type: DictFormat, path: str, dataset_name: str):
                 'description': '',
                 'properties': converted_props
             }
+
+
+def _fix_for_blank_nodes(values: Any):
+    return_values = values
+    if isinstance(values, dict):
+        result = {}
+        keys = list(values.keys())
+        while len(keys) == 1:
+            prev_key = keys[0]
+            values = values[prev_key]
+            result[prev_key] = values
+
+            if isinstance(values, dict):
+                keys = list(values.keys())
+            else:
+                result = return_values
+                break
+
+            if len(keys) != 1:
+                result[prev_key] = [values]
+
+        return_values = result
+    return return_values
 
 
 class _MappedProperties(TypedDict):

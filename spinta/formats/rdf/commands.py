@@ -1,4 +1,5 @@
 import datetime
+
 from decimal import Decimal
 from typing import Any, Union, Tuple
 from typing import Dict
@@ -30,19 +31,24 @@ from spinta.types.datatype import Date
 from spinta.types.datatype import Time
 from spinta.types.datatype import DateTime
 from spinta.types.datatype import Number
+from spinta.types.text.components import Text
 from spinta.utils.encoding import encode_page_values
 from spinta.utils.schema import NotAvailable
 
 RDF = "rdf"
 PAV = "pav"
+XML = "xml"
 DESCRIPTION = "Description"
+
+DEFAULT_PREFIXES = {
+    RDF: "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+    PAV: "http://purl.org/pav/",
+    XML: "http://www.w3.org/XML/1998/namespace"
+}
 
 
 def _get_available_prefixes(context: Context, model: Model) -> dict:
-    prefixes = {
-        RDF: "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
-        PAV: "http://purl.org/pav/"
-    }
+    prefixes = DEFAULT_PREFIXES.copy()
     if commands.has_dataset(context, model.manifest, model.ns.name):
         manifest_prefixes = commands.get_dataset(context, model.manifest, model.ns.name).prefixes
         for key, val in manifest_prefixes.items():
@@ -64,11 +70,9 @@ def _get_update_prefixes(prefixes: dict, used_datasets: list, model: Model) -> d
 
 
 def _update_required_prefixes(prefixes: dict) -> dict:
-    if RDF not in prefixes:
-        prefixes[RDF] = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
-    if PAV not in prefixes:
-        prefixes[PAV] = "http://purl.org/pav/"
-    return prefixes
+    updated_prefixes = DEFAULT_PREFIXES.copy()
+    updated_prefixes.update(prefixes)
+    return updated_prefixes
 
 
 def _get_attribute_name(
@@ -150,7 +154,12 @@ def _create_element(
         elem.attrib[key] = value
     for child in children:
         if child is not None:
-            elem.append(child)
+            if isinstance(child, list):
+                for item in child:
+                    if item is not None:
+                        elem.append(item)
+            else:
+                elem.append(child)
     return elem
 
 
@@ -616,3 +625,50 @@ def prepare_dtype_for_response(
         )
     else:
         return None
+
+
+@commands.prepare_dtype_for_response.register(Context, Rdf, Text, str)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Rdf,
+    dtype: Text,
+    value: str,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None
+):
+    return _create_element(
+        name=data['_elem_name'],
+        text=str(value)
+    )
+
+
+@commands.prepare_dtype_for_response.register(Context, Rdf, Text, dict)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Rdf,
+    dtype: Text,
+    value: dict,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None
+):
+    result = []
+    for key, item in value.items():
+        if item is not None:
+            prefixes = data['_available_prefixes']
+            attributes = None
+            if key != "C":
+                attributes = {
+                    _get_attribute_name("lang", XML, prefixes): key
+                }
+            result.append(_create_element(
+                name=data['_elem_name'],
+                attributes=attributes,
+                text=str(item)
+            ))
+    return result
+
+
