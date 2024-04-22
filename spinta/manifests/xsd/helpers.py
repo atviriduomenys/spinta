@@ -507,10 +507,19 @@ class XSDReader:
             choice_node_parent.remove(choice_node)
 
             for choice in choice_node_copy:
-                # new_node = deepcopy(node_copy)
-                choice_node_parent.insert(0, choice)
-                model_names.extend(self._create_model(node_copy, source_path, additional_properties))
-                choice_node_parent.remove(choice)
+                if complex_type_node.xpath(f'./*[local-name() = "sequence"]') and choice_node_copy.xpath(
+                    f'./*[local-name() = "sequence"]'):
+                    choice_copy = deepcopy(choice)
+                    for node_in_choice in choice:
+                        choice_node_parent.insert(0, node_in_choice)
+                    model_names.extend(self._create_model(node_copy, source_path, additional_properties))
+                    for node_in_choice in choice_copy:
+                        node_in_choice = choice_node_parent.xpath(f"./*[@name=\'{node_in_choice.get('name')}\']")[0]
+                        choice_node_parent.remove(node_in_choice)
+                else:
+                    choice_node_parent.insert(0, choice)
+                    model_names.extend(self._create_model(node_copy, source_path, additional_properties))
+                    choice_node_parent.remove(choice)
         return model_names
 
     def _create_model(self, node: _Element, source_path: str = "", additional_properties: dict = None) -> list:
