@@ -539,6 +539,9 @@ class XSDReader:
 
         model.set_name(self.deduplicate(to_model_name(node.get("name"))))
 
+        # if this is complexType node which has complexContent, with a separate
+        # node, we need to join the contents of them both
+
         description = self.get_description(node)
         properties.update(model.attributes_to_properties(node))
 
@@ -559,6 +562,10 @@ class XSDReader:
             # if complextype node's property mixed is true, it allows text inside
             if complex_type_node.get("mixed") == "true":
                 properties.update(model.get_text_property())
+            if complex_type_node.xpath(f'./*[local-name() = "complexContent"]'):
+                # fixme this is only for the nodes where complex content extension base is abstract.
+                #  it's the case for the RC documents, but might be different for other data providers
+                complex_type_node = complex_type_node.xpath(f'./*[local-name() = "complexContent"]/*[local-name() = "extension"]')[0]
             if complex_type_node.xpath(f'./*[local-name() = "sequence"]') \
                     or complex_type_node.xpath(f'./*[local-name() = "all"]')\
                     or len(complex_type_node) > 0:
