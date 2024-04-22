@@ -234,7 +234,13 @@ def get_page(
         else:
             rows = commands.getall(context, model, backend, params=params, query=query)
 
-        yield from get_paginated_values(model_page, page_meta, rows)
+        yield from get_paginated_values(model_page, page_meta, rows, extract_source_page_keys)
+
+
+def extract_source_page_keys(row: dict):
+    if '_page' in row:
+        return row['_page']
+    return []
 
 
 @dataclass
@@ -255,7 +261,7 @@ class PaginationMetaData:
         return False
 
 
-def get_paginated_values(model_page: Page, meta: PaginationMetaData, rows):
+def get_paginated_values(model_page: Page, meta: PaginationMetaData, rows, extract_page_keys: Callable):
     size = meta.page_size
 
     if model_page.first_time != meta.is_first_iter:
@@ -269,13 +275,12 @@ def get_paginated_values(model_page: Page, meta: PaginationMetaData, rows):
     key_repetition = [[], 0]
     flag_for_potential_key_repetition = False
     for i, row in enumerate(rows):
+        keys = extract_page_keys(row).copy()
         # Check if future value is not the same as last value
-        if '_page' in row:
-            previous_key = row['_page'].copy()
-            if key_repetition[0] == previous_key:
-                key_repetition[1] += 1
-            else:
-                key_repetition = [previous_key, 0]
+        if key_repetition[0] == keys:
+            key_repetition[1] += 1
+        else:
+            key_repetition = [keys, 0]
 
         if _is_iter_last_potential_value(i, size):
             meta.is_finished = False
@@ -310,14 +315,13 @@ def get_paginated_values(model_page: Page, meta: PaginationMetaData, rows):
                 )
             meta.previous_first_value = current_first_value
 
-        if '_page' in row:
-            model_page.update_values_from_list(row['_page'])
+        model_page.update_values_from_list(keys)
 
-            # Check if initial key is the same as last key
-            if _is_iter_last_real_value(i, size):
-                last_key = row['_page'].copy()
-                if initial_key == last_key:
-                    flag_for_potential_key_repetition = True
+        # Check if initial key is the same as last key
+        if _is_iter_last_real_value(i, size):
+            last_key = keys
+            if initial_key == last_key:
+                flag_for_potential_key_repetition = True
 
         yield row
 
