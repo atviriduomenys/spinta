@@ -1321,7 +1321,7 @@ def test_push_postgresql_big_datastream(
         )
     table = f'''
         d | r | b | m | property | type    | ref                             | source         | level | access
-        postgrespush              |         |                                |                |       |
+        postgrespush             |         |                                |                |       |
           | db                   | sql     |                                 | {db}           |       |
           |   |   | City         |         | id                              | cities         | 4     |
           |   |   |   | id       | integer |                                 | id             | 4     | open
@@ -1331,6 +1331,9 @@ def test_push_postgresql_big_datastream(
 
     # Configure local server with SQL backend
     tmp = Sqlite(db)
+    rc = rc.fork({
+        'push_page_size': 100
+    })
     localrc = create_rc(rc, tmp_path, tmp)
 
     # Configure remote server
@@ -1339,6 +1342,15 @@ def test_push_postgresql_big_datastream(
 
     # Push data from local to remote.
     assert remote.url == 'https://example.com/'
+    result = cli.invoke(localrc, [
+        'push',
+        '-o', remote.url,
+        '--credentials', remote.credsfile
+    ], fail=False)
+    assert result.exit_code == 0
+    assert 'PUSH: 100%' in result.stderr
+    assert '2000/2000' in result.stderr
+
     result = cli.invoke(localrc, [
         'push',
         '-o', remote.url,
