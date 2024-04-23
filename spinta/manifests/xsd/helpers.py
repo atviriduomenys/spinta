@@ -83,22 +83,6 @@ format of custom types:
 """
 
 
-class Deduplicator2:
-
-    def __init__(self, template: str = '{}'):
-        self._names = set()
-        self._template = template
-
-    def __call__(self, name: str):
-        name_ = name
-        i = 0
-        while name_ in self._names:
-            i += 1
-            name_ = name + self._template.format(i)
-        self._names.add(name_)
-        return name_
-
-
 class XSDModel:
     """
     Class for creating and handling DSA models from XSD files.
@@ -115,7 +99,7 @@ class XSDModel:
     """
 
     def __init__(self, xsd: 'XSDReader', node: _Element = None):
-        self.deduplicate = Deduplicator2()
+        self.deduplicate = Deduplicator()
 
         self.xsd: 'XSDReader' = xsd
         self.dataset_name: str = xsd.dataset_name
@@ -205,7 +189,7 @@ class XSDModel:
         prop["type"] = self._get_property_type(node)
         # todo prepare for base64binary
         if ";" in prop["type"]:
-            # prop["units"] = prop["type"].split(";")[1].split(":")[1]
+            prop["enum"] = prop["type"].split(";")[1].split(":")[1]
             prop["type"] = prop["type"].split(";")[0]
         prop["enums"] = self._get_enums(node)
 
