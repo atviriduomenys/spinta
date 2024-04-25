@@ -46,7 +46,7 @@ from spinta.cli.helpers.store import prepare_manifest
 from spinta.client import get_access_token
 from spinta.client import get_client_credentials
 from spinta.commands.read import get_page, PaginationMetaData, get_paginated_values
-from spinta.components import Action, Page, get_page_size
+from spinta.components import Action, Page, get_page_size, Property, PageBy
 from spinta.components import Config
 from spinta.components import Context
 from spinta.components import Mode
@@ -65,6 +65,7 @@ from spinta.utils.data import take
 from spinta.utils.itertools import peek
 from spinta.utils.json import fix_data_for_json
 from spinta.utils.nestedstruct import flatten, sepgetter
+from spinta.utils.response import get_request
 from spinta.utils.units import tobytes
 from spinta.utils.units import toseconds
 from spinta.utils.sqlite import migrate_table
@@ -212,6 +213,15 @@ def push(
                 no_progress_bar=no_progress_bar,
                 reset_cid=synchronize
             )
+        # sync_push_state(
+        #     context=context,
+        #     models=models,
+        #     client=client,
+        #     server=creds.server,
+        #     error_counter=error_counter,
+        #     no_progress_bar=no_progress_bar,
+        #     metadata=state.metadata
+        # )
         _update_page_values_for_models(context, state.metadata, models, incremental, page_model, page)
 
         rows = _read_rows(
@@ -244,6 +254,154 @@ def push(
 
         if error_counter.has_errors():
             raise Exit(code=1)
+
+
+def _build_push_state_sync_url(
+    server: str,
+    model: str,
+    page: str,
+    page_columns: list[str],
+    limit: int
+):
+    base = f'{server}/{model}/:format/json?'
+
+    base = f'{base}select(_id,_revision,_page'
+    for page_column in page_columns:
+        base = f'{base},{page_column}'
+    base = f'{base})&sort(_id)'
+
+    if page:
+        base = f'{base}&page(\'{page}\')'
+
+    if limit:
+        base = f'{base}&limit({limit})'
+    return base
+
+
+def _fetch_all_model_data(
+    model: Model,
+    client,
+    server: str,
+    error_counter: ErrorCounter
+):
+    page = ''
+    while True:
+        url = _build_push_state_sync_url(
+            server=server,
+            model=model.model_type(),
+            page=page,
+            page_columns=[],
+            limit=100
+        )
+        status_code, resp = get_request(
+            client,
+            url,
+            ignore_errors=[404],
+            error_counter=error_counter,
+        )
+        if status_code == 200:
+            data = resp['_data']
+            if not data:
+                break
+
+            page = resp['_page']['next']
+
+            for row in data:
+                yield row
+
+        else:
+            break
+
+
+def _delete_row_from_push_state(
+    conn: sa.engine.Connection,
+    table: sa.Table,
+    id_: str
+):
+    conn.execute(
+        table.delete().
+        where(table.c.id == id_)
+    )
+
+
+def sync_push_state(
+    context: Context,
+    client,
+    server: str,
+    models: List[Model],
+    error_counter: ErrorCounter,
+    no_progress_bar: bool,
+    metadata: sa.MetaData
+):
+    config = context.get('config')
+    conn = context.get('push.state.conn')
+    counters = {}
+    if not no_progress_bar:
+        counters = {
+            '_total': tqdm.tqdm(desc='SYNCHRONIZING PUSH STATE', ascii=True)
+        }
+        echo()
+
+    for model in models:
+        model_name = model.model_type()
+        primary_keys = model.external.pkeys
+        size = get_page_size(config, model)
+        skip_model = False
+        # Check permissions
+        # for key in primary_keys:
+        #     is_authorized = authorized(context, key, action=Action.SEARCH)
+        #     if not is_authorized:
+        #         echo(f"SKIPPED '{model.model_type()}' MODEL SYNC, NO PERMISSION.")
+        #         skip_model = True
+        #         break
+        if skip_model:
+            continue
+
+        if not no_progress_bar:
+            counters[model_name] = tqdm.tqdm(desc=model_name, ascii=True)
+
+        model_table = metadata.tables[model.name]
+        target_data = _fetch_all_model_data(
+            model=model,
+            client=client,
+            server=server,
+            error_counter=error_counter
+        )
+        sync_data = _get_state_rows_with_id(
+            context=context,
+            table=model_table,
+            size=size
+        )
+        target_row = next(target_data, None)
+        sync_row = next(sync_data, None)
+
+        while target_row is not None or sync_row is not None:
+            target_id = target_row['_id'] if target_row is not None else None
+            sync_id = sync_row['id'] if sync_row is not None else None
+
+            if target_row is None:
+                _delete_row_from_push_state(conn, model_table, sync_id)
+                print("REMOVE", target_id, sync_id)
+                sync_row = next(sync_data, None)
+                continue
+
+            if sync_row is None:
+                print("ADD", target_id, sync_id)
+                target_row = next(target_data, None)
+                continue
+
+            if target_id == sync_id:
+                print("SAME", target_id, sync_id)
+                target_row = next(target_data, None)
+                sync_row = next(sync_data, None)
+            elif target_id < sync_id:
+                print("ADD", target_id, sync_id)
+                target_row = next(target_data, None)
+            else:
+                _delete_row_from_push_state(conn, model_table, sync_id)
+                print("REMOVE", target_id, sync_id)
+                sync_row = next(sync_data, None)
+
 
 
 def extract_dependant_nodes(context: Context, models: List[Model], filter_pushed: bool):
@@ -588,7 +746,7 @@ def _authorize_model_properties(context: Context, model: Model):
             raise UnauthorizedPropertyPush(prop)
 
 
-def _read_model_data_by_page(
+def _read_model_data_with_page(
     context: Context,
     model: Model,
     model_page: Page,
@@ -643,13 +801,13 @@ def _read_rows_by_pages(
 
     size = get_page_size(config, model)
     model_table = metadata.tables[model.name]
-    state_rows = _get_state_rows(
+    state_rows = _get_state_rows_with_page(
         context,
         deepcopy(model.page),
         model_table,
         size
     )
-    rows = _read_model_data_by_page(
+    rows = _read_model_data_with_page(
         context,
         model,
         deepcopy(model.page),
@@ -672,13 +830,13 @@ def _read_rows_by_pages(
         update_counter = True
 
         if data_push_count >= size or state_push_count >= size:
-            state_rows = _get_state_rows(
+            state_rows = _get_state_rows_with_page(
                 context,
                 deepcopy(model.page),
                 model_table,
                 size
             )
-            rows = _read_model_data_by_page(
+            rows = _read_model_data_with_page(
                 context,
                 model,
                 deepcopy(model.page),
@@ -823,7 +981,47 @@ def _compare_data_with_state_row_keys(
     return equals
 
 
-def _get_state_rows(
+def _get_state_rows_with_id(
+    context: Context,
+    table: sa.Table,
+    size: int
+) -> sa.engine.LegacyCursorResult:
+    conn = context.get('push.state.conn')
+
+    model_page = Page()
+    model_page.size = size + 1
+    prop = Property()
+    prop.name = 'id'
+    model_page.by = {
+        'id': PageBy(prop)
+    }
+    order_by = sa.sql.expression.nullslast(sa.asc(table.c['id']))
+
+    page_meta = PaginationMetaData(
+        page_size=size,
+    )
+
+    while not page_meta.is_finished:
+        page_meta.is_finished = True
+        from_cond = _construct_where_condition_from_page(model_page, table, prefix='')
+
+        if from_cond is not None:
+            stmt = sa.select([table]).where(
+                from_cond
+            ).order_by(order_by).limit(model_page.size)
+            rows = conn.execute(
+                stmt
+            )
+        else:
+            stmt = sa.select([table]).order_by(order_by).limit(model_page.size)
+            rows = conn.execute(
+                stmt
+            )
+
+        yield from get_paginated_values(model_page, page_meta, rows, _extract_state_page_id_key)
+
+
+def _get_state_rows_with_page(
     context: Context,
     model_page: Page,
     table: sa.Table,
@@ -1619,7 +1817,8 @@ def _construct_where_condition_to_page(
 
 def _construct_where_condition_from_page(
     page: Page,
-    table: sa.Table
+    table: sa.Table,
+    prefix: str = 'page.'
 ):
     filtered = page
     item_count = len(filtered.by.keys())
@@ -1633,19 +1832,19 @@ def _construct_where_condition_from_page(
                     if n == i:
                         if page_by.value is not None:
                             if by.startswith('-'):
-                                where_list[n].append(table.c[f"page.{page_by.prop.name}"] < page_by.value)
+                                where_list[n].append(table.c[f"{prefix}{page_by.prop.name}"] < page_by.value)
                             else:
                                 where_list[n].append(
                                     sa.or_(
-                                        table.c[f"page.{page_by.prop.name}"] > page_by.value,
-                                        table.c[f"page.{page_by.prop.name}"] == None
+                                        table.c[f"{prefix}{page_by.prop.name}"] > page_by.value,
+                                        table.c[f"{prefix}{page_by.prop.name}"] == None
                                     )
                                 )
                         else:
                             if by.startswith('-'):
-                                where_list[n].append(table.c[f"page.{page_by.prop.name}"] != page_by.value)
+                                where_list[n].append(table.c[f"{prefix}{page_by.prop.name}"] != page_by.value)
                     else:
-                        where_list[n].append(table.c[f"page.{page_by.prop.name}"] == page_by.value)
+                        where_list[n].append(table.c[f"{prefix}{page_by.prop.name}"] == page_by.value)
 
     where_condition = None
 
@@ -2061,3 +2260,13 @@ def _extract_state_page_keys(row: dict):
         if 'page.' in key:
             result.append(value)
     return result
+
+
+def _extract_state_page_id_key(row: dict):
+    result = []
+    for key, value in row.items():
+        if key == 'id':
+            result.append(value)
+            break
+    return result
+

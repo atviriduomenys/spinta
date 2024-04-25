@@ -13,7 +13,16 @@ from spinta.exceptions import UnauthorizedKeymapSync
 from spinta.utils.response import get_request
 
 
-def sync_keymap(context: Context, keymap: KeyMap, client, server: str, models: List[Model], error_counter: ErrorCounter, no_progress_bar: bool, reset_cid: bool):
+def sync_keymap(
+    context: Context,
+    keymap: KeyMap,
+    client,
+    server: str,
+    models: List[Model],
+    error_counter: ErrorCounter,
+    no_progress_bar: bool,
+    reset_cid: bool
+):
     counters = {}
     if not no_progress_bar:
         counters = {
