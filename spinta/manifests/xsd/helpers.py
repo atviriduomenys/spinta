@@ -34,13 +34,14 @@ DATATYPES_MAPPING = {
     "dateTime": "datetime",
     "time": "time",
     "date": "date",
+    # format: target type, target column, value in the column
     "gYearMonth": "date;enum;M",
     "gYear": "date;enum;Y",
     "gMonthDay": "string",
     "gDay": "string",
     "gMonth": "string",
     "hexBinary": "string",
-    "base64Binary": "string;prepare;base64",
+    "base64Binary": "binary;prepare;base64",
     "anyURI": "uri",
     "QName": "string",
     "NOTATION": "string",
@@ -192,8 +193,12 @@ class XSDModel:
         prop["type"] = self._get_property_type(node)
         if ";" in prop["type"]:
             prop_type, target, value = prop["type"].split(";")
-            prop[target] = value
             prop["type"] = prop_type
+            if target == "enum":
+                prop[target] = value
+            if target == "prepare":
+                prop["external"][target] = value
+
         prop["enums"] = self._get_enums(node)
 
         return self.deduplicate(property_id), prop
@@ -660,11 +665,6 @@ class XSDReader:
         for node in self.root:
             if self._is_element(node) and (not self.node_is_simple_type_or_inline(node) or self.node_is_ref(node)):
                 self._create_model(node)
-
-            # todo complexContent is also an option.
-            # todo there is also an option where complex type
-            #  is on the same level as element, referenced by type.
-            #  This already works in some cases, but in more complex cases (like 914) it doesn't
 
     def start(self):
         self._extract_root()
