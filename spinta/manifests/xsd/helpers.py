@@ -227,7 +227,7 @@ class XSDModel:
             properties[property_id] = prop
 
         # todo attribute can be a ref to an externally defined attribute also. Not in RC though
-
+        #  https://github.com/atviriduomenys/spinta/issues/605
         return properties
 
     def simple_element_to_property(self, element: _Element) -> tuple[str, dict]:
@@ -555,8 +555,10 @@ class XSDReader:
             if complex_type_node.get("mixed") == "true":
                 properties.update(model.get_text_property())
             if complex_type_node.xpath(f'./*[local-name() = "complexContent"]'):
-                # fixme this is only for the nodes where complex content extension base is abstract.
+                # todo this is only for the nodes where complex content extension base is abstract.
                 #  it's the case for the RC documents, but might be different for other data providers
+                #  https://github.com/atviriduomenys/spinta/issues/604
+
                 complex_type_node = complex_type_node.xpath(f'./*[local-name() = "complexContent"]/*[local-name() = "extension"]')[0]
             if complex_type_node.xpath(f'./*[local-name() = "sequence"]') \
                     or complex_type_node.xpath(f'./*[local-name() = "all"]')\
@@ -586,7 +588,7 @@ class XSDReader:
                 # There is only one element in the complex node sequence, and it doesn't have annotation.
                 # Then we just go deeper and add this model to the next model's path.
                 if sequence_or_all_node_length == 1 and not properties:
-                    # todo final is also decided by maxOccurs
+                    # todo final is also decided by maxOccurs (at least I think so)
 
                     if sequence_or_all_node.xpath(f'./*[local-name() = "element"]'):
                         if not sequence_or_all_node.xpath(f'./*[local-name() = "element"]')[0].get("ref"):
@@ -594,6 +596,8 @@ class XSDReader:
 
                             # check for recursion
                             # todo maybe move this to a separate function
+                            # todo recursion not fully working
+                            #  https://github.com/atviriduomenys/spinta/issues/602
                             paths = new_source_path.split("/")
                             if self.node_is_simple_type_or_inline(element) and not self.node_is_ref(element):
                                 properties.update(model.properties_from_simple_elements(sequence_or_all_node))
