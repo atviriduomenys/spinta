@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 from copy import deepcopy
 
@@ -8,6 +10,7 @@ from lxml import etree, objectify
 from urllib.request import urlopen
 
 from spinta.utils.naming import to_property_name, to_model_name, Deduplicator, to_dataset_name
+
 
 # mapping of XSD datatypes to DSA datatypes
 # XSD datatypes: https://www.w3.org/TR/xmlschema11-2/#built-in-datatypes
@@ -31,13 +34,13 @@ DATATYPES_MAPPING = {
     "dateTime": "datetime",
     "time": "time",
     "date": "date",
-    "gYearMonth": "date;ref:M",
-    "gYear": "date;ref:Y",
+    "gYearMonth": "date;enum;M",
+    "gYear": "date;enum;Y",
     "gMonthDay": "string",
     "gDay": "string",
     "gMonth": "string",
     "hexBinary": "string",
-    "base64Binary": "string",
+    "base64Binary": "string;prepare;base64",
     "anyURI": "uri",
     "QName": "string",
     "NOTATION": "string",
@@ -187,10 +190,10 @@ class XSDModel:
         prop["external"] = {"name": property_name}
         property_id = to_property_name(property_name)
         prop["type"] = self._get_property_type(node)
-        # todo prepare for base64binary
         if ";" in prop["type"]:
-            prop["enum"] = prop["type"].split(";")[1].split(":")[1]
-            prop["type"] = prop["type"].split(";")[0]
+            prop_type, target, value = prop["type"].split(";")
+            prop[target] = value
+            prop["type"] = prop_type
         prop["enums"] = self._get_enums(node)
 
         return self.deduplicate(property_id), prop
@@ -492,7 +495,7 @@ class XSDReader:
 
             for choice in choice_node_copy:
                 if complex_type_node.xpath(f'./*[local-name() = "sequence"]') and choice_node_copy.xpath(
-                    f'./*[local-name() = "sequence"]'):
+                        f'./*[local-name() = "sequence"]'):
                     choice_copy = deepcopy(choice)
                     for node_in_choice in choice:
                         choice_node_parent.insert(0, node_in_choice)

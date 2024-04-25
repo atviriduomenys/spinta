@@ -216,6 +216,7 @@ def test_node_to_partial_property_gYear():
     assert result1 == "ct_e200_forma"
     assert result2 == {
         "description": "",
+        "enum": "Y",
         "enums": {},
         "external": {
             "name": "CT_E200_FORMA",
