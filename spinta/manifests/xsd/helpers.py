@@ -9,6 +9,7 @@ from spinta.components import Context
 from lxml import etree, objectify
 from urllib.request import urlopen
 
+from spinta.core.ufuncs import Expr
 from spinta.utils.naming import to_property_name, to_model_name, Deduplicator, to_dataset_name
 
 
@@ -197,7 +198,7 @@ class XSDModel:
             if target == "enum":
                 prop[target] = value
             if target == "prepare":
-                prop["external"][target] = value
+                prop["external"][target] = Expr(value)
 
         prop["enums"] = self._get_enums(node)
 
@@ -519,7 +520,6 @@ class XSDReader:
         Parses an element and makes a model out of it. If it is a complete model, it will be added to the models list.
         """
         model = XSDModel(self)
-        final = False
 
         if additional_properties is None:
             additional_properties = {}
