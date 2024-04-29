@@ -30,7 +30,8 @@ def base64(env: DaskDataFrameQueryBuilder, prop: Property) -> bytes:
 def base64(env: DaskDataFrameQueryBuilder, dtype: Binary) -> bytes:
     # return b64.decodebytes(value)
     item = f'base64({dtype.prop.external.name})'
-    env.dataframe[item] = env.dataframe[dtype.prop.external.name].map(b64.decodebytes)
+    print("VALUE: ", env.dataframe[dtype.prop.external.name].values)
+    env.dataframe[item] = env.dataframe[dtype.prop.external.name].values[0].encode('utf-8').map(b64.decodebytes)
     return Selected(
             item=item,
             prop=dtype.prop,
