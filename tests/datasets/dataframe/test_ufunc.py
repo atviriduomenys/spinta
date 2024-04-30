@@ -74,7 +74,7 @@ def test_xsd_base64(rc: RawConfig, tmp_path: Path):
     xml = """<CITY>
     <NAME>Kaunas</NAME>
     <COUNTRY>Lietuva</COUNTRY>
-    <MAP>VGhlIHF1aWNrIGJyb3duIGZveCBqdW1wcyBvdmVyIDEzIGxhenkgZG9ncy4=</MAP>
+    <FILE>VGhlIHF1aWNrIGJyb3duIGZveCBqdW1wcyBvdmVyIDEzIGxhenkgZG9ncy4=</FILE>
     </CITY>"""
 
     path = tmp_path / 'cities.xml'
@@ -89,6 +89,8 @@ def test_xsd_base64(rc: RawConfig, tmp_path: Path):
       |   |   |   | country  | string  |      | COUNTRY             |                  | open
       |   |   |   | file     | binary  |      | FILE                | base64()         | open
     ''', mode=Mode.external)
+    #
+    #       /example/City?select(name, country, base64(file))
     context.loaded = True
     app = create_test_client(context)
     app.authmodel('example/City', ['getall'])
