@@ -1,22 +1,20 @@
 import io
 import json
 import pathlib
-import re
 
 import numpy as np
-import urllib
 from typing import Dict, Any, Iterator
 
 import dask
 import requests
 from dask.dataframe import DataFrame
-from dask.dataframe.utils import make_meta
 from lxml import etree
+from zeep import Client
 
 from spinta import commands
 from spinta.components import Context, Property, Model, UrlParams
 from spinta.core.ufuncs import Expr, asttoexpr
-from spinta.datasets.backends.dataframe.components import DaskBackend, Csv, Xml, Json
+from spinta.datasets.backends.dataframe.components import DaskBackend, Csv, Xml, Json, Soap
 from spinta.datasets.backends.dataframe.commands.query import DaskDataFrameQueryBuilder, Selected
 from spinta.datasets.backends.dataframe.ufuncs.components import TabularResource
 
@@ -312,6 +310,14 @@ def _get_data_json(url: str, source: str, model_props: dict):
             yield from _parse_json(f.read(), source, model_props)
 
 
+def _get_data_soap(url: str, source: str, model_props: dict):
+    f = requests.get(url, timeout=30)
+    # sukurti zeep klientą
+    client = Client(url)
+    # client.service.GetCity(ID='42')
+
+    # yield from _parse_soap(f.text, source, model_props)
+
 def _get_prop_full_source(source: str, prop_source: str):
     if prop_source.startswith(".."):
         split = prop_source[1:].count(".")
@@ -408,6 +414,42 @@ def getall(
     meta = _get_dask_dataframe_meta(model)
     df = dask.bag.from_sequence(bases).map(
         _get_data_xml,
+        namespaces=_gather_namespaces_from_model(context, model),
+        source=model.external.name,
+        model_props=props
+    ).flatten().to_dataframe(meta=meta)
+    yield from _dask_get_all(context, query, df, backend, model, builder)
+
+
+@commands.getall.register(Context, Model, Soap)
+def getall(
+    context: Context,
+    model: Model,
+    backend: Soap,
+    *,
+    query: Expr = None,
+    resolved_params: ResolvedParams = None,
+    **kwargs
+) -> Iterator[ObjectData]:
+    bases = parametrize_bases(
+        context,
+        model,
+        model.external.resource,
+        resolved_params
+    )
+    builder = DaskDataFrameQueryBuilder(context)
+    builder.update(model=model)
+    props = {}
+    for prop in model.properties.values():
+        if prop.external and prop.external.name:
+            props[prop.name] = {
+                "source": prop.external.name,
+                "pkeys": _get_pkeys_if_ref(prop)
+            }
+
+    meta = _get_dask_dataframe_meta(model)
+    df = dask.bag.from_sequence(bases).map(
+        _get_data_soap,
         namespaces=_gather_namespaces_from_model(context, model),
         source=model.external.name,
         model_props=props
