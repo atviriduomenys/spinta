@@ -1,6 +1,7 @@
 from typing import Dict, Any, Tuple, List
 
-from dask import dataframe as Dataframe
+from dask.dataframe import DataFrame
+from dask.dataframe import Series
 
 from spinta.auth import authorized
 from spinta.components import Model, Property, Action
@@ -70,7 +71,7 @@ class Selected:
 class DaskDataFrameQueryBuilder(Env):
     backend: DaskBackend
     model: Model
-    dataframe: Dataframe
+    dataframe: DataFrame
     # `resolved` is used to map which prop.place properties are already
     # resolved, usually it maps to Selected, but different DataType's can return
     # different results.
@@ -78,7 +79,7 @@ class DaskDataFrameQueryBuilder(Env):
     selected: Dict[str, Selected] = None
     params: ResolvedParams
 
-    def init(self, backend: DaskBackend, dataframe: Dataframe):
+    def init(self, backend: DaskBackend, dataframe: DataFrame):
         return self(
             backend=backend,
             dataframe=dataframe,
@@ -344,6 +345,8 @@ def select(env: DaskDataFrameQueryBuilder, dtype: DataType, prep: Any) -> Select
             result = env.call('select', prep)
         else:
             result = None
+        if isinstance(result, Selected):
+            return result
         return Selected(prop=dtype.prop, prep=result)
 
 
@@ -369,6 +372,11 @@ def select(
             for prop in pkeys
         ]
     return Selected(prop=dtype.prop, prep=result)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Selected)
+def select(env: DaskDataFrameQueryBuilder, selected: Selected):
+    return selected
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Ref, object)
