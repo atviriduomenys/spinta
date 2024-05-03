@@ -2363,7 +2363,7 @@ id | d | r | b | m | property            | type              | ref | source     
    |   |   |   |   | date                | datetime required |     | date/text()                                                         |          |       |        |     |       |
    |                                     |                   |     |                                                                     |          |       |        |     |       |
    |   |   |   | ResponseData2           |                   |     | /data/responseData                                                  |          |       |        |     |       |
-   |   |   |   |   | file                | binary required   |     | file/text()                                                         | 'base64' |       |        |     |       |
+   |   |   |   |   | file                | binary required   |     | file/text()                                                         | base64() |       |        |     |       |
    |                                     |                   |     |                                                                     |          |       |        |     |       |
    |   |   |   | Data                    |                   |     | /data                                                               |          |       |        |     |       |
    |   |   |   |   | response_code       | integer required  |     | responseCode/text()                                                 |          |       |        |     |       | 1 = OK (užklausa įvykdyta, atsakymas grąžintas) 0 = NOTFOUND (užklausa įvykdyta, duomenų nerasta) -1 = ERROR (įvyko sistemos klaida, užklausa neįvykdyta)
