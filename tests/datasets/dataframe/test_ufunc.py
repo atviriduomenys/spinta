@@ -109,42 +109,7 @@ def fs():
 
 
 def test_base64_getall(rc: RawConfig, tmp_path: Path):
-    # backend = Xml()
-    # backend.config = {'dsn': '/tmp/pytest-of-karina/pytest-2/test_xsd_base640/cities.xml', 'name': 'example/res1', 'type': 'xml'}
-    # backend.name = "example/res1"
-    # model = Model()
-    # model.backend = backend
 
-
-    # external = Attribute()
-    # external.name = "FILE"
-    # given = PropertyGiven()
-    # given.prepare = {'appended': False, 'prepare': 'base64()', 'source': ''}
-    #
-    # file_property = Property()
-    # file_property.place = 'file'
-    # file_property.dtype = Binary()
-    # file_property.external = external
-    # file_property.given = given
-    # file_property.prepare_given = [{'appended': False, 'prepare': 'base64()', 'source': ''}]
-    #
-    # properties = {
-    #     'file': file_property
-    # }
-    # external = Entity()
-    # resource = Resource()
-    # resource.name = 'res1'
-    # resource.external = '/tmp/pytest-of-karina/pytest-14/test_xsd_base640/cities.xml'
-    # external.resource = resource
-    # dataset = Dataset()
-    # dataset.name = "example"
-    # external.dataset = Dataset()
-    # keymap = SqlAlchemyKeyMap()
-    # keymap.name = 'default'
-    # model.flatprops = properties
-    # model.leafprops = properties
-    # model.external = external
-    # model.keymap = keymap
 
     xml = """<CITY>
     <NAME>Kaunas</NAME>
@@ -166,18 +131,8 @@ def test_base64_getall(rc: RawConfig, tmp_path: Path):
     #
     #       /example/City?select(name, country, base64(file))
 
-    # request = make_get_request('/example/City', 'select(name, country, base64(file))')
-    # params = commands.prepare(
-    #     context,
-    #     UrlParams(),
-    #     Version(),
-    #     request,
-    # )
-    # model = params.model
-
     model = get_model(context, manifest, 'example/City')
 
-    # context.loaded = True
     backend = manifest.backend
     result = list(getall(context, model, backend))
 
