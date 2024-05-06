@@ -218,7 +218,7 @@ class XSDModel:
             prop["required"] = required
             properties[property_id] = prop
 
-        # todo attribute can be a ref to an externally defined attribute also. Not in RC though
+        # TODO: attribute can be a ref to an externally defined attribute also. Not in RC though
         #  https://github.com/atviriduomenys/spinta/issues/605
         return properties
 
