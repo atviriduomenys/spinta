@@ -196,7 +196,7 @@ def test_node_to_partial_property():
         },
         "type": "string"
     }
-# todo test properties with refs
+# TODO: test properties with refs
 
 
 def test_node_to_partial_property_gYear():
