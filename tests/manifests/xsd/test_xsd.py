@@ -316,6 +316,7 @@ id | d | r | b | m | property                | type             | ref      | sou
     print(manifest)
     assert manifest == table
 
+
 def test_xsd_resource_model(rc: RawConfig, tmp_path: Path):
 
     xsd = """

@@ -29,7 +29,7 @@ DATATYPES_MAPPING = {
     # This prepare function takes in given duration and turns it into integer (timedelta).
     # More about time entities here:
     # https://atviriduomenys.readthedocs.io/dsa/vienetai.html#laiko-vienetai
-    # todo add prepare function for duration
+    # TODO: add prepare function for duration
     #  https://github.com/atviriduomenys/spinta/issues/594
     "duration": "string",
 
@@ -584,7 +584,7 @@ class XSDReader:
             if complex_type_node.get("mixed") == "true":
                 properties.update(model.get_text_property())
             if complex_type_node.xpath(f'./*[local-name() = "complexContent"]'):
-                # todo this is only for the nodes where complex content extension base is abstract.
+                # TODO: this is only for the nodes where complex content extension base is abstract.
                 #  it's the case for the RC documents, but might be different for other data providers
                 #  https://github.com/atviriduomenys/spinta/issues/604
 
@@ -617,15 +617,15 @@ class XSDReader:
                 # There is only one element in the complex node sequence, and it doesn't have annotation.
                 # Then we just go deeper and add this model to the next model's path.
                 if sequence_or_all_node_length == 1 and not properties:
-                    # todo final is also decided by maxOccurs (at least I think so)
+                    # TODO: final is also decided by maxOccurs (at least I think so)
 
                     if sequence_or_all_node.xpath(f'./*[local-name() = "element"]'):
                         if not sequence_or_all_node.xpath(f'./*[local-name() = "element"]')[0].get("ref"):
                             element = sequence_or_all_node.xpath(f'./*[local-name() = "element"]')[0]
 
                             # check for recursion
-                            # todo maybe move this to a separate function
-                            # todo recursion not fully working
+                            # TODO: maybe move this to a separate function
+                            # TODO: recursion not fully working
                             #  https://github.com/atviriduomenys/spinta/issues/602
                             paths = new_source_path.split("/")
                             if self.node_is_simple_type_or_inline(element) and not self.node_is_ref(element):
