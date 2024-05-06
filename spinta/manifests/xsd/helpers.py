@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from copy import deepcopy
+from typing import Any
 
 from lxml.etree import _Element
 
@@ -159,7 +160,7 @@ class XSDModel:
 
         return property_type
 
-    def _get_enums(self, node: _Element) -> dict:
+    def _get_enums(self, node: _Element) -> dict[str, dict[str, Any]]:
         enums = {}
         simple_type = node.xpath(f'./*[local-name() = "simpleType"]')
         if simple_type:
@@ -173,7 +174,7 @@ class XSDModel:
 
         return enums
 
-    def _node_to_partial_property(self, node: etree.Element) -> tuple[str, dict]:
+    def _node_to_partial_property(self, node: _Element) -> tuple[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]:
         """Node can be either element or attribute.
         This function only processes things common to attributes and elements"""
         prop = dict()
@@ -195,7 +196,10 @@ class XSDModel:
 
         return self.deduplicate(property_id), prop
 
-    def attributes_to_properties(self, element: etree.Element) -> dict:
+    def attributes_to_properties(
+        self,
+        element: _Element
+    ) -> dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]:
         properties = {}
         attributes = element.xpath(f'./*[local-name() = "attribute"]')
         complex_type = element.xpath(f'./*[local-name() = "complexType"]')
@@ -222,7 +226,10 @@ class XSDModel:
         #  https://github.com/atviriduomenys/spinta/issues/605
         return properties
 
-    def simple_element_to_property(self, element: _Element) -> tuple[str, dict]:
+    def simple_element_to_property(
+        self,
+        element: _Element
+    ) -> tuple[str, dict[str, str | bool | dict[str, Any]]]:
         """
         simple element is an element which is either
         an inline or simple type element and doesn't have a ref
@@ -261,7 +268,12 @@ class XSDModel:
             prop["required"] = False
         return property_id, prop
 
-    def properties_from_simple_elements(self, node: _Element, from_sequence: bool = True) -> dict:
+    def properties_from_simple_elements(
+        self,
+        node: _Element,
+        from_sequence: bool = True
+    ) -> dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]:
+
         properties = {}
         elements = node.xpath(f'./*[local-name() = "element"]')
         for element in elements:
@@ -272,7 +284,7 @@ class XSDModel:
                 properties[property_id] = prop
         return properties
 
-    def get_text_property(self) -> dict:
+    def get_text_property(self) -> dict[str, dict[str, str | dict[str, str]]]:
         return {
             self.deduplicate('text'): {
                 'type': 'string',
@@ -293,7 +305,7 @@ class XSDReader:
         self.deduplicate: Deduplicator = Deduplicator()
 
     @staticmethod
-    def get_enums_from_simple_type(node: _Element):
+    def get_enums_from_simple_type(node: _Element) -> dict[str, dict[str, Any]]:
         enums = {}
         enum_value = {}
         restrictions = node.xpath(f'./*[local-name() = "restriction"]')
@@ -336,7 +348,7 @@ class XSDReader:
         self.custom_types = custom_types
 
     @staticmethod
-    def get_description(element: etree.Element) -> str:
+    def get_description(element: _Element) -> str:
         annotation = element.xpath(f'./*[local-name() = "annotation"]')
         if not annotation:
             annotation = element.xpath(f'./*[local-name() = "simpleType"]/*[local-name() = "annotation"]')
@@ -436,7 +448,13 @@ class XSDReader:
             return True
         return False
 
-    def _properties_from_references(self, node: _Element, model: XSDModel, source_path: str = "") -> dict:
+    def _properties_from_references(
+        self,
+        node: _Element,
+        model: XSDModel,
+        source_path: str = ""
+    ) -> dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]:
+
         properties = {}
         for ref_element in node.xpath("./*[@ref]"):
 
@@ -477,11 +495,17 @@ class XSDReader:
 
         return properties
 
-    def _split_choice(self, node: _Element, source_path: str, additional_properties: dict) -> list:
+    def _split_choice(
+        self,
+        node: _Element,
+        source_path: str,
+        additional_properties: dict[str, dict[str, str | bool | dict[str, str]]]
+    ) -> list[str]:
         """
         If there are choices in the element,
         we need to split it and create a separate model per each choice
         """
+
         model_names = []
         node_copy = deepcopy(node)
         if self._node_has_separate_complex_type(node_copy):
@@ -515,7 +539,12 @@ class XSDReader:
                     choice_node_parent.remove(choice)
         return model_names
 
-    def _create_model(self, node: _Element, source_path: str = "", additional_properties: dict = None) -> list:
+    def _create_model(
+        self,
+        node: _Element,
+        source_path: str = "",
+        additional_properties: dict = dict[str, str | bool | dict[str, str | dict[str, Any]]]
+    ) -> list[str]:
         """
         Parses an element and makes a model out of it. If it is a complete model, it will be added to the models list.
         """
@@ -678,7 +707,12 @@ class XSDReader:
         self._parse_root_node()
 
 
-def read_schema(context: Context, path: str, prepare: str = None, dataset_name: str = '') -> dict:
+def read_schema(
+    context: Context,
+    path: str, prepare:
+    str = None,
+    dataset_name: str = ''
+) -> dict[Any, dict[str, str | dict[str, str | bool | dict[str, str | dict[str, Any]]]]]:
     """
     This reads XSD schema from the url provided in path and yields asd schema models
 

@@ -225,7 +225,7 @@ manifest                        |         |     |                               
     assert manifest == table
 
 
-def test_xsd_rc729(rc: RawConfig, tmp_path: Path):
+def test_xsd_ref(rc: RawConfig, tmp_path: Path):
 
     xsd = """
 
