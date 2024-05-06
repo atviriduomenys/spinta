@@ -78,15 +78,6 @@ DATATYPES_MAPPING = {
 
 }
 
-"""
-format of custom types:
-{
-    "type_name": {
-        "base": "type_base"
-    }
-}
-"""
-
 
 class XSDModel:
     """
@@ -232,8 +223,25 @@ class XSDModel:
         return properties
 
     def simple_element_to_property(self, element: _Element) -> tuple[str, dict]:
-        # simple element is an element which is either
-        # an inline or simple type element and doesn't have a ref
+        """
+        simple element is an element which is either
+        an inline or simple type element and doesn't have a ref
+
+        Example of a property:
+
+            'properties': {
+                'id': {
+                    'type': 'integer',
+                    'type_args': None,
+                    'required': True,
+                    'unique': True,
+                    'external': {
+                        'name': 'ID',
+                        'prepare': NA,
+                    }
+                },
+             },
+        """
 
         property_id, prop = self._node_to_partial_property(element)
         if XSDReader.node_is_ref(element):
@@ -253,22 +261,6 @@ class XSDModel:
             prop["required"] = False
         return property_id, prop
 
-    """
-        Example:
-
-            'properties': {
-                'id': {
-                    'type': 'integer',
-                    'type_args': None,
-                    'required': True,
-                    'unique': True,
-                    'external': {
-                        'name': 'ID',
-                        'prepare': NA,
-                    }
-                },
-             },
-        """
     def properties_from_simple_elements(self, node: _Element, from_sequence: bool = True) -> dict:
         properties = {}
         elements = node.xpath(f'./*[local-name() = "element"]')
@@ -318,6 +310,14 @@ class XSDReader:
         return enums
 
     def _extract_custom_types(self, node: _Element):
+        """
+        format of custom types:
+        {
+            "type_name": {
+                "base": "type_base"
+            }
+        }
+        """
         custom_types_nodes = node.xpath(f'./*[local-name() = "simpleType"]')
         custom_types = {}
         for type_node in custom_types_nodes:

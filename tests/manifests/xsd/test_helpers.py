@@ -476,9 +476,6 @@ def test_get_external_info():
         "name": "test"
     }
 
-# def test_get_document_root():
-#     # todo finish this. creat temp file and test with it
-
 
 def test_set_dataset_and_resource_info():
     xsd = XSDReader("test.xsd", "dataset_name")

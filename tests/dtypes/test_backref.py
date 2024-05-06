@@ -86,6 +86,7 @@ def test_backref_one_to_one_level_4(
             "_id": leader_id
         }
     })
+    # TODO: uncomment these lines after solving this: https://github.com/atviriduomenys/spinta/issues/592
     # assert result.status_code == 400
     # assert error(result, 'code') == {
     #     'code': 'UniqueConstraint'
@@ -169,6 +170,7 @@ def test_backref_one_to_one_level_3(
             'name': 'Test'
         }
     })
+    # TODO: uncomment these lines after solving this: https://github.com/atviriduomenys/spinta/issues/592
     # assert result.status_code == 400
     # assert error(result, 'code') == {
     #     'code': 'UniqueConstraint'
