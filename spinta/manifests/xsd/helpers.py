@@ -543,7 +543,7 @@ class XSDReader:
         self,
         node: _Element,
         source_path: str = "",
-        additional_properties: dict = dict[str, str | bool | dict[str, str | dict[str, Any]]]
+        additional_properties: dict[str, str | bool | dict[str, str | dict[str, Any]]] = None
     ) -> list[str]:
         """
         Parses an element and makes a model out of it. If it is a complete model, it will be added to the models list.
@@ -641,7 +641,7 @@ class XSDReader:
                                 new_source_path = "/".join(paths)
 
                         else:
-                            # todo if reference is to an inline or simpleType element,
+                            # TODO: if reference is to an inline or simpleType element,
                             #  and maxOccurs of it is 1,
                             #  then do not create reference, but add to the same
 
@@ -661,7 +661,7 @@ class XSDReader:
                         if child_node.xpath(f'./*[local-name() = "complexType"]') \
                                 or self._node_has_separate_complex_type(child_node):
                             # check for recursion
-                            # todo maybe move this to a separate function
+                            # TODO: maybe move this to a separate function
                             paths = new_source_path.split("/")
                             if not child_node.get("name") in paths:
                                 self._create_model(child_node, source_path=new_source_path)
