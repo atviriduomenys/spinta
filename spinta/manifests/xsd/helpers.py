@@ -16,7 +16,7 @@ from spinta.utils.naming import to_property_name, to_model_name, Deduplicator, t
 # mapping of XSD datatypes to DSA datatypes
 # XSD datatypes: https://www.w3.org/TR/xmlschema11-2/#built-in-datatypes
 # DSA datatypes: https://atviriduomenys.readthedocs.io/dsa/duomenu-tipai.html#duomenu-tipai
-# todo finish mapping and make sure all things are mapped correctly
+# TODO: finish mapping and make sure all things are mapped correctly
 DATATYPES_MAPPING = {
     "string": "string",
     "boolean": "boolean",
@@ -218,7 +218,7 @@ class XSDModel:
             prop["required"] = required
             properties[property_id] = prop
 
-        # todo attribute can be a ref to an externally defined attribute also. Not in RC though
+        # TODO: attribute can be a ref to an externally defined attribute also. Not in RC though
         #  https://github.com/atviriduomenys/spinta/issues/605
         return properties
 

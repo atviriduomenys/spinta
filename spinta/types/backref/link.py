@@ -95,7 +95,7 @@ def link(context: Context, dtype: BackRef) -> None:
         raise OneToManyBackRefNotSupported(dtype)
 
     # relationship needs to add unique
-    # fixme at least in some cases (one to many relationship, for example) this is setting unique incorrectly
+    # FIXME: at least in some cases (one to many relationship, for example) this is setting unique incorrectly
     #  In one to one relationship, this ref has to be unique. In one to many relationship it can't be unique.
     #  https://github.com/atviriduomenys/spinta/issues/592
     # dtype.refprop.dtype.unique = True
