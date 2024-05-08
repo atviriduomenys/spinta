@@ -71,6 +71,7 @@ CONFIG = {
             'xlsx': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
             'geojson': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
             'html': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
+            'soap': 'spinta.datasets.backends.dataframe.components:Soap'
         },
         'migrations': {
             'alembic': 'spinta.migrations.schema.alembic:Alembic',

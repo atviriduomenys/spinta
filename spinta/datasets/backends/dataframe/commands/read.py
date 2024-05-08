@@ -7,6 +7,7 @@ from typing import Dict, Any, Iterator
 
 import dask
 import requests
+import zeep
 from dask.dataframe import DataFrame
 from lxml import etree
 from zeep import Client
@@ -310,13 +311,47 @@ def _get_data_json(url: str, source: str, model_props: dict):
             yield from _parse_json(f.read(), source, model_props)
 
 
-def _get_data_soap(url: str, source: str, model_props: dict):
-    f = requests.get(url, timeout=30)
+def _get_data_soap(url: str, source: str, model_props: dict, namespaces: dict):
+    # f = requests.get(url, timeout=30)
     # sukurti zeep klientą
-    client = Client(url)
+    url = "https://ws.registrucentras.lt/broker/index.php?wsdl"
+    client = zeep.Client(wsdl=url)
+    # service = client.create_service(
+    #     '{http://www.registrucentras.lt}GetBinding',
+    #     'https://ws.registrucentras.lt:443/broker/index.php')
+
+    # client_service = client.bind('Get', 'GetPort')
+    input_params = """
+            <args>
+                <data>2024-05-06</data>
+                <fmt>xml<fmt>
+            </args>
+    """
+    url_params = {
+        "ActionType": 46,
+        "CallerCode": 1,
+        "EndUserInfo": 2,
+        "Parameters": input_params,
+        "Time": 0,
+        "Signature": "a",
+        "CallerSignature": "b"
+    }
+
+    with client.settings(raw_response=True):
+        data = client.service.GetData(url_params).text
     # client.service.GetCity(ID='42')
+    # return:
+    # <ResponseCode>200</ResponseCode>
+    # <ResponseData>
+    #
+    # </ResponseData>
+    data_xml = etree.fromstring(data)
+    code = data_xml.xpath("//ResponseCode")[0].text
+    data = data_xml.xpath("//ResponseData")[0].text
+    yield {"code": code, "data": data}
 
     # yield from _parse_soap(f.text, source, model_props)
+
 
 def _get_prop_full_source(source: str, prop_source: str):
     if prop_source.startswith(".."):
