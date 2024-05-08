@@ -347,8 +347,14 @@ def _get_data_soap(url: str, source: str, model_props: dict, namespaces: dict):
     # </ResponseData>
     data_xml = etree.fromstring(data)
     code = data_xml.xpath("//ResponseCode")[0].text
-    data = data_xml.xpath("//ResponseData")[0].text
-    yield {"code": code, "data": data}
+    data = data_xml.xpath("//ResponseData")[0][0]
+
+    data = etree.tostring(data)
+
+    # remove SOAP schema declarations
+    data.replace(b"http://schemas.xmlsoap.org/soap/envelope/", b"")
+    yield {"code": code}
+    yield {"data": data}
 
     # yield from _parse_soap(f.text, source, model_props)
 

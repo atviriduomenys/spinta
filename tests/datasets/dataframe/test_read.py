@@ -1690,8 +1690,8 @@ d | r | b | m | property         | type     | ref              | source         
         app = create_test_client(context)
         app.authmodel('example/Service', ['getall'])
 
-        resp = app.get('example/Service')
-        assert resp.text == '''{"_data": [{"response": {"code": 10, "data": "<PAIESKA>
+        response = app.get('example/Service')
+        assert response.text == '''{"_data": [{"response": {"code": 10, "data": "<PAIESKA>
                     <PAIESKOS_KRITERIJAI data=2024-05-06 pozymis=1 formavimo_laikas=2024-05-06:12:12:12>
                     </PAIESKOS_KRITERIJAI>
                     <JA_SARASAS>
