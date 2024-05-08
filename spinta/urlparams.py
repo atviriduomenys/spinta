@@ -1,31 +1,28 @@
+import cgi
 import re
+import urllib.parse
 from collections import OrderedDict
 from typing import List
-
-import cgi
 from typing import Union
-
-import itertools
-import urllib.parse
 
 from starlette.requests import Request
 
+from spinta import exceptions, commands
+from spinta import spyna
+from spinta.commands import is_object_id
 from spinta.commands import prepare
 from spinta.components import Action, ParamsPage, decode_page_values
 from spinta.components import Config
 from spinta.components import Context, Node
 from spinta.components import Model
 from spinta.components import Namespace
+from spinta.components import UrlParams, Version
 from spinta.core.ufuncs import Bind
+from spinta.exceptions import ModelNotFound, InvalidPageParameterCount, InvalidPageKey
 from spinta.manifests.components import Manifest
 from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder
 from spinta.ufuncs.basequerybuilder.ufuncs import Star
 from spinta.utils import url as urlutil
-from spinta.components import UrlParams, Version
-from spinta.commands import is_object_id
-from spinta import exceptions, commands
-from spinta import spyna
-from spinta.exceptions import ModelNotFound, InvalidPageParameterCount, InvalidPageKey
 from spinta.utils.config import asbool
 from spinta.utils.encoding import is_url_safe_base64
 
@@ -72,7 +69,6 @@ def get_action(params: UrlParams, request: Request) -> Action:
                 params.limit is not None,
                 params.offset is not None,
                 params.sort,
-                params.count,
             ))
             return Action.SEARCH if search else Action.GETALL
     else:
@@ -120,12 +116,6 @@ def _prepare_urlparams_from_path(params: UrlParams):
                 params.select = args
             else:
                 params.select += args
-            # TODO: This is a temporary hack, there is no need to specifically
-            #       mark count in params.
-            for arg in args:
-                if arg['name'] == 'count':
-                    params.count = True
-                    break
         elif name == 'sort':
             # TODO: Traverse args and resolve all properties, etc.
             if params.sort is None:
@@ -175,10 +165,14 @@ def _prepare_urlparams_from_path(params: UrlParams):
                     operator='offset',
                     message="Too many or too few arguments. One argument is expected.",
                 )
-        # XXX: `count` can't be at the top level, well it can, but at the top
-        #      level it is used as where condition.
+        # Added for backwards compatibility
+        # this adds count to select, so it works the same way as select(count())
         elif name == 'count':
-            params.count = True
+            if not params.select or ('count()' not in params.select and param not in params.select):
+                if params.select:
+                    params.select.append(param)
+                else:
+                    params.select = [param]
         elif name == 'changes':
             params.changes = True
             params.changes_offset = int(args[0]) if args else None
@@ -477,3 +471,22 @@ def get_preferred_content_lang(
     if header in request.headers and request.headers[header]:
         return parse_accept_lang_header(request.headers[header])
     return []
+
+
+def split_select_types(params: UrlParams):
+    prop_select = None
+    func_select = []
+    if params.select is not None:
+        for select in params.select:
+            true_call = select
+            if isinstance(select, dict):
+                true_call = spyna.unparse(select)
+            if '(' in true_call and ')' in true_call:
+                func_select.append(select)
+            else:
+                if prop_select is None:
+                    prop_select = []
+                prop_select.append(select)
+    if prop_select is None and func_select:
+        prop_select = []
+    return prop_select, func_select

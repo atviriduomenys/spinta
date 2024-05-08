@@ -8,7 +8,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 from starlette.responses import FileResponse
 
-from spinta import commands
+from spinta import commands, spyna
 from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
 from spinta.backends.components import Backend
@@ -17,7 +17,7 @@ from spinta.compat import urlparams_to_expr
 from spinta.components import Context, Node, Action, UrlParams, Page, PageBy, get_page_size
 from spinta.components import Model
 from spinta.components import Property
-from spinta.core.ufuncs import Expr
+from spinta.core.ufuncs import Expr, asttoexpr
 from spinta.datasets.components import ExternalBackend
 from spinta.renderer import render
 from spinta.types.datatype import Integer
@@ -30,9 +30,13 @@ from spinta.exceptions import UnavailableSubresource, InfiniteLoopWithPagination
 from spinta.exceptions import ItemDoesNotExist
 from spinta.types.datatype import DataType
 from spinta.typing import ObjectData
-from spinta.ufuncs.basequerybuilder.components import get_allowed_page_property_types, QueryParams, \
-    update_query_with_url_params
-from spinta.ufuncs.basequerybuilder.ufuncs import add_page_expr
+from spinta.ufuncs.basequerybuilder.components import QueryParams
+from spinta.ufuncs.basequerybuilder.helpers import update_query_with_url_params, add_page_expr
+from spinta.ufuncs.loadbuilder.helpers import get_allowed_page_property_types
+from spinta.ufuncs.pagequerysupport.components import PaginationQuerySupport
+from spinta.ufuncs.propertybuilder.components import PropertyBuilder
+from spinta.ufuncs.resultbuilder.components import ResultBuilder
+from spinta.urlparams import split_select_types
 from spinta.utils.data import take
 
 
@@ -51,14 +55,10 @@ async def getall(
         raise BackendNotGiven(model)
 
     copy_page = prepare_page_for_get_all(context, model, params)
-    is_page_enabled = not params.count and backend.paginated and copy_page and copy_page and copy_page.is_enabled
 
-    if isinstance(backend, ExternalBackend):
-        # XXX: `add_count` is a hack, because, external backends do not
-        #      support it yet.
-        expr = urlparams_to_expr(params, add_count=False)
-    else:
-        expr = urlparams_to_expr(params)
+    is_page_enabled = backend.paginated and copy_page and copy_page and copy_page.is_enabled
+
+    expr = urlparams_to_expr(params)
     query_params = QueryParams()
     update_query_with_url_params(query_params, params)
     accesslog: AccessLog = context.get('accesslog')
@@ -69,6 +69,12 @@ async def getall(
         model=model.model_type(),
         action=action.value,
     )
+
+    # Do additional check incase some query functions does not support pagination
+    if is_page_enabled:
+        page_query_support = PaginationQuerySupport(context)
+        page_query_support.resolve(expr)
+        is_page_enabled = page_query_support.supported
 
     if params.head:
         rows = []
@@ -81,70 +87,79 @@ async def getall(
             else:
                 rows = commands.getall(context, model, backend, params=query_params, query=expr)
 
-    if params.count:
-        # XXX: Quick and dirty hack. Functions should be handled properly.
-        prop = Property()
-        prop.name = 'count()'
-        prop.place = 'count()'
-        prop.title = ''
-        prop.description = ''
-        prop.model = model
-        prop.dtype = Integer()
-        prop.dtype.type = 'integer'
-        prop.dtype.type_args = []
-        prop.dtype.name = 'integer'
-        prop.dtype.prop = prop
-        props = {
-            '_type': model.properties['_type'],
-            'count()': prop,
-        }
-        rows = (
-            {
-                prop.name: commands.prepare_dtype_for_response(
-                    context,
-                    params.fmt,
-                    props[key].dtype,
-                    val,
-                    data=row,
-                    action=action,
-                )
-                for key, val in row.items() if key in props
-            }
-            for row in rows
-        )
-    else:
-        select_tree = get_select_tree(context, action, params.select)
-        if action == Action.SEARCH:
-            reserved = ['_type', '_id', '_revision', '_base']
-        else:
-            reserved = ['_type', '_id', '_revision']
-        if model.page.is_enabled:
-            reserved.append('_page')
-        prop_names = get_select_prop_names(
-            context,
-            model,
-            model.properties,
-            action,
-            select_tree,
-            reserved=reserved,
-            include_denorm_props=False,
-        )
-        rows = (
-            commands.prepare_data_for_response(
-                context,
-                model,
-                params.fmt,
-                row,
-                action=action,
-                select=select_tree,
-                prop_names=prop_names,
-            )
-            for row in rows
-        )
+    rows = prepare_data_for_response(
+        context,
+        model,
+        action,
+        params,
+        rows
+    )
 
     rows = log_response(context, rows)
 
     return render(context, request, model, params, rows, action=action)
+
+
+def prepare_data_for_response(
+    context: Context,
+    model: Model,
+    action: Action,
+    params: UrlParams,
+    rows
+):
+    prop_select, func_select = split_select_types(params)
+
+    prop_select_tree = get_select_tree(context, action, prop_select)
+    func_select_tree = get_select_tree(context, action, func_select)
+
+    if action == Action.SEARCH:
+        reserved = ['_type', '_id', '_revision', '_base']
+    else:
+        reserved = ['_type', '_id', '_revision']
+    if model.page.is_enabled:
+        reserved.append('_page')
+    prop_names = get_select_prop_names(
+        context,
+        model,
+        model.properties,
+        action,
+        prop_select_tree,
+        reserved=reserved,
+        include_denorm_props=False,
+    )
+
+    func_prop_mapper = {}
+    if func_select:
+        property_builder = PropertyBuilder(context).init(model)
+        for func in func_select:
+            func_expr = func
+            if not isinstance(func, Expr):
+                func_expr = asttoexpr(func)
+            func_name = spyna.unparse(func_expr)
+            prop = property_builder.resolve(func_expr)
+            func_prop_mapper[func_name] = prop
+
+    for row in rows:
+        result = commands.prepare_data_for_response(
+            context,
+            model,
+            params.fmt,
+            row,
+            action=action,
+            select=prop_select_tree,
+            prop_names=prop_names,
+        )
+        for key, prop in func_prop_mapper.items():
+            result[key] = commands.prepare_dtype_for_response(
+                context,
+                params.fmt,
+                prop.dtype,
+                row[key],
+                data=row,
+                action=action,
+                select=func_select_tree
+            )
+        yield result
 
 
 # XXX: params.sort handle should be moved to BaseQueryBuilder, AST should be handled by Env, this only supports basic sort arguments, that ar Positive, Negative or Bind.

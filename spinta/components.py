@@ -868,8 +868,6 @@ class UrlParams:
     # Limit can be enforced even if it is not explicitly given in URL.
     limit_enforced: bool = False
     limit_enforced_to: int = 100
-    # XXX: Deprecated, count should be part of `select`.
-    count: bool = False
     # In batch requests, return summary of what was done.
     summary: bool = False
     bbox: Optional[List[float]] = None

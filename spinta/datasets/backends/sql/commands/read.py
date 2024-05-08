@@ -5,12 +5,10 @@ from typing import Iterator
 from sqlalchemy.engine.row import RowProxy
 
 from spinta import commands
-from spinta.backends.nobackend.components import NoBackend
-from spinta.components import Context, UrlParams
+from spinta.components import Context
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.helpers import handle_ref_key_assignment, generate_pk_for_row
-from spinta.typing import ObjectData
 from spinta.datasets.backends.sql.commands.query import Selected
 from spinta.datasets.backends.sql.commands.query import SqlQueryBuilder
 from spinta.datasets.backends.sql.components import Sql
@@ -20,14 +18,15 @@ from spinta.datasets.helpers import get_ref_filters
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.datasets.utils import iterparams
 from spinta.dimensions.enum.helpers import get_prop_enum
-from spinta.exceptions import ValueNotInEnum, BackendNotGiven
+from spinta.exceptions import ValueNotInEnum
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
-from spinta.ufuncs.basequerybuilder.components import get_page_values, QueryParams
+from spinta.typing import ObjectData
+from spinta.ufuncs.basequerybuilder.components import QueryParams
+from spinta.ufuncs.basequerybuilder.helpers import get_page_values
 from spinta.ufuncs.helpers import merge_formulas
 from spinta.utils.nestedstruct import flat_dicts_to_nested
 from spinta.utils.schema import NA
-
 
 log = logging.getLogger(__name__)
 

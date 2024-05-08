@@ -21,8 +21,8 @@ from spinta.components import DataStream
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
 from spinta.ufuncs.basequerybuilder.components import QueryParams
-from spinta.ufuncs.basequerybuilder.ufuncs import add_page_expr
 from spinta.types.datatype import Inherit
+from spinta.ufuncs.basequerybuilder.helpers import add_page_expr
 from spinta.utils.aiotools import alist
 from spinta.utils.itertools import peek
 

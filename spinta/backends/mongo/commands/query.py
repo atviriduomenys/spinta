@@ -14,7 +14,9 @@ from spinta.core.ufuncs import ufunc
 from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import Bind
 from spinta.exceptions import EmptyStringSearch
-from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, merge_with_page_sort, merge_with_page_limit, merge_with_page_selected_list
+from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage
+from spinta.ufuncs.basequerybuilder.helpers import merge_with_page_selected_list, merge_with_page_sort, \
+    merge_with_page_limit
 from spinta.ufuncs.basequerybuilder.ufuncs import Star
 from spinta.utils.data import take
 from spinta.exceptions import UnknownMethod
