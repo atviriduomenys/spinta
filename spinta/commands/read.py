@@ -1,41 +1,38 @@
 import uuid
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import overload, Optional, Iterator, List, Tuple, Callable, TypedDict
 from pathlib import Path
+from typing import overload, Optional, Iterator, List, Tuple, Callable
 
 from starlette.requests import Request
-from starlette.responses import Response
 from starlette.responses import FileResponse
+from starlette.responses import Response
 
 from spinta import commands, spyna
+from spinta.accesslog import AccessLog
+from spinta.accesslog import log_response
+from spinta.backends.components import Backend
 from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
-from spinta.backends.components import Backend
 from spinta.backends.nobackend.components import NoBackend
 from spinta.compat import urlparams_to_expr
 from spinta.components import Context, Node, Action, UrlParams, Page, PageBy, get_page_size
 from spinta.components import Model
 from spinta.components import Property
 from spinta.core.ufuncs import Expr, asttoexpr
-from spinta.datasets.components import ExternalBackend
-from spinta.renderer import render
-from spinta.types.datatype import Integer
-from spinta.types.datatype import Object
-from spinta.types.datatype import File
-from spinta.accesslog import AccessLog
-from spinta.accesslog import log_response
+from spinta.exceptions import ItemDoesNotExist
 from spinta.exceptions import UnavailableSubresource, InfiniteLoopWithPagination, BackendNotGiven, TooShortPageSize, \
     TooShortPageSizeKeyRepetition
-from spinta.exceptions import ItemDoesNotExist
+from spinta.renderer import render
 from spinta.types.datatype import DataType
+from spinta.types.datatype import File
+from spinta.types.datatype import Object
 from spinta.typing import ObjectData
 from spinta.ufuncs.basequerybuilder.components import QueryParams
 from spinta.ufuncs.basequerybuilder.helpers import update_query_with_url_params, add_page_expr
 from spinta.ufuncs.loadbuilder.helpers import get_allowed_page_property_types
-from spinta.ufuncs.pagequerysupport.components import PaginationQuerySupport
+from spinta.ufuncs.pagequerysupport.helpers import expr_supports_pagination
 from spinta.ufuncs.propertybuilder.components import PropertyBuilder
-from spinta.ufuncs.resultbuilder.components import ResultBuilder
 from spinta.urlparams import split_select_types
 from spinta.utils.data import take
 
@@ -72,9 +69,7 @@ async def getall(
 
     # Do additional check incase some query functions does not support pagination
     if is_page_enabled:
-        page_query_support = PaginationQuerySupport(context)
-        page_query_support.resolve(expr)
-        is_page_enabled = page_query_support.supported
+        is_page_enabled = expr_supports_pagination(context, expr)
 
     if params.head:
         rows = []
