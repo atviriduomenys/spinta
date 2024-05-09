@@ -17,11 +17,12 @@ from spinta.components import Context, Node
 from spinta.components import Model
 from spinta.components import Namespace
 from spinta.components import UrlParams, Version
-from spinta.core.ufuncs import Bind
+from spinta.core.ufuncs import Bind, Expr, asttoexpr
 from spinta.exceptions import ModelNotFound, InvalidPageParameterCount, InvalidPageKey
 from spinta.manifests.components import Manifest
 from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder
 from spinta.ufuncs.basequerybuilder.ufuncs import Star
+from spinta.ufuncs.requestparamsbuilder.components import RequestParamsBuilder
 from spinta.utils import url as urlutil
 from spinta.utils.config import asbool
 from spinta.utils.encoding import is_url_safe_base64
@@ -94,6 +95,19 @@ def prepare_urlparams(context: Context, params: UrlParams, request: Request):
     params.lang = get_required_lang(context, params)
     config: Config = context.get('config')
     params.fmt = config.exporters[params.format if params.format else 'json']
+
+    if params.select:
+        params_builder = RequestParamsBuilder(context).init(params)
+        select_expr = _get_select_expr_from_params(params)
+        params_builder.resolve(select_expr)
+
+
+def _get_select_expr_from_params(params: UrlParams) -> Expr:
+    ast = {'name': 'select', 'args': [
+        arg if isinstance(arg, dict) else {'name': 'bind', 'args': [arg]}
+        for arg in params.select
+    ]}
+    return asttoexpr(ast)
 
 
 def _prepare_urlparams_from_path(params: UrlParams):

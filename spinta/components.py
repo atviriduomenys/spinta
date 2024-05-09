@@ -16,6 +16,7 @@ import pathlib
 from typing import Type
 from typing import TypedDict
 
+from spinta.core.ufuncs import Expr
 from spinta.exceptions import InvalidPageKey, InvalidPushWithPageParameterCount
 from spinta import exceptions
 from spinta.dimensions.lang.components import LangData
@@ -602,11 +603,11 @@ class ParamsPage:
     size: int
     is_enabled: bool
 
-    def __init__(self):
-        self.key = []
-        self.values = None
-        self.size = None
-        self.is_enabled = True
+    def __init__(self, key=[], values=None, size=None, is_enabled=True):
+        self.key = key
+        self.values = values
+        self.size = size
+        self.is_enabled = is_enabled
 
 
 class Model(MetaData):
@@ -793,6 +794,12 @@ class CommandList:
 
 
 @dataclasses.dataclass
+class FuncProperty:
+    func: Expr
+    prop: Property
+
+
+@dataclasses.dataclass
 class Attachment:
     content_type: str
     filename: str
@@ -862,6 +869,9 @@ class UrlParams:
     formatparams: dict
 
     select: Optional[List[str]] = None
+    select_props: Optional[Dict[str, Expr]] = None
+    select_funcs: Optional[Dict[str, FuncProperty]] = None
+
     sort: List[dict] = None
     limit: Optional[int] = None
     offset: Optional[int] = None

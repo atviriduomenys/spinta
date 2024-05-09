@@ -8,7 +8,7 @@ from starlette.requests import Request
 from starlette.responses import FileResponse
 from starlette.responses import Response
 
-from spinta import commands, spyna
+from spinta import commands
 from spinta.accesslog import AccessLog
 from spinta.accesslog import log_response
 from spinta.backends.components import Backend
@@ -19,7 +19,7 @@ from spinta.compat import urlparams_to_expr
 from spinta.components import Context, Node, Action, UrlParams, Page, PageBy, get_page_size
 from spinta.components import Model
 from spinta.components import Property
-from spinta.core.ufuncs import Expr, asttoexpr
+from spinta.core.ufuncs import Expr
 from spinta.exceptions import ItemDoesNotExist
 from spinta.exceptions import UnavailableSubresource, InfiniteLoopWithPagination, BackendNotGiven, TooShortPageSize, \
     TooShortPageSizeKeyRepetition
@@ -31,9 +31,6 @@ from spinta.typing import ObjectData
 from spinta.ufuncs.basequerybuilder.components import QueryParams
 from spinta.ufuncs.basequerybuilder.helpers import update_query_with_url_params, add_page_expr
 from spinta.ufuncs.loadbuilder.helpers import get_allowed_page_property_types
-from spinta.ufuncs.pagequerysupport.helpers import expr_supports_pagination
-from spinta.ufuncs.propertybuilder.components import PropertyBuilder
-from spinta.urlparams import split_select_types
 from spinta.utils.data import take
 
 
@@ -54,7 +51,6 @@ async def getall(
     copy_page = prepare_page_for_get_all(context, model, params)
 
     is_page_enabled = backend.paginated and copy_page and copy_page and copy_page.is_enabled
-
     expr = urlparams_to_expr(params)
     query_params = QueryParams()
     update_query_with_url_params(query_params, params)
@@ -66,10 +62,6 @@ async def getall(
         model=model.model_type(),
         action=action.value,
     )
-
-    # Do additional check incase some query functions does not support pagination
-    if is_page_enabled:
-        is_page_enabled = expr_supports_pagination(context, expr)
 
     if params.head:
         rows = []
@@ -102,7 +94,8 @@ def prepare_data_for_response(
     params: UrlParams,
     rows
 ):
-    prop_select, func_select = split_select_types(params)
+    prop_select = params.select_props
+    func_select = params.select_funcs
 
     prop_select_tree = get_select_tree(context, action, prop_select)
     func_select_tree = get_select_tree(context, action, func_select)
@@ -123,17 +116,6 @@ def prepare_data_for_response(
         include_denorm_props=False,
     )
 
-    func_prop_mapper = {}
-    if func_select:
-        property_builder = PropertyBuilder(context).init(model)
-        for func in func_select:
-            func_expr = func
-            if not isinstance(func, Expr):
-                func_expr = asttoexpr(func)
-            func_name = spyna.unparse(func_expr)
-            prop = property_builder.resolve(func_expr)
-            func_prop_mapper[func_name] = prop
-
     for row in rows:
         result = commands.prepare_data_for_response(
             context,
@@ -144,11 +126,11 @@ def prepare_data_for_response(
             select=prop_select_tree,
             prop_names=prop_names,
         )
-        for key, prop in func_prop_mapper.items():
+        for key, func_prop in func_select.items():
             result[key] = commands.prepare_dtype_for_response(
                 context,
                 params.fmt,
-                prop.dtype,
+                func_prop.prop.dtype,
                 row[key],
                 data=row,
                 action=action,
