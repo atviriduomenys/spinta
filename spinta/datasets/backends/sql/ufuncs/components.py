@@ -7,6 +7,7 @@ from sqlalchemy.engine.row import RowProxy
 
 from spinta.components import Property
 from spinta.core.ufuncs import Env
+from spinta.ufuncs.resultbuilder.components import ResultBuilder
 from spinta.utils.data import take
 from spinta.utils.schema import NA
 
@@ -30,7 +31,7 @@ class SqlResource(Env):
         return self(dsn=dsn)
 
 
-class SqlResultBuilder(Env):
+class SqlResultBuilder(ResultBuilder):
     this: Any           # A selected value.
     prop: Property      # Model property.
     data: RowProxy      # Whole row from database.

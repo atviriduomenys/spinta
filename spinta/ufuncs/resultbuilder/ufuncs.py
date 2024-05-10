@@ -4,4 +4,4 @@ from spinta.ufuncs.resultbuilder.components import ResultBuilder
 
 @ufunc.resolver(ResultBuilder)
 def count(env: ResultBuilder):
-    print("CALLED COUNT")
+    pass

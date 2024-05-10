@@ -57,6 +57,9 @@ def get_select_tree(
     action: Action,
     select: Optional[List[str]],
 ) -> SelectTree:
+    if isinstance(select, dict):
+        select = list(select.keys())
+
     select = _apply_always_show_id(context, action, select)
     if select is None and action in (Action.GETALL, Action.SEARCH):
         # If select is not given, select everything.
