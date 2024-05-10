@@ -1681,7 +1681,7 @@ d | r | b | m | property         | type     | ref              | source         
   |   |   |   | time             | string   |                  | Time                                |
   |   |   |   | signature        | string   |                  | Signature                           |
   |   |   |   | caller_signature | string   |                  | CallerSignature                     |
-  |   |   |   | response         | object   |                  |                                     |
+  |   |   |   | response         | object   |                  | GetDataResponse                     |
   |   |   |   | response.code    | integer  |                  | ResponseCode                        |
   |   |   |   | response.data    | string   |                  | ResponseData                        |
         ''', mode=Mode.external)
