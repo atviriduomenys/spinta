@@ -1,45 +1,41 @@
 import cgi
-import typing
-from typing import Any
-from typing import AsyncIterator, Union, Optional
-from typing import overload
-
 import itertools
 import json
 import pathlib
+import typing
+from typing import Any
+from typing import AsyncIterator, Union, Optional
 from typing import Dict
 from typing import Iterator
+from typing import overload
 
 from authlib.oauth2.rfc6750.errors import InsufficientScopeError
-
-from starlette.datastructures import URL, Headers
 from starlette.requests import Request
 from starlette.responses import Response
 
-from spinta import spyna
 from spinta import commands
 from spinta import exceptions
+from spinta import spyna
 from spinta.accesslog import AccessLog
 from spinta.accesslog import log_async_response
 from spinta.auth import check_scope
-from spinta.backends import check_type_value
+from spinta.backends.components import Backend, BackendFeatures
 from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
-from spinta.backends.components import Backend, BackendFeatures
-from spinta.components import Context, Node, UrlParams, Action, DataItem, Namespace, Model, Property, DataStream, DataSubItem
+from spinta.components import Context, Node, UrlParams, Action, DataItem, Namespace, Model, Property, DataStream, \
+    DataSubItem
+from spinta.core.ufuncs import asttoexpr
+from spinta.formats.components import Format
 from spinta.renderer import render
-from spinta.types.datatype import DataType, Object, Array, File, Ref, ExternalRef, Denorm, Inherit, BackRef
+from spinta.types.datatype import DataType, Object, Array, File, Ref, Denorm, Inherit, BackRef
 from spinta.urlparams import get_model_by_name
 from spinta.utils.aiotools import agroupby
 from spinta.utils.aiotools import aslice, alist, aiter
+from spinta.utils.data import take
 from spinta.utils.errors import report_error
 from spinta.utils.nestedstruct import flatten_value
-from spinta.utils.streams import splitlines
 from spinta.utils.schema import NotAvailable, NA
-from spinta.utils.data import take
-from spinta.core.ufuncs import asttoexpr
-from spinta.formats.components import Format
-from spinta.types.text.components import Text
+from spinta.utils.streams import splitlines
 
 if typing.TYPE_CHECKING:
     from spinta.backends.postgresql.components import WriteTransaction

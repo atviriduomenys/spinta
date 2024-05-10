@@ -92,20 +92,25 @@ def prepare_data_for_response(
     model: Model,
     action: Action,
     params: UrlParams,
-    rows
+    rows,
+    reserved: List[str] = None
 ):
+    if isinstance(rows, dict):
+        rows = [rows]
+
     prop_select = params.select_props
     func_select = params.select_funcs
 
     prop_select_tree = get_select_tree(context, action, prop_select)
     func_select_tree = get_select_tree(context, action, func_select)
 
-    if action == Action.SEARCH:
-        reserved = ['_type', '_id', '_revision', '_base']
-    else:
-        reserved = ['_type', '_id', '_revision']
-    if model.page.is_enabled:
-        reserved.append('_page')
+    if not reserved:
+        if action == Action.SEARCH:
+            reserved = ['_type', '_id', '_revision', '_base']
+        else:
+            reserved = ['_type', '_id', '_revision']
+        if model.page.is_enabled:
+            reserved.append('_page')
     prop_names = get_select_prop_names(
         context,
         model,
@@ -430,24 +435,7 @@ async def getone(
     )
 
     data = commands.getone(context, model, backend, id_=params.pk)
-    data = prepare_data_for_response(context, model, action, params, data)
-    # select_tree = get_select_tree(context, action, params.select)
-    # prop_names = get_select_prop_names(
-    #     context,
-    #     model,
-    #     model.properties,
-    #     action,
-    #     select_tree,
-    # )
-    # data = commands.prepare_data_for_response(
-    #     context,
-    #     model,
-    #     params.fmt,
-    #     data,
-    #     action=action,
-    #     select=select_tree,
-    #     prop_names=prop_names,
-    # )
+    data = next(prepare_data_for_response(context, model, action, params, data))
     return render(context, request, model, params, data, action=action)
 
 
@@ -609,34 +597,14 @@ async def changes(
             offset=params.changes_offset,
         )
 
-    select_tree = get_select_tree(context, action, params.select)
-    prop_names = get_select_prop_names(
-        context,
-        model,
-        model.properties,
-        action,
-        select_tree,
-        reserved=[
-            '_cid',
-            '_created',
-            '_op',
-            '_id',
-            '_txn',
-            '_revision',
-        ],
-    )
-    rows = (
-        commands.prepare_data_for_response(
-            context,
-            model,
-            params.fmt,
-            row,
-            action=action,
-            select=select_tree,
-            prop_names=prop_names,
-        )
-        for row in rows
-    )
+    rows = prepare_data_for_response(context, model, action, params, rows, reserved=[
+        '_cid',
+        '_created',
+        '_op',
+        '_id',
+        '_txn',
+        '_revision',
+    ])
 
     return render(context, request, model, params, rows, action=action)
 

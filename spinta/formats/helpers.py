@@ -2,7 +2,6 @@ from typing import Iterator
 from typing import List
 from typing import Optional
 
-from spinta import spyna
 from spinta.backends import SelectTree, get_property_base_model
 from spinta.backends import get_model_reserved_props
 from spinta.backends.helpers import get_ns_reserved_props
@@ -14,11 +13,11 @@ from spinta.components import Context
 from spinta.components import Model
 from spinta.components import UrlParams
 from spinta.types.datatype import Array, ArrayBackRef, BackRef
-from spinta.types.datatype import Inherit
-from spinta.types.datatype import ExternalRef
 from spinta.types.datatype import DataType
-from spinta.types.datatype import Object
+from spinta.types.datatype import ExternalRef
 from spinta.types.datatype import File
+from spinta.types.datatype import Inherit
+from spinta.types.datatype import Object
 from spinta.types.datatype import Ref
 from spinta.types.text.components import Text
 from spinta.ufuncs.basequerybuilder.ufuncs import Star
