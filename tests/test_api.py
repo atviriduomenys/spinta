@@ -674,6 +674,36 @@ def test_count(app):
     assert context['data'] == [{'count()': 2}]
 
 
+def test_select_with_function(app):
+    app.authmodel('/datasets/json/Rinkimai', ['upsert', 'search'])
+
+    resp = app.post('/datasets/json/Rinkimai', json={'_data': [
+        {
+            '_op': 'upsert',
+            '_type': 'datasets/json/Rinkimai',
+            '_where': f'id="1"',
+            'id': '1',
+            'pavadinimas': 'Rinkimai 1',
+        },
+        {
+            '_op': 'upsert',
+            '_type': 'datasets/json/Rinkimai',
+            '_where': f'id="2"',
+            'id': '2',
+            'pavadinimas': 'Rinkimai 2',
+        },
+    ]})
+    # FIXME: Status code on multiple objects must be 207.
+    assert resp.status_code == 200, resp.json()
+
+    # Backwards compatibility support
+    resp = app.get('/datasets/json/Rinkimai/:format/json?select(_type,count())', headers={'accept': 'text/html'})
+    assert resp.status_code == 200
+
+    context = resp.json()
+    assert context['_data'] == [{'_type': 'datasets/json/Rinkimai', 'count()': 2}]
+
+
 @pytest.mark.models(
     'backends/postgres/Report',
     'backends/mongo/Report',

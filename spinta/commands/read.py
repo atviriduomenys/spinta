@@ -430,23 +430,24 @@ async def getone(
     )
 
     data = commands.getone(context, model, backend, id_=params.pk)
-    select_tree = get_select_tree(context, action, params.select)
-    prop_names = get_select_prop_names(
-        context,
-        model,
-        model.properties,
-        action,
-        select_tree,
-    )
-    data = commands.prepare_data_for_response(
-        context,
-        model,
-        params.fmt,
-        data,
-        action=action,
-        select=select_tree,
-        prop_names=prop_names,
-    )
+    data = prepare_data_for_response(context, model, action, params, data)
+    # select_tree = get_select_tree(context, action, params.select)
+    # prop_names = get_select_prop_names(
+    #     context,
+    #     model,
+    #     model.properties,
+    #     action,
+    #     select_tree,
+    # )
+    # data = commands.prepare_data_for_response(
+    #     context,
+    #     model,
+    #     params.fmt,
+    #     data,
+    #     action=action,
+    #     select=select_tree,
+    #     prop_names=prop_names,
+    # )
     return render(context, request, model, params, data, action=action)
 
 

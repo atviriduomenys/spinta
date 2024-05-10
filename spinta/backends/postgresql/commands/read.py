@@ -69,7 +69,6 @@ def getall(
 
     for row in result:
         converted = flat_dicts_to_nested(dict(row))
-        env_ = ResultBuilder(context).init(None, None, row)
         res = {
             '_type': model.model_type(),
             **converted
