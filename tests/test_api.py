@@ -663,7 +663,11 @@ def test_count(app):
     # FIXME: Status code on multiple objects must be 207.
     assert resp.status_code == 200, resp.json()
 
+    # Backwards compatibility support
     resp = app.get('/datasets/json/Rinkimai?count()', headers={'accept': 'text/html'})
+    assert resp.status_code == 200
+
+    resp = app.get('/datasets/json/Rinkimai?select(count())', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
     context = _cleaned_context(resp)
