@@ -126,16 +126,17 @@ def prepare_data_for_response(
             select=prop_select_tree,
             prop_names=prop_names,
         )
-        for key, func_prop in func_select.items():
-            result[key] = commands.prepare_dtype_for_response(
-                context,
-                params.fmt,
-                func_prop.prop.dtype,
-                row[key],
-                data=row,
-                action=action,
-                select=func_select_tree
-            )
+        if func_select:
+            for key, func_prop in func_select.items():
+                result[key] = commands.prepare_dtype_for_response(
+                    context,
+                    params.fmt,
+                    func_prop.prop.dtype,
+                    row[key],
+                    data=row,
+                    action=action,
+                    select=func_select_tree
+                )
         yield result
 
 

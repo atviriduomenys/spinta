@@ -22,7 +22,6 @@ from spinta.types.datatype import File
 from spinta.types.datatype import Ref
 from spinta.types.text.components import Text
 from spinta.ufuncs.basequerybuilder.ufuncs import Star
-from spinta.urlparams import split_select_types
 from spinta.utils.data import take
 from spinta.utils.nestedstruct import get_separated_name
 
@@ -186,7 +185,8 @@ def get_model_tabular_header(
         else:
             reserved = get_model_reserved_props(action, model)
 
-    prop_select, func_select = split_select_types(params)
+    prop_select = params.select_props
+    func_select = params.select_funcs
     select = get_select_tree(context, action, prop_select)
 
     if model.name == '_ns':

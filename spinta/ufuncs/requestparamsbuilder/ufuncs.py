@@ -1,45 +1,49 @@
-from spinta.components import ParamsPage, Property, FuncProperty
-from spinta.core.ufuncs import ufunc, Expr
+from typing import Union
+
+from spinta.components import Property, FuncProperty
+from spinta.core.ufuncs import ufunc, Expr, Bind
 from spinta.types.datatype import Integer
 from spinta.ufuncs.requestparamsbuilder.components import RequestParamsBuilder
+from spinta.ufuncs.requestparamsbuilder.helpers import disable_params_pagination
 
 
 @ufunc.resolver(RequestParamsBuilder, Expr)
 def select(env: RequestParamsBuilder, expr: Expr):
-    params = env.params
     for arg in expr.args:
         result_name = str(arg)
         result = env.resolve(arg)
+        env.call('select', result_name, result, given=arg)
 
-        # If result != arg, means that new data was given
-        # meaning it is a function
-        # all binds and getattr are skipped and should return themselves
-        if isinstance(result, FuncProperty):
-            if result.func is None:
-                result.func = arg
 
-            if params.select_funcs is None:
-                params.select_funcs = {}
-            params.select_funcs[result_name] = result
+@ufunc.resolver(RequestParamsBuilder, str, FuncProperty)
+def select(env: RequestParamsBuilder, select_name: str, func_prop: FuncProperty, given: object = None, **kwargs):
+    params = env.params
 
-            if params.select_props is None:
-                params.select_props = {}
+    if func_prop.func is None:
+        func_prop.func = given
 
-        else:
-            if params.select_props is None:
-                params.select_props = {}
-            params.select_props[result_name] = result
+    if params.select_funcs is None:
+        params.select_funcs = {}
+    params.select_funcs[select_name] = func_prop
 
-            if params.select_funcs is None:
-                params.select_funcs = {}
+    if params.select_props is None:
+        params.select_props = {}
+
+
+@ufunc.resolver(RequestParamsBuilder, str, (Bind, Expr))
+def select(env: RequestParamsBuilder, select_name: str, other: Union[Bind, Expr], **kwargs):
+    params = env.params
+    if params.select_props is None:
+        params.select_props = {}
+    params.select_props[select_name] = other
+
+    if params.select_funcs is None:
+        params.select_funcs = {}
 
 
 @ufunc.resolver(RequestParamsBuilder)
 def count(env: RequestParamsBuilder):
-    if env.params.page is not None:
-        env.params.page.is_enabled = False
-    else:
-        env.params.page = ParamsPage(is_enabled=False)
+    disable_params_pagination(env.params)
 
     prop = Property()
     prop.name = 'count()'
@@ -54,4 +58,3 @@ def count(env: RequestParamsBuilder):
     prop.dtype.prop = prop
 
     return FuncProperty(func=None, prop=prop)
-

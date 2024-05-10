@@ -485,22 +485,3 @@ def get_preferred_content_lang(
     if header in request.headers and request.headers[header]:
         return parse_accept_lang_header(request.headers[header])
     return []
-
-
-def split_select_types(params: UrlParams):
-    prop_select = None
-    func_select = []
-    if params.select is not None:
-        for select in params.select:
-            true_call = select
-            if isinstance(select, dict):
-                true_call = spyna.unparse(select)
-            if '(' in true_call and ')' in true_call:
-                func_select.append(select)
-            else:
-                if prop_select is None:
-                    prop_select = []
-                prop_select.append(select)
-    if prop_select is None and func_select:
-        prop_select = []
-    return prop_select, func_select

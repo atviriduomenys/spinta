@@ -16,7 +16,7 @@ import pathlib
 from typing import Type
 from typing import TypedDict
 
-from spinta.core.ufuncs import Expr
+from spinta.core.ufuncs import Expr, Bind
 from spinta.exceptions import InvalidPageKey, InvalidPushWithPageParameterCount
 from spinta import exceptions
 from spinta.dimensions.lang.components import LangData
@@ -869,7 +869,7 @@ class UrlParams:
     formatparams: dict
 
     select: Optional[List[str]] = None
-    select_props: Optional[Dict[str, Expr]] = None
+    select_props: Optional[Dict[str, Union[Expr, Bind]]] = None
     select_funcs: Optional[Dict[str, FuncProperty]] = None
 
     sort: List[dict] = None
