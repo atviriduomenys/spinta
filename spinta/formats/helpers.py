@@ -214,11 +214,9 @@ def get_model_tabular_header(
 
     header = list(_get_model_header(model, names, select, reserved, langs))
 
-    for func in func_select:
-        func_name = func
-        if isinstance(func, dict):
-            func_name = spyna.unparse(func)
-        header.append(func_name)
+    if func_select:
+        for key in func_select.keys():
+            header.append(key)
 
     return header
 
