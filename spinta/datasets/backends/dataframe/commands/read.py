@@ -352,9 +352,16 @@ def _get_data_soap(url: str, source: str, model_props: dict, namespaces: dict):
     data = etree.tostring(data)
 
     # remove SOAP schema declarations
-    data.replace(b"http://schemas.xmlsoap.org/soap/envelope/", b"")
-    yield {"code": code}
-    yield {"data": data}
+    data.replace(b'xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"', b"")
+
+    properties_values = {}
+    for prop in model_props.values():
+        if prop["source"] in url_params:
+            properties_values[prop["source"]] = url_params[prop["source"]]
+
+    properties_values["GetDataResponse"] = {"ResponseCode": 1, "ResponseData": "something"}
+
+    yield properties_values
 
     # yield from _parse_soap(f.text, source, model_props)
 
