@@ -284,10 +284,12 @@ class XSDModel:
                 properties[property_id] = prop
         return properties
 
-    def get_text_property(self) -> dict[str, dict[str, str | dict[str, str]]]:
+    def get_text_property(self, property_type = None) -> dict[str, dict[str, str | dict[str, str]]]:
+        if property_type is None:
+            property_type = "string"
         return {
             self.deduplicate('text'): {
-                'type': 'string',
+                'type': property_type,
                 'external': {
                     'name': 'text()'
                 }
@@ -589,14 +591,15 @@ class XSDReader:
                 #  https://github.com/atviriduomenys/spinta/issues/604
 
                 complex_type_node = complex_type_node.xpath(f'./*[local-name() = "complexContent"]/*[local-name() = "extension"]')[0]
+
             if complex_type_node.xpath(f'./*[local-name() = "sequence"]') \
                     or complex_type_node.xpath(f'./*[local-name() = "all"]')\
+                    or complex_type_node.xpath(f'./*[local-name() = "simpleContent"]')\
                     or len(complex_type_node) > 0:
-                sequence_or_all_nodes = complex_type_node.xpath(f'./*[local-name() = "sequence"]')
                 """
                 source: https://stackoverflow.com/questions/36286056/the-difference-between-all-sequence-choice-and-group-in-xsd
                     When to use xsd:all, xsd:sequence, xsd:choice, or xsd:group:
-                
+
                     Use xsd:all when all child elements must be present, independent of order.
                     Use xsd:sequence when child elements must be present per their occurrence constraints and order does matters.
                     Use xsd:choice when one of the child element must be present.
@@ -605,14 +608,26 @@ class XSDReader:
                     child elements to achieve various cardinality effects. For example, if minOccurs="0" were added to xsd:element children of xsd:all, element order would be insignificant,
                     but not all child elements would have to be present.
                 """
+                if complex_type_node.xpath(f'./*[local-name() = "sequence"]'):
+                    sequence_or_all_nodes = complex_type_node.xpath(f'./*[local-name() = "sequence"]')
+                elif complex_type_node.xpath(f'./*[local-name() = "all"]'):
+                    sequence_or_all_nodes = complex_type_node.xpath(f'./*[local-name() = "all"]')
+                elif complex_type_node.xpath(f'./*[local-name() = "simpleContent"]'):
+                    sequence_or_all_nodes = complex_type_node.xpath(f'./*[local-name() = "simpleContent"]/*[local-name() = "extension"]')
+
+                    text_property_type = sequence_or_all_nodes[0].get("base")
+                    if text_property_type is not None:
+                        if ":" in text_property_type:
+                            text_property_type = text_property_type.split(":")[1]
+                        text_property_type = DATATYPES_MAPPING[text_property_type]
+                    text_property = model.get_text_property(text_property_type)
+                    properties.update(text_property)
+                else:
+                    sequence_or_all_nodes = None
                 if sequence_or_all_nodes:
                     sequence_or_all_node = sequence_or_all_nodes[0]
                 else:
-                    sequence_or_all_nodes = complex_type_node.xpath(f'./*[local-name() = "all"]')
-                    if sequence_or_all_nodes:
-                        sequence_or_all_node = sequence_or_all_nodes[0]
-                    else:
-                        sequence_or_all_node = complex_type_node
+                    sequence_or_all_node = complex_type_node
                 sequence_or_all_node_length = len(sequence_or_all_node)
                 # There is only one element in the complex node sequence, and it doesn't have annotation.
                 # Then we just go deeper and add this model to the next model's path.
@@ -655,6 +670,9 @@ class XSDReader:
                     # references
                     properties.update(
                         self._properties_from_references(sequence_or_all_node, model, new_source_path))
+
+                    # additionally extract properties from attributes, if it's let's say, simpleContent node
+                    properties.update(model.attributes_to_properties(sequence_or_all_node))
 
                     # complex type child nodes - to models
                     for child_node in sequence_or_all_node:
