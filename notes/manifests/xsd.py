@@ -108,7 +108,7 @@ def extract_xpaths_from_xsd(path: pathlib.Path):
         xpaths.append('/' + name)
     
     for attribute in attributes:
-        xpaths.append('@' + element.get('name'))
+        xpaths.append('@' + attribute.get('name'))
     
     return xpaths
 
