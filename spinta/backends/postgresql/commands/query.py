@@ -24,9 +24,9 @@ from spinta.exceptions import UnknownMethod
 from spinta.exceptions import FieldNotInResource
 from spinta.components import Model, Property, Action, Page
 from spinta.types.text.helpers import determine_language_property_for_text
-from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, merge_with_page_sort, \
-    merge_with_page_limit, merge_with_page_selected_list, QueryParams
-from spinta.ufuncs.basequerybuilder.helpers import get_column_with_extra, get_language_column
+from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, QueryParams
+from spinta.ufuncs.basequerybuilder.helpers import get_column_with_extra, get_language_column, \
+    merge_with_page_selected_list, merge_with_page_sort, merge_with_page_limit
 from spinta.ufuncs.basequerybuilder.ufuncs import Star
 from spinta.utils.data import take
 from spinta.types.datatype import DataType, ExternalRef, Inherit, BackRef, Time, ArrayBackRef, Denorm
@@ -788,6 +788,11 @@ def select(env, page):
     return return_selected
 
 
+@ufunc.resolver(PgQueryBuilder, sa.sql.expression.ColumnElement)
+def select(env, column):
+    return Selected(column)
+
+
 @ufunc.resolver(PgQueryBuilder, int)
 def limit(env, n):
     env.limit = n
@@ -826,9 +831,7 @@ def or_(env, args):
 @ufunc.resolver(PgQueryBuilder)
 def count(env):
     env.aggregate = True
-    env.select = {
-        'count()': Selected(sa.func.count().label('count()')),
-    }
+    return sa.func.count().label('count()')
 
 
 COMPARE = [

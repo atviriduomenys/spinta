@@ -1,22 +1,19 @@
 from __future__ import annotations
 
-from typing import Any, Optional, List
-
-import importlib
 import functools
+import importlib
+from typing import Any, Optional, List
 from typing import Dict
 from typing import TYPE_CHECKING
 from typing import Tuple
 
-from spinta.core.enums import Access
-from spinta.dispatcher import Command
 from spinta import spyna
-from spinta.exceptions import UnknownMethod, FieldNotInResource
+from spinta.dispatcher import Command
+from spinta.exceptions import UnknownMethod
 from spinta.utils.schema import NA
 
 if TYPE_CHECKING:
-    from spinta.components import Context, Model
-from spinta.components import PageBy
+    from spinta.components import Context
 
 
 class Expr:

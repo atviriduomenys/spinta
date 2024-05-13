@@ -701,6 +701,10 @@ def test_count(context, rc, tmp_path, geodb):
 
     app = create_client(rc, tmp_path, geodb)
 
+    # Backwards compatibility support
+    resp = app.get('/datasets/gov/example/Country?count()')
+    assert listdata(resp) == [3]
+
     resp = app.get('/datasets/gov/example/Country?select(count())')
     assert listdata(resp) == [3]
 

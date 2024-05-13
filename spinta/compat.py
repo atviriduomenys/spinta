@@ -11,8 +11,6 @@ if TYPE_CHECKING:
 
 def urlparams_to_expr(
     params: UrlParams,
-    # XXX: `add_count` is a hack, because, not all backends supports it yet.
-    add_count: bool = True,
 ) -> Expr:
     """Convert UrlParams to ufunc Expr.
 
@@ -44,9 +42,6 @@ def urlparams_to_expr(
 
     if params.offset:
         ast.append({'name': 'offset', 'args': [params.offset]})
-
-    if params.count and add_count:
-        ast.append({'name': 'count', 'args': []})
 
     if params.expand is not None:
         ast.append({'name': 'expand', 'args': [

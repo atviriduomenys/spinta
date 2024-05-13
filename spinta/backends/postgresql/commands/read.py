@@ -9,8 +9,10 @@ from spinta.components import Model
 from spinta.exceptions import NotFoundError
 from spinta.exceptions import ItemDoesNotExist
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.ufuncs.basequerybuilder.components import get_page_values, QueryParams
+from spinta.ufuncs.basequerybuilder.components import QueryParams
+from spinta.ufuncs.basequerybuilder.helpers import get_page_values
 from spinta.ufuncs.helpers import merge_formulas
+from spinta.ufuncs.resultbuilder.components import ResultBuilder
 from spinta.utils.nestedstruct import flat_dicts_to_nested
 from spinta.backends.postgresql.commands.query import PgQueryBuilder
 
