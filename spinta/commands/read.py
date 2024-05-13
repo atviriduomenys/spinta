@@ -104,7 +104,7 @@ def prepare_data_for_response(
     prop_select_tree = get_select_tree(context, action, prop_select)
     func_select_tree = get_select_tree(context, action, func_select)
 
-    if not reserved:
+    if reserved is None:
         if action == Action.SEARCH:
             reserved = ['_type', '_id', '_revision', '_base']
         else:
@@ -435,7 +435,7 @@ async def getone(
     )
 
     data = commands.getone(context, model, backend, id_=params.pk)
-    data = next(prepare_data_for_response(context, model, action, params, data))
+    data = next(prepare_data_for_response(context, model, action, params, data, reserved=[]))
     return render(context, request, model, params, data, action=action)
 
 
