@@ -271,7 +271,8 @@ class XSDModel:
     def properties_from_simple_elements(
         self,
         node: _Element,
-        from_sequence: bool = True
+        from_sequence: bool = True,
+        properties_required: bool = None
     ) -> dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]:
 
         properties = {}
@@ -280,6 +281,10 @@ class XSDModel:
             if self.xsd.node_is_simple_type_or_inline(element) and not XSDReader.node_is_ref(element):
                 property_id, prop = self.simple_element_to_property(element)
                 if not from_sequence:
+                    prop["required"] = False
+                if properties_required is True:
+                    prop["required"] = True
+                if properties_required is False:
                     prop["required"] = False
                 properties[property_id] = prop
         return properties
@@ -361,6 +366,16 @@ class XSDReader:
                 if documentation_part.text is not None:
                     description = f"{description}{documentation_part.text} "
         return description.strip()
+
+    def _node_is_referenced(self, node):
+        # if this node is referenced by some other node
+        node_name = node.get('name')
+        xpath_search_string = f'//*[@ref="{node_name}"]'
+        references = self.root.xpath(xpath_search_string)
+        if references:
+            return True
+        return False
+
 
     @staticmethod
     def node_is_ref(node: _Element) -> bool:
@@ -582,7 +597,8 @@ class XSDReader:
             if not choices:
                 choices = complex_type_node.xpath(f'./*[local-name() = "sequence"]/*[local-name() = "choice"]')
             if choices:
-                return self._split_choice(node, source_path, additional_properties=additional_properties)
+                if choices[0].get("maxOccurs") != "unbounded":
+                    return self._split_choice(node, source_path, additional_properties=additional_properties)
 
             # if complextype node's property mixed is true, it allows text inside
             if complex_type_node.get("mixed") == "true":
@@ -616,10 +632,14 @@ class XSDReader:
                     child elements to achieve various cardinality effects. For example, if minOccurs="0" were added to xsd:element children of xsd:all, element order would be insignificant,
                     but not all child elements would have to be present.
                 """
+                properties_required = None
                 if complex_type_node.xpath(f'./*[local-name() = "sequence"]'):
                     sequence_or_all_nodes = complex_type_node.xpath(f'./*[local-name() = "sequence"]')
                 elif complex_type_node.xpath(f'./*[local-name() = "all"]'):
                     sequence_or_all_nodes = complex_type_node.xpath(f'./*[local-name() = "all"]')
+                elif complex_type_node.xpath(f'./*[local-name() = "choice"]'):
+                    sequence_or_all_nodes = complex_type_node.xpath(f'./*[local-name() = "choice"]')
+                    properties_required = False
                 elif complex_type_node.xpath(f'./*[local-name() = "simpleContent"]'):
                     sequence_or_all_nodes = complex_type_node.xpath(f'./*[local-name() = "simpleContent"]/*[local-name() = "extension"]')
 
@@ -654,7 +674,7 @@ class XSDReader:
                             #  https://github.com/atviriduomenys/spinta/issues/602
                             paths = new_source_path.split("/")
                             if self.node_is_simple_type_or_inline(element) and not self.node_is_ref(element):
-                                properties.update(model.properties_from_simple_elements(sequence_or_all_node))
+                                properties.update(model.properties_from_simple_elements(sequence_or_all_node, properties_required=properties_required))
 
                             if not element.get("name") in paths:
                                 # this can sometimes happen when choice node has been split or maybe in some other cases too
@@ -675,7 +695,10 @@ class XSDReader:
 
                 elif sequence_or_all_node_length > 1 or properties:
                     # properties from simple type or inline elements without references
-                    properties.update(model.properties_from_simple_elements(sequence_or_all_node))
+                    # properties are required for choice where maxOccurs=unbound and maybe some other cases
+                    properties.update(model.properties_from_simple_elements(
+                        sequence_or_all_node,
+                        properties_required=properties_required))
 
                     # references
                     properties.update(
@@ -721,7 +744,11 @@ class XSDReader:
         # Resource model - special case
 
         for node in self.root:
-            if self._is_element(node) and (not self.node_is_simple_type_or_inline(node) or self.node_is_ref(node)):
+            if (
+                    self._is_element(node) and
+                    (not self.node_is_simple_type_or_inline(node) or self.node_is_ref(node)) and
+                    not self._node_is_referenced(node)
+            ):
                 self._create_model(node)
 
     def start(self):
@@ -730,6 +757,7 @@ class XSDReader:
         self._add_resource_model()
 
         self._parse_root_node()
+
 
 
 def read_schema(
