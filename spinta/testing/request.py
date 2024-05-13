@@ -1,24 +1,23 @@
 from typing import Any
 from typing import Dict
-from typing import Optional
 from typing import Iterable
+from typing import Optional
 
 from starlette.requests import Request
 
-from spinta.typing import ObjectData
 from spinta import commands
+from spinta.auth import AdminToken
+from spinta.commands.read import prepare_data_for_response
+from spinta.components import Action
 from spinta.components import Context
+from spinta.components import Model
 from spinta.components import UrlParams
 from spinta.components import Version
-from spinta.components import Model
-from spinta.components import Action
-from spinta.manifests.components import Manifest
-from spinta.auth import AdminToken
-from spinta.backends.helpers import get_select_prop_names
-from spinta.backends.helpers import get_select_tree
-from spinta.renderer import render
 from spinta.formats.html.commands import build_template_context
 from spinta.formats.html.components import Cell
+from spinta.manifests.components import Manifest
+from spinta.renderer import render
+from spinta.typing import ObjectData
 
 
 def make_get_request(
@@ -70,24 +69,11 @@ def render_data(
     action = params.action
     model = params.model
 
-    select_tree = get_select_tree(context, action, params.select)
-    prop_names = get_select_prop_names(
-        context,
-        model,
-        model.properties,
-        action,
-        select_tree,
-        reserved=['_type', '_id', '_revision'],
-    )
-    data = commands.prepare_data_for_response(
-        context,
-        model,
-        params.fmt,
-        data,
-        action=action,
-        select=select_tree,
-        prop_names=prop_names,
-    )
+    data = next(prepare_data_for_response(context, model, action, params, data, reserved=[
+        '_type',
+        '_id',
+        '_revision'
+    ]))
 
     if params.action in (Action.GETALL, Action.SEARCH):
         data = [data]

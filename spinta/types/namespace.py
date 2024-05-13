@@ -1,11 +1,6 @@
+import collections
 import re
 import uuid
-import collections
-from typing import NamedTuple
-from typing import Union
-from typing import overload
-
-import itertools
 from typing import Any
 from typing import Dict
 from typing import Iterable
@@ -13,20 +8,17 @@ from typing import Iterator
 from typing import List
 from typing import Optional
 from typing import TypedDict
+from typing import overload
 
 from starlette.requests import Request
 from starlette.responses import Response
 from toposort import toposort
 
-import spinta.components
 from spinta import commands
 from spinta import exceptions
 from spinta.auth import authorized
-from spinta.backends.helpers import get_select_prop_names
-from spinta.backends.helpers import get_select_tree
 from spinta.backends.components import BackendFeatures
 from spinta.backends.nobackend.components import NoBackend
-from spinta.compat import urlparams_to_expr
 from spinta.components import Action
 from spinta.components import Config
 from spinta.components import Context
@@ -38,10 +30,7 @@ from spinta.datasets.enums import Level
 from spinta.exceptions import InvalidName
 from spinta.manifests.components import Manifest
 from spinta.nodes import load_node
-from spinta.renderer import render
 from spinta.types.datatype import Ref
-from spinta.accesslog import log_response
-
 
 namespace_is_lowercase = re.compile(r'^([a-z][a-z0-9]*)+(/[a-z][a-z0-9]*)+|([a-z][a-z0-9]*)$')
 

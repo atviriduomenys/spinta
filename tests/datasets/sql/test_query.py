@@ -17,7 +17,7 @@ from spinta.testing.datasets import use_dialect_functions
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.types.datatype import DataType
 from spinta.types.datatype import Ref
-from spinta.ufuncs.basequerybuilder.ufuncs import add_page_expr
+from spinta.ufuncs.basequerybuilder.helpers import add_page_expr
 from spinta.ufuncs.helpers import merge_formulas
 from spinta.datasets.helpers import get_enum_filters
 from spinta.datasets.helpers import get_ref_filters

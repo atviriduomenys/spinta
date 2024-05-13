@@ -49,7 +49,7 @@ from spinta.nodes import load_node
 from spinta.types.helpers import check_model_name
 from spinta.types.helpers import check_property_name
 from spinta.types.namespace import load_namespace_from_name
-from spinta.ufuncs.basequerybuilder.components import LoadBuilder
+from spinta.ufuncs.loadbuilder.components import LoadBuilder
 from spinta.units.helpers import is_unit
 from spinta.utils.enums import enum_by_value
 from spinta.utils.schema import NA

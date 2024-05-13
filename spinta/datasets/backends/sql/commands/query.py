@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import base64
 import dataclasses
 from typing import Any
 from typing import Dict
@@ -8,45 +7,40 @@ from typing import List
 from typing import Optional
 from typing import Tuple
 from typing import TypeVar
-from typing import TypedDict
 from typing import Union
 from typing import overload
-from decimal import Decimal
 
 import sqlalchemy as sa
 from sqlalchemy.sql.functions import Function
 
 from spinta import exceptions
 from spinta.auth import authorized
-from spinta.components import Action, Page, UrlParams
+from spinta.components import Action, Page
 from spinta.components import Model
 from spinta.components import Property
 from spinta.core.ufuncs import Bind
 from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import Negative
+from spinta.core.ufuncs import Unresolved
 from spinta.core.ufuncs import ufunc
 from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.backends.sql.helpers import dialect_specific_desc, dialect_specific_asc
-from spinta.datasets.backends.sql.ufuncs.components import SqlResultBuilder
+from spinta.datasets.backends.sql.ufuncs.components import Selected
 from spinta.dimensions.enum.helpers import prepare_enum_value
 from spinta.dimensions.param.components import ResolvedParams
 from spinta.exceptions import PropertyNotFound, SourceCannotBeList, LangNotDeclared
 from spinta.exceptions import UnknownMethod
-from spinta.exceptions import UnableToCast
 from spinta.types.datatype import DataType, Denorm
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.types.datatype import String
-from spinta.types.datatype import Integer
-from spinta.types.file.components import FileData
 from spinta.types.text.components import Text
 from spinta.types.text.helpers import determine_language_property_for_text
-from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, merge_with_page_selected_list, \
-    merge_with_page_sort, merge_with_page_limit, QueryParams
-from spinta.ufuncs.basequerybuilder.helpers import get_language_column
+from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, QueryParams
+from spinta.ufuncs.basequerybuilder.helpers import get_language_column, merge_with_page_selected_list, \
+    merge_with_page_sort, merge_with_page_limit
 from spinta.ufuncs.basequerybuilder.ufuncs import Star
 from spinta.ufuncs.components import ForeignProperty
-from spinta.core.ufuncs import Unresolved
 from spinta.utils.data import take
 from spinta.utils.itertools import flatten
 from spinta.utils.schema import NA
@@ -197,63 +191,6 @@ class SqlQueryBuilder(BaseQueryBuilder):
         if column not in self.columns:
             self.columns.append(column)
         return self.columns.index(column)
-
-
-class Selected:
-    # Item index in select list.
-    item: int = None
-    # Model property if a property is selected.
-    prop: Property = None
-    # A value or an Expr for further processing on selected value.
-    prep: Any = NA
-
-    def __init__(
-        self,
-        item: int = None,
-        prop: Property = None,
-        # `prop` can be Expr or any other value.
-        prep: Any = NA,
-    ):
-        self.item = item
-        self.prop = prop
-        self.prep = prep
-
-    def __repr__(self):
-        return self.debug()
-
-    def __eq__(self, other):
-        if isinstance(other, Selected):
-            return self.item == other.item and self.prop == other.prop and self.prep == other.prep
-        return False
-
-    def debug(self, indent: str = ''):
-        prop = self.prop.place if self.prop else 'None'
-        if isinstance(self.prep, Selected):
-            return (
-                f'{indent}Selected('
-                f'item={self.item}, '
-                f'prop={prop}, '
-                f'prep=...)\n'
-                   ) + self.prep.debug(indent + '  ')
-        elif isinstance(self.prep, (tuple, list)):
-            return (
-                f'{indent}Selected('
-                f'item={self.item}, '
-                f'prop={prop}, '
-                f'prep={type(self.prep).__name__}...)\n'
-            ) + ''.join([
-                p.debug(indent + '- ')
-                if isinstance(p, Selected)
-                else str(p)
-                for p in self.prep
-            ])
-        else:
-            return (
-                f'{indent}Selected('
-                f'item={self.item}, '
-                f'prop={prop}, '
-                f'prep={self.prep})\n'
-            )
 
 
 def _gather_selected_properties(env: SqlQueryBuilder):
@@ -1177,18 +1114,6 @@ def offset(env: SqlQueryBuilder, n: int):
 
 
 @ufunc.resolver(SqlQueryBuilder, Expr)
-def swap(env: SqlQueryBuilder, expr: Expr):
-    args, kwargs = expr.resolve(env)
-    return Expr('swap', *args, **kwargs)
-
-
-@ufunc.resolver(SqlResultBuilder, Expr)
-def swap(env: SqlResultBuilder, expr: Expr):
-    args, kwargs = expr.resolve(env)
-    return env.call('swap', *args, *kwargs)
-
-
-@ufunc.resolver(SqlQueryBuilder, Expr)
 def file(env: SqlQueryBuilder, expr: Expr) -> Expr:
     args, kwargs = expr.resolve(env)
     return Expr(
@@ -1198,71 +1123,10 @@ def file(env: SqlQueryBuilder, expr: Expr) -> Expr:
     )
 
 
-class _FileSelected(TypedDict):
-    name: Selected      # File name
-    content: Selected   # File content
-
-
-@ufunc.resolver(SqlResultBuilder, Expr)
-def file(env: SqlResultBuilder, expr: Expr) -> FileData:
-    """Post query file data processor
-
-    Will be called with _FileSelected kwargs and no args.
-    """
-    kwargs: _FileSelected
-    args, kwargs = expr.resolve(env)
-    assert len(args) == 0, args
-    name = env.data[kwargs['name'].item]
-    content = env.data[kwargs['content'].item]
-    if isinstance(content, str):
-        content = content.encode('utf-8')
-    if content is not None:
-        content = base64.b64encode(content).decode()
-    return {
-        '_id': name,
-        # TODO: Content probably should not be returned if not explicitly
-        #       requested in select list.
-        '_content': content,
-    }
-
-
 @overload
 @ufunc.resolver(SqlQueryBuilder)
 def cast(env: SqlQueryBuilder) -> Expr:
     return Expr('cast')
-
-
-@overload
-@ufunc.resolver(SqlResultBuilder)
-def cast(env: SqlResultBuilder) -> Any:
-    return env.call('cast', env.prop.dtype, env.this)
-
-
-@overload
-@ufunc.resolver(SqlResultBuilder, String, int)
-def cast(env: SqlResultBuilder, dtype: String, value: int) -> str:
-    return str(value)
-
-
-@overload
-@ufunc.resolver(SqlResultBuilder, String, type(None))
-def cast(env: SqlResultBuilder, dtype: String, value: Optional[Any]) -> str:
-    return ''
-
-
-@overload
-@ufunc.resolver(SqlResultBuilder, Integer, Decimal)
-def cast(env: SqlResultBuilder, dtype: Integer, value: Decimal) -> int:
-    return env.call('cast', dtype, float(value))
-
-
-@overload
-@ufunc.resolver(SqlResultBuilder, Integer, float)
-def cast(env: SqlResultBuilder, dtype: Integer, value: float) -> int:
-    if value % 1 > 0:
-        raise UnableToCast(dtype, value=value, type=dtype.name)
-    else:
-        return int(value)
 
 
 @overload
@@ -1273,14 +1137,6 @@ def point(env: SqlQueryBuilder, x: Bind, y: Bind) -> Expr:
         env.call('select', x, nested=True),
         env.call('select', y, nested=True),
     )
-
-
-@overload
-@ufunc.resolver(SqlResultBuilder, Selected, Selected)
-def point(env: SqlResultBuilder, x: Selected, y: Selected) -> Expr:
-    x = env.data[x.item]
-    y = env.data[y.item]
-    return f'POINT ({x} {y})'
 
 
 @ufunc.resolver(SqlQueryBuilder)
