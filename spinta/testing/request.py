@@ -69,11 +69,11 @@ def render_data(
     action = params.action
     model = params.model
 
-    data = prepare_data_for_response(context, model, action, params, data, reserved=[
+    data = next(prepare_data_for_response(context, model, action, params, data, reserved=[
         '_type',
         '_id',
         '_revision'
-    ])
+    ]))
 
     if params.action in (Action.GETALL, Action.SEARCH):
         data = [data]
