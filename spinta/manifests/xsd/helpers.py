@@ -396,8 +396,7 @@ class XSDReader:
             'given_name': self._dataset_given_name
         }
 
-    def _get_separate_complex_type_node(self, node: _Element) -> _Element:
-        node_type: str | list = node.get('type')
+    def _get_separate_complex_type_node_by_type(self, node_type: str) -> _Element:
         if node_type is not None:
             node_type = node_type.split(":")
             if len(node_type) > 1:
@@ -409,6 +408,9 @@ class XSDReader:
             for node in complex_types:
                 if node.get("name") == node_type:
                     return node
+    def _get_separate_complex_type_node(self, node: _Element) -> _Element:
+        node_type: str | list = node.get('type')
+        return self._get_separate_complex_type_node_by_type(node_type)
 
     def _node_has_separate_complex_type(self, node: _Element) -> bool:
         node_type: str | list = node.get('type')
@@ -591,6 +593,12 @@ class XSDReader:
                 #  https://github.com/atviriduomenys/spinta/issues/604
 
                 complex_type_node = complex_type_node.xpath(f'./*[local-name() = "complexContent"]/*[local-name() = "extension"]')[0]
+                complex_content_base_name = complex_type_node.get("base")
+                complex_content_base_node = self._get_separate_complex_type_node_by_type(complex_content_base_name)
+                if complex_content_base_node.xpath(f'./*[local-name() = "sequence"]'):
+                    sequence_node = complex_content_base_node.xpath(f'./*[local-name() = "sequence"]')[0]
+                    properties.update(model.properties_from_simple_elements(sequence_node))
+                # TODO: in this case, it might be something else, not sequence too
 
             if complex_type_node.xpath(f'./*[local-name() = "sequence"]') \
                     or complex_type_node.xpath(f'./*[local-name() = "all"]')\
