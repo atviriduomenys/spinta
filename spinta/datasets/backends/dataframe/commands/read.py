@@ -502,6 +502,11 @@ def getall(
         source=model.external.name,
         model_props=props
     ).flatten().to_dataframe(meta=meta)
+    debug = df["GetDataResponse"]["ResponseData"].compute().to_json()
+    debug2 = df["GetDataResponse"].compute().to_json()
+    debug3 = df["ActionType"].compute().to_json()
+    # DEBUG INFO GetDataResponse looks like this at this point: '{"0":{"ResponseCode":1,"ResponseData":"something"}}'
+    # which means that the data we need passes through here correctly
     yield from _dask_get_all(context, query, df, backend, model, builder)
 
 
