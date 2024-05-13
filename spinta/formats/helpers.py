@@ -213,7 +213,7 @@ def get_model_tabular_header(
 
     header = list(_get_model_header(model, names, select, reserved, langs))
 
-    if func_select:
+    if func_select is not None:
         for key in func_select.keys():
             header.append(key)
 
