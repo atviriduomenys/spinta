@@ -622,6 +622,8 @@ class XSDReader:
                         text_property_type = DATATYPES_MAPPING[text_property_type]
                     text_property = model.get_text_property(text_property_type)
                     properties.update(text_property)
+                    # additionally extract properties from attributes, if it's let's say, simpleContent node
+                    properties.update(model.attributes_to_properties(sequence_or_all_nodes[0]))
                 else:
                     sequence_or_all_nodes = None
                 if sequence_or_all_nodes:
@@ -670,9 +672,6 @@ class XSDReader:
                     # references
                     properties.update(
                         self._properties_from_references(sequence_or_all_node, model, new_source_path))
-
-                    # additionally extract properties from attributes, if it's let's say, simpleContent node
-                    properties.update(model.attributes_to_properties(sequence_or_all_node))
 
                     # complex type child nodes - to models
                     for child_node in sequence_or_all_node:
