@@ -16,6 +16,7 @@ import pathlib
 from typing import Type
 from typing import TypedDict
 
+from spinta.core.ufuncs import Expr, Bind
 from spinta.exceptions import InvalidPageKey, InvalidPushWithPageParameterCount
 from spinta import exceptions
 from spinta.dimensions.lang.components import LangData
@@ -602,11 +603,11 @@ class ParamsPage:
     size: int
     is_enabled: bool
 
-    def __init__(self):
-        self.key = []
-        self.values = None
-        self.size = None
-        self.is_enabled = True
+    def __init__(self, key=[], values=None, size=None, is_enabled=True):
+        self.key = key
+        self.values = values
+        self.size = size
+        self.is_enabled = is_enabled
 
 
 class Model(MetaData):
@@ -793,6 +794,12 @@ class CommandList:
 
 
 @dataclasses.dataclass
+class FuncProperty:
+    func: Expr
+    prop: Property
+
+
+@dataclasses.dataclass
 class Attachment:
     content_type: str
     filename: str
@@ -862,14 +869,15 @@ class UrlParams:
     formatparams: dict
 
     select: Optional[List[str]] = None
+    select_props: Optional[Dict[str, Union[Expr, Bind]]] = None
+    select_funcs: Optional[Dict[str, FuncProperty]] = None
+
     sort: List[dict] = None
     limit: Optional[int] = None
     offset: Optional[int] = None
     # Limit can be enforced even if it is not explicitly given in URL.
     limit_enforced: bool = False
     limit_enforced_to: int = 100
-    # XXX: Deprecated, count should be part of `select`.
-    count: bool = False
     # In batch requests, return summary of what was done.
     summary: bool = False
     bbox: Optional[List[float]] = None

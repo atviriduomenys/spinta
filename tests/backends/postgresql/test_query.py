@@ -13,7 +13,7 @@ from spinta.core.ufuncs import asttoexpr
 from spinta.backends.postgresql.commands.query import PgQueryBuilder
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.testing.manifest import load_manifest_and_context
-from spinta.ufuncs.basequerybuilder.ufuncs import add_page_expr
+from spinta.ufuncs.basequerybuilder.helpers import add_page_expr
 
 
 def _qry(qry: Select, indent: int = 4) -> str:

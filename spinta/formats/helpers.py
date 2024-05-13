@@ -13,11 +13,11 @@ from spinta.components import Context
 from spinta.components import Model
 from spinta.components import UrlParams
 from spinta.types.datatype import Array, ArrayBackRef, BackRef
-from spinta.types.datatype import Inherit
-from spinta.types.datatype import ExternalRef
 from spinta.types.datatype import DataType
-from spinta.types.datatype import Object
+from spinta.types.datatype import ExternalRef
 from spinta.types.datatype import File
+from spinta.types.datatype import Inherit
+from spinta.types.datatype import Object
 from spinta.types.datatype import Ref
 from spinta.types.text.components import Text
 from spinta.ufuncs.basequerybuilder.ufuncs import Star
@@ -178,39 +178,45 @@ def get_model_tabular_header(
     *,
     reserved: Optional[List[str]] = None,
 ) -> List[str]:
-    if params.count:
-        header = ['count()']
-    else:
-        if reserved is None:
-            if model.name == '_ns':
-                reserved = get_ns_reserved_props(action)
-            else:
-                reserved = get_model_reserved_props(action, model)
-        select = get_select_tree(context, action, params.select)
+    if reserved is None:
         if model.name == '_ns':
-            names = get_select_prop_names(
-                context,
-                model,
-                model.properties,
-                action,
-                select,
-                auth=False,
-            )
+            reserved = get_ns_reserved_props(action)
         else:
-            names = get_select_prop_names(
-                context,
-                model,
-                model.properties,
-                action,
-                select,
-                reserved=reserved,
-            )
+            reserved = get_model_reserved_props(action, model)
 
-        langs = params.lang
-        if params.changes:
-            langs = [Star()]
+    prop_select = params.select_props
+    func_select = params.select_funcs
+    select = get_select_tree(context, action, prop_select)
 
-        header = list(_get_model_header(model, names, select, reserved, langs))
+    if model.name == '_ns':
+        names = get_select_prop_names(
+            context,
+            model,
+            model.properties,
+            action,
+            select,
+            auth=False,
+        )
+    else:
+        names = get_select_prop_names(
+            context,
+            model,
+            model.properties,
+            action,
+            select,
+            reserved=reserved,
+        )
+
+    langs = params.lang
+    if params.changes:
+        langs = [Star()]
+
+    header = list(_get_model_header(model, names, select, reserved, langs))
+
+    if func_select is not None:
+        for key in func_select.keys():
+            header.append(key)
+
     return header
 
 

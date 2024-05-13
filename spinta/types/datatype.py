@@ -1,26 +1,22 @@
 from __future__ import annotations
 
+import base64
+from datetime import date, time, datetime
 from typing import Dict
 from typing import List
 from typing import TYPE_CHECKING, Any, Union
 
-import base64
-
-from datetime import date, time, datetime
-
-from spinta import spyna
 from spinta import commands
 from spinta import exceptions
+from spinta import spyna
 from spinta.commands import load, is_object_id
 from spinta.components import Context, Component, Property
 from spinta.components import Model
-from spinta.datasets.enums import Level
-from spinta.exceptions import PropertyNotFound
+from spinta.core.ufuncs import Expr
 from spinta.manifests.components import Manifest
+from spinta.types.helpers import check_no_extra_keys
 from spinta.types.helpers import set_dtype_backend
 from spinta.utils.schema import NA, NotAvailable
-from spinta.core.ufuncs import Expr
-from spinta.types.helpers import check_no_extra_keys
 
 if TYPE_CHECKING:
     from spinta.backends.components import Backend
