@@ -6,6 +6,11 @@ Changes
 0.1.63 (unreleased)
 ===================
 
+Backwards incompatible changes:
+
+- Dropped support for Python 3.8 version, 3.8 will reach end of life in 2024-10
+  and some packages like numpy already dropped support for 3.8.
+
 
 0.1.62 (2024-02-29)
 ===================
