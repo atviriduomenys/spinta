@@ -503,18 +503,25 @@ class XSDReader:
                 properties[property_id] = prop
             else:
                 is_array = False
-                try:
+                # try:
                     # TODO fix this because it probably doesn't cover all cases, only something like <complexType><sequence><item>
                     #  https://github.com/atviriduomenys/spinta/issues/613
-                    if len(referenced_element) == 1 and self.node_is_ref(referenced_element[0][0][0]):
-                        is_array = XSDReader.is_array(referenced_element)
-                        if not is_array:
-                            is_array = XSDReader.is_array(referenced_element[0][0][0])
-                        new_referenced_element = self._get_referenced_node(referenced_element[0][0][0])
-                        referenced_element = new_referenced_element
+                complex_type = referenced_element.xpath("./*[local-name() = 'complexType']")[0]
+                sequences = complex_type.xpath("./*[local-name() = 'sequence']")
+                if sequences:
+                    sequence = sequences[0]
+                else:
+                    sequence = None
+                if sequence is not None and len(sequence) == 1 and self.node_is_ref(sequence[0]):
+                    is_array = XSDReader.is_array(referenced_element)
+                    if not is_array:
+                        is_array = XSDReader.is_array(complex_type[0][0])
+                    new_referenced_element = self._get_referenced_node(complex_type[0][0])
+                    referenced_element = new_referenced_element
+                    if ref_element.get("name") is not None:
                         source_path += f'/{ref_element.get("name")}'
-                except (TypeError, IndexError):
-                    pass
+                # except (TypeError, IndexError):
+                #     pass
 
                 if not (XSDReader.is_array(ref_element) or is_array):
                     referenced_model_names = self._create_model(referenced_element, source_path)
