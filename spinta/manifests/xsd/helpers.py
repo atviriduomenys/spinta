@@ -228,7 +228,8 @@ class XSDModel:
 
     def simple_element_to_property(
         self,
-        element: _Element
+        element: _Element,
+        is_array: bool = False
     ) -> tuple[str, dict[str, str | bool | dict[str, Any]]]:
         """
         simple element is an element which is either
@@ -260,7 +261,7 @@ class XSDModel:
         prop["external"]["name"] = f'{prop["external"]["name"]}/text()'
         if prop.get("type") == "":
             prop["type"] = "string"
-        if XSDReader.is_array(element):
+        if XSDReader.is_array(element) or is_array:
             property_id += "[]"
         if XSDReader.is_required(element):
             prop["required"] = True
@@ -376,6 +377,14 @@ class XSDReader:
             return True
         return False
 
+    def _get_referenced_node(self, node):
+        ref = node.get("ref")
+        if ":" in ref:
+            ref = ref.split(":")[1]
+        xpath_query = f"//*[@name='{ref}']"
+        referenced_node = self.root.xpath(xpath_query)[0]
+        return referenced_node
+
 
     @staticmethod
     def node_is_ref(node: _Element) -> bool:
@@ -475,13 +484,17 @@ class XSDReader:
     ) -> dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]:
 
         properties = {}
+        # if len(node) == 1:
+        #     # if this model has only one property, which is a reference, we don't create it, but pass it on.
+        #     ref_element = node.xpath("./*[@ref]")[0]
+        #     ref = ref_element.get("ref")
+        #     if ":" in ref:
+        #         ref = ref.split(":")[1]
+        #     xpath_query = f"//*[@name='{ref}']"
+        #     referenced_element = self.root.xpath(xpath_query)[0]
+        #     return self._properties_from_references(model=model, source_path=node.get("name"))
         for ref_element in node.xpath("./*[@ref]"):
-
-            ref = ref_element.get("ref")
-            if ":" in ref:
-                ref = ref.split(":")[1]
-            xpath_query = f"//*[@name='{ref}']"
-            referenced_element = self.root.xpath(xpath_query)[0]
+            referenced_element = self._get_referenced_node(ref_element)
 
             if self.node_is_simple_type_or_inline(referenced_element):
                 property_id, prop = model.simple_element_to_property(referenced_element)
@@ -489,7 +502,21 @@ class XSDReader:
                     prop["required"] = False
                 properties[property_id] = prop
             else:
-                if not XSDReader.is_array(ref_element):
+                is_array = False
+                try:
+                    # TODO fix this because it probably doesn't cover all cases, only something like <complexType><sequence><item>
+                    #  https://github.com/atviriduomenys/spinta/issues/613
+                    if len(referenced_element) == 1 and self.node_is_ref(referenced_element[0][0][0]):
+                        is_array = XSDReader.is_array(referenced_element)
+                        if not is_array:
+                            is_array = XSDReader.is_array(referenced_element[0][0][0])
+                        new_referenced_element = self._get_referenced_node(referenced_element[0][0][0])
+                        referenced_element = new_referenced_element
+                        source_path += f'/{ref_element.get("name")}'
+                except (TypeError, IndexError):
+                    pass
+
+                if not (XSDReader.is_array(ref_element) or is_array):
                     referenced_model_names = self._create_model(referenced_element, source_path)
                     property_type = "ref"
                 else:
@@ -505,7 +532,7 @@ class XSDReader:
                                                                 additional_properties=referenced_element_properties)
 
                 for referenced_model_name in referenced_model_names:
-                    property_id, prop = model.simple_element_to_property(ref_element)
+                    property_id, prop = model.simple_element_to_property(ref_element, is_array=is_array)
 
                     prop["external"]["name"] = ""
                     prop["type"] = property_type
@@ -585,6 +612,8 @@ class XSDReader:
         description = self.get_description(node)
         properties.update(model.attributes_to_properties(node))
 
+        model_names = []
+
         if node.xpath(f'./*[local-name() = "complexType"]') or self._node_has_separate_complex_type(node):
 
             if self._node_has_separate_complex_type(node):
@@ -662,36 +691,38 @@ class XSDReader:
                 # There is only one element in the complex node sequence, and it doesn't have annotation.
                 # Then we just go deeper and add this model to the next model's path.
                 if sequence_or_all_node_length == 1 and not properties:
-                    # TODO: final is also decided by maxOccurs (at least I think so)
 
                     if sequence_or_all_node.xpath(f'./*[local-name() = "element"]'):
                         if not sequence_or_all_node.xpath(f'./*[local-name() = "element"]')[0].get("ref"):
                             element = sequence_or_all_node.xpath(f'./*[local-name() = "element"]')[0]
-
+                            if self.node_is_simple_type_or_inline(element) and not self.node_is_ref(element):
+                                properties.update(model.properties_from_simple_elements(sequence_or_all_node, properties_required=properties_required))
                             # check for recursion
                             # TODO: maybe move this to a separate function
                             # TODO: recursion not fully working
                             #  https://github.com/atviriduomenys/spinta/issues/602
-                            paths = new_source_path.split("/")
-                            if self.node_is_simple_type_or_inline(element) and not self.node_is_ref(element):
-                                properties.update(model.properties_from_simple_elements(sequence_or_all_node, properties_required=properties_required))
-
-                            if not element.get("name") in paths:
-                                # this can sometimes happen when choice node has been split or maybe in some other cases too
-                                self._create_model(element, source_path=new_source_path)
                             else:
-                                for index, path in enumerate(paths):
-                                    if path == element.get("name"):
-                                        paths[index] = f"/{path}"
-                                new_source_path = "/".join(paths)
+                                paths = new_source_path.split("/")
+                                if not element.get("name") in paths:
+
+                                    # this can sometimes happen when choice node has been split or maybe in some other cases too
+                                    return self._create_model(element, source_path=new_source_path)
+                                else:
+                                    for index, path in enumerate(paths):
+                                        if path == element.get("name"):
+                                            paths[index] = f"/{path}"
+                                    new_source_path = "/".join(paths)
 
                         else:
                             # TODO: if reference is to an inline or simpleType element,
                             #  and maxOccurs of it is 1,
                             #  then do not create reference, but add to the same
 
-                            properties.update(
-                                self._properties_from_references(sequence_or_all_node, model, new_source_path))
+                            # properties.update(
+                            #     self._properties_from_references(sequence_or_all_node, model, new_source_path))
+                            element = sequence_or_all_node.xpath(f'./*[local-name() = "element"]')[0]
+                            element = self._get_referenced_node(element)
+                            return self._create_model(element, source_path=new_source_path, additional_properties=additional_properties)
 
                 elif sequence_or_all_node_length > 1 or properties:
                     # properties from simple type or inline elements without references
@@ -759,11 +790,10 @@ class XSDReader:
         self._parse_root_node()
 
 
-
 def read_schema(
     context: Context,
-    path: str, prepare:
-    str = None,
+    path: str,
+    prepare: str = None,
     dataset_name: str = ''
 ) -> dict[Any, dict[str, str | dict[str, str | bool | dict[str, str | dict[str, Any]]]]]:
     """
