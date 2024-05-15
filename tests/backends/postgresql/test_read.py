@@ -1,38 +1,31 @@
 from pathlib import Path
-from typing import Any
-from typing import Dict
-from typing import List
-from unittest.mock import Mock
 
-from spinta import commands
-from spinta import spyna
-from spinta.components import Context
-from spinta.auth import AdminToken
-from spinta.testing.client import create_test_client
-from spinta.testing.data import encode_page_values_manually, listdata
-from spinta.testing.manifest import prepare_manifest, bootstrap_manifest
-from spinta.core.config import RawConfig
-from spinta.core.ufuncs import asttoexpr
+import pytest
 from _pytest.fixtures import FixtureRequest
 
+from spinta.auth import AdminToken
+from spinta.components import Context
+from spinta.core.config import RawConfig
+from spinta.testing.client import create_test_client
+from spinta.testing.data import encode_page_values_manually, listdata
+from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.utils import get_error_codes
-import pytest
 
 
 def _prep_context(context: Context):
     context.set('auth.token', AdminToken())
 
 
-def _prep_conn(context: Context, data: List[Dict[str, Any]]):
-    txn = Mock()
-    conn = txn.connection.execution_options.return_value = Mock()
-    conn.execute.return_value = data
-    context.set('transaction', txn)
-    return conn
-
-
-def test_getall(rc: RawConfig):
-    context, manifest = prepare_manifest(rc, '''
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_getall(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property   | type    | ref     | access
     example                    |         |         |
       |   |   | Country        |         |         |
@@ -40,37 +33,35 @@ def test_getall(rc: RawConfig):
       |   |   | City           |         |         |
       |   |   |   | name       | string  |         | open
       |   |   |   | country    | ref     | Country | open
-    ''')
-    _prep_context(context)
-    conn = _prep_conn(context, [
-        {
-            '_id': '3aed7394-18da-4c17-ac29-d501d5dd0ed7',
-            '_revision': '9f308d61-5401-4bc2-a9da-bc9de85ad91d',
-            'country.name': 'Lithuania',
-        }
-    ])
-    model = commands.get_model(context, manifest, 'example/City')
-    backend = model.backend
-    query = asttoexpr(spyna.parse('select(_id, country.name)'))
-    rows = commands.getall(context, model, backend, query=query)
-    rows = list(rows)
-
-    assert str(conn.execute.call_args.args[0]) == (
-        'SELECT'
-        ' "example/City"._id,'
-        ' "example/City"._revision,'
-        ' "example/Country_1".name AS "country.name" \n'
-        'FROM'
-        ' "example/City" '
-        'LEFT OUTER JOIN "example/Country" AS "example/Country_1"'
-        ' ON "example/City"."country._id" = "example/Country_1"._id'
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
     )
-    page = rows[0]['_page']
-    assert rows == [
+    _prep_context(context)
+    app = create_test_client(context)
+    app.authorize(['spinta_insert', 'spinta_getall', 'spinta_wipe', 'spinta_search', 'spinta_set_meta_fields'])
+    lithuania_id = 'd3482081-1c30-43a4-ae6f-faf6a40c954a'
+    vilnius_id = '3aed7394-18da-4c17-ac29-d501d5dd0ed7'
+    app.post('/example/Country', json={
+        '_id': lithuania_id,
+        'name': 'Lithuania'
+    })
+    app.post('/example/City', json={
+        '_id': vilnius_id,
+        'country': {
+            '_id': lithuania_id
+        },
+        'name': 'Vilnius'
+    })
+    response = app.get(f'/example/City?select(_id, _revision, _type, country.name)').json()['_data']
+    revision = response[0]['_revision']
+    assert response == [
         {
             '_id': '3aed7394-18da-4c17-ac29-d501d5dd0ed7',
-            '_page': page,
-            '_revision': '9f308d61-5401-4bc2-a9da-bc9de85ad91d',
+            '_revision': revision,
             '_type': 'example/City',
             'country': {'name': 'Lithuania'},
         },

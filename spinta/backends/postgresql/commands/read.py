@@ -1,20 +1,19 @@
-from typing import overload
 from typing import Iterator
+from typing import overload
 
-from spinta.typing import ObjectData
 from spinta import commands
-from spinta.core.ufuncs import Expr
-from spinta.components import Context, UrlParams
-from spinta.components import Model
-from spinta.exceptions import NotFoundError
-from spinta.exceptions import ItemDoesNotExist
+from spinta.backends.postgresql.commands.query import PgQueryBuilder
 from spinta.backends.postgresql.components import PostgreSQL
+from spinta.components import Context
+from spinta.components import Model
+from spinta.core.ufuncs import Expr
+from spinta.datasets.backends.sql.commands.read import _get_row_value
+from spinta.exceptions import ItemDoesNotExist
+from spinta.exceptions import NotFoundError
+from spinta.typing import ObjectData
 from spinta.ufuncs.basequerybuilder.components import QueryParams
 from spinta.ufuncs.basequerybuilder.helpers import get_page_values
-from spinta.ufuncs.helpers import merge_formulas
-from spinta.ufuncs.resultbuilder.components import ResultBuilder
 from spinta.utils.nestedstruct import flat_dicts_to_nested
-from spinta.backends.postgresql.commands.query import PgQueryBuilder
 
 
 @overload
@@ -52,9 +51,9 @@ def getall(
     connection = context.get('transaction').connection
 
     if default_expand:
-        query = merge_formulas(
-            query, Expr('expand')
-        )
+        if params is None:
+            params = QueryParams()
+        params.default_expand = default_expand
 
     builder = PgQueryBuilder(context)
     builder.update(model=model)
@@ -66,14 +65,16 @@ def getall(
 
     conn = connection.execution_options(stream_results=True)
     result = conn.execute(qry)
-
     for row in result:
-        converted = flat_dicts_to_nested(dict(row))
-        res = {
-            '_type': model.model_type(),
-            **converted
-        }
+        res = {}
+        for key, sel in env.selected.items():
+            val = _get_row_value(context, row, sel)
+            res[key] = val
+
         if model.page.is_enabled:
             res['_page'] = get_page_values(env, row)
+
+        res['_type'] = model.model_type()
+        res = flat_dicts_to_nested(res)
         res = commands.cast_backend_to_python(context, model, backend, res)
         yield res

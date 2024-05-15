@@ -35,12 +35,13 @@ def paginate(env, expr):
 
 @ufunc.resolver(BaseQueryBuilder, Expr, name='expand')
 def expand(env, expr):
-    env.expand = []
+    result = []
     if expr.args:
         for arg in expr.args:
             resolved = env.resolve(arg)
-            selected = env.call('select', resolved)
-            env.expand.append(selected.prop)
+            result.append(resolved)
+        return result
+    return None
 
 
 @ufunc.resolver(BaseQueryBuilder, str, name='op')

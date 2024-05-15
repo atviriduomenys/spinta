@@ -47,7 +47,10 @@ def _get_row_value(context: Context, row: RowProxy, sel: Any) -> Any:
         elif sel.prep is not NA:
             val = _get_row_value(context, row, sel.prep)
         else:
-            val = row[sel.item]
+            if sel.item is not None:
+                val = row[sel.item]
+            else:
+                val = None
 
         if enum := get_prop_enum(sel.prop):
             if val is None:
@@ -96,11 +99,7 @@ def getall(
         where = env.execute(expr)
         qry = env.build(where)
         for row in conn.execute(qry):
-            res = {
-                '_type': model.model_type()
-            }
-            if model.page.is_enabled:
-                res['_page'] = get_page_values(env, row)
+            res = {}
 
             for key, sel in env.selected.items():
                 val = _get_row_value(context, row, sel)
@@ -110,6 +109,11 @@ def getall(
                     elif isinstance(sel.prop.dtype, Ref):
                         val = handle_ref_key_assignment(keymap, env, val, sel.prop.dtype)
                 res[key] = val
+
+            if model.page.is_enabled:
+                res['_page'] = get_page_values(env, row)
+
+            res['_type'] = model.model_type()
             res = flat_dicts_to_nested(res)
             res = commands.cast_backend_to_python(context, model, backend, res)
             yield res

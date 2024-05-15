@@ -100,6 +100,16 @@ def prepare_urlparams(context: Context, params: UrlParams, request: Request):
         params_builder = RequestParamsBuilder(context).init(params)
         select_expr = _get_select_expr_from_params(params)
         params_builder.resolve(select_expr)
+    if params.expand:
+        params.expand = _get_expand_expr_from_params(params)
+
+
+def _get_expand_expr_from_params(params: UrlParams) -> Expr:
+    ast = {'name': 'expand', 'args': [
+        arg if isinstance(arg, dict) else {'name': 'bind', 'args': [arg]}
+        for arg in params.expand
+    ]}
+    return asttoexpr(ast)
 
 
 def _get_select_expr_from_params(params: UrlParams) -> Expr:

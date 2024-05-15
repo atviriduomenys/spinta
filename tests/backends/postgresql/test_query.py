@@ -73,10 +73,10 @@ def test_filter_by_ref_id(rc: RawConfig):
       |   |   |   | name       | string  |         | open
       |   |   |   | country    | ref     | Country | open
     ''', 'example/City', 'country._id="ba1f89f1-066c-4a8b-bfb4-1b65627e79bb"') == '''
-    SELECT "example/City"._id,
-           "example/City"._revision,
-           "example/City".name,
-           "example/City"."country._id"
+    SELECT "example/City".name,
+           "example/City"."country._id",
+           "example/City"._id,
+           "example/City"._revision
     FROM "example/City"
     WHERE "example/City"."country._id" = :country._id_1
     '''
@@ -92,10 +92,10 @@ def test_join(rc: RawConfig):
       |   |   |   | name       | string  |         | open
       |   |   |   | country    | ref     | Country | open
     ''', 'example/City', 'select(name, country.name)') == '''
-    SELECT "example/City"._id,
-           "example/City"._revision,
-           "example/City".name,
-           "example/Country_1".name AS "country.name"
+    SELECT "example/City".name,
+           "example/Country_1".name AS "country.name",
+           "example/City"._id,
+           "example/City"._revision
     FROM "example/City"
     LEFT OUTER JOIN "example/Country" AS "example/Country_1" ON "example/City"."country._id" = "example/Country_1"._id
     '''
@@ -112,8 +112,8 @@ def test_join_and_id(rc: RawConfig):
       |   |   |   | country    | ref     | Country | open
     ''', 'example/City', 'select(_id, country.name)') == '''
     SELECT "example/City"._id,
-           "example/City"._revision,
-           "example/Country_1".name AS "country.name"
+           "example/Country_1".name AS "country.name",
+           "example/City"._revision
     FROM "example/City"
     LEFT OUTER JOIN "example/Country" AS "example/Country_1" ON "example/City"."country._id" = "example/Country_1"._id
     '''
@@ -133,8 +133,8 @@ def test_join_two_refs(rc: RawConfig):
       |   |   |   | country    | ref     | Country | open
     ''', 'example/City', 'select(_id, country.name)') == '''
     SELECT "example/City"._id,
-           "example/City"._revision,
-           "example/Country_1".name AS "country.name"
+           "example/Country_1".name AS "country.name",
+           "example/City"._revision
     FROM "example/City"
     LEFT OUTER JOIN "example/Country" AS "example/Country_1" ON "example/City"."country._id" = "example/Country_1"._id
     '''
@@ -151,10 +151,10 @@ def test_join_two_refs_same_model(rc: RawConfig):
       |   |   |   | planet1    | ref     | Planet  | open
       |   |   |   | planet2    | ref     | Planet  | open
     ''', 'example/Country', 'select(planet1.name, planet2.name)') == '''
-    SELECT "example/Country"._id,
-           "example/Country"._revision,
-           "example/Planet_1".name AS "planet1.name",
-           "example/Planet_2".name AS "planet2.name"
+    SELECT "example/Planet_1".name AS "planet1.name",
+           "example/Planet_2".name AS "planet2.name",
+           "example/Country"._id,
+           "example/Country"._revision
     FROM "example/Country"
     LEFT OUTER JOIN "example/Planet" AS "example/Planet_1" ON "example/Country"."planet1._id" = "example/Planet_1"._id
     LEFT OUTER JOIN "example/Planet" AS "example/Planet_2" ON "example/Country"."planet2._id" = "example/Planet_2"._id
@@ -171,10 +171,10 @@ def test_paginate_all_none_values(rc: RawConfig):
         ''', 'example/Planet', '', {
         'name': None
     }) == '''
-    SELECT "example/Planet"._id,
-           "example/Planet"._revision,
-           "example/Planet".name,
-           "example/Planet".code
+    SELECT "example/Planet".name,
+           "example/Planet"._id,
+           "example/Planet".code,
+           "example/Planet"._revision
     FROM "example/Planet"
     ORDER BY "example/Planet".name ASC,
              "example/Planet"._id ASC
@@ -192,10 +192,10 @@ def test_paginate_half_none_values(rc: RawConfig):
         'name': None,
         'code': 0
     }) == '''
-    SELECT "example/Planet"._id,
-           "example/Planet"._revision,
-           "example/Planet".name,
-           "example/Planet".code
+    SELECT "example/Planet".name,
+           "example/Planet"._id,
+           "example/Planet".code,
+           "example/Planet"._revision
     FROM "example/Planet"
     WHERE "example/Planet".name IS NULL
       AND "example/Planet"._id IS NULL
@@ -218,10 +218,10 @@ def test_paginate_half_none_values_desc(rc: RawConfig):
         '-name': None,
         '-code': 0
     }) == '''
-    SELECT "example/Planet"._id,
-           "example/Planet"._revision,
-           "example/Planet".name,
-           "example/Planet".code
+    SELECT "example/Planet".name,
+           "example/Planet"._id,
+           "example/Planet".code,
+           "example/Planet"._revision
     FROM "example/Planet"
     WHERE "example/Planet".name IS NOT NULL
       OR "example/Planet".name IS NULL
@@ -244,9 +244,9 @@ def test_paginate_given_values_page_and_ref_not_given(rc: RawConfig):
         '_id': uuid.uuid4()
     }) == '''
     SELECT "example/Planet"._id,
-           "example/Planet"._revision,
            "example/Planet".name,
-           "example/Planet".code
+           "example/Planet".code,
+           "example/Planet"._revision
     FROM "example/Planet"
     WHERE "example/Planet"._id > :id_1
       OR "example/Planet"._id IS NULL
@@ -265,10 +265,10 @@ def test_paginate_given_values_page_not_given(rc: RawConfig):
         'name': 'test',
         '_id': uuid.uuid4()
     }) == '''
-    SELECT "example/Planet"._id,
-           "example/Planet"._revision,
-           "example/Planet".name,
-           "example/Planet".code
+    SELECT "example/Planet".name,
+           "example/Planet"._id,
+           "example/Planet".code,
+           "example/Planet"._revision
     FROM "example/Planet"
     WHERE "example/Planet".name > :name_1
       OR "example/Planet".name IS NULL
@@ -291,10 +291,10 @@ def test_paginate_given_values_size_given(rc: RawConfig):
         'name': 'test',
         '_id': uuid.uuid4()
     }) == '''
-    SELECT "example/Planet"._id,
-           "example/Planet"._revision,
-           "example/Planet".name,
-           "example/Planet".code
+    SELECT "example/Planet".name,
+           "example/Planet"._id,
+           "example/Planet".code,
+           "example/Planet"._revision
     FROM "example/Planet"
     WHERE "example/Planet".name > :name_1
       OR "example/Planet".name IS NULL
@@ -319,10 +319,10 @@ def test_paginate_given_values_private(rc: RawConfig):
         'code': 5,
         '_id': uuid.uuid4()
     }) == '''
-    SELECT "example/Planet"._id,
-           "example/Planet"._revision,
-           "example/Planet".name,
-           "example/Planet".code
+    SELECT "example/Planet".name,
+           "example/Planet".code,
+           "example/Planet"._id,
+           "example/Planet"._revision
     FROM "example/Planet"
     WHERE "example/Planet".name > :name_1
       OR "example/Planet".name IS NULL
@@ -351,10 +351,10 @@ def test_paginate_given_values_two_keys(rc: RawConfig):
         'code': 5,
         '_id': uuid.uuid4()
     }) == '''
-    SELECT "example/Planet"._id,
-           "example/Planet"._revision,
-           "example/Planet".name,
-           "example/Planet".code
+    SELECT "example/Planet".name,
+           "example/Planet".code,
+           "example/Planet"._id,
+           "example/Planet"._revision
     FROM "example/Planet"
     WHERE "example/Planet".name > :name_1
       OR "example/Planet".name IS NULL
@@ -389,13 +389,13 @@ def test_paginate_given_values_five_keys(rc: RawConfig):
         'pass': 'test',
         '_id': uuid.uuid4()
     }) == '''
-    SELECT "example/Planet"._id,
-           "example/Planet"._revision,
-           "example/Planet".name,
+    SELECT "example/Planet".name,
            "example/Planet".code,
            "example/Planet".float,
            "example/Planet"."user",
-           "example/Planet".pass
+           "example/Planet".pass,
+           "example/Planet"._id,
+           "example/Planet"._revision
     FROM "example/Planet"
     WHERE "example/Planet".name > :name_1
       OR "example/Planet".name IS NULL
@@ -445,10 +445,10 @@ def test_paginate_desc(rc: RawConfig):
         '-code': 5,
         '_id': uuid.uuid4()
     }) == '''
-    SELECT "example/Planet"._id,
-           "example/Planet"._revision,
-           "example/Planet".name,
-           "example/Planet".code
+    SELECT "example/Planet".name,
+           "example/Planet".code,
+           "example/Planet"._id,
+           "example/Planet"._revision
     FROM "example/Planet"
     WHERE "example/Planet".name > :name_1
       OR "example/Planet".name IS NULL
@@ -474,10 +474,10 @@ def test_paginate_disabled(rc: RawConfig):
         ''', 'example/Planet', '', {
         'name': 'test'
     }) == '''
-    SELECT "example/Planet"._id,
-           "example/Planet"._revision,
-           "example/Planet".name,
-           "example/Planet".code
+    SELECT "example/Planet".name,
+           "example/Planet".code,
+           "example/Planet"._id,
+           "example/Planet"._revision
     FROM "example/Planet"
     '''
 
@@ -497,10 +497,10 @@ def test_paginate_invalid_types(rc: RawConfig):
         ''', 'example/Country', '', {
         'planet': 'test'
     }) == '''
-    SELECT "example/Country"._id,
-           "example/Country"._revision,
-           "example/Country".name,
-           "example/Country"."planet._id"
+    SELECT "example/Country".name,
+           "example/Country"."planet._id",
+           "example/Country"._id,
+           "example/Country"._revision
     FROM "example/Country"
     '''
 
@@ -513,10 +513,10 @@ def test_paginate_invalid_types(rc: RawConfig):
         ''', 'example/Country', '', {
         'geo': 'test'
     }) == '''
-    SELECT "example/Country"._id,
-           "example/Country"._revision,
-           "example/Country".name,
-           ST_AsEWKB("example/Country".geo) AS geo
+    SELECT "example/Country".name,
+           ST_AsEWKB("example/Country".geo) AS geo,
+           "example/Country"._id,
+           "example/Country"._revision
     FROM "example/Country"
     '''
 
@@ -529,14 +529,14 @@ def test_paginate_invalid_types(rc: RawConfig):
         ''', 'example/Country', '', {
         'fl': 'test'
     }) == '''
-    SELECT "example/Country"._id,
-           "example/Country"._revision,
-           "example/Country".name,
+    SELECT "example/Country".name,
            "example/Country"."fl._id",
            "example/Country"."fl._content_type",
            "example/Country"."fl._size",
            "example/Country"."fl._bsize",
-           "example/Country"."fl._blocks"
+           "example/Country"."fl._blocks",
+           "example/Country"._id,
+           "example/Country"._revision
     FROM "example/Country"
     '''
 
@@ -549,9 +549,9 @@ def test_paginate_invalid_types(rc: RawConfig):
         ''', 'example/Country', '', {
         'bool': 'test'
     }) == '''
-    SELECT "example/Country"._id,
-           "example/Country"._revision,
-           "example/Country".name,
-           "example/Country".bool
+    SELECT "example/Country".name,
+           "example/Country".bool,
+           "example/Country"._id,
+           "example/Country"._revision
     FROM "example/Country"
     '''

@@ -127,7 +127,6 @@ class SqlQueryBuilder(BaseQueryBuilder):
     # different results.
     resolved: Dict[str, Selected]
     selected: Dict[str, Selected] = None
-    params: ResolvedParams
 
     def init(self, backend: Sql, table: sa.Table, params: QueryParams = None):
         result = self(

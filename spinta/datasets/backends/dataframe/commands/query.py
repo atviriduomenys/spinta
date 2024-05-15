@@ -76,7 +76,6 @@ class DaskDataFrameQueryBuilder(Env):
     # different results.
     resolved: Dict[str, Selected]
     selected: Dict[str, Selected] = None
-    params: ResolvedParams
 
     def init(self, backend: DaskBackend, dataframe: Dataframe):
         return self(
