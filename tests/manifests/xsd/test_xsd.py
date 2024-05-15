@@ -273,24 +273,19 @@ def test_xsd_ref(rc: RawConfig, tmp_path: Path):
     """
 
     table = """
-id | d | r | b | m | property                | type             | ref      | source                                   | prepare | level | access | uri | title | description
-   | manifest                                |                  |          |                                          |         |       |        |     |       |
-   |   | resource1                           | xml              |          |                                          |         |       |        |     |       |
-   |                                         |                  |          |                                          |         |       |        |     |       |
-   |   |   |   | Asmuo                       |                  |          | /klientu_saraso_rezultatas/asmenys/asmuo |         |       |        |     |       |
-   |   |   |   |   | asmenys                 | ref              | Asmenys  |                                          |         |       |        |     |       |
-   |   |   |   |   | id                      | string required  |          | @id                                      |         |       |        |     |       |
-   |   |   |   |   | ak                      | string required  |          | @ak                                      |         |       |        |     |       |
-   |   |   |   |   | text                    | string           |          | text()                                   |         |       |        |     |       |
-   |                                         |                  |          |                                          |         |       |        |     |       |
-   |   |   |   | Asmenys                     |                  |          | /klientu_saraso_rezultatas/asmenys       |         |       |        |     |       |
-   |   |   |   |   | puslapis                | integer required |          | @puslapis                                |         |       |        |     |       | rezultatu puslapio numeris
-   |   |   |   |   | text                    | string           |          | text()                                   |         |       |        |     |       |
-   |   |   |   |   | asmuo[]                 | backref          | Asmuo    |                                          |         |       |        |     |       |
-   |                                         |                  |          |                                          |         |       |        |     |       |
-   |   |   |   | KlientuSarasoRezultatas     |                  |          | /klientu_saraso_rezultatas               |         |       |        |     |       |
-   |   |   |   |   | text                    | string           |          | text()                                   |         |       |        |     |       |
-   |   |   |   |   | asmenys                 | ref              | Asmenys  |                                          |         |       |        |     |       |
+ id | d | r | b | m | property                  | type            | ref                     | source                           | prepare | level | access | uri | title | description
+    | manifest                                  |                 |                         |                                  |         |       |        |     |       |
+    |   | resource1                             | xml             |                         |                                  |         |       |        |     |       |
+    |                                           |                 |                         |                                  |         |       |        |     |       |
+    |   |   |   | Asmuo                         |                 |                         | /klientu_saraso_rezultatas/asmuo |         |       |        |     |       |
+    |   |   |   |   | klientu_saraso_rezultatas | ref             | KlientuSarasoRezultatas |                                  |         |       |        |     |       |
+    |   |   |   |   | id                        | string required |                         | @id                              |         |       |        |     |       |
+    |   |   |   |   | ak                        | string required |                         | @ak                              |         |       |        |     |       |
+    |   |   |   |   | text                      | string          |                         | text()                           |         |       |        |     |       |
+    |                                           |                 |                         |                                  |         |       |        |     |       |
+    |   |   |   | KlientuSarasoRezultatas       |                 |                         | /klientu_saraso_rezultatas       |         |       |        |     |       |
+    |   |   |   |   | text                      | string          |                         | text()                           |         |       |        |     |       |
+    |   |   |   |   | asmenys[]                 | backref         | Asmuo                   |                                  |         |       |        |     |       |
 """
 
     path = tmp_path / 'manifest.xsd'
