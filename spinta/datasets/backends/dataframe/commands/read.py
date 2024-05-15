@@ -573,10 +573,13 @@ def _dask_get_all(context: Context, query: Expr, df: dask.dataframe, backend: Da
     query = merge_formulas(query, get_enum_filters(context, model))
     query = merge_formulas(query, get_ref_filters(context, model))
     env = env.init(backend, df)
+    debug2 = df["GetDataResponse"].compute().to_json()
+    debug3 = df["ActionType"].compute().to_json()
     expr = env.resolve(query)
     where = env.execute(expr)
     qry = env.build(where)
-
+    debug2 = df["GetDataResponse"].compute().to_json()
+    debug3 = df["ActionType"].compute().to_json()
     for i, row in qry.iterrows():
         row = row.to_dict()
         res = {
