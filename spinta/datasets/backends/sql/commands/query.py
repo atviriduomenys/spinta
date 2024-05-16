@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import dataclasses
 from typing import Any
 from typing import Dict
 from typing import List
@@ -18,7 +17,7 @@ from spinta.auth import authorized
 from spinta.components import Action, Page
 from spinta.components import Model
 from spinta.components import Property
-from spinta.core.ufuncs import Bind
+from spinta.core.ufuncs import Bind, GetAttr
 from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import Negative
 from spinta.core.ufuncs import Unresolved
@@ -27,8 +26,7 @@ from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.backends.sql.helpers import dialect_specific_desc, dialect_specific_asc
 from spinta.datasets.backends.sql.ufuncs.components import Selected
 from spinta.dimensions.enum.helpers import prepare_enum_value
-from spinta.dimensions.param.components import ResolvedParams
-from spinta.exceptions import PropertyNotFound, SourceCannotBeList, LangNotDeclared
+from spinta.exceptions import PropertyNotFound, SourceCannotBeList
 from spinta.exceptions import UnknownMethod
 from spinta.types.datatype import DataType, Denorm
 from spinta.types.datatype import PrimaryKey
@@ -122,11 +120,6 @@ class SqlQueryBuilder(BaseQueryBuilder):
     table: sa.Table
     joins: SqlFrom
     columns: List[sa.Column]
-    # `resolved` is used to map which prop.place properties are already
-    # resolved, usually it maps to Selected, but different DataType's can return
-    # different results.
-    resolved: Dict[str, Selected]
-    selected: Dict[str, Selected] = None
 
     def init(self, backend: Sql, table: sa.Table, params: QueryParams = None):
         result = self(
@@ -199,84 +192,6 @@ def _gather_selected_properties(env: SqlQueryBuilder):
             if selected and selected.prop:
                 result.append(selected.prop)
     return result
-
-
-@dataclasses.dataclass
-class GetAttr(Unresolved):
-    obj: str
-    name: Union[GetAttr, Bind]
-
-
-@ufunc.resolver(SqlQueryBuilder, Bind, Bind, name='getattr')
-def getattr_(env: SqlQueryBuilder, field: Bind, attr: Bind):
-    return GetAttr(field.name, attr)
-
-
-@ufunc.resolver(SqlQueryBuilder, Bind, GetAttr, name='getattr')
-def getattr_(env: SqlQueryBuilder, obj: Bind, attr: GetAttr):
-    return GetAttr(obj.name, attr)
-
-
-@ufunc.resolver(SqlQueryBuilder, GetAttr)
-def _resolve_getattr(
-    env: SqlQueryBuilder,
-    attr: GetAttr,
-) -> ForeignProperty:
-    prop = env.model.properties[attr.obj]
-    return env.call('_resolve_getattr', prop.dtype, attr.name)
-
-
-@ufunc.resolver(SqlQueryBuilder, Ref, GetAttr)
-def _resolve_getattr(
-    env: SqlQueryBuilder,
-    dtype: Ref,
-    attr: GetAttr,
-) -> ForeignProperty:
-    prop = dtype.model.properties[attr.obj]
-    fpr = ForeignProperty(None, dtype, prop.dtype)
-    return env.call('_resolve_getattr', fpr, prop.dtype, attr.name)
-
-
-@ufunc.resolver(SqlQueryBuilder, Ref, Bind)
-def _resolve_getattr(
-    env: SqlQueryBuilder,
-    dtype: Ref,
-    attr: Bind,
-) -> ForeignProperty:
-    prop = dtype.model.properties[attr.name]
-    return ForeignProperty(None, dtype, prop.dtype)
-
-
-@ufunc.resolver(SqlQueryBuilder, Text, Bind)
-def _resolve_getattr(env, dtype, bind):
-    if dtype.prop.name in env.model.properties:
-        prop = env.model.properties[dtype.prop.name]
-        if bind.name in prop.dtype.langs:
-            return prop.dtype.langs[bind.name].dtype
-        raise LangNotDeclared(dtype, lang=bind.name)
-
-
-@ufunc.resolver(SqlQueryBuilder, ForeignProperty, Ref, GetAttr)
-def _resolve_getattr(
-    env: SqlQueryBuilder,
-    fpr: ForeignProperty,
-    dtype: Ref,
-    attr: GetAttr,
-) -> ForeignProperty:
-    prop = dtype.model.properties[attr.obj]
-    fpr = fpr.push(prop)
-    return env.call('_resolve_getattr', fpr, prop.dtype, attr.name)
-
-
-@ufunc.resolver(SqlQueryBuilder, ForeignProperty, Ref, Bind)
-def _resolve_getattr(
-    env: SqlQueryBuilder,
-    fpr: ForeignProperty,
-    dtype: Ref,
-    attr: Bind,
-) -> ForeignProperty:
-    prop = dtype.model.properties[attr.name]
-    return fpr.push(prop)
 
 
 @ufunc.resolver(SqlQueryBuilder, str, object, names=['eq', 'ne'])
@@ -663,6 +578,16 @@ def select(env: SqlQueryBuilder, dtype: Ref) -> Selected:
         )
 
 
+@ufunc.resolver(SqlQueryBuilder, Ref, str)
+def select(env, dtype: Ref, prop: str):
+    table = env.backend.get_table(env.model)
+    return Selected(
+        env.add_column(
+            table.c[dtype.prop.place + '.' + prop]
+        )
+    )
+
+
 @ufunc.resolver(SqlQueryBuilder, String)
 def select(env, dtype):
     env.call('validate_dtype_for_select', dtype, _gather_selected_properties(env))
@@ -720,8 +645,8 @@ def select(env, dtype: Denorm):
 
             if parent_list:
                 parent_list = list(reversed(parent_list))
-                root_parent = parent_list[0]
-                for parent in parent_list[1:]:
+                root_parent = parent_list.pop(0)
+                for parent in parent_list:
                     if parent.place.startswith(f'{root_parent.place}.'):
                         fixed_name = parent.place.replace(f'{root_parent.place}.', '', 1)
                         if fixed_name in root_parent.dtype.model.properties:
@@ -742,106 +667,6 @@ def select(env: SqlQueryBuilder, page: Page) -> List[sa.Column]:
     return return_selected
 
 
-@ufunc.resolver(SqlQueryBuilder, DataType, object)
-def select(env: SqlQueryBuilder, dtype: DataType, prep: Any) -> Selected:
-    if isinstance(prep, str):
-        # XXX: Backwards compatibility thing.
-        #      str values are interpreted as Bind values and Bind values are
-        #      assumed to be properties. So here we skip
-        #      `env.call('select', prep)` and return `prep` as is.
-        #      This should be eventually removed, once backwards compatibility
-        #      for resolving strings as properties is removed.
-        return Selected(prop=dtype.prop, prep=prep)
-    elif isinstance(prep, Expr):
-        # If `prepare` expression returns another expression, then this means,
-        # it must be processed on values returned by query.
-        prop = dtype.prop
-        if prop.external and prop.external.name:
-            sel = env.call('select', dtype)
-            return Selected(item=sel.item, prop=sel.prop, prep=prep)
-        else:
-            return Selected(item=None, prop=prop, prep=prep)
-    else:
-        result = env.call('select', prep)
-        return Selected(prop=dtype.prop, prep=result)
-
-
-@ufunc.resolver(SqlQueryBuilder, PrimaryKey)
-def select(
-    env: SqlQueryBuilder,
-    dtype: PrimaryKey,
-) -> Selected:
-    model = dtype.prop.model
-    pkeys = model.external.pkeys
-
-    if not pkeys:
-        # If primary key is not specified use all properties to uniquely
-        # identify row.
-        pkeys = take(model.properties).values()
-
-    if len(pkeys) == 1:
-        prop = pkeys[0]
-        result = env.call('select', prop)
-    else:
-        result = [
-            env.call('select', prop)
-            for prop in pkeys
-        ]
-    return Selected(prop=dtype.prop, prep=result)
-
-
-@ufunc.resolver(SqlQueryBuilder, GetAttr)
-def select(env: SqlQueryBuilder, attr: GetAttr) -> Selected:
-    """For things like select(foo.bar.baz)."""
-    resolved = env.call('_resolve_getattr', attr)
-    return env.call('select', resolved, attr)
-
-
-@ufunc.resolver(SqlQueryBuilder, ForeignProperty, GetAttr)
-def select(env: SqlQueryBuilder, fpr: ForeignProperty, attr: GetAttr) -> Selected:
-    """For things like select(foo.bar.baz)."""
-    return Selected(
-        prop=fpr.right.prop,
-        prep=env.call('select', fpr, fpr.right.prop),
-    )
-
-
-@ufunc.resolver(SqlQueryBuilder, DataType, GetAttr)
-def select(env: SqlQueryBuilder, dtype: DataType, attr: GetAttr) -> Selected:
-    return env.call('select', dtype)
-
-
-@ufunc.resolver(SqlQueryBuilder, ForeignProperty)
-def select(
-    env: SqlQueryBuilder,
-    fpr: ForeignProperty,
-) -> Selected:
-    return env.call('select', fpr, fpr.right.prop)
-
-
-@ufunc.resolver(SqlQueryBuilder, ForeignProperty, Property)
-def select(
-    env: SqlQueryBuilder,
-    fpr: ForeignProperty,
-    prop: Property,
-) -> Selected:
-    resolved_key = fpr / prop
-    if resolved_key not in env.resolved:
-        if isinstance(prop.external, list):
-            raise ValueError("Source can't be a list, use prepare instead.")
-        if prop.external.prepare is not NA:
-            if isinstance(prop.external.prepare, Expr):
-                result = env(this=prop).resolve(prop.external.prepare)
-            else:
-                result = prop.external.prepare
-            result = env.call('select', fpr, prop.dtype, result)
-        else:
-            result = env.call('select', fpr, prop.dtype)
-        assert isinstance(result, Selected), prop
-        env.resolved[resolved_key] = result
-    return env.resolved[resolved_key]
-
-
 @ufunc.resolver(SqlQueryBuilder, ForeignProperty, DataType)
 def select(
     env: SqlQueryBuilder,
@@ -854,86 +679,6 @@ def select(
         item=env.add_column(column),
         prop=dtype.prop,
     )
-
-
-@ufunc.resolver(SqlQueryBuilder, ForeignProperty, DataType, object)
-def select(
-    env: SqlQueryBuilder,
-    fpr: ForeignProperty,
-    dtype: DataType,
-    prep: Any,
-) -> Selected:
-    result = env.call('select', fpr, prep)
-    return Selected(prop=dtype.prop, prep=result)
-
-
-@ufunc.resolver(SqlQueryBuilder, ForeignProperty, tuple)
-def select(
-    env: SqlQueryBuilder,
-    fpr: ForeignProperty,
-    prep: Tuple[Any],
-) -> Tuple[Any]:
-    return tuple(env.call('select', fpr, v) for v in prep)
-
-
-@ufunc.resolver(SqlQueryBuilder, ForeignProperty, Bind)
-def select(env: SqlQueryBuilder, fpr: ForeignProperty, item: Bind):
-    model = fpr.right.prop.model
-    prop = model.flatprops.get(item.name)
-    if prop and authorized(env.context, prop, Action.SEARCH):
-        return env.call('select', fpr, prop)
-    else:
-        raise PropertyNotFound(model, property=item.name)
-
-
-@ufunc.resolver(SqlQueryBuilder, ForeignProperty, PrimaryKey)
-def select(
-    env: SqlQueryBuilder,
-    fpr: ForeignProperty,
-    dtype: PrimaryKey,
-) -> Selected:
-    model = dtype.prop.model
-    pkeys = model.external.pkeys
-
-    if not pkeys:
-        raise RuntimeError(
-            f"Can't join {dtype.prop} on right table without primary key."
-        )
-
-    if len(pkeys) == 1:
-        prop = pkeys[0]
-        result = env.call('select', fpr, prop)
-    else:
-        result = [
-            env.call('select', fpr, prop)
-            for prop in pkeys
-        ]
-    return Selected(prop=dtype.prop, prep=result)
-
-
-@ufunc.resolver(SqlQueryBuilder, list)
-def select(
-    env: SqlQueryBuilder,
-    prep: List[Any],
-) -> List[Any]:
-    return [env.call('select', v) for v in prep]
-
-
-@ufunc.resolver(SqlQueryBuilder, tuple)
-def select(
-    env: SqlQueryBuilder,
-    prep: Tuple[Any],
-) -> Tuple[Any]:
-    return tuple(env.call('select', v) for v in prep)
-
-
-@ufunc.resolver(SqlQueryBuilder, dict)
-def select(
-    env: SqlQueryBuilder,
-    prep: Dict[str, Any],
-) -> Dict[str, Any]:
-    # TODO: Add tests.
-    return {k: env.call('select', v) for k, v in prep.items()}
 
 
 @ufunc.resolver(SqlQueryBuilder, Property)
