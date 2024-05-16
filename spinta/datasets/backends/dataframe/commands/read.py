@@ -26,10 +26,10 @@ from spinta.datasets.keymaps.components import KeyMap
 from spinta.datasets.utils import iterparams
 from spinta.dimensions.enum.helpers import get_prop_enum
 from spinta.dimensions.param.components import ResolvedParams
-from spinta.exceptions import ValueNotInEnum, PropertyNotFound, NoExternalName
+from spinta.exceptions import ValueNotInEnum, PropertyNotFound, NoExternalName, UnknownMethod
 from spinta.manifests.components import Manifest
 from spinta.manifests.dict.helpers import is_list_of_dicts, is_blank_node
-from spinta.types.datatype import PrimaryKey, Ref, DataType, Boolean, Number, Integer, DateTime, Time
+from spinta.types.datatype import PrimaryKey, Ref, DataType, Boolean, Number, Integer, DateTime, Time, Object
 from spinta.typing import ObjectData
 from spinta.ufuncs.helpers import merge_formulas
 from spinta.utils.data import take
@@ -89,6 +89,12 @@ def _get_row_value(context: Context, row: Dict[str, Any], sel: Any) -> Any:
                     val = item.prepare
             else:
                 raise ValueNotInEnum(sel.prop, value=val)
+
+        if isinstance(sel.prop.dtype, Object):
+            object_properties = {}
+            for object_prop_id, object_prop in sel.prop.dtype.properties.items():
+                object_properties[object_prop_id] = val[object_prop.external.name]
+            val = object_properties
 
         return val
     if isinstance(sel, tuple):
@@ -311,7 +317,7 @@ def _get_data_json(url: str, source: str, model_props: dict):
             yield from _parse_json(f.read(), source, model_props)
 
 
-def _get_data_soap(url: str, source: str, model_props: dict, namespaces: dict):
+def _get_data_soap(url: str, source: str, model_props: dict, namespaces: dict, query: Expr):
     # f = requests.get(url, timeout=30)
     # sukurti zeep klientą
     url = "https://ws.registrucentras.lt/broker/index.php?wsdl"
@@ -321,21 +327,30 @@ def _get_data_soap(url: str, source: str, model_props: dict, namespaces: dict):
     #     'https://ws.registrucentras.lt:443/broker/index.php')
 
     # client_service = client.bind('Get', 'GetPort')
-    input_params = """
-            <args>
-                <data>2024-05-06</data>
-                <fmt>xml<fmt>
-            </args>
-    """
-    url_params = {
-        "ActionType": 46,
-        "CallerCode": 1,
-        "EndUserInfo": 2,
-        "Parameters": input_params,
-        "Time": 0,
-        "Signature": "a",
-        "CallerSignature": "b"
-    }
+    # input_params = """
+    #         <args>
+    #             <data>2024-05-06</data>
+    #             <fmt>xml<fmt>
+    #         </args>
+    # """
+    # url_params = {
+    #     "ActionType": 46,
+    #     "CallerCode": 1,
+    #     "EndUserInfo": 2,
+    #     "Parameters": input_params,
+    #     "Time": 0,
+    #     "Signature": "a",
+    #     "CallerSignature": "b"
+    # }
+
+    url_params = {}
+
+    for expression in query.args:
+        if expression.name == "eq":
+            param_name = expression.args[0].args[0]
+            param_value = expression.args[1]
+            param_source_name = model_props[param_name]["source"]
+            url_params[param_source_name] = param_value
 
     with client.settings(raw_response=True):
         data = client.service.GetData(url_params).text
@@ -352,14 +367,14 @@ def _get_data_soap(url: str, source: str, model_props: dict, namespaces: dict):
     data = etree.tostring(data)
 
     # remove SOAP schema declarations
-    data.replace(b'xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"', b"")
+    data = data.replace(b' xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"', b"")
 
     properties_values = {}
     for prop in model_props.values():
         if prop["source"] in url_params:
             properties_values[prop["source"]] = url_params[prop["source"]]
 
-    properties_values["GetDataResponse"] = {"ResponseCode": 1, "ResponseData": "something"}
+    properties_values["GetDataResponse"] = {"ResponseCode": code, "ResponseData": data.decode("utf-8")}
 
     yield properties_values
 
@@ -500,11 +515,9 @@ def getall(
         _get_data_soap,
         namespaces=_gather_namespaces_from_model(context, model),
         source=model.external.name,
-        model_props=props
+        model_props=props,
+        query=query
     ).flatten().to_dataframe(meta=meta)
-    debug = df["GetDataResponse"]["ResponseData"].compute().to_json()
-    debug2 = df["GetDataResponse"].compute().to_json()
-    debug3 = df["ActionType"].compute().to_json()
     # DEBUG INFO GetDataResponse looks like this at this point: '{"0":{"ResponseCode":1,"ResponseData":"something"}}'
     # which means that the data we need passes through here correctly
     yield from _dask_get_all(context, query, df, backend, model, builder)
@@ -573,13 +586,17 @@ def _dask_get_all(context: Context, query: Expr, df: dask.dataframe, backend: Da
     query = merge_formulas(query, get_enum_filters(context, model))
     query = merge_formulas(query, get_ref_filters(context, model))
     env = env.init(backend, df)
-    debug2 = df["GetDataResponse"].compute().to_json()
-    debug3 = df["ActionType"].compute().to_json()
-    expr = env.resolve(query)
+    try:
+        expr = env.resolve(query)
+    except UnknownMethod as e:
+        # if it's a "=" symbol in the url query, then we assume that it's not ufunc, but query parameter
+        if e.context["name"] in ('eq', ):
+            expr = None
+        else:
+            raise e
+
     where = env.execute(expr)
     qry = env.build(where)
-    debug2 = df["GetDataResponse"].compute().to_json()
-    debug3 = df["ActionType"].compute().to_json()
     for i, row in qry.iterrows():
         row = row.to_dict()
         res = {

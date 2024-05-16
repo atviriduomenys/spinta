@@ -74,9 +74,6 @@ async def getall(
             else:
                 rows = commands.getall(context, model, backend, params=query_params, query=expr)
 
-    # a = list(rows)
-
-    # this is the place where the values of ResponseData and ResponseCode disappear
     rows = prepare_data_for_response(
         context,
         model,

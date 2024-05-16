@@ -1571,16 +1571,7 @@ def test_soap(rc: RawConfig, tmp_path: Path):
        <soap:Header/>
        <soap:Body>
             <ResponseCode>10</ResponseCode>
-            <ResponseData>
-                <PAIESKA>
-                    <PAIESKOS_KRITERIJAI data="2024-05-06" pozymis="1" formavimo_laikas="2024-05-06:12:12:12">
-                    </PAIESKOS_KRITERIJAI>
-                    <JA_SARASAS>
-                        <JUR_ASMUO OBJ_KODAS="5" OBJ_PAV="TEST" FORM_KODAS="7" STAT_STATUSAS="9">
-                        </JUR_ASMUO>
-                    </JA_SARASAS>
-                </PAIESKA>
-            </ResponseData>
+            <ResponseData><PAIESKA><PAIESKOS_KRITERIJAI data="2024-05-06" pozymis="1" formavimo_laikas="2024-05-06:12:12:12"></PAIESKOS_KRITERIJAI><JA_SARASAS><JUR_ASMUO OBJ_KODAS="5" OBJ_PAV="TEST" FORM_KODAS="7" STAT_STATUSAS="9"></JUR_ASMUO></JA_SARASAS></PAIESKA></ResponseData>
        </soap:Body>
     </soap:Envelope>
     """.strip()
@@ -1688,15 +1679,25 @@ d | r | b | m | property         | type     | ref              | source         
         context.loaded = True
 
         app = create_test_client(context)
-        app.authmodel('example/Service', ['getall'])
+        app.authmodel('example/Service', ['getall', 'search'])
 
-        response = app.get('example/Service')
-        assert response.text == '''{"_data": [{"response": {"code": 10, "data": "<PAIESKA>
-                    <PAIESKOS_KRITERIJAI data=2024-05-06 pozymis=1 formavimo_laikas=2024-05-06:12:12:12>
-                    </PAIESKOS_KRITERIJAI>
-                    <JA_SARASAS>
-                        <JUR_ASMUO OBJ_KODAS=5 OBJ_PAV=TEST FORM_KODAS=7 STAT_STATUSAS=9>
-                        </JUR_ASMUO>
-                    </JA_SARASAS>
-                </PAIESKA>"}}]}'''
+        response = app.get('example/Service?type=46&caller=1&user=2&params="<args><data>2024-05-06</data><fmt>xml</fmt></args>"&time=3&signature=4&caller_signature=5')
+        # response = app.get('example/Service?type=46&user=2')
+        result = response.json()
+        del result["_data"][0]["_id"]
+        # todo mock generation of _id instead
+        assert result == {"_data": [{
+            '_revision': None,
+            '_type': 'example/Service',
+            '_base': None,
+            'caller': 1,
+            'caller_signature': 5,
+            'signature': 4,
+            'time': 3,
+            'type': 46,
+            'user': 2,
+            'params': '<args><data>2024-05-06</data><fmt>xml</fmt></args>',
+
+            "response": {"code": 10, "data": """<PAIESKA><PAIESKOS_KRITERIJAI data="2024-05-06" pozymis="1" formavimo_laikas="2024-05-06:12:12:12"/><JA_SARASAS><JUR_ASMUO OBJ_KODAS="5" OBJ_PAV="TEST" FORM_KODAS="7" STAT_STATUSAS="9"/></JA_SARASAS></PAIESKA>"""}}]}
+
 
