@@ -344,6 +344,26 @@ def _get_property_for_select(env: PgQueryBuilder, name: str):
         raise FieldNotInResource(env.model, property=name)
 
 
+# This might be a hack, to access `_base` property
+# should probably be remade to work with ForeignProperty
+class InheritForeignProperty:
+
+    def __init__(
+        self,
+        model: Model,
+        prop_name: str,
+        base_prop: Property
+    ):
+        self.model = model
+        self.base_prop = base_prop
+        self.prop_name = prop_name
+
+
+@ufunc.resolver(PgQueryBuilder, Inherit, Bind)
+def _resolve_getattr(env, dtype, attr):
+    return InheritForeignProperty(dtype.prop.model, attr.name, dtype.prop)
+
+
 @ufunc.resolver(PgQueryBuilder, Expr)
 def select(env, expr):
     keys = [str(k) for k in expr.args]
@@ -654,6 +674,19 @@ def select(env, dtype):
     column = table.c[dtype.prop.name]
     column = column.label(dtype.prop.name)
     return Selected(env.add_column(column), dtype.prop)
+
+
+@ufunc.resolver(PgQueryBuilder, InheritForeignProperty)
+def select(env, dtype):
+    table = env.get_joined_base_table(dtype.model, dtype.prop_name)
+    column = table.c[dtype.prop_name]
+    column = column.label(f"{dtype.base_prop.name}.{dtype.prop_name}")
+    return Selected(env.add_column(column), dtype.base_prop)
+
+
+@ufunc.resolver(PgQueryBuilder, InheritForeignProperty, GetAttr)
+def select(env, dtype, attr: GetAttr):
+    return env.call('select', dtype)
 
 
 @ufunc.resolver(PgQueryBuilder, Denorm)
@@ -1288,6 +1321,12 @@ FUNCS = [
 def func(env, name, field):
     prop = env.model.flatprops[field.name]
     return env.call(name, prop.dtype)
+
+
+@ufunc.resolver(PgQueryBuilder, GetAttr, names=FUNCS)
+def func(env, name, field):
+    resolved = env.call('_resolve_getattr', field)
+    return env.call(name, resolved)
 
 
 @ufunc.resolver(PgQueryBuilder, Bind)

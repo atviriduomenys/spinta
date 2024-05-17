@@ -13,6 +13,7 @@ from spinta.ufuncs.basequerybuilder.helpers import get_pagination_compare_query
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.schema import NA
 
+
 # This file contains reusable resolvers, that should be backend independent
 # in case there are cases where you need to have backend specific, just overload them
 # keep in mind, that `select(env, expr)` is written backend specific, at least for now
