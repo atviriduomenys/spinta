@@ -1,4 +1,4 @@
-from typing import List, Any, Tuple, Dict
+from typing import List, Any, Tuple, Dict, Union
 
 from spinta.auth import authorized
 from spinta.components import Page, Property, Action
@@ -42,6 +42,16 @@ def getattr_(
     attr: GetAttr
 ):
     return GetAttr(obj.name, attr)
+
+
+@ufunc.resolver(BaseQueryBuilder, GetAttr, Bind, name='getattr')
+def getattr_(
+    env: BaseQueryBuilder,
+    obj: GetAttr,
+    attr: Bind
+):
+    leaf = env.call('getattr', obj.name, attr)
+    return GetAttr(obj.obj, leaf)
 
 
 @ufunc.resolver(BaseQueryBuilder, GetAttr)
@@ -88,6 +98,17 @@ def _resolve_getattr(
     prop = dtype.model.properties[attr.obj]
     fpr = fpr.push(prop)
     return env.call('_resolve_getattr', fpr, prop.dtype, attr.name)
+
+
+@ufunc.resolver(BaseQueryBuilder, ForeignProperty, Ref, Bind)
+def _resolve_getattr(
+    env: BaseQueryBuilder,
+    fpr: ForeignProperty,
+    dtype: Ref,
+    attr: Bind,
+) -> ForeignProperty:
+    prop = dtype.model.properties[attr.name]
+    return fpr.push(prop)
 
 
 @ufunc.resolver(BaseQueryBuilder, Ref, Bind)
@@ -214,8 +235,8 @@ def select(env: BaseQueryBuilder, attr: GetAttr) -> Selected:
     return env.call('select', resolved, attr)
 
 
-@ufunc.resolver(BaseQueryBuilder, DataType, GetAttr)
-def select(env: BaseQueryBuilder, dtype: DataType, attr: GetAttr) -> Selected:
+@ufunc.resolver(BaseQueryBuilder, DataType, (Bind, GetAttr))
+def select(env: BaseQueryBuilder, dtype: DataType, attr: Union[Bind, GetAttr]) -> Selected:
     return env.call('select', dtype.prop)
 
 
@@ -224,8 +245,8 @@ def select(env, prop):
     return env.call('select', prop.dtype, prop.param)
 
 
-@ufunc.resolver(BaseQueryBuilder, ReservedProperty, GetAttr)
-def select(env: BaseQueryBuilder, reserved: ReservedProperty, attr: GetAttr) -> Selected:
+@ufunc.resolver(BaseQueryBuilder, ReservedProperty, (Bind, GetAttr))
+def select(env: BaseQueryBuilder, reserved: ReservedProperty, attr: Union[Bind, GetAttr]) -> Selected:
     return env.call('select', reserved)
 
 
@@ -256,7 +277,7 @@ def select(
     if resolved_key not in env.resolved:
         if isinstance(prop.external, list):
             raise ValueError("Source can't be a list, use prepare instead.")
-        if prop.external.prepare is not NA:
+        if prop.external and prop.external.prepare is not NA:
             if isinstance(prop.external.prepare, Expr):
                 result = env(this=prop).resolve(prop.external.prepare)
             else:
