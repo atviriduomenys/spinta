@@ -1657,7 +1657,7 @@ def test_soap(rc: RawConfig, tmp_path: Path):
 d | r | b | m | property         | type     | ref              | source                              | prepare
          example                 |          |                  |                                     |
   | res1                         | soap     |                  | https://ws.registrucentras.lt/broker/index.php?wsdl|
-  |   |   | Service              |          |                  | GetPortType.GetData                 |
+  |   |   | Service              |          |                  | Get.GetPort.GetPortType.GetData     |
   |   |   |   |                  | param    | type             |                                     |
   |   |   |   |                  | param    | caller           |                                     |
   |   |   |   |                  | param    | user             |                                     |
@@ -1682,6 +1682,7 @@ d | r | b | m | property         | type     | ref              | source         
         app.authmodel('example/Service', ['getall', 'search'])
 
         response = app.get('example/Service?type=46&caller=1&user=2&params="<args><data>2024-05-06</data><fmt>xml</fmt></args>"&time=3&signature=4&caller_signature=5')
+
         # response = app.get('example/Service?type=46&user=2')
         result = response.json()
         del result["_data"][0]["_id"]
