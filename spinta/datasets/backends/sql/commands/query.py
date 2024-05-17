@@ -667,6 +667,29 @@ def select(env: SqlQueryBuilder, page: Page) -> List[sa.Column]:
     return return_selected
 
 
+@ufunc.resolver(SqlQueryBuilder, PrimaryKey)
+def select(
+    env: SqlQueryBuilder,
+    dtype: PrimaryKey,
+) -> Selected:
+    model = dtype.prop.model
+    pkeys = model.external.pkeys
+    if not pkeys:
+        # If primary key is not specified use all properties to uniquely
+        # identify row.
+        pkeys = take(model.properties).values()
+
+    if len(pkeys) == 1:
+        prop = pkeys[0]
+        result = env.call('select', prop)
+    else:
+        result = [
+            env.call('select', prop)
+            for prop in pkeys
+        ]
+    return Selected(prop=dtype.prop, prep=result)
+
+
 @ufunc.resolver(SqlQueryBuilder, ForeignProperty, DataType)
 def select(
     env: SqlQueryBuilder,
