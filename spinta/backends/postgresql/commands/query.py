@@ -38,13 +38,12 @@ from spinta.types.datatype import Ref
 from spinta.types.datatype import String
 from spinta.types.text.components import Text
 from spinta.types.text.helpers import determine_language_property_for_text
-from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, QueryParams, Func
+from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, QueryParams, Func, ReservedProperty
 from spinta.ufuncs.basequerybuilder.helpers import get_column_with_extra, get_language_column, \
     merge_with_page_selected_list, merge_with_page_sort, merge_with_page_limit, is_expandable_not_expanded
 from spinta.ufuncs.basequerybuilder.ufuncs import Star
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.data import take
-from spinta.utils.schema import NA
 
 
 class PgQueryBuilder(BaseQueryBuilder):
@@ -214,7 +213,7 @@ class PgQueryBuilder(BaseQueryBuilder):
             self.from_ = self.from_.outerjoin(selector, condition)
         return self.joins[fpr.name]
 
-    def get_joined_base_table(self, model: Model, prop: str, from_Fk = False):
+    def get_joined_base_table(self, model: Model, prop: str, from_Fk=False):
         inherit_model = model
         base_model = get_property_base_model(inherit_model, prop)
 
@@ -238,7 +237,8 @@ class PgQueryBuilder(BaseQueryBuilder):
 
         return self.joins[base_model.name]
 
-    def generate_backref_select(self, left: Property, right: Property, required_columns: List[Tuple[str, str]], aggregate: bool = False):
+    def generate_backref_select(self, left: Property, right: Property, required_columns: List[Tuple[str, str]],
+                                aggregate: bool = False):
         select_columns = []
         group_by = []
 
@@ -316,19 +316,6 @@ def _gather_selected_properties(env: PgQueryBuilder):
     return result
 
 
-class InheritForeignProperty:
-
-    def __init__(
-        self,
-        model: Model,
-        prop_name: str,
-        base_prop: Property
-    ):
-        self.model = model
-        self.base_prop = base_prop
-        self.prop_name = prop_name
-
-
 @dataclasses.dataclass
 class Lower(Func):
     dtype: DataType = None
@@ -383,7 +370,8 @@ def select(env, arg: Star) -> None:
         # TODO: This line above should come from a getall(request),
         #       because getall can be used internally for example for
         #       writes.
-       # Check if prop is expanded or not
+
+        # Check if prop is expanded or not
         if is_expandable_not_expanded(env, prop):
             continue
         env.selected[prop.place] = env.call('select', prop.dtype)
@@ -407,9 +395,10 @@ def select(
     fpr: ForeignProperty,
     dtype: DataType,
 ) -> Selected:
-
     table = env.get_joined_table_from_ref(fpr)
-    column = env.backend.get_column(table, dtype.prop, select=True)
+    column = env.backend.get_column(table, dtype.prop, select=True).label(
+        fpr.left.prop.place + '.' + dtype.prop.name
+    )
     return Selected(
         item=env.add_column(column),
         prop=dtype.prop,
@@ -491,7 +480,7 @@ def select(env, dtype):
     for prop in take(dtype.properties).values():
         sel = env.call('select', prop)
         if sel is not None:
-            prep[prop.place] = sel
+            prep[prop.name] = sel
     return Selected(prop=dtype.prop, prep=prep)
 
 
@@ -644,20 +633,27 @@ def select(env: PgQueryBuilder, fpr: ForeignProperty):
     return Selected(env.add_column(column), fpr.right.prop)
 
 
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, Inherit)
+def select(
+    env: PgQueryBuilder,
+    fpr: ForeignProperty,
+    dtype: Inherit,
+) -> Selected:
+    table = env.get_joined_table(fpr)
+    fixed_name = dtype.prop.place
+    if fixed_name.startswith(f'{fpr.left.prop.place}.'):
+        fixed_name = fixed_name.replace(f'{fpr.left.prop.place}.', '', 1)
+    column = table.c[fixed_name]
+    column = column.label(fpr.place)
+    return Selected(env.add_column(column), dtype.prop)
+
+
 @ufunc.resolver(PgQueryBuilder, Inherit)
 def select(env, dtype):
     table = env.get_joined_base_table(dtype.prop.model, dtype.prop.name)
     column = table.c[dtype.prop.name]
     column = column.label(dtype.prop.name)
     return Selected(env.add_column(column), dtype.prop)
-
-
-@ufunc.resolver(PgQueryBuilder, InheritForeignProperty)
-def select(env, dtype):
-    table = env.get_joined_base_table(dtype.model, dtype.prop_name)
-    column = table.c[dtype.prop_name]
-    column = column.label(f"{dtype.base_prop.name}.{dtype.prop_name}")
-    return Selected(env.add_column(column), dtype.base_prop)
 
 
 @ufunc.resolver(PgQueryBuilder, Denorm)
@@ -796,6 +792,15 @@ def compare(env, op, field, value):
 def compare(env: PgQueryBuilder, op: str, attr: GetAttr, value: Any):
     resolved = env.call('_resolve_getattr', attr)
     return env.call(op, resolved, value)
+
+
+@ufunc.resolver(PgQueryBuilder, ReservedProperty, object, names=COMPARE)
+def compare(env, op: str, reserved: ReservedProperty, value: Any):
+    table = env.backend.get_table(reserved.dtype.prop.model)
+    column = table.c[reserved.dtype.prop.place + '.' + reserved.param]
+
+    cond = _sa_compare(op, column, value)
+    return _prepare_condition(env, reserved.dtype.prop, cond)
 
 
 @ufunc.resolver(PgQueryBuilder, PrimaryKey, object, names=COMPARE_EQUATIONS)
@@ -1078,7 +1083,6 @@ def _sa_compare(op, column, value):
 
 
 def _prepare_condition(env: PgQueryBuilder, prop: Property, cond):
-
     if prop.list is None:
         return cond
 

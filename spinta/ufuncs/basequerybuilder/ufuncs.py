@@ -13,6 +13,18 @@ from spinta.ufuncs.basequerybuilder.helpers import get_pagination_compare_query
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.schema import NA
 
+# This file contains reusable resolvers, that should be backend independent
+# in case there are cases where you need to have backend specific, just overload them
+# keep in mind, that `select(env, expr)` is written backend specific, at least for now
+
+# The main goal of this resolver logic, is that you have `_resolve_getattr`
+# which is responsible for returning right types to process further
+# Bind mean that it's a leaf node and can be accessed directly
+# GetAttr mean that it can be nested further
+# ForeignProperty is used, when you need to access properties from other models
+# ReservedProperty is used, when datatypes do not have direct association to required field
+#   example: File (when accessing child properties), Ref (when accessing it's own key, without needing to join models)
+
 
 @ufunc.resolver(BaseQueryBuilder, Bind, Bind, name='getattr')
 def getattr_(
@@ -359,6 +371,12 @@ def select(env: BaseQueryBuilder, dtype: DataType, prep: Any) -> Selected:
     else:
         result = env.call('select', prep)
         return Selected(prop=dtype.prop, prep=result)
+
+
+@ufunc.resolver(BaseQueryBuilder, GetAttr)
+def sort(env, field):
+    dtype = env.call('_resolve_getattr', field)
+    return env.call('sort', dtype)
 
 
 @ufunc.resolver(BaseQueryBuilder, Expr, name='paginate')

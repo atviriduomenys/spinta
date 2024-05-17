@@ -792,12 +792,6 @@ def sort(env, field):
     return env.call('desc', prop.dtype)
 
 
-@ufunc.resolver(SqlQueryBuilder, GetAttr)
-def sort(env, field):
-    dtype = env.call('_resolve_getattr', field)
-    return env.call('sort', dtype)
-
-
 @ufunc.resolver(SqlQueryBuilder, DataType)
 def asc(env, dtype):
     column = env.backend.get_column(env.table, dtype.prop)
