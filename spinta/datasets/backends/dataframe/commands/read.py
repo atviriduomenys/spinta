@@ -380,9 +380,8 @@ def _get_data_soap(url: str, source: str, model_props: dict, namespaces: dict, m
 
     operation_to_call = getattr(client.service, operation_name)
 
-
     with client.settings(raw_response=True):
-        # data = client.service.GetData(soap_params).text
+
         data = operation_to_call(soap_params).text
     # client.service.GetCity(ID='42')
     # return:
@@ -413,19 +412,9 @@ def _get_data_soap(url: str, source: str, model_props: dict, namespaces: dict, m
 
     # code = data_xml.xpath("//ResponseCode")[0].text
     # data = data_xml.xpath("//ResponseData")[0][0]
-
-
-
-    # data = etree.tostring(data)
-
-    # remove SOAP schema declarations
-    # data = data.replace(b' xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"', b"")
-
     # soap_params["GetDataResponse"] = {"ResponseCode": code, "ResponseData": data.decode("utf-8")}
 
     yield soap_params
-
-    # yield from _parse_soap(f.text, source, model_props)
 
 
 def _get_prop_full_source(source: str, prop_source: str):
