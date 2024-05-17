@@ -20,7 +20,7 @@ from spinta.datasets.backends.dataframe.commands.query import DaskDataFrameQuery
 from spinta.datasets.backends.dataframe.ufuncs.components import TabularResource
 
 from spinta.datasets.backends.helpers import handle_ref_key_assignment
-from spinta.datasets.components import Resource
+from spinta.datasets.components import Resource, Param
 from spinta.datasets.helpers import get_enum_filters, get_ref_filters
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.datasets.utils import iterparams
@@ -317,43 +317,73 @@ def _get_data_json(url: str, source: str, model_props: dict):
             yield from _parse_json(f.read(), source, model_props)
 
 
-def _get_data_soap(url: str, source: str, model_props: dict, namespaces: dict, query: Expr):
-    # f = requests.get(url, timeout=30)
-    # sukurti zeep klientą
-    url = "https://ws.registrucentras.lt/broker/index.php?wsdl"
-    client = zeep.Client(wsdl=url)
-    # service = client.create_service(
-    #     '{http://www.registrucentras.lt}GetBinding',
-    #     'https://ws.registrucentras.lt:443/broker/index.php')
+class PortNotInSourceError(Exception):
+    pass
 
-    # client_service = client.bind('Get', 'GetPort')
-    # input_params = """
-    #         <args>
-    #             <data>2024-05-06</data>
-    #             <fmt>xml<fmt>
-    #         </args>
-    # """
-    # url_params = {
+
+def _get_data_soap(url: str, source: str, model_props: dict, namespaces: dict, model_params: list[Param], query: Expr):
+    client = zeep.Client(wsdl=url)
+
+    # Service model source description needs to be in the following format:
+    # method.port.port_type.operation
+    # Example:
+    # Get.GetPort.GetPortType.GetData
+
+    # Example of parameters for the request to the SOAP service:
+    # soap_params = {
     #     "ActionType": 46,
     #     "CallerCode": 1,
     #     "EndUserInfo": 2,
-    #     "Parameters": input_params,
+    #     "Parameters": <args><data>2024-05-06</data><fmt>xml</fmt></args>,
     #     "Time": 0,
     #     "Signature": "a",
     #     "CallerSignature": "b"
     # }
 
-    url_params = {}
-
+    # params from query of the call to spinta
+    query_params = {}
     for expression in query.args:
         if expression.name == "eq":
             param_name = expression.args[0].args[0]
             param_value = expression.args[1]
-            param_source_name = model_props[param_name]["source"]
-            url_params[param_source_name] = param_value
+            query_params[param_name] = param_value
+
+    # params to pass to the SOAP service
+    soap_params = {}
+    for model_param in model_params:
+        param_name = model_param.name
+        if param_name in model_props and param_name in query_params:
+            soap_params[model_props[param_name]["source"]] = query_params[param_name]
+
+    model_source_path = source.split(".")
+
+    services = client.wsdl.services
+    for service_name, service in services.items():
+
+        if service_name == model_source_path[0]:
+            break
+
+    for port_name, port in service.ports.items():
+        if port_name == model_source_path[1]:
+            break
+
+    port_type = port.binding.port_type
+
+    if port_type.name.localname == model_source_path[2]:
+        operations = port_type.operations
+    else:
+        raise PortNotInSourceError
+
+    for operation_name, operation in operations.items():
+        if operation_name == model_source_path[3]:
+            break
+
+    operation_to_call = getattr(client.service, operation_name)
+
 
     with client.settings(raw_response=True):
-        data = client.service.GetData(url_params).text
+        # data = client.service.GetData(soap_params).text
+        data = operation_to_call(soap_params).text
     # client.service.GetCity(ID='42')
     # return:
     # <ResponseCode>200</ResponseCode>
@@ -361,22 +391,39 @@ def _get_data_soap(url: str, source: str, model_props: dict, namespaces: dict, q
     #
     # </ResponseData>
     data_xml = etree.fromstring(data)
-    code = data_xml.xpath("//ResponseCode")[0].text
-    data = data_xml.xpath("//ResponseData")[0][0]
 
-    data = etree.tostring(data)
+    output_message = operation.output_message
+
+    for model_property in model_props.values():
+        if model_property["source"] == output_message.name.localname:
+            output_property_source = model_property["source"]
+
+    things = {}
+    for thing, element in output_message.parts["return"].type.elements:
+        thing_element = data_xml.xpath(f"//{thing}")[0]
+
+        if thing_element.text is not None:
+            things[thing] = thing_element.text
+        else:
+            thing_text = etree.tostring(thing_element[0]).decode("utf-8")
+            thing_text = thing_text.replace(' xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"', "")
+            things[thing] = thing_text
+
+    soap_params[output_message.name.localname] = things
+
+    # code = data_xml.xpath("//ResponseCode")[0].text
+    # data = data_xml.xpath("//ResponseData")[0][0]
+
+
+
+    # data = etree.tostring(data)
 
     # remove SOAP schema declarations
-    data = data.replace(b' xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"', b"")
+    # data = data.replace(b' xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"', b"")
 
-    properties_values = {}
-    for prop in model_props.values():
-        if prop["source"] in url_params:
-            properties_values[prop["source"]] = url_params[prop["source"]]
+    # soap_params["GetDataResponse"] = {"ResponseCode": code, "ResponseData": data.decode("utf-8")}
 
-    properties_values["GetDataResponse"] = {"ResponseCode": code, "ResponseData": data.decode("utf-8")}
-
-    yield properties_values
+    yield soap_params
 
     # yield from _parse_soap(f.text, source, model_props)
 
@@ -516,6 +563,7 @@ def getall(
         namespaces=_gather_namespaces_from_model(context, model),
         source=model.external.name,
         model_props=props,
+        model_params=model.params,
         query=query
     ).flatten().to_dataframe(meta=meta)
     # DEBUG INFO GetDataResponse looks like this at this point: '{"0":{"ResponseCode":1,"ResponseData":"something"}}'
