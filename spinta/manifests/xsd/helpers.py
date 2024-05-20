@@ -632,8 +632,13 @@ class XSDReader:
 
             # if there is choices, we need to create a separate model for each choice
             choices = complex_type_node.xpath(f'./*[local-name() = "choice"]')
-            if not choices:
-                choices = complex_type_node.xpath(f'./*[local-name() = "sequence"]/*[local-name() = "choice"]')
+            # if choices is unbounded, we treat it like sequence
+            if not choices or choices[0].get("maxOccurs") == "unbounded":
+                # if it's a `choice` node with `unbounded`, we treat it the same as sequence node
+                if choices:
+                    choices = complex_type_node.xpath(f'./*[local-name() = "choice"]/*[local-name() = "choice"]')
+                else:
+                    choices = complex_type_node.xpath(f'./*[local-name() = "sequence"]/*[local-name() = "choice"]')
             if choices:
                 if choices[0].get("maxOccurs") != "unbounded":
                     return self._split_choice(node, source_path, additional_properties=additional_properties)
