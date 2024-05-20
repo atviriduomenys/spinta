@@ -318,7 +318,7 @@ def _get_data_json(url: str, source: str, model_props: dict):
             yield from _parse_json(f.read(), source, model_props)
 
 
-class PortNotInSourceError(Exception):
+class SoapServiceError(Exception):
     pass
 
 
@@ -364,24 +364,34 @@ def _get_data_soap(url: str, source: str, model_props: dict, namespaces: dict, m
         model_source_path = source.split(".")
 
         services = client.wsdl.services
-        for service_name, service in services.items():
-            if service_name == model_source_path[0]:
-                break
 
-        for port_name, port in service.ports.items():
-            if port_name == model_source_path[1]:
-                break
+        if services:
+            for service_name, service in services.items():
+                if service_name == model_source_path[0]:
+                    break
+        else:
+            raise SoapServiceError("Soap service does not exist")
+
+        if service.ports:
+            for port_name, port in service.ports.items():
+                if port_name == model_source_path[1]:
+                    break
+            else:
+                raise SoapServiceError("Soap port does not exist")
 
         port_type = port.binding.port_type
 
         if port_type.name.localname == model_source_path[2]:
             operations = port_type.operations
         else:
-            raise PortNotInSourceError
+            raise SoapServiceError("Port not in model source")
 
-        for operation_name, operation in operations.items():
-            if operation_name == model_source_path[3]:
-                break
+        if operations:
+            for operation_name, operation in operations.items():
+                if operation_name == model_source_path[3]:
+                    break
+        else:
+            raise SoapServiceError("Operation does not exist")
 
         operation_to_call = getattr(client.service, operation_name)
 
