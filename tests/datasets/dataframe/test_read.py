@@ -2,7 +2,6 @@ import json
 from pathlib import Path
 
 import pytest
-import requests_mock
 from fsspec import AbstractFileSystem
 from fsspec.implementations.memory import MemoryFileSystem
 from responses import RequestsMock, POST, GET
@@ -1651,59 +1650,55 @@ def test_soap(rc: RawConfig, tmp_path: Path, responses: RequestsMock):
 </definitions>
     """
 
-    with requests_mock.mock() as m:
-        # m.post("https://ws.registrucentras.lt:443/broker/index.php", text=response)
-        # m.get("https://ws.registrucentras.lt/broker/index.php?wsdl", text=wsdl)
-        responses.add(POST, "https://ws.registrucentras.lt:443/broker/index.php", status=200, body=response)
-        responses.add(GET, "https://ws.registrucentras.lt/broker/index.php?wsdl", status=200, body=wsdl)
+    responses.add(POST, "https://ws.registrucentras.lt:443/broker/index.php", status=200, content_type='text/plain; charset=utf-8', body=response)
+    responses.add(GET, "https://ws.registrucentras.lt/broker/index.php?wsdl", status=200, content_type='text/plain; charset=utf-8', body=wsdl)
 
-
-        context, manifest = prepare_manifest(rc, f'''
+    context, manifest = prepare_manifest(rc, f'''
 d | r | b | m | property         | type     | ref              | source                              | prepare
-         example                 |          |                  |                                     |
-  | res1                         | soap     |                  | https://ws.registrucentras.lt/broker/index.php?wsdl|
-  |   |   | Service              |          |                  | Get.GetPort.GetPortType.GetData     |
-  |   |   |   |                  | param    | type             |                                     |
-  |   |   |   |                  | param    | caller           |                                     |
-  |   |   |   |                  | param    | user             |                                     |
-  |   |   |   |                  | param    | params           |                                     |
-  |   |   |   |                  | param    | time             |                                     |
-  |   |   |   |                  | param    | signature        |                                     |
-  |   |   |   |                  | param    | caller_signature |                                     |
-  |   |   |   | type             | integer  |                  | ActionType                          |
-  |   |   |   | caller           | string   |                  | CallerCode                          |
-  |   |   |   | user             | string   |                  | EndUserInfo                         |
-  |   |   |   | params           | string   |                  | Parameters                          |
-  |   |   |   | time             | string   |                  | Time                                |
-  |   |   |   | signature        | string   |                  | Signature                           |
-  |   |   |   | caller_signature | string   |                  | CallerSignature                     |
-  |   |   |   | response         | object   |                  | GetDataResponse                     |
-  |   |   |   | response.code    | integer  |                  | ResponseCode                        |
-  |   |   |   | response.data    | string   |                  | ResponseData                        |
-        ''', mode=Mode.external)
-        context.loaded = True
+     example                 |          |                  |                                     |
+| res1                         | soap     |                  | https://ws.registrucentras.lt/broker/index.php?wsdl|
+|   |   | Service              |          |                  | Get.GetPort.GetPortType.GetData     |
+|   |   |   |                  | param    | type             |                                     |
+|   |   |   |                  | param    | caller           |                                     |
+|   |   |   |                  | param    | user             |                                     |
+|   |   |   |                  | param    | params           |                                     |
+|   |   |   |                  | param    | time             |                                     |
+|   |   |   |                  | param    | signature        |                                     |
+|   |   |   |                  | param    | caller_signature |                                     |
+|   |   |   | type             | integer  |                  | ActionType                          |
+|   |   |   | caller           | string   |                  | CallerCode                          |
+|   |   |   | user             | string   |                  | EndUserInfo                         |
+|   |   |   | params           | string   |                  | Parameters                          |
+|   |   |   | time             | string   |                  | Time                                |
+|   |   |   | signature        | string   |                  | Signature                           |
+|   |   |   | caller_signature | string   |                  | CallerSignature                     |
+|   |   |   | response         | object   |                  | GetDataResponse                     |
+|   |   |   | response.code    | integer  |                  | ResponseCode                        |
+|   |   |   | response.data    | string   |                  | ResponseData                        |
+    ''', mode=Mode.external)
+    context.loaded = True
 
-        app = create_test_client(context)
-        app.authmodel('example/Service', ['getall', 'search'])
+    app = create_test_client(context)
+    app.authmodel('example/Service', ['getall', 'search'])
 
-        response = app.get('example/Service?type=46&caller=1&user=2&params="<args><data>2024-05-06</data><fmt>xml</fmt></args>"&time=3&signature=4&caller_signature=5')
+    response = app.get('example/Service?type=46&caller=1&user=2&params="<args><data>2024-05-06</data><fmt>xml</fmt></args>"&time=3&signature=4&caller_signature=5')
 
-        # response = app.get('example/Service?type=46&user=2')
-        result = response.json()
-        del result["_data"][0]["_id"]
-        # todo mock generation of _id instead
-        assert result == {"_data": [{
-            '_revision': None,
-            '_type': 'example/Service',
-            '_base': None,
-            'caller': 1,
-            'caller_signature': 5,
-            'signature': 4,
-            'time': 3,
-            'type': 46,
-            'user': 2,
-            'params': '<args><data>2024-05-06</data><fmt>xml</fmt></args>',
+    # response = app.get('example/Service?type=46&user=2')
+    result = response.json()
+    del result["_data"][0]["_id"]
+    # todo mock generation of _id instead
+    assert result == {"_data": [{
+        '_revision': None,
+        '_type': 'example/Service',
+        '_base': None,
+        'caller': 1,
+        'caller_signature': 5,
+        'signature': 4,
+        'time': 3,
+        'type': 46,
+        'user': 2,
+        'params': '<args><data>2024-05-06</data><fmt>xml</fmt></args>',
 
-            "response": {"code": 10, "data": """<PAIESKA><PAIESKOS_KRITERIJAI data="2024-05-06" pozymis="1" formavimo_laikas="2024-05-06:12:12:12"/><JA_SARASAS><JUR_ASMUO OBJ_KODAS="5" OBJ_PAV="TEST" FORM_KODAS="7" STAT_STATUSAS="9"/></JA_SARASAS></PAIESKA>"""}}]}
+        "response": {"code": 10, "data": """<PAIESKA><PAIESKOS_KRITERIJAI data="2024-05-06" pozymis="1" formavimo_laikas="2024-05-06:12:12:12"/><JA_SARASAS><JUR_ASMUO OBJ_KODAS="5" OBJ_PAV="TEST" FORM_KODAS="7" STAT_STATUSAS="9"/></JA_SARASAS></PAIESKA>"""}}]}
 
 
