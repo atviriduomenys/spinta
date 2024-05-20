@@ -5,6 +5,7 @@ import pytest
 import requests_mock
 from fsspec import AbstractFileSystem
 from fsspec.implementations.memory import MemoryFileSystem
+from responses import RequestsMock, POST, GET
 
 from spinta.components import Mode
 from spinta.core.config import RawConfig
@@ -1564,7 +1565,7 @@ def test_xml_json_csv_combined_read_parametrize_advanced_iterate_pages(rc: RawCo
     ]
 
 
-def test_soap(rc: RawConfig, tmp_path: Path):
+def test_soap(rc: RawConfig, tmp_path: Path, responses: RequestsMock):
     response = """
     <soap:Envelope
         xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
@@ -1651,8 +1652,12 @@ def test_soap(rc: RawConfig, tmp_path: Path):
     """
 
     with requests_mock.mock() as m:
-        m.post("https://ws.registrucentras.lt:443/broker/index.php", text=response)
-        m.get("https://ws.registrucentras.lt/broker/index.php?wsdl", text=wsdl)
+        # m.post("https://ws.registrucentras.lt:443/broker/index.php", text=response)
+        # m.get("https://ws.registrucentras.lt/broker/index.php?wsdl", text=wsdl)
+        responses.add(POST, "https://ws.registrucentras.lt:443/broker/index.php", status=200, body=response)
+        responses.add(GET, "https://ws.registrucentras.lt/broker/index.php?wsdl", status=200, body=wsdl)
+
+
         context, manifest = prepare_manifest(rc, f'''
 d | r | b | m | property         | type     | ref              | source                              | prepare
          example                 |          |                  |                                     |
