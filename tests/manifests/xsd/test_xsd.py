@@ -721,11 +721,6 @@ def test_xsd_separate_simple_type(rc: RawConfig, tmp_path: Path):
     | manifest                                |        |     |                                |         |       |        |                                               |       |
     |   | resource1                           | xml    |     |                                |         |       |        |                                               |       |
     |                                         |        |     |                                |         |       |        |                                               |       |
-    |   |   |   | Resource                    |        |     | /                              |         |       |        | http://www.w3.org/2000/01/rdf-schema#Resource |       | Įvairūs duomenys
-    |   |   |   |   | ct_e200ats_duom_sukurti | string |     | CT_E200ATS_DUOM_SUKURTI/text() |         |       |        |                                               |       | E200-ats duomenų sukūrimo data ir laikas
-    |   |   |   |   | ct_paciento_spi         | string |     | CT_PACIENTO_SPI/text()         |         |       |        |                                               |       | Paciento prisirašymo įstaigos pavadinimas
-    |   |   |   |   | ct_ctd_eminys_gautas    | string |     | CT_CTD_EMINYS_GAUTAS/text()    |         |       |        |                                               |       | Ėminio gavimo data
-    |                                         |        |     |                                |         |       |        |                                               |       |
     |   |   |   | Tyrimas                     |        |     | /TYRIMAS                       |         |       |        |                                               |       |
     |   |   |   |   | ct_e200ats_duom_sukurti | string |     | CT_E200ATS_DUOM_SUKURTI/text() |         |       |        |                                               |       | E200-ats duomenų sukūrimo data ir laikas
     |   |   |   |   | ct_paciento_spi         | string |     | CT_PACIENTO_SPI/text()         |         |       |        |                                               |       | Paciento prisirašymo įstaigos pavadinimas

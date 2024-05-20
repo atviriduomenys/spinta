@@ -272,16 +272,18 @@ class XSDModel:
     def properties_from_simple_elements(
         self,
         node: _Element,
-        from_sequence: bool = True,
+        from_root: bool = False,
         properties_required: bool = None
     ) -> dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]:
 
         properties = {}
         elements = node.xpath(f'./*[local-name() = "element"]')
         for element in elements:
-            if self.xsd.node_is_simple_type_or_inline(element) and not XSDReader.node_is_ref(element):
+            if (self.xsd.node_is_simple_type_or_inline(element) and
+                    not XSDReader.node_is_ref(element) and
+                    not (self.xsd._node_is_referenced(element) and from_root)):
                 property_id, prop = self.simple_element_to_property(element)
-                if not from_sequence:
+                if from_root:
                     prop["required"] = False
                 if properties_required is True:
                     prop["required"] = True
@@ -772,7 +774,7 @@ class XSDReader:
         resource_model.type = "model"
         resource_model.description = "Įvairūs duomenys"
         resource_model.uri = "http://www.w3.org/2000/01/rdf-schema#Resource"
-        resource_model.properties = resource_model.properties_from_simple_elements(self.root, from_sequence=False)
+        resource_model.properties = resource_model.properties_from_simple_elements(self.root, from_root=True)
         if resource_model.properties:
             resource_model.set_name(self.deduplicate(f"Resource"))
             self.models.append(resource_model)
