@@ -569,6 +569,10 @@ class XSDReader:
             complex_type_node = node_copy.xpath(f'./*[local-name() = "complexType"]')[0]
 
         choice_nodes = complex_type_node.xpath(f'./*[local-name() = "choice"]')
+
+        # if maxOccurs=unbound and there's a second `choice` inside, we have to split that one
+        if choice_nodes and choice_nodes[0].get("maxOccurs") == "unbounded":
+            choice_nodes = choice_nodes[0].xpath(f'./*[local-name() = "choice"]')
         if choice_nodes:
             choice_node = choice_nodes[0]
         else:
