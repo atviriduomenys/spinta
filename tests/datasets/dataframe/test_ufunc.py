@@ -31,7 +31,7 @@ def test_csv_tabular_seperator_default_error(rc: RawConfig, fs: AbstractFileSyst
         'šalis;miestas\n'
         'lt;Vilnius\n'
         'lv;Ryga\n'
-        'ee;Talin'
+        'ee;Tallinn'
     ).encode('utf-8'))
 
     context, manifest = prepare_manifest(rc, '''
@@ -55,7 +55,7 @@ def test_csv_tabular_seperator(rc: RawConfig, fs: AbstractFileSystem):
         'šalis;miestas\n'
         'lt;Vilnius\n'
         'lv;Ryga\n'
-        'ee;Talin'
+        'ee;Tallinn'
     ).encode('utf-8'))
 
     context, manifest = prepare_manifest(rc, '''
@@ -67,7 +67,6 @@ def test_csv_tabular_seperator(rc: RawConfig, fs: AbstractFileSystem):
       |   |   |   | country  | string  |      | šalis               |                  | open
     ''', mode=Mode.external)
     context.loaded = True
-    print("MANIFEST: ", manifest)
     app = create_test_client(context)
     app.authmodel('example/City', ['getall'])
 
@@ -75,7 +74,7 @@ def test_csv_tabular_seperator(rc: RawConfig, fs: AbstractFileSystem):
     assert listdata(resp, sort=False) == [
         ('lt', 'Vilnius'),
         ('lv', 'Ryga'),
-        ('ee', 'Talinn'),
+        ('ee', 'Tallinn'),
     ]
 
 
