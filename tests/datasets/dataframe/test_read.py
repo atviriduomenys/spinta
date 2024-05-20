@@ -1654,8 +1654,8 @@ def test_soap(rc: RawConfig, tmp_path: Path, responses: RequestsMock):
     responses.add(GET, "https://ws.registrucentras.lt/broker/index.php?wsdl", status=200, content_type='text/plain; charset=utf-8', body=wsdl)
 
     context, manifest = prepare_manifest(rc, f'''
-d | r | b | m | property         | type     | ref              | source                              | prepare
-     example                 |          |                  |                                     |
+d | r | b | m | property       | type     | ref              | source                              | prepare
+example                        |          |                  |                                     |
 | res1                         | soap     |                  | https://ws.registrucentras.lt/broker/index.php?wsdl|
 |   |   | Service              |          |                  | Get.GetPort.GetPortType.GetData     |
 |   |   |   |                  | param    | type             |                                     |
