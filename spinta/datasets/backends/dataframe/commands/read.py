@@ -10,6 +10,7 @@ import requests
 import zeep
 from dask.dataframe import DataFrame
 from lxml import etree
+from lxml.etree import _Element
 from zeep import Client
 
 from spinta import commands
@@ -322,10 +323,8 @@ class PortNotInSourceError(Exception):
 
 
 def _get_data_soap(url: str, source: str, model_props: dict, namespaces: dict, model_params: list[Param], query: Expr):
-    client = zeep.Client(wsdl=url)
-
     # Service model source description needs to be in the following format:
-    # method.port.port_type.operation
+    # service.port.port_type.operation
     # Example:
     # Get.GetPort.GetPortType.GetData
 
@@ -340,79 +339,85 @@ def _get_data_soap(url: str, source: str, model_props: dict, namespaces: dict, m
     #     "CallerSignature": "b"
     # }
 
-    # params from query of the call to spinta
-    query_params = {}
-    for expression in query.args:
-        if expression.name == "eq":
-            param_name = expression.args[0].args[0]
-            param_value = expression.args[1]
-            query_params[param_name] = param_value
+    def get_query_params(query: Expr):
+        # params from query of the call to spinta
+        query_params = {}
+        for expression in query.args:
+            if expression.name == "eq":
+                param_name = expression.args[0].args[0]
+                param_value = expression.args[1]
+                query_params[param_name] = param_value
+        return query_params
 
-    # params to pass to the SOAP service
-    soap_params = {}
-    for model_param in model_params:
-        param_name = model_param.name
-        if param_name in model_props and param_name in query_params:
-            soap_params[model_props[param_name]["source"]] = query_params[param_name]
+    def get_soap_params(model_params: list[Param]):
+        # params to pass to the SOAP service
+        query_params = get_query_params(query)
+        soap_params = {}
+        for model_param in model_params:
+            param_name = model_param.name
+            if param_name in model_props and param_name in query_params:
+                soap_params[model_props[param_name]["source"]] = query_params[param_name]
+        return soap_params
 
-    model_source_path = source.split(".")
+    def get_operation(source: str, client: Client):
+        # gets operation from zeep client that is described in model source
+        model_source_path = source.split(".")
 
-    services = client.wsdl.services
-    for service_name, service in services.items():
+        services = client.wsdl.services
+        for service_name, service in services.items():
+            if service_name == model_source_path[0]:
+                break
 
-        if service_name == model_source_path[0]:
-            break
+        for port_name, port in service.ports.items():
+            if port_name == model_source_path[1]:
+                break
 
-    for port_name, port in service.ports.items():
-        if port_name == model_source_path[1]:
-            break
+        port_type = port.binding.port_type
 
-    port_type = port.binding.port_type
+        if port_type.name.localname == model_source_path[2]:
+            operations = port_type.operations
+        else:
+            raise PortNotInSourceError
 
-    if port_type.name.localname == model_source_path[2]:
-        operations = port_type.operations
-    else:
-        raise PortNotInSourceError
+        for operation_name, operation in operations.items():
+            if operation_name == model_source_path[3]:
+                break
 
-    for operation_name, operation in operations.items():
-        if operation_name == model_source_path[3]:
-            break
+        operation_to_call = getattr(client.service, operation_name)
 
-    operation_to_call = getattr(client.service, operation_name)
+        return operation_to_call, operation
+
+    def prepare_results(operation, data_xml: _Element):
+
+        output_message = operation.output_message
+        response_operation_name = output_message.name.localname
+
+        results = {}
+        for source, element in output_message.parts["return"].type.elements:
+            element_node = data_xml.xpath(f"//{source}")[0]
+
+            if element_node.text is not None:
+                results[source] = element_node.text
+            else:
+                node_text = etree.tostring(element_node[0]).decode("utf-8")
+                node_text = node_text.replace(' xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"', "")
+                results[source] = node_text
+
+        results[response_operation_name] = results
+
+        return results
+
+    client = zeep.Client(wsdl=url)
+    soap_params = get_soap_params(model_params)
+    operation_to_call, operation = get_operation(source, client)
 
     with client.settings(raw_response=True):
-
         data = operation_to_call(soap_params).text
-    # client.service.GetCity(ID='42')
-    # return:
-    # <ResponseCode>200</ResponseCode>
-    # <ResponseData>
-    #
-    # </ResponseData>
     data_xml = etree.fromstring(data)
+    results = prepare_results(operation, data_xml)
 
-    output_message = operation.output_message
-
-    for model_property in model_props.values():
-        if model_property["source"] == output_message.name.localname:
-            output_property_source = model_property["source"]
-
-    things = {}
-    for thing, element in output_message.parts["return"].type.elements:
-        thing_element = data_xml.xpath(f"//{thing}")[0]
-
-        if thing_element.text is not None:
-            things[thing] = thing_element.text
-        else:
-            thing_text = etree.tostring(thing_element[0]).decode("utf-8")
-            thing_text = thing_text.replace(' xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"', "")
-            things[thing] = thing_text
-
-    soap_params[output_message.name.localname] = things
-
-    # code = data_xml.xpath("//ResponseCode")[0].text
-    # data = data_xml.xpath("//ResponseData")[0][0]
-    # soap_params["GetDataResponse"] = {"ResponseCode": code, "ResponseData": data.decode("utf-8")}
+    # return all parameters, input and output together
+    soap_params.update(results)
 
     yield soap_params
 
