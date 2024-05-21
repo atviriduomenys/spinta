@@ -1,5 +1,5 @@
 import logging
-from typing import Any
+from typing import Any, overload
 from typing import Iterator
 
 from sqlalchemy.engine.row import RowProxy
@@ -113,4 +113,41 @@ def getall(
             res = flat_dicts_to_nested(res)
             res = commands.cast_backend_to_python(context, model, backend, res)
             yield res
+
+
+@commands.getone.register(Context, Model, Sql)
+def getone(
+    context: Context,
+    model: Model,
+    backend: Sql,
+    *,
+    id_: str,
+) -> ObjectData:
+    context.attach(f'transaction.{backend.name}', backend.begin)
+    conn = context.get(f'transaction.{backend.name}')
+    builder = SqlQueryBuilder(context)
+    builder.update(model=model)
+    if model.keymap:
+        context.attach(
+            f'keymap.{model.keymap.name}',
+            lambda: model.keymap,
+        )
+
+    keymap: KeyMap = context.get(f'keymap.{model.keymap.name}')
+    id = keymap.decode("")
+    res = {
+        '_type': model.model_type()
+    }
+    table = model.external.name
+    table = backend.get_table(model, table)
+    env = builder.init(backend, table)
+    expr = env.resolve()
+    where = env.execute(expr)
+    qry = env.build(where)
+
+
+    data = {"_id": "72a4d87b-300b-47a0-878f-8bfe7e1bab57", "_revision": "0", "id": 1, "name": "Vilnius"}
+    data.update(res)
+    data = flat_dicts_to_nested(data)
+    return commands.cast_backend_to_python(context, model, backend, data)
 

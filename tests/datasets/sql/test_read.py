@@ -372,3 +372,41 @@ def test_getall_distinct(context, rc, tmp_path):
             ('Lietuva', 0),
             ('Lietuva', 1)
         ]
+
+
+def test_get_one(context, rc, tmp_path):
+
+    with create_sqlite_db({
+        'cities': [
+            sa.Column('name', sa.Text),
+            sa.Column('id', sa.Integer)
+        ]
+    }) as db:
+        db.write('cities', [
+            {'name': 'Vilnius', 'id': 0},
+            {'name': 'Kaunas', 'id': 1},
+        ])
+        create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+id | d | r | b | m | property     | type    | ref | level | source  | access
+   | example                      |         |     |       |         |
+   |   | db                       | sql     |     |       |         |
+   |   |   |   | City             |         | id  |       | cities  |
+   |   |   |   |   | id           | integer |     | 4     | id      | open
+   |   |   |   |   | name         | string  |     | 4     | name    | open
+  '''))
+        app = create_client(rc, tmp_path, db)
+        response = app.get('/example/City')
+        response_json = response.json()
+        print(response_json)
+        _id = response_json["_data"][0]["_id"]
+        getone_response = app.get(f'/example/City/{_id}')
+        result = getone_response.json()
+        del result["_id"]
+        assert result == {
+            "_revision": "0",
+            "_type": "example/City",
+            "id": 1,
+            "name": "Vilnius"
+        }
+
+
