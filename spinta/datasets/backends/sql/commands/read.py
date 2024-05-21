@@ -1,5 +1,5 @@
 import logging
-from typing import Any, overload
+from typing import Any
 from typing import Iterator
 
 from sqlalchemy.engine.row import RowProxy
