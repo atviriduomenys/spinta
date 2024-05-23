@@ -704,6 +704,20 @@ def select(
     )
 
 
+@ufunc.resolver(SqlQueryBuilder, ForeignProperty)
+def select(
+    env: SqlQueryBuilder,
+    fpr: ForeignProperty,
+) -> Selected:
+        table = env.joins.get_table(env, fpr)
+        right = fpr.right.prop
+        column = env.backend.get_column(table, right, select=True)
+        return Selected(
+            item=env.add_column(column),
+            prop=right,
+        )
+
+
 @ufunc.resolver(SqlQueryBuilder, Property)
 def join_table_on(env: SqlQueryBuilder, prop: Property) -> Any:
     if prop.external.prepare is not NA:

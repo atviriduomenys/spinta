@@ -1,11 +1,10 @@
-from typing import List, Any, Tuple, Dict, Union
+from typing import List, Any, Tuple, Dict
 
-from spinta.auth import authorized
-from spinta.components import Page, Property, Action
+from spinta.components import Page, Property
 from spinta.core.ufuncs import ufunc, Expr, Negative, Bind, GetAttr
 from spinta.datasets.backends.sql.ufuncs.components import Selected
 from spinta.exceptions import InvalidArgumentInExpression, CannotSelectTextAndSpecifiedLang, \
-    LangNotDeclared, FieldNotInResource, PropertyNotFound
+    LangNotDeclared, FieldNotInResource
 from spinta.types.datatype import DataType, String, Ref, Object, Array, File, BackRef, PrimaryKey, ExternalRef
 from spinta.types.text.components import Text
 from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, Star, ReservedProperty, NestedProperty
@@ -363,7 +362,7 @@ def select(env: BaseQueryBuilder, dtype: DataType, prep: Any) -> Selected:
         # it must be processed on values returned by query.
         prop = dtype.prop
         if prop.external and prop.external.name:
-            sel = env.call('select', prop)
+            sel = env.call('select', dtype)
             return Selected(item=sel.item, prop=sel.prop, prep=prep)
         else:
             return Selected(item=None, prop=prop, prep=prep)

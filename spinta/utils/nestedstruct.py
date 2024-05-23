@@ -197,7 +197,10 @@ def flat_dicts_to_nested(value, list_keys: list = None):
             recursive_nesting(data, res_[key], keys, depth + 1)
 
         if is_last:
-            res_[key] = data
+            if key in res_ and res_[key]:
+                res_[key].update(data)
+            else:
+                res_[key] = data
 
     for k, v in dict(value).items():
         names = k.split('.')
