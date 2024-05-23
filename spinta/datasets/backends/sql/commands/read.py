@@ -123,34 +123,36 @@ def getone(
     *,
     id_: str,
 ) -> ObjectData:
-    context.attach(f'transaction.{backend.name}', backend.begin)
-    conn = context.get(f'transaction.{backend.name}')
-    builder = SqlQueryBuilder(context)
-    builder.update(model=model)
+    # get id by id_ from keymap
     if model.keymap:
         context.attach(
             f'keymap.{model.keymap.name}',
             lambda: model.keymap,
         )
-
     keymap: KeyMap = context.get(f'keymap.{model.keymap.name}')
     _id = keymap.decode(model.name, id_)
 
-    table = model.external.name
-    table = backend.get_table(model, table)
-
-    env = builder.init(backend, table)
-    # expr = env.resolve({"pk": "_id"})
-    # expr = {"pk": "_id"}
+    # preparing query for retrieving item by pk
     pk = model.external.pkeys[0].name
     query = Expr('eq', pk, _id)
+
+    # building sqlalchemy query
+    context.attach(f'transaction.{backend.name}', backend.begin)
+    conn = context.get(f'transaction.{backend.name}')
+    builder = SqlQueryBuilder(context)
+    builder.update(model=model)
+    table = model.external.name
+    table = backend.get_table(model, table)
+    env = builder.init(backend, table)
     expr = env.resolve(query)
     where = env.execute(expr)
-
     qry = env.build(where)
+
+    # #executing query
     result = conn.execute(qry)
-    # result = conn.execute(stmt)
     result = result.fetchone()
+
+    # preparing results
     data = {}
     for key, sel in env.selected.items():
         val = _get_row_value(context, result, sel)
@@ -158,7 +160,6 @@ def getone(
             val = handle_ref_key_assignment(keymap, env, val, sel.prop.dtype)
         data[key] = val
 
-    # data = {"_id": id_, "_revision": "0", "id": _id, "name": "Vilnius"}
     additional_data = {
         '_type': model.model_type(),
         '_id': id_
@@ -166,4 +167,3 @@ def getone(
     data.update(additional_data)
     data = flat_dicts_to_nested(data)
     return commands.cast_backend_to_python(context, model, backend, data)
-
