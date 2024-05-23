@@ -401,8 +401,9 @@ id | d | r | b | m | property     | type    | ref | level | source  | access
         _id = response_json["_data"][0]["_id"]
         getone_response = app.get(f'/example/City/{_id}')
         result = getone_response.json()
-        del result["_id"]
+        # del result["_id"]
         assert result == {
+            "_id": _id,
             "_type": "example/City",
             "id": 0,
             "name": "Vilnius"
