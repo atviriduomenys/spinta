@@ -1,6 +1,8 @@
+import pytest
+
 from spinta.components import Model, Property
 from spinta.types.text.components import Text
-from spinta.utils.nestedstruct import flatten, build_select_tree, sepgetter
+from spinta.utils.nestedstruct import flatten, build_select_tree, sepgetter, flat_dicts_to_nested
 
 
 def test_flatten():
@@ -133,3 +135,19 @@ def test_build_select_tree():
         'a.b.c': set(),
         'a.b.d': set()
     }
+
+
+@pytest.mark.parametrize("data, list_keys, result", [
+    ({'notes.note': [0, 1, 2]}, [], {'notes': {'note': [0, 1, 2]}}),
+    ({'notes.note': [0, 1, 2]}, ['notes'], {'notes': [{'note': 0}, {'note': 1}, {'note': 2}]}),
+    ({'notes.note': [0, 1, 2]}, ['notes.note'], {'notes': {'note': [0, 1, 2]}}),
+    ({'notes.note': [[0, 1], [2]]}, ['notes', 'notes.note'], {'notes': [{'note': [0, 1]}, {'note': [2]}]})
+], ids=['d0', 'd1', 'd2', 'd3'])
+def test_flat_to_nested(
+    data: dict,
+    list_keys: list,
+    result: dict
+):
+    assert flat_dicts_to_nested(
+        data, list_keys
+    ) == result

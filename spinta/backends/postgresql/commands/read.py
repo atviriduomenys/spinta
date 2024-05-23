@@ -67,14 +67,19 @@ def getall(
     result = conn.execute(qry)
     for row in result:
         res = {}
+        list_keys = []
         for key, sel in env.selected.items():
+            if key in model.flatprops:
+                prop = model.flatprops[key]
+                if prop.list is not None and prop.list.place not in list_keys:
+                    list_keys.append(prop.list.place)
             val = _get_row_value(context, row, sel)
             res[key] = val
-
         if model.page.is_enabled:
             res['_page'] = get_page_values(env, row)
 
         res['_type'] = model.model_type()
-        res = flat_dicts_to_nested(res)
+
+        res = flat_dicts_to_nested(res, list_keys=list_keys)
         res = commands.cast_backend_to_python(context, model, backend, res)
         yield res

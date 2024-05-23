@@ -165,20 +165,45 @@ def build_select_tree(select: List[str]) -> Dict[str, Set[Optional[str]]]:
     return tree
 
 
-def flat_dicts_to_nested(value):
+def flat_dicts_to_nested(value, list_keys: list = None):
+    if list_keys is None:
+        list_keys = []
     res = {}
+
+    def recursive_nesting(data, res_, keys: list, depth: int):
+        if depth >= len(keys):
+            return
+
+        key = keys[depth]
+        place = '.'.join(keys[:depth + 1])
+
+        is_array = place in list_keys
+        is_last = len(keys) - 1 == depth
+
+        if is_array:
+            if key not in res_:
+                res_[key] = []
+
+            data_ = data
+            if not isinstance(data_, list):
+                data_ = [data_]
+            for item in data_:
+                new_dict = {}
+                recursive_nesting(item, new_dict, keys, depth + 1)
+                res_[key].append(new_dict)
+        else:
+            if key not in res_:
+                res_[key] = {}
+            recursive_nesting(data, res_[key], keys, depth + 1)
+
+        if is_last:
+            res_[key] = data
+
     for k, v in dict(value).items():
         names = k.split('.')
+        last_value = v
         vref = res
-        for name in names[:-1]:
-            if name not in vref:
-                vref[name] = {}
-            vref = vref[name]
-        if names[-1] in vref:
-            target_dict = vref[names[-1]]
-            target_dict.update(v)
-        else:
-            vref[names[-1]] = v
+        recursive_nesting(last_value, vref, names, 0)
     return res
 
 

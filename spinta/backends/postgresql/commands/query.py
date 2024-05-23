@@ -38,7 +38,8 @@ from spinta.types.datatype import Ref
 from spinta.types.datatype import String
 from spinta.types.text.components import Text
 from spinta.types.text.helpers import determine_language_property_for_text
-from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, QueryParams, Func, ReservedProperty
+from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, QueryParams, Func, ReservedProperty, \
+    NestedProperty
 from spinta.ufuncs.basequerybuilder.helpers import get_column_with_extra, get_language_column, \
     merge_with_page_selected_list, merge_with_page_sort, merge_with_page_limit, is_expandable_not_expanded
 from spinta.ufuncs.basequerybuilder.ufuncs import Star
@@ -684,11 +685,6 @@ def select(env, dtype):
     return Selected(env.add_column(column), dtype.base_prop)
 
 
-@ufunc.resolver(PgQueryBuilder, InheritForeignProperty, GetAttr)
-def select(env, dtype, attr: GetAttr):
-    return env.call('select', dtype)
-
-
 @ufunc.resolver(PgQueryBuilder, Denorm)
 def select(env, dtype):
     ref = dtype.prop.parent
@@ -724,15 +720,6 @@ def select(env, page):
 @ufunc.resolver(PgQueryBuilder, sa.sql.expression.ColumnElement)
 def select(env, column):
     return Selected(env.add_column(column))
-
-
-@ufunc.resolver(PgQueryBuilder, sa.sql.expression.ColumnElement, GetAttr)
-def select(
-    env: PgQueryBuilder,
-    col: sa.sql.expression.ColumnElement,
-    attr: Bind,
-):
-    return env.call('select', col)
 
 
 @ufunc.resolver(PgQueryBuilder, int)
@@ -1329,6 +1316,11 @@ def func(env, name, field):
     return env.call(name, resolved)
 
 
+@ufunc.resolver(PgQueryBuilder, NestedProperty, names=FUNCS)
+def func(env, name, nested):
+    return env.call(name, nested.right)
+
+
 @ufunc.resolver(PgQueryBuilder, Bind)
 def recurse(env, field):
     if field.name in env.model.leafprops:
@@ -1403,6 +1395,11 @@ def asc(env, dtype):
     return column.asc()
 
 
+@ufunc.resolver(PgQueryBuilder, NestedProperty)
+def asc(env: PgQueryBuilder, nested: NestedProperty):
+    return env.call('asc', nested.right)
+
+
 @ufunc.resolver(PgQueryBuilder, ForeignProperty)
 def asc(env: PgQueryBuilder, fpr: ForeignProperty):
     return env.call('asc', fpr, fpr.right)
@@ -1419,6 +1416,11 @@ def asc(env: PgQueryBuilder, fpr: ForeignProperty, dtype: DataType):
 def desc(env, dtype):
     column = _get_sort_column(env, dtype.prop)
     return column.desc()
+
+
+@ufunc.resolver(PgQueryBuilder, NestedProperty)
+def desc(env: PgQueryBuilder, nested: NestedProperty):
+    return env.call('desc', nested.right)
 
 
 @ufunc.resolver(PgQueryBuilder, ForeignProperty)
@@ -1457,6 +1459,18 @@ def _get_sort_column(env: PgQueryBuilder, prop: Property):
         main_table.c._id == subqry.c._rid,
     )
     return subqry.c.value
+
+
+@ufunc.resolver(PgQueryBuilder, GetAttr)
+def negative(env, field) -> Negative:
+    resolved = env.call('_resolve_getattr', field)
+    return Negative(resolved)
+
+
+@ufunc.resolver(PgQueryBuilder, GetAttr)
+def positive(env, field) -> Positive:
+    resolved = env.call('_resolve_getattr', field)
+    return Positive(resolved)
 
 
 @ufunc.resolver(PgQueryBuilder, Bind)

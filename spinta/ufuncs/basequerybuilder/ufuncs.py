@@ -8,7 +8,7 @@ from spinta.exceptions import InvalidArgumentInExpression, CannotSelectTextAndSp
     LangNotDeclared, FieldNotInResource, PropertyNotFound
 from spinta.types.datatype import DataType, String, Ref, Object, Array, File, BackRef, PrimaryKey, ExternalRef
 from spinta.types.text.components import Text
-from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, Star, ReservedProperty
+from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, Star, ReservedProperty, NestedProperty
 from spinta.ufuncs.basequerybuilder.helpers import get_pagination_compare_query
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.schema import NA
@@ -64,31 +64,6 @@ def _resolve_getattr(
     return env.call('_resolve_getattr', prop.dtype, attr.name)
 
 
-@ufunc.resolver(BaseQueryBuilder, Ref, GetAttr)
-def _resolve_getattr(
-    env: BaseQueryBuilder,
-    dtype: Ref,
-    attr: GetAttr,
-):
-    if attr.obj in dtype.properties:
-        return dtype.properties[attr.obj].dtype
-    prop = dtype.model.properties[attr.obj]
-    fpr = ForeignProperty(None, dtype, prop.dtype)
-    return env.call('_resolve_getattr', fpr, prop.dtype, attr.name)
-
-
-@ufunc.resolver(BaseQueryBuilder, Ref, Bind)
-def _resolve_getattr(
-    env: BaseQueryBuilder,
-    dtype: Ref,
-    attr: Bind,
-):
-    if attr.name in dtype.properties:
-        return dtype.properties[attr.name].dtype
-    prop = dtype.model.properties[attr.name]
-    return ForeignProperty(None, dtype, prop.dtype)
-
-
 @ufunc.resolver(BaseQueryBuilder, ForeignProperty, Ref, GetAttr)
 def _resolve_getattr(
     env: BaseQueryBuilder,
@@ -110,6 +85,19 @@ def _resolve_getattr(
 ) -> ForeignProperty:
     prop = dtype.model.properties[attr.name]
     return fpr.push(prop)
+
+
+@ufunc.resolver(BaseQueryBuilder, Ref, GetAttr)
+def _resolve_getattr(
+    env: BaseQueryBuilder,
+    dtype: Ref,
+    attr: GetAttr,
+):
+    if attr.obj in dtype.properties:
+        return dtype.properties[attr.obj].dtype
+    prop = dtype.model.properties[attr.obj]
+    fpr = ForeignProperty(None, dtype, prop.dtype)
+    return env.call('_resolve_getattr', fpr, prop.dtype, attr.name)
 
 
 @ufunc.resolver(BaseQueryBuilder, Ref, Bind)
@@ -208,21 +196,31 @@ def _resolve_getattr(
 ):
     if attr.obj in dtype.properties:
         prop = dtype.properties[attr.obj]
-        return env.call('_resolve_getattr', prop.dtype, attr.name)
+
+        return NestedProperty(
+            left=dtype,
+            right=env.call('_resolve_getattr', prop.dtype, attr.name)
+        )
     raise FieldNotInResource(dtype, property=attr.obj)
 
 
 @ufunc.resolver(BaseQueryBuilder, Object, Bind)
 def _resolve_getattr(env, dtype, attr):
     if attr.name in dtype.properties:
-        return dtype.properties[attr.name].dtype
+        return NestedProperty(
+            left=dtype,
+            right=dtype.properties[attr.name].dtype
+        )
     else:
         raise FieldNotInResource(dtype, property=attr.name)
 
 
 @ufunc.resolver(BaseQueryBuilder, Array, (Bind, GetAttr))
 def _resolve_getattr(env, dtype, attr):
-    return env.call('_resolve_getattr', dtype.items.dtype, attr)
+    return NestedProperty(
+        left=dtype,
+        right=env.call('_resolve_getattr', dtype.items.dtype, attr)
+    )
 
 
 @ufunc.resolver(BaseQueryBuilder, File, Bind)
@@ -233,22 +231,20 @@ def _resolve_getattr(env, dtype, attr):
 @ufunc.resolver(BaseQueryBuilder, GetAttr)
 def select(env: BaseQueryBuilder, attr: GetAttr) -> Selected:
     resolved = env.call('_resolve_getattr', attr)
-    return env.call('select', resolved, attr)
+    return env.call('select', resolved)
 
 
-@ufunc.resolver(BaseQueryBuilder, DataType, (Bind, GetAttr))
-def select(env: BaseQueryBuilder, dtype: DataType, attr: Union[Bind, GetAttr]) -> Selected:
-    return env.call('select', dtype.prop)
+@ufunc.resolver(BaseQueryBuilder, NestedProperty)
+def select(env: BaseQueryBuilder, nested: NestedProperty) -> Selected:
+    return Selected(
+        prop=nested.left.prop,
+        prep=env.call('select', nested.right),
+    )
 
 
 @ufunc.resolver(BaseQueryBuilder, ReservedProperty)
 def select(env, prop):
     return env.call('select', prop.dtype, prop.param)
-
-
-@ufunc.resolver(BaseQueryBuilder, ReservedProperty, (Bind, GetAttr))
-def select(env: BaseQueryBuilder, reserved: ReservedProperty, attr: Union[Bind, GetAttr]) -> Selected:
-    return env.call('select', reserved)
 
 
 @ufunc.resolver(BaseQueryBuilder, ForeignProperty)
@@ -257,15 +253,6 @@ def select(
     fpr: ForeignProperty,
 ) -> Selected:
     return env.call('select', fpr, fpr.right.prop)
-
-
-@ufunc.resolver(BaseQueryBuilder, ForeignProperty, GetAttr)
-def select(env: BaseQueryBuilder, fpr: ForeignProperty, attr: GetAttr) -> Selected:
-    """For things like select(foo.bar.baz)."""
-    return Selected(
-        prop=fpr.right.prop,
-        prep=env.call('select', fpr, fpr.right.prop),
-    )
 
 
 @ufunc.resolver(BaseQueryBuilder, ForeignProperty, Property)
@@ -309,16 +296,6 @@ def select(
     prep: Tuple[Any],
 ) -> Tuple[Any]:
     return tuple(env.call('select', fpr, v) for v in prep)
-
-
-@ufunc.resolver(BaseQueryBuilder, ForeignProperty, Bind)
-def select(env: BaseQueryBuilder, fpr: ForeignProperty, item: Bind):
-    model = fpr.right.prop.model
-    prop = model.flatprops.get(item.name)
-    if prop and authorized(env.context, prop, Action.SEARCH):
-        return env.call('select', fpr, prop)
-    else:
-        raise PropertyNotFound(model, property=item.name)
 
 
 @ufunc.resolver(BaseQueryBuilder, ForeignProperty, PrimaryKey)
@@ -411,7 +388,8 @@ def paginate(env, expr):
             if not page.filter_only:
                 env.page.select = env.call('select', page)
                 for by, page_by in page.by.items():
-                    sorted_ = env.call('sort', Negative(page_by.prop.name) if by.startswith("-") else Bind(page_by.prop.name))
+                    sorted_ = env.call('sort',
+                                       Negative(page_by.prop.name) if by.startswith("-") else Bind(page_by.prop.name))
                     if sorted_ is not None:
                         if isinstance(sorted_, (list, set, tuple)):
                             env.page.sort += sorted_
@@ -469,3 +447,18 @@ def validate_dtype_for_select(env, dtype: String, selected_props: List[Property]
                 raise CannotSelectTextAndSpecifiedLang(parent.dtype)
 
 
+COMPARE = [
+    'eq',
+    'ne',
+    'lt',
+    'le',
+    'gt',
+    'ge',
+    'startswith',
+    'contains',
+]
+
+
+@ufunc.resolver(BaseQueryBuilder, NestedProperty, object, names=COMPARE)
+def compare(env: BaseQueryBuilder, op: str, nested: NestedProperty, value: object):
+    return env.call(op, nested.right, value)

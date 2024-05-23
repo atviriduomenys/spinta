@@ -5,7 +5,7 @@ from typing import Iterator
 from sqlalchemy.engine.row import RowProxy
 
 from spinta import commands
-from spinta.components import Context
+from spinta.components import Context, Property
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.helpers import handle_ref_key_assignment, generate_pk_for_row
@@ -40,6 +40,38 @@ def _resolve_expr(context: Context, row: RowProxy, sel: Selected) -> Any:
     return env.resolve(sel.prep)
 
 
+def _aggregate_values(data, target: Property):
+    if target is None or target.list is None:
+        return data
+
+    key_path = target.place
+    key_parts = key_path.split('.')
+
+    # Drop first part, since if nested prop is part of the list will always be first value
+    # ex: from DB we get {"notes": [{"note": 0}]}
+    # but after fetching the value we only get [{"note": 0}]
+    # so if our place is "notes.note", we need to drop "notes" part
+    if len(key_parts) > 1:
+        key_parts = key_parts[1:]
+
+    def recursive_collect(sub_data, depth=0):
+        if depth < len(key_parts):
+            if isinstance(sub_data, list):
+                collected = []
+                for item in sub_data:
+                    collected.extend(recursive_collect(item, depth))
+                return collected
+            elif isinstance(sub_data, dict) and key_parts[depth] in sub_data:
+                return recursive_collect(sub_data[key_parts[depth]], depth + 1)
+        else:
+            return [sub_data]
+
+        return []
+
+    # Start the recursive collection process
+    return recursive_collect(data, 0)
+
+
 def _get_row_value(context: Context, row: RowProxy, sel: Any) -> Any:
     if isinstance(sel, Selected):
         if isinstance(sel.prep, Expr):
@@ -49,6 +81,7 @@ def _get_row_value(context: Context, row: RowProxy, sel: Any) -> Any:
         else:
             if sel.item is not None:
                 val = row[sel.item]
+                val = _aggregate_values(val, sel.prop)
             else:
                 val = None
 

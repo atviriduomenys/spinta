@@ -1,9 +1,9 @@
 import dataclasses
-from typing import List, Any, Dict
+from typing import List, Any, Dict, Union
 
 from spinta.components import Page, Property
 from spinta.core.ufuncs import Env, Expr
-from spinta.types.datatype import DataType
+from spinta.types.datatype import DataType, Object
 from spinta.utils.schema import NA
 
 
@@ -130,3 +130,12 @@ class Func:
 class ReservedProperty(Func):
     dtype: DataType
     param: str
+
+
+@dataclasses.dataclass
+class NestedProperty(Func):
+    # Used to mark object nesting
+    # for example object -> datatype
+
+    left: Union[Object]
+    right: Any
