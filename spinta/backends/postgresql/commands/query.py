@@ -395,7 +395,7 @@ def select(env, arg: Star) -> None:
         # Check if prop is expanded or not
         if is_expandable_not_expanded(env, prop):
             continue
-        env.selected[prop.place] = env.call('select', prop.dtype)
+        env.selected[prop.place] = env.call('select', prop)
 
 
 @ufunc.resolver(PgQueryBuilder, Bind)
