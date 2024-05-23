@@ -403,9 +403,8 @@ id | d | r | b | m | property     | type    | ref | level | source  | access
         result = getone_response.json()
         del result["_id"]
         assert result == {
-            "_revision": "0",
             "_type": "example/City",
-            "id": 1,
+            "id": 0,
             "name": "Vilnius"
         }
 
