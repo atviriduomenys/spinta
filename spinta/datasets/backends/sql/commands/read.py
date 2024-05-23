@@ -135,37 +135,35 @@ def getone(
 
     keymap: KeyMap = context.get(f'keymap.{model.keymap.name}')
     _id = keymap.decode(model.name, id_)
-    res = {
-        '_type': model.model_type()
-    }
+
     table = model.external.name
     table = backend.get_table(model, table)
 
     env = builder.init(backend, table)
     # expr = env.resolve({"pk": "_id"})
     # expr = {"pk": "_id"}
-    query = Expr('eq', 'id', _id)
+    pk = model.external.pkeys[0].name
+    query = Expr('eq', pk, _id)
     expr = env.resolve(query)
     where = env.execute(expr)
-
-
 
     qry = env.build(where)
     result = conn.execute(qry)
     # result = conn.execute(stmt)
     result = result.fetchone()
-
+    data = {}
     for key, sel in env.selected.items():
         val = _get_row_value(context, result, sel)
         if isinstance(sel.prop.dtype, Ref):
             val = handle_ref_key_assignment(keymap, env, val, sel.prop.dtype)
-        res[key] = val
-
-
+        data[key] = val
 
     # data = {"_id": id_, "_revision": "0", "id": _id, "name": "Vilnius"}
-    data = res
-    # data.update(res)
+    additional_data = {
+        '_type': model.model_type(),
+        '_id': id_
+    }
+    data.update(additional_data)
     data = flat_dicts_to_nested(data)
     return commands.cast_backend_to_python(context, model, backend, data)
 
