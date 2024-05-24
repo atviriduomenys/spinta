@@ -410,3 +410,40 @@ id | d | r | b | m | property     | type    | ref | level | source  | access
         }
 
 
+def test_get_one_compound_pk(context, rc, tmp_path):
+
+    with create_sqlite_db({
+        'cities': [
+            sa.Column('name', sa.Text),
+            sa.Column('id', sa.Integer),
+            sa.Column('code', sa.Integer)
+        ]
+    }) as db:
+        db.write('cities', [
+            {'name': 'Vilnius', 'id': 0, "code": "VNO"},
+            {'name': 'Kaunas', 'id': 0, "code": "KNS"},
+        ])
+        create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+id | d | r | b | m | property     | type    | ref | level | source  | access
+   | example                      |         |     |       |         |
+   |   | db                       | sql     |     |       |         |
+   |   |   |   | City             |         | id, code  |       | cities  |
+   |   |   |   |   | id           | integer |     | 4     | id      | open
+   |   |   |   |   | name         | string  |     | 4     | name    | open
+   |   |   |   |   | code         | string  |     | 4     | code    | open
+  '''))
+        app = create_client(rc, tmp_path, db)
+        response = app.get('/example/City')
+        response_json = response.json()
+        print(response_json)
+        _id = response_json["_data"][0]["_id"]
+        getone_response = app.get(f'/example/City/{_id}')
+        result = getone_response.json()
+        # del result["_id"]
+        assert result == {
+            "_id": _id,
+            "_type": "example/City",
+            "code": "VNO",
+            "id": 0,
+            "name": "Vilnius"
+        }

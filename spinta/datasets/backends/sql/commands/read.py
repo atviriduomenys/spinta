@@ -123,7 +123,7 @@ def getone(
     *,
     id_: str,
 ) -> ObjectData:
-    # get id by id_ from keymap
+    # get pk (single or list) by id_ from keymap
     if model.keymap:
         context.attach(
             f'keymap.{model.keymap.name}',
@@ -132,33 +132,38 @@ def getone(
     keymap: KeyMap = context.get(f'keymap.{model.keymap.name}')
     _id = keymap.decode(model.name, id_)
 
-    # preparing query for retrieving item by pk
-    pk = model.external.pkeys[0].name
-    query = Expr('eq', pk, _id)
+    # preparing query for retrieving item by pk (single column or multi column)
+    query = {}
+    if isinstance(id, list):
+        pkeys = model.external.pkeys
+        for index, pk in enumerate(pkeys):
+            query[pk.name] = _id[index]
+    else:
+        pk = model.external.pkeys[0].name
+        query[pk] = _id
 
     # building sqlalchemy query
     context.attach(f'transaction.{backend.name}', backend.begin)
     conn = context.get(f'transaction.{backend.name}')
-    builder = SqlQueryBuilder(context)
-    builder.update(model=model)
     table = model.external.name
     table = backend.get_table(model, table)
-    env = builder.init(backend, table)
-    expr = env.resolve(query)
-    where = env.execute(expr)
-    qry = env.build(where)
+
+    qry = table.select()
+    for column_name, column_value in query:
+        id_column = table.c.get(column_name)
+        qry.where(id_column == _id)
 
     # #executing query
     result = conn.execute(qry)
-    result = result.fetchone()
+    row = result.fetchone()
 
     # preparing results
     data = {}
-    for key, sel in env.selected.items():
-        val = _get_row_value(context, result, sel)
-        if isinstance(sel.prop.dtype, Ref):
-            val = handle_ref_key_assignment(keymap, env, val, sel.prop.dtype)
-        data[key] = val
+
+    for field in model.properties:
+        if not field.startswith('_'):
+            value = row[field]
+            data[field] = value
 
     additional_data = {
         '_type': model.model_type(),
