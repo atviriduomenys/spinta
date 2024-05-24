@@ -6,6 +6,8 @@ Changes
 0.1.63 (unreleased)
 ===================
 
+Added support for `getone` for `sql` backend (`#513`__).
+
 
 0.1.62 (2024-02-29)
 ===================
