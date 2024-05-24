@@ -197,7 +197,7 @@ def flat_dicts_to_nested(value, list_keys: list = None):
             recursive_nesting(data, res_[key], keys, depth + 1)
 
         if is_last:
-            if key in res_ and res_[key]:
+            if key in res_ and res_[key] and isinstance(res_[key], dict):
                 res_[key].update(data)
             else:
                 res_[key] = data
