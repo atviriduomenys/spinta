@@ -12,6 +12,8 @@ New features:
 
   __ https://github.com/atviriduomenys/spinta/issues/160
 
+- Added support for wsdl(soap) (`#315`__).
+
 0.1.62 (2024-02-29)
 ===================
 
