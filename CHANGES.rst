@@ -8,7 +8,7 @@ Changes
 
 New features:
 
-- Added support for wsdl(soap) (`#315`__).
+- Added support for wsdl(soap) backend (`#315`__).
 
 0.1.62 (2024-02-29)
 ===================
