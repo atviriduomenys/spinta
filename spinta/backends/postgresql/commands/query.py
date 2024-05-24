@@ -544,7 +544,7 @@ def select(env, dtype):
     if dtype.prop.given.explicit:
         name = '_id'
         if env.query_params.prioritize_uri and uri is not None:
-            fpr = ForeignProperty(None, dtype.prop, dtype.model.properties['_id'])
+            fpr = ForeignProperty(None, dtype, dtype.model.properties['_id'].dtype)
             table = env.get_joined_table(fpr)
             column = table.c[uri.place]
             name = '_uri'
