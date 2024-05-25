@@ -134,7 +134,7 @@ def getone(
 
     # preparing query for retrieving item by pk (single column or multi column)
     query = {}
-    if isinstance(id, list):
+    if isinstance(_id, list):
         pkeys = model.external.pkeys
         for index, pk in enumerate(pkeys):
             query[pk.name] = _id[index]
@@ -149,9 +149,9 @@ def getone(
     table = backend.get_table(model, table)
 
     qry = table.select()
-    for column_name, column_value in query:
+    for column_name, column_value in query.items():
         id_column = table.c.get(column_name)
-        qry.where(id_column == column_value)
+        qry = qry.where(id_column == column_value)
 
     # #executing query
     result = conn.execute(qry)

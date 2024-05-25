@@ -420,8 +420,8 @@ def test_get_one_compound_pk(context, rc, tmp_path):
         ]
     }) as db:
         db.write('cities', [
-            {'name': 'Vilnius', 'id': 0, "code": "VNO"},
-            {'name': 'Kaunas', 'id': 0, "code": "KNS"},
+            {'name': 'Vilnius', 'id': 4, "code": "city"},
+            {'name': 'Kaunas', 'id': 2, "code": "city"},
         ])
         create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
 id | d | r | b | m | property     | type    | ref | level | source  | access
@@ -435,15 +435,13 @@ id | d | r | b | m | property     | type    | ref | level | source  | access
         app = create_client(rc, tmp_path, db)
         response = app.get('/example/City')
         response_json = response.json()
-        print(response_json)
         _id = response_json["_data"][0]["_id"]
         getone_response = app.get(f'/example/City/{_id}')
         result = getone_response.json()
-        # del result["_id"]
         assert result == {
             "_id": _id,
             "_type": "example/City",
-            "code": "VNO",
-            "id": 0,
-            "name": "Vilnius"
+            "code": "city",
+            "id": 2,
+            "name": "Kaunas"
         }
