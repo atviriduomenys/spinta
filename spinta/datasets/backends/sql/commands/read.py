@@ -151,7 +151,7 @@ def getone(
     qry = table.select()
     for column_name, column_value in query:
         id_column = table.c.get(column_name)
-        qry.where(id_column == _id)
+        qry.where(id_column == column_value)
 
     # #executing query
     result = conn.execute(qry)
