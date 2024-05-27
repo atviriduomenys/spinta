@@ -5,7 +5,7 @@ from spinta.backends import Backend
 from spinta.components import Context, Property
 from spinta.core.ufuncs import Expr
 from spinta.dimensions.enum.helpers import get_prop_enum
-from spinta.exceptions import ValueNotInEnum
+from spinta.exceptions import ValueNotInEnum, PropertyNotFound
 from spinta.ufuncs.basequerybuilder.components import Selected
 from spinta.utils.schema import NA
 
@@ -59,6 +59,12 @@ def get_row_value(context: Context, backend: Backend, row: Any, sel: Any) -> Any
             val = get_row_value(context, backend, row, sel.prep)
         else:
             if sel.item is not None:
+                if sel.item not in row:
+                    raise PropertyNotFound(
+                        sel.prop.model,
+                        property=sel.prop.name,
+                        external=sel.prop.external.name,
+                    )
                 val = row[sel.item]
                 val = _aggregate_values(val, sel.prop)
             else:
