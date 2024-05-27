@@ -60,8 +60,8 @@ def count(env: RequestParamsBuilder):
     return FuncProperty(func=None, prop=prop)
 
 
-@ufunc.resolver(RequestParamsBuilder)
-def checksum(env: RequestParamsBuilder):
+@ufunc.resolver(RequestParamsBuilder, Expr)
+def checksum(env: RequestParamsBuilder, expr: Expr):
     prop = Property()
     prop.name = 'checksum()'
     prop.place = 'checksum()'

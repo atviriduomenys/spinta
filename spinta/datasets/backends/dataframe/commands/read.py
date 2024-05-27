@@ -1,40 +1,35 @@
 import io
 import json
 import pathlib
-import re
-
-import numpy as np
-import urllib
 from typing import Dict, Any, Iterator
 
 import dask
+import numpy as np
 import requests
 from dask.dataframe import DataFrame
-from dask.dataframe.utils import make_meta
 from lxml import etree
 
 from spinta import commands
-from spinta.components import Context, Property, Model, UrlParams
-from spinta.core.ufuncs import Expr, asttoexpr
+from spinta.components import Context, Property, Model
+from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.dataframe.components import DaskBackend, Csv, Xml, Json
-from spinta.datasets.backends.dataframe.commands.query import DaskDataFrameQueryBuilder, Selected
 from spinta.datasets.backends.dataframe.ufuncs.components import TabularResource
-
+from spinta.datasets.backends.dataframe.ufuncs.query.components import DaskDataFrameQueryBuilder
 from spinta.datasets.backends.helpers import handle_ref_key_assignment
 from spinta.datasets.components import Resource
 from spinta.datasets.helpers import get_enum_filters, get_ref_filters
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.datasets.utils import iterparams
-from spinta.dimensions.enum.helpers import get_prop_enum
 from spinta.dimensions.param.components import ResolvedParams
-from spinta.exceptions import ValueNotInEnum, PropertyNotFound, NoExternalName
+from spinta.exceptions import PropertyNotFound, NoExternalName
 from spinta.manifests.components import Manifest
 from spinta.manifests.dict.helpers import is_list_of_dicts, is_blank_node
-from spinta.types.datatype import PrimaryKey, Ref, DataType, Boolean, Number, Integer, DateTime, Time
+from spinta.types.datatype import PrimaryKey, Ref, DataType, Boolean, Number, Integer, DateTime
 from spinta.typing import ObjectData
+from spinta.ufuncs.basequerybuilder.components import Selected
 from spinta.ufuncs.helpers import merge_formulas
+from spinta.ufuncs.resultbuilder.helpers import get_row_value
 from spinta.utils.data import take
-from spinta.utils.schema import NA
 
 
 @commands.load.register(Context, DaskBackend, dict)
@@ -50,55 +45,6 @@ def prepare(context: Context, backend: DaskBackend, manifest: Manifest, **kwargs
 @commands.bootstrap.register(Context, DaskBackend)
 def bootstrap(context: Context, backend: DaskBackend):
     pass
-
-
-def _resolve_expr(
-    context: Context,
-    row: Dict[str, Any],
-    sel: Selected,
-) -> Any:
-    if sel.item is None:
-        val = None
-    else:
-        val = row[sel.item]
-    raise NotImplementedError
-    return val
-
-
-def _get_row_value(context: Context, row: Dict[str, Any], sel: Any) -> Any:
-    if isinstance(sel, Selected):
-        if isinstance(sel.prep, Expr):
-            val = _resolve_expr(context, row, sel)
-        elif sel.prep is not NA:
-            val = _get_row_value(context, row, sel.prep)
-        else:
-            if sel.item in row.keys():
-                val = row[sel.item]
-            else:
-                raise PropertyNotFound(
-                    sel.prop.model,
-                    property=sel.prop.name,
-                    external=sel.prop.external.name,
-                )
-
-        if enum := get_prop_enum(sel.prop):
-            if val is None:
-                pass
-            elif str(val) in enum:
-                item = enum[str(val)]
-                if item.prepare is not NA:
-                    val = item.prepare
-            else:
-                raise ValueNotInEnum(sel.prop, value=val)
-
-        return val
-    if isinstance(sel, tuple):
-        return tuple(_get_row_value(context, row, v) for v in sel)
-    if isinstance(sel, list):
-        return [_get_row_value(context, row, v) for v in sel]
-    if isinstance(sel, dict):
-        return {k: _get_row_value(context, row, v) for k, v in sel.items()}
-    return sel
 
 
 def _select(prop: Property, df: DataFrame):
@@ -488,7 +434,7 @@ def _dask_get_all(context: Context, query: Expr, df: dask.dataframe, backend: Da
             '_type': model.model_type(),
         }
         for key, sel in env.selected.items():
-            val = _get_row_value(context, row, sel)
+            val = get_row_value(context, backend, row, sel)
             if sel.prop:
                 if isinstance(sel.prop.dtype, PrimaryKey):
                     val = keymap.encode(sel.prop.model.model_type(), val)

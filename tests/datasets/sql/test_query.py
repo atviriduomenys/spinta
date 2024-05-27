@@ -10,7 +10,6 @@ from spinta import commands
 from spinta.auth import AdminToken
 from spinta.components import Model, Mode, Context
 from spinta.core.config import RawConfig
-from spinta.datasets.backends.sql.commands.query import SqlQueryBuilder
 from spinta.datasets.backends.sql.components import Sql
 from spinta.manifests.components import Manifest
 from spinta.testing.datasets import use_dialect_functions

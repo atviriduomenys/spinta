@@ -1,7 +1,7 @@
 from spinta import commands
 from spinta.components import Context
 from spinta.core.config import RawConfig
-from spinta.datasets.backends.sql.commands.read import _get_row_value
+from spinta.datasets.backends.sql.components import Sql
 from spinta.exceptions import TooShortPageSize
 from spinta.manifests.tabular.helpers import striptable
 import pytest
@@ -9,9 +9,11 @@ from spinta.testing.client import create_client
 from spinta.testing.data import listdata
 from spinta.testing.datasets import create_sqlite_db, use_default_dialect_functions
 from spinta.testing.manifest import load_manifest_and_context
-from spinta.datasets.backends.sql.commands.query import Selected
 from spinta.testing.tabular import create_tabular_manifest
 import sqlalchemy as sa
+
+from spinta.ufuncs.basequerybuilder.components import Selected
+from spinta.ufuncs.resultbuilder.helpers import get_row_value
 
 
 @pytest.fixture(scope='module')
@@ -68,7 +70,7 @@ def test__get_row_value_null(rc: RawConfig):
     row = ["Vilnius", None]
     model = commands.get_model(context, manifest, 'example/City')
     sel = Selected(1, model.properties['rating'])
-    assert _get_row_value(context, row, sel) is None
+    assert get_row_value(context, Sql(), row, sel) is None
 
 
 @pytest.mark.parametrize("use_default_dialect", [True, False])

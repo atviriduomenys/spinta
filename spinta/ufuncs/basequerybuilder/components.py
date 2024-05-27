@@ -139,3 +139,10 @@ class NestedProperty(Func):
 
     left: Union[Object]
     right: Any
+
+
+@dataclasses.dataclass
+class ResultProperty(Func):
+    # Used when result is calculated at ResultBuilder level
+    # for example: checksum()
+    expr: Expr

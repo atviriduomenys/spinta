@@ -1311,3 +1311,8 @@ def update_manifest_dataset_schema(context: Context, manifest: Manifest, target_
 @command()
 def reload_backend_metadata(context: Context, manifest: Manifest, backend: Backend):
     """Refreshed backend specific data, in case updates were made and need to reflect the changes."""
+
+
+@command()
+def get_result_builder(context: Context, backend: Backend):
+    """Returns backend specific result builder"""

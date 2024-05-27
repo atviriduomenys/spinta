@@ -2,17 +2,17 @@ from typing import Iterator
 from typing import overload
 
 from spinta import commands
-from spinta.backends.postgresql.commands.query import PgQueryBuilder
 from spinta.backends.postgresql.components import PostgreSQL
+from spinta.backends.postgresql.ufuncs.query.components import PgQueryBuilder
 from spinta.components import Context
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
-from spinta.datasets.backends.sql.commands.read import _get_row_value
 from spinta.exceptions import ItemDoesNotExist
 from spinta.exceptions import NotFoundError
 from spinta.typing import ObjectData
 from spinta.ufuncs.basequerybuilder.components import QueryParams
 from spinta.ufuncs.basequerybuilder.helpers import get_page_values
+from spinta.ufuncs.resultbuilder.helpers import get_row_value
 from spinta.utils.nestedstruct import flat_dicts_to_nested
 
 
@@ -73,7 +73,7 @@ def getall(
                 prop = model.flatprops[key]
                 if prop.list is not None and prop.list.place not in list_keys:
                     list_keys.append(prop.list.place)
-            val = _get_row_value(context, row, sel)
+            val = get_row_value(context, backend, row, sel)
             res[key] = val
         if model.page.is_enabled:
             res['_page'] = get_page_values(env, row)

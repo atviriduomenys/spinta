@@ -7,7 +7,8 @@ from spinta.exceptions import InvalidArgumentInExpression, CannotSelectTextAndSp
     LangNotDeclared, FieldNotInResource
 from spinta.types.datatype import DataType, String, Ref, Object, Array, File, BackRef, PrimaryKey, ExternalRef
 from spinta.types.text.components import Text
-from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, Star, ReservedProperty, NestedProperty
+from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, Star, ReservedProperty, NestedProperty, \
+    ResultProperty
 from spinta.ufuncs.basequerybuilder.helpers import get_pagination_compare_query
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.schema import NA
@@ -246,6 +247,13 @@ def select(env, prop):
     return env.call('select', prop.dtype, prop.param)
 
 
+@ufunc.resolver(BaseQueryBuilder, ResultProperty)
+def select(env: BaseQueryBuilder, prop: ResultProperty):
+    return Selected(
+        prep=prop.expr
+    )
+
+
 @ufunc.resolver(BaseQueryBuilder, ForeignProperty)
 def select(
     env: BaseQueryBuilder,
@@ -461,3 +469,4 @@ COMPARE = [
 @ufunc.resolver(BaseQueryBuilder, NestedProperty, object, names=COMPARE)
 def compare(env: BaseQueryBuilder, op: str, nested: NestedProperty, value: object):
     return env.call(op, nested.right, value)
+

@@ -22,8 +22,10 @@ CONFIG = {
     },
     'ufuncs': [
         'spinta.ufuncs',
-        'spinta.datasets.backends.sql.commands.query',
-        'spinta.datasets.backends.dataframe.commands.query',
+        'spinta.backends.postgresql.ufuncs',
+        'spinta.backends.mongo.ufuncs',
+        'spinta.datasets.backends.sql.ufuncs',
+        'spinta.datasets.backends.dataframe.ufuncs',
     ],
     'components': {
         'core': {

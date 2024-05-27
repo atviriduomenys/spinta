@@ -1,57 +1,14 @@
 from typing import Dict, Any, Tuple, List
 
-from dask import dataframe as Dataframe
-
 from spinta.auth import authorized
-from spinta.components import Model, Property, Action
-from spinta.core.ufuncs import Env, Expr, ufunc, Bind, Unresolved
-from spinta.datasets.backends.dataframe.components import DaskBackend
-from spinta.datasets.backends.sql.commands.query import GetAttr
-from spinta.exceptions import UnknownMethod, PropertyNotFound, NotImplementedFeature, SourceCannotBeList
+from spinta.components import Property, Action
+from spinta.core.ufuncs import Expr, ufunc, Bind, Unresolved, GetAttr
+from spinta.datasets.backends.dataframe.ufuncs.query.components import DaskDataFrameQueryBuilder, DaskSelected as Selected
+from spinta.exceptions import PropertyNotFound, NotImplementedFeature, SourceCannotBeList
 from spinta.types.datatype import DataType, PrimaryKey, Ref
-from spinta.ufuncs.basequerybuilder.components import Selected
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.data import take
 from spinta.utils.schema import NA
-
-
-class DaskDataFrameQueryBuilder(Env):
-    backend: DaskBackend
-    model: Model
-    dataframe: Dataframe
-
-    def init(self, backend: DaskBackend, dataframe: Dataframe):
-        return self(
-            backend=backend,
-            dataframe=dataframe,
-            resolved={},
-            selected=None,
-            sort={
-                "desc": [],
-                "asc": []
-            },
-            limit=None,
-            offset=None,
-        )
-
-    def build(self, where):
-        if self.selected is None:
-            self.call('select', Expr('select'))
-        df = self.dataframe
-
-        if self.limit is not None:
-            df = df.head(self.limit, npartitions=-1, compute=False)
-
-        if self.offset is not None:
-            df = df.loc[self.offset:]
-        return df
-
-    def execute(self, expr: Any):
-        expr = self.call('_resolve_unresolved', expr)
-        return super().execute(expr)
-
-    def default_resolver(self, expr, *args, **kwargs):
-        raise UnknownMethod(name=expr.name, expr=str(expr(*args, **kwargs)))
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Expr, name='and')
