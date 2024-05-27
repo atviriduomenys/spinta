@@ -9,9 +9,9 @@ import pymongo
 
 from spinta import exceptions
 from spinta.auth import authorized
-from spinta.backends.mongo.ufuncs.components import MongoQueryBuilder, Recurse, Lower
+from spinta.backends.mongo.ufuncs.components import MongoQueryBuilder, Recurse, Lower, Negative, Positive
 from spinta.components import Action, Model, Property, Page
-from spinta.core.ufuncs import Bind, Negative, Positive
+from spinta.core.ufuncs import Bind
 from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import ufunc
 from spinta.exceptions import EmptyStringSearch

@@ -11,9 +11,10 @@ from spinta import exceptions
 from spinta.auth import authorized
 from spinta.backends.constants import TableType
 from spinta.backends.postgresql.components import BackendFeatures
-from spinta.backends.postgresql.ufuncs.query.components import PgQueryBuilder, InheritForeignProperty, Lower, Recurse
+from spinta.backends.postgresql.ufuncs.query.components import PgQueryBuilder, InheritForeignProperty, Lower, Recurse, \
+    Negative, Positive
 from spinta.components import Model, Property, Action, Page
-from spinta.core.ufuncs import Bind, Negative as Negative_, Positive, Negative
+from spinta.core.ufuncs import Bind, Negative as Negative_
 from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import ufunc, GetAttr
 from spinta.datasets.backends.sql.ufuncs.components import Selected
