@@ -59,12 +59,6 @@ def get_row_value(context: Context, backend: Backend, row: Any, sel: Any) -> Any
             val = get_row_value(context, backend, row, sel.prep)
         else:
             if sel.item is not None:
-                if sel.item not in row:
-                    raise PropertyNotFound(
-                        sel.prop.model,
-                        property=sel.prop.name,
-                        external=sel.prop.external.name,
-                    )
                 val = row[sel.item]
                 val = _aggregate_values(val, sel.prop)
             else:
