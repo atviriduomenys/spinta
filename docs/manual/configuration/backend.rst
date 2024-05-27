@@ -27,6 +27,7 @@ supported backends are defined in `components.backends`. You can look it up::
   spinta  components.backends.csv         spinta.datasets.backends.csv.components:Csv
   spinta  components.backends.xml         spinta.datasets.backends.dataframe.components:Xml
   spinta  components.backends.json        spinta.datasets.backends.dataframe.components:Json
+  spinta  components.backends.soap        spinta.datasets.backends.dataframe.components:Soap
 
 Each supported backend has a human readable name, like `postgresql` or `mongo`.
 You can use these names to add backend instances. Backend instance is a
