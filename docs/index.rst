@@ -32,7 +32,9 @@ You can open data following these simple steps:
 
       spinta inspect sqlite:////data.db -o manifest.xlsx
 
-   This will create a file `manifest.xslx`. Then you need to open `manifest.xlsx` using your favorite spreadsheet
+   This will create a file `manifest.xslx`.
+
+   Then you need to open `manifest.xlsx` using your favorite spreadsheet
    program and fill in missing metadata, specifying which columns you want to
    open.
 
