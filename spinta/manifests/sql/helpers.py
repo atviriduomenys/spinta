@@ -1,5 +1,5 @@
 from operator import itemgetter
-from typing import Any
+from typing import Any, TypedDict
 from typing import Dict
 from typing import Iterator
 from typing import List
@@ -239,7 +239,11 @@ TYPES = [
 ]
 
 
-def _get_column_type(column: dict, table: str = None) -> str:
+class _Column(TypedDict):
+    type: TypeEngine
+
+
+def _get_column_type(column: _Column, table: str = None) -> str:
     column_type: TypeEngine = column["type"]
     for cls, name in TYPES:
         if isinstance(column_type, cls):
