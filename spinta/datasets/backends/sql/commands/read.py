@@ -124,11 +124,11 @@ def getone(
     id_: str,
 ) -> ObjectData:
     # get pk (single or list) by id_ from keymap
-    if model.keymap:
-        context.attach(
-            f'keymap.{model.keymap.name}',
-            lambda: model.keymap,
-        )
+    # if model.keymap:
+    #     context.attach(
+    #         f'keymap.{model.keymap.name}',
+    #         lambda: model.keymap,
+    #     )
     keymap: KeyMap = context.get(f'keymap.{model.keymap.name}')
     # keymap: KeyMap = model.keymap
 
