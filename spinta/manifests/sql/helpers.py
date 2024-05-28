@@ -196,7 +196,7 @@ def _read_props(
             }
 
         else:
-            dtype = get_column_type(col, table)
+            dtype = _get_column_type(col, table)
 
         yield prop, {
             'type': dtype,

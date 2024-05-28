@@ -1,7 +1,7 @@
 from sqlalchemy.dialects import mysql
 
-from spinta.manifests.sql.helpers import get_column_type
+from spinta.manifests.sql.helpers import _get_column_type
 
 
 def test_char_type():
-    assert get_column_type(mysql.CHAR()) == 'string'
+    assert _get_column_type(mysql.CHAR()) == 'string'
