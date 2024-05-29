@@ -181,6 +181,10 @@ class SqlQueryBuilder(BaseQueryBuilder):
         return super().execute(expr)
 
     def default_resolver(self, expr, *args, **kwargs):
+
+        # if it's an equal sign (`=`) it might be not a ufunc but a query parameter
+        if expr.name == "eq":
+            return None
         raise UnknownMethod(name=expr.name, expr=str(expr(*args, **kwargs)))
 
     def add_column(self, column: Union[sa.Column, Function]) -> int:

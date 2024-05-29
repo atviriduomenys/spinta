@@ -622,15 +622,7 @@ def _dask_get_all(context: Context, query: Expr, df: dask.dataframe, backend: Da
     query = merge_formulas(query, get_enum_filters(context, model))
     query = merge_formulas(query, get_ref_filters(context, model))
     env = env.init(backend, df)
-    try:
-        expr = env.resolve(query)
-    except UnknownMethod as e:
-        # if it's a "=" symbol in the url query, then we assume that it's not ufunc, but query parameter
-        if e.context["name"] in ('eq', ):
-            expr = None
-        else:
-            raise e
-
+    expr = env.resolve(query)
     where = env.execute(expr)
     qry = env.build(where)
     for i, row in qry.iterrows():
