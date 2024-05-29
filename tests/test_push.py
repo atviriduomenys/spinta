@@ -1,4 +1,3 @@
-import base64
 import datetime
 import hashlib
 import json
@@ -19,21 +18,20 @@ from responses import RequestsMock
 from spinta import commands
 from spinta.cli.helpers.errors import ErrorCounter
 from spinta.cli.push import _PushRow, _reset_pushed
-from spinta.cli.push import _get_row_for_error
-from spinta.cli.push import _map_sent_and_recv
-from spinta.cli.push import _init_push_state
-from spinta.cli.push import _send_request
-from spinta.cli.push import _push
 from spinta.cli.push import _State
+from spinta.cli.push import _get_row_for_error
+from spinta.cli.push import _init_push_state
+from spinta.cli.push import _map_sent_and_recv
+from spinta.cli.push import _push
+from spinta.cli.push import _send_request
 from spinta.core.config import RawConfig
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
+from spinta.testing.client import create_rc, configure_remote_server
 from spinta.testing.data import listdata
 from spinta.testing.datasets import Sqlite, create_sqlite_db
-from spinta.testing.manifest import load_manifest
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.testing.tabular import create_tabular_manifest
-from spinta.testing.client import create_rc, configure_remote_server
 
 
 @pytest.fixture(scope='module')
@@ -500,7 +498,6 @@ def test_push_state__update_sync_first_time(rc: RawConfig, responses: RequestsMo
     state = _State(*_init_push_state('sqlite://', models))
     conn = state.engine.connect()
     context.set('push.state.conn', conn)
-
 
     table = state.metadata.tables[model.name]
     conn.execute(table.insert().values(

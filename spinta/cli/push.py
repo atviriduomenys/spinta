@@ -53,7 +53,7 @@ from spinta.components import Mode
 from spinta.components import Model
 from spinta.components import Store
 from spinta.core.context import configure_context
-from spinta.core.ufuncs import Expr
+from spinta.core.ufuncs import Expr, asttoexpr
 from spinta.datasets.enums import Level
 from spinta.datasets.keymaps.synchronize import sync_keymap
 from spinta.exceptions import InfiniteLoopWithPagination, UnauthorizedPropertyPush, TooShortPageSize
@@ -141,6 +141,7 @@ def push(
     )),
 ):
     """Push data to external data store"""
+    sync_given = synchronize
     if chunk_size:
         chunk_size = tobytes(chunk_size)
 
@@ -213,15 +214,16 @@ def push(
                 no_progress_bar=no_progress_bar,
                 reset_cid=synchronize
             )
-        # sync_push_state(
-        #     context=context,
-        #     models=models,
-        #     client=client,
-        #     server=creds.server,
-        #     error_counter=error_counter,
-        #     no_progress_bar=no_progress_bar,
-        #     metadata=state.metadata
-        # )
+        if sync_given:
+            sync_push_state(
+                context=context,
+                models=models,
+                client=client,
+                server=creds.server,
+                error_counter=error_counter,
+                no_progress_bar=no_progress_bar,
+                metadata=state.metadata
+            )
         _update_page_values_for_models(context, state.metadata, models, incremental, page_model, page)
 
         rows = _read_rows(
@@ -265,7 +267,7 @@ def _build_push_state_sync_url(
 ):
     base = f'{server}/{model}/:format/json?'
 
-    base = f'{base}select(_id,_revision,_page'
+    base = f'{base}select(_id,_revision,_page,checksum()'
     for page_column in page_columns:
         base = f'{base},{page_column}'
     base = f'{base})&sort(_id)'
@@ -285,12 +287,16 @@ def _fetch_all_model_data(
     error_counter: ErrorCounter
 ):
     page = ''
+    page_columns = []
+    if model.page and model.page.by and model.backend.paginated:
+        for page_by in model.page.by.values():
+            page_columns.append(page_by.prop.name)
     while True:
         url = _build_push_state_sync_url(
             server=server,
             model=model.model_type(),
             page=page,
-            page_columns=[],
+            page_columns=page_columns,
             limit=100
         )
         status_code, resp = get_request(
@@ -321,6 +327,95 @@ def _delete_row_from_push_state(
     conn.execute(
         table.delete().
         where(table.c.id == id_)
+    )
+
+
+def _update_row_from_push_state(
+    conn: sa.engine.Connection,
+    table: sa.Table,
+    id_: str,
+    target_row: dict,
+    state_row: dict
+):
+    target_checksum = target_row.get('checksum()')
+    state_checksum = getattr(state_row, 'checksum')
+
+    # Check if target db and pushed data is the same
+
+    page_keys = []
+    reserved_keys = [
+        '_id',
+        '_revision',
+        'checksum()'
+    ]
+    for key in target_row.keys():
+        if key not in reserved_keys:
+            page_keys.append(key)
+
+    skip_update = False
+    if target_checksum == state_checksum:
+        skip_update = True
+        # Check if pushed state did not have errors while pushing already existing data
+        if getattr(state_row, 'error') or getattr(state_row, 'data'):
+            skip_update = False
+
+        # Check if page key values match (could be cases when migrating from old to new versions, or changing page keys)
+        if skip_update:
+            for key in page_keys:
+                if target_row[key] != getattr(state_row, f'page.{key}'):
+                    skip_update = False
+                    break
+
+    # Skip update if nothing has changed
+    if skip_update:
+        return
+
+    page_mapping = {f'page.{key}': target_row[key] for key in page_keys}
+    conn.execute(
+        table.update().
+        where(table.c.id == id_).values(
+            {
+                'revision': target_row.get('_revision'),
+                'checksum': target_checksum,
+                'pushed': datetime.datetime.now(),
+                'error': False,
+                'data': None,
+                **page_mapping
+            }
+        )
+    )
+
+
+def _insert_row_to_push_state(
+    conn: sa.engine.Connection,
+    table: sa.Table,
+    target_row: dict
+):
+    page_keys = []
+    reserved_keys = [
+        '_id',
+        '_revision',
+        'checksum()'
+    ]
+    for key in target_row.keys():
+        if key not in reserved_keys:
+            page_keys.append(key)
+
+    page_mapping = {f'page.{key}': target_row[key] for key in page_keys}
+
+    conn.execute(
+        table.insert().
+        values(
+            {
+                'id': target_row['_id'],
+                'revision': target_row['_revision'],
+                'checksum': target_row['checksum()'],
+                'pushed': datetime.datetime.now(),
+                'error': False,
+                'data': None,
+                **page_mapping
+            }
+        )
     )
 
 
@@ -367,41 +462,37 @@ def sync_push_state(
             server=server,
             error_counter=error_counter
         )
-        sync_data = _get_state_rows_with_id(
+        state_data = _get_state_rows_with_id(
             context=context,
             table=model_table,
             size=size
         )
         target_row = next(target_data, None)
-        sync_row = next(sync_data, None)
-
-        while target_row is not None or sync_row is not None:
+        state_row = next(state_data, None)
+        while target_row is not None or state_row is not None:
             target_id = target_row['_id'] if target_row is not None else None
-            sync_id = sync_row['id'] if sync_row is not None else None
+            state_id = state_row['id'] if state_row is not None else None
 
             if target_row is None:
-                _delete_row_from_push_state(conn, model_table, sync_id)
-                print("REMOVE", target_id, sync_id)
-                sync_row = next(sync_data, None)
+                _delete_row_from_push_state(conn, model_table, state_id)
+                state_row = next(state_data, None)
                 continue
 
-            if sync_row is None:
-                print("ADD", target_id, sync_id)
+            if state_row is None:
+                _insert_row_to_push_state(conn, model_table, target_row)
                 target_row = next(target_data, None)
                 continue
 
-            if target_id == sync_id:
-                print("SAME", target_id, sync_id)
+            if target_id == state_id:
+                _update_row_from_push_state(conn, model_table, state_id, target_row, state_row)
                 target_row = next(target_data, None)
-                sync_row = next(sync_data, None)
-            elif target_id < sync_id:
-                print("ADD", target_id, sync_id)
+                state_row = next(state_data, None)
+            elif target_id < state_id:
+                _insert_row_to_push_state(conn, model_table, target_row)
                 target_row = next(target_data, None)
             else:
-                _delete_row_from_push_state(conn, model_table, sync_id)
-                print("REMOVE", target_id, sync_id)
-                sync_row = next(sync_data, None)
-
+                _delete_row_from_push_state(conn, model_table, state_id)
+                state_row = next(state_data, None)
 
 
 def extract_dependant_nodes(context: Context, models: List[Model], filter_pushed: bool):
@@ -1188,9 +1279,15 @@ def _send_data_dry_run(
     """Pretend data has been sent to a target location."""
     recv = json.loads(data)['_data']
     for row in recv:
+        # Extract id from delete case, it is stored in _where eq expression
+        if '_op' in row and row['_op'] == 'delete' and '_where' in row:
+            id_ = spyna.parse(asttoexpr(row['_where']))['args'][1]
+            row['_id'] = id_
+
         if '_id' not in row:
             row['_id'] = str(uuid.uuid4())
-        row['_rev'] = str(uuid.uuid4())
+        if '_revision' not in row:
+            row['_revision'] = str(uuid.uuid4())
     return recv
 
 
@@ -1375,6 +1472,8 @@ def _map_sent_and_recv(
                 f"sent._id = {_id}, "
                 f"received._id = {recv_row['_id']}"
             )
+            pp(sent_row.data)
+            pp(recv_row)
             sent_row.data['_revision'] = recv_row['_revision']
             sent_row.error = False
             yield sent_row
@@ -1395,6 +1494,7 @@ def _init_push_state(
     dburi: str,
     models: List[Model],
 ) -> Tuple[sa.engine.Engine, sa.MetaData]:
+    print(dburi)
     engine = sa.create_engine(dburi)
     metadata = sa.MetaData(engine)
     inspector = sa.inspect(engine)
@@ -2269,4 +2369,3 @@ def _extract_state_page_id_key(row: dict):
             result.append(value)
             break
     return result
-
