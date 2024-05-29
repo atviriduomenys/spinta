@@ -890,3 +890,21 @@ class MigrateScalarToRefTypeMissmatch(UserError):
     Migration between scalar types and Ref requires, that mapped columns match their types.
     {details}
     '''
+
+
+class SoapServiceError(Exception):
+    template = "SOAP service is not defined"
+
+
+class SoapServicePortError(Exception):
+    template = "SOAP port is not defined"
+
+
+class SoapServiceSourceError(Exception):
+    template = "Port {port} not in model source"
+
+
+class SoapServiceOperationError(Exception):
+    template = "no SOAP service operation defined"
+
+

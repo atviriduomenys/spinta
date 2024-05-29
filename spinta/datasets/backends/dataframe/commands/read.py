@@ -27,7 +27,8 @@ from spinta.datasets.keymaps.components import KeyMap
 from spinta.datasets.utils import iterparams
 from spinta.dimensions.enum.helpers import get_prop_enum
 from spinta.dimensions.param.components import ResolvedParams
-from spinta.exceptions import ValueNotInEnum, PropertyNotFound, NoExternalName, UnknownMethod
+from spinta.exceptions import ValueNotInEnum, PropertyNotFound, NoExternalName, UnknownMethod, SoapServiceError, \
+    SoapServicePortError, SoapServiceSourceError, SoapServiceOperationError
 from spinta.manifests.components import Manifest
 from spinta.manifests.dict.helpers import is_list_of_dicts, is_blank_node
 from spinta.types.datatype import PrimaryKey, Ref, DataType, Boolean, Number, Integer, DateTime, Time, Object
@@ -318,26 +319,12 @@ def _get_data_json(url: str, source: str, model_props: dict):
             yield from _parse_json(f.read(), source, model_props)
 
 
-class SoapServiceError(Exception):
-    pass
-
-
 def _get_data_soap(url: str, source: str, model_props: dict, namespaces: dict, model_params: list[Param], query: Expr):
     # Service model source description needs to be in the following format:
     # service.port.port_type.operation
     # Example:
     # Get.GetPort.GetPortType.GetData
 
-    # Example of parameters for the request to the SOAP service:
-    # soap_params = {
-    #     "ActionType": 46,
-    #     "CallerCode": 1,
-    #     "EndUserInfo": 2,
-    #     "Parameters": <args><data>2024-05-06</data><fmt>xml</fmt></args>,
-    #     "Time": 0,
-    #     "Signature": "a",
-    #     "CallerSignature": "b"
-    # }
 
     def get_query_params(query: Expr):
         # params from query of the call to spinta
@@ -370,28 +357,27 @@ def _get_data_soap(url: str, source: str, model_props: dict, namespaces: dict, m
                 if service_name == model_source_path[0]:
                     break
         else:
-            raise SoapServiceError("Soap service does not exist")
+            raise SoapServiceError
 
         if service.ports:
             for port_name, port in service.ports.items():
                 if port_name == model_source_path[1]:
                     break
             else:
-                raise SoapServiceError("Soap port does not exist")
+                raise SoapServicePortError("Soap port does not exist")
 
         port_type = port.binding.port_type
 
         if port_type.name.localname == model_source_path[2]:
             operations = port_type.operations
         else:
-            raise SoapServiceError("Port not in model source")
-
+            raise SoapServiceSourceError(port=port_type.name.localname)
         if operations:
             for operation_name, operation in operations.items():
                 if operation_name == model_source_path[3]:
                     break
         else:
-            raise SoapServiceError("Operation does not exist")
+            raise SoapServiceOperationError
 
         operation_to_call = getattr(client.service, operation_name)
 
@@ -570,8 +556,6 @@ def getall(
         model_params=model.params,
         query=query
     ).flatten().to_dataframe(meta=meta)
-    # DEBUG INFO GetDataResponse looks like this at this point: '{"0":{"ResponseCode":1,"ResponseData":"something"}}'
-    # which means that the data we need passes through here correctly
     yield from _dask_get_all(context, query, df, backend, model, builder)
 
 
