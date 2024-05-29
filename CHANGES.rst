@@ -12,6 +12,11 @@ New features:
 
   __ https://github.com/atviriduomenys/spinta/issues/160
 
+- Added support for `getone` for `sql` backend (`#513`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/513
+
+
 0.1.62 (2024-02-29)
 ===================
 
