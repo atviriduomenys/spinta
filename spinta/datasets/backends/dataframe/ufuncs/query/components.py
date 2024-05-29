@@ -1,6 +1,6 @@
 from typing import Any
 
-from dask import dataframe as Dataframe
+from dask.dataframe import DataFrame
 
 from spinta.components import Model, Property
 from spinta.core.ufuncs import Env, Expr
@@ -13,9 +13,9 @@ from spinta.utils.schema import NA
 class DaskDataFrameQueryBuilder(Env):
     backend: DaskBackend
     model: Model
-    dataframe: Dataframe
+    dataframe: DataFrame
 
-    def init(self, backend: DaskBackend, dataframe: Dataframe):
+    def init(self, backend: DaskBackend, dataframe: DataFrame):
         return self(
             backend=backend,
             dataframe=dataframe,
