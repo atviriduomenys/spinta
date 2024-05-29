@@ -180,6 +180,8 @@ def select(env: DaskDataFrameQueryBuilder, dtype: DataType, prep: Any) -> Select
             result = env.call('select', prep)
         else:
             result = None
+        if isinstance(result, Selected):
+            return result
         return Selected(prop=dtype.prop, prep=result)
 
 
@@ -205,6 +207,11 @@ def select(
             for prop in pkeys
         ]
     return Selected(prop=dtype.prop, prep=result)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Selected)
+def select(env: DaskDataFrameQueryBuilder, selected: Selected):
+    return selected
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Ref, object)

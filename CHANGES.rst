@@ -6,6 +6,11 @@ Changes
 0.1.63 (unreleased)
 ===================
 
+New features:
+
+- Added new manifest backend for XSD schemas. (`#160`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/160
 
 0.1.62 (2024-02-29)
 ===================
