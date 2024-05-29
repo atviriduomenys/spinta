@@ -5,10 +5,11 @@ from spinta.components import Property, Action
 from spinta.core.ufuncs import Expr, ufunc, Bind, Unresolved, GetAttr
 from spinta.datasets.backends.dataframe.ufuncs.query.components import DaskDataFrameQueryBuilder, DaskSelected as Selected
 from spinta.exceptions import PropertyNotFound, NotImplementedFeature, SourceCannotBeList
-from spinta.types.datatype import DataType, PrimaryKey, Ref
+from spinta.types.datatype import DataType, PrimaryKey, Ref, Binary
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.data import take
 from spinta.utils.schema import NA
+import base64 as b64
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Expr, name='and')
@@ -357,3 +358,23 @@ def select(
     prep: Dict[str, Any],
 ) -> Dict[str, Any]:
     return {k: env.call('select', v) for k, v in prep.items()}
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder)
+def base64(env: DaskDataFrameQueryBuilder) -> bytes:
+    return env.call('base64', env.this)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Property)
+def base64(env: DaskDataFrameQueryBuilder, prop: Property) -> bytes:
+    return env.call('base64', prop.dtype)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Binary)
+def base64(env: DaskDataFrameQueryBuilder, dtype: Binary) -> Selected:
+    item = f'base64({dtype.prop.external.name})'
+    env.dataframe[item] = env.dataframe[dtype.prop.external.name].str.encode('ascii').map(b64.decodebytes, meta=(dtype.prop.external.name, bytes))
+    return Selected(
+        item=item,
+        prop=dtype.prop
+    )

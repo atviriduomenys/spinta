@@ -1472,8 +1472,6 @@ def _map_sent_and_recv(
                 f"sent._id = {_id}, "
                 f"received._id = {recv_row['_id']}"
             )
-            pp(sent_row.data)
-            pp(recv_row)
             sent_row.data['_revision'] = recv_row['_revision']
             sent_row.error = False
             yield sent_row
