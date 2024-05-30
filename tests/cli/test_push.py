@@ -2051,8 +2051,6 @@ def test_push_sync_state_combined(
     remote.app.delete('https://example.com/syncdataset/countries/City/:wipe')
 
 
-
-
 def test_push_sync_state_migrate_page_values(
     context,
     postgresql,

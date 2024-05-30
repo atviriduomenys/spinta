@@ -1,5 +1,5 @@
 from spinta.backends.postgresql.ufuncs.result.components import PgResultBuilder
-from spinta.cli.push import get_data_checksum
+from spinta.cli.helpers.push.utils import get_data_checksum
 from spinta.components import Property
 from spinta.core.ufuncs import ufunc, Expr
 from spinta.ufuncs.basequerybuilder.components import Selected

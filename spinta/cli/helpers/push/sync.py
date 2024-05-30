@@ -1,0 +1,292 @@
+import datetime
+from typing import List
+
+import sqlalchemy as sa
+import tqdm
+from typer import echo
+
+from spinta.cli.helpers.errors import ErrorCounter
+
+from spinta.cli.helpers.push.utils import extract_state_page_id_key, construct_where_condition_from_page
+from spinta.commands.read import PaginationMetaData, get_paginated_values
+from spinta.components import Context
+from spinta.components import Model
+from spinta.components import Page, get_page_size, Property, PageBy
+from spinta.utils.response import get_request
+
+
+def _build_push_state_sync_url(
+    server: str,
+    model: str,
+    page: str,
+    page_columns: list[str],
+    limit: int
+):
+    base = f'{server}/{model}/:format/json?'
+
+    base = f'{base}select(_id,_revision,_page,checksum()'
+    for page_column in page_columns:
+        base = f'{base},{page_column}'
+    base = f'{base})&sort(_id)'
+
+    if page:
+        base = f'{base}&page(\'{page}\')'
+
+    if limit:
+        base = f'{base}&limit({limit})'
+    return base
+
+
+def _fetch_all_model_data(
+    model: Model,
+    client,
+    server: str,
+    error_counter: ErrorCounter
+):
+    page = ''
+    page_columns = []
+    if model.page and model.page.by and model.backend.paginated:
+        for page_by in model.page.by.values():
+            page_columns.append(page_by.prop.name)
+    while True:
+        url = _build_push_state_sync_url(
+            server=server,
+            model=model.model_type(),
+            page=page,
+            page_columns=page_columns,
+            limit=100
+        )
+        status_code, resp = get_request(
+            client,
+            url,
+            ignore_errors=[404],
+            error_counter=error_counter,
+        )
+        if status_code == 200:
+            data = resp['_data']
+            if not data:
+                break
+
+            page = resp['_page']['next']
+
+            for row in data:
+                yield row
+
+        else:
+            break
+
+
+def _get_state_rows_with_id(
+    context: Context,
+    table: sa.Table,
+    size: int
+) -> sa.engine.LegacyCursorResult:
+    conn = context.get('push.state.conn')
+
+    model_page = Page()
+    model_page.size = size + 1
+    prop = Property()
+    prop.name = 'id'
+    model_page.by = {
+        'id': PageBy(prop)
+    }
+    order_by = sa.sql.expression.nullslast(sa.asc(table.c['id']))
+
+    page_meta = PaginationMetaData(
+        page_size=size,
+    )
+
+    while not page_meta.is_finished:
+        page_meta.is_finished = True
+        from_cond = construct_where_condition_from_page(model_page, table, prefix='')
+
+        if from_cond is not None:
+            stmt = sa.select([table]).where(
+                from_cond
+            ).order_by(order_by).limit(model_page.size)
+            rows = conn.execute(
+                stmt
+            )
+        else:
+            stmt = sa.select([table]).order_by(order_by).limit(model_page.size)
+            rows = conn.execute(
+                stmt
+            )
+
+        yield from get_paginated_values(model_page, page_meta, rows, extract_state_page_id_key)
+
+
+def _delete_row_from_push_state(
+    conn: sa.engine.Connection,
+    table: sa.Table,
+    id_: str
+):
+    conn.execute(
+        table.delete().
+        where(table.c.id == id_)
+    )
+
+
+def _update_row_from_push_state(
+    conn: sa.engine.Connection,
+    table: sa.Table,
+    id_: str,
+    target_row: dict,
+    state_row: dict
+):
+    target_checksum = target_row.get('checksum()')
+    state_checksum = getattr(state_row, 'checksum')
+
+    # Check if target db and pushed data is the same
+
+    page_keys = []
+    reserved_keys = [
+        '_id',
+        '_revision',
+        'checksum()'
+    ]
+    for key in target_row.keys():
+        if key not in reserved_keys:
+            page_keys.append(key)
+
+    skip_update = False
+    if target_checksum == state_checksum:
+        skip_update = True
+        # Check if pushed state did not have errors while pushing already existing data
+        if getattr(state_row, 'error') or getattr(state_row, 'data'):
+            skip_update = False
+
+        # Check if page key values match (could be cases when migrating from old to new versions, or changing page keys)
+        if skip_update:
+            for key in page_keys:
+                if target_row[key] != getattr(state_row, f'page.{key}'):
+                    skip_update = False
+                    break
+
+    # Skip update if nothing has changed
+    if skip_update:
+        return
+
+    page_mapping = {f'page.{key}': target_row[key] for key in page_keys}
+    conn.execute(
+        table.update().
+        where(table.c.id == id_).values(
+            {
+                'revision': target_row.get('_revision'),
+                'checksum': target_checksum,
+                'pushed': datetime.datetime.now(),
+                'error': False,
+                'data': None,
+                **page_mapping
+            }
+        )
+    )
+
+
+def _insert_row_to_push_state(
+    conn: sa.engine.Connection,
+    table: sa.Table,
+    target_row: dict
+):
+    page_keys = []
+    reserved_keys = [
+        '_id',
+        '_revision',
+        'checksum()'
+    ]
+    for key in target_row.keys():
+        if key not in reserved_keys:
+            page_keys.append(key)
+
+    page_mapping = {f'page.{key}': target_row[key] for key in page_keys}
+
+    conn.execute(
+        table.insert().
+        values(
+            {
+                'id': target_row['_id'],
+                'revision': target_row['_revision'],
+                'checksum': target_row['checksum()'],
+                'pushed': datetime.datetime.now(),
+                'error': False,
+                'data': None,
+                **page_mapping
+            }
+        )
+    )
+
+
+def sync_push_state(
+    context: Context,
+    client,
+    server: str,
+    models: List[Model],
+    error_counter: ErrorCounter,
+    no_progress_bar: bool,
+    metadata: sa.MetaData
+):
+    config = context.get('config')
+    conn = context.get('push.state.conn')
+    counters = {}
+    if not no_progress_bar:
+        counters = {
+            '_total': tqdm.tqdm(desc='SYNCHRONIZING PUSH STATE', ascii=True)
+        }
+        echo()
+
+    for model in models:
+        model_name = model.model_type()
+        primary_keys = model.external.pkeys
+        size = get_page_size(config, model)
+        skip_model = False
+        # Check permissions
+        # for key in primary_keys:
+        #     is_authorized = authorized(context, key, action=Action.SEARCH)
+        #     if not is_authorized:
+        #         echo(f"SKIPPED '{model.model_type()}' MODEL SYNC, NO PERMISSION.")
+        #         skip_model = True
+        #         break
+        if skip_model:
+            continue
+
+        if not no_progress_bar:
+            counters[model_name] = tqdm.tqdm(desc=model_name, ascii=True)
+
+        model_table = metadata.tables[model.name]
+        target_data = _fetch_all_model_data(
+            model=model,
+            client=client,
+            server=server,
+            error_counter=error_counter
+        )
+        state_data = _get_state_rows_with_id(
+            context=context,
+            table=model_table,
+            size=size
+        )
+        target_row = next(target_data, None)
+        state_row = next(state_data, None)
+        while target_row is not None or state_row is not None:
+            target_id = target_row['_id'] if target_row is not None else None
+            state_id = state_row['id'] if state_row is not None else None
+
+            if target_row is None:
+                _delete_row_from_push_state(conn, model_table, state_id)
+                state_row = next(state_data, None)
+                continue
+
+            if state_row is None:
+                _insert_row_to_push_state(conn, model_table, target_row)
+                target_row = next(target_data, None)
+                continue
+
+            if target_id == state_id:
+                _update_row_from_push_state(conn, model_table, state_id, target_row, state_row)
+                target_row = next(target_data, None)
+                state_row = next(state_data, None)
+            elif target_id < state_id:
+                _insert_row_to_push_state(conn, model_table, target_row)
+                target_row = next(target_data, None)
+            else:
+                _delete_row_from_push_state(conn, model_table, state_id)
+                state_row = next(state_data, None)
