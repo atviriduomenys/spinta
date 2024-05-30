@@ -76,10 +76,10 @@ def test_inspect(
 
     # Check what was detected.
     context, manifest = load_manifest_and_context(rc_new, tmp_path / 'result.csv')
-    commands.get_dataset(context, manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
+    commands.get_dataset(context, manifest, 'db_sqlite').resources['resource1'].external = 'sqlite'
     assert manifest == f'''
     d | r | b | m | property   | type    | ref     | source     | prepare
-    dbsqlite                   |         |         |            |
+    db_sqlite                  |         |         |            |
       | resource1              | sql     |         | sqlite     |
                                |         |         |            |
       |   |   | City           |         |         | CITY       |
@@ -109,7 +109,7 @@ def test_inspect_from_manifest_table(
     context = create_test_context(rc_new)
     create_tabular_manifest(context, tmp_path / 'manifest.csv', f'''
     d | r | m | property     | type   | ref | source | access
-    dbsqlite                |        |     |        |
+    db_sqlite                |        |     |        |
       | resource1            | sql    |   | {sqlite.dsn} |
     ''')
     cli.invoke(rc_new, [
@@ -120,10 +120,10 @@ def test_inspect_from_manifest_table(
 
     # Check what was detected.
     context, manifest = load_manifest_and_context(rc_new, tmp_path / 'result.csv')
-    commands.get_dataset(context, manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
+    commands.get_dataset(context, manifest, 'db_sqlite').resources['resource1'].external = 'sqlite'
     assert manifest == f'''
     d | r | b | m | property  | type    | ref | source  | prepare
-    dbsqlite                  |         |     |         |
+    db_sqlite                 |         |     |         |
       | resource1             | sql     |     | sqlite  |
                               |         |     |         |
       |   |   | Country       |         | id  | COUNTRY |
@@ -158,10 +158,10 @@ def test_inspect_format(
 
     # Check what was detected.
     context, manifest = load_manifest_and_context(rc_new, tmp_path / 'manifest.csv')
-    commands.get_dataset(context, manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
+    commands.get_dataset(context, manifest, 'db_sqlite').resources['resource1'].external = 'sqlite'
     a, b = compare_manifest(manifest, f'''
     d | r | b | m | property   | type    | ref     | source     | prepare
-    dbsqlite                   |         |         |            |
+    db_sqlite                  |         |         |            |
       | resource1              | sql     |         | sqlite     |
                                |         |         |            |
       |   |   | City           |         |         | CITY       |
@@ -204,10 +204,10 @@ def test_inspect_cyclic_refs(
 
     # Check what was detected.
     context, manifest = load_manifest_and_context(rc_new, tmp_path / 'manifest.csv')
-    commands.get_dataset(context, manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
+    commands.get_dataset(context, manifest, 'db_sqlite').resources['resource1'].external = 'sqlite'
     assert manifest == f'''
     d | r | b | m | property   | type    | ref     | source     | prepare
-    dbsqlite                   |         |         |            |
+    db_sqlite                  |         |         |            |
       | resource1              | sql     |         | sqlite     |
                                |         |         |            |
       |   |   | City           |         | id      | CITY       |
@@ -251,10 +251,10 @@ def test_inspect_self_refs(
 
     # Check what was detected.
     context, manifest = load_manifest_and_context(rc_new, tmp_path / 'manifest.csv')
-    commands.get_dataset(context, manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
+    commands.get_dataset(context, manifest, 'db_sqlite').resources['resource1'].external = 'sqlite'
     assert manifest == f'''
     d | r | b | m | property  | type    | ref      | source    | prepare
-    dbsqlite                  |         |          |           |
+    db_sqlite                 |         |          |           |
       | resource1             | sql     |          | sqlite    |
                               |         |          |           |
       |   |   | Category      |         | id       | CATEGORY  |
@@ -602,10 +602,10 @@ def test_inspect_with_empty_config_dir(
 
     # Check what was detected.
     context, manifest = load_manifest_and_context(rc_new, tmp_path / 'result.csv')
-    commands.get_dataset(context, manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
+    commands.get_dataset(context, manifest, 'db_sqlite').resources['resource1'].external = 'sqlite'
     assert manifest == f'''
     d | r | b | m | property | type    | ref | source
-    dbsqlite                 |         |     |
+    db_sqlite                |         |     |
       | resource1            | sql     |     | sqlite
                              |         |     |
       |   |   | Country      |         | id  | COUNTRY
@@ -636,10 +636,10 @@ def test_inspect_duplicate_table_names(
 
     # Check what was detected.
     context, manifest = load_manifest_and_context(rc_new, result_file_path)
-    commands.get_dataset(context, manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
+    commands.get_dataset(context, manifest, 'db_sqlite').resources['resource1'].external = 'sqlite'
     assert manifest == f'''
     d | r | b | m | property | type    | ref | source
-    dbsqlite                 |         |     |
+    db_sqlite                |         |     |
       | resource1            | sql     |     | sqlite
                              |         |     |
       |   |   | Country      |         |     | COUNTRY
@@ -677,10 +677,10 @@ def test_inspect_duplicate_column_names(
 
     # Check what was detected.
     context, manifest = load_manifest_and_context(rc_new, result_file_path)
-    commands.get_dataset(context, manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
+    commands.get_dataset(context, manifest, 'db_sqlite').resources['resource1'].external = 'sqlite'
     assert manifest == f'''
     d | r | b | m | property | type    | ref | source
-    dbsqlite                 |         |     |
+    db_sqlite                |         |     |
       | resource1            | sql     |     | sqlite
                              |         |     |
       |   |   | Country      |         |     | COUNTRY
@@ -821,14 +821,14 @@ def test_inspect_insert_new_dataset(
     ])
     # Check what was detected.
     context, manifest = load_manifest_and_context(rc_new, result_file_path)
-    commands.get_dataset(context, manifest, 'dbsqlite').resources['resource1'].external = "sqlite"
+    commands.get_dataset(context, manifest, 'db_sqlite').resources['resource1'].external = "sqlite"
     a, b = compare_manifest(manifest, f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
                             |         |     |         |         |         |
          |   | Country      |         |     |         |         |         | Country
          |   |   | name     | string  |     |         |         | open    | Country name
-       dbsqlite             |         |     |         |         |         |
+       db_sqlite            |         |     |         |         |         |
          | resource1        | sql     |     | sqlite  |         |         |
                             |         |     |         |         |         |
          |   | Country      |         |     | COUNTRY |         |         |
@@ -1604,11 +1604,11 @@ def test_inspect_with_views(
     ])
     # Check what was detected.
     context, manifest = load_manifest_and_context(rc_new, result_file_path)
-    commands.get_dataset(context, manifest, 'dbsqlite').resources['resource1'].external = 'sqlite'
-    commands.get_dataset(context, manifest, 'dbsqlite/views').resources['resource1'].external = 'sqlite'
+    commands.get_dataset(context, manifest, 'db_sqlite').resources['resource1'].external = 'sqlite'
+    commands.get_dataset(context, manifest, 'db_sqlite/views').resources['resource1'].external = 'sqlite'
     a, b = compare_manifest(manifest, f'''
        d | r | m | property  | type    | ref       | source     | prepare | access  | title
-       dbsqlite              |         |           |            |         |         |
+       db_sqlite             |         |           |            |         |         |
          | resource1         | sql     |           | sqlite     |         |         |
                              |         |           |            |         |         |
          |   | Continent     |         | id        | CONTINENT  |         |         |
@@ -1619,7 +1619,7 @@ def test_inspect_with_views(
          |   | Country       |         |           | COUNTRY    |         |         |
          |   |   | code      | string  |           | CODE       |         |         |
          |   |   | continent | ref     | Continent | CONTINENT  |         |         |
-       dbsqlite/views        |         |           |            |         |         |
+       db_sqlite/views       |         |           |            |         |         |
          | resource1         | sql     |           | sqlite     |         |         |
                              |         |           |            |         |         |
          |   | TestView      |         |           | TestView   |         |         |

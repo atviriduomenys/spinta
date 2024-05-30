@@ -21,7 +21,7 @@ def to_dataset_name(name: str) -> str:
             name = parts[-1]
     name = to_code_name(name)
     words = split_words_re.split(name)
-    return _cleanup(''.join(words))
+    return _cleanup('_'.join(words))
 
 
 def to_model_name(name: str) -> str:
