@@ -88,9 +88,10 @@ def test_version(app):
     resp = app.get('/version')
     assert resp.status_code == 200
     assert sorted(next(flatten(resp.json())).keys()) == [
-        'api.version',
+        'dsa.version',
         'implementation.name',
         'implementation.version',
+        'uapi.version',
     ]
 
 
