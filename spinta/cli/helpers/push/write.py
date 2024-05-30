@@ -10,10 +10,13 @@ from typing import Iterable
 from typing import Iterator
 from typing import List
 from typing import Optional
-from urllib.error import HTTPError
+
 
 import pprintpp
+
 import requests
+from requests import HTTPError
+
 import sqlalchemy as sa
 import spinta.cli.push as cli_push
 
