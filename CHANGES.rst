@@ -12,6 +12,8 @@ New features:
 
   __ https://github.com/atviriduomenys/spinta/issues/160
 
+- Added push state database synchronization (use `--sync` with `push` command) (`#P98`).
+
 0.1.62 (2024-02-29)
 ===================
 

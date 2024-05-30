@@ -37,7 +37,7 @@ def sync_keymap(
         for key in primary_keys:
             is_authorized = authorized(context, key, action=Action.SEARCH)
             if not is_authorized:
-                echo(f"SKIPPED '{model.model_type()}' MODEL SYNC, NO PERMISSION.")
+                echo(f"SKIPPED KEYMAP '{model.model_type()}' MODEL SYNC, NO PERMISSION.")
                 skip_model = True
                 break
         if skip_model:

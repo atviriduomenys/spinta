@@ -5,11 +5,12 @@ import sqlalchemy as sa
 import tqdm
 from typer import echo
 
+from spinta.auth import authorized
 from spinta.cli.helpers.errors import ErrorCounter
 
 from spinta.cli.helpers.push.utils import extract_state_page_id_key, construct_where_condition_from_page
 from spinta.commands.read import PaginationMetaData, get_paginated_values
-from spinta.components import Context
+from spinta.components import Context, Action
 from spinta.components import Model
 from spinta.components import Page, get_page_size, Property, PageBy
 from spinta.utils.response import get_request
@@ -240,12 +241,12 @@ def sync_push_state(
         size = get_page_size(config, model)
         skip_model = False
         # Check permissions
-        # for key in primary_keys:
-        #     is_authorized = authorized(context, key, action=Action.SEARCH)
-        #     if not is_authorized:
-        #         echo(f"SKIPPED '{model.model_type()}' MODEL SYNC, NO PERMISSION.")
-        #         skip_model = True
-        #         break
+        for key in primary_keys:
+            is_authorized = authorized(context, key, action=Action.SEARCH)
+            if not is_authorized:
+                echo(f"SKIPPED PUSH STATE '{model.model_type()}' MODEL SYNC, NO PERMISSION.")
+                skip_model = True
+                break
         if skip_model:
             continue
 
@@ -270,6 +271,10 @@ def sync_push_state(
             target_id = target_row['_id'] if target_row is not None else None
             state_id = state_row['id'] if state_row is not None else None
 
+            if not no_progress_bar:
+                counters['_total'].update(1)
+                counters[model_name].update(1)
+
             if target_row is None:
                 _delete_row_from_push_state(conn, model_table, state_id)
                 state_row = next(state_data, None)
@@ -290,3 +295,9 @@ def sync_push_state(
             else:
                 _delete_row_from_push_state(conn, model_table, state_id)
                 state_row = next(state_data, None)
+
+        if model_name in counters:
+            counters[model_name].close()
+
+    if '_total' in counters:
+        counters['_total'].close()

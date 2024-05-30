@@ -164,6 +164,7 @@ def push(
             state = State(*init_push_state(state, models))
             context.attach('push.state.conn', state.engine.begin)
 
+        # Synchronize keymaps
         with manifest.keymap as km:
             first_time = km.first_time_sync()
             if first_time:
@@ -179,6 +180,8 @@ def push(
                 no_progress_bar=no_progress_bar,
                 reset_cid=synchronize
             )
+
+        # Synchronize push state
         if sync_given:
             sync_push_state(
                 context=context,
@@ -189,6 +192,7 @@ def push(
                 no_progress_bar=no_progress_bar,
                 metadata=state.metadata
             )
+
         update_page_values_for_models(context, state.metadata, models, incremental, page_model, page)
 
         rows = read_rows(
