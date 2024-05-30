@@ -8,9 +8,47 @@ Changes
 
 New features:
 
-- Added new manifest backend for XSD schemas. (`#160`__).
+- Parametrization support for XML and JSON external backends (`#217`_,
+  `#256`_).
 
-  __ https://github.com/atviriduomenys/spinta/issues/160
+  .. _#217: https://github.com/atviriduomenys/spinta/issues/217
+  .. _#256: https://github.com/atviriduomenys/spinta/issues/256
+
+- Added new manifest backend for XSD schemas (`#160`_).
+
+  .. _#160: https://github.com/atviriduomenys/spinta/issues/160
+
+- Added `distinct()` function to `model.prepare` (`#579`_).
+
+  .. _#579: https://github.com/atviriduomenys/spinta/issues/579
+
+Bug fixes:
+
+- Migrate internal backend changed types (`#580`_).
+
+  .. _#580: https://github.com/atviriduomenys/spinta/issues/580
+
+- Added porper support for functions in `select()` expressions (P#100).
+
+- Added support for language tags in RDF strings (`#549`_).
+
+  .. _#549: https://github.com/atviriduomenys/spinta/issues/549
+
+- Show values of `text` type in tabular output (`#550`_, `#581`).
+
+  .. _#550: https://github.com/atviriduomenys/spinta/issues/550
+  .. _#581: https://github.com/atviriduomenys/spinta/issues/581
+
+- Added support for PostgreSQL OID type (`#568`_).
+
+  .. _#568: https://github.com/atviriduomenys/spinta/issues/568
+
+- Fixed sorting issue with MySQL and MSSQL external backends (P#90).
+
+- Fixed issue with open transactions when writing data (P#92).
+
+- Fixed issuw with outdated page key in push state tables (P#95).
+
 
 0.1.62 (2024-02-29)
 ===================
