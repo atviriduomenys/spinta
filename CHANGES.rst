@@ -12,6 +12,10 @@ New features:
 
   __ https://github.com/atviriduomenys/spinta/issues/160
 
+- Words in dataset names separated by underscores. (`#626`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/626
+
 0.1.62 (2024-02-29)
 ===================
 
