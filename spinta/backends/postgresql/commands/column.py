@@ -63,7 +63,6 @@ def get_column(backend: PostgreSQL, dtype: Array, table: sa.Table = None, **kwar
     return column
 
 
-
 @commands.get_column.register(PostgreSQL, String)
 def get_column(backend: PostgreSQL, dtype: String, table: sa.Table = None, **kwargs):
     prop = dtype.prop

@@ -22,7 +22,7 @@ def get_model(row: PushRow) -> Model:
     return row.model
 
 
-def get_data_checksum(data: dict, model: Model):
+def get_data_checksum(data: dict, model: Model = None):
     data = fix_data_for_json(take(data))
     data = flatten([data], sepgetter(model))
     data = [[k, v] for x in data for k, v in sorted(x.items())]

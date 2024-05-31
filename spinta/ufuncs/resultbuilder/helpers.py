@@ -1,3 +1,4 @@
+from multipledispatch import dispatch
 from typing import Any
 
 from spinta import commands
@@ -7,15 +8,16 @@ from spinta.core.ufuncs import Expr
 from spinta.dimensions.enum.helpers import get_prop_enum
 from spinta.exceptions import ValueNotInEnum, PropertyNotFound
 from spinta.ufuncs.basequerybuilder.components import Selected
+from spinta.ufuncs.resultbuilder.components import ResultBuilder
 from spinta.utils.schema import NA
 
 
-def _resolve_expr(context: Context, backend: Backend, row: Any, sel: Selected) -> Any:
+def _resolve_expr(context: Context, result_builder: ResultBuilder, row: Any, sel: Selected) -> Any:
     if sel.item is None:
         val = None
     else:
         val = row[sel.item]
-    env = commands.get_result_builder(context, backend).init(val, sel.prop, row)
+    env = result_builder.init(val, sel.prop, row)
     return env.resolve(sel.prep)
 
 
@@ -51,12 +53,19 @@ def _aggregate_values(data, target: Property):
     return recursive_collect(data, 0)
 
 
+@dispatch(Context, Backend, object, object)
 def get_row_value(context: Context, backend: Backend, row: Any, sel: Any) -> Any:
+    env = commands.get_result_builder(context, backend)
+    return get_row_value(context, env, row, sel)
+
+
+@dispatch(Context, ResultBuilder, object, object)
+def get_row_value(context: Context, result_builder: ResultBuilder, row: Any, sel: Any) -> Any:
     if isinstance(sel, Selected):
         if isinstance(sel.prep, Expr):
-            val = _resolve_expr(context, backend, row, sel)
+            val = _resolve_expr(context, result_builder, row, sel)
         elif sel.prep is not NA:
-            val = get_row_value(context, backend, row, sel.prep)
+            val = get_row_value(context, result_builder, row, sel.prep)
         else:
             if sel.item is not None:
                 val = row[sel.item]
@@ -76,9 +85,9 @@ def get_row_value(context: Context, backend: Backend, row: Any, sel: Any) -> Any
 
         return val
     if isinstance(sel, tuple):
-        return tuple(get_row_value(context, backend, row, v) for v in sel)
+        return tuple(get_row_value(context, result_builder, row, v) for v in sel)
     if isinstance(sel, list):
-        return [get_row_value(context, backend, row, v) for v in sel]
+        return [get_row_value(context, result_builder, row, v) for v in sel]
     if isinstance(sel, dict):
-        return {k: get_row_value(context, backend, row, v) for k, v in sel.items()}
+        return {k: get_row_value(context, result_builder, row, v) for k, v in sel.items()}
     return sel

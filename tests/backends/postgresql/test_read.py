@@ -1,9 +1,11 @@
+import uuid
 from pathlib import Path
 
 import pytest
 from _pytest.fixtures import FixtureRequest
 
 from spinta.auth import AdminToken
+from spinta.cli.helpers.push.utils import get_data_checksum
 from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.testing.client import create_test_client
@@ -626,3 +628,211 @@ def test_invalid_inherit_check(
         'name': 'Lithuania'
     })
     assert resp.status_code == 201
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_checksum_result(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property   | type                 | ref      | prepare   | access | level
+    datasets/result/checksum   |                      |          |           |        |
+      |   |   | Country        |                      | id, name |           |        |
+      |   |   |   | id         | integer              |          |           | open   |
+      |   |   |   | name       | string               |          |           | open   |
+      |   |   |   | population | integer              |          |           | open   |
+      |   |   |   |            |                      |          |           |        |
+      |   |   | City           |                      | id       |           |        |
+      |   |   |   | id         | integer              |          |           | open   |
+      |   |   |   | name       | string               |          |           | open   |
+      |   |   |   | country    | ref                  | Country  |           | open   |
+      |   |   |   | add        | object               |          |           | open   |
+      |   |   |   | add.name   | string               |          |           | open   |
+      |   |   |   | add.add    | object               |          |           | open   |
+      |   |   |   | add.add.c  | ref                  | Country  |           | open   | 3
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+
+    app = create_test_client(context)
+    app.authorize(['spinta_insert', 'spinta_getall', 'spinta_wipe', 'spinta_search', 'spinta_set_meta_fields'])
+    lt_id = str(uuid.uuid4())
+    lv_id = str(uuid.uuid4())
+
+    country_data = {
+        lt_id: {
+            'id': 0,
+            'name': 'Lithuania',
+            'population': 1000
+        },
+        lv_id: {
+            'id': 1,
+            'name': 'Latvia',
+            'population': 500
+        }
+    }
+
+    resp = app.post('/datasets/result/checksum/Country', json={
+        '_id': lt_id,
+        **country_data[lt_id]
+    })
+    assert resp.status_code == 201
+    resp = app.post('/datasets/result/checksum/Country', json={
+        '_id': lv_id,
+        **country_data[lv_id]
+    })
+    assert resp.status_code == 201
+
+    vilnius_id = str(uuid.uuid4())
+    kaunas_id = str(uuid.uuid4())
+    riga_id = str(uuid.uuid4())
+    liepaja_id = str(uuid.uuid4())
+
+    city_data = {
+        vilnius_id: {
+            'id': 0,
+            'name': 'Vilnius',
+            'country': {
+                '_id': lt_id
+            },
+            'add': {
+                'name': "VLN",
+                'add': {
+                    'c': {
+                        'id': 0,
+                        'name': 'Lithuania'
+                    }
+                }
+            }
+        },
+        kaunas_id: {
+            'id': 1,
+            'name': 'Kaunas',
+            'country': {
+                '_id': lt_id
+            },
+            'add': {
+                'name': "KN",
+                'add': {
+                    'c': {
+                        'id': 0,
+                        'name': 'Lithuania'
+                    }
+                }
+            }
+        },
+        riga_id: {
+            'id': 2,
+            'name': 'Riga',
+            'country': {
+                '_id': lv_id
+            },
+            'add': {
+                'name': "RG",
+                'add': {
+                    'c': {
+                        'id': 1,
+                        'name': 'Latvia'
+                    }
+                }
+            }
+        },
+        liepaja_id: {
+            'id': 3,
+            'name': 'Liepaja',
+            'country': {
+                '_id': lv_id
+            },
+            'add': {
+                'name': "LP",
+                'add': {
+                    'c': {
+                        'id': 1,
+                        'name': 'Latvia'
+                    }
+                }
+            }
+        }
+    }
+
+    resp = app.post('/datasets/result/checksum/City', json={
+        '_id': vilnius_id,
+        **city_data[vilnius_id]
+    })
+    assert resp.status_code == 201
+    resp = app.post('/datasets/result/checksum/City', json={
+        '_id': kaunas_id,
+        **city_data[kaunas_id]
+    })
+    assert resp.status_code == 201
+    resp = app.post('/datasets/result/checksum/City', json={
+        '_id': riga_id,
+        **city_data[riga_id]
+    })
+    assert resp.status_code == 201
+    resp = app.post('/datasets/result/checksum/City', json={
+        '_id': liepaja_id,
+        **city_data[liepaja_id]
+    })
+    assert resp.status_code == 201
+
+    resp = app.get('/datasets/result/checksum/Country?select(_id, id, checksum())')
+    assert resp.status_code == 200
+    assert listdata(resp, '_id', 'id', 'checksum()', sort='id', full=True) == [
+        {
+            '_id': lt_id,
+            'id': 0,
+            'checksum()': get_data_checksum(
+                country_data[lt_id]
+            )
+        },
+        {
+            '_id': lv_id,
+            'id': 1,
+            'checksum()': get_data_checksum(
+                country_data[lv_id]
+            )
+        },
+    ]
+
+    resp = app.get('/datasets/result/checksum/City?select(_id, id, checksum())')
+    assert resp.status_code == 200
+    assert listdata(resp, '_id', 'id', 'checksum()', sort='id', full=True) == [
+        {
+            '_id': vilnius_id,
+            'id': 0,
+            'checksum()': get_data_checksum(
+                city_data[vilnius_id]
+            )
+        },
+        {
+            '_id': kaunas_id,
+            'id': 1,
+            'checksum()': get_data_checksum(
+                city_data[kaunas_id]
+            )
+        },
+        {
+            '_id': riga_id,
+            'id': 2,
+            'checksum()': get_data_checksum(
+                city_data[riga_id]
+            )
+        },
+        {
+            '_id': liepaja_id,
+            'id': 3,
+            'checksum()': get_data_checksum(
+                city_data[liepaja_id]
+            )
+        },
+    ]

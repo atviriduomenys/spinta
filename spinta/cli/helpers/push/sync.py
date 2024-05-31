@@ -157,6 +157,10 @@ def _update_row_from_push_state(
         if getattr(state_row, 'error') or getattr(state_row, 'data'):
             skip_update = False
 
+        # Check if revisions match, they need match in order to do proper updates
+        if getattr(state_row, 'revision') != target_row['_revision']:
+            skip_update = False
+
         # Check if page key values match (could be cases when migrating from old to new versions, or changing page keys)
         if skip_update:
             for key in page_keys:

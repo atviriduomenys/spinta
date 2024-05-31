@@ -6,6 +6,16 @@ Changes
 0.1.63 (unreleased)
 ===================
 
+Backwards incompatible changes:
+
+- When migrating from versions of `spinta`, where `push` pagination
+  was not supported, to a versions, where it is, the old `push state` database
+  structure is outdated and it can result in getting `InfiniteLoopWithPagination`
+  or `TooShortPageSize` errors (new `push state` database structure now stores pagination values, while old one does not).
+  With the addition of (`P#98`) change, you now are able to run `push --sync` command to synchronize `push state` database.
+  It is important to note that it will also update pagination values, which could fix some of the infinite loop errors.
+
+
 New features:
 
 - Parametrization support for XML and JSON external backends (`#217`_,
@@ -22,13 +32,22 @@ New features:
 
   .. _#579: https://github.com/atviriduomenys/spinta/issues/579
 
+- Added push state database synchronization. (`P#98`)
+
+  Added `checksum()` `select` function to PostgreSQL backend.
+
+Improvements:
+
+- Added `ResultBuilder` support to PostgreSQL backend, also changed it's
+  `QueryBuilder` to work like external SQL. (`P#98`)
+
 Bug fixes:
 
 - Migrate internal backend changed types (`#580`_).
 
   .. _#580: https://github.com/atviriduomenys/spinta/issues/580
 
-- Added porper support for functions in `select()` expressions (P#100).
+- Added proper support for functions in `select()` expressions (P#100).
 
 - Added support for language tags in RDF strings (`#549`_).
 
@@ -47,10 +66,8 @@ Bug fixes:
 
 - Fixed issue with open transactions when writing data (P#92).
 
-- Fixed issuw with outdated page key in push state tables (P#95).
+- Fixed issue with outdated page key in push state tables (P#95).
 
-
-- Added push state database synchronization (use `--sync` with `push` command) (`#P98`).
 
 0.1.62 (2024-02-29)
 ===================
