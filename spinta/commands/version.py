@@ -14,12 +14,18 @@ def get_version(context: Context):
         version = get_scm_version()
 
     return {
-        'api': {
-            'version': '0.0.1'
-        },
         'implementation': {
             'name': 'Spinta',
             'version': version,
         },
-        'build': None,
+        'uapi': {
+            # Supported UAPI version:
+            # https://ivpk.github.io/uapi/
+            'version': '0.1.0',
+        },
+        'dsa': {
+            # Supported DSA version:
+            # https://ivpk.github.io/dsa/
+            'version': '0.1.0',
+        }
     }
