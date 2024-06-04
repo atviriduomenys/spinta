@@ -54,13 +54,31 @@ def multi_type_geodb():
     }) as db:
         db.write('TEST', [
             {
-                'ID': 0, 'NAME': 'LT', 'NUMBER': 0.1, 'URL': 'https://www.example.com/LT', 'DATE': datetime.date(2024, 2, 1), 'TIME': datetime.time(12, 10, 20), 'DATETIME': datetime.datetime(2024, 2, 1, 12, 10, 20)
+                'ID': 0,
+                'NAME': 'LT',
+                'NUMBER': 0.1,
+                'URL': 'https://www.example.com/LT',
+                'DATE': datetime.date(2024, 2, 1),
+                'TIME': datetime.time(12, 10, 20),
+                'DATETIME': datetime.datetime(2024, 2, 1, 12, 10, 20),
             },
             {
-                'ID': 1, 'NAME': 'LV', 'NUMBER': 1.2, 'URL': 'https://www.example.com/LV', 'DATE': datetime.date(2024, 2, 2), 'TIME': datetime.time(12, 20, 20), 'DATETIME': datetime.datetime(2024, 2, 2, 12, 20, 20)
+                'ID': 1,
+                'NAME': 'LV',
+                'NUMBER': 1.2,
+                'URL': 'https://www.example.com/LV',
+                'DATE': datetime.date(2024, 2, 2),
+                'TIME': datetime.time(12, 20, 20),
+                'DATETIME': datetime.datetime(2024, 2, 2, 12, 20, 20),
             },
             {
-                'ID': 2, 'NAME': 'PL', 'NUMBER': 2.3, 'URL': 'https://www.example.com/PL', 'DATE': datetime.date(2024, 2, 3), 'TIME': datetime.time(12, 30, 20), 'DATETIME': datetime.datetime(2024, 2, 3, 12, 30, 20)
+                'ID': 2,
+                'NAME': 'PL',
+                'NUMBER': 2.3,
+                'URL': 'https://www.example.com/PL',
+                'DATE': datetime.date(2024, 2, 3),
+                'TIME': datetime.time(12, 30, 20),
+                'DATETIME': datetime.datetime(2024, 2, 3, 12, 30, 20),
             },
         ])
         yield db
