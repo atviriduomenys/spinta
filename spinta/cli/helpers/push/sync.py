@@ -7,10 +7,10 @@ from typer import echo
 
 from spinta.auth import authorized
 from spinta.cli.helpers.errors import ErrorCounter
-
+from spinta.cli.helpers.push import prepare_data_for_push_state
 from spinta.cli.helpers.push.utils import extract_state_page_id_key, construct_where_condition_from_page
 from spinta.commands.read import PaginationMetaData, get_paginated_values
-from spinta.components import Context, Action
+from spinta.components import Context, Action, Config
 from spinta.components import Model
 from spinta.components import Page, get_page_size, Property, PageBy
 from spinta.utils.response import get_request
@@ -19,48 +19,62 @@ from spinta.utils.response import get_request
 def _build_push_state_sync_url(
     server: str,
     model: str,
+    page_enabled: bool,
     page: str,
     page_columns: list[str],
     limit: int
 ):
     base = f'{server}/{model}/:format/json?'
 
-    base = f'{base}select(_id,_revision,_page,checksum()'
+    required = [
+        '_id',
+        '_revision',
+        'checksum()'
+    ]
+
+    if page_enabled:
+        required.append('_page')
+
+    base = f'{base}select({",".join(required)}'
     for page_column in page_columns:
         base = f'{base},{page_column}'
     base = f'{base})&sort(_id)'
 
-    if page:
-        base = f'{base}&page(\'{page}\')'
+    if page_enabled:
+        if page:
+            base = f'{base}&page(\'{page}\')'
 
-    if limit:
-        base = f'{base}&limit({limit})'
+        if limit:
+            base = f'{base}&limit({limit})'
+
     return base
 
 
 def _fetch_all_model_data(
+    config: Config,
     model: Model,
     client,
     server: str,
     error_counter: ErrorCounter
 ):
+    limit = config.sync_page_size or 1000
     page = ''
     page_columns = []
-    if model.page and model.page.by and model.backend.paginated:
+    if model.page and model.page.by and model.backend.paginated and model.page.is_enabled:
         for page_by in model.page.by.values():
             page_columns.append(page_by.prop.name)
     while True:
         url = _build_push_state_sync_url(
             server=server,
             model=model.model_type(),
+            page_enabled=model.page.is_enabled,
             page=page,
             page_columns=page_columns,
-            limit=100
+            limit=limit
         )
         status_code, resp = get_request(
             client,
             url,
-            ignore_errors=[404],
             error_counter=error_counter,
         )
         if status_code == 200:
@@ -68,7 +82,8 @@ def _fetch_all_model_data(
             if not data:
                 break
 
-            page = resp['_page']['next']
+            if '_page' in resp:
+                page = resp['_page']['next']
 
             for row in data:
                 yield row
@@ -129,6 +144,8 @@ def _delete_row_from_push_state(
 
 
 def _update_row_from_push_state(
+    context: Context,
+    model: Model,
     conn: sa.engine.Connection,
     table: sa.Table,
     id_: str,
@@ -146,6 +163,8 @@ def _update_row_from_push_state(
         '_revision',
         'checksum()'
     ]
+
+    page_mapping = {}
     for key in target_row.keys():
         if key not in reserved_keys:
             page_keys.append(key)
@@ -172,7 +191,11 @@ def _update_row_from_push_state(
     if skip_update:
         return
 
-    page_mapping = {f'page.{key}': target_row[key] for key in page_keys}
+    if page_keys:
+        page_mapping = {key: target_row[key] for key in page_keys}
+        page_mapping = prepare_data_for_push_state(context, model, page_mapping)
+        page_mapping = {f'page.{key}': value for key, value in page_mapping.items()}
+
     conn.execute(
         table.update().
         where(table.c.id == id_).values(
@@ -189,6 +212,8 @@ def _update_row_from_push_state(
 
 
 def _insert_row_to_push_state(
+    context: Context,
+    model: Model,
     conn: sa.engine.Connection,
     table: sa.Table,
     target_row: dict
@@ -199,19 +224,24 @@ def _insert_row_to_push_state(
         '_revision',
         'checksum()'
     ]
+
+    page_mapping = {}
     for key in target_row.keys():
         if key not in reserved_keys:
             page_keys.append(key)
 
-    page_mapping = {f'page.{key}': target_row[key] for key in page_keys}
+    if page_keys:
+        page_mapping = {key: target_row[key] for key in page_keys}
+        page_mapping = prepare_data_for_push_state(context, model, page_mapping)
+        page_mapping = {f'page.{key}': value for key, value in page_mapping.items()}
 
     conn.execute(
         table.insert().
         values(
             {
                 'id': target_row['_id'],
-                'revision': target_row['_revision'],
-                'checksum': target_row['checksum()'],
+                'revision': target_row.get('_revision'),
+                'checksum': target_row.get('checksum()'),
                 'pushed': datetime.datetime.now(),
                 'error': False,
                 'data': None,
@@ -245,20 +275,24 @@ def sync_push_state(
         size = get_page_size(config, model)
         skip_model = False
         # Check permissions
-        for key in primary_keys:
-            is_authorized = authorized(context, key, action=Action.SEARCH)
-            if not is_authorized:
-                echo(f"SKIPPED PUSH STATE '{model.model_type()}' MODEL SYNC, NO PERMISSION.")
-                skip_model = True
-                break
-        if skip_model:
-            continue
+        if model.page.is_enabled:
+            for key in primary_keys:
+                is_authorized = authorized(context, key, action=Action.SEARCH)
+                if not is_authorized:
+                    echo(f"SKIPPED PUSH STATE '{model.model_type()}' MODEL SYNC, NO PERMISSION.")
+                    skip_model = True
+                    break
 
+            if skip_model:
+                continue
+        else:
+            echo(f'MODEL {model.model_type()} DOES NOT SUPPORT PAGINATION')
         if not no_progress_bar:
             counters[model_name] = tqdm.tqdm(desc=model_name, ascii=True)
 
         model_table = metadata.tables[model.name]
         target_data = _fetch_all_model_data(
+            config=config,
             model=model,
             client=client,
             server=server,
@@ -285,16 +319,16 @@ def sync_push_state(
                 continue
 
             if state_row is None:
-                _insert_row_to_push_state(conn, model_table, target_row)
+                _insert_row_to_push_state(context, model, conn, model_table, target_row)
                 target_row = next(target_data, None)
                 continue
 
             if target_id == state_id:
-                _update_row_from_push_state(conn, model_table, state_id, target_row, state_row)
+                _update_row_from_push_state(context, model, conn, model_table, state_id, target_row, state_row)
                 target_row = next(target_data, None)
                 state_row = next(state_data, None)
             elif target_id < state_id:
-                _insert_row_to_push_state(conn, model_table, target_row)
+                _insert_row_to_push_state(context, model, conn, model_table, target_row)
                 target_row = next(target_data, None)
             else:
                 _delete_row_from_push_state(conn, model_table, state_id)

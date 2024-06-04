@@ -218,6 +218,9 @@ CONFIG = {
     # Limit of objects in the page
     'push_page_size': None,
 
+    # Limit of objects in the page
+    'sync_page_size': None,
+
     # Default languages
     # Top most popular EU languages + lt, gathered from https://en.wikipedia.org/wiki/List_of_languages_by_number_of_speakers_in_Europe
     # Last updated: 2023-11-08

@@ -1068,6 +1068,7 @@ class Config:
     AccessLog: Type[AccessLog]
     exporters: Dict[str, Format]
     push_page_size: int = None
+    sync_page_size: int = None
     languages: List[str]
     check_names: bool = False
     # MB

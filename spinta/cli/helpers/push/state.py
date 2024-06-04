@@ -9,6 +9,7 @@ from typing import Tuple
 import sqlalchemy as sa
 
 from spinta import spyna
+from spinta.cli.helpers.push import prepare_data_for_push_state
 from spinta.cli.helpers.push.components import PushRow, Saved
 from spinta.cli.helpers.push.utils import get_data_checksum
 from spinta.components import Context
@@ -144,9 +145,11 @@ def save_push_state(
         if row.model.page and row.model.page.by and '_page' in row.data:
             loaded = row.data['_page']
             page = {
-                f"page.{page_by.prop.name}": loaded[i]
+                page_by.prop.name: loaded[i]
                 for i, page_by in enumerate(row.model.page.by.values())
             }
+            page = prepare_data_for_push_state(context, row.model, page)
+            page = {f'page.{key}': value for key, value in page.items()}
             row.data.pop('_page')
         else:
             page = {}
@@ -226,6 +229,7 @@ def save_page_values(
                         page_by.prop.name: page_by.value
                     })
             if value:
+                value = fix_data_for_json(value)
                 value = json.dumps(value)
                 if saved:
                     conn.execute(

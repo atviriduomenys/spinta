@@ -162,7 +162,7 @@ def _hash_value(value):
 
 
 def _encode_value(value):
-    if isinstance(value, (datetime.datetime, datetime.date)):
+    if isinstance(value, (datetime.datetime, datetime.date, datetime.time)):
         return value.isoformat()
     if isinstance(value, decimal.Decimal):
         return float(value)
