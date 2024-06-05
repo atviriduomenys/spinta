@@ -14,6 +14,7 @@ from spinta.core.ufuncs import asttoexpr
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.ufuncs.basequerybuilder.helpers import add_page_expr
+from spinta.ufuncs.loadbuilder.helpers import page_contains_unsupported_keys
 
 
 def _qry(qry: Select, indent: int = 4) -> str:
@@ -40,6 +41,8 @@ def _build(rc: RawConfig, manifest: str, model_name: str, query: str, page_mappi
             for key, value in page_mapping.items():
                 cleaned = key[1:] if key.startswith('-') else key
                 page.update_value(key, model.properties.get(cleaned), value)
+            if page_contains_unsupported_keys(page):
+                page.is_enabled = False
         query = add_page_expr(query, page)
     builder = PgQueryBuilder(context)
     builder.update(model=model)

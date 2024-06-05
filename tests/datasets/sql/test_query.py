@@ -21,7 +21,7 @@ from spinta.ufuncs.basequerybuilder.helpers import add_page_expr
 from spinta.ufuncs.helpers import merge_formulas
 from spinta.datasets.helpers import get_enum_filters
 from spinta.datasets.helpers import get_ref_filters
-
+from spinta.ufuncs.loadbuilder.helpers import page_contains_unsupported_keys
 
 _SUPPORT_NULLS = ["postgresql", "oracle", "sqlite"]
 _DEFAULT_NULL_IMPL = ['mysql', 'mssql', 'other']
@@ -88,6 +88,8 @@ def _build(rc: RawConfig, manifest: str, model_name: str, page_mapping: dict = N
             for key, value in page_mapping.items():
                 cleaned = key[1:] if key.startswith('-') else key
                 page.update_value(key, model.properties.get(cleaned), value)
+            if page_contains_unsupported_keys(page):
+                page.is_enabled = False
         query = add_page_expr(query, page)
     builder = SqlQueryBuilder(context)
     builder.update(model=model)
