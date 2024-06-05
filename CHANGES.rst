@@ -8,12 +8,19 @@ Changes
 
 Backwards incompatible changes:
 
-- When migrating from versions of `spinta`, where `push` pagination
-  was not supported, to a versions, where it is, the old `push state` database
+- When migrating from version of `spinta`, where `push` pagination
+  was not supported, to a version, where it is, the old `push state` database
   structure is outdated and it can result in getting `InfiniteLoopWithPagination`
   or `TooShortPageSize` errors (new `push state` database structure now stores pagination values, while old one does not).
   With the addition of (`P#98`) change, you now are able to run `push --sync` command to synchronize `push state` database.
   It is important to note that it will also update pagination values, which could fix some of the infinite loop errors.
+
+- With (`P#98`) change, `internal` will no longer disable pagination when page key types are not supported.
+  Before this change, when model's page went through `link` process, if there was any page keys, that were not supported,
+  pagination was disabled, no matter what type of backend is used. Since all internal backends support `_id` property,
+  which is always present and unique, if we find page keys that are not supported, we can always force pagination using `_id`.
+  This results in that all of the requests will now by default going to be sorted by `_id` property.
+  Important to note, if we use `sort` with unsupported keys, pagination is still going to be disabled.
 
 
 New features:
@@ -40,6 +47,9 @@ Improvements:
 
 - Added `ResultBuilder` support to PostgreSQL backend, also changed it's
   `QueryBuilder` to work like external SQL. (`P#98`)
+
+- Changed `internal` backend page assignment logic to default to `_id`
+  property, if any of the page keys are not supported. (`P#98`)
 
 Bug fixes:
 
