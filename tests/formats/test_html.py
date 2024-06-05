@@ -869,7 +869,7 @@ def test_html_text(
         }
     })
 
-    resp = app.get("/example/html/text/Country/:format/html?select(id,name)", headers=Headers(headers={
+    resp = app.get("/example/html/text/Country/:format/html?select(id,name)&sort(id)", headers=Headers(headers={
         'accept-language': 'lt'
     }))
 
@@ -933,7 +933,7 @@ def test_html_text_with_lang(
         }
     })
 
-    resp = app.get("/example/html/text/lang/Country/:format/html?lang(*)&select(id,name)", headers=Headers(headers={
+    resp = app.get("/example/html/text/lang/Country/:format/html?lang(*)&select(id,name)&sort(id)", headers=Headers(headers={
         'accept-language': 'lt'
     }))
 
@@ -952,7 +952,7 @@ def test_html_text_with_lang(
         }
     ]
 
-    resp = app.get("/example/html/text/lang/Country/:format/html?lang(en)&select(id,name)", headers=Headers(headers={
+    resp = app.get("/example/html/text/lang/Country/:format/html?lang(en)&select(id,name)&sort(id)", headers=Headers(headers={
         'accept-language': 'lt'
     }))
 
@@ -967,7 +967,7 @@ def test_html_text_with_lang(
         }
     ]
 
-    resp = app.get("/example/html/text/lang/Country/:format/html?lang(en,lt)&select(id,name)", headers=Headers(headers={
+    resp = app.get("/example/html/text/lang/Country/:format/html?lang(en,lt)&select(id,name)&sort(id)", headers=Headers(headers={
         'accept-language': 'lt'
     }))
 

@@ -198,7 +198,7 @@ def test_jsonl_text(
         }
     })
 
-    resp = app.get("/example/jsonl/text/Country/:format/jsonl?select(id,name)", headers=Headers(headers={
+    resp = app.get("/example/jsonl/text/Country/:format/jsonl?select(id,name)&sort(id)", headers=Headers(headers={
         'accept-language': 'lt'
     }))
     data = [json.loads(d) for d in resp.text.splitlines()]
@@ -263,7 +263,7 @@ def test_jsonl_text_with_lang(
         }
     })
 
-    resp = app.get("/example/jsonl/text/lang/Country/:format/jsonl?lang(*)&select(id,name)", headers=Headers(headers={
+    resp = app.get("/example/jsonl/text/lang/Country/:format/jsonl?lang(*)&select(id,name)&sort(id)", headers=Headers(headers={
         'accept-language': 'lt'
     }))
     data = [json.loads(d) for d in resp.text.splitlines()]
@@ -287,7 +287,7 @@ def test_jsonl_text_with_lang(
         }
     ]
 
-    resp = app.get("/example/jsonl/text/lang/Country/:format/jsonl?lang(en)&select(id,name)", headers=Headers(headers={
+    resp = app.get("/example/jsonl/text/lang/Country/:format/jsonl?lang(en)&select(id,name)&sort(id)", headers=Headers(headers={
         'accept-language': 'lt'
     }))
     data = [json.loads(d) for d in resp.text.splitlines()]
@@ -303,7 +303,7 @@ def test_jsonl_text_with_lang(
         }
     ]
 
-    resp = app.get("/example/jsonl/text/lang/Country/:format/jsonl?lang(en,lt)&select(id,name)", headers=Headers(headers={
+    resp = app.get("/example/jsonl/text/lang/Country/:format/jsonl?lang(en,lt)&select(id,name)&sort(id)", headers=Headers(headers={
         'accept-language': 'lt'
     }))
     data = [json.loads(d) for d in resp.text.splitlines()]

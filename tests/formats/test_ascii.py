@@ -482,7 +482,7 @@ def test_ascii_text(
         }
     })
 
-    res = app.get("/example/ascii/text/Country/:format/ascii?select(id,name)", headers=Headers(headers={
+    res = app.get("/example/ascii/text/Country/:format/ascii?select(id,name)&sort(id)", headers=Headers(headers={
         'accept-language': 'lt'
     })).text
     assert res == (
@@ -542,7 +542,7 @@ def test_ascii_text_with_lang(
         }
     })
 
-    res = app.get("/example/ascii/text/lang/Country/:format/ascii?lang(*)&select(id,name)", headers=Headers(headers={
+    res = app.get("/example/ascii/text/lang/Country/:format/ascii?lang(*)&select(id,name)&sort(id)", headers=Headers(headers={
         'accept-language': 'lt'
     })).text
     assert res == (
@@ -553,7 +553,7 @@ def test_ascii_text_with_lang(
         '--  ------  ---------  -------\n'
   )
 
-    res = app.get("/example/ascii/text/lang/Country/:format/ascii?lang(en)&select(id,name)", headers=Headers(headers={
+    res = app.get("/example/ascii/text/lang/Country/:format/ascii?lang(en)&select(id,name)&sort(id)", headers=Headers(headers={
         'accept-language': 'lt'
     })).text
     assert res == (
@@ -564,7 +564,7 @@ def test_ascii_text_with_lang(
         '--  ---------\n'
     )
 
-    res = app.get("/example/ascii/text/lang/Country/:format/ascii?lang(en,lt)&select(id,name)", headers=Headers(headers={
+    res = app.get("/example/ascii/text/lang/Country/:format/ascii?lang(en,lt)&select(id,name)&sort(id)", headers=Headers(headers={
         'accept-language': 'lt'
     })).text
     assert res == (
