@@ -319,6 +319,81 @@ def test_get_paginate_with_none_simple(
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
+def test_get_paginate_invalid_type(manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+            d | r | b | m | property | type    | ref      | access  | uri
+            example/page/invalid     |         |          |         |
+              |   |   | Test         |         | id, name, ref | open    | 
+              |   |   |   | id       | integer |          |         | 
+              |   |   |   | name     | string  |          |         |
+              |   |   |   | ref      | ref     | Ref      |         |
+              |   |   | Ref          |         | id       | open    | 
+              |   |   |   | id       | integer |          |         | 
+            ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    app = create_test_client(context)
+    app.authmodel('example/page/invalid', ['insert', 'getall', 'search'])
+    app.post('/example/page/invalid/Test', json={
+        'id': 0,
+        'name': 'Test0'
+    })
+    app.post('/example/page/invalid/Test', json={
+        'id': 0,
+        'name': 'Test1'
+    })
+    app.post('/example/page/invalid/Test', json={
+        'id': 0,
+        'name': None
+    })
+    app.post('/example/page/invalid/Test', json={
+        'id': 1,
+        'name': 'Test2'
+    })
+    app.post('/example/page/invalid/Test', json={
+        'id': 2,
+        'name': 'Test3'
+    })
+    app.post('/example/page/invalid/Test', json={
+        'id': None,
+        'name': 'Test'
+    })
+    app.post('/example/page/invalid/Test', json={
+        'id': None,
+        'name': 'Test1'
+    })
+    app.post('/example/page/invalid/Test', json={
+        'id': None,
+        'name': None
+    })
+
+    response = app.get(f'/example/page/invalid/Test')
+    json_response = response.json()
+    assert len(json_response['_data']) == 8
+    assert '_page' in json_response
+    assert listdata(response, 'id', 'name') == [
+        (0, 'Test0'),
+        (0, 'Test1'),
+        (0, None),
+        (1, 'Test2'),
+        (2, 'Test3'),
+        (None, 'Test'),
+        (None, 'Test1'),
+        (None, None),
+    ]
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_get_paginate_with_none_multi_key(
     manifest_type: str,
     tmp_path: Path,

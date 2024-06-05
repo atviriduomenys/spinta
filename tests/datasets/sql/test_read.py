@@ -74,6 +74,31 @@ def test__get_row_value_null(rc: RawConfig):
 
 
 @pytest.mark.parametrize("use_default_dialect", [True, False])
+def test_getall_paginate_invalid_type(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path, geodb_null_check, mocker):
+    if use_default_dialect:
+        use_default_dialect_functions(mocker)
+
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    id | d | r | b | m | property | source          | type    | ref      | access | prepare
+       | external/paginate        |                 |         |          |        |
+       |   | data                 |                 | sql     |          |        |
+       |   |   |                  |                 |         |          |        |
+       |   |   |   | City         | cities          |         | id, test | open   |
+       |   |   |   |   | id       | id              | integer |          |        |
+       |   |   |   |   | name     | name            | string  |          |        | 
+       |   |   |   |   | test     | name            | object  |          |        | 
+    '''))
+
+    app = create_client(rc, tmp_path, geodb_null_check)
+
+    resp = app.get('/external/paginate/City')
+    assert listdata(resp, 'id', 'name') == [
+        (0, 'Vilnius'),
+    ]
+    assert '_page' not in resp.json()
+
+
+@pytest.mark.parametrize("use_default_dialect", [True, False])
 def test_getall_paginate_null_check_value(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path, geodb_null_check, mocker):
     if use_default_dialect:
         use_default_dialect_functions(mocker)
