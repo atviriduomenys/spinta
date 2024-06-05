@@ -102,11 +102,13 @@ def push(
         "Model of the page value."
     )),
     synchronize: bool = Option(False, '--sync', help=(
-        "Update push sync state, in {data_path}/push/{remote}.db"
+        "Synchronize push state and keymap, in {data_path}/push/{remote}.db and {data_path}/keymap.db"
     )),
 ):
     """Push data to external data store"""
-    sync_given = synchronize
+    synchronize_keymap = synchronize
+    synchronize_state = synchronize
+
     if chunk_size:
         chunk_size = tobytes(chunk_size)
 
@@ -168,8 +170,8 @@ def push(
         with manifest.keymap as km:
             first_time = km.first_time_sync()
             if first_time:
-                synchronize = True
-            dependant_models = extract_dependant_nodes(context, models, not synchronize)
+                synchronize_keymap = True
+            dependant_models = extract_dependant_nodes(context, models, not synchronize_keymap)
             sync_keymap(
                 context=context,
                 keymap=km,
@@ -178,11 +180,11 @@ def push(
                 models=dependant_models,
                 error_counter=error_counter,
                 no_progress_bar=no_progress_bar,
-                reset_cid=synchronize
+                reset_cid=synchronize_keymap
             )
 
         # Synchronize push state
-        if sync_given:
+        if synchronize_state:
             sync_push_state(
                 context=context,
                 models=models,
