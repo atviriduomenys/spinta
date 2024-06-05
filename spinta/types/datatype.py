@@ -525,7 +525,7 @@ def rename_metadata(context: Context, data: dict) -> dict:
 
 @load.register(Context, Partial, dict)
 def load(context: Context, dtype: Partial, data: dict):
-    loaded_obj = dtype.load(value)
+    loaded_obj = dtype.load(data)
     # TODO: add better support for dtype.properties load
     # if isinstance(value, dict):
     #     dtype.properties = {

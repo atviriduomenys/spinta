@@ -607,7 +607,7 @@ def test_rdf_text(
         full_load=True
     )
     app = create_test_client(context)
-    app.authmodel('example/rdf', ['insert', 'getall'])
+    app.authmodel('example/rdf', ['insert', 'getall', 'search'])
 
     lt = pushdata(app, f'/example/rdf/text/Country', {
         'id': 0,
@@ -626,7 +626,7 @@ def test_rdf_text(
         }
     })
 
-    res = app.get("/example/rdf/text/Country/:format/rdf", headers=Headers(headers={
+    res = app.get("/example/rdf/text/Country/:format/rdf?sort(id)", headers=Headers(headers={
         'accept-language': 'lt'
     })).text
     assert res == f'<?xml version="1.0" encoding="UTF-8"?>\n' \
@@ -639,11 +639,13 @@ def test_rdf_text(
                   f' xmlns="https://testserver/">\n' \
                   f'<rdf:Description rdf:about="/example/rdf/text/Country/{lt["_id"]}" rdf:type="example/rdf/text/Country" ' \
                   f'pav:version="{lt["_revision"]}">\n' \
+                  f'  <_page>{encode_page_values_manually({"id": lt["id"], "_id": lt["_id"]})}</_page>\n' \
                   f'  <id>{lt["id"]}</id>\n' \
                   f'  <name xml:lang="lt">Lietuva</name>\n' \
                   f'</rdf:Description>\n' \
                   f'<rdf:Description rdf:about="/example/rdf/text/Country/{uk["_id"]}" rdf:type="example/rdf/text/Country" ' \
                   f'pav:version="{uk["_revision"]}">\n' \
+                  f'  <_page>{encode_page_values_manually({"id": uk["id"], "_id": uk["_id"]})}</_page>\n' \
                   f'  <id>{uk["id"]}</id>\n' \
                   f'  <name xml:lang="lt">Anglija</name>\n' \
                   f'</rdf:Description>\n' \
@@ -679,7 +681,7 @@ def test_rdf_text_with_lang(
         full_load=True
     )
     app = create_test_client(context)
-    app.authmodel('example/rdf', ['insert', 'getall'])
+    app.authmodel('example/rdf', ['insert', 'getall', 'search'])
 
     lt = pushdata(app, f'/example/rdf/text/lang/Country', {
         'id': 0,
@@ -698,7 +700,7 @@ def test_rdf_text_with_lang(
         }
     })
 
-    res = app.get("/example/rdf/text/lang/Country/:format/rdf?lang(*)", headers=Headers(headers={
+    res = app.get("/example/rdf/text/lang/Country/:format/rdf?lang(*)&sort(id)", headers=Headers(headers={
         'accept-language': 'lt'
     })).text
     assert res == f'<?xml version="1.0" encoding="UTF-8"?>\n' \
@@ -711,6 +713,7 @@ def test_rdf_text_with_lang(
                   f' xmlns="https://testserver/">\n' \
                   f'<rdf:Description rdf:about="/example/rdf/text/lang/Country/{lt["_id"]}" rdf:type="example/rdf/text/lang/Country" ' \
                   f'pav:version="{lt["_revision"]}">\n' \
+                  f'  <_page>{encode_page_values_manually({"id": lt["id"], "_id": lt["_id"]})}</_page>\n' \
                   f'  <id>{lt["id"]}</id>\n' \
                   f'  <name>LT</name>\n' \
                   f'  <name xml:lang="en">Lithuania</name>\n' \
@@ -718,6 +721,7 @@ def test_rdf_text_with_lang(
                   f'</rdf:Description>\n' \
                   f'<rdf:Description rdf:about="/example/rdf/text/lang/Country/{uk["_id"]}" rdf:type="example/rdf/text/lang/Country" ' \
                   f'pav:version="{uk["_revision"]}">\n' \
+                  f'  <_page>{encode_page_values_manually({"id": uk["id"], "_id": uk["_id"]})}</_page>\n' \
                   f'  <id>{uk["id"]}</id>\n' \
                   f'  <name>UK</name>\n' \
                   f'  <name xml:lang="en">England</name>\n' \
@@ -725,7 +729,7 @@ def test_rdf_text_with_lang(
                   f'</rdf:Description>\n' \
                   f'</rdf:RDF>\n'
 
-    res = app.get("/example/rdf/text/lang/Country/:format/rdf?lang(en)", headers=Headers(headers={
+    res = app.get("/example/rdf/text/lang/Country/:format/rdf?lang(en)&sort(id)", headers=Headers(headers={
         'accept-language': 'lt'
     })).text
     assert res == f'<?xml version="1.0" encoding="UTF-8"?>\n' \
@@ -738,17 +742,19 @@ def test_rdf_text_with_lang(
                   f' xmlns="https://testserver/">\n' \
                   f'<rdf:Description rdf:about="/example/rdf/text/lang/Country/{lt["_id"]}" rdf:type="example/rdf/text/lang/Country" ' \
                   f'pav:version="{lt["_revision"]}">\n' \
+                  f'  <_page>{encode_page_values_manually({"id": lt["id"], "_id": lt["_id"]})}</_page>\n' \
                   f'  <id>{lt["id"]}</id>\n' \
                   f'  <name xml:lang="en">Lithuania</name>\n' \
                   f'</rdf:Description>\n' \
                   f'<rdf:Description rdf:about="/example/rdf/text/lang/Country/{uk["_id"]}" rdf:type="example/rdf/text/lang/Country" ' \
                   f'pav:version="{uk["_revision"]}">\n' \
+                  f'  <_page>{encode_page_values_manually({"id": uk["id"], "_id": uk["_id"]})}</_page>\n' \
                   f'  <id>{uk["id"]}</id>\n' \
                   f'  <name xml:lang="en">England</name>\n' \
                   f'</rdf:Description>\n' \
                   f'</rdf:RDF>\n'
 
-    res = app.get("/example/rdf/text/lang/Country/:format/rdf?lang(en,lt)", headers=Headers(headers={
+    res = app.get("/example/rdf/text/lang/Country/:format/rdf?lang(en,lt)&sort(id)", headers=Headers(headers={
         'accept-language': 'lt'
     })).text
     assert res == f'<?xml version="1.0" encoding="UTF-8"?>\n' \
@@ -761,12 +767,14 @@ def test_rdf_text_with_lang(
                   f' xmlns="https://testserver/">\n' \
                   f'<rdf:Description rdf:about="/example/rdf/text/lang/Country/{lt["_id"]}" rdf:type="example/rdf/text/lang/Country" ' \
                   f'pav:version="{lt["_revision"]}">\n' \
+                  f'  <_page>{encode_page_values_manually({"id": lt["id"], "_id": lt["_id"]})}</_page>\n' \
                   f'  <id>{lt["id"]}</id>\n' \
                   f'  <name xml:lang="en">Lithuania</name>\n' \
                   f'  <name xml:lang="lt">Lietuva</name>\n' \
                   f'</rdf:Description>\n' \
                   f'<rdf:Description rdf:about="/example/rdf/text/lang/Country/{uk["_id"]}" rdf:type="example/rdf/text/lang/Country" ' \
                   f'pav:version="{uk["_revision"]}">\n' \
+                  f'  <_page>{encode_page_values_manually({"id": uk["id"], "_id": uk["_id"]})}</_page>\n' \
                   f'  <id>{uk["id"]}</id>\n' \
                   f'  <name xml:lang="en">England</name>\n' \
                   f'  <name xml:lang="lt">Anglija</name>\n' \

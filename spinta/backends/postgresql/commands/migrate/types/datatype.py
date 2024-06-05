@@ -7,7 +7,7 @@ import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_pg_name
-from spinta.backends.postgresql.helpers.migrate.migrate import check_if_renamed, rename_index_name, MigratePostgresMeta, \
+from spinta.backends.postgresql.helpers.migrate.migrate import check_if_renamed, MigratePostgresMeta, \
     adjust_kwargs, extract_literal_name_from_column, handle_unique_constraint_migration, contains_unique_constraint, \
     handle_index_migration
 from spinta.components import Context

@@ -200,7 +200,7 @@ def test_json_text(
         }
     })
 
-    resp = app.get("/example/json/text/Country/:format/json?select(id,name)", headers=Headers(headers={
+    resp = app.get("/example/json/text/Country/:format/json?select(id,name)&sort(id)", headers=Headers(headers={
         'accept-language': 'lt'
     })).json()['_data']
 
@@ -264,7 +264,7 @@ def test_json_text_with_lang(
         }
     })
 
-    resp = app.get("/example/json/text/lang/Country/:format/json?lang(*)&select(id,name)", headers=Headers(headers={
+    resp = app.get("/example/json/text/lang/Country/:format/json?lang(*)&select(id,name)&sort(id)", headers=Headers(headers={
         'accept-language': 'lt'
     })).json()['_data']
 
@@ -287,7 +287,7 @@ def test_json_text_with_lang(
         }
     ]
 
-    resp = app.get("/example/json/text/lang/Country/:format/json?lang(en)&select(id,name)", headers=Headers(headers={
+    resp = app.get("/example/json/text/lang/Country/:format/json?lang(en)&select(id,name)&sort(id)", headers=Headers(headers={
         'accept-language': 'lt'
     })).json()['_data']
 
@@ -302,7 +302,7 @@ def test_json_text_with_lang(
         }
     ]
 
-    resp = app.get("/example/json/text/lang/Country/:format/json?lang(en,lt)&select(id,name)", headers=Headers(headers={
+    resp = app.get("/example/json/text/lang/Country/:format/json?lang(en,lt)&select(id,name)&sort(id)", headers=Headers(headers={
         'accept-language': 'lt'
     })).json()['_data']
 

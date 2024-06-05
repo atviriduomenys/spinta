@@ -339,7 +339,7 @@ def test_csv_text(
         }
     })
 
-    assert parse_csv(app.get("/example/csv/text/Country/:format/csv?select(id,name)", headers=Headers(headers={
+    assert parse_csv(app.get("/example/csv/text/Country/:format/csv?select(id,name)&sort(id)", headers=Headers(headers={
         'accept-language': 'lt'
     }))) == [
         ['id', 'name'],
@@ -396,7 +396,7 @@ def test_csv_text_with_lang(
         }
     })
 
-    assert parse_csv(app.get("/example/csv/text/lang/Country/:format/csv?lang(*)&select(id,name)", headers=Headers(headers={
+    assert parse_csv(app.get("/example/csv/text/lang/Country/:format/csv?lang(*)&select(id,name)&sort(id)", headers=Headers(headers={
         'accept-language': 'lt'
     }))) == [
         ['id', 'name@C', 'name@en', 'name@lt'],
@@ -404,7 +404,7 @@ def test_csv_text_with_lang(
         ['1', 'UK', 'England', 'Anglija'],
     ]
 
-    assert parse_csv(app.get("/example/csv/text/lang/Country/:format/csv?lang(en)&select(id,name)", headers=Headers(headers={
+    assert parse_csv(app.get("/example/csv/text/lang/Country/:format/csv?lang(en)&select(id,name)&sort(id)", headers=Headers(headers={
         'accept-language': 'lt'
     }))) == [
         ['id', 'name'],
@@ -412,7 +412,7 @@ def test_csv_text_with_lang(
         ['1', 'England'],
     ]
 
-    assert parse_csv(app.get("/example/csv/text/lang/Country/:format/csv?lang(en,lt)&select(id,name)", headers=Headers(headers={
+    assert parse_csv(app.get("/example/csv/text/lang/Country/:format/csv?lang(en,lt)&select(id,name)&sort(id)", headers=Headers(headers={
         'accept-language': 'lt'
     }))) == [
         ['id', 'name@en', 'name@lt'],

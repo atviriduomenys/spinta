@@ -6,14 +6,15 @@ import sqlalchemy as sa
 
 from spinta import commands
 from spinta.core.config import RawConfig
-from spinta.datasets.backends.sql.ufuncs.components import SqlResultBuilder
+from spinta.datasets.backends.sql.components import Sql
+from spinta.datasets.backends.sql.ufuncs.query.components import SqlQueryBuilder
+from spinta.datasets.backends.sql.ufuncs.result.components import SqlResultBuilder
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.exceptions import UnableToCast
 from spinta.core.ufuncs import Expr
-from spinta.datasets.backends.sql.commands.query import SqlQueryBuilder
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.auth import AdminToken
-from spinta.datasets.backends.sql.commands.read import _get_row_value
+from spinta.ufuncs.resultbuilder.helpers import get_row_value
 
 
 @pytest.mark.parametrize('value', [
@@ -91,7 +92,7 @@ def test_point(rc: RawConfig):
         2,  # y
     ]
     sel = env.selected['point']
-    val = _get_row_value(context, row, sel)
+    val = get_row_value(context, Sql(), row, sel)
 
     env = SqlResultBuilder(context).init(val, sel.prop, row)
     val = env.resolve(sel.prep)
