@@ -19,7 +19,6 @@ from spinta.utils.response import get_request
 def _build_push_state_sync_url(
     server: str,
     model: str,
-    page_enabled: bool,
     page: str,
     page_columns: list[str],
     limit: int
@@ -29,23 +28,20 @@ def _build_push_state_sync_url(
     required = [
         '_id',
         '_revision',
+        '_page',
         'checksum()'
     ]
-
-    if page_enabled:
-        required.append('_page')
 
     base = f'{base}select({",".join(required)}'
     for page_column in page_columns:
         base = f'{base},{page_column}'
     base = f'{base})&sort(_id)'
 
-    if page_enabled:
-        if page:
-            base = f'{base}&page(\'{page}\')'
+    if page:
+        base = f'{base}&page(\'{page}\')'
 
-        if limit:
-            base = f'{base}&limit({limit})'
+    if limit:
+        base = f'{base}&limit({limit})'
 
     return base
 
@@ -67,7 +63,6 @@ def _fetch_all_model_data(
         url = _build_push_state_sync_url(
             server=server,
             model=model.model_type(),
-            page_enabled=model.page.is_enabled,
             page=page,
             page_columns=page_columns,
             limit=limit
@@ -275,18 +270,16 @@ def sync_push_state(
         size = get_page_size(config, model)
         skip_model = False
         # Check permissions
-        if model.page.is_enabled:
-            for key in primary_keys:
-                is_authorized = authorized(context, key, action=Action.SEARCH)
-                if not is_authorized:
-                    echo(f"SKIPPED PUSH STATE '{model.model_type()}' MODEL SYNC, NO PERMISSION.")
-                    skip_model = True
-                    break
+        for key in primary_keys:
+            is_authorized = authorized(context, key, action=Action.SEARCH)
+            if not is_authorized:
+                echo(f"SKIPPED PUSH STATE '{model.model_type()}' MODEL SYNC, NO PERMISSION.")
+                skip_model = True
+                break
 
-            if skip_model:
-                continue
-        else:
-            echo(f'MODEL {model.model_type()} DOES NOT SUPPORT PAGINATION')
+        if skip_model:
+            continue
+
         if not no_progress_bar:
             counters[model_name] = tqdm.tqdm(desc=model_name, ascii=True)
 
