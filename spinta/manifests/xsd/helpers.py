@@ -581,12 +581,11 @@ class XSDReader:
                     choice_copy = deepcopy(choice)
                     for node_in_choice in choice:
                         choice_node_parent.insert(0, node_in_choice)
-                    returned_model_names, new_root_properties = self._create_model(
-                        node_copy, source_path,
-                        additional_properties=additional_properties)
-                    root_properties.update(new_root_properties)
-                    model_names.extend(returned_model_names)
-
+                        returned_model_names, new_root_properties = self._create_model(
+                            node_copy, source_path,
+                            additional_properties=additional_properties)
+                        model_names.extend(returned_model_names)
+                        root_properties.update(new_root_properties)
                     for node_in_choice in choice_copy:
                         node_in_choice = choice_node_parent.xpath(f"./*[@name=\'{node_in_choice.get('name')}\']")[0]
                         choice_node_parent.remove(node_in_choice)
