@@ -558,7 +558,7 @@ class XSDReader:
         node: _Element,
         source_path: str,
         additional_properties: dict[str, dict[str, str | bool | dict[str, str]]]
-    ) -> list[str]:
+    ) -> tuple[list[str], dict[str, str | bool | dict[str, str | dict[str, Any]]]]:
         """
         If there are choices in the element,
         we need to split it and create a separate model per each choice
@@ -591,22 +591,24 @@ class XSDReader:
                     choice_copy = deepcopy(choice)
                     for node_in_choice in choice:
                         choice_node_parent.insert(0, node_in_choice)
-                        returned_model_names, root_properties = self._create_model(node_copy, source_path,
-                                                                                   additional_properties)
+                        returned_model_names, new_root_properties = self._create_model(
+                            node_copy, source_path,
+                            additional_properties=additional_properties)
                         model_names.extend(returned_model_names)
-                        root_properties.update(root_properties)
+                        root_properties.update(new_root_properties)
                     for node_in_choice in choice_copy:
                         node_in_choice = choice_node_parent.xpath(f"./*[@name=\'{node_in_choice.get('name')}\']")[0]
                         choice_node_parent.remove(node_in_choice)
                 else:
                     choice_node_parent.insert(0, choice)
-                    returned_model_names, root_properties = self._create_model(node_copy, source_path,
-                                                                               additional_properties)
+                    returned_model_names, new_root_properties = self._create_model(
+                        node_copy, source_path,
+                        additional_properties=additional_properties)
                     model_names.extend(returned_model_names)
-                    root_properties.update(root_properties)
+                    root_properties.update(new_root_properties)
 
                     choice_node_parent.remove(choice)
-        return model_names
+        return model_names, root_properties
 
     def _create_model(
         self,
