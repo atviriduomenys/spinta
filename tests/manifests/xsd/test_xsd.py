@@ -286,6 +286,9 @@ def test_xsd_ref(rc: RawConfig, tmp_path: Path):
     |   |   |   | KlientuSarasoRezultatas       |                 |                         | /klientu_saraso_rezultatas       |         |       |        |     |       |
     |   |   |   |   | text                      | string          |                         | text()                           |         |       |        |     |       |
     |   |   |   |   | asmenys[]                 | backref         | Asmuo                   |                                  |         |       |        |     |       |
+    |   |   |   |   | asmuo[].id                | string required |                         | asmuo/@id                        |         |       |        |     |       |
+    |   |   |   |   | asmuo[].ak                | string required |                         | asmuo/@ak                        |         |       |        |     |       |
+    |   |   |   |   | asmuo[].text              | string          |                         | asmuo/text()                     |         |       |        |     |       |
 """
 
     path = tmp_path / 'manifest.xsd'
@@ -342,6 +345,9 @@ id | d | r | b | m | property                | type             | ref      | sou
    |   |   |   | KlientuSarasoRezultatas     |                  |          | /klientu_saraso_rezultatas               |         |       |        |     |       |
    |   |   |   |   | text                    | string           |          | text()                                   |         |       |        |     |       |
    |   |   |   |   | asmenys                 | ref              | Asmenys  |                                          |         |       |        |     |       |
+   |   |   |   |   | asmenys.puslapis        | integer required |          | asmenys/@puslapis                        |         |       |        |     |       | rezultatu puslapio numeris
+   |   |   |   |   | asmenys.text            | string           |          | asmenys/text()                           |         |       |        |     |       |
+
 """
 
     path = tmp_path / 'manifest.xsd'
