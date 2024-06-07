@@ -483,6 +483,13 @@ id | d | r | b | m | property             | type             | ref     | source 
    |   |   |   |   | text                 | string           |         | text()                      |         |       |        |     |       |
    |   |   |   |   | parcel[]             | backref          | Parcel1 |                             |         |       |        |     |       |
    |   |   |   |   | parcel1[]            | backref          | Parcel2 |                             |         |       |        |     |       |
+   |   |   |   |   | parcel1[].text       | string           |         | parcel/text()               |         |       |        |     |       |
+   |   |   |   |   | parcel1[].parcel_unique_number | integer required |         | parcel/parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
+   |   |   |   |   | parcel2[].text       | string           |         | parcel/text()               |         |       |        |     |       |
+   |   |   |   |   | parcel2[].sign_of_change | integer required |         | parcel/sign_of_change/text() |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
+   |                                      | enum             |         | 1                           |         |       |        |     |       |
+   |                                      |                  |         | 2                           |         |       |        |     |       |
+   |                                      |                  |         | 3                           |         |       |        |     |       |
 """
 
     path = tmp_path / 'manifest.xsd'
@@ -563,6 +570,14 @@ def test_xsd_choice_max_occurs_unbound(rc: RawConfig, tmp_path: Path):
     |   |   |   |   | text                 | string           |         | text()                      |         |       |        |     |       |
     |   |   |   |   | parcel[]             | backref          | Parcel1 |                             |         |       |        |     |       |
     |   |   |   |   | parcel1[]            | backref          | Parcel2 |                             |         |       |        |     |       |
+    |   |   |   |   | parcel1[].text       | string           |         | parcel/text()               |         |       |        |     |       |
+    |   |   |   |   | parcel1[].parcel_unique_number | integer required |         | parcel/parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
+    |   |   |   |   | parcel2[].text       | string           |         | parcel/text()               |         |       |        |     |       |
+    |   |   |   |   | parcel2[].sign_of_change | integer required |         | parcel/sign_of_change/text() |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
+    |                                      | enum             |         | 1                           |         |       |        |     |       |
+    |                                      |                  |         | 2                           |         |       |        |     |       |
+    |                                      |                  |         | 3                           |         |       |        |     |       |
+
 """
 
     path = tmp_path / 'manifest.xsd'
@@ -617,6 +632,12 @@ def test_xsd_attributes(rc: RawConfig, tmp_path: Path):
     |   |   |   | Salygos         |                 |        | /SALYGOS           |         |       |        |     |       |
     |   |   |   |   | text        | string          |        | text()             |         |       |        |     |       |
     |   |   |   |   | salyga      | ref required    | Salyga |                    |         |       |        |     |       |
+    |   |   |   |   | salyga.kodas | string          |        | SALYGA/@kodas      |         |       |        |     |       |
+    |   |   |   |   | salyga.nr   | integer         |        | SALYGA/@nr         |         |       |        |     |       |
+    |   |   |   |   | salyga.text | string          |        | SALYGA/text()      |         |       |        |     |       |
+    |   |   |   |   | salyga.reiksme | string required |        | SALYGA/REIKSME/text() |         |       |        |     |       |
+    |   |   |   |   | salyga.pavadinimas | string          |        | SALYGA/PAVADINIMAS/text() |         |       |        |     |       |
+    |   |   |   |   | salyga.aprasymas | string          |        | SALYGA/APRASYMAS/text() |         |       |        |     |       |
 """
 
     path = tmp_path / 'manifest.xsd'
@@ -672,6 +693,10 @@ def test_xsd_model_one_property(rc: RawConfig, tmp_path: Path):
     |                                          |          |     |                               |         |       |        |     |       |
     |   |   |   | GetTzByTRAResponse           |          |     | /getTzByTRAResponse           |         |       |        |     |       |
     |   |   |   |   | search_parameters        | string   |     | searchParameters/text()       |         |       |        |     |       |
+    |   |   |   |   | extracttz.extract_preparation_time | datetime |     | extracttz/extractPreparationTime/text() |         |       |        |     |       |
+    |   |   |   |   | extracttz.phipoteka      | integer  |     | extracttz/phipoteka/text()    |         |       |        |     |       |
+    |   |   |   |   | klaida.aprasymas         | string   |     | klaida/Aprasymas/text()       |         |       |        |     |       |
+
 """
     path = tmp_path / 'manifest.xsd'
     with open(path, "w") as xsd_file:
@@ -805,6 +830,16 @@ def test_xsd_sequence_choice_sequence(rc: RawConfig, tmp_path: Path):
     |                                  |                 |     |                              |         |       |        |     |       |
     |   |   |   | Data                 |                 |     | /data                        |         |       |        |     |       |
     |   |   |   |   | response_message | string          |     | responseMessage/text()       |         |       |        |     |       |
+    |   |   |   |   | response_data.documents1.birth_date | string          |     | responseData/documents/birthDate/text() |         |       |        |     |       |
+    |   |   |   |   | response_data.documents1.last_name | string          |     | responseData/documents/lastName/text() |         |       |        |     |       |
+    |   |   |   |   | response_data.documents1.first_name | string          |     | responseData/documents/firstName/text() |         |       |        |     |       |
+    |   |   |   |   | response_data.documents1.code | string          |     | responseData/documents/code/text() |         |       |        |     |       |
+    |   |   |   |   | response_data.documents1.iltu_code | string          |     | responseData/documents/iltu_code/text() |         |       |        |     |       |
+    |   |   |   |   | response_data.documents2.business_name | string          |     | responseData/documents/businessName/text() |         |       |        |     |       |
+    |   |   |   |   | response_data.documents2.code | string          |     | responseData/documents/code/text() |         |       |        |     |       |
+    |   |   |   |   | response_data.documents2.iltu_code | string          |     | responseData/documents/iltu_code/text() |         |       |        |     |       |
+    |   |   |   |   | response_data.statement_id | string required |     | responseData/statementId/text() |         |       |        |     |       |
+    |   |   |   |   | response_data.title | string required |     | responseData/title/text()    |         |       |        |     |       |
 """
     path = tmp_path / 'manifest.xsd'
     with open(path, "w") as xsd_file:
@@ -923,6 +958,7 @@ def test_xsd_recursion(rc: RawConfig, tmp_path: Path):
     |                                  |                 |     |                                   |         |       |        |     |       |
     |   |   |   | Data                 |                 |     | /data                             |         |       |        |     |       |
     |   |   |   |   | response_message | string          |     | responseMessage/text()            |         |       |        |     |       |
+    |   |   |   |   | action.code      | string required |     | action/code/text()                |         |       |        |     |       | Paslaugos kodas (RC kodas)
 
 """
     path = tmp_path / 'manifest.xsd'
@@ -1020,7 +1056,22 @@ def test_xsd_enumeration(rc: RawConfig, tmp_path: Path):
     |                                              |                 |     |                                     |         |       |        |     |       |
     |   |   |   | Data                             |                 |     | /data                               |         |       |        |     |       |
     |   |   |   |   | response_message             | string          |     | responseMessage/text()              |         |       |        |     |       |
-
+    |   |   |   |   | response_data.who_may_consitute | string required |     | responseData/who_may_consitute/text() |         |       |        |     |       | Įgaliojimą gali sudaryti.
+    |                                              | enum            |     | fiz                                 |         |       |        |     |       |
+    |                                              |                 |     | fiz-notarial                        |         |       |        |     |       |
+    |                                              |                 |     | jur                                 |         |       |        |     |       |
+    |                                              |                 |     | jur-notarial                        |         |       |        |     |       |
+    |                                              |                 |     | fiz-jur                             |         |       |        |     |       |
+    |                                              |                 |     | fiz-notarial-jur-notarial           |         |       |        |     |       |
+    |                                              |                 |     | fiz-notarial-jur                    |         |       |        |     |       |
+    |                                              |                 |     | fiz-jur-notarial                    |         |       |        |     |       |
+    |   |   |   |   | response_data.default_description_editable | string required |     | responseData/default_description_editable/text() |         |       |        |     |       | Ar numatytasis aprašymas gali būti redaguojamas? 0 - NE, 1 - TAIP
+    |                                              | enum            |     | 0                                   |         |       |        |     |       |
+    |                                              |                 |     | 1                                   |         |       |        |     |       |
+    |   |   |   |   | response_data.digital_service | string required |     | responseData/digital_service/text() |         |       |        |     |       | El. paslauga. Reikšmės: digital - Tik elektroninė paslauga, analog - Tik neelektroninė paslauga, digital-or-analog - Elektroninė arba neelektroninė paslauga
+    |                                              | enum            |     | digital                             |         |       |        |     |       |
+    |                                              |                 |     | analog                              |         |       |        |     |       |
+    |                                              |                 |     | digital-or-analog                   |         |       |        |     |       |
 """
     path = tmp_path / 'manifest.xsd'
     with open(path, "w") as xsd_file:
