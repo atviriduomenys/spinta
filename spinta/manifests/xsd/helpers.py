@@ -485,19 +485,9 @@ class XSDReader:
         source_path: str = ""
     ) -> tuple[
             dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]],
-            dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]]:
+            dict[str, dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]]]:
 
         properties = {}
-        root_properties = {}
-        # if len(node) == 1:
-        #     # if this model has only one property, which is a reference, we don't create it, but pass it on.
-        #     ref_element = node.xpath("./*[@ref]")[0]
-        #     ref = ref_element.get("ref")
-        #     if ":" in ref:
-        #         ref = ref.split(":")[1]
-        #     xpath_query = f"//*[@name='{ref}']"
-        #     referenced_element = self.root.xpath(xpath_query)[0]
-        #     return self._properties_from_references(model=model, source_path=node.get("name"))
         root_properties = {}
         for ref_element in node.xpath("./*[@ref]"):
             referenced_element = self._get_referenced_node(ref_element)
@@ -591,11 +581,12 @@ class XSDReader:
                     choice_copy = deepcopy(choice)
                     for node_in_choice in choice:
                         choice_node_parent.insert(0, node_in_choice)
-                        returned_model_names, new_root_properties = self._create_model(
-                            node_copy, source_path,
-                            additional_properties=additional_properties)
-                        model_names.extend(returned_model_names)
-                        root_properties.update(new_root_properties)
+                    returned_model_names, new_root_properties = self._create_model(
+                        node_copy, source_path,
+                        additional_properties=additional_properties)
+                    root_properties.update(new_root_properties)
+                    model_names.extend(returned_model_names)
+
                     for node_in_choice in choice_copy:
                         node_in_choice = choice_node_parent.xpath(f"./*[@name=\'{node_in_choice.get('name')}\']")[0]
                         choice_node_parent.remove(node_in_choice)
@@ -616,7 +607,7 @@ class XSDReader:
         source_path: str = "",
         is_root_model: bool = False,
         additional_properties: dict[str, str | bool | dict[str, str | dict[str, Any]]] = None
-    ) -> tuple[list[str], dict[str, str | bool | dict[str, str | dict[str, Any]]]]:
+    ) -> tuple[list[str], dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]]:
         """
         Parses an element and makes a model out of it. If it is a complete model, it will be added to the models list.
         """
@@ -631,12 +622,11 @@ class XSDReader:
         # properties of this model
         properties = {}
         properties.update(additional_properties)
+        properties.update(model.attributes_to_properties(node))
 
         new_source_path = f"{source_path}/{node.get('name')}"
 
         model.set_name(self.deduplicate(to_model_name(node.get("name"))))
-
-        properties.update(model.attributes_to_properties(node))
 
         if node.xpath(f'./*[local-name() = "complexType"]') or self._node_has_separate_complex_type(node):
 
@@ -649,7 +639,6 @@ class XSDReader:
             choices = complex_type_node.xpath(f'./*[local-name() = "choice"]')
             # if choices is unbounded, we treat it like sequence
             if not choices or choices[0].get("maxOccurs") == "unbounded":
-                # if it's a `choice` node with `unbounded`, we treat it the same as sequence node
                 if choices:
                     choices = complex_type_node.xpath(f'./*[local-name() = "choice"]/*[local-name() = "choice"]')
                 else:
@@ -786,29 +775,52 @@ class XSDReader:
 
         if properties or is_root_model:
 
+            # TODO move this nested properties thing to a function
+            # DEALING WITH NESTED ROOT PROPERTIES ---------------------
+            # new_root_properties are to pass up to the root model and to add to it
             new_root_properties = {}
-            if is_root_model:
-                properties.update(root_properties)
-            else:
-                root_properties.update(deepcopy(properties))
-
-                # if we have additional properties, those are to add `ref` which means that on the other side
-                # there is a `backref` which means that this is for an array
-                if additional_properties:
-                    array_sign = "[]"
-                else:
-                    array_sign = ""
-                # add the model prefix to every property name and source
-                for root_property_id, root_property in root_properties.items():
-                    new_root_property = root_property
-
-                    if "external" in root_property:
-                        new_root_property["external"] = {"name": f"{node.get('name')}/{root_property['external']['name']}"}
+            # add the model prefix to every property name and source
+            for model_name, model_properties in root_properties.items():
+                for root_property_id, root_property in model_properties.items():
 
                     # we don't need to add refs and backrefs, only actual fields
-                    if not new_root_property.get("type") == "ref" and not new_root_property.get("type") == "backref":
-                        root_property_id = f"{to_property_name(model.standalone_name)}{array_sign}.{root_property_id}"
-                        new_root_properties[root_property_id] = new_root_property
+                    if not root_property.get("type") == "ref" and not root_property.get("type") == "backref":
+
+                        # we need to find out the name of the property that corresponds the model,
+                        #  because we need to use that if we used it in ref properties, otherwise use
+                        prefix = None
+                        stripped_model_name = model_name.rstrip("[]")
+                        for property_id, prop in properties.items():
+                            if "model" in prop:
+                                property_model_name = prop.get("model").split("/")[-1]
+                                if property_model_name == stripped_model_name:
+                                    prefix = property_id
+                                    break
+
+                        array_sign = ""
+                        if prefix is None:
+                            if model_name.endswith("[]"):
+                                array_sign = "[]"
+
+                            prefix = to_property_name(stripped_model_name.split("/")[-1])
+
+                        root_property_id = f"{prefix}{array_sign}.{root_property_id}"
+                        new_root_properties[root_property_id] = root_property
+
+            if is_root_model:
+                properties.update(new_root_properties)
+            else:
+                new_root_properties.update(deepcopy(properties))
+
+            # adding node source to the source path here, before passing further,
+            # because we can't retrieve it later otherwise
+            returned_root_properties = {}
+            for root_property_id, root_property in new_root_properties.items():
+                new_root_property = deepcopy(root_property)
+
+                if "external" in root_property:
+                    new_root_property["external"] = {"name": f"{node.get('name')}/{root_property['external']['name']}"}
+                returned_root_properties[root_property_id] = new_root_property
 
             model.properties = properties
 
@@ -816,7 +828,13 @@ class XSDReader:
             model.description = self.get_description(node)
             self.models.append(model)
 
-            return [model.name, ], new_root_properties
+            if additional_properties:
+                model_name = f"{model.name}[]"
+            else:
+                model_name = model.name
+            # -------------------END DEALING WITH NESTED ROOT PROPERTIES
+
+            return [model.name, ], {model_name: returned_root_properties}
         return [], {}
 
     def _add_resource_model(self):
