@@ -434,6 +434,7 @@ class XSDReader:
             for node in complex_types:
                 if node.get("name") == node_type:
                     return node
+
     def _get_separate_complex_type_node(self, node: _Element) -> _Element:
         node_type: str | list = node.get('type')
         return self._get_separate_complex_type_node_by_type(node_type)
@@ -488,7 +489,10 @@ class XSDReader:
             dict[str, dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]]]:
 
         properties = {}
+
+        # nested properties for the root model
         root_properties = {}
+
         for ref_element in node.xpath("./*[@ref]"):
             referenced_element = self._get_referenced_node(ref_element)
 
@@ -553,7 +557,10 @@ class XSDReader:
         If there are choices in the element,
         we need to split it and create a separate model per each choice
         """
+
+        # nested properties for the root model
         root_properties = {}
+
         model_names = []
         node_copy = deepcopy(node)
         if self._node_has_separate_complex_type(node_copy):
@@ -762,7 +769,6 @@ class XSDReader:
                         if child_node.xpath(f'./*[local-name() = "complexType"]') \
                                 or self._node_has_separate_complex_type(child_node):
                             # check for recursion
-                            # TODO: maybe move this to a separate function
                             paths = new_source_path.split("/")
                             if not child_node.get("name") in paths:
                                 _, new_root_properties = self._create_model(child_node, source_path=new_source_path)
@@ -775,7 +781,6 @@ class XSDReader:
 
         if properties or is_root_model:
 
-            # TODO move this nested properties thing to a function
             # DEALING WITH NESTED ROOT PROPERTIES ---------------------
             # new_root_properties are to pass up to the root model and to add to it
             new_root_properties = {}
