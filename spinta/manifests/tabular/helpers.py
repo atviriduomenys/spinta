@@ -39,7 +39,7 @@ from spinta.components import Model
 from spinta.components import Namespace
 from spinta.components import Property
 from spinta.core.enums import Access
-from spinta.core.ufuncs import unparse, Expr
+from spinta.core.ufuncs import unparse
 from spinta.datasets.components import Dataset
 from spinta.dimensions.enum.components import Enums
 from spinta.dimensions.lang.components import LangData
