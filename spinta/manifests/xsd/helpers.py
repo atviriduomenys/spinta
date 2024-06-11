@@ -103,7 +103,7 @@ class XSDModel:
         self.node: _Element = node
         self.type: str = "model"
         self.name: str | None = None
-        self.standalone_name: str | None = None
+        self.basename: str | None = None
         self.external: dict | None = None
         self.properties: dict | None = None
         self.uri: str | None = None
@@ -133,7 +133,7 @@ class XSDModel:
         }
 
     def set_name(self, name: str):
-        self.standalone_name = name
+        self.basename = name
         self.name = f"{self.dataset_name}/{name}"
 
     def _get_property_type(self, node: _Element) -> str:
@@ -525,7 +525,7 @@ class XSDReader:
                     property_type = "ref"
                 else:
                     referenced_element_properties = {
-                        to_property_name(model.standalone_name):
+                        to_property_name(model.basename):
                         {
                             "type": "ref",
                             "model": f"{model.name}"
