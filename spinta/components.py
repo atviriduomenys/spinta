@@ -687,7 +687,7 @@ class Model(MetaData):
         if extract_names not in self.required_keymap_properties:
             self.required_keymap_properties.append(extract_names)
 
-    def get_defined_properties(self):
+    def get_given_properties(self):
         return {prop_name: prop for prop_name, prop in self.properties.items() if not prop_name.startswith('_')}
 
 class PropertyGiven:

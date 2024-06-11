@@ -93,8 +93,10 @@ def write_mermaid_manifest(context: Context, output: str, manifest: InlineManife
             model_dataset_name = model.external.dataset.name
             if model_dataset_name == dataset_name:
                 mermaid_class = MermaidClass(name=model.basename)
-                for model_property in model.get_defined_properties().values():
-                    if model_property.name.endswith("[]"):
+                for model_property in model.get_given_properties().values():
+
+                    # not sure if this is the best way to detect multiplicity
+                    if model_property.dtype.name == "partial_array":
                         multiplicity = "*"
                     else:
                         multiplicity = "1"
