@@ -77,8 +77,9 @@ class MermaidEnum:
     pass
 
 
+@dataclass
 class MermaidRelationship:
-    pass
+    items: list[str | int] | None = None
 
 
 def write_mermaid_manifest(context: Context, output: str, manifest: InlineManifest):
