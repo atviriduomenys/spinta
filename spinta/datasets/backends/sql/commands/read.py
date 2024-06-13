@@ -70,3 +70,55 @@ def getall(
             res = commands.cast_backend_to_python(context, model, backend, res)
             yield res
 
+
+@commands.getone.register(Context, Model, Sql)
+def getone(
+    context: Context,
+    model: Model,
+    backend: Sql,
+    *,
+    id_: str,
+) -> ObjectData:
+    keymap: KeyMap = context.get(f'keymap.{model.keymap.name}')
+    _id = keymap.decode(model.name, id_)
+
+    # preparing query for retrieving item by pk (single column or multi column)
+    query = {}
+    if isinstance(_id, list):
+        pkeys = model.external.pkeys
+        for index, pk in enumerate(pkeys):
+            query[pk.name] = _id[index]
+    else:
+        pk = model.external.pkeys[0].name
+        query[pk] = _id
+
+    # building sqlalchemy query
+    context.attach(f'transaction.{backend.name}', backend.begin)
+    conn = context.get(f'transaction.{backend.name}')
+    table = model.external.name
+    table = backend.get_table(model, table)
+
+    qry = table.select()
+    for column_name, column_value in query.items():
+        id_column = table.c.get(column_name)
+        qry = qry.where(id_column == column_value)
+
+    # #executing query
+    result = conn.execute(qry)
+    row = result.fetchone()
+
+    # preparing results
+    data = {}
+
+    for field in model.properties:
+        if not field.startswith('_'):
+            value = row[field]
+            data[field] = value
+
+    additional_data = {
+        '_type': model.model_type(),
+        '_id': id_
+    }
+    data.update(additional_data)
+    data = flat_dicts_to_nested(data)
+    return commands.cast_backend_to_python(context, model, backend, data)
