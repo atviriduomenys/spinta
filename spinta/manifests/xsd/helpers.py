@@ -108,6 +108,9 @@ class XSDModel:
         self.properties: dict | None = None
         self.uri: str | None = None
         self.description: str | None = None
+        self.root_properties: dict | None = None
+        self.parent_model: XSDModel | None = None
+        self.is_root_model: bool | None = None
 
     def get_data(self):
         model_data: dict = {
@@ -387,7 +390,6 @@ class XSDReader:
         referenced_node = self.root.xpath(xpath_query)[0]
         return referenced_node
 
-
     @staticmethod
     def node_is_ref(node: _Element) -> bool:
         if node.get("ref"):
@@ -483,6 +485,7 @@ class XSDReader:
         self,
         node: _Element,
         model: XSDModel,
+        parent_model: XSDModel,
         source_path: str = ""
     ) -> tuple[
             dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]],
@@ -521,7 +524,11 @@ class XSDReader:
                         source_path += f'/{ref_element.get("name")}'
 
                 if not (XSDReader.is_array(ref_element) or is_array):
-                    referenced_model_names, new_root_properties = self._create_model(referenced_element, source_path)
+                    referenced_model_names, new_root_properties = self._create_model(
+                        referenced_element,
+                        source_path=source_path,
+                        parent_model=model
+                    )
                     property_type = "ref"
                 else:
                     referenced_element_properties = {
@@ -532,8 +539,12 @@ class XSDReader:
                         }
                     }
                     property_type = "backref"
-                    referenced_model_names, new_root_properties = self._create_model(referenced_element, source_path,
-                                                                additional_properties=referenced_element_properties)
+                    referenced_model_names, new_root_properties = self._create_model(
+                        referenced_element,
+                        source_path=source_path,
+                        parent_model=model,
+                        additional_properties=referenced_element_properties
+                    )
 
                 root_properties.update(new_root_properties)
 
@@ -551,6 +562,7 @@ class XSDReader:
         self,
         node: _Element,
         source_path: str,
+        parent_model: XSDModel,
         additional_properties: dict[str, dict[str, str | bool | dict[str, str]]]
     ) -> tuple[list[str], dict[str, str | bool | dict[str, str | dict[str, Any]]]]:
         """
@@ -588,18 +600,23 @@ class XSDReader:
                     choice_copy = deepcopy(choice)
                     for node_in_choice in choice:
                         choice_node_parent.insert(0, node_in_choice)
-                        returned_model_names, new_root_properties = self._create_model(
-                            node_copy, source_path,
-                            additional_properties=additional_properties)
-                        model_names.extend(returned_model_names)
-                        root_properties.update(new_root_properties)
+                    returned_model_names, new_root_properties = self._create_model(
+                        node_copy,
+                        source_path=source_path,
+                        parent_model=parent_model,
+                        additional_properties=additional_properties)
+                    root_properties.update(new_root_properties)
+                    model_names.extend(returned_model_names)
+
                     for node_in_choice in choice_copy:
                         node_in_choice = choice_node_parent.xpath(f"./*[@name=\'{node_in_choice.get('name')}\']")[0]
                         choice_node_parent.remove(node_in_choice)
                 else:
                     choice_node_parent.insert(0, choice)
                     returned_model_names, new_root_properties = self._create_model(
-                        node_copy, source_path,
+                        node_copy,
+                        source_path=source_path,
+                        parent_model=parent_model,
                         additional_properties=additional_properties)
                     model_names.extend(returned_model_names)
                     root_properties.update(new_root_properties)
@@ -612,12 +629,14 @@ class XSDReader:
         node: _Element,
         source_path: str = "",
         is_root_model: bool = False,
+        parent_model: XSDModel = None,
         additional_properties: dict[str, str | bool | dict[str, str | dict[str, Any]]] = None
     ) -> tuple[list[str], dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]]:
         """
         Parses an element and makes a model out of it. If it is a complete model, it will be added to the models list.
         """
         model = XSDModel(self)
+        model.parent_model = parent_model
 
         if additional_properties is None:
             additional_properties = {}
@@ -651,7 +670,11 @@ class XSDReader:
                     choices = complex_type_node.xpath(f'./*[local-name() = "sequence"]/*[local-name() = "choice"]')
             if choices:
                 if choices[0].get("maxOccurs") != "unbounded":
-                    return self._split_choice(node, source_path, additional_properties=additional_properties)
+                    return self._split_choice(
+                        node,
+                        source_path=source_path,
+                        parent_model=model,
+                        additional_properties=additional_properties)
 
             # if complextype node's property mixed is true, it allows text inside
             if complex_type_node.get("mixed") == "true":
@@ -729,7 +752,10 @@ class XSDReader:
                                 if not element.get("name") in paths:
 
                                     # this can sometimes happen when choice node has been split or maybe in some other cases too
-                                    return self._create_model(element, source_path=new_source_path)
+                                    return self._create_model(
+                                        element,
+                                        source_path=new_source_path,
+                                        parent_model=model)
                                 else:
                                     for index, path in enumerate(paths):
                                         if path == element.get("name"):
@@ -744,11 +770,17 @@ class XSDReader:
                             element = sequence_or_all_node.xpath(f'./*[local-name() = "element"]')[0]
                             element = self._get_referenced_node(element)
                             if not is_root_model:
-                                return self._create_model(element, source_path=new_source_path,
-                                                      additional_properties=additional_properties)
+                                return self._create_model(
+                                    element,
+                                    source_path=new_source_path,
+                                    parent_model=model,
+                                    additional_properties=additional_properties)
                             else:
-                                _, new_root_properties = self._create_model(element, source_path=new_source_path,
-                                                      additional_properties=additional_properties)
+                                _, new_root_properties = self._create_model(
+                                    element,
+                                    source_path=new_source_path,
+                                    parent_model=model,
+                                    additional_properties=additional_properties)
                                 root_properties.update(new_root_properties)
 
                 elif sequence_or_all_node_length > 1 or properties:
@@ -759,7 +791,11 @@ class XSDReader:
                         properties_required=properties_required))
 
                     # references
-                    properties_from_references, new_root_properties = self._properties_from_references(sequence_or_all_node, model, new_source_path)
+                    properties_from_references, new_root_properties = self._properties_from_references(
+                        sequence_or_all_node,
+                        model=model,
+                        parent_model=parent_model,
+                        source_path=new_source_path)
                     properties.update(properties_from_references)
                     root_properties.update(new_root_properties)
 
@@ -770,7 +806,11 @@ class XSDReader:
                             # check for recursion
                             paths = new_source_path.split("/")
                             if not child_node.get("name") in paths:
-                                _, new_root_properties = self._create_model(child_node, source_path=new_source_path)
+                                _, new_root_properties = self._create_model(
+                                    child_node,
+                                    source_path=new_source_path,
+                                    parent_model=model
+                                )
                                 root_properties.update(new_root_properties)
                             else:
                                 for index, path in enumerate(paths):
@@ -778,9 +818,11 @@ class XSDReader:
                                         paths[index] = f"/{path}"
                                 new_source_path = "/".join(paths)
 
-        if properties or is_root_model:
+        model.properties = properties
 
-            # DEALING WITH NESTED ROOT PROPERTIES ---------------------
+        # DEALING WITH NESTED ROOT PROPERTIES ---------------------
+
+        if properties:
             # new_root_properties are to pass up to the root model and to add to it
             new_root_properties = {}
             # add the model prefix to every property name and source
@@ -788,6 +830,11 @@ class XSDReader:
                 for root_property_id, root_property in model_properties.items():
 
                     # we don't need to add refs and backrefs, only actual fields
+                    # TODO: I don't know if we need this check. I would assume that we don't.
+                    #  But if we delete this check, then it doesn't find the referenced model
+                    #  if there is a model in between
+                    #  Example: Objektai has faktai[].faktu_naudotojai[].naudotojo_id then
+                    #  Faktu_Naudotojai has referencce to Faktai but not Objektai
                     if not root_property.get("type") == "ref" and not root_property.get("type") == "backref":
 
                         # we need to find out the name of the property that corresponds the model,
@@ -811,22 +858,20 @@ class XSDReader:
                         root_property_id = f"{prefix}{array_sign}.{root_property_id}"
                         new_root_properties[root_property_id] = root_property
 
-            if is_root_model:
-                properties.update(new_root_properties)
-            else:
-                new_root_properties.update(deepcopy(properties))
+            model.root_properties = new_root_properties
+
+            new_root_properties.update(deepcopy(properties))
 
             # adding node source to the source path here, before passing further,
             # because we can't retrieve it later otherwise
-            returned_root_properties = {}
-            for root_property_id, root_property in new_root_properties.items():
-                new_root_property = deepcopy(root_property)
-
-                if "external" in root_property:
-                    new_root_property["external"] = {"name": f"{node.get('name')}/{root_property['external']['name']}"}
-                returned_root_properties[root_property_id] = new_root_property
-
-            model.properties = properties
+            # returned_root_properties = {}
+            # for root_property_id, root_property in new_root_properties.items():
+            #     new_root_property = deepcopy(root_property)
+            #
+            #     if "external" in root_property:
+            #         new_root_property["external"] = {"name": f"{node.get('name')}/{root_property['external']['name']}"}
+            #     returned_root_properties[root_property_id] = new_root_property
+            returned_root_properties = new_root_properties
 
             model.add_external_info(external_name=new_source_path)
             model.description = self.get_description(node)
@@ -836,10 +881,10 @@ class XSDReader:
                 model_name = f"{model.name}[]"
             else:
                 model_name = model.name
-            # -------------------END DEALING WITH NESTED ROOT PROPERTIES
 
             return [model.name, ], {model_name: returned_root_properties}
-        return [], {}
+
+        return [], root_properties
 
     def _add_resource_model(self):
         resource_model = XSDModel(self)
@@ -848,6 +893,7 @@ class XSDReader:
         resource_model.description = "Įvairūs duomenys"
         resource_model.uri = "http://www.w3.org/2000/01/rdf-schema#Resource"
         resource_model.properties = resource_model.properties_from_simple_elements(self.root, from_root=True)
+        resource_model.root_properties = {}
         if resource_model.properties:
             resource_model.set_name(self.deduplicate(f"Resource"))
             self.models.append(resource_model)
@@ -959,5 +1005,11 @@ def read_schema(
     yield None, xsd.dataset_and_resource_info
 
     for parsed_model in xsd.models:
+
+        # we need to add root properties to properties if it's a root model
+        if parsed_model.parent_model is None or parsed_model.parent_model not in xsd.models:
+            parsed_model.properties.update(parsed_model.root_properties)
+
+        parsed_model.properties = dict(sorted(parsed_model.properties.items()))
 
         yield None, parsed_model.get_data()
