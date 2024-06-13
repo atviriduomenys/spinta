@@ -5,7 +5,7 @@
 Configuration
 #############
 
-Spinta can be configured using multiple configuration soruces. By default these
+Spinta can be configured using multiple configuration sources. By default these
 sources are used in precedence order:
 
 - Command line arguments.
@@ -49,8 +49,8 @@ example::
 
   spinta config backends manifests
 
-Since Spinta is usually configured using envoronment varialbes, you can show
-configuration options names as environemtn variables by adding `-f env`
+Since Spinta is usually configured using environment variables, you can show
+configuration options names as environment variables by adding `-f env`
 argument::
 
   spinta config -f env backends manifests
@@ -92,13 +92,13 @@ configuration values, for example::
 
 `-o` must be use immediately after `spinta` command and before any subcommands.
 
-You can use `-o` multipe times, to set multiple configuraiton options.
+You can use `-o` multiple times, to set multiple configuration options.
 
 
-Environemtn variables
+Environment variables
 ---------------------
 
-All environemnt variables must use `SPINTA_` prefix and hierarchy levels must
+All environment variables must use `SPINTA_` prefix and hierarchy levels must
 be separated with `__`. For example::
 
   > SPINTA_BACKENDS__FOO__TYPE=mongo spinta config backends
@@ -110,7 +110,7 @@ be separated with `__`. For example::
 .env file
 ---------
 
-Spinta tries to riead `.env` file from current directory if such file exists.
+Spinta tries to read `.env` file from current directory if such file exists.
 `.env` file simply contains list environemnt variables.
 
 Empty lines and lines starting with `#` are ignored.
@@ -127,7 +127,7 @@ via `config` option.
 path to `.yml` file or it can be a python dotted path like
 `myapp.config:CONFIG`, pointing to a dict.
 
-For example we can create and additional configuration file:
+For example we can create an additional configuration file:
 
 .. code-block:: bash
 
@@ -156,8 +156,7 @@ Configuration directory
 
 In addition to main configuration, there are other configuration files, for
 example client credentials, token authorization keys, client access and other
-files. All this addition files are stored in `$XDG_CONFIG_HOME/spinta
-kataloge`__ directory, usually it is `~/.config/spinta` directory.
+files. All this addition files are stored in `$XDG_CONFIG_HOME/spinta`__ directory, usually it is `~/.config/spinta` directory.
 
 __ https://specifications.freedesktop.org/basedir-spec/latest/ar01s03.html
 

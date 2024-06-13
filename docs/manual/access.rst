@@ -125,7 +125,7 @@ Once you have an access token, then you can access data by passing token to
 Access levels
 =============
 
-Access level can be sed to models and properties in manifest YAML files. For
+Access level can be set to models and properties in manifest YAML files. For
 example:
 
 .. code-block:: yaml
@@ -170,7 +170,7 @@ Here `country` model and `code` property have `access` set to `private`.
   client `$SPINTA_DEFAULT_AUTH_CLIENT` can't be used to access data.
 
 :open:
-  Data can be accessed freeely withouf any restrictions. Access token is not
+  Data can be accessed freely without any restrictions. Access token is not
   required if `$SPINTA_DEFAULT_AUTH_CLIENT` is set, scopes of the default
   client will be used.
 
