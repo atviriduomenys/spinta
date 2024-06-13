@@ -79,6 +79,10 @@ Bug fixes:
 - Fixed issue with outdated page key in push state tables (P#95).
 
 
+- Words in dataset names separated by underscores. (`#626`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/626
+
 0.1.62 (2024-02-29)
 ===================
 
