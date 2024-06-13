@@ -862,15 +862,6 @@ class XSDReader:
 
             new_root_properties.update(deepcopy(properties))
 
-            # adding node source to the source path here, before passing further,
-            # because we can't retrieve it later otherwise
-            # returned_root_properties = {}
-            # for root_property_id, root_property in new_root_properties.items():
-            #     new_root_property = deepcopy(root_property)
-            #
-            #     if "external" in root_property:
-            #         new_root_property["external"] = {"name": f"{node.get('name')}/{root_property['external']['name']}"}
-            #     returned_root_properties[root_property_id] = new_root_property
             returned_root_properties = new_root_properties
 
             model.add_external_info(external_name=new_source_path)
