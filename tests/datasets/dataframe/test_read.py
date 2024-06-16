@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 from fsspec import AbstractFileSystem
 from fsspec.implementations.memory import MemoryFileSystem
+from responses import RequestsMock, POST, GET
 
 from spinta.components import Mode
 from spinta.core.config import RawConfig
@@ -1561,3 +1562,143 @@ def test_xml_json_csv_combined_read_parametrize_advanced_iterate_pages(rc: RawCo
         ('MongoDB', 'MongoDB21'), ('MongoDB', 'MongoDB22'), ('MongoDB', 'MongoDB23'),
         ('MongoDB', 'MongoDB21'), ('MongoDB', 'MongoDB22'), ('MongoDB', 'MongoDB23'),
     ]
+
+
+def test_soap(rc: RawConfig, tmp_path: Path, responses: RequestsMock):
+    response = """
+    <soap:Envelope
+        xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+       <soap:Header/>
+       <soap:Body>
+            <ResponseCode>10</ResponseCode>
+            <ResponseData><PAIESKA><PAIESKOS_KRITERIJAI data="2024-05-06" pozymis="1" formavimo_laikas="2024-05-06:12:12:12"></PAIESKOS_KRITERIJAI><JA_SARASAS><JUR_ASMUO OBJ_KODAS="5" OBJ_PAV="TEST" FORM_KODAS="7" STAT_STATUSAS="9"></JUR_ASMUO></JA_SARASAS></PAIESKA></ResponseData>
+       </soap:Body>
+    </soap:Envelope>
+    """.strip()
+
+    wsdl = """<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/" xmlns:tns="http://www.registrucentras.lt" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" xmlns="http://schemas.xmlsoap.org/wsdl/" targetNamespace="http://www.registrucentras.lt">
+<types>
+<xsd:schema targetNamespace="http://www.registrucentras.lt"
+>
+ <xsd:import namespace="http://schemas.xmlsoap.org/soap/encoding/" />
+ <xsd:import namespace="http://schemas.xmlsoap.org/wsdl/" />
+ <xsd:complexType name="InputParams">
+  <xsd:all>
+   <xsd:element name="ActionType" type="xsd:string"/>
+   <xsd:element name="CallerCode" type="xsd:string"/>
+   <xsd:element name="EndUserInfo" type="xsd:string" minOccurs="0"/>
+   <xsd:element name="Parameters" type="xsd:string"/>
+   <xsd:element name="Time" type="xsd:string"/>
+   <xsd:element name="Signature" type="xsd:string"/>
+   <xsd:element name="CallerSignature" type="xsd:string" minOccurs="0"/>
+  </xsd:all>
+ </xsd:complexType>
+ <xsd:complexType name="GetResponseType">
+  <xsd:all>
+   <xsd:element name="ResponseCode" type="xsd:int"/>
+   <xsd:element name="ResponseData" type="xsd:string"/>
+  </xsd:all>
+ </xsd:complexType>
+ <xsd:complexType name="GetRcResponseType">
+  <xsd:all>
+   <xsd:element name="ResponseCode" type="xsd:int"/>
+   <xsd:element name="ResponseData" type="xsd:string"/>
+   <xsd:element name="ResponseId" type="xsd:string"/>
+  </xsd:all>
+ </xsd:complexType>
+</xsd:schema>
+</types>
+<message name="GetDataRequest">
+  <part name="input" type="tns:InputParams" /></message>
+<message name="GetDataResponse">
+  <part name="return" type="tns:GetResponseType" /></message>
+<message name="GetDataRcRequest">
+  <part name="input" type="tns:InputParams" /></message>
+<message name="GetDataRcResponse">
+  <part name="return" type="tns:GetRcResponseType" /></message>
+<portType name="GetPortType">
+  <operation name="GetData">
+    <documentation>&lt;a href=&quot;info.php&quot;&gt;Produktų sąrašas&lt;/a&gt;</documentation>
+    <input message="tns:GetDataRequest"/>
+    <output message="tns:GetDataResponse"/>
+  </operation>
+  <operation name="GetDataRc">
+    <documentation>&lt;a href=&quot;info.php&quot;&gt;Produktų sąrašas&lt;/a&gt;</documentation>
+    <input message="tns:GetDataRcRequest"/>
+    <output message="tns:GetDataRcResponse"/>
+  </operation>
+</portType>
+<binding name="GetBinding" type="tns:GetPortType">
+  <soap:binding style="rpc" transport="http://schemas.xmlsoap.org/soap/http"/>
+  <operation name="GetData">
+    <soap:operation soapAction="urn:http://www.registrucentras.lt#get" style="rpc"/>
+    <input><soap:body use="encoded" namespace="urn:http://www.registrucentras.lt" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/></input>
+    <output><soap:body use="encoded" namespace="urn:http://www.registrucentras.lt" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/></output>
+  </operation>
+  <operation name="GetDataRc">
+    <soap:operation soapAction="urn:http://www.registrucentras.lt#get" style="rpc"/>
+    <input><soap:body use="encoded" namespace="urn:http://www.registrucentras.lt" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/></input>
+    <output><soap:body use="encoded" namespace="urn:http://www.registrucentras.lt" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/></output>
+  </operation>
+</binding>
+<service name="Get">
+  <port name="GetPort" binding="tns:GetBinding">
+    <soap:address location="https://ws.registrucentras.lt:443/broker/index.php"/>
+  </port>
+</service>
+</definitions>
+    """
+
+    responses.add(POST, "https://ws.registrucentras.lt:443/broker/index.php", status=200, content_type='text/plain; charset=utf-8', body=response)
+    responses.add(GET, "https://ws.registrucentras.lt/broker/index.php?wsdl", status=200, content_type='text/plain; charset=utf-8', body=wsdl)
+
+    context, manifest = prepare_manifest(rc, f'''
+d | r | b | m | property       | type     | ref              | source                              | prepare
+example                        |          |                  |                                     |
+| res1                         | soap     |                  | https://ws.registrucentras.lt/broker/index.php?wsdl|
+|   |   | Service              |          |                  | Get.GetPort.GetPortType.GetData     |
+|   |   |   |                  | param    | type             |                                     |
+|   |   |   |                  | param    | caller           |                                     |
+|   |   |   |                  | param    | user             |                                     |
+|   |   |   |                  | param    | params           |                                     |
+|   |   |   |                  | param    | time             |                                     |
+|   |   |   |                  | param    | signature        |                                     |
+|   |   |   |                  | param    | caller_signature |                                     |
+|   |   |   | type             | integer  |                  | ActionType                          |
+|   |   |   | caller           | string   |                  | CallerCode                          |
+|   |   |   | user             | string   |                  | EndUserInfo                         |
+|   |   |   | params           | string   |                  | Parameters                          |
+|   |   |   | time             | string   |                  | Time                                |
+|   |   |   | signature        | string   |                  | Signature                           |
+|   |   |   | caller_signature | string   |                  | CallerSignature                     |
+|   |   |   | response         | object   |                  | GetDataResponse                     |
+|   |   |   | response.code    | integer  |                  | ResponseCode                        |
+|   |   |   | response.data    | string   |                  | ResponseData                        |
+    ''', mode=Mode.external)
+    context.loaded = True
+
+    app = create_test_client(context)
+    app.authmodel('example/Service', ['getall', 'search'])
+
+    response = app.get('example/Service?type=46&caller=1&user=2&params="<args><data>2024-05-06</data><fmt>xml</fmt></args>"&time=3&signature=4&caller_signature=5')
+
+    # response = app.get('example/Service?type=46&user=2')
+    result = response.json()
+    del result["_data"][0]["_id"]
+    # todo mock generation of _id instead
+    assert result == {"_data": [{
+        '_revision': None,
+        '_type': 'example/Service',
+        '_base': None,
+        'caller': 1,
+        'caller_signature': 5,
+        'signature': 4,
+        'time': 3,
+        'type': 46,
+        'user': 2,
+        'params': '<args><data>2024-05-06</data><fmt>xml</fmt></args>',
+
+        "response": {"code": 10, "data": """<PAIESKA><PAIESKOS_KRITERIJAI data="2024-05-06" pozymis="1" formavimo_laikas="2024-05-06:12:12:12"/><JA_SARASAS><JUR_ASMUO OBJ_KODAS="5" OBJ_PAV="TEST" FORM_KODAS="7" STAT_STATUSAS="9"/></JA_SARASAS></PAIESKA>"""}}]}
+
+
