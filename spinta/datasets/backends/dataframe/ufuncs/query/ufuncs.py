@@ -1,116 +1,15 @@
 from typing import Dict, Any, Tuple, List
 
-from dask.dataframe import DataFrame
-from dask.dataframe import Series
-
 from spinta.auth import authorized
-from spinta.components import Model, Property, Action
-from spinta.core.ufuncs import Env, Expr, ufunc, Bind, Unresolved
-from spinta.datasets.backends.dataframe.components import DaskBackend
-from spinta.datasets.backends.sql.commands.query import GetAttr
-from spinta.dimensions.param.components import ResolvedParams
-from spinta.exceptions import UnknownMethod, PropertyNotFound, NotImplementedFeature, SourceCannotBeList
-from spinta.types.datatype import DataType, PrimaryKey, Ref
+from spinta.components import Property, Action
+from spinta.core.ufuncs import Expr, ufunc, Bind, Unresolved, GetAttr
+from spinta.datasets.backends.dataframe.ufuncs.query.components import DaskDataFrameQueryBuilder, DaskSelected as Selected
+from spinta.exceptions import PropertyNotFound, NotImplementedFeature, SourceCannotBeList
+from spinta.types.datatype import DataType, PrimaryKey, Ref, Binary
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.data import take
 from spinta.utils.schema import NA
-
-
-class Selected:
-    # Item index in select list.
-    item: str = None
-    # Model property if a property is selected.
-    prop: Property = None
-    # A value or an Expr for further processing on selected value.
-    prep: Any = NA
-
-    def __init__(
-        self,
-        item: str = None,
-        prop: Property = None,
-        # `prop` can be Expr or any other value.
-        prep: Any = NA,
-    ):
-        self.item = item
-        self.prop = prop
-        self.prep = prep
-
-    def __repr__(self):
-        return self.debug()
-
-    def debug(self, indent: str = ''):
-        prop = self.prop.place if self.prop else 'None'
-        if isinstance(self.prep, Selected):
-            return (
-                f'{indent}Selected('
-                f'item={self.item}, '
-                f'prop={prop}, '
-                f'prep=...)\n'
-            ) + self.prep.debug(indent + '  ')
-        elif isinstance(self.prep, (tuple, list)):
-            return (
-                f'{indent}Selected('
-                f'item={self.item}, '
-                f'prop={prop}, '
-                f'prep={type(self.prep).__name__}...)\n'
-            ) + ''.join([
-                p.debug(indent + '- ')
-                if isinstance(p, Selected)
-                else str(p)
-                for p in self.prep
-            ])
-        else:
-            return (
-                f'{indent}Selected('
-                f'item={self.item}, '
-                f'prop={prop}, '
-                f'prep={self.prep})\n'
-            )
-
-
-class DaskDataFrameQueryBuilder(Env):
-    backend: DaskBackend
-    model: Model
-    dataframe: DataFrame
-    # `resolved` is used to map which prop.place properties are already
-    # resolved, usually it maps to Selected, but different DataType's can return
-    # different results.
-    resolved: Dict[str, Selected]
-    selected: Dict[str, Selected] = None
-    params: ResolvedParams
-
-    def init(self, backend: DaskBackend, dataframe: DataFrame):
-        return self(
-            backend=backend,
-            dataframe=dataframe,
-            resolved={},
-            selected=None,
-            sort={
-                "desc": [],
-                "asc": []
-            },
-            limit=None,
-            offset=None,
-        )
-
-    def build(self, where):
-        if self.selected is None:
-            self.call('select', Expr('select'))
-        df = self.dataframe
-
-        if self.limit is not None:
-            df = df.head(self.limit, npartitions=-1, compute=False)
-
-        if self.offset is not None:
-            df = df.loc[self.offset:]
-        return df
-
-    def execute(self, expr: Any):
-        expr = self.call('_resolve_unresolved', expr)
-        return super().execute(expr)
-
-    def default_resolver(self, expr, *args, **kwargs):
-        raise UnknownMethod(name=expr.name, expr=str(expr(*args, **kwargs)))
+import base64 as b64
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Expr, name='and')
@@ -141,69 +40,6 @@ def limit(env: DaskDataFrameQueryBuilder, n: int):
 @ufunc.resolver(DaskDataFrameQueryBuilder, int)
 def offset(env: DaskDataFrameQueryBuilder, n: int):
     env.offset = n
-
-
-@ufunc.resolver(DaskDataFrameQueryBuilder, Bind, Bind, name='getattr')
-def getattr_(env: DaskDataFrameQueryBuilder, obj: Bind, attr: Bind):
-    return GetAttr(obj.name, attr)
-
-
-@ufunc.resolver(DaskDataFrameQueryBuilder, Bind, GetAttr, name='getattr')
-def getattr_(env: DaskDataFrameQueryBuilder, obj: Bind, attr: GetAttr):
-    return GetAttr(obj.name, attr)
-
-
-@ufunc.resolver(DaskDataFrameQueryBuilder, GetAttr)
-def _resolve_getattr(
-    env: DaskDataFrameQueryBuilder,
-    attr: GetAttr,
-) -> ForeignProperty:
-    prop = env.model.properties[attr.obj]
-    return env.call('_resolve_getattr', prop.dtype, attr.name)
-
-
-@ufunc.resolver(DaskDataFrameQueryBuilder, Ref, GetAttr)
-def _resolve_getattr(
-    env: DaskDataFrameQueryBuilder,
-    dtype: Ref,
-    attr: GetAttr,
-) -> ForeignProperty:
-    prop = dtype.model.properties[attr.obj]
-    fpr = ForeignProperty(None, dtype, prop.dtype)
-    return env.call('_resolve_getattr', fpr, prop.dtype, attr.name)
-
-
-@ufunc.resolver(DaskDataFrameQueryBuilder, Ref, Bind)
-def _resolve_getattr(
-    env: DaskDataFrameQueryBuilder,
-    dtype: Ref,
-    attr: Bind,
-) -> ForeignProperty:
-    prop = dtype.model.properties[attr.name]
-    return ForeignProperty(None, dtype, prop.dtype)
-
-
-@ufunc.resolver(DaskDataFrameQueryBuilder, ForeignProperty, Ref, GetAttr)
-def _resolve_getattr(
-    env: DaskDataFrameQueryBuilder,
-    fpr: ForeignProperty,
-    dtype: Ref,
-    attr: GetAttr,
-) -> ForeignProperty:
-    prop = dtype.model.properties[attr.obj]
-    fpr = fpr.push(prop)
-    return env.call('_resolve_getattr', fpr, prop.dtype, attr.name)
-
-
-@ufunc.resolver(DaskDataFrameQueryBuilder, ForeignProperty, Ref, Bind)
-def _resolve_getattr(
-    env: DaskDataFrameQueryBuilder,
-    fpr: ForeignProperty,
-    dtype: Ref,
-    attr: Bind,
-) -> ForeignProperty:
-    prop = dtype.model.properties[attr.name]
-    return fpr.push(prop)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, object)
@@ -522,3 +358,23 @@ def select(
     prep: Dict[str, Any],
 ) -> Dict[str, Any]:
     return {k: env.call('select', v) for k, v in prep.items()}
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder)
+def base64(env: DaskDataFrameQueryBuilder) -> bytes:
+    return env.call('base64', env.this)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Property)
+def base64(env: DaskDataFrameQueryBuilder, prop: Property) -> bytes:
+    return env.call('base64', prop.dtype)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Binary)
+def base64(env: DaskDataFrameQueryBuilder, dtype: Binary) -> Selected:
+    item = f'base64({dtype.prop.external.name})'
+    env.dataframe[item] = env.dataframe[dtype.prop.external.name].str.encode('ascii').map(b64.decodebytes, meta=(dtype.prop.external.name, bytes))
+    return Selected(
+        item=item,
+        prop=dtype.prop
+    )

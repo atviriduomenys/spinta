@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import dataclasses
 import functools
 import importlib
-from typing import Any, Optional, List
+from typing import Any, Optional, List, Union
 from typing import Dict
 from typing import TYPE_CHECKING
 from typing import Tuple
@@ -301,6 +302,12 @@ class Negative(Bind):
 
 class Positive(Bind):
     pass
+
+
+@dataclasses.dataclass
+class GetAttr(Unresolved):
+    obj: str
+    name: Union[GetAttr, Bind]
 
 
 bind = functools.partial(Expr, 'bind')

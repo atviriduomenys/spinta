@@ -2,10 +2,10 @@ import io
 import json
 import pathlib
 
-import numpy as np
 from typing import Dict, Any, Iterator
 
 import dask
+import numpy as np
 import requests
 import zeep
 from dask.dataframe import DataFrame
@@ -14,12 +14,11 @@ from lxml.etree import _Element
 from zeep import Client
 
 from spinta import commands
-from spinta.components import Context, Property, Model, UrlParams
-from spinta.core.ufuncs import Expr, asttoexpr
+from spinta.components import Context, Property, Model
+from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.dataframe.components import DaskBackend, Csv, Xml, Json, Soap
-from spinta.datasets.backends.dataframe.commands.query import DaskDataFrameQueryBuilder, Selected
 from spinta.datasets.backends.dataframe.ufuncs.components import TabularResource
-
+from spinta.datasets.backends.dataframe.ufuncs.query.components import DaskDataFrameQueryBuilder
 from spinta.datasets.backends.helpers import handle_ref_key_assignment
 from spinta.datasets.components import Resource, Param
 from spinta.datasets.helpers import get_enum_filters, get_ref_filters
@@ -27,46 +26,62 @@ from spinta.datasets.keymaps.components import KeyMap
 from spinta.datasets.utils import iterparams
 from spinta.dimensions.enum.helpers import get_prop_enum
 from spinta.dimensions.param.components import ResolvedParams
-from spinta.exceptions import ValueNotInEnum, PropertyNotFound, NoExternalName, UnknownMethod, SoapServiceError, \
+
+from spinta.exceptions import ValueNotInEnum, PropertyNotFound, NoExternalName, SoapServiceError, \
     SoapServicePortError, SoapServiceSourceError, SoapServiceOperationError
 from spinta.manifests.components import Manifest
 from spinta.manifests.dict.helpers import is_list_of_dicts, is_blank_node
-from spinta.types.datatype import PrimaryKey, Ref, DataType, Boolean, Number, Integer, DateTime, Time, Object
+from spinta.types.datatype import PrimaryKey, Ref, DataType, Boolean, Number, Integer, DateTime, Object
 from spinta.typing import ObjectData
+from spinta.ufuncs.basequerybuilder.components import Selected
 from spinta.ufuncs.helpers import merge_formulas
+from spinta.ufuncs.resultbuilder.components import ResultBuilder
 from spinta.utils.data import take
 from spinta.utils.schema import NA
 
 
-@commands.load.register(Context, DaskBackend, dict)
-def load(context: Context, backend: DaskBackend, config: Dict[str, Any]):
-    pass
-
-
-@commands.prepare.register(Context, DaskBackend, Manifest)
-def prepare(context: Context, backend: DaskBackend, manifest: Manifest, **kwargs):
-    pass
-
-
-@commands.bootstrap.register(Context, DaskBackend)
-def bootstrap(context: Context, backend: DaskBackend):
-    pass
-
-
-def _resolve_expr(
-    context: Context,
-    row: Dict[str, Any],
-    sel: Selected,
-) -> Any:
+def _resolve_expr(context: Context, row: Any, sel: Selected) -> Any:
     if sel.item is None:
         val = None
     else:
         val = row[sel.item]
-    raise NotImplementedError
-    return val
+    env = ResultBuilder(context).init(val, sel.prop, row)
+    return env.resolve(sel.prep)
 
 
-def _get_row_value(context: Context, row: Dict[str, Any], sel: Any) -> Any:
+def _aggregate_values(data, target: Property):
+    if target is None or target.list is None:
+        return data
+
+    key_path = target.place
+    key_parts = key_path.split('.')
+
+    # Drop first part, since if nested prop is part of the list will always be first value
+    # ex: from DB we get {"notes": [{"note": 0}]}
+    # but after fetching the value we only get [{"note": 0}]
+    # so if our place is "notes.note", we need to drop "notes" part
+    if len(key_parts) > 1:
+        key_parts = key_parts[1:]
+
+    def recursive_collect(sub_data, depth=0):
+        if depth < len(key_parts):
+            if isinstance(sub_data, list):
+                collected = []
+                for item in sub_data:
+                    collected.extend(recursive_collect(item, depth))
+                return collected
+            elif isinstance(sub_data, dict) and key_parts[depth] in sub_data:
+                return recursive_collect(sub_data[key_parts[depth]], depth + 1)
+        else:
+            return [sub_data]
+
+        return []
+
+    # Start the recursive collection process
+    return recursive_collect(data, 0)
+
+
+def _get_row_value(context: Context, row: Any, sel: Any) -> Any:
     if isinstance(sel, Selected):
         if isinstance(sel.prep, Expr):
             val = _resolve_expr(context, row, sel)
@@ -106,6 +121,21 @@ def _get_row_value(context: Context, row: Dict[str, Any], sel: Any) -> Any:
     if isinstance(sel, dict):
         return {k: _get_row_value(context, row, v) for k, v in sel.items()}
     return sel
+
+
+@commands.load.register(Context, DaskBackend, dict)
+def load(context: Context, backend: DaskBackend, config: Dict[str, Any]):
+    pass
+
+
+@commands.prepare.register(Context, DaskBackend, Manifest)
+def prepare(context: Context, backend: DaskBackend, manifest: Manifest, **kwargs):
+    pass
+
+
+@commands.bootstrap.register(Context, DaskBackend)
+def bootstrap(context: Context, backend: DaskBackend):
+    pass
 
 
 def _select(prop: Property, df: DataFrame):
@@ -324,7 +354,6 @@ def _get_data_soap(url: str, source: str, model_props: dict, namespaces: dict, m
     # service.port.port_type.operation
     # Example:
     # Get.GetPort.GetPortType.GetData
-
 
     def get_query_params(query: Expr):
         # params from query of the call to spinta

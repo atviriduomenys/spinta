@@ -7,8 +7,9 @@ from spinta.backends.postgresql.helpers import get_column_name as gcn
 from spinta.components import Property, Model
 from spinta.datasets.enums import Level
 from spinta.exceptions import PropertyNotFound
-from spinta.types.datatype import DataType, Ref, BackRef, String, ExternalRef
+from spinta.types.datatype import DataType, Ref, BackRef, String, ExternalRef, Array
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import JSONB
 
 from spinta.types.text.components import Text
 
@@ -46,7 +47,20 @@ def get_column(backend: PostgreSQL, dtype: DataType, table: sa.Table = None, **k
     if table is None:
         table = get_table(backend, prop)
     column_name = gcn(dtype.prop)
-    return convert_str_to_column(table, prop, column_name)
+    column = convert_str_to_column(table, prop, column_name)
+    if isinstance(column.type, (sa.types.JSON, JSONB)) and dtype.prop.place != dtype.prop.name:
+        return column[dtype.prop.name].label(dtype.prop.place)
+    return column
+
+
+@commands.get_column.register(PostgreSQL, Array)
+def get_column(backend: PostgreSQL, dtype: Array, table: sa.Table = None, **kwargs):
+    prop = dtype.prop
+    if table is None:
+        table = get_table(backend, prop)
+    column_name = gcn(dtype.prop)
+    column = convert_str_to_column(table, prop, column_name)
+    return column
 
 
 @commands.get_column.register(PostgreSQL, String)
@@ -60,7 +74,10 @@ def get_column(backend: PostgreSQL, dtype: String, table: sa.Table = None, **kwa
     column = convert_str_to_column(table, prop, column_name)
 
     if parent and isinstance(parent.dtype, Text):
-        column = column[dtype.prop.name].label(dtype.prop.place.replace('@', '.'))
+        return column[dtype.prop.name].label(dtype.prop.place.replace('@', '.'))
+
+    if isinstance(column.type, (sa.types.JSON, JSONB)) and dtype.prop.place != dtype.prop.name:
+        return column[dtype.prop.name].label(dtype.prop.place)
     return column
 
 

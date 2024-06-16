@@ -1,4 +1,3 @@
-import base64
 import datetime
 import hashlib
 import json
@@ -18,22 +17,17 @@ from responses import RequestsMock
 
 from spinta import commands
 from spinta.cli.helpers.errors import ErrorCounter
-from spinta.cli.push import _PushRow, _reset_pushed
-from spinta.cli.push import _get_row_for_error
-from spinta.cli.push import _map_sent_and_recv
-from spinta.cli.push import _init_push_state
-from spinta.cli.push import _send_request
-from spinta.cli.push import _push
-from spinta.cli.push import _State
+from spinta.cli.helpers.push.components import PushRow, State
+from spinta.cli.helpers.push.write import _map_sent_and_recv, push, get_row_for_error, send_request
+from spinta.cli.helpers.push.state import init_push_state, reset_pushed
 from spinta.core.config import RawConfig
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
+from spinta.testing.client import create_rc, configure_remote_server
 from spinta.testing.data import listdata
 from spinta.testing.datasets import Sqlite, create_sqlite_db
-from spinta.testing.manifest import load_manifest
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.testing.tabular import create_tabular_manifest
-from spinta.testing.client import create_rc, configure_remote_server
 
 
 @pytest.fixture(scope='module')
@@ -160,7 +154,7 @@ def test__map_sent_and_recv__no_recv(rc: RawConfig):
 
     model = commands.get_model(context, manifest, 'datasets/gov/example/Country')
     sent = [
-        _PushRow(model, {'name': 'Vilnius'}),
+        PushRow(model, {'name': 'Vilnius'}),
     ]
     recv = None
     assert list(_map_sent_and_recv(sent, recv)) == sent
@@ -176,7 +170,7 @@ def test__get_row_for_error__errors(rc: RawConfig):
 
     model = commands.get_model(context, manifest, 'datasets/gov/example/Country')
     rows = [
-        _PushRow(model, {
+        PushRow(model, {
             '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
             'name': 'Vilnius',
         }),
@@ -188,7 +182,7 @@ def test__get_row_for_error__errors(rc: RawConfig):
             }
         }
     ]
-    assert _get_row_for_error(rows, errors).splitlines() == [
+    assert get_row_for_error(rows, errors).splitlines() == [
         ' Model datasets/gov/example/Country, data:',
         " {'_id': '4d741843-4e94-4890-81d9-5af7c5b5989a', 'name': 'Vilnius'}",
     ]
@@ -199,11 +193,11 @@ def test__send_data__json_error(rc: RawConfig, responses: RequestsMock):
     url = f'https://example.com/{model}'
     responses.add(POST, url, status=500, body='{INVALID JSON}')
     rows = [
-        _PushRow(model, {'name': 'Vilnius'}),
+        PushRow(model, {'name': 'Vilnius'}),
     ]
     data = '{"name": "Vilnius"}'
     session = requests.Session()
-    _, resp = _send_request(session, url, "POST", rows, data)
+    _, resp = send_request(session, url, "POST", rows, data)
     assert resp is None
 
 
@@ -255,12 +249,12 @@ def test_push_state__create(rc: RawConfig, responses: RequestsMock):
     model = commands.get_model(context, manifest, 'City')
     models = [model]
 
-    state = _State(*_init_push_state('sqlite://', models))
+    state = State(*init_push_state('sqlite://', models))
     conn = state.engine.connect()
     context.set('push.state.conn', conn)
 
     rows = [
-        _PushRow(model, {
+        PushRow(model, {
             '_type': model.name,
             '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
             'name': 'Vilnius',
@@ -286,7 +280,7 @@ def test_push_state__create(rc: RawConfig, responses: RequestsMock):
         })],
     )
 
-    _push(
+    push(
         context,
         client,
         server,
@@ -314,12 +308,12 @@ def test_push_state__create_error(rc: RawConfig, responses: RequestsMock):
     model = commands.get_model(context, manifest, 'City')
     models = [model]
 
-    state = _State(*_init_push_state('sqlite://', models))
+    state = State(*init_push_state('sqlite://', models))
     conn = state.engine.connect()
     context.set('push.state.conn', conn)
 
     rows = [
-        _PushRow(model, {
+        PushRow(model, {
             '_type': model.name,
             '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
             'name': 'Vilnius',
@@ -330,7 +324,7 @@ def test_push_state__create_error(rc: RawConfig, responses: RequestsMock):
     server = 'https://example.com/'
     responses.add(POST, server, status=500, body='ERROR!')
 
-    _push(
+    push(
         context,
         client,
         server,
@@ -356,7 +350,7 @@ def test_push_state__update(rc: RawConfig, responses: RequestsMock):
     model = commands.get_model(context, manifest, 'City')
     models = [model]
 
-    state = _State(*_init_push_state('sqlite://', models))
+    state = State(*init_push_state('sqlite://', models))
     conn = state.engine.connect()
     context.set('push.state.conn', conn)
 
@@ -373,7 +367,7 @@ def test_push_state__update(rc: RawConfig, responses: RequestsMock):
     ))
 
     rows = [
-        _PushRow(model, {
+        PushRow(model, {
             '_type': model.name,
             '_revision': rev_before,
             '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
@@ -401,7 +395,7 @@ def test_push_state__update(rc: RawConfig, responses: RequestsMock):
         })],
     )
 
-    _push(
+    push(
         context,
         client,
         server,
@@ -429,7 +423,7 @@ def test_push_state__update_without_sync(rc: RawConfig, responses: RequestsMock)
     model = commands.get_model(context, manifest, 'City')
     models = [model]
 
-    state = _State(*_init_push_state('sqlite://', models))
+    state = State(*init_push_state('sqlite://', models))
     conn = state.engine.connect()
     context.set('push.state.conn', conn)
 
@@ -445,7 +439,7 @@ def test_push_state__update_without_sync(rc: RawConfig, responses: RequestsMock)
     ))
 
     rows = [
-        _PushRow(model, {
+        PushRow(model, {
             '_type': model.name,
             '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
             'name': 'Vilnius',
@@ -470,7 +464,7 @@ def test_push_state__update_without_sync(rc: RawConfig, responses: RequestsMock)
         })],
     )
 
-    _push(
+    push(
         context,
         client,
         server,
@@ -497,10 +491,9 @@ def test_push_state__update_sync_first_time(rc: RawConfig, responses: RequestsMo
     model = commands.get_model(context, manifest, 'City')
     models = [model]
 
-    state = _State(*_init_push_state('sqlite://', models))
+    state = State(*init_push_state('sqlite://', models))
     conn = state.engine.connect()
     context.set('push.state.conn', conn)
-
 
     table = state.metadata.tables[model.name]
     conn.execute(table.insert().values(
@@ -511,7 +504,7 @@ def test_push_state__update_sync_first_time(rc: RawConfig, responses: RequestsMo
     ))
 
     rows = [
-        _PushRow(model, {
+        PushRow(model, {
             '_type': model.name,
             '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
             'name': 'Vilnius',
@@ -536,7 +529,7 @@ def test_push_state__update_sync_first_time(rc: RawConfig, responses: RequestsMo
         })],
     )
 
-    _push(
+    push(
         context,
         client,
         server,
@@ -564,7 +557,7 @@ def test_push_state__update_sync(rc: RawConfig, responses: RequestsMock):
     model = commands.get_model(context, manifest, 'City')
     models = [model]
 
-    state = _State(*_init_push_state('sqlite://', models))
+    state = State(*init_push_state('sqlite://', models))
     conn = state.engine.connect()
     context.set('push.state.conn', conn)
     time_before_sync_push = datetime.datetime.now()
@@ -578,7 +571,7 @@ def test_push_state__update_sync(rc: RawConfig, responses: RequestsMock):
     ))
 
     rows = [
-        _PushRow(model, {
+        PushRow(model, {
             '_type': model.name,
             '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
             'name': 'Vilnius',
@@ -603,7 +596,7 @@ def test_push_state__update_sync(rc: RawConfig, responses: RequestsMock):
         })],
     )
 
-    _push(
+    push(
         context,
         client,
         server,
@@ -629,7 +622,7 @@ def test_push_state__update_error(rc: RawConfig, responses: RequestsMock):
     model = commands.get_model(context, manifest, 'City')
     models = [model]
 
-    state = _State(*_init_push_state('sqlite://', models))
+    state = State(*init_push_state('sqlite://', models))
     conn = state.engine.connect()
     context.set('push.state.conn', conn)
 
@@ -645,7 +638,7 @@ def test_push_state__update_error(rc: RawConfig, responses: RequestsMock):
     ))
 
     rows = [
-        _PushRow(model, {
+        PushRow(model, {
             '_type': model.name,
             '_revision': rev_before,
             '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
@@ -657,7 +650,7 @@ def test_push_state__update_error(rc: RawConfig, responses: RequestsMock):
     server = 'https://example.com/'
     responses.add(POST, server, status=500, body='ERROR!')
 
-    _push(
+    push(
         context,
         client,
         server,
@@ -756,7 +749,7 @@ def test_push_state__delete(rc: RawConfig, responses: RequestsMock):
     model = commands.get_model(context, manifest, 'City')
     models = [model]
 
-    state = _State(*_init_push_state('sqlite://', models))
+    state = State(*init_push_state('sqlite://', models))
     conn = state.engine.connect()
     context.set('push.state.conn', conn)
 
@@ -797,17 +790,17 @@ def test_push_state__delete(rc: RawConfig, responses: RequestsMock):
         False,
     )]
 
-    _reset_pushed(context, models, state.metadata)
+    reset_pushed(context, models, state.metadata)
 
     rows = [
-        _PushRow(model, {
+        PushRow(model, {
             '_op': 'delete',
             '_type': 'City',
             '_where': "eq(_id, '4d741843-4e94-4890-81d9-5af7c5b5989a')",
         }, op="delete", saved=True),
     ]
 
-    _push(
+    push(
         context,
         client,
         server,
@@ -830,7 +823,7 @@ def test_push_state__retry(rc: RawConfig, responses: RequestsMock):
     model = commands.get_model(context, manifest, 'City')
     models = [model]
 
-    state = _State(*_init_push_state('sqlite://', models))
+    state = State(*init_push_state('sqlite://', models))
     conn = state.engine.connect()
     context.set('push.state.conn', conn)
 
@@ -847,7 +840,7 @@ def test_push_state__retry(rc: RawConfig, responses: RequestsMock):
     ))
 
     rows = [
-        _PushRow(model, {
+        PushRow(model, {
             '_type': model.name,
             '_id': _id,
             'name': 'Vilnius',
@@ -874,7 +867,7 @@ def test_push_state__retry(rc: RawConfig, responses: RequestsMock):
         })],
     )
 
-    _push(
+    push(
         context,
         client,
         server,
@@ -897,7 +890,7 @@ def test_push_state__max_errors(rc: RawConfig, responses: RequestsMock):
     model = commands.get_model(context, manifest, 'City')
     models = [model]
 
-    state = _State(*_init_push_state('sqlite://', models))
+    state = State(*init_push_state('sqlite://', models))
     conn = state.engine.connect()
     context.set('push.state.conn', conn)
 
@@ -916,13 +909,13 @@ def test_push_state__max_errors(rc: RawConfig, responses: RequestsMock):
     ))
 
     rows = [
-        _PushRow(model, {
+        PushRow(model, {
             '_type': model.name,
             '_id': _id1,
             '_revision': conflicting_rev,
             'name': 'Vilnius',
         }, op='patch', saved=True),
-        _PushRow(model, {
+        PushRow(model, {
             '_type': model.name,
             '_id': _id2,
             'name': 'Vilnius',
@@ -934,7 +927,7 @@ def test_push_state__max_errors(rc: RawConfig, responses: RequestsMock):
     responses.add(POST, server, status=409, body='Conflicting value')
 
     error_counter = ErrorCounter(1)
-    _push(
+    push(
         context,
         client,
         server,
@@ -949,7 +942,7 @@ def test_push_state__max_errors(rc: RawConfig, responses: RequestsMock):
     assert list(conn.execute(query)) == [(_id1, rev, True)]
 
     error_counter = ErrorCounter(2)
-    _push(
+    push(
         context,
         client,
         server,
@@ -1000,7 +993,7 @@ def test_push_init_state(rc: RawConfig, sqlite: Sqlite):
         )
     )
 
-    state = _State(*_init_push_state(sqlite.dsn, models))
+    state = State(*init_push_state(sqlite.dsn, models))
     conn = state.engine.connect()
     table = state.metadata.tables[model.name]
 
@@ -1027,7 +1020,7 @@ def test_push_state__paginate(rc: RawConfig, responses: RequestsMock):
     model = commands.get_model(context, manifest, 'City')
     models = [model]
 
-    state = _State(*_init_push_state('sqlite://', models))
+    state = State(*init_push_state('sqlite://', models))
     conn = state.engine.connect()
     context.set('push.state.conn', conn)
 
@@ -1039,7 +1032,7 @@ def test_push_state__paginate(rc: RawConfig, responses: RequestsMock):
 
     model.page.by["_id"].value = _id
     rows = [
-        _PushRow(model, {
+        PushRow(model, {
             '_type': model.name,
             '_page': [_id],
             '_id': _id,
@@ -1066,7 +1059,7 @@ def test_push_state__paginate(rc: RawConfig, responses: RequestsMock):
         },)],
     )
 
-    _push(
+    push(
         context,
         client,
         server,

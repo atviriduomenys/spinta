@@ -701,6 +701,9 @@ class TooShortPageSize(UserError):
     
     To fix this, please either increase page size in the manifest, or 'push_page_size' value in the configs.
     Alternatively make page's structure more complex, by adding more properties to it.
+    
+    When migrating from older versions to newer versions of spinta you might get this error if push state
+    database is out of sync, add '--sync' tag to 'push' command to synchronize it.
     '''
 
 

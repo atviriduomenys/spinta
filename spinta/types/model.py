@@ -1,22 +1,19 @@
 from __future__ import annotations
 
-import re
-from typing import List
-from typing import Optional
-from typing import Union
-from typing import overload
-
 import itertools
 from typing import Any
 from typing import Dict
+from typing import List
+from typing import Optional
 from typing import TYPE_CHECKING
+from typing import Union
 from typing import cast
-
-import requests.api
+from typing import overload
 
 from spinta import commands
 from spinta import exceptions
 from spinta.auth import authorized
+from spinta.backends.nobackend.components import NoBackend
 from spinta.commands import authorize
 from spinta.commands import check
 from spinta.commands import load
@@ -29,6 +26,7 @@ from spinta.components import Property
 from spinta.core.access import link_access_param
 from spinta.core.access import load_access_param
 from spinta.datasets.backends.sql.components import Sql
+from spinta.datasets.components import ExternalBackend
 from spinta.datasets.enums import Level
 from spinta.dimensions.comments.helpers import load_comments
 from spinta.dimensions.enum.components import EnumValue
@@ -38,9 +36,9 @@ from spinta.dimensions.enum.helpers import load_enums
 from spinta.dimensions.lang.helpers import load_lang_data
 from spinta.dimensions.param.helpers import load_params
 from spinta.exceptions import KeymapNotSet, InvalidLevel
+from spinta.exceptions import PropertyNotFound
 from spinta.exceptions import UndefinedEnum
 from spinta.exceptions import UnknownPropertyType
-from spinta.exceptions import PropertyNotFound
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.components import PropertyRow
 from spinta.nodes import get_node
@@ -50,13 +48,10 @@ from spinta.types.helpers import check_model_name
 from spinta.types.helpers import check_property_name
 from spinta.types.namespace import load_namespace_from_name
 from spinta.ufuncs.loadbuilder.components import LoadBuilder
+from spinta.ufuncs.loadbuilder.helpers import page_contains_unsupported_keys
 from spinta.units.helpers import is_unit
 from spinta.utils.enums import enum_by_value
 from spinta.utils.schema import NA
-from spinta.types.text.components import Text
-from spinta.types.datatype import Ref
-from spinta.backends.nobackend.components import NoBackend
-from spinta.datasets.components import ExternalBackend
 
 if TYPE_CHECKING:
     from spinta.datasets.components import Attribute
@@ -236,6 +231,11 @@ def _link_model_page(model: Model):
             if '-_id' in model.page.by:
                 model.page.by.pop('-_id')
         else:
+            # Force '_id' to be page key if other keys failed the checks
+            if not model.page.is_enabled and page_contains_unsupported_keys(model.page):
+                model.page.by = {'_id': PageBy(model.properties['_id'])}
+                model.page.is_enabled = True
+
             # Add _id to internal, if it's not added
             if '_id' not in model.page.by and '-_id' not in model.page.by:
                 model.page.by['_id'] = PageBy(model.properties["_id"])

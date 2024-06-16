@@ -1,38 +1,33 @@
+import uuid
 from pathlib import Path
-from typing import Any
-from typing import Dict
-from typing import List
-from unittest.mock import Mock
 
-from spinta import commands
-from spinta import spyna
-from spinta.components import Context
-from spinta.auth import AdminToken
-from spinta.testing.client import create_test_client
-from spinta.testing.data import encode_page_values_manually, listdata
-from spinta.testing.manifest import prepare_manifest, bootstrap_manifest
-from spinta.core.config import RawConfig
-from spinta.core.ufuncs import asttoexpr
+import pytest
 from _pytest.fixtures import FixtureRequest
 
+from spinta.auth import AdminToken
+from spinta.cli.helpers.push.utils import get_data_checksum
+from spinta.components import Context
+from spinta.core.config import RawConfig
+from spinta.testing.client import create_test_client
+from spinta.testing.data import encode_page_values_manually, listdata
+from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.utils import get_error_codes
-import pytest
 
 
 def _prep_context(context: Context):
     context.set('auth.token', AdminToken())
 
 
-def _prep_conn(context: Context, data: List[Dict[str, Any]]):
-    txn = Mock()
-    conn = txn.connection.execution_options.return_value = Mock()
-    conn.execute.return_value = data
-    context.set('transaction', txn)
-    return conn
-
-
-def test_getall(rc: RawConfig):
-    context, manifest = prepare_manifest(rc, '''
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_getall(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
     d | r | b | m | property   | type    | ref     | access
     example                    |         |         |
       |   |   | Country        |         |         |
@@ -40,37 +35,35 @@ def test_getall(rc: RawConfig):
       |   |   | City           |         |         |
       |   |   |   | name       | string  |         | open
       |   |   |   | country    | ref     | Country | open
-    ''')
-    _prep_context(context)
-    conn = _prep_conn(context, [
-        {
-            '_id': '3aed7394-18da-4c17-ac29-d501d5dd0ed7',
-            '_revision': '9f308d61-5401-4bc2-a9da-bc9de85ad91d',
-            'country.name': 'Lithuania',
-        }
-    ])
-    model = commands.get_model(context, manifest, 'example/City')
-    backend = model.backend
-    query = asttoexpr(spyna.parse('select(_id, country.name)'))
-    rows = commands.getall(context, model, backend, query=query)
-    rows = list(rows)
-
-    assert str(conn.execute.call_args.args[0]) == (
-        'SELECT'
-        ' "example/City"._id,'
-        ' "example/City"._revision,'
-        ' "example/Country_1".name AS "country.name" \n'
-        'FROM'
-        ' "example/City" '
-        'LEFT OUTER JOIN "example/Country" AS "example/Country_1"'
-        ' ON "example/City"."country._id" = "example/Country_1"._id'
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
     )
-    page = rows[0]['_page']
-    assert rows == [
+    _prep_context(context)
+    app = create_test_client(context)
+    app.authorize(['spinta_insert', 'spinta_getall', 'spinta_wipe', 'spinta_search', 'spinta_set_meta_fields'])
+    lithuania_id = 'd3482081-1c30-43a4-ae6f-faf6a40c954a'
+    vilnius_id = '3aed7394-18da-4c17-ac29-d501d5dd0ed7'
+    app.post('/example/Country', json={
+        '_id': lithuania_id,
+        'name': 'Lithuania'
+    })
+    app.post('/example/City', json={
+        '_id': vilnius_id,
+        'country': {
+            '_id': lithuania_id
+        },
+        'name': 'Vilnius'
+    })
+    response = app.get(f'/example/City?select(_id, _revision, _type, country.name)').json()['_data']
+    revision = response[0]['_revision']
+    assert response == [
         {
             '_id': '3aed7394-18da-4c17-ac29-d501d5dd0ed7',
-            '_page': page,
-            '_revision': '9f308d61-5401-4bc2-a9da-bc9de85ad91d',
+            '_revision': revision,
             '_type': 'example/City',
             'country': {'name': 'Lithuania'},
         },
@@ -322,6 +315,81 @@ def test_get_paginate_with_none_simple(
         (1, 'Test2'),
         (2, 'Test3'),
         (None, 'Test1'),
+    ]
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_get_paginate_invalid_type(manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+            d | r | b | m | property | type    | ref      | access  | uri
+            example/page/invalid     |         |          |         |
+              |   |   | Test         |         | id, name, ref | open    | 
+              |   |   |   | id       | integer |          |         | 
+              |   |   |   | name     | string  |          |         |
+              |   |   |   | ref      | ref     | Ref      |         |
+              |   |   | Ref          |         | id       | open    | 
+              |   |   |   | id       | integer |          |         | 
+            ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    app = create_test_client(context)
+    app.authmodel('example/page/invalid', ['insert', 'getall', 'search'])
+    app.post('/example/page/invalid/Test', json={
+        'id': 0,
+        'name': 'Test0'
+    })
+    app.post('/example/page/invalid/Test', json={
+        'id': 0,
+        'name': 'Test1'
+    })
+    app.post('/example/page/invalid/Test', json={
+        'id': 0,
+        'name': None
+    })
+    app.post('/example/page/invalid/Test', json={
+        'id': 1,
+        'name': 'Test2'
+    })
+    app.post('/example/page/invalid/Test', json={
+        'id': 2,
+        'name': 'Test3'
+    })
+    app.post('/example/page/invalid/Test', json={
+        'id': None,
+        'name': 'Test'
+    })
+    app.post('/example/page/invalid/Test', json={
+        'id': None,
+        'name': 'Test1'
+    })
+    app.post('/example/page/invalid/Test', json={
+        'id': None,
+        'name': None
+    })
+
+    response = app.get(f'/example/page/invalid/Test')
+    json_response = response.json()
+    assert len(json_response['_data']) == 8
+    assert '_page' in json_response
+    assert listdata(response, 'id', 'name') == [
+        (0, 'Test0'),
+        (0, 'Test1'),
+        (0, None),
+        (1, 'Test2'),
+        (2, 'Test3'),
+        (None, 'Test'),
+        (None, 'Test1'),
+        (None, None),
     ]
 
 
@@ -635,3 +703,211 @@ def test_invalid_inherit_check(
         'name': 'Lithuania'
     })
     assert resp.status_code == 201
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_checksum_result(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property   | type                 | ref      | prepare   | access | level
+    datasets/result/checksum   |                      |          |           |        |
+      |   |   | Country        |                      | id, name |           |        |
+      |   |   |   | id         | integer              |          |           | open   |
+      |   |   |   | name       | string               |          |           | open   |
+      |   |   |   | population | integer              |          |           | open   |
+      |   |   |   |            |                      |          |           |        |
+      |   |   | City           |                      | id       |           |        |
+      |   |   |   | id         | integer              |          |           | open   |
+      |   |   |   | name       | string               |          |           | open   |
+      |   |   |   | country    | ref                  | Country  |           | open   |
+      |   |   |   | add        | object               |          |           | open   |
+      |   |   |   | add.name   | string               |          |           | open   |
+      |   |   |   | add.add    | object               |          |           | open   |
+      |   |   |   | add.add.c  | ref                  | Country  |           | open   | 3
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+
+    app = create_test_client(context)
+    app.authorize(['spinta_insert', 'spinta_getall', 'spinta_wipe', 'spinta_search', 'spinta_set_meta_fields'])
+    lt_id = str(uuid.uuid4())
+    lv_id = str(uuid.uuid4())
+
+    country_data = {
+        lt_id: {
+            'id': 0,
+            'name': 'Lithuania',
+            'population': 1000
+        },
+        lv_id: {
+            'id': 1,
+            'name': 'Latvia',
+            'population': 500
+        }
+    }
+
+    resp = app.post('/datasets/result/checksum/Country', json={
+        '_id': lt_id,
+        **country_data[lt_id]
+    })
+    assert resp.status_code == 201
+    resp = app.post('/datasets/result/checksum/Country', json={
+        '_id': lv_id,
+        **country_data[lv_id]
+    })
+    assert resp.status_code == 201
+
+    vilnius_id = str(uuid.uuid4())
+    kaunas_id = str(uuid.uuid4())
+    riga_id = str(uuid.uuid4())
+    liepaja_id = str(uuid.uuid4())
+
+    city_data = {
+        vilnius_id: {
+            'id': 0,
+            'name': 'Vilnius',
+            'country': {
+                '_id': lt_id
+            },
+            'add': {
+                'name': "VLN",
+                'add': {
+                    'c': {
+                        'id': 0,
+                        'name': 'Lithuania'
+                    }
+                }
+            }
+        },
+        kaunas_id: {
+            'id': 1,
+            'name': 'Kaunas',
+            'country': {
+                '_id': lt_id
+            },
+            'add': {
+                'name': "KN",
+                'add': {
+                    'c': {
+                        'id': 0,
+                        'name': 'Lithuania'
+                    }
+                }
+            }
+        },
+        riga_id: {
+            'id': 2,
+            'name': 'Riga',
+            'country': {
+                '_id': lv_id
+            },
+            'add': {
+                'name': "RG",
+                'add': {
+                    'c': {
+                        'id': 1,
+                        'name': 'Latvia'
+                    }
+                }
+            }
+        },
+        liepaja_id: {
+            'id': 3,
+            'name': 'Liepaja',
+            'country': {
+                '_id': lv_id
+            },
+            'add': {
+                'name': "LP",
+                'add': {
+                    'c': {
+                        'id': 1,
+                        'name': 'Latvia'
+                    }
+                }
+            }
+        }
+    }
+
+    resp = app.post('/datasets/result/checksum/City', json={
+        '_id': vilnius_id,
+        **city_data[vilnius_id]
+    })
+    assert resp.status_code == 201
+    resp = app.post('/datasets/result/checksum/City', json={
+        '_id': kaunas_id,
+        **city_data[kaunas_id]
+    })
+    assert resp.status_code == 201
+    resp = app.post('/datasets/result/checksum/City', json={
+        '_id': riga_id,
+        **city_data[riga_id]
+    })
+    assert resp.status_code == 201
+    resp = app.post('/datasets/result/checksum/City', json={
+        '_id': liepaja_id,
+        **city_data[liepaja_id]
+    })
+    assert resp.status_code == 201
+
+    resp = app.get('/datasets/result/checksum/Country?select(_id, id, checksum())')
+    assert resp.status_code == 200
+    assert listdata(resp, '_id', 'id', 'checksum()', sort='id', full=True) == [
+        {
+            '_id': lt_id,
+            'id': 0,
+            'checksum()': get_data_checksum(
+                country_data[lt_id]
+            )
+        },
+        {
+            '_id': lv_id,
+            'id': 1,
+            'checksum()': get_data_checksum(
+                country_data[lv_id]
+            )
+        },
+    ]
+
+    resp = app.get('/datasets/result/checksum/City?select(_id, id, checksum())')
+    assert resp.status_code == 200
+    assert listdata(resp, '_id', 'id', 'checksum()', sort='id', full=True) == [
+        {
+            '_id': vilnius_id,
+            'id': 0,
+            'checksum()': get_data_checksum(
+                city_data[vilnius_id]
+            )
+        },
+        {
+            '_id': kaunas_id,
+            'id': 1,
+            'checksum()': get_data_checksum(
+                city_data[kaunas_id]
+            )
+        },
+        {
+            '_id': riga_id,
+            'id': 2,
+            'checksum()': get_data_checksum(
+                city_data[riga_id]
+            )
+        },
+        {
+            '_id': liepaja_id,
+            'id': 3,
+            'checksum()': get_data_checksum(
+                city_data[liepaja_id]
+            )
+        },
+    ]

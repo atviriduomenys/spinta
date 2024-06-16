@@ -138,6 +138,12 @@ async def create_http_response(
             model = params.model
             action = params.action
 
+            if model.keymap:
+                context.attach(
+                    f'keymap.{model.keymap.name}',
+                    lambda: model.keymap,
+                )
+
             return await commands.getone(
                 context,
                 request,

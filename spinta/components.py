@@ -540,7 +540,7 @@ class Page:
         cleaned_up = by[1:] if by.startswith('-') else by
 
         if cleaned_up != by and cleaned_up in self.by:
-            renamed_dict = {by if key == cleaned_up else key:value for key, value in self.by.items()}
+            renamed_dict = {by if key == cleaned_up else key: value for key, value in self.by.items()}
             self.by = renamed_dict
 
         if by not in self.by:
@@ -1068,6 +1068,7 @@ class Config:
     AccessLog: Type[AccessLog]
     exporters: Dict[str, Format]
     push_page_size: int = None
+    sync_page_size: int = None
     languages: List[str]
     check_names: bool = False
     # MB

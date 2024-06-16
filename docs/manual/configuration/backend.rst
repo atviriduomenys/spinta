@@ -23,11 +23,15 @@ supported backends are defined in `components.backends`. You can look it up::
   spinta  components.backends.fs          spinta.backends.fs.components:FileSystem
   spinta  components.backends.s3          spinta.backends.s3:S3
   spinta  components.backends.sql         spinta.datasets.backends.sql.components:Sql
+  spinta  components.backends.sqldump     spinta.datasets.backends.sqldump.components:SqlDump
   spinta  components.backends.csv         spinta.datasets.backends.csv.components:Csv
+  spinta  components.backends.xml         spinta.datasets.backends.dataframe.components:Xml
+  spinta  components.backends.json        spinta.datasets.backends.dataframe.components:Json
+  spinta  components.backends.soap        spinta.datasets.backends.dataframe.components:Soap
 
 Each supported backend has a human readable name, like `postgresql` or `mongo`.
 You can use these names to add backend instances. Backend instance is a
-phisical backend instance for example a specific database running on a server.
+physical backend instance, for example a specific database running on a server.
 
 If you have multiple multiple PostgreSQL database, you can configure all of
 them like this::
@@ -42,7 +46,7 @@ Now you have configured two `postgresql` instances `db1` and `db2`, each
 pointing to a different PostgreSQL database instance.
 
 Try to choose good backend instance names, because these names can be used in
-multiple other places, so changing instance name, might be difficult. It is
+multiple other places, so changing instance name might be difficult. It is
 better to choose names, that align with you data model.
 
 For example, these names might be better choice::
@@ -71,8 +75,8 @@ Each model, can explicitly set backend like this:
   name: reports
   backend: reports
 
-Here, model `reports`, uses a a non-default backend. If at some point you wll
-decided to migrate you reports from PostgreSQL to Mongo, all you need to do is
+Here, model `reports`, uses a a non-default backend. If at some point you will
+decide to migrate you reports from PostgreSQL to Mongo, all you need to do is
 change two configuration options::
 
   SPINTA_BACKENDS__REPORTS__TYPE=mongo
