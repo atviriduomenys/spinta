@@ -81,7 +81,7 @@ def test_get_property_type():
     element = schema.xpath('*[local-name() = "element"]')[0]
     xsd = XSDReader("test.xsd", "dataset1")
     model = XSDModel(xsd, schema)
-    result = model._get_property_type(element)
+    result = model.get_property_type(element)
 
     assert result == "string"
 
@@ -104,7 +104,7 @@ def test_get_property_type_ref():
     print("ELEMENT:", element)
     xsd = XSDReader("test.xsd", "dataset1")
     model = XSDModel(xsd, schema)
-    result = model._get_property_type(element)
+    result = model.get_property_type(element)
 
     assert result == "ref"
 
@@ -127,7 +127,7 @@ def test_get_property_type_simple_type():
     element = schema.xpath('*[local-name() = "element"]')[0]
     xsd = XSDReader("test.xsd", "dataset1")
     model = XSDModel(xsd, schema)
-    result = model._get_property_type(element)
+    result = model.get_property_type(element)
 
     assert result == "string"
 
@@ -145,7 +145,7 @@ def test_get_property_type_custom():
     xsd = XSDReader("test.xsd", "dataset1")
     xsd.custom_types = {"some_type": {"base": "string"}}
     model = XSDModel(xsd, schema)
-    result = model._get_property_type(element)
+    result = model.get_property_type(element)
 
     assert result == "string"
 
@@ -162,7 +162,7 @@ def test_get_property_type_unknown():
     element = schema.xpath('*[local-name() = "element"]')[0]
     xsd = XSDReader("test.xsd", "dataset1")
     model = XSDModel(xsd, schema)
-    result = model._get_property_type(element)
+    result = model.get_property_type(element)
 
     assert result == "string"
 
