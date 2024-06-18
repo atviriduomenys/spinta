@@ -139,30 +139,6 @@ class XSDModel:
         self.basename = name
         self.name = f"{self.dataset_name}/{name}"
 
-    def _get_property_type(self, node: _Element) -> str:
-        if node.get("ref"):
-            return "ref"
-        property_type: str = node.get("type")
-        if not property_type:
-            # this is a self defined simple type, so we take it's base as type
-            restrictions: list = node.xpath(f'./*[local-name() = "simpleType"]/*[local-name() = "restriction"]')
-            if restrictions:
-                property_type = restrictions[0].get("base", "")
-            else:
-                property_type = ""
-        # getting rid of the prefix
-        if ":" in property_type:
-            property_type = property_type.split(":")[1]
-
-        if property_type in self.xsd.custom_types:
-            property_type = self.xsd.custom_types.get(property_type).get("base", "")
-        if property_type in DATATYPES_MAPPING:
-            property_type = DATATYPES_MAPPING[property_type]
-        else:
-            property_type = "string"
-
-        return property_type
-
     def _get_enums(self, node: _Element) -> dict[str, dict[str, Any]]:
         enums = {}
         simple_type = node.xpath(f'./*[local-name() = "simpleType"]')
@@ -186,7 +162,7 @@ class XSDModel:
         property_name = node.get("name")
         prop["external"] = {"name": property_name}
         property_id = to_property_name(property_name)
-        prop["type"] = self._get_property_type(node)
+        prop["type"] = self.xsd.get_property_type(node)
         if ";" in prop["type"]:
             prop_type, target, value = prop["type"].split(";")
             prop["type"] = prop_type
@@ -295,7 +271,7 @@ class XSDModel:
                 properties[property_id] = prop
         return properties
 
-    def get_text_property(self, property_type = None) -> dict[str, dict[str, str | dict[str, str]]]:
+    def get_text_property(self, property_type=None) -> dict[str, dict[str, str | dict[str, str]]]:
         if property_type is None:
             property_type = "string"
         return {
@@ -306,16 +282,43 @@ class XSDModel:
                 }
             }}
 
+    def has_non_ref_properties(self) -> bool:
+        return any([prop["type"] not in ("ref", "backerf") for prop in self.properties.values()])
+
 
 class XSDReader:
 
     def __init__(self, path, dataset_name: str):
         self._path: str = path
-        self.models: list[XSDModel] = []
+        self.models: dict[str, XSDModel] = {}
         self.custom_types: dict = {}
         self._dataset_given_name: str = dataset_name
         self._set_dataset_and_resource_info()
         self.deduplicate: Deduplicator = Deduplicator()
+
+    def get_property_type(self, node: _Element) -> str:
+        if node.get("ref"):
+            return "ref"
+        property_type: str = node.get("type")
+        if not property_type:
+            # this is a self defined simple type, so we take it's base as type
+            restrictions: list = node.xpath(f'./*[local-name() = "simpleType"]/*[local-name() = "restriction"]')
+            if restrictions:
+                property_type = restrictions[0].get("base", "")
+            else:
+                property_type = ""
+        # getting rid of the prefix
+        if ":" in property_type:
+            property_type = property_type.split(":")[1]
+
+        if property_type in self.custom_types:
+            property_type = self.custom_types.get(property_type).get("base", "")
+        if property_type in DATATYPES_MAPPING:
+            property_type = DATATYPES_MAPPING[property_type]
+        else:
+            property_type = "string"
+
+        return property_type
 
     @staticmethod
     def get_enums_from_simple_type(node: _Element) -> dict[str, dict[str, Any]]:
@@ -514,7 +517,10 @@ class XSDReader:
                     sequence = sequences[0]
                 else:
                     sequence = None
-                if sequence is not None and len(sequence) == 1 and self.node_is_ref(sequence[0]):
+
+                # we check for the length of sequence, because it can has more than one element, but also length of
+                # complexType because it can have attributes too.
+                if sequence is not None and len(sequence) == 1 and len(complex_type) == 1 and self.node_is_ref(sequence[0]):
                     is_array = XSDReader.is_array(referenced_element)
                     if not is_array:
                         is_array = XSDReader.is_array(complex_type[0][0])
@@ -551,7 +557,7 @@ class XSDReader:
                 for referenced_model_name in referenced_model_names:
                     property_id, prop = model.simple_element_to_property(ref_element, is_array=is_array)
 
-                    prop["external"]["name"] = ""
+                    prop["external"]["name"] = prop["external"]["name"].rstrip("/text()")
                     prop["type"] = property_type
                     prop["model"] = f"{referenced_model_name}"
                     properties[property_id] = prop
@@ -829,13 +835,14 @@ class XSDReader:
             for model_name, model_properties in root_properties.items():
                 for root_property_id, root_property in model_properties.items():
 
-                    # we don't need to add refs and backrefs, only actual fields
+                    # we don't need to add refs which don't have source (as they point to the root model then)
                     # TODO: I don't know if we need this check. I would assume that we don't.
                     #  But if we delete this check, then it doesn't find the referenced model
                     #  if there is a model in between
                     #  Example: Objektai has faktai[].faktu_naudotojai[].naudotojo_id then
                     #  Faktu_Naudotojai has referencce to Faktai but not Objektai
-                    if not root_property.get("type") == "ref" and not root_property.get("type") == "backref":
+                    # if True:
+                    if not (root_property.get("type") == "ref" and "external" not in root_property):
 
                         # we need to find out the name of the property that corresponds the model,
                         #  because we need to use that if we used it in ref properties, otherwise use
@@ -866,7 +873,7 @@ class XSDReader:
 
             model.add_external_info(external_name=new_source_path)
             model.description = self.get_description(node)
-            self.models.append(model)
+            self.models[model.name] = model
 
             if additional_properties:
                 model_name = f"{model.name}[]"
@@ -887,7 +894,7 @@ class XSDReader:
         resource_model.root_properties = {}
         if resource_model.properties:
             resource_model.set_name(self.deduplicate(f"Resource"))
-            self.models.append(resource_model)
+            self.models[resource_model.name] = resource_model
 
     def _parse_root_node(self):
         for node in self.root:
@@ -995,12 +1002,36 @@ def read_schema(
 
     yield None, xsd.dataset_and_resource_info
 
-    for parsed_model in xsd.models:
+    new_models = {}
+    for model_name, parsed_model in xsd.models.items():
+        if parsed_model.has_non_ref_properties() and parsed_model.parent_model is not None:
+            new_models[model_name] = parsed_model
+        else:
+            for ref_model in xsd.models.values():
+                new_properties = {}
+                for property_id, prop in ref_model.properties.items():
+                    if not (prop["type"] == "ref" and prop["model"] == model_name):
+                        new_properties[property_id] = prop
+                    else:
+                        if property_id in ref_model.root_properties:
+                            ref_model.root_properties.pop(property_id)
+                ref_model.properties = new_properties
+
+    xsd.models = new_models
+
+    for model_name, parsed_model in xsd.models.items():
 
         # we need to add root properties to properties if it's a root model
-        if parsed_model.parent_model is None or parsed_model.parent_model not in xsd.models:
+        if parsed_model.parent_model is None or parsed_model.parent_model.name not in xsd.models:
             parsed_model.properties.update(parsed_model.root_properties)
-
+            for prop_id, prop in parsed_model.root_properties.items():
+                if prop["type"] == "backref":
+                    backref_model = xsd.models[prop["model"]]
+                    if backref_model != parsed_model:
+                        ref_property = {to_property_name(parsed_model.basename): {"model": parsed_model.name, "type": "ref"}}
+                        backref_model.properties.update(ref_property)
         parsed_model.properties = dict(sorted(parsed_model.properties.items()))
+
+    for model_name, parsed_model in xsd.models.items():
 
         yield None, parsed_model.get_data()
