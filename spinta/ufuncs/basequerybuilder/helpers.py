@@ -9,6 +9,10 @@ from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPar
 from spinta.ufuncs.helpers import merge_formulas
 
 
+def is_expandable_not_expanded(env: BaseQueryBuilder, prop: Property):
+    return prop.dtype.expandable and (env.expand is None or (env.expand and prop not in env.expand))
+
+
 def get_language_column(env: BaseQueryBuilder, dtype: Text):
     default_langs = env.context.get('config').languages
     prop = determine_language_property_for_text(dtype, env.query_params.lang_priority, default_langs)
@@ -58,6 +62,7 @@ def update_query_with_url_params(query_params: QueryParams, url_params: UrlParam
     query_params.prioritize_uri = url_params.fmt.prioritize_uri
     query_params.lang_priority = url_params.accept_langs
     query_params.lang = url_params.lang
+    query_params.expand = url_params.expand
 
 
 def filter_page_values(page: Page):

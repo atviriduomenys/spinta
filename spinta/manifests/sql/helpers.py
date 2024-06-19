@@ -1,5 +1,5 @@
 from operator import itemgetter
-from typing import Any
+from typing import Any, TypedDict
 from typing import Dict
 from typing import Iterator
 from typing import List
@@ -196,7 +196,7 @@ def _read_props(
             }
 
         else:
-            dtype = _get_type(col['type'])
+            dtype = _get_column_type(col, table)
 
         yield prop, {
             'type': dtype,
@@ -239,11 +239,16 @@ TYPES = [
 ]
 
 
-def _get_type(sql_type: TypeEngine) -> str:
+class _Column(TypedDict):
+    type: TypeEngine
+
+
+def _get_column_type(column: _Column, table: str = None) -> str:
+    column_type: TypeEngine = column["type"]
     for cls, name in TYPES:
-        if isinstance(sql_type, cls):
+        if isinstance(column_type, cls):
             return name
-    raise TypeError(f"Unknown type {sql_type!r}.")
+    raise TypeError(f"Unknown type {column_type!r} of column {column!r} in table {table!r}.")
 
 
 class _Ref(NamedTuple):

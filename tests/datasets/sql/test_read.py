@@ -1,7 +1,7 @@
 from spinta import commands
 from spinta.components import Context
 from spinta.core.config import RawConfig
-from spinta.datasets.backends.sql.commands.read import _get_row_value
+from spinta.datasets.backends.sql.components import Sql
 from spinta.exceptions import TooShortPageSize
 from spinta.manifests.tabular.helpers import striptable
 import pytest
@@ -9,9 +9,11 @@ from spinta.testing.client import create_client
 from spinta.testing.data import listdata
 from spinta.testing.datasets import create_sqlite_db, use_default_dialect_functions
 from spinta.testing.manifest import load_manifest_and_context
-from spinta.datasets.backends.sql.commands.query import Selected
 from spinta.testing.tabular import create_tabular_manifest
 import sqlalchemy as sa
+
+from spinta.ufuncs.basequerybuilder.components import Selected
+from spinta.ufuncs.resultbuilder.helpers import get_row_value
 
 
 @pytest.fixture(scope='module')
@@ -68,7 +70,32 @@ def test__get_row_value_null(rc: RawConfig):
     row = ["Vilnius", None]
     model = commands.get_model(context, manifest, 'example/City')
     sel = Selected(1, model.properties['rating'])
-    assert _get_row_value(context, row, sel) is None
+    assert get_row_value(context, Sql(), row, sel) is None
+
+
+@pytest.mark.parametrize("use_default_dialect", [True, False])
+def test_getall_paginate_invalid_type(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path, geodb_null_check, mocker):
+    if use_default_dialect:
+        use_default_dialect_functions(mocker)
+
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    id | d | r | b | m | property | source          | type    | ref      | access | prepare
+       | external/paginate        |                 |         |          |        |
+       |   | data                 |                 | sql     |          |        |
+       |   |   |                  |                 |         |          |        |
+       |   |   |   | City         | cities          |         | id, test | open   |
+       |   |   |   |   | id       | id              | integer |          |        |
+       |   |   |   |   | name     | name            | string  |          |        | 
+       |   |   |   |   | test     | name            | object  |          |        | 
+    '''))
+
+    app = create_client(rc, tmp_path, geodb_null_check)
+
+    resp = app.get('/external/paginate/City')
+    assert listdata(resp, 'id', 'name') == [
+        (0, 'Vilnius'),
+    ]
+    assert '_page' not in resp.json()
 
 
 @pytest.mark.parametrize("use_default_dialect", [True, False])
@@ -372,3 +399,75 @@ def test_getall_distinct(context, rc, tmp_path):
             ('Lietuva', 0),
             ('Lietuva', 1)
         ]
+
+
+def test_get_one(context, rc, tmp_path):
+
+    with create_sqlite_db({
+        'cities': [
+            sa.Column('name', sa.Text),
+            sa.Column('id', sa.Integer)
+        ]
+    }) as db:
+        db.write('cities', [
+            {'name': 'Vilnius', 'id': 0},
+            {'name': 'Kaunas', 'id': 1},
+        ])
+        create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+id | d | r | b | m | property     | type    | ref | level | source  | access
+   | example                      |         |     |       |         |
+   |   | db                       | sql     |     |       |         |
+   |   |   |   | City             |         | id  |       | cities  |
+   |   |   |   |   | id           | integer |     | 4     | id      | open
+   |   |   |   |   | name         | string  |     | 4     | name    | open
+  '''))
+        app = create_client(rc, tmp_path, db)
+        response = app.get('/example/City')
+        response_json = response.json()
+        print(response_json)
+        _id = response_json["_data"][0]["_id"]
+        getone_response = app.get(f'/example/City/{_id}')
+        result = getone_response.json()
+        assert result == {
+            "_id": _id,
+            "_type": "example/City",
+            "id": 0,
+            "name": "Vilnius"
+        }
+
+
+def test_get_one_compound_pk(context, rc, tmp_path):
+
+    with create_sqlite_db({
+        'cities': [
+            sa.Column('name', sa.Text),
+            sa.Column('id', sa.Integer),
+            sa.Column('code', sa.Integer)
+        ]
+    }) as db:
+        db.write('cities', [
+            {'name': 'Vilnius', 'id': 4, "code": "city"},
+            {'name': 'Kaunas', 'id': 2, "code": "city"},
+        ])
+        create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+id | d | r | b | m | property     | type    | ref | level | source  | access
+   | example                      |         |     |       |         |
+   |   | db                       | sql     |     |       |         |
+   |   |   |   | City             |         | id, code  |       | cities  |
+   |   |   |   |   | id           | integer |     | 4     | id      | open
+   |   |   |   |   | name         | string  |     | 4     | name    | open
+   |   |   |   |   | code         | string  |     | 4     | code    | open
+  '''))
+        app = create_client(rc, tmp_path, db)
+        response = app.get('/example/City')
+        response_json = response.json()
+        _id = response_json["_data"][0]["_id"]
+        getone_response = app.get(f'/example/City/{_id}')
+        result = getone_response.json()
+        assert result == {
+            "_id": _id,
+            "_type": "example/City",
+            "code": "city",
+            "id": 2,
+            "name": "Kaunas"
+        }

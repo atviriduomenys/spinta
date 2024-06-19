@@ -11,7 +11,7 @@ objects (rows).
 Configuring logging
 ===================
 
-Access log is controlled by `accesslog` component. You can fined all
+Access log is controlled by `accesslog` component. You can find all
 available `accesslog` components using this command::
 
     $ spinta config components.accesslog
@@ -27,7 +27,7 @@ memory, do not use it in production environment, you will run out of memory.
 
 For production you should use `file` component.
 
-You can set logging backend liek this:
+You can set logging backend like this:
 
 .. code-block:: yaml
 

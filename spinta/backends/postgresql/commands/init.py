@@ -63,7 +63,6 @@ def prepare(context: Context, backend: PostgreSQL, model: Model, ignore_duplicat
             columns.append(sa.UniqueConstraint(*prop_list))
 
     # Create main table.
-
     pkey_type = commands.get_primary_key_type(context, backend)
     main_table = sa.Table(
         main_table_name, backend.schema,

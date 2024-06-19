@@ -1,15 +1,87 @@
+import datetime
+import os
+
 import pytest
 import sqlalchemy as sa
 import sqlalchemy_utils as su
 
+from spinta.core.config import RawConfig
 from spinta.exceptions import UnauthorizedKeymapSync
 from spinta.manifests.tabular.helpers import striptable
-from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
-from spinta.testing.client import create_client, create_rc, configure_remote_server, create_test_client
+from spinta.testing.client import create_client, create_rc, configure_remote_server
 from spinta.testing.data import listdata
 from spinta.testing.datasets import create_sqlite_db, Sqlite
+from spinta.testing.push import compare_push_state_rows
 from spinta.testing.tabular import create_tabular_manifest
+
+
+@pytest.fixture(scope='function')
+def push_state_geodb():
+    with create_sqlite_db({
+        'COUNTRY': [
+            sa.Column('ID', sa.Integer, primary_key=True),
+            sa.Column('CODE', sa.Text),
+            sa.Column('NAME', sa.Text),
+        ],
+    }) as db:
+        db.write('COUNTRY', [
+            {
+                'ID': 0, 'CODE': 'LT', 'NAME': 'LITHUANIA'
+            },
+            {
+                'ID': 1, 'CODE': 'LV', 'NAME': 'LATVIA'
+            },
+            {
+                'ID': 2, 'CODE': 'PL', 'NAME': 'POLAND'
+            },
+        ])
+        yield db
+
+
+@pytest.fixture(scope='function')
+def multi_type_geodb():
+    with create_sqlite_db({
+        'TEST': [
+            sa.Column('ID', sa.Integer, primary_key=True),
+            sa.Column('NAME', sa.Text),
+            sa.Column('NUMBER', sa.Float),
+            sa.Column('URL', sa.Text),
+            sa.Column('DATE', sa.Date),
+            sa.Column('TIME', sa.Time),
+            sa.Column('DATETIME', sa.DateTime),
+        ],
+    }) as db:
+        db.write('TEST', [
+            {
+                'ID': 0,
+                'NAME': 'LT',
+                'NUMBER': 0.1,
+                'URL': 'https://www.example.com/LT',
+                'DATE': datetime.date(2024, 2, 1),
+                'TIME': datetime.time(12, 10, 20),
+                'DATETIME': datetime.datetime(2024, 2, 1, 12, 10, 20),
+            },
+            {
+                'ID': 1,
+                'NAME': 'LV',
+                'NUMBER': 1.2,
+                'URL': 'https://www.example.com/LV',
+                'DATE': datetime.date(2024, 2, 2),
+                'TIME': datetime.time(12, 20, 20),
+                'DATETIME': datetime.datetime(2024, 2, 2, 12, 20, 20),
+            },
+            {
+                'ID': 2,
+                'NAME': 'PL',
+                'NUMBER': 2.3,
+                'URL': 'https://www.example.com/PL',
+                'DATE': datetime.date(2024, 2, 3),
+                'TIME': datetime.time(12, 30, 20),
+                'DATETIME': datetime.datetime(2024, 2, 3, 12, 30, 20),
+            },
+        ])
+        yield db
 
 
 @pytest.fixture(scope='function')
@@ -963,7 +1035,7 @@ def test_push_with_base_level_3(
     assert len(listdata(resp_city, 'id', 'name', 'location', 'code')) == 1
 
 
-def test_push_sync(
+def test_push_sync_keymap(
     context,
     postgresql,
     rc: RawConfig,
@@ -1039,7 +1111,7 @@ def test_push_sync(
 
 
 @pytest.mark.skip("Private now sends warning that model has been skipped syncing rather throwing exception")
-def test_push_sync_to_private_error(
+def test_push_sync_keymap_to_private_error(
     context,
     postgresql,
     rc: RawConfig,
@@ -1085,7 +1157,7 @@ def test_push_sync_to_private_error(
         raise result.exception
 
 
-def test_push_sync_private_no_error(
+def test_push_sync_keymap_private_no_error(
     context,
     postgresql,
     rc: RawConfig,
@@ -1478,3 +1550,1190 @@ def test_push_with_errors_rollback(
     assert cities.status_code == 200
     assert listdata(cities, 'id', 'name', sort=True) == []
 
+
+def test_push_sync_state_insert(
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    push_state_geodb,
+    request
+):
+    state_db = os.path.join(tmp_path, 'sync.sqlite')
+    table = '''
+        d | r | b | m | property | type    | ref                             | source         | level | access
+        datasets/push/state      |         |                                 |                |       |
+          | db                   | sql     |                                 |                |       |
+          |   |   | Country      |         | id, code                        | COUNTRY        | 4     |
+          |   |   |   | id       | integer |                                 | ID             | 4     | open
+          |   |   |   | code     | string  |                                 | CODE           | 2     | open
+          |   |   |   | name     | string  |                                 | NAME           | 2     | open
+        '''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(table))
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, push_state_geodb)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    remote.app.authorize(['spinta_set_meta_fields', 'spinta_patch', 'spinta_update'])
+    remote.app.authmodel('datasets/push/state/Country', ['insert', 'getall', 'search', 'wipe'])
+
+    result = cli.invoke(localrc, [
+        'push',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--state', state_db,
+        '--no-progress-bar',
+    ])
+    assert result.exit_code == 0
+
+    engine = sa.engine.create_engine('sqlite:///' + state_db)
+
+    data_mapping = {}
+    result = remote.app.get(f'https://example.com/datasets/push/state/Country')
+    for row in listdata(result, '_id', '_revision', 'code', full=True):
+        data_mapping[row['code']] = {
+            'id': row['_id'],
+            'revision': row['_revision']
+        }
+
+    # Check if pushed values match
+    compare_push_state_rows(
+        engine,
+        "datasets/push/state/Country",
+        [
+            {
+                'checksum': 'a8d8a04ebb10f4f0027721e4f90babba9de12fcd',
+                'error': False,
+                'data': None,
+                'page.id': 0,
+                'page.code': 'LT'
+            },
+            {
+                'checksum': 'bef6bdc50bbcf1925ac2fcb1c3cd434474eec9f6',
+                'error': False,
+                'data': None,
+                'page.id': 1,
+                'page.code': 'LV'
+            },
+            {
+                'checksum': '9b5f08e06bb141eac5e65ebabfb76104323eec5f',
+                'error': False,
+                'data': None,
+                'page.id': 2,
+                'page.code': 'PL'
+            }
+        ],
+        ['"page.id"']
+    )
+
+    de_id = "d6765254-37da-4915-9e86-0b1908e9b32a"
+    # Emulate new row
+    remote.app.post(f'https://example.com/datasets/push/state/Country', json={
+        '_id': de_id,
+        'id': 3,
+        'code': 'DE',
+        'name': 'GERMANY'
+    })
+
+    # Run sync again and check if checksum and page values got updated
+    result = cli.invoke(localrc, [
+        'push',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--state', state_db,
+        '--sync',
+        '--dry-run',
+        '--no-progress-bar',
+    ])
+    assert result.exit_code == 0
+    compare_push_state_rows(
+        engine,
+        "datasets/push/state/Country",
+        [
+            {
+                'id': data_mapping['LT']['id'],
+                'checksum': 'a8d8a04ebb10f4f0027721e4f90babba9de12fcd',
+                'error': False,
+                'data': None,
+                'page.id': 0,
+                'page.code': 'LT'
+            },
+            {
+                'id': data_mapping['LV']['id'],
+                'checksum': 'bef6bdc50bbcf1925ac2fcb1c3cd434474eec9f6',
+                'error': False,
+                'data': None,
+                'page.id': 1,
+                'page.code': 'LV'
+            },
+            {
+                'id': data_mapping['PL']['id'],
+                'checksum': '9b5f08e06bb141eac5e65ebabfb76104323eec5f',
+                'error': False,
+                'data': None,
+                'page.id': 2,
+                'page.code': 'PL'
+            },
+            {
+                'id': de_id,
+                'checksum': 'ad27b99d9139eaa3a0df159afda9cacc2b26b0b9',
+                'error': False,
+                'data': None,
+                'page.id': 3,
+                'page.code': 'DE'
+            },
+        ],
+        ['"page.id"']
+    )
+
+    # Reset data
+    remote.app.delete('https://example.com/syncdataset/countries/City/:wipe')
+
+
+def test_push_sync_state_delete(
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    push_state_geodb,
+    request
+):
+    state_db = os.path.join(tmp_path, 'sync.sqlite')
+    table = '''
+        d | r | b | m | property | type    | ref                             | source         | level | access
+        datasets/push/state      |         |                                 |                |       |
+          | db                   | sql     |                                 |                |       |
+          |   |   | Country      |         | id, code                        | COUNTRY        | 4     |
+          |   |   |   | id       | integer |                                 | ID             | 4     | open
+          |   |   |   | code     | string  |                                 | CODE           | 2     | open
+          |   |   |   | name     | string  |                                 | NAME           | 2     | open
+        '''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(table))
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, push_state_geodb)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    remote.app.authorize(['spinta_set_meta_fields', 'spinta_patch', 'spinta_update'])
+    remote.app.authmodel('datasets/push/state/Country', ['insert', 'getall', 'search', 'wipe', 'delete'])
+
+    result = cli.invoke(localrc, [
+        'push',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--state', state_db,
+        '--no-progress-bar',
+    ])
+    assert result.exit_code == 0
+
+    engine = sa.engine.create_engine('sqlite:///' + state_db)
+
+    data_mapping = {}
+    result = remote.app.get(f'https://example.com/datasets/push/state/Country')
+    for row in listdata(result, '_id', '_revision', 'code', full=True):
+        data_mapping[row['code']] = {
+            'id': row['_id'],
+            'revision': row['_revision']
+        }
+
+    # Check if pushed values match
+    compare_push_state_rows(
+        engine,
+        "datasets/push/state/Country",
+        [
+            {
+                'checksum': 'a8d8a04ebb10f4f0027721e4f90babba9de12fcd',
+                'error': False,
+                'data': None,
+                'page.id': 0,
+                'page.code': 'LT'
+            },
+            {
+                'checksum': 'bef6bdc50bbcf1925ac2fcb1c3cd434474eec9f6',
+                'error': False,
+                'data': None,
+                'page.id': 1,
+                'page.code': 'LV'
+            },
+            {
+                'checksum': '9b5f08e06bb141eac5e65ebabfb76104323eec5f',
+                'error': False,
+                'data': None,
+                'page.id': 2,
+                'page.code': 'PL'
+            }
+        ],
+        ['"page.id"']
+    )
+
+    # Emulate row deletion
+    remote.app.delete(f'https://example.com/datasets/push/state/Country/{data_mapping["LT"]["id"]}')
+
+    # Run sync again and check if row was removed
+    result = cli.invoke(localrc, [
+        'push',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--state', state_db,
+        '--sync',
+        '--dry-run',
+        '--no-progress-bar',
+    ])
+    assert result.exit_code == 0
+    compare_push_state_rows(
+        engine,
+        "datasets/push/state/Country",
+        [
+            {
+                'id': data_mapping['LV']['id'],
+                'checksum': 'bef6bdc50bbcf1925ac2fcb1c3cd434474eec9f6',
+                'error': False,
+                'data': None,
+                'page.id': 1,
+                'page.code': 'LV'
+            },
+            {
+                'id': data_mapping['PL']['id'],
+                'checksum': '9b5f08e06bb141eac5e65ebabfb76104323eec5f',
+                'error': False,
+                'data': None,
+                'page.id': 2,
+                'page.code': 'PL'
+            },
+        ],
+        ['"page.id"']
+    )
+
+    # Reset data
+    remote.app.delete('https://example.com/syncdataset/countries/City/:wipe')
+
+
+def test_push_sync_state_update(
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    push_state_geodb,
+    request
+):
+    state_db = os.path.join(tmp_path, 'sync.sqlite')
+    table = '''
+        d | r | b | m | property | type    | ref                             | source         | level | access
+        datasets/push/state      |         |                                 |                |       |
+          | db                   | sql     |                                 |                |       |
+          |   |   | Country      |         | id, code                        | COUNTRY        | 4     |
+          |   |   |   | id       | integer |                                 | ID             | 4     | open
+          |   |   |   | code     | string  |                                 | CODE           | 2     | open
+          |   |   |   | name     | string  |                                 | NAME           | 2     | open
+        '''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(table))
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, push_state_geodb)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    remote.app.authorize(['spinta_set_meta_fields', 'spinta_delete', 'spinta_update', 'spinta_patch'])
+    remote.app.authmodel('datasets/push/state/Country', ['insert', 'getall', 'search', 'wipe'])
+
+    result = cli.invoke(localrc, [
+        'push',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--state', state_db,
+        '--no-progress-bar',
+    ])
+    assert result.exit_code == 0
+
+    engine = sa.engine.create_engine('sqlite:///' + state_db)
+
+    data_mapping = {}
+    result = remote.app.get(f'https://example.com/datasets/push/state/Country')
+    for row in listdata(result, '_id', '_revision', 'code', full=True):
+        data_mapping[row['code']] = {
+            'id': row['_id'],
+            'revision': row['_revision']
+        }
+
+    # Check if pushed values match
+    compare_push_state_rows(
+        engine,
+        "datasets/push/state/Country",
+        [
+            {
+                'checksum': 'a8d8a04ebb10f4f0027721e4f90babba9de12fcd',
+                'error': False,
+                'data': None,
+                'page.id': 0,
+                'page.code': 'LT'
+            },
+            {
+                'checksum': 'bef6bdc50bbcf1925ac2fcb1c3cd434474eec9f6',
+                'error': False,
+                'data': None,
+                'page.id': 1,
+                'page.code': 'LV'
+            },
+            {
+                'checksum': '9b5f08e06bb141eac5e65ebabfb76104323eec5f',
+                'error': False,
+                'data': None,
+                'page.id': 2,
+                'page.code': 'PL'
+            }
+        ],
+        ['"page.id"']
+    )
+
+    # Emulate changed row
+    remote.app.patch(f'https://example.com/datasets/push/state/Country/{data_mapping["LT"]["id"]}', json={
+        '_revision': data_mapping['LT']['revision'],
+        'code': 'lt',
+        'name': 'lietuva'
+    })
+
+    # Run sync again and check if checksum and page values got updated
+    result = cli.invoke(localrc, [
+        'push',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--state', state_db,
+        '--sync',
+        '--dry-run',
+        '--no-progress-bar',
+    ])
+    assert result.exit_code == 0
+    compare_push_state_rows(
+        engine,
+        "datasets/push/state/Country",
+        [
+            {
+                'checksum': 'ab9c32680c7114df96309609ce926a85c67e3ab4',
+                'error': False,
+                'data': None,
+                'page.id': 0,
+                'page.code': 'lt'
+            },
+            {
+                'checksum': 'bef6bdc50bbcf1925ac2fcb1c3cd434474eec9f6',
+                'error': False,
+                'data': None,
+                'page.id': 1,
+                'page.code': 'LV'
+            },
+            {
+                'checksum': '9b5f08e06bb141eac5e65ebabfb76104323eec5f',
+                'error': False,
+                'data': None,
+                'page.id': 2,
+                'page.code': 'PL'
+            },
+        ],
+        ['"page.id"']
+    )
+
+    # Reset data
+    remote.app.delete('https://example.com/syncdataset/countries/City/:wipe')
+
+
+def test_push_sync_state_update_revision(
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    push_state_geodb,
+    request
+):
+    state_db = os.path.join(tmp_path, 'sync.sqlite')
+    table = '''
+        d | r | b | m | property | type    | ref                             | source         | level | access
+        datasets/push/state      |         |                                 |                |       |
+          | db                   | sql     |                                 |                |       |
+          |   |   | Country      |         | id, code                        | COUNTRY        | 4     |
+          |   |   |   | id       | integer |                                 | ID             | 4     | open
+          |   |   |   | code     | string  |                                 | CODE           | 2     | open
+          |   |   |   | name     | string  |                                 | NAME           | 2     | open
+        '''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(table))
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, push_state_geodb)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    remote.app.authorize(['spinta_set_meta_fields', 'spinta_delete', 'spinta_update', 'spinta_patch'])
+    remote.app.authmodel('datasets/push/state/Country', ['insert', 'getall', 'search', 'wipe'])
+
+    result = cli.invoke(localrc, [
+        'push',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--state', state_db,
+        '--no-progress-bar',
+    ])
+    assert result.exit_code == 0
+
+    engine = sa.engine.create_engine('sqlite:///' + state_db)
+
+    data_mapping = {}
+    result = remote.app.get(f'https://example.com/datasets/push/state/Country')
+    for row in listdata(result, '_id', '_revision', 'code', full=True):
+        data_mapping[row['code']] = {
+            'id': row['_id'],
+            'revision': row['_revision']
+        }
+
+    # Check if pushed values match
+    compare_push_state_rows(
+        engine,
+        "datasets/push/state/Country",
+        [
+            {
+                'revision': data_mapping['LT']['revision'],
+                'checksum': 'a8d8a04ebb10f4f0027721e4f90babba9de12fcd',
+                'error': False,
+                'data': None,
+                'page.id': 0,
+                'page.code': 'LT'
+            },
+            {
+                'revision': data_mapping['LV']['revision'],
+                'checksum': 'bef6bdc50bbcf1925ac2fcb1c3cd434474eec9f6',
+                'error': False,
+                'data': None,
+                'page.id': 1,
+                'page.code': 'LV'
+            },
+            {
+                'revision': data_mapping['PL']['revision'],
+                'checksum': '9b5f08e06bb141eac5e65ebabfb76104323eec5f',
+                'error': False,
+                'data': None,
+                'page.id': 2,
+                'page.code': 'PL'
+            }
+        ],
+        ['"page.id"']
+    )
+
+    # Emulate changed revision
+    result = remote.app.patch(f'https://example.com/datasets/push/state/Country/{data_mapping["LT"]["id"]}', json={
+        '_revision': data_mapping['LT']['revision'],
+        'code': 'lt',
+        'name': 'lietuva'
+    })
+    rev = result.json()['_revision']
+    result = remote.app.patch(f'https://example.com/datasets/push/state/Country/{data_mapping["LT"]["id"]}', json={
+        '_revision': rev,
+        'code': 'LT',
+        'name': 'LITHUANIA'
+    })
+    rev = result.json()['_revision']
+
+    assert data_mapping['LT']['revision'] != rev
+
+    # Run sync again and check if checksum and page values got updated
+    result = cli.invoke(localrc, [
+        'push',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--state', state_db,
+        '--sync',
+        '--dry-run',
+        '--no-progress-bar',
+    ])
+    assert result.exit_code == 0
+    compare_push_state_rows(
+        engine,
+        "datasets/push/state/Country",
+        [
+            {
+                'revision': rev,
+                'checksum': 'a8d8a04ebb10f4f0027721e4f90babba9de12fcd',
+                'error': False,
+                'data': None,
+                'page.id': 0,
+                'page.code': 'LT'
+            },
+            {
+                'revision': data_mapping['LV']['revision'],
+                'checksum': 'bef6bdc50bbcf1925ac2fcb1c3cd434474eec9f6',
+                'error': False,
+                'data': None,
+                'page.id': 1,
+                'page.code': 'LV'
+            },
+            {
+                'revision': data_mapping['PL']['revision'],
+                'checksum': '9b5f08e06bb141eac5e65ebabfb76104323eec5f',
+                'error': False,
+                'data': None,
+                'page.id': 2,
+                'page.code': 'PL'
+            },
+        ],
+        ['"page.id"']
+    )
+
+    # Reset data
+    remote.app.delete('https://example.com/syncdataset/countries/City/:wipe')
+
+
+def test_push_sync_state_combined(
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    push_state_geodb,
+    request
+):
+    state_db = os.path.join(tmp_path, 'sync.sqlite')
+    table = '''
+        d | r | b | m | property | type    | ref                             | source         | level | access
+        datasets/push/state      |         |                                 |                |       |
+          | db                   | sql     |                                 |                |       |
+          |   |   | Country      |         | id, code                        | COUNTRY        | 4     |
+          |   |   |   | id       | integer |                                 | ID             | 4     | open
+          |   |   |   | code     | string  |                                 | CODE           | 2     | open
+          |   |   |   | name     | string  |                                 | NAME           | 2     | open
+        '''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(table))
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, push_state_geodb)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    remote.app.authorize(['spinta_set_meta_fields', 'spinta_delete', 'spinta_update', 'spinta_patch'])
+    remote.app.authmodel('datasets/push/state/Country', ['insert', 'getall', 'search', 'wipe'])
+
+    result = cli.invoke(localrc, [
+        'push',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--state', state_db,
+        '--no-progress-bar',
+    ])
+    assert result.exit_code == 0
+
+    engine = sa.engine.create_engine('sqlite:///' + state_db)
+
+    data_mapping = {}
+    result = remote.app.get(f'https://example.com/datasets/push/state/Country')
+    for row in listdata(result, '_id', '_revision', 'code', full=True):
+        data_mapping[row['code']] = {
+            'id': row['_id'],
+            'revision': row['_revision']
+        }
+
+    # Check if pushed values match
+    compare_push_state_rows(
+        engine,
+        "datasets/push/state/Country",
+        [
+            {
+                'checksum': 'a8d8a04ebb10f4f0027721e4f90babba9de12fcd',
+                'error': False,
+                'data': None,
+                'page.id': 0,
+                'page.code': 'LT'
+            },
+            {
+                'checksum': 'bef6bdc50bbcf1925ac2fcb1c3cd434474eec9f6',
+                'error': False,
+                'data': None,
+                'page.id': 1,
+                'page.code': 'LV'
+            },
+            {
+                'checksum': '9b5f08e06bb141eac5e65ebabfb76104323eec5f',
+                'error': False,
+                'data': None,
+                'page.id': 2,
+                'page.code': 'PL'
+            }
+        ],
+        ['"page.id"']
+    )
+    de_id = "d6765254-37da-4915-9e86-0b1908e9b32a"
+
+    remote.app.patch(f'https://example.com/datasets/push/state/Country/{data_mapping["LT"]["id"]}', json={
+        '_revision': data_mapping['LT']['revision'],
+        'code': 'lt',
+        'name': 'lietuva'
+    })
+    remote.app.delete(f'https://example.com/datasets/push/state/Country/{data_mapping["LV"]["id"]}')
+    remote.app.post(f'https://example.com/datasets/push/state/Country', json={
+        '_id': de_id,
+        'id': 1,
+        'code': 'DE',
+        'name': 'GERMANY'
+    })
+
+    # Run sync again and check if checksum and page values got updated
+    result = cli.invoke(localrc, [
+        'push',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--state', state_db,
+        '--sync',
+        '--dry-run',
+        '--no-progress-bar',
+    ])
+    assert result.exit_code == 0
+    compare_push_state_rows(
+        engine,
+        "datasets/push/state/Country",
+        [
+            {
+                'id': data_mapping['LT']['id'],
+                'checksum': 'ab9c32680c7114df96309609ce926a85c67e3ab4',
+                'error': False,
+                'data': None,
+                'page.id': 0,
+                'page.code': 'lt'
+            },
+            {
+                'id': de_id,
+                'checksum': '2de7ef4d30147ba45917a94cd0b4113793b76cfa',
+                'error': False,
+                'data': None,
+                'page.id': 1,
+                'page.code': 'DE'
+            },
+            {
+                'id': data_mapping['PL']['id'],
+                'checksum': '9b5f08e06bb141eac5e65ebabfb76104323eec5f',
+                'error': False,
+                'data': None,
+                'page.id': 2,
+                'page.code': 'PL'
+            },
+        ],
+        ['"page.id"']
+    )
+
+    # Reset data
+    remote.app.delete('https://example.com/syncdataset/countries/City/:wipe')
+
+
+def test_push_sync_state_migrate_page_values(
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    push_state_geodb,
+    request
+):
+    state_db = os.path.join(tmp_path, 'sync.sqlite')
+    table = '''
+        d | r | b | m | property | type    | ref                             | source         | level | access
+        datasets/push/state      |         |                                 |                |       |
+          | db                   | sql     |                                 |                |       |
+          |   |   | Country      |         | id, code                        | COUNTRY        | 4     |
+          |   |   |   | id       | integer |                                 | ID             | 4     | open
+          |   |   |   | code     | string  |                                 | CODE           | 2     | open
+          |   |   |   | name     | string  |                                 | NAME           | 2     | open
+        '''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(table))
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, push_state_geodb)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    remote.app.authorize(['spinta_set_meta_fields', 'spinta_patch', 'spinta_update'])
+    remote.app.authmodel('datasets/push/state/Country', ['insert', 'getall', 'search', 'wipe'])
+
+    result = cli.invoke(localrc, [
+        'push',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--state', state_db,
+        '--no-progress-bar',
+    ])
+    assert result.exit_code == 0
+
+    engine = sa.engine.create_engine('sqlite:///' + state_db)
+
+    data_mapping = {}
+    result = remote.app.get(f'https://example.com/datasets/push/state/Country')
+    for row in listdata(result, '_id', '_revision', 'code', full=True):
+        data_mapping[row['code']] = {
+            'id': row['_id'],
+            'revision': row['_revision']
+        }
+
+    # Emulate empty page columns
+    with engine.connect() as conn:
+        conn.execute(
+            sa.text(
+                f'UPDATE "datasets/push/state/Country" SET "page.id" = NULL, "page.code" = NULL'
+            )
+        )
+
+    compare_push_state_rows(
+        engine,
+        "datasets/push/state/Country",
+        [
+            {
+                'checksum': 'a8d8a04ebb10f4f0027721e4f90babba9de12fcd',
+                'error': False,
+                'data': None,
+                'page.id': None,
+                'page.code': None
+            },
+            {
+                'checksum': 'bef6bdc50bbcf1925ac2fcb1c3cd434474eec9f6',
+                'error': False,
+                'data': None,
+                'page.id': None,
+                'page.code': None
+            },
+            {
+                'checksum': '9b5f08e06bb141eac5e65ebabfb76104323eec5f',
+                'error': False,
+                'data': None,
+                'page.id': None,
+                'page.code': None
+            }
+        ],
+        ['"page.id"']
+    )
+
+    # Run sync again and check if page values were updated
+    result = cli.invoke(localrc, [
+        'push',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--state', state_db,
+        '--sync',
+        '--dry-run',
+        '--no-progress-bar',
+    ])
+    assert result.exit_code == 0
+    compare_push_state_rows(
+        engine,
+        "datasets/push/state/Country",
+        [
+            {
+                'checksum': 'a8d8a04ebb10f4f0027721e4f90babba9de12fcd',
+                'error': False,
+                'data': None,
+                'page.id': 0,
+                'page.code': 'LT'
+            },
+            {
+                'checksum': 'bef6bdc50bbcf1925ac2fcb1c3cd434474eec9f6',
+                'error': False,
+                'data': None,
+                'page.id': 1,
+                'page.code': 'LV'
+            },
+            {
+                'checksum': '9b5f08e06bb141eac5e65ebabfb76104323eec5f',
+                'error': False,
+                'data': None,
+                'page.id': 2,
+                'page.code': 'PL'
+            },
+        ],
+        ['"page.id"']
+    )
+
+    # Reset data
+    remote.app.delete('https://example.com/syncdataset/countries/City/:wipe')
+
+
+def test_push_sync_state_skip_no_auth(
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    push_state_geodb,
+    request
+):
+    state_db = os.path.join(tmp_path, 'sync.sqlite')
+    table = '''
+        d | r | b | m | property | type    | ref                             | source         | level | access
+        datasets/push/state      |         |                                 |                |       |
+          | db                   | sql     |                                 |                |       |
+          |   |   | Country      |         | id, code                        | COUNTRY        | 4     |
+          |   |   |   | id       | integer |                                 | ID             | 4     | protected
+          |   |   |   | code     | string  |                                 | CODE           | 2     | open
+          |   |   |   | name     | string  |                                 | NAME           | 2     | open
+          |   |   | CountryOpen  |         | id, code                        | COUNTRY        | 4     |
+          |   |   |   | id       | integer |                                 | ID             | 4     | open
+          |   |   |   | code     | string  |                                 | CODE           | 2     | open
+          |   |   |   | name     | string  |                                 | NAME           | 2     | open
+        '''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(table))
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, push_state_geodb)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    remote.app.authorize(['spinta_set_meta_fields', 'spinta_patch', 'spinta_update', 'spinta_insert', 'spinta_getall', 'spinta_search', 'spinta_wipe'])
+
+    result = cli.invoke(localrc, [
+        'push',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--state', state_db,
+        '--no-progress-bar',
+    ])
+    assert result.exit_code == 0
+
+    engine = sa.engine.create_engine('sqlite:///' + state_db)
+
+    data_mapping = {}
+    result = remote.app.get(f'https://example.com/datasets/push/state/CountryOpen')
+    for row in listdata(result, '_id', '_revision', 'code', full=True):
+        data_mapping[row['code']] = {
+            'id': row['_id'],
+            'revision': row['_revision']
+        }
+
+    # Check if pushed values match
+    # Will have different checksums, because not all data is pushed
+    compare_push_state_rows(
+        engine,
+        "datasets/push/state/Country",
+        [
+            {
+                'checksum': '2e9798a712eada11b26e1a7947fe05922838f8d3',
+                'error': False,
+                'data': None,
+                'page.id': 0,
+                'page.code': 'LT'
+            },
+            {
+                'checksum': 'df9b36c5237fe25960c265df63f004d6a839f104',
+                'error': False,
+                'data': None,
+                'page.id': 1,
+                'page.code': 'LV'
+            },
+            {
+                'checksum': '72e48e32afdba7c4e3db5a33852ee35f1a8abe2c',
+                'error': False,
+                'data': None,
+                'page.id': 2,
+                'page.code': 'PL'
+            }
+        ],
+        ['"page.id"']
+    )
+    compare_push_state_rows(
+        engine,
+        "datasets/push/state/CountryOpen",
+        [
+            {
+                'checksum': 'a8d8a04ebb10f4f0027721e4f90babba9de12fcd',
+                'error': False,
+                'data': None,
+                'page.id': 0,
+                'page.code': 'LT'
+            },
+            {
+                'checksum': 'bef6bdc50bbcf1925ac2fcb1c3cd434474eec9f6',
+                'error': False,
+                'data': None,
+                'page.id': 1,
+                'page.code': 'LV'
+            },
+            {
+                'checksum': '9b5f08e06bb141eac5e65ebabfb76104323eec5f',
+                'error': False,
+                'data': None,
+                'page.id': 2,
+                'page.code': 'PL'
+            }
+        ],
+        ['"page.id"']
+    )
+
+    de_id = "d6765254-37da-4915-9e86-0b1908e9b32a"
+    # Emulate new row
+    remote.app.post(f'https://example.com/datasets/push/state/Country', json={
+        '_id': de_id,
+        'code': 'DE',
+        'name': 'GERMANY'
+    })
+    remote.app.post(f'https://example.com/datasets/push/state/CountryOpen', json={
+        '_id': de_id,
+        'id': 3,
+        'code': 'DE',
+        'name': 'GERMANY'
+    })
+
+    # Run sync again and check if checksum and page values got updated
+    result = cli.invoke(localrc, [
+        'push',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--state', state_db,
+        '--sync',
+        '--dry-run',
+        '--no-progress-bar',
+    ])
+    assert result.exit_code == 0
+    assert "SKIPPED PUSH STATE 'datasets/push/state/Country' MODEL SYNC, NO PERMISSION." in result.stdout
+
+    compare_push_state_rows(
+        engine,
+        "datasets/push/state/Country",
+        [
+            {
+                'checksum': '2e9798a712eada11b26e1a7947fe05922838f8d3',
+                'error': False,
+                'data': None,
+                'page.id': 0,
+                'page.code': 'LT'
+            },
+            {
+                'checksum': 'df9b36c5237fe25960c265df63f004d6a839f104',
+                'error': False,
+                'data': None,
+                'page.id': 1,
+                'page.code': 'LV'
+            },
+            {
+                'checksum': '72e48e32afdba7c4e3db5a33852ee35f1a8abe2c',
+                'error': False,
+                'data': None,
+                'page.id': 2,
+                'page.code': 'PL'
+            }
+        ],
+        ['"page.id"']
+    )
+    compare_push_state_rows(
+        engine,
+        "datasets/push/state/CountryOpen",
+        [
+            {
+                'id': data_mapping['LT']['id'],
+                'checksum': 'a8d8a04ebb10f4f0027721e4f90babba9de12fcd',
+                'error': False,
+                'data': None,
+                'page.id': 0,
+                'page.code': 'LT'
+            },
+            {
+                'id': data_mapping['LV']['id'],
+                'checksum': 'bef6bdc50bbcf1925ac2fcb1c3cd434474eec9f6',
+                'error': False,
+                'data': None,
+                'page.id': 1,
+                'page.code': 'LV'
+            },
+            {
+                'id': data_mapping['PL']['id'],
+                'checksum': '9b5f08e06bb141eac5e65ebabfb76104323eec5f',
+                'error': False,
+                'data': None,
+                'page.id': 2,
+                'page.code': 'PL'
+            },
+            {
+                'id': de_id,
+                'checksum': 'ad27b99d9139eaa3a0df159afda9cacc2b26b0b9',
+                'error': False,
+                'data': None,
+                'page.id': 3,
+                'page.code': 'DE'
+            },
+        ],
+        ['"page.id"']
+    )
+
+    # Reset data
+    remote.app.delete('https://example.com/syncdataset/countries/City/:wipe')
+
+
+def test_push_page_multiple_keys(
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    multi_type_geodb,
+    request
+):
+    state_db = os.path.join(tmp_path, 'sync.sqlite')
+    table = '''
+        d | r | b | m | property | type     | ref                             | source         | level | access
+        datasets/push/page       |          |                                 |                |       |
+          | db                   | sql      |                                 |                |       |
+          |   |   | Test         |          | id, name, number, url, date, time, datetime | TEST | 4     |
+          |   |   |   | id       | integer  |                                 | ID             | 4     | open
+          |   |   |   | name     | string   |                                 | NAME           | 2     | open
+          |   |   |   | number   | number   |                                 | NUMBER         | 2     | open
+          |   |   |   | url      | url      |                                 | URL            | 2     | open
+          |   |   |   | date     | date     |                                 | DATE           | 2     | open
+          |   |   |   | time     | time     |                                 | TIME           | 2     | open
+          |   |   |   | datetime | datetime |                                 | DATETIME       | 2     | open
+        '''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(table))
+    # Configure local server with SQL backend
+    rc = rc.fork({
+        'push_page_size': 2
+    })
+    localrc = create_rc(rc, tmp_path, multi_type_geodb)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    remote.app.authorize(['spinta_set_meta_fields', 'spinta_patch', 'spinta_update', 'spinta_insert', 'spinta_getall', 'spinta_search', 'spinta_wipe'])
+
+    result = cli.invoke(localrc, [
+        'push',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--state', state_db,
+    ])
+    assert result.exit_code == 0
+
+    engine = sa.engine.create_engine('sqlite:///' + state_db)
+
+    compare_push_state_rows(
+        engine,
+        "datasets/push/page/Test",
+        [
+            {
+                'checksum': 'd1b91f5bda845db8a0c0dca0e76d6d5354327845',
+                'error': False,
+                'data': None,
+                'page.id': 0,
+                'page.name': 'LT',
+                'page.number': 0.1,
+                'page.date': '2024-02-01',
+                'page.time': '12:10:20.000000',
+                'page.datetime': '2024-02-01 12:10:20.000000'
+            },
+            {
+                'checksum': 'ccad01770f5f86c776fa8faad652f46a6f697b09',
+                'error': False,
+                'data': None,
+                'page.id': 1,
+                'page.name': 'LV',
+                'page.number': 1.2,
+                'page.date': '2024-02-02',
+                'page.time': '12:20:20.000000',
+                'page.datetime': '2024-02-02 12:20:20.000000'
+            },
+            {
+                'checksum': '933c0e0216d721d1c7974672b1b5733cdeff7a3c',
+                'error': False,
+                'data': None,
+                'page.id': 2,
+                'page.name': 'PL',
+                'page.number': 2.3,
+                'page.date': '2024-02-03',
+                'page.time': '12:30:20.000000',
+                'page.datetime': '2024-02-03 12:30:20.000000'
+            }
+        ],
+        ['"page.id"']
+    )
+
+    # Run sync again with empty db, to see if everything gets synced
+    state_db = os.path.join(tmp_path, 'sync_page.sqlite')
+    engine = sa.engine.create_engine('sqlite:///' + state_db)
+
+    result = cli.invoke(localrc, [
+        'push',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--state', state_db,
+        '--sync',
+        '--no-progress-bar',
+    ])
+    assert result.exit_code == 0
+
+    compare_push_state_rows(
+        engine,
+        "datasets/push/page/Test",
+        [
+            {
+                'checksum': 'd1b91f5bda845db8a0c0dca0e76d6d5354327845',
+                'error': False,
+                'data': None,
+                'page.id': 0,
+                'page.name': 'LT',
+                'page.number': 0.1,
+                'page.date': '2024-02-01',
+                'page.time': '12:10:20.000000',
+                'page.datetime': '2024-02-01 12:10:20.000000'
+            },
+            {
+                'checksum': 'ccad01770f5f86c776fa8faad652f46a6f697b09',
+                'error': False,
+                'data': None,
+                'page.id': 1,
+                'page.name': 'LV',
+                'page.number': 1.2,
+                'page.date': '2024-02-02',
+                'page.time': '12:20:20.000000',
+                'page.datetime': '2024-02-02 12:20:20.000000'
+            },
+            {
+                'checksum': '933c0e0216d721d1c7974672b1b5733cdeff7a3c',
+                'error': False,
+                'data': None,
+                'page.id': 2,
+                'page.name': 'PL',
+                'page.number': 2.3,
+                'page.date': '2024-02-03',
+                'page.time': '12:30:20.000000',
+                'page.datetime': '2024-02-03 12:30:20.000000'
+            }
+        ],
+        ['"page.id"']
+    )
+    # Reset data
+    remote.app.delete('https://example.com/syncdataset/countries/City/:wipe')

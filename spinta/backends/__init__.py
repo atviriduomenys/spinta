@@ -3,7 +3,6 @@ import datetime
 import decimal
 import pathlib
 import uuid
-import dateutil
 from typing import Any
 from typing import AsyncIterator
 from typing import Dict
@@ -11,21 +10,22 @@ from typing import Iterable
 from typing import List
 from typing import Optional
 
+import dateutil
 import shapely.geometry.base
-from shapely import wkt
 from pyproj.crs import CRS
+from shapely import wkt
 
 from spinta import commands
 from spinta import exceptions
 from spinta.backends.components import Backend
 from spinta.backends.components import SelectTree
-from spinta.backends.helpers import get_model_reserved_props
-from spinta.backends.helpers import select_keys
-from spinta.backends.helpers import select_props
 from spinta.backends.helpers import check_unknown_props
 from spinta.backends.helpers import flat_select_to_nested
-from spinta.backends.helpers import select_model_props
+from spinta.backends.helpers import get_model_reserved_props
 from spinta.backends.helpers import get_select_prop_names
+from spinta.backends.helpers import select_keys
+from spinta.backends.helpers import select_model_props
+from spinta.backends.helpers import select_props
 from spinta.commands import gen_object_id
 from spinta.commands import is_object_id
 from spinta.commands import load_operator_value
@@ -43,11 +43,10 @@ from spinta.exceptions import ConflictingValue, RequiredProperty, LangNotDeclare
 from spinta.exceptions import NoItemRevision
 from spinta.formats.components import Format
 from spinta.manifests.components import Manifest
-from spinta.types.datatype import Array, ExternalRef, Denorm, Inherit, PageType, BackRef, ArrayBackRef, Integer, Boolean
+from spinta.types.datatype import Array, ExternalRef, Inherit, PageType, BackRef, ArrayBackRef, Integer, Boolean
 from spinta.types.datatype import Binary
 from spinta.types.datatype import DataType
 from spinta.types.datatype import Date
-from spinta.types.datatype import Time
 from spinta.types.datatype import DateTime
 from spinta.types.datatype import File
 from spinta.types.datatype import JSON
@@ -56,12 +55,13 @@ from spinta.types.datatype import Object
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.types.datatype import String
+from spinta.types.datatype import Time
 from spinta.types.geometry.components import Geometry
+from spinta.types.text.components import Text
 from spinta.utils.config import asbool
 from spinta.utils.encoding import encode_page_values
 from spinta.utils.schema import NA
 from spinta.utils.schema import NotAvailable
-from spinta.types.text.components import Text
 
 
 @commands.prepare_for_write.register(Context, Model, Backend, dict)
