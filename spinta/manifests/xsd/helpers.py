@@ -1002,23 +1002,6 @@ def read_schema(
 
     yield None, xsd.dataset_and_resource_info
 
-    new_models = {}
-    for model_name, parsed_model in xsd.models.items():
-        if parsed_model.has_non_ref_properties() and parsed_model.parent_model is not None:
-            new_models[model_name] = parsed_model
-        else:
-            for ref_model in xsd.models.values():
-                new_properties = {}
-                for property_id, prop in ref_model.properties.items():
-                    if not (prop["type"] == "ref" and prop["model"] == model_name):
-                        new_properties[property_id] = prop
-                    else:
-                        if property_id in ref_model.root_properties:
-                            ref_model.root_properties.pop(property_id)
-                ref_model.properties = new_properties
-
-    xsd.models = new_models
-
     for model_name, parsed_model in xsd.models.items():
 
         # we need to add root properties to properties if it's a root model
