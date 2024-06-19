@@ -50,10 +50,16 @@ def handle_ref_key_assignment(context: Context, keymap: KeyMap, env: Env, value:
                 ref_model.backend,
                 query=expr
             )
+
+            found_value = False
             for row in rows:
                 if val is not None:
                     raise Exception("ALREADY FOUND ID")
                 val = row['_id']
+                found_value = True
+
+            if not found_value:
+                raise Exception("REF VALUE NOT FOUND")
         else:
             val = keymap.encode(keymap_name, target_value)
         val = {'_id': val}
