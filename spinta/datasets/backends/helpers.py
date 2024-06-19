@@ -39,6 +39,9 @@ def handle_ref_key_assignment(context: Context, keymap: KeyMap, env: Env, value:
         val = None
         contains = keymap.contains_key(keymap_name, target_value)
         if not contains:
+            if target_value is None:
+                return {'_id': None}
+
             ref_model = ref.model
             expr_parts = ['select()']
             for i, prop in enumerate(ref.refprops):

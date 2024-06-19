@@ -110,7 +110,13 @@ class SqlAlchemyKeyMap(KeyMap):
         return value
 
     def contains_key(self, name: str, value: Any) -> bool:
-        encoded_value, encoded_hash = _hash_value(value)
+        result = _hash_value(value)
+
+        if result is None:
+            return False
+
+        encoded_value, encoded_hash = result
+
         table = self.get_table(name)
         query = sa.select([sa.func.count()]).where(
             sa.and_(
