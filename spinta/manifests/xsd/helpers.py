@@ -208,7 +208,8 @@ class XSDModel:
     def simple_element_to_property(
         self,
         element: _Element,
-        is_array: bool = False
+        is_array: bool = False,
+        source_path: str = None
     ) -> tuple[str, dict[str, str | bool | dict[str, Any]]]:
         """
         simple element is an element which is either
@@ -238,6 +239,8 @@ class XSDModel:
             prop["external"]["name"] = ref
             property_id = self.deduplicate(to_property_name(ref))
         prop["external"]["name"] = f'{prop["external"]["name"]}/text()'
+        if source_path:
+            prop["external"]["name"] = f'{source_path}/{prop["external"]["name"]}'
         if prop.get("type") == "":
             prop["type"] = "string"
         if XSDReader.is_array(element) or is_array:
@@ -519,7 +522,7 @@ class XSDReader:
                     sequence = None
 
                 new_referenced_element = None
-                # we check for the length of sequence, because it can has more than one element, but also length of
+                # we check for the length of sequence, because it can have more than one element, but also length of
                 # complexType because it can have attributes too.
                 if sequence is not None and len(sequence) == 1 and len(complex_type) == 1 and self.node_is_ref(sequence[0]):
                     if ref_element.get("name") is not None:
@@ -528,8 +531,20 @@ class XSDReader:
                     is_array = XSDReader.is_array(referenced_element)
                     if not is_array:
                         is_array = XSDReader.is_array(complex_type[0][0])
+
+                    previous_referenced_element_name = referenced_element.get("name")
                     new_referenced_element = self._get_referenced_node(complex_type[0][0])
                     referenced_element = new_referenced_element
+
+                    if self.node_is_simple_type_or_inline(referenced_element):
+                        property_id, prop = model.simple_element_to_property(
+                            referenced_element,
+                            is_array=is_array,
+                            source_path=previous_referenced_element_name)
+                        if not XSDReader.is_required(ref_element):
+                            prop["required"] = False
+                        properties[property_id] = prop
+                        continue
 
                 if not (XSDReader.is_array(ref_element) or is_array):
                     referenced_model_names, new_root_properties = self._create_model(
@@ -841,21 +856,17 @@ class XSDReader:
                 for root_property_id, root_property in model_properties.items():
 
                     # we don't need to add refs which don't have source (as they point to the root model then)
-                    # TODO: I don't know if we need this check. I would assume that we don't.
-                    #  But if we delete this check, then it doesn't find the referenced model
-                    #  if there is a model in between
-                    #  Example: Objektai has faktai[].faktu_naudotojai[].naudotojo_id then
-                    #  Faktu_Naudotojai has referencce to Faktai but not Objektai
-                    # if True:
                     if not (root_property.get("type") == "ref" and "external" not in root_property):
 
                         # we need to find out the name of the property that corresponds the model,
-                        #  because we need to use that if we used it in ref properties, otherwise use
+                        #  because we need to use that if we used it in ref properties,
+                        #  otherwise use newly created form model name
                         prefix = None
                         stripped_model_name = model_name.rstrip("[]")
                         for property_id, prop in properties.items():
                             if "model" in prop:
-                                property_model_name = prop.get("model").split("/")[-1]
+                                # property_model_name = prop.get("model").split("/")[-1]
+                                property_model_name = prop.get("model")
                                 if property_model_name == stripped_model_name:
                                     prefix = property_id
                                     break
