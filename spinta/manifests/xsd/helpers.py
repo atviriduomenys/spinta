@@ -518,16 +518,18 @@ class XSDReader:
                 else:
                     sequence = None
 
+                new_referenced_element = None
                 # we check for the length of sequence, because it can has more than one element, but also length of
                 # complexType because it can have attributes too.
                 if sequence is not None and len(sequence) == 1 and len(complex_type) == 1 and self.node_is_ref(sequence[0]):
+                    if ref_element.get("name") is not None:
+                        source_path += f'/{ref_element.get("name")}'
+                    source_path += f'/{referenced_element.get("name")}'
                     is_array = XSDReader.is_array(referenced_element)
                     if not is_array:
                         is_array = XSDReader.is_array(complex_type[0][0])
                     new_referenced_element = self._get_referenced_node(complex_type[0][0])
                     referenced_element = new_referenced_element
-                    if ref_element.get("name") is not None:
-                        source_path += f'/{ref_element.get("name")}'
 
                 if not (XSDReader.is_array(ref_element) or is_array):
                     referenced_model_names, new_root_properties = self._create_model(
@@ -556,8 +558,11 @@ class XSDReader:
 
                 for referenced_model_name in referenced_model_names:
                     property_id, prop = model.simple_element_to_property(ref_element, is_array=is_array)
-
                     prop["external"]["name"] = prop["external"]["name"].rstrip("/text()")
+                    if new_referenced_element is not None:
+                        _, referenced_prop = model.simple_element_to_property(referenced_element)
+                        prop["external"]["name"] += f'/{referenced_prop["external"]["name"].rstrip("/text()")}'
+
                     prop["type"] = property_type
                     prop["model"] = f"{referenced_model_name}"
                     properties[property_id] = prop
