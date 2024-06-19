@@ -848,7 +848,7 @@ class XSDReader:
 
         # DEALING WITH NESTED ROOT PROPERTIES ---------------------
 
-        if properties:
+        if properties or is_root_model:
             # new_root_properties are to pass up to the root model and to add to it
             new_root_properties = {}
             # add the model prefix to every property name and source
