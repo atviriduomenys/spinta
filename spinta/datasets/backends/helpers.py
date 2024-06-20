@@ -5,7 +5,7 @@ from spinta.components import Property, Model, Context
 from spinta.core.ufuncs import Env, asttoexpr
 from spinta.datasets.enums import Level
 from spinta.datasets.keymaps.components import KeyMap
-from spinta.exceptions import GivenValueCountMissmatch
+from spinta.exceptions import GivenValueCountMissmatch, MultiplePrimaryKeyCandidatesFound, NoPrimaryKeyCandidatesFound
 from spinta.types.datatype import Ref, Array
 from spinta.utils.schema import NA
 
@@ -57,12 +57,12 @@ def handle_ref_key_assignment(context: Context, keymap: KeyMap, env: Env, value:
             found_value = False
             for row in rows:
                 if val is not None:
-                    raise Exception("ALREADY FOUND ID")
+                    raise MultiplePrimaryKeyCandidatesFound(ref, values=target_value)
                 val = row['_id']
                 found_value = True
 
             if not found_value:
-                raise Exception("REF VALUE NOT FOUND")
+                raise NoPrimaryKeyCandidatesFound(ref, value=target_value)
         else:
             val = keymap.encode(keymap_name, target_value)
         val = {'_id': val}
