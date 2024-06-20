@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from spinta.components import Context
 from spinta.core.enums import Access
 from spinta.manifests.yaml.components import InlineManifest
+from spinta.utils.naming import to_model_name
 
 
 class MermaidClassDiagram:
@@ -44,15 +45,16 @@ class MermaidClass:
     name: str
     properties: list[MermaidProperty]
 
-    def __init__(self, name: str):
+    def __init__(self, name: str, enum=False):
         self.name = name
         self.properties = []
+        self.enum = enum
 
     def add_property(self, prop: MermaidProperty) -> None:
         self.properties.append(prop)
 
     def __str__(self):
-        return f'class {self.name} {{\n' + "".join(str(prop) for prop in self.properties) + f'}}'
+        return f'class {self.name} {{\n' + "\n<<enumeration>>\n" if self.enum else '' + "".join(str(prop) for prop in self.properties) + f'}}'
 
 
 @dataclass
@@ -111,6 +113,11 @@ def write_mermaid_manifest(context: Context, output: str, manifest: InlineManife
                         multiplicity=multiplicity,
                     )
                     mermaid_class.add_property(mermaid_property)
+                    if model_property.enum:
+                        enum_class = MermaidClass(name=f"{model.basename}{to_model_name(model_property.name)}", enum=True)
+                        for enum_property in model_property.enum.values():
+                            enum_property = MermaidProperty(name=enum_property.name)
+
                 mermaid.add_class(mermaid_class)
 
         mermaids.append(mermaid)
