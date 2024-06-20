@@ -424,7 +424,7 @@ id | d | r | b | m | property     | type    | ref | level | source  | access
         app = create_client(rc, tmp_path, db)
         response = app.get('/example/City')
         response_json = response.json()
-        print(response_json)
+
         _id = response_json["_data"][0]["_id"]
         getone_response = app.get(f'/example/City/{_id}')
         result = getone_response.json()
