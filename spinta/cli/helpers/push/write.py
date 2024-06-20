@@ -361,6 +361,7 @@ def _push_rows(
         except StopIteration:
             break
         except:
+            error_counter.increase()
             if stop_on_error:
                 raise
             cli_push.log.exception("Error while reading data.")

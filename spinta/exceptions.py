@@ -893,3 +893,25 @@ class MigrateScalarToRefTypeMissmatch(UserError):
     Migration between scalar types and Ref requires, that mapped columns match their types.
     {details}
     '''
+
+
+class KeyMapGivenKeyMissmatch(UserError):
+    template = '''
+    The encoding for the {name!r} keymap already includes the key {found_key!r}, associated with the value {value!r}. 
+    You attempted to assign the new primary key {given_key!r}, which conflicts with the existing key. 
+    Make sure that all keymap values are unique.
+    '''
+
+
+class MultiplePrimaryKeyCandidatesFound(UserError):
+    template = '''
+    While assigning foreign key for non-primary key `Ref` property, using values: {values!r}
+    found multiple possible matches. This can occur when non-primary keys are not unique and there are duplicate values.
+    '''
+
+
+class NoPrimaryKeyCandidatesFound(UserError):
+    template = '''
+    While assigning foreign key for non-primary key `Ref` property, using values: {values!r}
+    no possible matches were found. This can occur when trying to assign values that do not exist in foreign table.
+    '''
