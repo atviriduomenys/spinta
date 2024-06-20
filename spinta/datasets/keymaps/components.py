@@ -13,6 +13,9 @@ class KeyMap(Component):
     def decode(self, name: str, key: str) -> object:
         raise NotImplementedError
 
+    def contains_key(self, name: str, value: Any) -> bool:
+        raise NotImplementedError
+
     def first_time_sync(self) -> bool:
         raise NotImplementedError
 

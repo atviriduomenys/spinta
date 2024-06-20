@@ -83,7 +83,9 @@ Bug fixes:
 
   __ https://github.com/atviriduomenys/spinta/issues/626
 
-Bug fixes:
+- Fix Ref id mapping with non-primary keys when primary keys were not initialized(`#653`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/653
 
 - Added support for `getone` for `sql` backend (`#513`__).
 
