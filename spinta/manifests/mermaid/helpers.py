@@ -9,11 +9,13 @@ from spinta.manifests.yaml.components import InlineManifest
 
 class MermaidClassDiagram:
     title: str | None
-    classes: list[MermaidClass] = []
-    relationships: list[MermaidRelationship] = []
+    classes: list[MermaidClass]
+    relationships: list[MermaidRelationship]
 
     def __init__(self, title: str = None):
         self.title = title
+        self.classes = []
+        self.relationships = []
 
     def __str__(self):
         text = ""
@@ -40,10 +42,11 @@ class MermaidClassDiagram:
 
 class MermaidClass:
     name: str
-    properties: list[MermaidProperty] = []
+    properties: list[MermaidProperty]
 
     def __init__(self, name: str):
         self.name = name
+        self.properties = []
 
     def add_property(self, prop: MermaidProperty) -> None:
         self.properties.append(prop)
