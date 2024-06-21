@@ -25,8 +25,7 @@ Backwards incompatible changes:
 
 New features:
 
-- Parametrization support for XML and JSON external backends (`#217`_,
-  `#256`_).
+- Parametrization support for XML and JSON external backends (`#217`_, `#256`_).
 
   .. _#217: https://github.com/atviriduomenys/spinta/issues/217
   .. _#256: https://github.com/atviriduomenys/spinta/issues/256
@@ -41,7 +40,7 @@ New features:
 
 - Added push state database synchronization. (`P#98`)
 
-  Added `checksum()` `select` function to PostgreSQL backend.
+- Added `checksum()` `select` function to PostgreSQL backend. (`P#98`)
 
 Improvements:
 
@@ -51,19 +50,19 @@ Improvements:
 - Changed `internal` backend page assignment logic to default to `_id`
   property, if any of the page keys are not supported. (`P#98`)
 
+- Added proper support for functions in `select()` expressions (`P#100`).
+
 Bug fixes:
 
 - Migrate internal backend changed types (`#580`_).
 
   .. _#580: https://github.com/atviriduomenys/spinta/issues/580
 
-- Added proper support for functions in `select()` expressions (P#100).
-
 - Added support for language tags in RDF strings (`#549`_).
 
   .. _#549: https://github.com/atviriduomenys/spinta/issues/549
 
-- Show values of `text` type in tabular output (`#550`_, `#581`).
+- Show values of `text` type in tabular output (`#550`_, `#581`_).
 
   .. _#550: https://github.com/atviriduomenys/spinta/issues/550
   .. _#581: https://github.com/atviriduomenys/spinta/issues/581
@@ -72,12 +71,11 @@ Bug fixes:
 
   .. _#568: https://github.com/atviriduomenys/spinta/issues/568
 
-- Fixed sorting issue with MySQL and MSSQL external backends (P#90).
+- Fixed sorting issue with MySQL and MSSQL external backends (`P#90`).
 
-- Fixed issue with open transactions when writing data (P#92).
+- Fixed issue with open transactions when writing data (`P#92`).
 
-- Fixed issue with outdated page key in push state tables (P#95).
-
+- Fixed issue with outdated page key in push state tables (`P#95`).
 
 - Words in dataset names separated by underscores. (`#626`__).
 
@@ -91,9 +89,13 @@ Bug fixes:
 
   __ https://github.com/atviriduomenys/spinta/issues/653
 
-- Fixed issue with geometry type conversion when pushing data (`#652`__).
+- Fixed issue with Geometry type conversion when pushing data (`#652`__).
 
   __ https://github.com/atviriduomenys/spinta/issues/652
+
+- Fixed issue with Geometry bounding box check not applying CRS projection (`#654`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/654
 
 
 0.1.62 (2024-02-29)
