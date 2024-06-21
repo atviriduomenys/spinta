@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import enum
 from dataclasses import dataclass
 
 from spinta.components import Context
@@ -45,16 +46,22 @@ class MermaidClass:
     name: str
     properties: list[MermaidProperty]
 
-    def __init__(self, name: str, enum=False):
+    def __init__(self, name: str, is_enum=False):
         self.name = name
         self.properties = []
-        self.enum = enum
+        self.is_enum = is_enum
 
     def add_property(self, prop: MermaidProperty) -> None:
         self.properties.append(prop)
 
     def __str__(self):
-        return f'class {self.name} {{\n' + "\n<<enumeration>>\n" if self.enum else '' + "".join(str(prop) for prop in self.properties) + f'}}'
+        class_text = f"class {self.name} {{\n"
+        if self.is_enum:
+            class_text = f"{class_text}<<enumeration>>\n"
+        properties_text = "".join(f"{str(prop)}\n" for prop in self.properties)
+        class_text += properties_text
+        class_text += "}"
+        return class_text
 
 
 @dataclass
@@ -66,25 +73,81 @@ class MermaidProperty:
     multiplicity: str | None = None
 
     ACCESS_MAPPING = {
-        Access.open: "+",
-        Access.public: "#",
-        Access.protected: "~",
-        Access.private: "-"
+        Access.open: '+',
+        Access.public: '#',
+        Access.protected: '~',
+        Access.private: '-'
     }
 
     def __str__(self):
-        access = self.ACCESS_MAPPING[self.access]
 
-        return f"{access} {self.name} : {self.type} [{int(self.cardinality)}..{self.multiplicity}]\n"
+        property_string = self.name
+
+        if self.access is not None:
+            access = self.ACCESS_MAPPING[self.access]
+            property_string = f"{access} {property_string}"
+
+        if self.type is not None:
+            property_string = f"{property_string} : {self.type}"
+
+        if self.cardinality or self.multiplicity:
+            property_string = f"{property_string} [{int(self.cardinality) if self.cardinality is not None else ''}..{self.multiplicity if self.multiplicity is not None else ''}]"
+
+        return property_string
 
 
-class MermaidEnum:
-    pass
+class RelationshipDirection(enum.Enum):
+    FORWARD = 'forward'
+    BACKWARD = 'backward'
+
+
+class RelationshipType(enum.Enum):
+    ASSOCIATION = 'association'
+    DEPENDENCY = 'dependency'
+    INHERITANCE = 'inheritance'
 
 
 @dataclass
 class MermaidRelationship:
-    items: list[str | int] | None = None
+    node1: str
+    node2: str
+    type: RelationshipType
+    direction: RelationshipDirection = RelationshipDirection.FORWARD
+    node1_multiplicity: str = "1"
+    node2_multiplicity: str = "1"
+    label: str = ""
+
+    def __str__(self):
+
+        if self.direction == RelationshipDirection.FORWARD:
+            if self.type == RelationshipType.ASSOCIATION:
+                arrow = '-->'
+            if self.type == RelationshipType.DEPENDENCY:
+                arrow = '..>'
+            if self.type == RelationshipType.INHERITANCE:
+                arrow = '--|>'
+        else:
+            if self.type == RelationshipType.ASSOCIATION:
+                arrow = '<--'
+            if self.type == RelationshipType.DEPENDENCY:
+                arrow = '<..'
+            if self.type == RelationshipType.INHERITANCE:
+                arrow = '<|--'
+
+        multiplicity_text = f'"[{self.node1_multiplicity}..{self.node2_multiplicity}]"'
+
+        relationship_text = f"{self.node1} {arrow} {multiplicity_text} {self.node2}"
+        if self.label:
+            relationship_text += f" : {self.label}"
+
+        return relationship_text
+
+
+def find_backref_property(models, model_name):
+    for name, model in models.items():
+        for prop in model.get_given_properties().values():
+            if prop.type == 'backref' and prop.model.name == model_name:
+                return prop
 
 
 def write_mermaid_manifest(context: Context, output: str, manifest: InlineManifest):
@@ -102,22 +165,52 @@ def write_mermaid_manifest(context: Context, output: str, manifest: InlineManife
                 for model_property in model.get_given_properties().values():
 
                     # not sure if this is the best way to detect multiplicity
-                    if model_property.dtype.name == "partial_array":
-                        multiplicity = "*"
-                    else:
-                        multiplicity = "1"
-                    mermaid_property = MermaidProperty(
-                        name=model_property.name,
-                        access=model_property.access,
-                        type=model_property.dtype.name,
-                        cardinality=model_property.dtype.required,
-                        multiplicity=multiplicity,
-                    )
-                    mermaid_class.add_property(mermaid_property)
+
                     if model_property.enum:
-                        enum_class = MermaidClass(name=f"{model.basename}{to_model_name(model_property.name)}", enum=True)
-                        for enum_property in model_property.enum.values():
-                            enum_property = MermaidProperty(name=enum_property.name)
+                        enum_class = MermaidClass(name=f"{model.basename}{to_model_name(model_property.name)}", is_enum=True)
+                        for enum_property in model_property.enum:
+                            enum_property = MermaidProperty(name=enum_property.strip('"'))
+                            enum_class.add_property(enum_property)
+                        mermaid.add_class(enum_class)
+                        mermaid.add_relationship(
+                            MermaidRelationship(
+                                node1=mermaid_class.name,
+                                node2=enum_class.name,
+                                node1_multiplicity="1",
+                                node2_multiplicity="1",
+                                type=RelationshipType.DEPENDENCY,
+                                label=model_property.name
+                            ))
+                    elif model_property.dtype.name == 'ref':
+                        node1_multiplicity = node2_multiplicity = '1'
+                        if backref_property := find_backref_property(models, model_property.dtype.model.name) is not None:
+                            if backref_property.dtype.name == 'partial_array':
+                                node1_multiplicity = '*'
+                        if model_property.dtype.name == 'partial_array':
+                            node2_multiplicity = '*'
+                        mermaid.add_relationship(
+                            MermaidRelationship(
+                                node1=mermaid_class.name,
+                                node2=model_property.dtype.model.basename,
+                                node1_multiplicity=node1_multiplicity,
+                                node2_multiplicity=node2_multiplicity,
+                                type=RelationshipType.ASSOCIATION,
+                                label=model_property.name
+                            )
+                        )
+                    elif model_property.dtype.name not in ('backref', "array_backref"):
+                        if model_property.dtype.name == 'partial_array':
+                            multiplicity = '*'
+                        else:
+                            multiplicity = '1'
+                        mermaid_property = MermaidProperty(
+                            name=model_property.name,
+                            access=model_property.access,
+                            type=model_property.dtype.name,
+                            cardinality=model_property.dtype.required,
+                            multiplicity=multiplicity,
+                        )
+                        mermaid_class.add_property(mermaid_property)
 
                 mermaid.add_class(mermaid_class)
 
