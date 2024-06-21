@@ -425,7 +425,7 @@ def simple_data_check(
             miny=south,
             maxy=north
         )
-        if not bounding_area.contains_properly(shape):
+        if not bounding_area.contains(shape):
             raise CoordinatesOutOfRange(dtype, given=value, srid=crs, bounds=(west, south, east, north))
 
 
