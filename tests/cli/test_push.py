@@ -2737,3 +2737,66 @@ def test_push_page_multiple_keys(
     )
     # Reset data
     remote.app.delete('https://example.com/syncdataset/countries/City/:wipe')
+
+
+def test_push_with_geometry(
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    request,
+    sqlite
+):
+    sqlite.init({
+        'TEST': [
+            sa.Column('ID', sa.Integer, primary_key=True),
+            sa.Column('GEO', sa.Text),
+        ],
+    })
+
+    sqlite.write('TEST', [
+        {'ID': 0, 'GEO': 'POINT(0 0)'},
+        {'ID': 1, 'GEO': 'POINT(10 10)'},
+        {'ID': 2, 'GEO': 'POINT(-10 -10)'},
+    ])
+
+    table = '''
+        d | r | b | m | property | type            | ref | source         | level | access
+        datasets/push/geo        |                 |     |                |       |
+          | db                   | sql             |     |                |       |
+          |   |   | Test         |                 | id  | TEST           | 4     |
+          |   |   |   | id       | integer         |     | ID             | 4     | open
+          |   |   |   | geo      | geometry(point) |     | GEO            | 2     | open
+        '''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(table))
+    # Configure local server with SQL backend
+    rc = rc.fork({
+        'push_page_size': 2
+    })
+    localrc = create_rc(rc, tmp_path, sqlite)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    remote.app.authorize(['spinta_set_meta_fields', 'spinta_patch', 'spinta_update', 'spinta_insert', 'spinta_getall', 'spinta_search', 'spinta_wipe'])
+
+    result = cli.invoke(localrc, [
+        'push',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+    ])
+    assert result.exit_code == 0
+
+    result = remote.app.get('datasets/push/geo/Test/:format/html')
+    assert result.status_code == 200
+    assert listdata(result, 'id', 'geo', sort=True) == [
+        (0, 'POINT (0 0)'),
+        (1, 'POINT (10 10)'),
+        (2, 'POINT (-10 -10)')
+    ]
+    remote.app.delete('https://example.com/datasets/push/geo/Test/:wipe')

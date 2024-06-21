@@ -18,12 +18,12 @@ from spinta.ufuncs.resultbuilder.helpers import get_row_value
 
 @pytest.fixture(scope='module')
 def geodb_null_check():
-    with (create_sqlite_db({
+    with create_sqlite_db({
         'cities': [
             sa.Column('id', sa.Integer, primary_key=True),
             sa.Column('name', sa.Text),
         ]
-    }) as db):
+    }) as db:
         db.write('cities', [
             {'id': 0, 'name': 'Vilnius'},
         ])
@@ -424,7 +424,7 @@ id | d | r | b | m | property     | type    | ref | level | source  | access
         app = create_client(rc, tmp_path, db)
         response = app.get('/example/City')
         response_json = response.json()
-        print(response_json)
+
         _id = response_json["_data"][0]["_id"]
         getone_response = app.get(f'/example/City/{_id}')
         result = getone_response.json()

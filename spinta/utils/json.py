@@ -3,6 +3,8 @@ import datetime
 import pathlib
 import decimal
 
+from shapely import Geometry, wkt
+
 
 def fix_data_for_json(data):
     if isinstance(data, dict):
@@ -21,4 +23,6 @@ def fix_data_for_json(data):
         return float(data)
     if isinstance(data, (int, float, str, type(None))):
         return data
+    if isinstance(data, Geometry):
+        return wkt.dumps(data)
     raise TypeError(f"{type(data)} probably won't serialize to JSON.")
