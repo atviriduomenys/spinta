@@ -12,7 +12,7 @@ from typing import Optional
 
 import dateutil
 import shapely.geometry.base
-from pyproj.crs import CRS
+from pyproj import CRS, Transformer
 from shapely import wkt
 
 from spinta import commands
@@ -417,15 +417,16 @@ def simple_data_check(
             raise SRIDNotSetForGeometry(dtype)
 
         crs = CRS.from_user_input(srid)
-        area = crs.area_of_use
+        transformer = Transformer.from_crs(crs.geodetic_crs, crs, always_xy=True)
+        west, south, east, north = transformer.transform_bounds(*crs.area_of_use.bounds)
         bounding_area = shapely.geometry.box(
-            minx=area.west,
-            maxx=area.east,
-            miny=area.south,
-            maxy=area.north
+            minx=west,
+            maxx=east,
+            miny=south,
+            maxy=north
         )
         if not bounding_area.contains(shape):
-            raise CoordinatesOutOfRange(dtype, given=value, srid=crs, bounds=crs.area_of_use.bounds)
+            raise CoordinatesOutOfRange(dtype, given=value, srid=crs, bounds=(west, south, east, north))
 
 
 @commands.complex_data_check.register(Context, DataItem, Model, Backend)
