@@ -25,6 +25,10 @@ Backwards incompatible changes:
 
 New features:
 
+- Mermaid format support for ability to create class diagrams (`#634`_).
+
+  .. _#634: https://github.com/atviriduomenys/spinta/issues/634
+
 - Parametrization support for XML and JSON external backends (`#217`_,
   `#256`_).
 
