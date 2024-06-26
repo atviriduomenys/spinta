@@ -62,7 +62,7 @@ datasets/gov/example
 ---
 classDiagram
 class Country {
-+ name : partial_array [0..*]
++ name : string [0..*]
 + id : integer [1..1]
 }
 """
