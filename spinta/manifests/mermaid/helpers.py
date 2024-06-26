@@ -217,12 +217,36 @@ def write_mermaid_manifest(context: Context, output: str, manifest: InlineManife
                     elif model_property.dtype.name == "inherit":
                         continue
 
+                    elif model_property.dtype.name == 'partial_array':
+                        multiplicity = '*'
+
+                        if hasattr(model_property.dtype, "items") and hasattr(model_property.dtype.items.dtype, "model"):
+                            mermaid.add_relationship(
+                                MermaidRelationship(
+                                    node1=mermaid_class.name,
+                                    node2=model_property.dtype.items.dtype.model.basename,
+                                    cardinality=model_property.dtype.items.dtype.required,
+                                    multiplicity=multiplicity,
+                                    type=RelationshipType.ASSOCIATION,
+                                    label=model_property.name
+                                )
+                            )
+
+                        else:
+
+                            mermaid_property = MermaidProperty(
+                                name=model_property.name,
+                                access=model_property.access,
+                                type=model_property.dtype.name,
+                                cardinality=model_property.dtype.required,
+                                multiplicity=multiplicity,
+                            )
+                            mermaid_class.add_property(mermaid_property)
+
                     else:
 
-                        if model_property.dtype.name == 'partial_array':
-                            multiplicity = '*'
-                        else:
-                            multiplicity = '1'
+                        multiplicity = '1'
+
                         mermaid_property = MermaidProperty(
                             name=model_property.name,
                             access=model_property.access,
