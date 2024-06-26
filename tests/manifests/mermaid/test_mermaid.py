@@ -148,7 +148,7 @@ class City {
 + name : string [0..1]
 + id : integer [1..1]
 }
-City --> "[*..1]" Country : country
+City --> "[0..1]" Country : country
 """
 
 
@@ -190,7 +190,8 @@ class City {
 + name : string [0..1]
 + id : integer [1..1]
 }
-City --> "[*..1]" Country : country
+Country --> "[0..*]" City : cities
+City --> "[0..1]" Country : country
 """
 
 

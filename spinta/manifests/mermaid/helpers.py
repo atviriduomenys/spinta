@@ -113,8 +113,8 @@ class MermaidRelationship:
     node2: str
     type: RelationshipType
     direction: RelationshipDirection = RelationshipDirection.FORWARD
-    node1_multiplicity: str = ""
-    node2_multiplicity: str = ""
+    cardinality: bool = False
+    multiplicity: str = ""
     label: str = ""
 
     def __str__(self):
@@ -134,12 +134,12 @@ class MermaidRelationship:
             if self.type == RelationshipType.INHERITANCE:
                 arrow = '<|--'
 
-        if self.node1_multiplicity or self.node2_multiplicity:
-            multiplicity_text = f' "[{self.node1_multiplicity}..{self.node2_multiplicity}]"'
+        if self.cardinality or self.multiplicity:
+            cardinality_multiplicity = f' "[{int(self.cardinality)}..{self.multiplicity}]"'
         else:
-            multiplicity_text = ""
+            cardinality_multiplicity = ""
 
-        relationship_text = f"{self.node1} {arrow}{multiplicity_text} {self.node2}"
+        relationship_text = f"{self.node1} {arrow}{cardinality_multiplicity} {self.node2}"
         if self.label:
             relationship_text += f" : {self.label}"
 
@@ -179,39 +179,45 @@ def write_mermaid_manifest(context: Context, output: str, manifest: InlineManife
                             MermaidRelationship(
                                 node1=mermaid_class.name,
                                 node2=enum_class.name,
-                                node1_multiplicity="1",
-                                node2_multiplicity="1",
+                                cardinality=True,
+                                multiplicity="1",
                                 type=RelationshipType.DEPENDENCY,
                                 label=model_property.name
                             ))
                     elif model_property.dtype.name == 'ref':
-                        node1_multiplicity = node2_multiplicity = '1'
-                        if backref_property := find_backref_property(models, model_property.dtype.model.name) is not None:
-                            if backref_property.dtype.name == 'partial_array':
-                                node1_multiplicity = '*'
-                        else:
-                            node1_multiplicity = '*'
-                        if model_property.dtype.name == 'partial_array':
-                            node2_multiplicity = '*'
                         mermaid.add_relationship(
                             MermaidRelationship(
                                 node1=mermaid_class.name,
                                 node2=model_property.dtype.model.basename,
-                                node1_multiplicity=node1_multiplicity,
-                                node2_multiplicity=node2_multiplicity,
+                                cardinality=model_property.dtype.required,
+                                multiplicity='1',
                                 type=RelationshipType.ASSOCIATION,
                                 label=model_property.name
                             )
                         )
+
+                    elif model_property.dtype.name in ('backref', "array_backref"):
+                        if model_property.dtype.name == 'array_backref':
+                            multiplicity = '*'
+                        else:
+                            multiplicity = '1'
+
+                        mermaid.add_relationship(
+                            MermaidRelationship(
+                                node1=mermaid_class.name,
+                                node2=model_property.dtype.model.basename,
+                                cardinality=model_property.dtype.required,
+                                multiplicity=multiplicity,
+                                type=RelationshipType.ASSOCIATION,
+                                label=model_property.name
+                            )
+                        )
+
+                    # If it's a property that already is in a `base` model, we don't add it
+                    elif model_property.dtype.name == "inherit":
+                        continue
+
                     else:
-
-                        # If it's a backref, we don't add it, because we already added a `ref`
-                        if model_property.dtype.name in ('backref', "array_backref"):
-                            continue
-
-                        # If it's a property that already is in a `base` model, we don't add it
-                        if model_property.dtype.name == "inherit":
-                            continue
 
                         if model_property.dtype.name == 'partial_array':
                             multiplicity = '*'
