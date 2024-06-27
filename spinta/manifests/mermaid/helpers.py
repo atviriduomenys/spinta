@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from spinta.components import Context
 from spinta.core.enums import Access
 from spinta.manifests.yaml.components import InlineManifest
+from spinta.types.datatype import Ref, BackRef, ArrayBackRef, Inherit, PartialArray
 from spinta.utils.naming import to_model_name
 
 
@@ -146,13 +147,6 @@ class MermaidRelationship:
         return relationship_text
 
 
-def find_backref_property(models, model_name):
-    for name, model in models.items():
-        for prop in model.get_given_properties().values():
-            if prop.type == 'backref' and prop.model.name == model_name:
-                return prop
-
-
 def write_mermaid_manifest(context: Context, output: str, manifest: InlineManifest):
 
     mermaids = []
@@ -184,7 +178,7 @@ def write_mermaid_manifest(context: Context, output: str, manifest: InlineManife
                                 type=RelationshipType.DEPENDENCY,
                                 label=model_property.name
                             ))
-                    elif model_property.dtype.name == 'ref':
+                    elif isinstance(model_property.dtype, Ref):
                         mermaid.add_relationship(
                             MermaidRelationship(
                                 node1=mermaid_class.name,
@@ -196,8 +190,8 @@ def write_mermaid_manifest(context: Context, output: str, manifest: InlineManife
                             )
                         )
 
-                    elif model_property.dtype.name in ('backref', "array_backref"):
-                        if model_property.dtype.name == 'array_backref':
+                    elif isinstance(model_property.dtype, BackRef) or isinstance(model_property.dtype, ArrayBackRef):
+                        if isinstance(model_property.dtype, ArrayBackRef):
                             multiplicity = '*'
                         else:
                             multiplicity = '1'
@@ -214,10 +208,10 @@ def write_mermaid_manifest(context: Context, output: str, manifest: InlineManife
                         )
 
                     # If it's a property that already is in a `base` model, we don't add it
-                    elif model_property.dtype.name == "inherit":
+                    elif isinstance(model_property.dtype, Inherit):
                         continue
 
-                    elif model_property.dtype.name == 'partial_array':
+                    elif isinstance(model_property.dtype, PartialArray):
                         multiplicity = '*'
 
                         if hasattr(model_property.dtype, "items"):
