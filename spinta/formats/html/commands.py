@@ -10,7 +10,6 @@ from typing import List
 from typing import Optional
 from typing import TypeVar
 
-import pkg_resources as pres
 from itertools import chain
 from itertools import count
 from starlette.requests import Request
@@ -52,6 +51,7 @@ from spinta.types.datatype import Inherit
 from spinta.types.text.components import Text
 from spinta.utils.encoding import is_url_safe_base64, encode_page_values
 from spinta.utils.nestedstruct import flatten, sepgetter
+from spinta.utils.path import resource_filename
 from spinta.utils.schema import NotAvailable
 from spinta.utils.url import build_url_path
 
@@ -86,9 +86,8 @@ def _render_check(request: Request, data: Dict[str, Any] = None):
     else:
         result = data
 
-    templates = Jinja2Templates(directory=pres.resource_filename('spinta', 'templates'))
-    return templates.TemplateResponse('form.html', {
-        'request': request,
+    templates = Jinja2Templates(directory=str(resource_filename('spinta', 'templates')))
+    return templates.TemplateResponse(request, 'form.html', {
         'title': "Duomenų struktūros aprašo tikrinimas",
         'description': (
             "Ši priemonė leidžia patikrinti ar "
@@ -273,7 +272,6 @@ def _render_model(
         rows,
     )
     ctx.update(get_template_context(context, model, params))
-    ctx['request'] = request
     ctx['formats'] = get_output_formats(params)
 
     # Pass function references
@@ -284,9 +282,9 @@ def _render_model(
         ctx['data'] = list(ctx['data'])
 
     templates = Jinja2Templates(
-        directory=pres.resource_filename('spinta', 'templates')
+        directory=str(resource_filename('spinta', 'templates'))
     )
-    return templates.TemplateResponse('data.html', ctx, headers=http_headers)
+    return templates.TemplateResponse(request, 'data.html', ctx, headers=http_headers)
 
 
 @dataclasses.dataclass

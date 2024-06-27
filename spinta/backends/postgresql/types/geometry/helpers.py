@@ -41,5 +41,5 @@ def get_display_value(shape) -> Union[object, str]:
         value = shape.wkt
     else:
         # Shorten possibly long WKT values by reducing it to shape type.
-        value = shape.type.upper()
+        value = shape.geom_type.upper()
     return value

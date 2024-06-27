@@ -3,48 +3,78 @@ git status
 git checkout master
 git pull
 
+git tag -l -n1 | sort -h | tail -n5
+export CURRENT_VERSION=0.1.62
+export NEW_VERSION=0.1.63
+export FUTURE_VERSION=0.1.64
+
+# Create new branch to merge it using pull request
+export BRANCH_NAME=prepare_$NEW_VERSION_version
+git branch $BRANCH_NAME
+git checkout $BRANCH_NAME
+git status
+
 # Check outdated packages
 xdg-open https://github.com/atviriduomenys/spinta/security/dependabot
 
 # Upgrade packages
 poetry install
 poetry update
-#| Updating certifi (2023.11.17 -> 2024.2.2)
-#| Updating markupsafe (2.1.4 -> 2.1.5)
-#| Updating urllib3 (2.2.0 -> 2.2.1)
-#| Updating multidict (6.0.4 -> 6.0.5)
-#| Updating pytz (2023.4 -> 2024.1)
-#| Updating sniffio (1.3.0 -> 1.3.1)
-#| Updating typing-extensions (4.9.0 -> 4.10.0)
-#| Updating tzdata (2023.4 -> 2024.1)
-#| Updating anyio (4.2.0 -> 4.3.0)
-#| Updating coverage (7.4.1 -> 7.4.3)
-#| Updating cryptography (42.0.2 -> 42.0.5)
-#| Updating dnspython (2.5.0 -> 2.6.1)
-#| Updating fsspec (2023.12.2 -> 2024.2.0)
-#| Updating httpcore (1.0.2 -> 1.0.4)
-#| Updating rich (13.7.0 -> 13.7.1)
-#| Updating setuptools (69.0.3 -> 69.1.1)
-#| Updating geoalchemy2 (0.14.3 -> 0.14.4)
-#| Updating httpx (0.26.0 -> 0.27.0)
-#| Updating phonenumbers (8.13.29 -> 8.13.31)
-#| Updating pymongo (4.6.1 -> 4.6.2)
-#| Updating pytest-asyncio (0.23.4 -> 0.23.5)
-#| Updating python-multipart (0.0.6 -> 0.0.9)
-#| Updating responses (0.24.1 -> 0.25.0)
-#| Updating ruamel-yaml (0.18.5 -> 0.18.6)
-#| Updating shapely (2.0.2 -> 2.0.3)
-#| Updating sqlean-py (3.45.0 -> 3.45.1)
-#| Updating starlette (0.36.1 -> 0.37.1)
-#| Updating tqdm (4.66.1 -> 4.66.2)
-#| Updating uvicorn (0.27.0.post1 -> 0.27.1)
-#| Updating xlsxwriter (3.1.9 -> 3.2.0)
-
-
-git tag -l -n1 | sort -h | tail -n5
-export CURRENT_VERSION=0.1.61
-export NEW_VERSION=0.1.62
-export FUTURE_VERSION=0.1.63
+#| Updating certifi (2024.2.2 -> 2024.6.2)
+#| Updating idna (3.6 -> 3.7)
+#| Updating urllib3 (2.2.1 -> 2.2.2)
+#| Updating babel (2.14.0 -> 2.15.0)
+#| Updating jinja2 (3.1.3 -> 3.1.4)
+#| Updating packaging (23.2 -> 24.1)
+#| Updating parso (0.8.3 -> 0.8.4)
+#| Updating pycparser (2.21 -> 2.22)
+#| Updating pygments (2.17.2 -> 2.18.0)
+#| Updating requests (2.31.0 -> 2.32.3)
+#| Updating traitlets (5.14.1 -> 5.14.3)
+#| Updating exceptiongroup (1.2.0 -> 1.2.1)
+#| Updating matplotlib-inline (0.1.6 -> 0.1.7)
+#| Updating pluggy (1.4.0 -> 1.5.0)
+#| Updating prompt-toolkit (3.0.43 -> 3.0.47)
+#| Updating python-dateutil (2.8.2 -> 2.9.0.post0)
+#| Updating tornado (6.4 -> 6.4.1)
+#| Updating typing-extensions (4.10.0 -> 4.12.2)
+#| Updating zipp (3.17.0 -> 3.19.2)
+#| Updating anyio (4.3.0 -> 4.4.0)
+#| Updating coverage (7.4.3 -> 7.5.4)
+#| Updating cryptography (42.0.5 -> 42.0.8)
+#| Updating fsspec (2024.2.0 -> 2024.6.0)
+#| Updating httpcore (1.0.4 -> 1.0.5)
+#| Updating importlib-metadata (7.0.1 -> 7.2.1)
+#| Updating jsonpointer (2.4 -> 3.0.0)
+#| Updating livereload (2.6.3 -> 2.7.0)
+#| Updating mako (1.3.2 -> 1.3.5)
+#| Updating mypy (1.8.0 -> 1.10.1)
+#| Updating psutil (5.9.8 -> 6.0.0)
+#| Updating pyparsing (3.1.1 -> 3.1.2)
+#| Updating setuptools (69.1.1 -> 70.1.1)
+#| Updating sqlalchemy (1.4.51 -> 1.4.52)
+#| Updating aiofiles (23.2.1 -> 24.1.0)
+#| Updating aiohttp (3.9.3 -> 3.9.5)
+#| Updating geoalchemy2 (0.14.4 -> 0.15.1)
+#| Updating gunicorn (21.2.0 -> 22.0.0)
+#| Updating lxml (5.1.0 -> 5.2.2)
+#| Updating msgpack (1.0.7 -> 1.0.8)
+#| Updating openpyxl (3.1.2 -> 3.1.4)
+#| Updating phonenumbers (8.13.31 -> 8.13.39)
+#| Updating pymongo (4.6.2 -> 4.7.3)
+#| Updating pytest-asyncio (0.23.5 -> 0.23.7)
+#| Updating pytest-cov (4.1.0 -> 5.0.0)
+#| Updating pytest-mock (3.12.0 -> 3.14.0)
+#| Updating responses (0.25.0 -> 0.25.3)
+#| Updating setuptools-scm (8.0.4 -> 8.1.0)
+#| Updating shapely (2.0.3 -> 2.0.4)
+#| Updating sqlalchemy-utils (0.41.1 -> 0.41.2)
+#| Updating sqlparse (0.4.4 -> 0.5.0)
+#| Updating starlette (0.37.1 -> 0.37.2)
+#| Updating tqdm (4.66.2 -> 4.66.4)
+#| Updating typer (0.9.0 -> 0.12.3)
+#| Updating ujson (5.9.0 -> 5.10.0)
+#| Updating uvicorn (0.27.1 -> 0.30.1)
 
 head CHANGES.rst
 
@@ -70,7 +100,16 @@ COMMIT;
 EOF
 
 poetry run pytest -vvx --tb=short tests
-#| 1823 passed, 42 skipped, 959 warnings in 209.61s (0:03:29)
+#| 2003 passed, 42 skipped, 2524 warnings in 338.17s (0:05:38)
+
+# Fix warnings:
+# pkg_resource deprecation
+# shapely geometry type deprecation
+# sqlalchemy LegacyRow.items() deprecation
+# TestClientResponse being triggered as Test container
+
+poetry run pytest -vvx --tb=short tests
+#| 2003 passed, 42 skipped, 347 warnings in 307.40s (0:05:07)
 
 poetry run rst2html.py CHANGES.rst var/changes.html
 xdg-open var/changes.html
@@ -253,7 +292,7 @@ spinta --tb native bootstrap
 
 export PAGER="cat"
 psql -h localhost -p 54321 -U admin spinta -c '\dt public.*'
-#| (2500 rows)
+#| (2714 rows)
 
 # Run server
 test -n "$PID" && kill $PID
@@ -298,7 +337,7 @@ TOKEN=$(
 AUTH="Authorization: Bearer $TOKEN"
 echo $AUTH
 
-http POST :8000/datasets/gov/rc/ar/adresai/Adresas $AUTH <<EOF
+http POST :8000/datasets/gov/rc/ar/adresai/Adresas "$AUTH" <<EOF
 {
     "_id": "264ae0f9-53eb-496b-a07c-ce1b9cbe510c",
     "tipas": 2,
@@ -349,7 +388,10 @@ poetry build
 poetry publish
 xdg-open https://pypi.org/project/spinta/
 git commit -a -m "Releasing version $NEW_VERSION"
-git push origin master
+git push origin $BRANCH_NAME
+
+# Create pull request in github and merge to master
+
 git tag -a $NEW_VERSION -m "Releasing version $NEW_VERSION"
 git push origin $NEW_VERSION
 
