@@ -1,12 +1,13 @@
 from typing import Any
 
 from spinta import commands, spyna
-from spinta.components import Property, Model, Context
+from spinta.components import Property, Model, Context, Mode
 from spinta.core.ufuncs import Env, asttoexpr
 from spinta.datasets.enums import Level
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.exceptions import GivenValueCountMissmatch, MultiplePrimaryKeyCandidatesFound, NoPrimaryKeyCandidatesFound
 from spinta.types.datatype import Ref, Array
+from spinta.types.namespace import check_if_model_has_backend_and_source
 from spinta.utils.schema import NA
 
 
@@ -43,6 +44,13 @@ def handle_ref_key_assignment(context: Context, keymap: KeyMap, env: Env, value:
                 return {'_id': None}
 
             ref_model = ref.model
+
+            # FIXME Quick hack when trying to get `Internal` model keys while running in `External` mode (should probably return error, or None)
+            if ref_model.mode == Mode.external and not check_if_model_has_backend_and_source(ref_model):
+                return {
+                    '_id': keymap.encode(keymap_name, target_value)
+                }
+
             expr_parts = ['select()']
             for i, prop in enumerate(ref.refprops):
                 expr_parts.append(f'{prop.place}="{value[i]}"')

@@ -13,12 +13,12 @@ import sys
 from typing import NamedTuple
 
 from ruamel.yaml import YAML
-import pkg_resources as pres
 
 from spinta import spyna
 from spinta.components import Mode
 from spinta.core.ufuncs import asttoexpr
 from spinta.utils.imports import importstr
+from spinta.utils.path import resource_filename
 from spinta.utils.schema import NA
 
 if typing.TYPE_CHECKING:
@@ -34,7 +34,7 @@ log = logging.getLogger(__name__)
 SCHEMA = {
     'type': 'object',
     'items': yaml.load(
-        pathlib.Path(pres.resource_filename('spinta', 'config.yml')).
+        resource_filename('spinta', 'config.yml').
         read_text()
     ),
 }

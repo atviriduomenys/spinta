@@ -1,7 +1,6 @@
 import uuid
 from typing import Type
 
-import pkg_resources as pres
 import logging
 
 from authlib.common.errors import AuthlibHTTPError
@@ -33,11 +32,12 @@ from spinta.urlparams import Version
 from spinta.urlparams import get_response_type
 from spinta.accesslog import create_accesslog
 from spinta.exceptions import NoAuthServer
+from spinta.utils.path import resource_filename
 
 log = logging.getLogger(__name__)
 
 templates = Jinja2Templates(
-    directory=pres.resource_filename('spinta', 'templates'),
+    directory=str(resource_filename('spinta', 'templates')),
 )
 
 
@@ -329,11 +329,8 @@ async def error(request, exc):
             headers=headers,
         )
     else:
-        response = {
-            **response,
-            'request': request,
-        }
         return templates.TemplateResponse(
+            request,
             'error.html',
             response,
             status_code=status_code,

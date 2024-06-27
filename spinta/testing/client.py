@@ -152,6 +152,9 @@ class TestClientResponse(httpx.Response):
     template: str
     context: Dict[str, Any]
 
+    # So pytest does not treat this as a test collection (since it starts with Test prefix)
+    __test__ = False
+
 
 class TestClient(starlette.testclient.TestClient):
     context: Union[Context, TestContext]
