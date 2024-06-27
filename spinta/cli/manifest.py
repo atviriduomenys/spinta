@@ -17,6 +17,7 @@ from spinta.manifests.internal_sql.helpers import write_internal_sql_manifest
 from spinta.manifests.tabular.components import ManifestColumn
 from spinta.manifests.tabular.components import ManifestRow
 from spinta.manifests.tabular.helpers import datasets_to_tabular
+from spinta.manifests.mermaid.helpers import write_mermaid_manifest
 from spinta.manifests.tabular.helpers import normalizes_columns
 from spinta.manifests.tabular.helpers import render_tabular_manifest_rows
 from spinta.manifests.tabular.helpers import write_tabular_manifest
@@ -97,7 +98,10 @@ def copy_manifest(
         else:
             internal = InternalSQLManifest.detect_from_path(output)
 
-    if internal:
+    if output and output.endswith(".mmd"):
+        output_type = "mermaid"
+
+    if internal or output_type == "mermaid":
         rows = _read_and_return_manifest(
             context,
             manifests,
@@ -121,7 +125,9 @@ def copy_manifest(
         )
 
     if output:
-        if internal:
+        if output_type == 'mermaid':
+            write_mermaid_manifest(context, output, rows)
+        elif internal:
             write_internal_sql_manifest(context, output, rows)
         else:
             write_tabular_manifest(context, output, rows)
@@ -185,4 +191,5 @@ def _read_and_return_rows(
         access=access,
         order_by=order_by,
     )
+
 
