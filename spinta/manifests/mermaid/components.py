@@ -2,7 +2,7 @@ from spinta.manifests.components import Manifest
 
 
 class MermaidManifest(Manifest):
-    type = 'xsd'
+    type = 'mmd'
 
     @staticmethod
     def detect_from_path(path: str) -> bool:

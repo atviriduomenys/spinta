@@ -161,8 +161,6 @@ def write_mermaid_manifest(context: Context, output: str, manifest: InlineManife
                 mermaid_class = MermaidClass(name=model.basename)
                 for model_property in model.get_given_properties().values():
 
-                    # not sure if this is the best way to detect multiplicity
-
                     if model_property.enum:
                         enum_class = MermaidClass(name=f"{model.basename}{to_model_name(model_property.name)}", is_enum=True)
                         for enum_property in model_property.enum:
