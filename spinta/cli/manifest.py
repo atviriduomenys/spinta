@@ -98,7 +98,7 @@ def copy_manifest(
         else:
             internal = InternalSQLManifest.detect_from_path(output)
 
-    if output.endswith(".mmd"):
+    if output and output.endswith(".mmd"):
         output_type = "mermaid"
 
     if internal or output_type == "mermaid":
