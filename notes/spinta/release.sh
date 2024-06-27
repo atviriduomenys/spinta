@@ -100,7 +100,7 @@ COMMIT;
 EOF
 
 poetry run pytest -vvx --tb=short tests
-#| 2003 passed, 42 skipped, 2524 warnings in 338.17s (0:05:38)
+#| 2014 passed, 42 skipped, 2524 warnings in 338.17s (0:05:38)
 
 # Fix warnings:
 # pkg_resource deprecation
@@ -109,7 +109,7 @@ poetry run pytest -vvx --tb=short tests
 # TestClientResponse being triggered as Test container
 
 poetry run pytest -vvx --tb=short tests
-#| 2003 passed, 42 skipped, 347 warnings in 307.40s (0:05:07)
+#| 2014 passed, 42 skipped, 347 warnings in 307.40s (0:05:07)
 
 poetry run rst2html.py CHANGES.rst var/changes.html
 xdg-open var/changes.html
@@ -384,13 +384,14 @@ wq
 EOF
 git diff
 
+git commit -a -m "Releasing version $NEW_VERSION"
+git push origin HEAD
+
+# Create pull request in github and check if all tests run
+
 poetry build
 poetry publish
 xdg-open https://pypi.org/project/spinta/
-git commit -a -m "Releasing version $NEW_VERSION"
-git push origin $BRANCH_NAME
-
-# Create pull request in github and merge to master
 
 git tag -a $NEW_VERSION -m "Releasing version $NEW_VERSION"
 git push origin $NEW_VERSION
@@ -413,5 +414,7 @@ EOF
 head CHANGES.rst
 git diff
 git commit -a -m "Prepare for the next $FUTURE_VERSION release"
-git push origin master
+git push origin HEAD
 git log -n3
+
+# Merge pull request with master
