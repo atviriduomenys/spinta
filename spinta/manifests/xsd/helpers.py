@@ -589,7 +589,8 @@ class XSDReader:
         node: _Element,
         source_path: str,
         parent_model: XSDModel,
-        additional_properties: dict[str, dict[str, str | bool | dict[str, str]]]
+        additional_properties: dict[str, dict[str, str | bool | dict[str, str]]],
+        is_root_model: bool = False
     ) -> tuple[list[str], dict[str, str | bool | dict[str, str | dict[str, Any]]]]:
         """
         If there are choices in the element,
@@ -630,7 +631,9 @@ class XSDReader:
                         node_copy,
                         source_path=source_path,
                         parent_model=parent_model,
-                        additional_properties=additional_properties)
+                        additional_properties=additional_properties,
+                        is_root_model=is_root_model
+                    )
                     root_properties.update(new_root_properties)
                     model_names.extend(returned_model_names)
 
@@ -643,7 +646,9 @@ class XSDReader:
                         node_copy,
                         source_path=source_path,
                         parent_model=parent_model,
-                        additional_properties=additional_properties)
+                        additional_properties=additional_properties,
+                        is_root_model=is_root_model
+                    )
                     model_names.extend(returned_model_names)
                     root_properties.update(new_root_properties)
 
@@ -700,7 +705,9 @@ class XSDReader:
                         node,
                         source_path=source_path,
                         parent_model=model,
-                        additional_properties=additional_properties)
+                        additional_properties=additional_properties,
+                        is_root_model=is_root_model
+                    )
 
             # if complextype node's property mixed is true, it allows text inside
             if complex_type_node.get("mixed") == "true":
@@ -802,7 +809,7 @@ class XSDReader:
                                     parent_model=model,
                                     additional_properties=additional_properties)
                             else:
-                                _, new_root_properties = self._create_model(
+                                ref_model_name, new_root_properties = self._create_model(
                                     element,
                                     source_path=new_source_path,
                                     parent_model=model,
@@ -832,11 +839,12 @@ class XSDReader:
                             # check for recursion
                             paths = new_source_path.split("/")
                             if not child_node.get("name") in paths:
-                                _, new_root_properties = self._create_model(
+                                ref_model_name, new_root_properties = self._create_model(
                                     child_node,
                                     source_path=new_source_path,
                                     parent_model=model
                                 )
+                                properties.update({to_property_name(ref_model_name[0].split("/")[-1]): {"type": "ref", "model": ref_model_name[0], "external": {"name": child_node.get("name")}}})
                                 root_properties.update(new_root_properties)
                             else:
                                 for index, path in enumerate(paths):
@@ -1011,6 +1019,11 @@ def read_schema(
     Attribute can only be turned into a property
 
     A property can also be text()
+
+    -----------Nested properties-------------
+
+    Root model or models can have nested properties if they have any properties that point to other models.
+
     """
     xsd = XSDReader(path, dataset_name)
 
