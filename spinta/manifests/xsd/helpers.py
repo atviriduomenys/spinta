@@ -537,7 +537,7 @@ class XSDReader:
                         XSDReader.is_array(typed_element)
 
                     previous_referenced_element_name = typed_element.get("name")
-                    new_referenced_element = self._get_referenced_node(complex_type[0][0])
+                    new_referenced_element = complex_type[0][0]
 
                     if self.node_is_simple_type_or_inline(new_referenced_element):
                         property_id, prop = model.simple_element_to_property(
@@ -1152,3 +1152,9 @@ def read_schema(
     for model_name, parsed_model in xsd.models.items():
 
         yield None, parsed_model.get_data()
+
+
+# todo kas dar neveikia:
+#  actor_list[] ir dt_actor[] - abu array, turėtų būti tik vienas iš jų
+#  iš tikro, tai ActorList modelio neturėtų būti
+#  Kai kur nukerpa paskutinę raidę, ir naudoja tipo vardą vietoje elemento vardo DtNvi actor_list[] tipas ActorLis/ActorListTyp
