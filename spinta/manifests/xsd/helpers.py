@@ -487,11 +487,129 @@ class XSDReader:
             return True
         return False
 
+    def _properties_from_type_references(
+        self,
+        node: _Element,
+        model: XSDModel,
+        source_path: str = ""
+    ) -> tuple[
+            dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]],
+            dict[str, dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]]]:
+
+        properties = {}
+
+        # nested properties for the root model
+        root_properties = {}
+
+        for typed_element in node.xpath("./*[@type]"):
+
+            if typed_element.xpath(f'./*[local-name() = "complexType"]') \
+                    or self._node_has_separate_complex_type(typed_element):
+
+                if typed_element.xpath(f'./*[local-name() = "complexType"]'):
+                    complex_type = typed_element.xpath(f'./*[local-name() = "complexType"]')[0]
+                if self._node_has_separate_complex_type(typed_element):
+                    complex_type = self._get_separate_complex_type_node(typed_element)
+
+                is_array = False
+
+                # TODO fix this because it probably doesn't cover all cases, only something like <complexType><sequence><item>
+                #  https://github.com/atviriduomenys/spinta/issues/613
+                sequences = complex_type.xpath("./*[local-name() = 'sequence']")
+                if sequences:
+                    sequence = sequences[0]
+                else:
+                    sequence = None
+
+                # proxy element
+                new_referenced_element = None
+                # we check for the length of sequence, because it can have more than one element, but also length of
+                # complexType because it can have attributes too.
+
+                if sequence is not None and len(sequence) == 1 and len(complex_type) == 1 and self._node_has_separate_complex_type(sequence[0]):
+                    # if typed_element.get("name") is not None:
+                    source_path += f'/{typed_element.get("name")}'
+                    # source_path += f'/{complex_type.get("name")}'
+                    is_array = XSDReader.is_array(complex_type)
+                    if not is_array:
+                        is_array = XSDReader.is_array(complex_type[0][0])
+                    if not is_array:
+                        XSDReader.is_array(typed_element)
+
+                    previous_referenced_element_name = typed_element.get("name")
+                    new_referenced_element = self._get_referenced_node(complex_type[0][0])
+
+                    if self.node_is_simple_type_or_inline(new_referenced_element):
+                        property_id, prop = model.simple_element_to_property(
+                            new_referenced_element,
+                            is_array=is_array,
+                            source_path=previous_referenced_element_name)
+                        if not XSDReader.is_required(typed_element):
+                            prop["required"] = False
+                        properties[property_id] = prop
+                        continue
+
+                if not is_array:
+                    referenced_model_names, new_root_properties = self._create_model(
+                        typed_element,
+                        source_path=source_path,
+                        parent_model=model
+                    )
+                    property_type = "ref"
+                else:
+                    referenced_element_properties = {
+                        to_property_name(model.basename):
+                        {
+                            "type": "ref",
+                            "model": f"{model.name}"
+                        }
+                    }
+                    property_type = "backref"
+                    referenced_model_names, new_root_properties = self._create_model(
+                        typed_element,
+                        source_path=source_path,
+                        parent_model=model,
+                        additional_properties=referenced_element_properties
+                    )
+
+                root_properties.update(new_root_properties)
+
+                for referenced_model_name in referenced_model_names:
+                    property_id, prop = model.simple_element_to_property(typed_element, is_array=is_array)
+                    prop["external"]["name"] = prop["external"]["name"].rstrip("/text()")
+                    if new_referenced_element is not None:
+                        _, referenced_prop = model.simple_element_to_property(complex_type)
+                        prop["external"]["name"] += f'/{referenced_prop["external"]["name"].rstrip("/text()")}'
+
+                    prop["type"] = property_type
+                    prop["model"] = f"{referenced_model_name}"
+                    properties[property_id] = prop
+
+                # for child_node in sequence_or_all_node:
+                #     if child_node.xpath(f'./*[local-name() = "complexType"]') \
+                #             or self._node_has_separate_complex_type(child_node):
+                #         # check for recursion
+                #         paths = new_source_path.split("/")
+                #         if not child_node.get("name") in paths:
+                #             ref_model_name, new_root_properties = self._create_model(
+                #                 child_node,
+                #                 source_path=new_source_path,
+                #                 parent_model=model
+                #             )
+                #             properties.update({to_property_name(ref_model_name[0].split("/")[-1]): {"type": "ref", "model": ref_model_name[0], "external": {"name": child_node.get("name")}}})
+                #             root_properties.update(new_root_properties)
+                #         else:
+                #             for index, path in enumerate(paths):
+                #                 if path == child_node.get("name"):
+                #                     paths[index] = f"/{path}"
+                #             new_source_path = "/".join(paths)
+
+        return properties, root_properties
+
     def _properties_from_references(
         self,
         node: _Element,
         model: XSDModel,
-        parent_model: XSDModel,
         source_path: str = ""
     ) -> tuple[
             dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]],
@@ -827,30 +945,17 @@ class XSDReader:
                     properties_from_references, new_root_properties = self._properties_from_references(
                         sequence_or_all_node,
                         model=model,
-                        parent_model=parent_model,
                         source_path=new_source_path)
                     properties.update(properties_from_references)
                     root_properties.update(new_root_properties)
 
                     # complex type child nodes - to models
-                    for child_node in sequence_or_all_node:
-                        if child_node.xpath(f'./*[local-name() = "complexType"]') \
-                                or self._node_has_separate_complex_type(child_node):
-                            # check for recursion
-                            paths = new_source_path.split("/")
-                            if not child_node.get("name") in paths:
-                                ref_model_name, new_root_properties = self._create_model(
-                                    child_node,
-                                    source_path=new_source_path,
-                                    parent_model=model
-                                )
-                                properties.update({to_property_name(ref_model_name[0].split("/")[-1]): {"type": "ref", "model": ref_model_name[0], "external": {"name": child_node.get("name")}}})
-                                root_properties.update(new_root_properties)
-                            else:
-                                for index, path in enumerate(paths):
-                                    if path == child_node.get("name"):
-                                        paths[index] = f"/{path}"
-                                new_source_path = "/".join(paths)
+                    properties_from_references, new_root_properties = self._properties_from_type_references(
+                        sequence_or_all_node,
+                        model=model,
+                        source_path=new_source_path)
+                    properties.update(properties_from_references)
+                    root_properties.update(new_root_properties)
 
         model.properties = properties
 
