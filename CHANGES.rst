@@ -6,6 +6,11 @@ Changes
 0.1.64 (unreleased)
 ===================
 
+Bug fixes:
+
+- Changed json Geometry type converter import to BaseGeometry (`#673`_)
+
+    .. _#673: https://github.com/atviriduomenys/spinta/issues/673
 
 0.1.63 (2024-06-27)
 ===================
