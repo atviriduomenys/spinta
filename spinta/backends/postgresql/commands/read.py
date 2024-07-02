@@ -73,7 +73,7 @@ def getall(
                 prop = model.flatprops[key]
                 if prop.list is not None and prop.list.place not in list_keys:
                     list_keys.append(prop.list.place)
-            val = get_row_value(context, backend, row, sel)
+            val = get_row_value(context, backend, row, sel, False)
             res[key] = val
         if model.page.is_enabled:
             res['_page'] = get_page_values(env, row)

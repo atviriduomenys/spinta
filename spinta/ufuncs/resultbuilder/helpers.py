@@ -55,17 +55,27 @@ def _aggregate_values(data, target: Property):
 
 @dispatch(Context, Backend, object, object)
 def get_row_value(context: Context, backend: Backend, row: Any, sel: Any) -> Any:
+    return get_row_value(context, backend, row, sel, True)
+
+
+@dispatch(Context, Backend, object, object, bool)
+def get_row_value(context: Context, backend: Backend, row: Any, sel: Any, check_enums: bool) -> Any:
     env = commands.get_result_builder(context, backend)
-    return get_row_value(context, env, row, sel)
+    return get_row_value(context, env, row, sel, check_enums)
 
 
 @dispatch(Context, ResultBuilder, object, object)
 def get_row_value(context: Context, result_builder: ResultBuilder, row: Any, sel: Any) -> Any:
+    return get_row_value(context, result_builder, row, sel, True)
+
+
+@dispatch(Context, ResultBuilder, object, object, bool)
+def get_row_value(context: Context, result_builder: ResultBuilder, row: Any, sel: Any, check_enums: bool) -> Any:
     if isinstance(sel, Selected):
         if isinstance(sel.prep, Expr):
             val = _resolve_expr(context, result_builder, row, sel)
         elif sel.prep is not NA:
-            val = get_row_value(context, result_builder, row, sel.prep)
+            val = get_row_value(context, result_builder, row, sel.prep, check_enums)
         else:
             if sel.item is not None:
                 val = row[sel.item]
@@ -73,21 +83,22 @@ def get_row_value(context: Context, result_builder: ResultBuilder, row: Any, sel
             else:
                 val = None
 
-        if enum := get_prop_enum(sel.prop):
-            if val is None:
-                pass
-            elif str(val) in enum:
-                item = enum[str(val)]
-                if item.prepare is not NA:
-                    val = item.prepare
-            else:
-                raise ValueNotInEnum(sel.prop, value=val)
+        if check_enums:
+            if enum := get_prop_enum(sel.prop):
+               if val is None:
+                   pass
+               elif str(val) in enum:
+                   item = enum[str(val)]
+                   if item.prepare is not NA:
+                       val = item.prepare
+               else:
+                   raise ValueNotInEnum(sel.prop, value=val)
 
         return val
     if isinstance(sel, tuple):
-        return tuple(get_row_value(context, result_builder, row, v) for v in sel)
+        return tuple(get_row_value(context, result_builder, row, v, check_enums) for v in sel)
     if isinstance(sel, list):
-        return [get_row_value(context, result_builder, row, v) for v in sel]
+        return [get_row_value(context, result_builder, row, v, check_enums) for v in sel]
     if isinstance(sel, dict):
-        return {k: get_row_value(context, result_builder, row, v) for k, v in sel.items()}
+        return {k: get_row_value(context, result_builder, row, v, check_enums) for k, v in sel.items()}
     return sel
