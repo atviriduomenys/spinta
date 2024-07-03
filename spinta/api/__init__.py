@@ -329,8 +329,12 @@ async def error(request, exc):
             headers=headers,
         )
     else:
+        response = {
+            **response,
+            'request': request,
+        }
+
         return templates.TemplateResponse(
-            request,
             'error.html',
             response,
             status_code=status_code,
