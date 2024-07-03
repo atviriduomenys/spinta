@@ -3,8 +3,17 @@
 Changes
 #######
 
-0.1.65 (unreleased)
+0.1.66 (unreleased)
 ===================
+
+
+0.1.65 (2024-07-03)
+===================
+
+Backwards incompatible changes:
+
+- Changed `starlette` version requirement from `"*"` to `">=0.22"`. From version `0.22.0` `starlette` added better
+  compatibility support for `AnyIO`.
 
 Bug fixes:
 

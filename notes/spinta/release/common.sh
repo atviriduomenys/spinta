@@ -67,6 +67,7 @@ INSERT INTO iregistruoti
     VALUES
     (188772433, 'Informacinės visuomenės plėtros komitetas', 'Vilnius, Konstitucijos pr. 15-89', '2001-08-01', '2001-08-01', 1, 0, 190557457);
 EOF
+
 psql -h localhost -p 54321 -U admin spinta_external -c '\dt public.*'
 psql -h localhost -p 54321 -U admin spinta_external -c 'select * from formos;'
 psql -h localhost -p 54321 -U admin spinta_external -c 'select * from statusai;'
