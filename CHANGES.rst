@@ -6,6 +6,13 @@ Changes
 0.1.65 (unreleased)
 ===================
 
+Bug fixes:
+
+- Fixed `getone` with `jsonl` format (`#679`_)
+
+- Rolled back `Templates` warning fixes (caused errors with older `starlette` versions) (`#679`_)
+
+.. _#679: https://github.com/atviriduomenys/spinta/issues/679
 
 0.1.64 (2024-07-02)
 ===================
