@@ -105,7 +105,7 @@ git diff
 git commit -a -m "Releasing version $NEW_VERSION"
 git push origin HEAD
 
-# Create pull request to release version in github and check if all tests run
+# Create pull request for release version and master in github and check if all tests run
 
 # notes/spinta/release/common.sh    Publish version to PyPI
 
@@ -134,7 +134,4 @@ git commit -a -m "Prepare for the next $FUTURE_VERSION release"
 git push origin HEAD
 git log -n3
 
-# Merge pull request with release branch
-
-git checkout master
-git merge --no-ff
+# Merge pull request with release and master branches
