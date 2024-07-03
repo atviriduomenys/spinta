@@ -115,7 +115,10 @@ def test_export_jsonl_with_all(app):
     ]
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_jsonl_last_page(
+    manifest_type: str,
+    tmp_path: Path,
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
@@ -125,7 +128,13 @@ def test_jsonl_last_page(
     example/jsonl/page         |        |         |
       |   |   | City         |        | name    |
       |   |   |   | name     | string |         | open
-    ''', backend=postgresql, request=request)
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
     app = create_test_client(context)
     app.authorize(['spinta_set_meta_fields'])
     app.authmodel('example/jsonl/page', ['insert', 'search'])
@@ -147,6 +156,49 @@ def test_jsonl_last_page(
             '_page': {'next': encode_page_values_manually({'name': 'Vilnius', '_id': result['_id']})},
             'name': 'Vilnius'
         }
+    ]
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_jsonl_getone(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, '''
+    d | r | b | m | property | type   | ref     | access
+    example/jsonl/one        |        |         |
+      |   |   | City         |        | name    |
+      |   |   |   | name     | string |         | open
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    app = create_test_client(context)
+    app.authorize(['spinta_set_meta_fields'])
+    app.authmodel('example/jsonl/one', ['insert', 'search', 'getone'])
+
+    # Add data
+    result = pushdata(app, '/example/jsonl/one/City', {
+        'name': 'Vilnius'
+    })
+    pushdata(app, '/example/jsonl/one/City', {
+        'name': 'Kaunas'
+    })
+    res = app.get(f'/example/jsonl/one/City/{result["_id"]}/:format/jsonl')
+    data = [json.loads(d) for d in res.text.splitlines()]
+    assert data == [
+        {
+            '_id': result['_id'],
+            '_revision': result['_revision'],
+            '_type': 'example/jsonl/one/City',
+            'name': 'Vilnius'
+        },
     ]
 
 
