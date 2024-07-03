@@ -11,13 +11,13 @@ export MINOR=1
 export RELEASE_VERSION=$MAJOR.$MINOR
 
 git status
-git checkout RELEASE_VERSION
+git checkout $RELEASE_VERSION
 git pull
 git tag -l -n1 | sort -h | tail -n5
 
-export CURRENT_PATCH=63
-export NEW_PATCH=64
-export FUTURE_PATCH=65
+export CURRENT_PATCH=64
+export NEW_PATCH=65
+export FUTURE_PATCH=66
 
 export CURRENT_VERSION=$RELEASE_VERSION.$CURRENT_PATCH
 export NEW_VERSION=$RELEASE_VERSION.$NEW_PATCH
@@ -28,22 +28,31 @@ git branch $PREPARE_BRANCH
 git checkout $PREPARE_BRANCH
 git status
 
+# Changed pyproject.toml
+#     starlette = "*" -> ">=0.22" -- Test env currently runs "0.22.0" and all tests run, while prod runs "0.21.0" and they fail
+
 # notes/spinta/release/common.sh    Check outdated packages and upgrade them
-#| Updating setuptools (70.1.1 -> 70.2.0)
-#| Updating shapely (1.8.0 -> 2.0.4)
+#| No dependencies to install or update
 
 # Check what was changed and update CHANGES.rst
 xdg-open https://github.com/atviriduomenys/spinta/compare/$CURRENT_VERSION...$RELEASE_VERSION
 head CHANGES.rst
 # Update CHANGES.rst
+# notes/spinta/release/common.sh    Generate and check changes and readme html files
 
 # notes/docker.sh                   Start docker compose
 # notes/spinta/release/common.sh    Reset test database
 
 poetry run pytest -vvx --tb=short tests
-#| 2014 passed, 42 skipped, 347 warnings in 307.74s (0:05:07)
+#| 2017 passed, 42 skipped, 391 warnings in 310.96s (0:05:10)
 
-# notes/spinta/release/common.sh    Generate and check changes and readme html files
+# If possible run same tests using test and prod env library versions
+# Test env
+# - poetry run pytest -vvx --tb=short tests
+#|  2017 passed, 42 skipped, 1349 warnings in 345.19s (0:05:45)
+# Prod env (starlette gets updated to newest version, since it's <0.22)
+# - poetry run pytest -vvx --tb=short tests
+#|  2017 passed, 2017 passed, 42 skipped, 405 warnings in 342.00s (0:05:42)
 
 # Check if new Spinta version works with manifest files
 poetry shell
@@ -60,27 +69,13 @@ BASEDIR=$PWD/var/instances/$INSTANCE
 
 # notes/spinta/release/common.sh    Run server in EXTERNAL mode
 # notes/spinta/release/common.sh    Run migrations
-#| (2714 rows)
+#| (2730 rows)
 
 # notes/spinta/release/common.sh    Run server in INTERNAL mode
 # Don't forget to add client to server and credentials;
 # - notes/spinta/server.sh
 # - notes/spinta/push.sh
 
-# notes/spinta/release/common.sh    Run smoke tests
-# spinta.exceptions.ValueNotInEnum: Given value Viešasis is not defined in enum.
-#    Context:
-#       component: spinta.components.Property
-#       manifest: default
-#       schema: 2572
-#       dataset: datasets/gov/rc/jar/formos_statusai
-#       model: datasets/gov/rc/jar/formos_statusai/Forma
-#       entity:
-#       property: tipas
-#       attribute:
-#       value: Viešasis
-
-# Temporarily disabled enum checks on PostgreSql backend
 # notes/spinta/release/common.sh    Run smoke tests
 
 test -n "$PID" && kill "$PID"
@@ -110,7 +105,7 @@ git diff
 git commit -a -m "Releasing version $NEW_VERSION"
 git push origin HEAD
 
-# Create pull request to release version in github and check if all tests run
+# Create pull request for release version and master in github and check if all tests run
 
 # notes/spinta/release/common.sh    Publish version to PyPI
 
@@ -139,7 +134,4 @@ git commit -a -m "Prepare for the next $FUTURE_VERSION release"
 git push origin HEAD
 git log -n3
 
-# Merge pull request with release branch
-
-git checkout master
-git merge --no-ff
+# Merge pull request with release and master branches
