@@ -11,7 +11,10 @@ class JsonLines(Format):
     params = {}
 
     def __call__(self, data):
+        if isinstance(data, dict):
+            data = iter([data])
         memory = next(data)
+
         for row in data:
             yield json.dumps({k: v for k, v in memory.items() if k != '_page'}, ensure_ascii=False) + '\n'
             memory = row

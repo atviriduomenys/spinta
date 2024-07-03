@@ -87,7 +87,8 @@ def _render_check(request: Request, data: Dict[str, Any] = None):
         result = data
 
     templates = Jinja2Templates(directory=str(resource_filename('spinta', 'templates')))
-    return templates.TemplateResponse(request, 'form.html', {
+    return templates.TemplateResponse( 'form.html', {
+        'request': request,
         'title': "Duomenų struktūros aprašo tikrinimas",
         'description': (
             "Ši priemonė leidžia patikrinti ar "
@@ -272,6 +273,7 @@ def _render_model(
         rows,
     )
     ctx.update(get_template_context(context, model, params))
+    ctx['request'] = request
     ctx['formats'] = get_output_formats(params)
 
     # Pass function references
@@ -284,7 +286,7 @@ def _render_model(
     templates = Jinja2Templates(
         directory=str(resource_filename('spinta', 'templates'))
     )
-    return templates.TemplateResponse(request, 'data.html', ctx, headers=http_headers)
+    return templates.TemplateResponse( 'data.html', ctx, headers=http_headers)
 
 
 @dataclasses.dataclass
