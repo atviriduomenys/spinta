@@ -521,11 +521,12 @@ class XSDReader:
                 else:
                     sequence = None
 
-                # proxy element
+                # proxy element (for array), we don't create a model for it, it's to indicate an array
                 new_referenced_element = None
+                previous_referenced_element = None
+                previous_referenced_element_name = None
                 # we check for the length of sequence, because it can have more than one element, but also length of
                 # complexType because it can have attributes too.
-
                 if sequence is not None and len(sequence) == 1 and len(complex_type) == 1 and self._node_has_separate_complex_type(sequence[0]):
                     # if typed_element.get("name") is not None:
                     source_path += f'/{typed_element.get("name")}'
@@ -536,8 +537,10 @@ class XSDReader:
                     if not is_array:
                         XSDReader.is_array(typed_element)
 
+                    previous_referenced_element = typed_element
                     previous_referenced_element_name = typed_element.get("name")
                     new_referenced_element = complex_type[0][0]
+                    typed_element = new_referenced_element
 
                     if self.node_is_simple_type_or_inline(new_referenced_element):
                         property_id, prop = model.simple_element_to_property(
@@ -576,11 +579,13 @@ class XSDReader:
 
                 for referenced_model_name in referenced_model_names:
                     property_id, prop = model.simple_element_to_property(typed_element, is_array=is_array)
-                    prop["external"]["name"] = prop["external"]["name"].rstrip("/text()")
-                    if new_referenced_element is not None:
-                        _, referenced_prop = model.simple_element_to_property(complex_type)
-                        prop["external"]["name"] += f'/{referenced_prop["external"]["name"].rstrip("/text()")}'
-
+                    prop["external"]["name"] = prop["external"]["name"].replace("/text()", '')
+                    if new_referenced_element is not None and new_referenced_element.get("mixed") != "true":
+                        _, referenced_prop = model.simple_element_to_property(new_referenced_element)
+                        prop["external"]["name"] += f'/{referenced_prop["external"]["name"].replace("/text()", "")}'
+                        property_id = to_property_name(previous_referenced_element_name)
+                        if is_array:
+                            property_id += "[]"
                     prop["type"] = property_type
                     prop["model"] = f"{referenced_model_name}"
                     properties[property_id] = prop
@@ -1158,3 +1163,4 @@ def read_schema(
 #  actor_list[] ir dt_actor[] - abu array, turėtų būti tik vienas iš jų
 #  iš tikro, tai ActorList modelio neturėtų būti
 #  Kai kur nukerpa paskutinę raidę, ir naudoja tipo vardą vietoje elemento vardo DtNvi actor_list[] tipas ActorLis/ActorListTyp
+# todo kai mixed true ir viduj vien atributai, jų neranda (88)
