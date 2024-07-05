@@ -581,8 +581,8 @@ class XSDReader:
                     property_id, prop = model.simple_element_to_property(typed_element, is_array=is_array)
                     prop["external"]["name"] = prop["external"]["name"].replace("/text()", '')
                     if new_referenced_element is not None and new_referenced_element.get("mixed") != "true":
-                        _, referenced_prop = model.simple_element_to_property(new_referenced_element)
-                        prop["external"]["name"] += f'/{referenced_prop["external"]["name"].replace("/text()", "")}'
+                        _, referenced_prop = model.simple_element_to_property(previous_referenced_element)
+                        prop["external"]["name"] = f'{previous_referenced_element_name}/{prop["external"]["name"]}'
                         property_id = to_property_name(previous_referenced_element_name)
                         if is_array:
                             property_id += "[]"
