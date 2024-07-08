@@ -20,6 +20,10 @@ def schema(env: SqlResource, bind: Bind, **kwargs):
 def encoding(env: SqlResource, bind: Bind, **kwargs):
     return bind.name
 
+@ufunc.resolver(SqlResource, str)
+def encoding(env: SqlResource, bind: str, **kwargs):
+    return bind
+
 @ufunc.resolver(SqlResource, Bind)
 def connect(env: SqlResource, bind: Bind, **kwargs) -> Engine:
     if bind.name == 'self':
