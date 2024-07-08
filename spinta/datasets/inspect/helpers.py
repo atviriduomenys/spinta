@@ -98,7 +98,7 @@ def create_manifest_from_inspect(
 def _merge(context: Context, manifest: Manifest, old: Manifest, resource: ResourceTuple, has_manifest_priority: bool, dataset: str = None):
     rc: RawConfig = context.get('rc')
     manifest_ = get_manifest_from_type(rc, resource.type)
-    path = ManifestPath(type=manifest_.type, path=resource.external)
+    path = ManifestPath(type=manifest_.type, path=resource.external, prepare=resource.prepare)
     context = configure_context(context, [path], mode=Mode.external, dataset=dataset)
     store = load_manifest(context, full_load=True)
     new = store.manifest
