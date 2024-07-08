@@ -588,7 +588,7 @@ def _get_resource_config(
 
 def configure_rc(
     rc: RawConfig,
-    manifests: List[Union[str, ManifestPath, ResourceTuple]] = None,
+    manifests: List[Union[str, ManifestPath]] = None,
     *,
     mode: Mode = Mode.internal,
     check_names: Optional[bool] = None,
@@ -659,11 +659,8 @@ def configure_rc(
                         'type': manifest.type,
                         'path': manifest.path,
                         'file': manifest.file,
+                        'prepare': manifest.prepare
                     }
-                    if isinstance(path, ResourceTuple) and path.prepare:
-                        parsed = spyna.parse(path.prepare)
-                        converted = asttoexpr(parsed)
-                        config[f'manifests.{manifest_name}']['prepare'] = converted
                     sync.append(manifest_name)
 
             config['manifests.default'] = {
