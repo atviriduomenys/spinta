@@ -6,11 +6,19 @@ from spinta.exceptions import UnknownBind
 
 @ufunc.resolver(SqlResource)
 def connect(env: SqlResource, **kwargs) -> Engine:
-    for key in kwargs.keys():
-        if key not in ("schema", "encoding"):
-            raise UnknownBind(name=key)
-    return Engine(env.dsn, **kwargs)
+    parsed_kwargs = {}
+    for key, value in kwargs.items():
+        result = env.call(key, value)
+        parsed_kwargs[key] = result
+    return Engine(env.dsn, **parsed_kwargs)
 
+@ufunc.resolver(SqlResource, Bind)
+def schema(env: SqlResource, bind: Bind, **kwargs):
+    return bind.name
+
+@ufunc.resolver(SqlResource, Bind)
+def encoding(env: SqlResource, bind: Bind, **kwargs):
+    return bind.name
 
 @ufunc.resolver(SqlResource, Bind)
 def connect(env: SqlResource, bind: Bind, **kwargs) -> Engine:
