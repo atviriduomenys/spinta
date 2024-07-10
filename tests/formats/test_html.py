@@ -1051,3 +1051,37 @@ def test_html_changes_text(
             'name@lt': {'value': 'Anglija'},
         }
     ]
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_html_empty(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property | type    | ref     | access  | level | uri
+    example/html/empty       |         |         |         |       | 
+      |   |   |   |          | prefix  | rdf     |         |       | http://www.rdf.com
+      |   |   |   |          |         | pav     |         |       | http://purl.org/pav/
+      |   |   |   |          |         | dcat    |         |       | http://www.dcat.com
+      |   |   |   |          |         | dct     |         |       | http://dct.com
+      |   |   | Country      |         | name    |         |       | 
+      |   |   |   | id       | integer |         |         |       |
+      |   |   |   | name     | string  |         | open    | 3     |
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    app = create_test_client(context)
+    app.authmodel('example/html', ['insert', 'getall', 'search', 'changes'])
+
+    resp = app.get("/example/html/empty/Country/:format/html?select(id,name)")
+    assert resp.context['header'] == ['id', 'name']
+    assert resp.context['data'] == []
