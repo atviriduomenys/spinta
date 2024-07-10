@@ -6,6 +6,15 @@ Changes
 0.1.66 (unreleased)
 ===================
 
+Bug fixes:
+
+- Fixed `formula` being ignored when using `inspect` (`#685`_).
+
+  .. _#685: https://github.com/atviriduomenys/spinta/issues/685
+
+- Fixed errors with different formats when returning empty data (`#684`_).
+
+  .. _#684: https://github.com/atviriduomenys/spinta/issues/684
 
 0.1.65 (2024-07-03)
 ===================
