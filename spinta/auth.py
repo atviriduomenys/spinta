@@ -702,11 +702,11 @@ def update_client_file(
         yml.dump(new_data, client_path)
         if keymap:
             changed = False
-            if client_id in keymap.keys():
-                if client_id != new_name:
-                    del keymap[client_id]
-                    keymap[new_name] = client.id
-                    changed = True
+            # Check if client changed name
+            if client.name != new_name and client.name in keymap.keys():
+                del keymap[client.name]
+                keymap[new_name] = client.id
+                changed = True
 
             if changed:
                 yml.dump(keymap, keymap_path)
