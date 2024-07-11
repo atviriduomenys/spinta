@@ -16,6 +16,10 @@ Bug fixes:
 
   .. _#684: https://github.com/atviriduomenys/spinta/issues/684
 
+- Fixed `keymap.yml` not updating mapping when changing `client_name` (`#688`_).
+
+  .. _#688: https://github.com/atviriduomenys/spinta/issues/688
+
 0.1.65 (2024-07-03)
 ===================
 
