@@ -518,6 +518,11 @@ class XSDReader:
                 # TODO fix this because it probably doesn't cover all cases, only something like <complexType><sequence><item>
                 #  https://github.com/atviriduomenys/spinta/issues/613
                 sequences = complex_type.xpath("./*[local-name() = 'sequence']")
+                if not sequences:
+                    choices = complex_type.xpath("./*[local-name() = 'choice']")
+                    if choices[0].get('maxOccurs') == 'unbounded':
+                        sequences = choices
+                        is_array = True
                 if sequences:
                     sequence = sequences[0]
                 else:
@@ -533,7 +538,8 @@ class XSDReader:
                     # if typed_element.get("name") is not None:
                     new_source_path += f'/{typed_element.get("name")}'
                     # source_path += f'/{complex_type.get("name")}'
-                    is_array = XSDReader.is_array(complex_type)
+                    if not is_array:
+                        is_array = XSDReader.is_array(complex_type)
                     if not is_array:
                         is_array = XSDReader.is_array(complex_type[0][0])
                     if not is_array:
@@ -642,6 +648,11 @@ class XSDReader:
                     #  https://github.com/atviriduomenys/spinta/issues/613
                 complex_type = referenced_element.xpath("./*[local-name() = 'complexType']")[0]
                 sequences = complex_type.xpath("./*[local-name() = 'sequence']")
+                if not sequences:
+                    choices = complex_type.xpath("./*[local-name() = 'choice']")
+                    if choices and choices[0].get('maxOccurs') == 'unbounded':
+                        sequences = choices
+                        is_array = True
                 if sequences:
                     sequence = sequences[0]
                 else:
@@ -654,7 +665,8 @@ class XSDReader:
                     if ref_element.get("name") is not None:
                         new_source_path += f'/{ref_element.get("name")}'
                     new_source_path += f'/{referenced_element.get("name")}'
-                    is_array = XSDReader.is_array(referenced_element)
+                    if not is_array:
+                        is_array = XSDReader.is_array(referenced_element)
                     if not is_array:
                         is_array = XSDReader.is_array(complex_type[0][0])
 
