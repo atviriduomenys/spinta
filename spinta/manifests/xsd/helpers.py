@@ -503,6 +503,8 @@ class XSDReader:
 
         for typed_element in node.xpath("./*[@type]"):
 
+            new_source_path = source_path
+
             if typed_element.xpath(f'./*[local-name() = "complexType"]') \
                     or self._node_has_separate_complex_type(typed_element):
 
@@ -529,7 +531,7 @@ class XSDReader:
                 # complexType because it can have attributes too.
                 if sequence is not None and len(sequence) == 1 and len(complex_type) == 1 and self._node_has_separate_complex_type(sequence[0]):
                     # if typed_element.get("name") is not None:
-                    source_path += f'/{typed_element.get("name")}'
+                    new_source_path += f'/{typed_element.get("name")}'
                     # source_path += f'/{complex_type.get("name")}'
                     is_array = XSDReader.is_array(complex_type)
                     if not is_array:
@@ -555,7 +557,7 @@ class XSDReader:
                 if not is_array:
                     referenced_model_names, new_root_properties = self._create_model(
                         typed_element,
-                        source_path=source_path,
+                        source_path=new_source_path,
                         parent_model=model
                     )
                     property_type = "ref"
@@ -570,7 +572,7 @@ class XSDReader:
                     property_type = "backref"
                     referenced_model_names, new_root_properties = self._create_model(
                         typed_element,
-                        source_path=source_path,
+                        source_path=new_source_path,
                         parent_model=model,
                         additional_properties=referenced_element_properties
                     )
@@ -626,6 +628,7 @@ class XSDReader:
         root_properties = {}
 
         for ref_element in node.xpath("./*[@ref]"):
+            new_source_path = source_path
             referenced_element = self._get_referenced_node(ref_element)
 
             if self.node_is_simple_type_or_inline(referenced_element):
@@ -649,8 +652,8 @@ class XSDReader:
                 # complexType because it can have attributes too.
                 if sequence is not None and len(sequence) == 1 and len(complex_type) == 1 and self.node_is_ref(sequence[0]):
                     if ref_element.get("name") is not None:
-                        source_path += f'/{ref_element.get("name")}'
-                    source_path += f'/{referenced_element.get("name")}'
+                        new_source_path += f'/{ref_element.get("name")}'
+                    new_source_path += f'/{referenced_element.get("name")}'
                     is_array = XSDReader.is_array(referenced_element)
                     if not is_array:
                         is_array = XSDReader.is_array(complex_type[0][0])
@@ -672,7 +675,7 @@ class XSDReader:
                 if not (XSDReader.is_array(ref_element) or is_array):
                     referenced_model_names, new_root_properties = self._create_model(
                         referenced_element,
-                        source_path=source_path,
+                        source_path=new_source_path,
                         parent_model=model
                     )
                     property_type = "ref"
@@ -687,7 +690,7 @@ class XSDReader:
                     property_type = "backref"
                     referenced_model_names, new_root_properties = self._create_model(
                         referenced_element,
-                        source_path=source_path,
+                        source_path=new_source_path,
                         parent_model=model,
                         additional_properties=referenced_element_properties
                     )
@@ -997,11 +1000,26 @@ class XSDReader:
                             prefix = to_property_name(stripped_model_name.split("/")[-1])
 
                         root_property_id = f"{prefix}{array_sign}.{root_property_id}"
-                        new_root_properties[root_property_id] = root_property
+
+
+
+                    new_root_properties[root_property_id] = root_property
 
             model.root_properties = new_root_properties
+            properties_copy = deepcopy(properties)
 
-            new_root_properties.update(deepcopy(properties))
+            for prop in properties_copy.values():
+                if 'external' in prop:
+                    prop['external']['name'] = f"{new_source_path}/{prop['external']['name']}"
+
+            new_root_properties.update(properties_copy)
+
+            # for new_root_property in new_root_properties.values():
+                # updating properties sources. If it's an array, we need to keep them relative
+                # to the array. If not, it needs to be relative to current model.
+                # if not model_name.endswith('[]'):
+                # if 'external' in new_root_property:
+                #     new_root_property['external']['name'] = f"{node.get('name')}/{new_root_property['external']['name']}"
 
             returned_root_properties = new_root_properties
 
@@ -1015,6 +1033,10 @@ class XSDReader:
                 model_name = model.name
 
             return [model.name, ], {model_name: returned_root_properties}
+
+        # for model_root_properties in root_properties.values():
+        #     for model_root_property in model_root_properties.values():
+        #         model_root_property['external']['name'] = f"{node.get('name')}/{model_root_property['external']['name']}"
 
         return [], root_properties
 
@@ -1146,12 +1168,35 @@ def read_schema(
         # we need to add root properties to properties if it's a root model
         if parsed_model.parent_model is None or parsed_model.parent_model.name not in xsd.models:
             parsed_model.properties.update(parsed_model.root_properties)
+            model_source = parsed_model.external["name"]
             for prop_id, prop in parsed_model.root_properties.items():
                 if prop["type"] == "backref":
                     backref_model = xsd.models[prop["model"]]
                     if backref_model != parsed_model:
                         ref_property = {to_property_name(parsed_model.basename): {"model": parsed_model.name, "type": "ref"}}
                         backref_model.properties.update(ref_property)
+
+                # root properties sources are now relative to the general root.
+                # We need to make them relative to what they have to be relative
+                # If they come after an array, they have to be relative to the source of that array.
+                # Otherwise, they have to be relative to the model they are in.
+                for prop_compare_id, prop_compare in parsed_model.root_properties.items():
+                    if (
+                            'external' in prop and
+                            'external' in prop_compare and
+                            prop['external']['name'].startswith(prop_compare['external']['name']) and
+                            prop_compare_id.endswith('[]') and
+                            prop['external']['name'] != prop_compare['external']['name']
+                    ):
+                        prop['external']['name'] = prop['external']['name'].replace(prop_compare['external']['name'], '')
+
+                if 'external' in prop and prop['external']['name'].startswith(model_source):
+                    prop['external']['name'] = prop['external']['name'].replace(model_source, '')
+
+                if 'external' in prop:
+                    prop['external']['name'] = prop['external']['name'].lstrip('/')
+
+
         parsed_model.properties = dict(sorted(parsed_model.properties.items()))
 
     for model_name, parsed_model in xsd.models.items():
