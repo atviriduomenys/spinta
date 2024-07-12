@@ -20,6 +20,11 @@ Bug fixes:
 
   .. _#688: https://github.com/atviriduomenys/spinta/issues/688
 
+- Fixed error when opening `changes` in `html` format, when there is no `select` and you have
+  only one language given to `Text` property (`#693`_).
+
+  .. _#693: https://github.com/atviriduomenys/spinta/issues/693
+
 0.1.65 (2024-07-03)
 ===================
 
