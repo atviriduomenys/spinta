@@ -560,6 +560,10 @@ class XSDReader:
                         properties[property_id] = prop
                         continue
 
+                # avoiding recursion
+                if typed_element.get("name") in source_path.split("/"):
+                    continue
+
                 if not is_array:
                     referenced_model_names = self._create_model(
                         typed_element,
@@ -594,26 +598,10 @@ class XSDReader:
                             property_id += "[]"
                     prop["type"] = property_type
                     prop["model"] = f"{referenced_model_name}"
+                    # backrefs don't have to have source
+                    if property_type == "backref":
+                        prop['external'] = {}
                     properties[property_id] = prop
-
-                # for child_node in sequence_or_all_node:
-                #     if child_node.xpath(f'./*[local-name() = "complexType"]') \
-                #             or self._node_has_separate_complex_type(child_node):
-                #         # check for recursion
-                #         paths = new_source_path.split("/")
-                #         if not child_node.get("name") in paths:
-                #             ref_model_name, new_root_properties = self._create_model(
-                #                 child_node,
-                #                 source_path=new_source_path,
-                #                 parent_model=model
-                #             )
-                #             properties.update({to_property_name(ref_model_name[0].split("/")[-1]): {"type": "ref", "model": ref_model_name[0], "external": {"name": child_node.get("name")}}})
-                #             root_properties.update(new_root_properties)
-                #         else:
-                #             for index, path in enumerate(paths):
-                #                 if path == child_node.get("name"):
-                #                     paths[index] = f"/{path}"
-                #             new_source_path = "/".join(paths)
 
         return properties
 
@@ -677,6 +665,10 @@ class XSDReader:
                         properties[property_id] = prop
                         continue
 
+                # avoiding recursion
+                if referenced_element.get("name") in source_path.split("/"):
+                    continue
+
                 if not (XSDReader.is_array(ref_element) or is_array):
                     referenced_model_names = self._create_model(
                         referenced_element,
@@ -709,6 +701,11 @@ class XSDReader:
 
                     prop["type"] = property_type
                     prop["model"] = f"{referenced_model_name}"
+
+                    # backrefs don't have to have source
+                    if property_type == "backref":
+                        prop['external'] = {}
+
                     properties[property_id] = prop
 
         return properties
