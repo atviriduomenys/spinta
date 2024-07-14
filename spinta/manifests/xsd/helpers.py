@@ -288,6 +288,11 @@ class XSDModel:
     def has_non_ref_properties(self) -> bool:
         return any([prop["type"] not in ("ref", "backerf") for prop in self.properties.values()])
 
+    def add_ref_property(self, ref_model):
+        property_id = to_property_name(ref_model.basename)
+        prop = {"type": "ref", "model": ref_model.name}
+        self.properties.update({property_id: prop})
+
 
 class XSDReader:
 
@@ -492,14 +497,9 @@ class XSDReader:
         node: _Element,
         model: XSDModel,
         source_path: str = ""
-    ) -> tuple[
-            dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]],
-            dict[str, dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]]]:
+    ) -> dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]:
 
         properties = {}
-
-        # nested properties for the root model
-        root_properties = {}
 
         for typed_element in node.xpath("./*[@type]"):
 
@@ -561,7 +561,7 @@ class XSDReader:
                         continue
 
                 if not is_array:
-                    referenced_model_names, new_root_properties = self._create_model(
+                    referenced_model_names = self._create_model(
                         typed_element,
                         source_path=new_source_path,
                         parent_model=model
@@ -576,14 +576,12 @@ class XSDReader:
                         }
                     }
                     property_type = "backref"
-                    referenced_model_names, new_root_properties = self._create_model(
+                    referenced_model_names = self._create_model(
                         typed_element,
                         source_path=new_source_path,
                         parent_model=model,
                         additional_properties=referenced_element_properties
                     )
-
-                root_properties.update(new_root_properties)
 
                 for referenced_model_name in referenced_model_names:
                     property_id, prop = model.simple_element_to_property(typed_element, is_array=is_array)
@@ -617,21 +615,16 @@ class XSDReader:
                 #                     paths[index] = f"/{path}"
                 #             new_source_path = "/".join(paths)
 
-        return properties, root_properties
+        return properties
 
     def _properties_from_references(
         self,
         node: _Element,
         model: XSDModel,
         source_path: str = ""
-    ) -> tuple[
-            dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]],
-            dict[str, dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]]]:
+    ) -> dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]:
 
         properties = {}
-
-        # nested properties for the root model
-        root_properties = {}
 
         for ref_element in node.xpath("./*[@ref]"):
             new_source_path = source_path
@@ -685,7 +678,7 @@ class XSDReader:
                         continue
 
                 if not (XSDReader.is_array(ref_element) or is_array):
-                    referenced_model_names, new_root_properties = self._create_model(
+                    referenced_model_names = self._create_model(
                         referenced_element,
                         source_path=new_source_path,
                         parent_model=model
@@ -700,14 +693,12 @@ class XSDReader:
                         }
                     }
                     property_type = "backref"
-                    referenced_model_names, new_root_properties = self._create_model(
+                    referenced_model_names = self._create_model(
                         referenced_element,
                         source_path=new_source_path,
                         parent_model=model,
                         additional_properties=referenced_element_properties
                     )
-
-                root_properties.update(new_root_properties)
 
                 for referenced_model_name in referenced_model_names:
                     property_id, prop = model.simple_element_to_property(ref_element, is_array=is_array)
@@ -720,7 +711,7 @@ class XSDReader:
                     prop["model"] = f"{referenced_model_name}"
                     properties[property_id] = prop
 
-        return properties, root_properties
+        return properties
 
     def _split_choice(
         self,
@@ -729,14 +720,11 @@ class XSDReader:
         parent_model: XSDModel,
         additional_properties: dict[str, dict[str, str | bool | dict[str, str]]],
         is_root_model: bool = False
-    ) -> tuple[list[str], dict[str, str | bool | dict[str, str | dict[str, Any]]]]:
+    ) -> list[str]:
         """
         If there are choices in the element,
         we need to split it and create a separate model per each choice
         """
-
-        # nested properties for the root model
-        root_properties = {}
 
         model_names = []
         node_copy = deepcopy(node)
@@ -772,7 +760,7 @@ class XSDReader:
                         additional_properties=additional_properties,
                         is_root_model=is_root_model
                     )
-                    root_properties.update(new_root_properties)
+
                     model_names.extend(returned_model_names)
 
                     for node_in_choice in choice_copy:
@@ -780,7 +768,7 @@ class XSDReader:
                         choice_node_parent.remove(node_in_choice)
                 else:
                     choice_node_parent.insert(0, choice)
-                    returned_model_names, new_root_properties = self._create_model(
+                    returned_model_names = self._create_model(
                         node_copy,
                         source_path=source_path,
                         parent_model=parent_model,
@@ -788,10 +776,9 @@ class XSDReader:
                         is_root_model=is_root_model
                     )
                     model_names.extend(returned_model_names)
-                    root_properties.update(new_root_properties)
 
                     choice_node_parent.remove(choice)
-        return model_names, root_properties
+        return model_names
 
     def _create_model(
         self,
@@ -800,7 +787,7 @@ class XSDReader:
         is_root_model: bool = False,
         parent_model: XSDModel = None,
         additional_properties: dict[str, str | bool | dict[str, str | dict[str, Any]]] = None
-    ) -> tuple[list[str], dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]]:
+    ) -> list[str]:
         """
         Parses an element and makes a model out of it. If it is a complete model, it will be added to the models list.
         """
@@ -809,9 +796,6 @@ class XSDReader:
 
         if additional_properties is None:
             additional_properties = {}
-
-        # properties to add to the root model
-        root_properties = {}
 
         # properties of this model
         properties = {}
@@ -952,7 +936,6 @@ class XSDReader:
                                     source_path=new_source_path,
                                     parent_model=model,
                                     additional_properties=additional_properties)
-                                root_properties.update(new_root_properties)
 
                 elif sequence_or_all_node_length > 1 or properties:
                     # properties from simple type or inline elements without references
@@ -962,95 +945,34 @@ class XSDReader:
                         properties_required=properties_required))
 
                     # references
-                    properties_from_references, new_root_properties = self._properties_from_references(
+                    properties_from_references = self._properties_from_references(
                         sequence_or_all_node,
                         model=model,
                         source_path=new_source_path)
                     properties.update(properties_from_references)
-                    root_properties.update(new_root_properties)
 
                     # complex type child nodes - to models
-                    properties_from_references, new_root_properties = self._properties_from_type_references(
+                    properties_from_references = self._properties_from_type_references(
                         sequence_or_all_node,
                         model=model,
                         source_path=new_source_path)
                     properties.update(properties_from_references)
-                    root_properties.update(new_root_properties)
 
         model.properties = properties
 
-        # DEALING WITH NESTED ROOT PROPERTIES ---------------------
-
-        if properties or is_root_model:
-            # new_root_properties are to pass up to the root model and to add to it
-            new_root_properties = {}
-            # add the model prefix to every property name and source
-            for model_name, model_properties in root_properties.items():
-                for root_property_id, root_property in model_properties.items():
-
-                    # we don't need to add refs which don't have source (as they point to the root model then)
-                    if not (root_property.get("type") == "ref" and "external" not in root_property):
-
-                        # we need to find out the name of the property that corresponds the model,
-                        #  because we need to use that if we used it in ref properties,
-                        #  otherwise use newly created form model name
-                        prefix = None
-                        stripped_model_name = model_name.rstrip("[]")
-                        for property_id, prop in properties.items():
-                            if "model" in prop:
-                                # property_model_name = prop.get("model").split("/")[-1]
-                                property_model_name = prop.get("model")
-                                if property_model_name == stripped_model_name:
-                                    prefix = property_id
-                                    break
-
-                        array_sign = ""
-                        if prefix is None:
-                            if model_name.endswith("[]"):
-                                array_sign = "[]"
-
-                            prefix = to_property_name(stripped_model_name.split("/")[-1])
-
-                        root_property_id = f"{prefix}{array_sign}.{root_property_id}"
-
-
-
-                    new_root_properties[root_property_id] = root_property
-
-            model.root_properties = new_root_properties
-            properties_copy = deepcopy(properties)
-
-            for prop in properties_copy.values():
-                if 'external' in prop:
-                    prop['external']['name'] = f"{new_source_path}/{prop['external']['name']}"
-
-            new_root_properties.update(properties_copy)
-
-            # for new_root_property in new_root_properties.values():
-                # updating properties sources. If it's an array, we need to keep them relative
-                # to the array. If not, it needs to be relative to current model.
-                # if not model_name.endswith('[]'):
-                # if 'external' in new_root_property:
-                #     new_root_property['external']['name'] = f"{node.get('name')}/{new_root_property['external']['name']}"
-
-            returned_root_properties = new_root_properties
+        if properties:
 
             model.add_external_info(external_name=new_source_path)
             model.description = self.get_description(node)
             self.models[model.name] = model
 
-            if additional_properties:
-                model_name = f"{model.name}[]"
-            else:
-                model_name = model.name
-
-            return [model.name, ], {model_name: returned_root_properties}
+            return [model.name, ]
 
         # for model_root_properties in root_properties.values():
         #     for model_root_property in model_root_properties.values():
         #         model_root_property['external']['name'] = f"{node.get('name')}/{model_root_property['external']['name']}"
 
-        return [], root_properties
+        return []
 
     def _add_resource_model(self):
         resource_model = XSDModel(self)
@@ -1079,6 +1001,84 @@ class XSDReader:
         self._add_resource_model()
 
         self._parse_root_node()
+
+    def _add_model_nested_properties(self, root_model: XSDModel, model: XSDModel, property_prefix: str = "", source_path: str = ""):
+        """recursively gather nested properties or root model"""
+        # go orward, add property prefix, which is constructed rom properties that came rom beore models, and construct pathh orward also
+        # probably will need to cut beginning for path sometimes
+
+        source_path = source_path.lstrip("/")
+
+        root_properties = {}
+
+        properties = deepcopy(model.properties)
+
+        for property_id, prop in properties.items():
+
+            if (model != root_model and
+                    not ("model" in prop and prop["model"] == model.parent_model.name)):
+
+                # update property source and name and add it to the root properties
+                if property_prefix:
+                    property_id = f"{property_prefix}.{property_id}"
+
+                if "external" in prop and source_path:
+                    prop["external"]["name"] = f"{source_path}/{prop['external']['name']}"
+
+                root_properties[property_id] = prop
+
+            # if this property is ref or backref, gather the properties of the model to which it points
+            # (if it's not the root model or back pointing ref)
+            if "model" in prop:
+                ref_model = self.models[prop['model']]
+
+                # there are two types of ref - direct, and for backref. We don't want to traverse the ones or backref,
+                # because it will create an infinite loop.
+                # If it's a ref, we need to build the path from the root of the model. If it's backref (array) -
+                # it's relative to array
+                if prop["type"] == "ref":
+                    has_backref = False
+                    for ref_model_property in ref_model.properties.values():
+                        if (ref_model_property.get("type") == "backref") and (ref_model_property.get('model') == model.name):
+                            has_backref = True
+                            break
+                    if has_backref:
+                        continue
+                    if source_path:
+                        new_source_path = f"{source_path}/{ref_model.external['name'].replace(model.external['name'], '').lstrip('/')}"
+                    else:
+                        new_source_path = ref_model.external['name'].replace(model.external['name'], '')
+                    new_source_path = new_source_path.lstrip('/')
+
+                # property type is backref
+                else:
+                    new_source_path = ""
+
+                self._add_model_nested_properties(root_model, ref_model, property_prefix=property_id, source_path=new_source_path)
+
+        root_model.properties.update(root_properties)
+
+    def compile_nested_properties(self):
+        for model_name, parsed_model in self.models.items():
+
+            # we need to add root properties to properties if it's a root model
+            if parsed_model.parent_model is None or parsed_model.parent_model.name not in self.models:
+
+                self._add_model_nested_properties(parsed_model, parsed_model)
+
+                # parsed_model.properties.update(nested_properties)
+
+                # if some nested properties are backrefs and still don't have refs
+                # (in case o indirect links), we need to add them
+
+                for prop in parsed_model.properties.values():
+                    if prop.get("type") == "backref":
+                        ref_model_name = prop.get("model")
+                        ref_model = self.models[ref_model_name]
+                        if ref_model:
+                            ref_model.add_ref_property(parsed_model)
+
+            parsed_model.properties = dict(sorted(parsed_model.properties.items()))
 
 
 def read_schema(
@@ -1175,49 +1175,8 @@ def read_schema(
 
     yield None, xsd.dataset_and_resource_info
 
-    for model_name, parsed_model in xsd.models.items():
-
-        # we need to add root properties to properties if it's a root model
-        if parsed_model.parent_model is None or parsed_model.parent_model.name not in xsd.models:
-            parsed_model.properties.update(parsed_model.root_properties)
-            model_source = parsed_model.external["name"]
-            for prop_id, prop in parsed_model.root_properties.items():
-                if prop["type"] == "backref":
-                    backref_model = xsd.models[prop["model"]]
-                    if backref_model != parsed_model:
-                        ref_property = {to_property_name(parsed_model.basename): {"model": parsed_model.name, "type": "ref"}}
-                        backref_model.properties.update(ref_property)
-
-                # root properties sources are now relative to the general root.
-                # We need to make them relative to what they have to be relative
-                # If they come after an array, they have to be relative to the source of that array.
-                # Otherwise, they have to be relative to the model they are in.
-                for prop_compare_id, prop_compare in parsed_model.root_properties.items():
-                    if (
-                            'external' in prop and
-                            'external' in prop_compare and
-                            prop['external']['name'].startswith(prop_compare['external']['name']) and
-                            prop_compare_id.endswith('[]') and
-                            prop['external']['name'] != prop_compare['external']['name']
-                    ):
-                        prop['external']['name'] = prop['external']['name'].replace(prop_compare['external']['name'], '')
-
-                if 'external' in prop and prop['external']['name'].startswith(model_source):
-                    prop['external']['name'] = prop['external']['name'].replace(model_source, '')
-
-                if 'external' in prop:
-                    prop['external']['name'] = prop['external']['name'].lstrip('/')
-
-
-        parsed_model.properties = dict(sorted(parsed_model.properties.items()))
+    xsd.compile_nested_properties()
 
     for model_name, parsed_model in xsd.models.items():
 
         yield None, parsed_model.get_data()
-
-
-# todo kas dar neveikia:
-#  actor_list[] ir dt_actor[] - abu array, turėtų būti tik vienas iš jų
-#  iš tikro, tai ActorList modelio neturėtų būti
-#  Kai kur nukerpa paskutinę raidę, ir naudoja tipo vardą vietoje elemento vardo DtNvi actor_list[] tipas ActorLis/ActorListTyp
-# todo kai mixed true ir viduj vien atributai, jų neranda (88)
