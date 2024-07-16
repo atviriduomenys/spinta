@@ -25,6 +25,10 @@ Bug fixes:
 
   .. _#693: https://github.com/atviriduomenys/spinta/issues/693
 
+- Fixed assertion error when only selecting not expanded `array` (`#696`_).
+
+  .. _#696: https://github.com/atviriduomenys/spinta/issues/696
+
 0.1.65 (2024-07-03)
 ===================
 
