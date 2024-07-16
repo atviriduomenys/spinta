@@ -599,8 +599,8 @@ class XSDReader:
                     prop["type"] = property_type
                     prop["model"] = f"{referenced_model_name}"
                     # backrefs don't have to have source
-                    if property_type == "backref":
-                        prop['external'] = {}
+                    if property_type == 'backref':
+                        del prop["external"]
                     properties[property_id] = prop
 
         return properties
@@ -694,17 +694,17 @@ class XSDReader:
 
                 for referenced_model_name in referenced_model_names:
                     property_id, prop = model.simple_element_to_property(ref_element, is_array=is_array)
-                    prop["external"]["name"] = prop["external"]["name"].rstrip("/text()")
+                    prop['external']['name'] = prop['external']['name'].rstrip('/text()')
                     if new_referenced_element is not None:
                         _, referenced_prop = model.simple_element_to_property(referenced_element)
-                        prop["external"]["name"] += f'/{referenced_prop["external"]["name"].rstrip("/text()")}'
+                        prop['external']['name'] += f'/{referenced_prop["external"]["name"].rstrip("/text()")}'
 
-                    prop["type"] = property_type
-                    prop["model"] = f"{referenced_model_name}"
+                    prop['type'] = property_type
+                    prop['model'] = f'{referenced_model_name}'
 
                     # backrefs don't have to have source
-                    if property_type == "backref":
-                        prop['external'] = {}
+                    if property_type == 'backref':
+                        del prop['external']
 
                     properties[property_id] = prop
 
@@ -928,7 +928,7 @@ class XSDReader:
                                     parent_model=model,
                                     additional_properties=additional_properties)
                             else:
-                                ref_model_name, new_root_properties = self._create_model(
+                                ref_model_name = self._create_model(
                                     element,
                                     source_path=new_source_path,
                                     parent_model=model,
