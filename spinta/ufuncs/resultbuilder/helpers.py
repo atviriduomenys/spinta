@@ -85,14 +85,14 @@ def get_row_value(context: Context, result_builder: ResultBuilder, row: Any, sel
 
         if check_enums:
             if enum := get_prop_enum(sel.prop):
-               if val is None:
-                   pass
-               elif str(val) in enum:
-                   item = enum[str(val)]
-                   if item.prepare is not NA:
-                       val = item.prepare
-               else:
-                   raise ValueNotInEnum(sel.prop, value=val)
+                if val is None:
+                    pass
+                elif str(val) in enum:
+                    item = enum[str(val)]
+                    if item.prepare is not NA:
+                        val = item.prepare
+                else:
+                    raise ValueNotInEnum(sel.prop, value=val)
 
         return val
     if isinstance(sel, tuple):

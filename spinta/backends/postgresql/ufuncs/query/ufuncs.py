@@ -106,7 +106,7 @@ def select(env, arg):
         return None
     prop = _get_property_for_select(env, arg.name)
     if is_expandable_not_expanded(env, prop):
-        return None
+        return Selected(None, prop, prep=[])
     return env.call('select', prop.dtype)
 
 
