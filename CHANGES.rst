@@ -29,6 +29,10 @@ Bug fixes:
 
   .. _#696: https://github.com/atviriduomenys/spinta/issues/696
 
+- Fixed issue, where sometimes `json` `blank nodes` gets discarded and return empty `dict` (`#699`_).
+
+  .. _#699: https://github.com/atviriduomenys/spinta/issues/696
+
 0.1.65 (2024-07-03)
 ===================
 
