@@ -6,6 +6,7 @@ import decimal
 from shapely import wkt
 from shapely.geometry.base import BaseGeometry
 
+
 def fix_data_for_json(data):
     if isinstance(data, dict):
         return {k: fix_data_for_json(v) for k, v in data.items()}

@@ -8,6 +8,7 @@ from typing import List, Dict, Union, TypedDict, Any, Tuple, Callable
 
 from spinta.manifests.dict.components import DictFormat
 from spinta.manifests.helpers import TypeDetector
+from spinta.utils.itertools import first_dict_value, first_dict_key
 from spinta.utils.naming import Deduplicator, to_model_name, to_property_name
 
 
@@ -103,7 +104,8 @@ def read_schema(manifest_type: DictFormat, path: str, dataset_name: str):
                 prop_type = type_detector.get_type()
                 if prop_type == "ref":
                     if prop['name'] in dataset_structure["models"].keys():
-                        model_name = _name_without_namespace(mapped_models[prop['name'], prop['extra']], mapping_meta, prefixes)
+                        model_name = _name_without_namespace(mapped_models[prop['name'], prop['extra']], mapping_meta,
+                                                             prefixes)
                         ref_model = f'{dataset_structure["dataset"]}/{model_name}'
                     else:
                         ref_model = f'{dataset_structure["dataset"]}/{blank_model}'
@@ -145,24 +147,23 @@ def read_schema(manifest_type: DictFormat, path: str, dataset_name: str):
             }
 
 
+def is_single_item_dict(value: dict) -> bool:
+    return len(value) == 1
+
+
 def _fix_for_blank_nodes(values: Any):
     return_values = values
-    if isinstance(values, dict):
+    if isinstance(values, dict) and is_single_item_dict(values):
         result = {}
-        keys = list(values.keys())
-        while len(keys) == 1:
-            prev_key = keys[0]
-            values = values[prev_key]
-            result[prev_key] = values
+        temp_dict = values
+        while is_single_item_dict(temp_dict):
+            first_key = first_dict_key(temp_dict)
+            temp_dict = temp_dict[first_key]
 
-            if isinstance(values, dict):
-                keys = list(values.keys())
-            else:
-                result = return_values
-                break
+            if not isinstance(temp_dict, dict):
+                return return_values
 
-            if len(keys) != 1:
-                result[prev_key] = [values]
+            result[first_key] = temp_dict if is_single_item_dict(temp_dict) else [temp_dict]
 
         return_values = result
     return return_values
@@ -264,9 +265,11 @@ def nested_prop_names(new_values: list, values: dict, root: str, seperator: str)
             new_values.append(f'{root}{seperator}{key}')
 
 
-def check_missing_prop_required(dataset: _MappedDataset, values: dict, mapping_scope: _MappingScope, mapping_meta: _MappingMeta):
+def check_missing_prop_required(dataset: _MappedDataset, values: dict, mapping_scope: _MappingScope,
+                                mapping_meta: _MappingMeta):
     if mapping_scope["model_scope"] == "":
-        model_name = mapping_scope["model_name"] if mapping_scope["model_name"] != "" else list(dataset["models"].keys())[0]
+        model_name = mapping_scope["model_name"] if mapping_scope["model_name"] != "" else first_dict_key(
+            dataset["models"])
         model_source = _create_name_with_prefix(
             mapping_scope["parent_scope"],
             mapping_meta["seperator"],
@@ -437,13 +440,13 @@ def is_blank_node(values: Union[list, dict]) -> bool:
     if isinstance(values, list):
         return True
     if isinstance(values, dict):
-        val = values
-        first_value = val[list(val.keys())[0]]
-        if len(val.keys()) == 1 and isinstance(first_value, dict):
-            while len(val.keys()) == 1 and isinstance(first_value, dict):
-                val = val[list(val.keys())[0]]
-                first_value = val[list(val.keys())[0]]
-                if len(val.keys()) != 1:
+        temp_dict = values
+        first_value = first_dict_value(temp_dict)
+        if is_single_item_dict(temp_dict) and isinstance(first_value, dict):
+            while is_single_item_dict(temp_dict) and isinstance(first_value, dict):
+                temp_dict = first_value
+                first_value = first_dict_value(temp_dict)
+                if not is_single_item_dict(temp_dict):
                     return True
                 if isinstance(first_value, list):
                     return False

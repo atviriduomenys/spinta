@@ -1915,6 +1915,41 @@ def test_inspect_with_postgresql_schema(
         su.drop_database(db)
 
 
+def test_inspect_json_blank_node(
+    rc_new: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path):
+    json_manifest = {
+        "id": 5,
+        "test": 10
+    }
+    print(tmp_path)
+    path = tmp_path / 'manifest.json'
+    path.write_text(json.dumps(json_manifest))
+
+    result_file_path = tmp_path / 'result.csv'
+    # Configure Spinta.
+
+    cli.invoke(rc_new, [
+        'inspect',
+        '-r', 'json', path,
+        '-o', tmp_path / 'result.csv',
+    ])
+    # Check what was detected.
+    context, manifest = load_manifest_and_context(rc_new, result_file_path)
+    commands.get_dataset(context, manifest, 'dataset').resources['resource'].external = 'resource.json'
+    a, b = compare_manifest(manifest, f'''
+d | r | m | property | type                    | ref    | source
+dataset              |                         |        |
+  | resource         | json                    |        | resource.json
+                     |                         |        |
+  |   | Model1       |                         |        | .
+  |   |   | id       | integer required unique |        | id
+  |   |   | test     | binary required unique  |        | test
+    ''', context)
+    assert a == b
+
+
 def test_priority_key_eq():
     old = PriorityKey()
     new = PriorityKey()
