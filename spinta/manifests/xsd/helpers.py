@@ -520,7 +520,7 @@ class XSDReader:
                 sequences = complex_type.xpath("./*[local-name() = 'sequence']")
                 if not sequences:
                     choices = complex_type.xpath("./*[local-name() = 'choice']")
-                    if choices[0].get('maxOccurs') == 'unbounded':
+                    if choices and choices[0].get('maxOccurs') == 'unbounded':
                         sequences = choices
                         is_array = True
                 if sequences:
@@ -534,25 +534,35 @@ class XSDReader:
                 previous_referenced_element_name = None
                 # we check for the length of sequence, because it can have more than one element, but also length of
                 # complexType because it can have attributes too.
-                if sequence is not None and len(sequence) == 1 and len(complex_type) == 1 and self._node_has_separate_complex_type(sequence[0]):
+                if (
+                        sequence is not None and
+                        len(sequence) == 1 and
+                        # len(complex_type) == 1 and
+                        (len(complex_type) == 1 or (len(complex_type) == 2 and len(complex_type.xpath("./*[local-name() = 'annotation']")) > 0)) and
+                        self._node_has_separate_complex_type(sequence[0])
+                ):
                     # if typed_element.get("name") is not None:
                     new_source_path += f'/{typed_element.get("name")}'
                     # source_path += f'/{complex_type.get("name")}'
-                    if not is_array:
-                        is_array = XSDReader.is_array(complex_type)
-                    if not is_array:
-                        is_array = XSDReader.is_array(complex_type[0][0])
-                    if not is_array:
-                        XSDReader.is_array(typed_element)
+                    is_array = (
+                        is_array or
+                        XSDReader.is_array(complex_type) or
+                        XSDReader.is_array(complex_type[0][0]) or
+                        XSDReader.is_array(typed_element) or
+                        XSDReader.is_array(sequence[0])
+                    )
 
                     previous_referenced_element = typed_element
                     previous_referenced_element_name = typed_element.get("name")
-                    new_referenced_element = complex_type[0][0]
-                    typed_element = new_referenced_element
+                    complex_type = self._get_separate_complex_type_node(sequence[0])
+
+                    # TODO: we probably don't need both
+                    new_referenced_element = sequence[0]
+                    typed_element = sequence[0]
 
                     if self.node_is_simple_type_or_inline(new_referenced_element):
                         property_id, prop = model.simple_element_to_property(
-                            new_referenced_element,
+                            typed_element,
                             is_array=is_array,
                             source_path=previous_referenced_element_name)
                         if not XSDReader.is_required(typed_element):
@@ -626,34 +636,50 @@ class XSDReader:
             else:
                 is_array = False
                     # TODO fix this because it probably doesn't cover all cases, only something like <complexType><sequence><item>
+                    #  also it covers choice now.
                     #  https://github.com/atviriduomenys/spinta/issues/613
+
                 complex_type = referenced_element.xpath("./*[local-name() = 'complexType']")[0]
                 sequences = complex_type.xpath("./*[local-name() = 'sequence']")
                 if not sequences:
                     choices = complex_type.xpath("./*[local-name() = 'choice']")
-                    if choices and choices[0].get('maxOccurs') == 'unbounded':
+                    if choices and XSDReader.is_array(choices[0]):
                         sequences = choices
-                        is_array = True
+                        # we only make this array if it's only one choice, which means it's a wrapper for an array
+                        # also, if it's mixed, and has choices inside, it's not an array even if choices are unbound
+                        if len(choices[0]) == 1 and not complex_type.get("mixed") == "true":
+                            is_array = True
+                        # is_array = True
                 if sequences:
                     sequence = sequences[0]
                 else:
                     sequence = None
 
                 new_referenced_element = None
+
+                # if we only have one ref element and if it's inside a choice/sequence (this node) which is maxOccurs = unbounded then it's array
+                if XSDReader.is_array(node) and len(node) == 1:
+                    is_array = True
+
+                # if it's a proxy model, we don't create it, but make reference to the next model
                 # we check for the length of sequence, because it can have more than one element, but also length of
                 # complexType because it can have attributes too.
-                if sequence is not None and len(sequence) == 1 and len(complex_type) == 1 and self.node_is_ref(sequence[0]):
+                if (
+                        sequence is not None and
+                        len(sequence) == 1 and
+                        len(complex_type) == 1 and
+                        self.node_is_ref(sequence[0]) and
+                        not complex_type.get("mixed") == "true"
+                ):
                     if ref_element.get("name") is not None:
                         new_source_path += f'/{ref_element.get("name")}'
                     new_source_path += f'/{referenced_element.get("name")}'
-                    if not is_array:
-                        is_array = XSDReader.is_array(referenced_element)
-                    if not is_array:
-                        is_array = XSDReader.is_array(complex_type[0][0])
 
                     previous_referenced_element_name = referenced_element.get("name")
                     new_referenced_element = self._get_referenced_node(complex_type[0][0])
                     referenced_element = new_referenced_element
+
+                    is_array = is_array or XSDReader.is_array(referenced_element) or XSDReader.is_array(complex_type[0][0]) or XSDReader.is_array(sequence)
 
                     if self.node_is_simple_type_or_inline(referenced_element):
                         property_id, prop = model.simple_element_to_property(
@@ -927,12 +953,6 @@ class XSDReader:
                                     source_path=new_source_path,
                                     parent_model=model,
                                     additional_properties=additional_properties)
-                            else:
-                                ref_model_name = self._create_model(
-                                    element,
-                                    source_path=new_source_path,
-                                    parent_model=model,
-                                    additional_properties=additional_properties)
 
                 elif sequence_or_all_node_length > 1 or properties:
                     # properties from simple type or inline elements without references
@@ -1001,7 +1021,7 @@ class XSDReader:
 
     def _add_model_nested_properties(self, root_model: XSDModel, model: XSDModel, property_prefix: str = "", source_path: str = ""):
         """recursively gather nested properties or root model"""
-        # go orward, add property prefix, which is constructed rom properties that came rom beore models, and construct pathh orward also
+        # go forward, add property prefix, which is constructed rom properties that came rom beore models, and construct pathh orward also
         # probably will need to cut beginning for path sometimes
 
         source_path = source_path.lstrip("/")
@@ -1164,6 +1184,15 @@ def read_schema(
     -----------Nested properties-------------
 
     Root model or models can have nested properties if they have any properties that point to other models.
+
+
+    TODO: there are 3 types of creating references:
+     through ref
+     through type
+     direct, when one element that corresponds to a model is inside another one. This still doesn't work.
+     It also seems that it even stopped adding models if they are connected this way.
+
+    TODO: JADIS 455 sukuria Asmuo modelį, bet ne property jam modelyje Israsas
 
     """
     xsd = XSDReader(path, dataset_name)
