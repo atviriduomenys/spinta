@@ -501,7 +501,8 @@ class XSDReader:
 
         properties = {}
 
-        for typed_element in node.xpath("./*[@type]"):
+        for typed_element in node.xpath('./*[local-name() = "element"]'):
+        # for typed_element in node.xpath("./*[@type]"):
 
             new_source_path = source_path
 
@@ -849,7 +850,7 @@ class XSDReader:
                     return self._split_choice(
                         node,
                         source_path=source_path,
-                        parent_model=model,
+                        parent_model=parent_model,
                         additional_properties=additional_properties,
                         is_root_model=is_root_model
                     )
@@ -911,69 +912,24 @@ class XSDReader:
                     sequence_or_all_node = sequence_or_all_nodes[0]
                 else:
                     sequence_or_all_node = complex_type_node
-                sequence_or_all_node_length = len(sequence_or_all_node)
-                # There is only one element in the complex node sequence, and it doesn't have annotation.
-                # Then we just go deeper and add this model to the next model's path.
-                if sequence_or_all_node_length == 1 and not properties:
 
-                    if sequence_or_all_node.xpath(f'./*[local-name() = "element"]'):
-                        if not sequence_or_all_node.xpath(f'./*[local-name() = "element"]')[0].get("ref"):
-                            element = sequence_or_all_node.xpath(f'./*[local-name() = "element"]')[0]
-                            if self.node_is_simple_type_or_inline(element) and not self.node_is_ref(element):
-                                properties.update(model.properties_from_simple_elements(sequence_or_all_node, properties_required=properties_required))
-                            # check for recursion
-                            # TODO: maybe move this to a separate function
-                            # TODO: recursion not fully working
-                            #  https://github.com/atviriduomenys/spinta/issues/602
-                            else:
-                                paths = new_source_path.split("/")
-                                if not element.get("name") in paths:
+                properties.update(model.properties_from_simple_elements(
+                    sequence_or_all_node,
+                    properties_required=properties_required))
 
-                                    # this can sometimes happen when choice node has been split or maybe in some other cases too
-                                    return self._create_model(
-                                        element,
-                                        source_path=new_source_path,
-                                        parent_model=model)
-                                else:
-                                    for index, path in enumerate(paths):
-                                        if path == element.get("name"):
-                                            paths[index] = f"/{path}"
-                                    new_source_path = "/".join(paths)
+                # references
+                properties_from_references = self._properties_from_references(
+                    sequence_or_all_node,
+                    model=model,
+                    source_path=new_source_path)
+                properties.update(properties_from_references)
 
-                        else:
-                            # TODO: if reference is to an inline or simpleType element,
-                            #  and maxOccurs of it is 1,
-                            #  then do not create reference, but add to the same
-
-                            element = sequence_or_all_node.xpath(f'./*[local-name() = "element"]')[0]
-                            element = self._get_referenced_node(element)
-                            if not is_root_model:
-                                return self._create_model(
-                                    element,
-                                    source_path=new_source_path,
-                                    parent_model=model,
-                                    additional_properties=additional_properties)
-
-                elif sequence_or_all_node_length > 1 or properties:
-                    # properties from simple type or inline elements without references
-                    # properties are required for choice where maxOccurs=unbound and maybe some other cases
-                    properties.update(model.properties_from_simple_elements(
-                        sequence_or_all_node,
-                        properties_required=properties_required))
-
-                    # references
-                    properties_from_references = self._properties_from_references(
-                        sequence_or_all_node,
-                        model=model,
-                        source_path=new_source_path)
-                    properties.update(properties_from_references)
-
-                    # complex type child nodes - to models
-                    properties_from_references = self._properties_from_type_references(
-                        sequence_or_all_node,
-                        model=model,
-                        source_path=new_source_path)
-                    properties.update(properties_from_references)
+                # complex type child nodes - to models
+                properties_from_references = self._properties_from_type_references(
+                    sequence_or_all_node,
+                    model=model,
+                    source_path=new_source_path)
+                properties.update(properties_from_references)
 
         model.properties = properties
 
