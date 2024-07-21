@@ -388,7 +388,17 @@ class XSDReader:
         # if this node is referenced by some other node
         node_name = node.get('name')
         xpath_search_string = f'//*[@ref="{node_name}"]'
-        references = self.root.xpath(xpath_search_string)
+        references = self.root.xpath(xpath_search_string, namespaces=self.namespaces)
+
+        # also check with namespace prefixes.
+        # Though, it is possible that this isn't correct XSD behaviour, but it seems common in RC
+        if not references:
+            for prefix in self.namespaces:
+                prefixed_node_name = f"{prefix}:{node_name}"
+                xpath_search_string = f'//*[@ref="{prefixed_node_name}"]'
+                references = self.root.xpath(xpath_search_string, namespaces=self.namespaces)
+                if references:
+                    return True
         if references:
             return True
         return False
@@ -941,10 +951,6 @@ class XSDReader:
 
             return [model.name, ]
 
-        # for model_root_properties in root_properties.values():
-        #     for model_root_property in model_root_properties.values():
-        #         model_root_property['external']['name'] = f"{node.get('name')}/{model_root_property['external']['name']}"
-
         return []
 
     def _add_resource_model(self):
@@ -968,12 +974,28 @@ class XSDReader:
             ):
                 self._create_model(node, is_root_model=True)
 
+    # def _trim_fake_root_models(self):
+    #     """
+    #     We need to remove those root models which are referenced from other elements.
+    #     We need to check the source instead of name, because it most probably be referenced by another name anyway.
+    #     """
+    #     trimmed_models = {}
+    #     for model_name, model in self.models:
+
+    def _extract_namespaces(self):
+        self.namespaces = self.root.nsmap
+
     def start(self):
         self._extract_root()
+        self._extract_namespaces()
         self._extract_custom_types(self.root)
         self._add_resource_model()
 
         self._parse_root_node()
+
+        # self._trim_fake_root_models()
+
+        self._compile_nested_properties()
 
     def _add_model_nested_properties(self, root_model: XSDModel, model: XSDModel, property_prefix: str = "", source_path: str = ""):
         """recursively gather nested properties or root model"""
@@ -1031,7 +1053,7 @@ class XSDReader:
 
         root_model.properties.update(root_properties)
 
-    def compile_nested_properties(self):
+    def _compile_nested_properties(self):
         for model_name, parsed_model in self.models.items():
 
             # we need to add root properties to properties if it's a root model
@@ -1156,8 +1178,6 @@ def read_schema(
     xsd.start()
 
     yield None, xsd.dataset_and_resource_info
-
-    xsd.compile_nested_properties()
 
     for model_name, parsed_model in xsd.models.items():
 
