@@ -1,3 +1,4 @@
+from functools import reduce
 from typing import Dict, Any, Tuple, List
 
 from spinta.auth import authorized
@@ -16,8 +17,13 @@ import base64 as b64
 def and_(env, expr):
     args, kwargs = expr.resolve(env)
     args = [a for a in args if a is not None]
+    return env.call('and', args)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, list, name='and')
+def and_(env, args):
     if len(args) > 1:
-        return all(args)
+        return reduce(lambda x, y: x & y, args)
     elif args:
         return args[0]
 
@@ -32,7 +38,7 @@ def or_(env, expr):
 @ufunc.resolver(DaskDataFrameQueryBuilder, list, name='or')
 def or_(env, args):
     if len(args) > 1:
-        return any(args)
+        return reduce(lambda x, y: x | y, args)
     elif args:
         return args[0]
 

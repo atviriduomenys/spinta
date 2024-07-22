@@ -148,3 +148,91 @@ def test_base64_getall(rc: RawConfig, tmp_path: Path):
                 'file': b'The quick brown fox jumps over 13 lazy dogs.',
                 'name': 'Kaunas'}
         ]
+
+
+def test_csv_and_operation(rc: RawConfig, fs: AbstractFileSystem):
+    fs.pipe('cities.csv', (
+        'salis,miestas\n'
+        'lt,Vilnius\n'
+        'lt,Kaunas\n'
+        'lt,Siauliai\n'
+        'lv,Ryga\n'
+        'ee,Talin'
+    ).encode('utf-8'))
+
+    context, manifest = prepare_manifest(rc, '''
+    d | r | b | m | property | type    | ref  | source              | prepare          | access
+    example                  |         |      |                     |                  |
+      | csv                  | csv     |      | memory://cities.csv |                  |
+      |   |   | City         |         | name |                     |                  |
+      |   |   |   | name     | string  |      | miestas             |                  | open
+      |   |   |   | country  | string  |      | salis               |                  | open
+    ''', mode=Mode.external)
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel('example/City', ['getall', 'search'])
+
+    resp = app.get('/example/City?select()&country="lt"&name="Kaunas"')
+    assert listdata(resp, sort=False) == [
+        ('lt', 'Kaunas'),
+    ]
+
+
+def test_csv_or_operation(rc: RawConfig, fs: AbstractFileSystem):
+    fs.pipe('cities.csv', (
+        'salis,miestas\n'
+        'lt,Vilnius\n'
+        'lt,Kaunas\n'
+        'lt,Siauliai\n'
+        'lv,Ryga\n'
+        'ee,Talin'
+    ).encode('utf-8'))
+
+    context, manifest = prepare_manifest(rc, '''
+    d | r | b | m | property | type    | ref  | source              | prepare          | access
+    example                  |         |      |                     |                  |
+      | csv                  | csv     |      | memory://cities.csv |                  |
+      |   |   | City         |         | name |                     |                  |
+      |   |   |   | name     | string  |      | miestas             |                  | open
+      |   |   |   | country  | string  |      | salis               |                  | open
+    ''', mode=Mode.external)
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel('example/City', ['getall', 'search'])
+
+    resp = app.get('/example/City?select()&name="Vilnius"|country="ee"|name="Ryga"')
+    assert listdata(resp, sort=False) == [
+        ('lt', 'Vilnius'),
+        ('lv', 'Ryga'),
+        ('ee', 'Talin')
+    ]
+
+
+def test_csv_and_or_operation(rc: RawConfig, fs: AbstractFileSystem):
+    fs.pipe('cities.csv', (
+        'salis,miestas\n'
+        'lt,Vilnius\n'
+        'lt,Kaunas\n'
+        'lt,Siauliai\n'
+        'lv,Ryga\n'
+        'ee,Talin'
+    ).encode('utf-8'))
+
+    context, manifest = prepare_manifest(rc, '''
+    d | r | b | m | property | type    | ref  | source              | prepare          | access
+    example                  |         |      |                     |                  |
+      | csv                  | csv     |      | memory://cities.csv |                  |
+      |   |   | City         |         | name |                     |                  |
+      |   |   |   | name     | string  |      | miestas             |                  | open
+      |   |   |   | country  | string  |      | salis               |                  | open
+    ''', mode=Mode.external)
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel('example/City', ['getall', 'search'])
+
+    resp = app.get('/example/City?select()&country="ee"|(country="lt"&name="Kaunas")|name="Ryga"')
+    assert listdata(resp, sort=False) == [
+        ('lt', 'Kaunas'),
+        ('lv', 'Ryga'),
+        ('ee', 'Talin')
+    ]
