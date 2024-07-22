@@ -33,6 +33,10 @@ Bug fixes:
 
   .. _#699: https://github.com/atviriduomenys/spinta/issues/696
 
+- Fixed error when using `Dask` `backend` and trying to access `Ref` values (that do not have `keymap` entries) (`#702`_).
+
+  .. _#702: https://github.com/atviriduomenys/spinta/issues/702
+
 0.1.65 (2024-07-03)
 ===================
 

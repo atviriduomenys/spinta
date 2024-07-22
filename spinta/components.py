@@ -690,6 +690,13 @@ class Model(MetaData):
     def get_given_properties(self):
         return {prop_name: prop for prop_name, prop in self.properties.items() if not prop_name.startswith('_')}
 
+    def get_from_flatprops(self, prop: str) -> Property:
+        if prop in self.flatprops:
+            return self.flatprops[prop]
+        else:
+            raise exceptions.FieldNotInResource(self, property=prop)
+
+
 class PropertyGiven:
     access: str = None
     enum: str = None
