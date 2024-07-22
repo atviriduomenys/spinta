@@ -39,6 +39,9 @@ class DaskDataFrameQueryBuilder(Env):
 
         if self.offset is not None:
             df = df.loc[self.offset:]
+
+        if where is not None:
+            df = df[where]
         return df
 
     def execute(self, expr: Any):

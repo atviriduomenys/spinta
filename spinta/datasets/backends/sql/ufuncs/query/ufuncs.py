@@ -673,13 +673,13 @@ def sort(env, dtype):
 
 @ufunc.resolver(SqlQueryBuilder, Bind)
 def sort(env, field):
-    prop = _get_from_flatprops(env.model, field.name)
+    prop = env.model.get_from_flatprops(field.name)
     return env.call('asc', prop.dtype)
 
 
 @ufunc.resolver(SqlQueryBuilder, Negative)
 def sort(env, field):
-    prop = _get_from_flatprops(env.model, field.name)
+    prop = env.model.get_from_flatprops(field.name)
     return env.call('desc', prop.dtype)
 
 
@@ -705,13 +705,6 @@ def desc(env, dtype):
 def desc(env, dtype):
     column = get_language_column(env, dtype)
     return dialect_specific_desc(env.backend.engine, column)
-
-
-def _get_from_flatprops(model: Model, prop: str):
-    if prop in model.flatprops:
-        return model.flatprops[prop]
-    else:
-        raise exceptions.FieldNotInResource(model, property=prop)
 
 
 @ufunc.resolver(SqlQueryBuilder, DataType)

@@ -1918,12 +1918,12 @@ def test_inspect_with_postgresql_schema(
 def test_inspect_json_blank_node(
     rc_new: RawConfig,
     cli: SpintaCliRunner,
-    tmp_path: Path):
+    tmp_path: Path
+):
     json_manifest = {
         "id": 5,
         "test": 10
     }
-    print(tmp_path)
     path = tmp_path / 'manifest.json'
     path.write_text(json.dumps(json_manifest))
 
