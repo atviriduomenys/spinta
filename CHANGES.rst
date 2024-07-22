@@ -37,6 +37,10 @@ Bug fixes:
 
   .. _#702: https://github.com/atviriduomenys/spinta/issues/702
 
+- Fixed error when trying to use `Dask` `backend` `&` and `|` operators (`#705`_).
+
+  .. _#705: https://github.com/atviriduomenys/spinta/issues/705
+
 0.1.65 (2024-07-03)
 ===================
 
