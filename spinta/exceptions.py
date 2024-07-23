@@ -742,7 +742,10 @@ class UnauthorizedKeymapSync(UserError):
 
 
 class GivenValueCountMissmatch(BaseError):
-    template = "While assigning ref values {given_count} were given, while {expected_count} were expected."
+    template = '''
+    While assigning ref values {given_count} were given, but {expected_count} were expected.
+    This can happen, when there are no primary keys set on ref's model, or the keys can be nullable.
+    '''
 
 
 class PartialTypeNotFound(BaseError):
