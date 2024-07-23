@@ -15,9 +15,9 @@ git checkout $RELEASE_VERSION
 git pull
 git tag -l -n1 | sort -h | tail -n5
 
-export CURRENT_PATCH=64
-export NEW_PATCH=65
-export FUTURE_PATCH=66
+export CURRENT_PATCH=65
+export NEW_PATCH=66
+export FUTURE_PATCH=67
 
 export CURRENT_VERSION=$RELEASE_VERSION.$CURRENT_PATCH
 export NEW_VERSION=$RELEASE_VERSION.$NEW_PATCH
@@ -28,11 +28,29 @@ git branch $PREPARE_BRANCH
 git checkout $PREPARE_BRANCH
 git status
 
-# Changed pyproject.toml
-#     starlette = "*" -> ">=0.22" -- Test env currently runs "0.22.0" and all tests run, while prod runs "0.21.0" and they fail
+# Improved GivenValueCountMissmatch error message.
 
 # notes/spinta/release/common.sh    Check outdated packages and upgrade them
-#| No dependencies to install or update
+#| Package operations: 0 installs, 13 updates, 0 removals
+#|
+#|   • Updating certifi (2024.6.2 -> 2024.7.4)
+#|   • Updating pure-eval (0.2.2 -> 0.2.3)
+#|   • Updating exceptiongroup (1.2.1 -> 1.2.2)
+#|   • Updating coverage (7.5.4 -> 7.6.0)
+#|   • Updating cryptography (42.0.8 -> 43.0.0)
+#|   • Updating mypy (1.10.1 -> 1.11.0)
+#|   • Updating setuptools (70.2.0 -> 71.1.0)
+#|   • Updating geoalchemy2 (0.15.1 -> 0.15.2)
+#|   • Updating pytest-asyncio (0.23.7 -> 0.23.8)
+#|   • Updating shapely (2.0.4 -> 2.0.5)
+#|   • Updating sqlparse (0.5.0 -> 0.5.1)
+#|   • Updating starlette (0.37.2 -> 0.38.0)
+#|   • Updating uvicorn (0.30.1 -> 0.30.3)
+
+# Run Makefile
+cd docs
+make upgrade
+cd ..
 
 # Check what was changed and update CHANGES.rst
 xdg-open https://github.com/atviriduomenys/spinta/compare/$CURRENT_VERSION...$RELEASE_VERSION
@@ -44,15 +62,15 @@ head CHANGES.rst
 # notes/spinta/release/common.sh    Reset test database
 
 poetry run pytest -vvx --tb=short tests
-#| 2017 passed, 42 skipped, 391 warnings in 310.96s (0:05:10)
+#| 2041 passed, 42 skipped, 393 warnings in 307.49s (0:05:07)
 
 # If possible run same tests using test and prod env library versions
 # Test env
 # - poetry run pytest -vvx --tb=short tests
-#|  2017 passed, 42 skipped, 1349 warnings in 345.19s (0:05:45)
+#|  2041 passed, 42 skipped, 1369 warnings in 353.57s (0:05:53)
 # Prod env (starlette gets updated to newest version, since it's <0.22)
 # - poetry run pytest -vvx --tb=short tests
-#|  2017 passed, 2017 passed, 42 skipped, 405 warnings in 342.00s (0:05:42)
+#|  2041 passed, 42 skipped, 407 warnings in 353.61s (0:05:53)
 
 # Check if new Spinta version works with manifest files
 poetry shell
@@ -69,7 +87,7 @@ BASEDIR=$PWD/var/instances/$INSTANCE
 
 # notes/spinta/release/common.sh    Run server in EXTERNAL mode
 # notes/spinta/release/common.sh    Run migrations
-#| (2730 rows)
+#| (2760 rows)
 
 # notes/spinta/release/common.sh    Run server in INTERNAL mode
 # Don't forget to add client to server and credentials;

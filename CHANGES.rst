@@ -3,8 +3,19 @@
 Changes
 #######
 
-0.1.66 (unreleased)
+0.1.67 (unreleased)
 ===================
+
+
+0.1.66 (2024-07-23)
+===================
+
+New features:
+
+- Added support for `eq`, `&` and `|` operators to `Dask` `backend` (`#702`_).
+
+  .. _#702: https://github.com/atviriduomenys/spinta/issues/702
+
 
 Bug fixes:
 
@@ -32,10 +43,6 @@ Bug fixes:
 - Fixed issue, where sometimes `json` `blank nodes` gets discarded and return empty `dict` (`#699`_).
 
   .. _#699: https://github.com/atviriduomenys/spinta/issues/696
-
-- Fixed error when using `Dask` `backend` and trying to access `Ref` values (that do not have `keymap` entries) (`#702`_).
-
-  .. _#702: https://github.com/atviriduomenys/spinta/issues/702
 
 - Fixed error when trying to use `Dask` `backend` `&` and `|` operators (`#705`_).
 
