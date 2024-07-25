@@ -388,7 +388,7 @@ class XSDReader:
         # if this node is referenced by some other node
         node_name = node.get('name')
         xpath_search_string = f'//*[@ref="{node_name}"]'
-        references = self.root.xpath(xpath_search_string, namespaces=self.namespaces)
+        references = self.root.xpath(xpath_search_string)
 
         # also check with namespace prefixes.
         # Though, it is possible that this isn't correct XSD behaviour, but it seems common in RC
@@ -396,7 +396,7 @@ class XSDReader:
             for prefix in self.namespaces:
                 prefixed_node_name = f"{prefix}:{node_name}"
                 xpath_search_string = f'//*[@ref="{prefixed_node_name}"]'
-                references = self.root.xpath(xpath_search_string, namespaces=self.namespaces)
+                references = self.root.xpath(xpath_search_string)
                 if references:
                     return True
         if references:
@@ -512,7 +512,6 @@ class XSDReader:
         properties = {}
 
         for typed_element in node.xpath('./*[local-name() = "element"]'):
-        # for typed_element in node.xpath("./*[@type]"):
 
             new_source_path = source_path
 
@@ -548,13 +547,10 @@ class XSDReader:
                 if (
                         sequence is not None and
                         len(sequence) == 1 and
-                        # len(complex_type) == 1 and
                         (len(complex_type) == 1 or (len(complex_type) == 2 and len(complex_type.xpath("./*[local-name() = 'annotation']")) > 0)) and
-                        self._node_has_separate_complex_type(sequence[0])
+                        (self._node_has_separate_complex_type(sequence[0]) or sequence[0].xpath(f'./*[local-name() = "complexType"]'))
                 ):
-                    # if typed_element.get("name") is not None:
                     new_source_path += f'/{typed_element.get("name")}'
-                    # source_path += f'/{complex_type.get("name")}'
                     is_array = (
                         is_array or
                         XSDReader.is_array(complex_type) or
@@ -585,6 +581,11 @@ class XSDReader:
                 if typed_element.get("name") in source_path.split("/"):
                     continue
 
+                is_array = is_array or XSDReader.is_array(typed_element)
+                if not is_array:
+                    if previous_referenced_element:
+                        is_array = XSDReader.is_array(previous_referenced_element)
+
                 if not is_array:
                     referenced_model_names = self._create_model(
                         typed_element,
@@ -612,16 +613,15 @@ class XSDReader:
                     property_id, prop = model.simple_element_to_property(typed_element, is_array=is_array)
                     prop["external"]["name"] = prop["external"]["name"].replace("/text()", '')
                     if new_referenced_element is not None and new_referenced_element.get("mixed") != "true":
-                        _, referenced_prop = model.simple_element_to_property(previous_referenced_element)
+                        _, referenced_prop = model.simple_element_to_property(previous_referenced_element, is_array=is_array)
                         prop["external"]["name"] = f'{previous_referenced_element_name}/{prop["external"]["name"]}'
                         property_id = to_property_name(previous_referenced_element_name)
                         if is_array:
-                            property_id += "[]"
+                            if not property_id.endswith("[]"):
+                                property_id += "[]"
+                            property_type = "backref"
                     prop["type"] = property_type
                     prop["model"] = f"{referenced_model_name}"
-                    # backrefs don't have to have source
-                    if property_type == 'backref':
-                        del prop["external"]
                     properties[property_id] = prop
 
         return properties
@@ -660,7 +660,6 @@ class XSDReader:
                         # also, if it's mixed, and has choices inside, it's not an array even if choices are unbound
                         if len(choices[0]) == 1 and not complex_type.get("mixed") == "true":
                             is_array = True
-                        # is_array = True
                 if sequences:
                     sequence = sequences[0]
                 else:
@@ -706,7 +705,10 @@ class XSDReader:
                 if referenced_element.get("name") in source_path.split("/"):
                     continue
 
-                if not (XSDReader.is_array(ref_element) or is_array):
+                if XSDReader.is_array(ref_element):
+                    is_array = True
+
+                if not is_array:
                     referenced_model_names = self._create_model(
                         referenced_element,
                         source_path=new_source_path,
@@ -733,15 +735,16 @@ class XSDReader:
                     property_id, prop = model.simple_element_to_property(ref_element, is_array=is_array)
                     prop['external']['name'] = prop['external']['name'].rstrip('/text()')
                     if new_referenced_element is not None:
-                        _, referenced_prop = model.simple_element_to_property(referenced_element)
+                        _, referenced_prop = model.simple_element_to_property(referenced_element, is_array=is_array)
                         prop['external']['name'] += f'/{referenced_prop["external"]["name"].rstrip("/text()")}'
+
+                    if is_array:
+                        if not property_id.endswith("[]"):
+                            property_id += "[]"
+                        property_type = "backref"
 
                     prop['type'] = property_type
                     prop['model'] = f'{referenced_model_name}'
-
-                    # backrefs don't have to have source
-                    if property_type == 'backref':
-                        del prop['external']
 
                     properties[property_id] = prop
 
@@ -974,26 +977,17 @@ class XSDReader:
             ):
                 self._create_model(node, is_root_model=True)
 
-    # def _trim_fake_root_models(self):
-    #     """
-    #     We need to remove those root models which are referenced from other elements.
-    #     We need to check the source instead of name, because it most probably be referenced by another name anyway.
-    #     """
-    #     trimmed_models = {}
-    #     for model_name, model in self.models:
-
     def _extract_namespaces(self):
         self.namespaces = self.root.nsmap
 
     def start(self):
         self._extract_root()
+
         self._extract_namespaces()
         self._extract_custom_types(self.root)
         self._add_resource_model()
 
         self._parse_root_node()
-
-        # self._trim_fake_root_models()
 
         self._compile_nested_properties()
 
