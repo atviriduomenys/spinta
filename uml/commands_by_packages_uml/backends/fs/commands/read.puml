@@ -1,0 +1,19 @@
+@startuml
+package read <<Rectangle>> {
+
+    object read {
+        +context: Context,
+        +prop: Property,
+        +dtype: DataType,
+        +backend: FileSystem,
+        + *,
+        +id_: str,
+
+    }
+}
+
+read *-- Context
+read *-- Property
+read *-- DataType
+read *-- FileSystem
+@enduml

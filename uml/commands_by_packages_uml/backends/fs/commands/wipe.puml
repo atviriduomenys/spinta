@@ -1,0 +1,15 @@
+@startuml
+package wipe <<Rectangle>> {
+
+    object wipe {
+        +context: Context,
+        +dtype: File,
+        +backend: FileSystem,
+
+    }
+}
+
+wipe *-- Context
+wipe *-- File
+wipe *-- FileSystem
+@enduml
