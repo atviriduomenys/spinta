@@ -261,8 +261,7 @@ async def homepage(request: Request):
     manifest = commands.create_request_manifest(context, store.manifest)
     context.set('request.manifest', manifest)
     commands.load_for_request(context, manifest)
-    # Disabled backend reload, requests should not affect other ongoing requests
-    #commands.reload_backend_metadata(context, manifest, manifest.backend)
+    commands.reload_backend_metadata(context, manifest, manifest.backend)
     params: UrlParams = prepare(context, UrlParams(), Version(), request)
     context.attach('accesslog', create_accesslog, context, loaders=(
         store,
