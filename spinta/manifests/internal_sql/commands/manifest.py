@@ -186,8 +186,8 @@ def get_model(context: Context, manifest: InternalSQLManifest, model: str, **kwa
                     table.c.path == model,
                     table.c.dim == 'model'
                 )
-            ).one()
-        )
+            )
+        ).one()
         props = conn.execute(
             select_full_table(table).where(
                 sa.and_(
