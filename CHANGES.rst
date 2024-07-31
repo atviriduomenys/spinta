@@ -6,6 +6,11 @@ Changes
 0.1.67 (unreleased)
 ===================
 
+Bug fixes:
+
+- Fixed `InternalSQLManifest` structure being fetched without index order (`#715`_).
+
+  .. _#715: https://github.com/atviriduomenys/spinta/issues/715
 
 0.1.66 (2024-07-23)
 ===================
