@@ -6,6 +6,17 @@ Changes
 0.1.67 (unreleased)
 ===================
 
+Improvements:
+
+- Writing `InternalSQLManifest` now is done using `transaction`, meaning if there are errors, it will rollback any changes
+  (This is useful when doing `copy` on already existing structure, since it clears all old data before writing new) (`#715`_).
+
+
+Bug fixes:
+
+- Fixed `InternalSQLManifest` structure being fetched without index order (`#715`_).
+
+  .. _#715: https://github.com/atviriduomenys/spinta/issues/715
 
 0.1.66 (2024-07-23)
 ===================
