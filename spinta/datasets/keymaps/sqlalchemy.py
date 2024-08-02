@@ -204,7 +204,7 @@ def configure(context: Context, keymap: SqlAlchemyKeyMap):
     ensure_data_dir(config.data_path)
     dsn = dsn.format(data_dir=config.data_path)
     if dsn.startswith('sqlite:///'):
-        dsn = dsn.replace('sqlite:///', 'sqlite+spinta_sqlite:///')
+        dsn = dsn.replace('sqlite:///', 'sqlite+spinta:///')
     keymap.dsn = dsn
 
 
