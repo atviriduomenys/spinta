@@ -6,11 +6,24 @@ Changes
 0.1.67 (unreleased)
 ===================
 
+Backwards incompatible:
+
+- Changed `spinta_sqlite` driver name to `spinta`. Old naming was unnecessary since you needed to use `sqlite+spinta_sqlite:///...`,
+  now you can just use `sqlite+spinta:///...` (`#723`_).
+- `spinta push` `state` database now will always going to append `sqlite+spinta:///` prefix, instead of `sqlite:///`. This
+  ensures, that `sqlite` version is now dependant on `sqlean` library, instead of taking default python `sqlite` version
+  (makes it easier to ensure, that users are using correct version of `sqlite`) (`#723`_).
+- Changed `sqlalchemy` default `sqlite` driver to `SQLiteDialect_spinta` (instead of `SQLiteDialect_pysqlite`). Meaning
+  every time you use `sqlite:///...` it will default to `spinta` driver, instead of `pysqlite` (default `sqlalchemy`) (`#723`_).
+
 Improvements:
 
 - Writing `InternalSQLManifest` now is done using `transaction`, meaning if there are errors, it will rollback any changes
   (This is useful when doing `copy` on already existing structure, since it clears all old data before writing new) (`#715`_).
 
+- Changed `state` db, to always use `spinta` `sqlite` driver (`#723`_).
+
+  .. _#723: https://github.com/atviriduomenys/spinta/issues/723
 
 Bug fixes:
 
