@@ -6,8 +6,8 @@ from sqlalchemy.dialects.sqlite import base
 # Where we get dbapi from
 # In the future, if there are errors related with sqlean and pysqlite, we can fully create our own dialect
 
-# You use `sqlite+spinta///...` uri to access it explicitly
-# Also because we set default to spinta you can also use `sqlite///...`
+# You use `sqlite+spinta:///...` uri to access it explicitly
+# Also because we set default to spinta you can also use `sqlite:///...`
 class SQLiteDialect_spinta(SQLiteDialect_pysqlite):
     driver = 'spinta'
     supports_statement_cache = True
