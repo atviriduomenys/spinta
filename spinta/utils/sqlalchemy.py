@@ -1,5 +1,6 @@
 from sqlalchemy.dialects import registry
 from sqlalchemy.dialects.sqlite.pysqlite import SQLiteDialect_pysqlite
+from sqlalchemy.dialects.sqlite.base import SQLiteDialect
 from sqlalchemy.dialects.sqlite import base
 
 # We use SQLiteDialect_pysqlite, instead of SQLiteDialect, because most of the code is the same, we only want to change
@@ -11,6 +12,9 @@ from sqlalchemy.dialects.sqlite import base
 class SQLiteDialect_spinta(SQLiteDialect_pysqlite):
     driver = 'spinta'
     supports_statement_cache = True
+
+    def __init__(self, **kwargs):
+        SQLiteDialect.__init__(self, **kwargs)
 
     @classmethod
     def dbapi(cls):
