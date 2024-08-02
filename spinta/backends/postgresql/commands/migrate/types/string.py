@@ -7,7 +7,8 @@ import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers.migrate.migrate import json_has_key, get_root_attr, jsonb_keys, \
-    MigratePostgresMeta, MigrateModelMeta, has_been_renamed, adjust_kwargs
+    MigratePostgresMeta, MigrateModelMeta, adjust_kwargs
+from spinta.backends.postgresql.helpers.migrate.name import has_been_renamed, get_pg_removed_name
 from spinta.components import Context
 from spinta.types.datatype import String
 from spinta.types.text.helpers import determine_langauge_for_text
@@ -94,7 +95,7 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
                         (key, column)
                     ])
                 )
-                renamed_key = f'__{key}'
+                renamed_key = get_pg_removed_name(key)
                 if json_column_meta is None:
                     if json_has_key(backend, col, table, renamed_key):
                         handler.add_action(

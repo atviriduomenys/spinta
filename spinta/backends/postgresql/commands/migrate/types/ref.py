@@ -9,10 +9,12 @@ from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_column_name
 from spinta.backends.postgresql.helpers.migrate.migrate import name_key, MigratePostgresMeta, is_internal_ref, \
     adjust_kwargs, is_name_complex, extract_literal_name_from_column, generate_type_missmatch_exception_details
+from spinta.backends.postgresql.helpers.migrate.name import nested_column_rename
 from spinta.components import Context
 from spinta.datasets.inspect.helpers import zipitems
 from spinta.exceptions import MigrateScalarToRefTooManyKeys, MigrateScalarToRefTypeMissmatch
-from spinta.types.datatype import Ref
+from spinta.types.datatype import Ref, Inherit
+from spinta.utils.itertools import ensure_list
 from spinta.utils.schema import NotAvailable, NA
 
 
@@ -43,8 +45,8 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
     adjusted_kwargs = adjust_kwargs(kwargs, 'foreign_key', True)
 
     new_columns = commands.prepare(context, backend, new.prop)
-    if not isinstance(new_columns, list):
-        new_columns = [new_columns]
+    new_columns = ensure_list(new_columns)
+
     table_name = rename.get_table_name(table.name)
     old_ref_table = rename.get_old_table_name(get_table_name(new.model))
     old_prop_name = rename.get_old_column_name(table.name, get_column_name(new.prop))
@@ -52,14 +54,34 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
     old_names = {}
     new_names = {}
     for item in old:
-        base_name = item.name.split(".")
+        base_name = old_prop_name
         name = rename.get_column_name(table.name, item.name)
-        if len(base_name) > 1:
-            name = f'{rename.get_column_name(table.name, base_name[0])}.{rename.get_column_name(old_ref_table, base_name[1])}'
+        # Handle nested renaming from 2 tables
+        if item.name.startswith(old_prop_name):
+            leaf_name = item.name.removeprefix(old_prop_name)
+            if leaf_name.startswith('.'):
+                leaf_name = leaf_name[0:]
+
+            base_renamed = nested_column_rename(base_name, table.name, rename)
+            leaf_renamed = nested_column_rename(leaf_name, old_ref_table, rename)
+            name = f"{base_renamed}.{leaf_renamed}"
+
         old_names[name] = item
 
     for item in new_columns:
         new_names[item.name] = item
+
+    # TODO Finish this
+    # Separate and handle denorm properties
+    # Extract overwritten denorm properties
+    extracted_props = list()
+    for prop in new.properties.values():
+        if not isinstance(prop.dtype, Inherit):
+            extracted_props.append(prop)
+
+    # Handle internal ref level > 3
+    if is_internal_ref(new):
+        pass
 
     if is_internal_ref(new):
         column = new_columns[0]

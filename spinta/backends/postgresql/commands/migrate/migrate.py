@@ -14,6 +14,8 @@ from spinta.backends.postgresql.helpers import get_pg_name, get_column_name
 from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
 from spinta.backends.postgresql.helpers.migrate.migrate import drop_all_indexes_and_constraints, model_name_key, \
     MigratePostgresMeta
+from spinta.backends.postgresql.helpers.migrate.name import get_pg_table_name, get_pg_column_name, \
+    get_pg_foreign_key_name
 from spinta.cli.migrate import MigrateMeta
 from spinta.cli.migrate import MigrateRename
 from spinta.commands import create_exception
@@ -136,10 +138,10 @@ def _handle_foreign_key_constraints(inspector: Inspector, models: List[Model], h
         if old_name in inspector.get_table_names():
             foreign_keys = inspector.get_foreign_keys(old_name)
         if model.base:
-            referent_table = get_pg_name(get_table_name(model.base.parent))
+            referent_table = get_pg_table_name(get_table_name(model.base.parent))
             if not model.base.level or model.base.level > 3:
                 check = False
-                fk_name = get_pg_name(f'fk_{referent_table}_id')
+                fk_name = get_pg_foreign_key_name(referent_table, "_id")
                 for key in foreign_keys:
                     if key["constrained_columns"] == ["_id"]:
                         if key["name"] == fk_name and key["referred_table"] == referent_table:
@@ -181,11 +183,12 @@ def _handle_foreign_key_constraints(inspector: Inspector, models: List[Model], h
         for prop in model.properties.values():
             if isinstance(prop.dtype, Ref):
                 if not prop.level or prop.level > 3:
-                    name = get_pg_name(f"fk_{source_table}_{prop.name}._id")
+                    column_name = get_pg_column_name(f"{prop.name}._id")
+                    name = get_pg_foreign_key_name(source_table, column_name)
                     required_ref_props[name] = {
                         "name": name,
-                        "constrained_columns": [f"{prop.name}._id"],
-                        "referred_table": get_pg_name(prop.dtype.model.name),
+                        "constrained_columns": [column_name],
+                        "referred_table": get_pg_table_name(prop.dtype.model.name),
                         "referred_columns": ["_id"]
                     }
 

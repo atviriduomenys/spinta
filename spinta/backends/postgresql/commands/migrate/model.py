@@ -6,10 +6,12 @@ from spinta import commands
 from spinta.backends.constants import TableType
 from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers import get_pg_name
+from spinta.backends.postgresql.helpers import get_pg_name, get_pg_sequence_name
 from spinta.backends.postgresql.helpers.migrate.migrate import drop_all_indexes_and_constraints, handle_new_file_type, \
-    get_remove_name, get_prop_names, create_changelog_table, property_and_column_name_key, MigratePostgresMeta, \
+    get_prop_names, create_changelog_table, property_and_column_name_key, MigratePostgresMeta, \
     MigrateModelMeta, handle_internal_ref_to_scalar_conversion
+from spinta.backends.postgresql.helpers.migrate.name import has_been_renamed, get_pg_changelog_name, get_pg_file_name, \
+    get_pg_column_name, get_pg_constraint_name, get_pg_removed_name, is_removed
 from spinta.components import Context, Model
 from spinta.datasets.inspect.helpers import zipitems
 from spinta.types.datatype import File
@@ -23,28 +25,35 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ol
     inspector = meta.inspector
 
     columns = list(old.columns)
-    table_name = rename.get_table_name(old.name)
+    new_table_name = rename.get_table_name(old.name)
+    old_table_name = old.name
 
-    if table_name != old.name:
-        handler.add_action(ma.RenameTableMigrationAction(old.name, table_name))
-        changelog_name = get_pg_name(f'{old.name}{TableType.CHANGELOG.value}')
-        file_name = get_pg_name(f'{old.name}{TableType.FILE.value}')
-        if inspector.has_table(changelog_name):
-            new_changelog_name = get_pg_name(f'{table_name}{TableType.CHANGELOG.value}')
+    # Handle table renaming
+    if has_been_renamed(old_table_name, new_table_name):
+        handler.add_action(ma.RenameTableMigrationAction(
+            old_table_name=old_table_name,
+            new_table_name=new_table_name
+        ))
+
+        old_changelog_name = get_pg_changelog_name(old_table_name)
+        old_file_name = get_pg_file_name(old_table_name)
+
+        if inspector.has_table(old_changelog_name):
+            new_changelog_name = get_pg_changelog_name(new_table_name)
             handler.add_action(ma.RenameTableMigrationAction(
-                old_table_name=changelog_name,
+                old_table_name=old_changelog_name,
                 new_table_name=new_changelog_name
+            )).add_action(ma.RenameSequenceMigrationAction(
+                old_name=get_pg_sequence_name(old_changelog_name),
+                new_name=get_pg_sequence_name(new_changelog_name)
             ))
-            handler.add_action(ma.RenameSequenceMigrationAction(
-                old_name=get_pg_name(f'{changelog_name}__id_seq'),
-                new_name=get_pg_name(f'{new_changelog_name}__id_seq')
-            ))
+
         for table in inspector.get_table_names():
-            if table.startswith(file_name):
+            if table.startswith(old_file_name):
                 split = table.split(TableType.FILE.value)
                 handler.add_action(ma.RenameTableMigrationAction(
-                    old_table_name=file_name,
-                    new_table_name=get_pg_name(f'{table_name}{TableType.FILE.value}{split[1]}')
+                    old_table_name=table,
+                    new_table_name=get_pg_file_name(new_table_name, split[1])
                 ))
 
     properties = list(new.properties.values())
@@ -58,6 +67,7 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ol
                 column
             )
 
+    # Handle property migrations
     props = zipitems(
         columns,
         properties,
@@ -103,6 +113,7 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ol
                 columns.remove(old_columns)
             commands.migrate(context, backend, meta, old, old_columns, NA, model_meta=model_meta, foreign_key=False, **kwargs)
 
+    # Handle model unique constraint
     required_unique_constraints = []
     if new.unique:
         for val in new.unique:
@@ -110,24 +121,24 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ol
 
             for prop in val:
                 for name in get_prop_names(prop):
-                    prop_list.append(get_pg_name(name))
+                    prop_list.append(get_pg_column_name(name))
 
             constraints = inspector.get_unique_constraints(old.name)
-            constraint_name = f'{old.name}_{"_".join(prop_list)}_key'
-            if old.name != table_name:
-                constraint_name = f'{table_name}_{"_".join(prop_list)}_key'
-            constraint_name = get_pg_name(constraint_name)
+            constraint_name = get_pg_constraint_name(old_table_name, prop_list)
+            if has_been_renamed(old_table_name, new_table_name):
+                constraint_name = get_pg_constraint_name(new_table_name, prop_list)
             required_unique_constraints.append(prop_list)
 
             # Skip unique properties, since they are already handled in other parts
             if not (len(val) == 1 and val[0].dtype.unique):
                 if not any(constraint['name'] == constraint_name for constraint in constraints):
                     handler.add_action(ma.CreateUniqueConstraintMigrationAction(
-                        table_name=table_name,
+                        table_name=new_table_name,
                         constraint_name=constraint_name,
                         columns=prop_list
                     ))
 
+    # Handle property unique constraints
     for prop in new.properties.values():
         if prop.dtype.unique:
             result = commands.prepare(context, backend, prop.dtype)
@@ -148,14 +159,14 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ol
             if constraint["column_names"] not in required_unique_constraints:
                 if not handler.has_constraint_been_dropped(constraint["name"]):
                     handler.add_action(ma.DropConstraintMigrationAction(
-                        table_name=table_name,
+                        table_name=new_table_name,
                         constraint_name=constraint["name"]
                     ))
 
     # Handle JSON migrations, that need to be run at the end
     for json_meta in model_meta.json_columns.values():
         if json_meta.new_keys and json_meta.cast_to is None:
-            removed_keys = [key for key, new_key in json_meta.new_keys.items() if new_key == f'__{key}']
+            removed_keys = [key for key, new_key in json_meta.new_keys.items() if new_key == get_pg_removed_name(key)]
 
             if removed_keys == json_meta.keys or json_meta.full_remove:
                 commands.migrate(context, backend, meta, old, json_meta.column, NA)
@@ -163,12 +174,12 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ol
                 for old_key, new_key in json_meta.new_keys.items():
                     if new_key in json_meta.keys:
                         handler.add_action(ma.RemoveJSONAttributeMigrationAction(
-                            table_name,
+                            new_table_name,
                             json_meta.column,
                             new_key
                         ))
                     handler.add_action(ma.RenameJSONAttributeMigrationAction(
-                        table_name,
+                        new_table_name,
                         json_meta.column,
                         old_key,
                         new_key
@@ -179,11 +190,11 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ol
             commands.migrate(context, backend, meta, old, json_meta.column, NA)
             commands.migrate(context, backend, meta, old, NA, new_column, foreign_key=False, model_meta=model_meta, **kwargs)
             renamed = json_meta.column._copy()
-            renamed.name = f'__{json_meta.column.name}'
-            renamed.key = f'__{json_meta.column.name}'
+            renamed.name = get_pg_removed_name(json_meta.column.name)
+            renamed.key = get_pg_removed_name(json_meta.column.name)
             handler.add_action(
                 ma.TransferJSONDataMigrationAction(
-                    table_name,
+                    new_table_name,
                     renamed,
                     [(key, new_column)]
                 )
@@ -191,7 +202,7 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ol
         # Rename column
         if json_meta.new_name:
             handler.add_action(ma.AlterColumnMigrationAction(
-                table_name,
+                new_table_name,
                 json_meta.column.name,
                 new_column_name=json_meta.new_name
             ))
@@ -240,7 +251,7 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ol
             for prop in val:
                 for name in get_prop_names(prop):
                     prop_list.append(get_pg_name(name))
-            constraint_name = get_pg_name(f'{table_name}_{"_".join(prop_list)}_key')
+            constraint_name = get_pg_constraint_name(table_name, prop_list)
             handler.add_action(ma.CreateUniqueConstraintMigrationAction(
                 table_name=table_name,
                 constraint_name=constraint_name,
@@ -255,53 +266,66 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ol
     handler = meta.handler
     inspector = meta.inspector
 
-    old_name = old.name
-    remove_name = get_remove_name(old_name)
+    old_table_name = old.name
 
-    if not old_name.split("/")[-1].startswith("__"):
-        if inspector.has_table(remove_name):
-            handler.add_action(ma.DropTableMigrationAction(
-                table_name=remove_name
-            ))
-            remove_changelog_name = get_pg_name(f'{remove_name}{TableType.CHANGELOG.value}')
-            if inspector.has_table(remove_changelog_name):
-                handler.add_action(ma.DropTableMigrationAction(
-                    table_name=remove_changelog_name
-                ))
-            remove_file_name = get_pg_name(f'{remove_name}{TableType.FILE.value}')
-            for table in inspector.get_table_names():
-                if table.startswith(remove_file_name):
-                    handler.add_action(ma.DropTableMigrationAction(
-                        table_name=table
-                    ))
+    # Skip already deleted table
+    if is_removed(old_table_name):
+        return
 
-        handler.add_action(ma.RenameTableMigrationAction(
-            old_table_name=old_name,
-            new_table_name=remove_name
+    removed_table_name = get_pg_removed_name(old_table_name)
+
+    if inspector.has_table(removed_table_name):
+        # Drop table if it was already flagged for deletion
+        handler.add_action(ma.DropTableMigrationAction(
+            table_name=removed_table_name
         ))
-        drop_all_indexes_and_constraints(inspector, old_name, remove_name, handler)
 
-        old_changelog_name = get_pg_name(f'{old_name}{TableType.CHANGELOG.value}')
-        new_changelog_name = get_pg_name(f'{remove_name}{TableType.CHANGELOG.value}')
-        if inspector.has_table(old_changelog_name):
-            handler.add_action(ma.RenameTableMigrationAction(
-                old_table_name=old_changelog_name,
-                new_table_name=new_changelog_name
+        # Drop changelog if it was already flagged for deletion
+        removed_changelog_name = get_pg_changelog_name(removed_table_name)
+        if inspector.has_table(removed_changelog_name):
+            handler.add_action(ma.DropTableMigrationAction(
+                table_name=removed_changelog_name
             ))
-            handler.add_action(ma.RenameSequenceMigrationAction(
-                old_name=f'{old_changelog_name}__id_seq',
-                new_name=f'{new_changelog_name}__id_seq'
-            ))
-            drop_all_indexes_and_constraints(inspector, old_changelog_name, new_changelog_name, handler)
+
+        # Drop file tables if they were already flagged for deletion
+        removed_file_name = get_pg_file_name(removed_table_name)
         for table in inspector.get_table_names():
-            if table.startswith(f'{old_name}{TableType.FILE.value}'):
-                split = table.split(TableType.FILE.value)
-                new_name = get_pg_name(f'{remove_name}{TableType.FILE.value}{split[1]}')
-                handler.add_action(ma.RenameTableMigrationAction(
-                    old_table_name=table,
-                    new_table_name=new_name
+            if table.startswith(removed_file_name):
+                handler.add_action(ma.DropTableMigrationAction(
+                    table_name=table
                 ))
-                drop_all_indexes_and_constraints(inspector, table, new_name, handler)
+
+    handler.add_action(ma.RenameTableMigrationAction(
+        old_table_name=old_table_name,
+        new_table_name=removed_table_name
+    ))
+    drop_all_indexes_and_constraints(inspector, old_table_name, removed_table_name, handler)
+
+    # Flag changelog for deletion
+    old_changelog_name = get_pg_changelog_name(old_table_name)
+    new_changelog_name = get_pg_changelog_name(removed_table_name)
+    if inspector.has_table(old_changelog_name):
+        handler.add_action(ma.RenameTableMigrationAction(
+            old_table_name=old_changelog_name,
+            new_table_name=new_changelog_name
+        ))
+        handler.add_action(ma.RenameSequenceMigrationAction(
+            old_name=get_pg_sequence_name(old_changelog_name),
+            new_name=get_pg_sequence_name(new_changelog_name)
+        ))
+        drop_all_indexes_and_constraints(inspector, old_changelog_name, new_changelog_name, handler)
+
+    # Flag file tables for deletion
+    for table in inspector.get_table_names():
+        old_file_name = get_pg_file_name(old_table_name)
+        if table.startswith(old_file_name):
+            split = table.split(TableType.FILE.value)
+            removed_file_name = get_pg_file_name(removed_table_name, split[1])
+            handler.add_action(ma.RenameTableMigrationAction(
+                old_table_name=table,
+                new_table_name=removed_file_name
+            ))
+            drop_all_indexes_and_constraints(inspector, table, removed_file_name, handler)
 
 
 
