@@ -1,6 +1,6 @@
 from itertools import islice
 from itertools import chain
-from typing import Iterable
+from typing import Iterable, Any
 from typing import Iterator
 from typing import List
 from typing import TypeVar
@@ -107,3 +107,13 @@ def first_dict_key(it: dict, default=None):
     for res in it:
         return res
     return res
+
+
+def ensure_list(value: Any) -> List[Any]:
+    if isinstance(value, tuple):
+        return list(value)
+    if isinstance(value, list):
+        return value
+    else:
+        return [value]
+
