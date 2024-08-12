@@ -277,28 +277,27 @@ def test_xsd_ref(rc: RawConfig, tmp_path: Path):
     | manifest                                  |                  |                         |                                          |         |       |        |     |       |
     |   | resource1                             | xml              |                         |                                          |         |       |        |     |       |
     |                                           |                  |                         |                                          |         |       |        |     |       |
-    |   |   |   | Asmuo                         |                  |                         | /klientu_saraso_rezultatas/asmenys/asmuo |         |       |        |     |       |
-    |   |   |   |   | ak                        | string required  |                         | @ak                                      |         |       |        |     |       |
-    |   |   |   |   | asmenys                   | ref              | Asmenys                 |                                          |         |       |        |     |       |
-    |   |   |   |   | id                        | string required  |                         | @id                                      |         |       |        |     |       |
-    |   |   |   |   | text                      | string           |                         | text()                                   |         |       |        |     |       |
-    |   |   |   |   | klientu_saraso_rezultatas | ref              | KlientuSarasoRezultatas |                                          |         |       |        |     |       |
-    |                                           |                  |                         |                                          |         |       |        |     |       |
-    |   |   |   | Asmenys                       |                  |                         | /klientu_saraso_rezultatas/asmenys       |         |       |        |     |       |
-    |   |   |   |   | asmuo[]                   | backref          | Asmuo                   |                                          |         |       |        |     |       |
-    |   |   |   |   | puslapis                  | integer required |                         | @puslapis                                |         |       |        |     |       | rezultatu puslapio numeris
-    |   |   |   |   | text                      | string           |                         | text()                                   |         |       |        |     |       |
-    |                                           |                  |                         |                                          |         |       |        |     |       |
     |   |   |   | KlientuSarasoRezultatas       |                  |                         | /klientu_saraso_rezultatas               |         |       |        |     |       |
     |   |   |   |   | asmenys                   | ref              | Asmenys                 | asmenys                                  |         |       |        |     |       |
-    |   |   |   |   | asmenys.asmuo[]           | backref          | Asmuo                   |                                          |         |       |        |     |       |
+    |   |   |   |   | asmenys.asmuo[]           | backref          | Asmuo                   | asmenys/asmuo                            |         |       |        |     |       |
     |   |   |   |   | asmenys.asmuo[].ak        | string required  |                         | @ak                                      |         |       |        |     |       |
     |   |   |   |   | asmenys.asmuo[].id        | string required  |                         | @id                                      |         |       |        |     |       |
     |   |   |   |   | asmenys.asmuo[].text      | string           |                         | text()                                   |         |       |        |     |       |
     |   |   |   |   | asmenys.puslapis          | integer required |                         | asmenys/@puslapis                        |         |       |        |     |       | rezultatu puslapio numeris
     |   |   |   |   | asmenys.text              | string           |                         | asmenys/text()                           |         |       |        |     |       |
     |   |   |   |   | text                      | string           |                         | text()                                   |         |       |        |     |       |
-
+    |                                           |                  |                         |                                          |         |       |        |     |       |
+    |   |   |   | Asmenys                       |                  |                         | /klientu_saraso_rezultatas/asmenys       |         |       |        |     |       |
+    |   |   |   |   | asmuo[]                   | backref          | Asmuo                   | asmuo                                    |         |       |        |     |       |
+    |   |   |   |   | puslapis                  | integer required |                         | @puslapis                                |         |       |        |     |       | rezultatu puslapio numeris
+    |   |   |   |   | text                      | string           |                         | text()                                   |         |       |        |     |       |
+    |                                           |                  |                         |                                          |         |       |        |     |       |
+    |   |   |   | Asmuo                         |                  |                         | /klientu_saraso_rezultatas/asmenys/asmuo |         |       |        |     |       |
+    |   |   |   |   | ak                        | string required  |                         | @ak                                      |         |       |        |     |       |
+    |   |   |   |   | asmenys                   | ref              | Asmenys                 |                                          |         |       |        |     |       |
+    |   |   |   |   | id                        | string required  |                         | @id                                      |         |       |        |     |       |
+    |   |   |   |   | klientu_saraso_rezultatas | ref              | KlientuSarasoRezultatas |                                          |         |       |        |     |       |
+    |   |   |   |   | text                      | string           |                         | text()                                   |         |       |        |     |       |
 """
 
     path = tmp_path / 'manifest.xsd'
@@ -348,14 +347,14 @@ def test_xsd_resource_model(rc: RawConfig, tmp_path: Path):
     |   |   |   | Resource                    |                  |         | /                                  |         |       |        | http://www.w3.org/2000/01/rdf-schema#Resource |       | Įvairūs duomenys
     |   |   |   |   | klaida                  | string           |         | klaida/text()                      |         |       |        |                                               |       | Klaidos atveju - klaidos pranešimas
     |                                         |                  |         |                                    |         |       |        |                                               |       |
-    |   |   |   | Asmenys                     |                  |         | /klientu_saraso_rezultatas/asmenys |         |       |        |                                               |       |
-    |   |   |   |   | puslapis                | integer required |         | @puslapis                          |         |       |        |                                               |       | rezultatu puslapio numeris
-    |   |   |   |   | text                    | string           |         | text()                             |         |       |        |                                               |       |
-    |                                         |                  |         |                                    |         |       |        |                                               |       |
     |   |   |   | KlientuSarasoRezultatas     |                  |         | /klientu_saraso_rezultatas         |         |       |        |                                               |       |
     |   |   |   |   | asmenys                 | ref              | Asmenys | asmenys                            |         |       |        |                                               |       |
     |   |   |   |   | asmenys.puslapis        | integer required |         | asmenys/@puslapis                  |         |       |        |                                               |       | rezultatu puslapio numeris
     |   |   |   |   | asmenys.text            | string           |         | asmenys/text()                     |         |       |        |                                               |       |
+    |   |   |   |   | text                    | string           |         | text()                             |         |       |        |                                               |       |
+    |                                         |                  |         |                                    |         |       |        |                                               |       |
+    |   |   |   | Asmenys                     |                  |         | /klientu_saraso_rezultatas/asmenys |         |       |        |                                               |       |
+    |   |   |   |   | puslapis                | integer required |         | @puslapis                          |         |       |        |                                               |       | rezultatu puslapio numeris
     |   |   |   |   | text                    | string           |         | text()                             |         |       |        |                                               |       |
 """
 
@@ -471,34 +470,35 @@ def test_xsd_choice(rc: RawConfig, tmp_path: Path):
     """
 
     table = """
-id | d | r | b | m | property             | type             | ref     | source                      | prepare | level | access | uri | title | description
-   | manifest                             |                  |         |                             |         |       |        |     |       |
-   |   | resource1                        | xml              |         |                             |         |       |        |     |       |
-   |                                      |                  |         |                             |         |       |        |     |       |
-   |   |   |   | Parcel1                  |                  |         | /parcels/parcel             |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
-   |   |   |   |   | parcels              | ref              | Parcels |                             |         |       |        |     |       |
-   |   |   |   |   | text                 | string           |         | text()                      |         |       |        |     |       |
-   |   |   |   |   | parcel_unique_number | integer required |         | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
-   |                                      |                  |         |                             |         |       |        |     |       |
-   |   |   |   | Parcel2                  |                  |         | /parcels/parcel             |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
-   |   |   |   |   | parcels              | ref              | Parcels |                             |         |       |        |     |       |
-   |   |   |   |   | text                 | string           |         | text()                      |         |       |        |     |       |
-   |   |   |   |   | sign_of_change       | integer required |         | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
-   |                                      | enum             |         | 1                           |         |       |        |     |       |
-   |                                      |                  |         | 2                           |         |       |        |     |       |
-   |                                      |                  |         | 3                           |         |       |        |     |       |
-   |                                      |                  |         |                             |         |       |        |     |       |
-   |   |   |   | Parcels                  |                  |         | /parcels                    |         |       |        |     |       | Pasikeitusių žemės sklypų sąrašas
-   |   |   |   |   | text                 | string           |         | text()                      |         |       |        |     |       |
-   |   |   |   |   | parcel[]             | backref          | Parcel1 |                             |         |       |        |     |       |
-   |   |   |   |   | parcel1[]            | backref          | Parcel2 |                             |         |       |        |     |       |
-   |   |   |   |   | parcel1[].text       | string           |         | parcel/text()               |         |       |        |     |       |
-   |   |   |   |   | parcel1[].parcel_unique_number | integer required |         | parcel/parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
-   |   |   |   |   | parcel2[].text       | string           |         | parcel/text()               |         |       |        |     |       |
-   |   |   |   |   | parcel2[].sign_of_change | integer required |         | parcel/sign_of_change/text() |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
-   |                                      | enum             |         | 1                           |         |       |        |     |       |
-   |                                      |                  |         | 2                           |         |       |        |     |       |
-   |                                      |                  |         | 3                           |         |       |        |     |       |
+ id | d | r | b | m | property                      | type             | ref     | source                      | prepare | level | access | uri | title | description
+    | manifest                                      |                  |         |                             |         |       |        |     |       |
+    |   | resource1                                 | xml              |         |                             |         |       |        |     |       |
+    |                                               |                  |         |                             |         |       |        |     |       |
+    |   |   |   | Parcels                           |                  |         | /parcels                    |         |       |        |     |       | Pasikeitusių žemės sklypų sąrašas
+    |   |   |   |   | parcel1[]                     | backref          | Parcel2 | parcel                      |         |       |        |     |       |
+    |   |   |   |   | parcel1[].sign_of_change      | integer required |         | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
+    |                                               | enum             |         | 1                           |         |       |        |     |       |
+    |                                               |                  |         | 2                           |         |       |        |     |       |
+    |                                               |                  |         | 3                           |         |       |        |     |       |
+    |   |   |   |   | parcel1[].text                | string           |         | text()                      |         |       |        |     |       |
+    |   |   |   |   | parcel[]                      | backref          | Parcel1 | parcel                      |         |       |        |     |       |
+    |   |   |   |   | parcel[].parcel_unique_number | integer required |         | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
+    |   |   |   |   | parcel[].text                 | string           |         | text()                      |         |       |        |     |       |
+    |   |   |   |   | text                          | string           |         | text()                      |         |       |        |     |       |
+    |                                               |                  |         |                             |         |       |        |     |       |
+    |   |   |   | Parcel1                           |                  |         | /parcels/parcel             |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
+    |   |   |   |   | parcel_unique_number          | integer required |         | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
+    |   |   |   |   | parcels                       | ref              | Parcels |                             |         |       |        |     |       |
+    |   |   |   |   | text                          | string           |         | text()                      |         |       |        |     |       |
+    |                                               |                  |         |                             |         |       |        |     |       |
+    |   |   |   | Parcel2                           |                  |         | /parcels/parcel             |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
+    |   |   |   |   | parcels                       | ref              | Parcels |                             |         |       |        |     |       |
+    |   |   |   |   | sign_of_change                | integer required |         | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
+    |                                               | enum             |         | 1                           |         |       |        |     |       |
+    |                                               |                  |         | 2                           |         |       |        |     |       |
+    |                                               |                  |         | 3                           |         |       |        |     |       |
+    |   |   |   |   | text                          | string           |         | text()                      |         |       |        |     |       |
+
 """
 
     path = tmp_path / 'manifest.xsd'
@@ -509,7 +509,7 @@ id | d | r | b | m | property             | type             | ref     | source 
     assert manifest == table
 
 
-def test_xsd_choice_max_occurs_unbound(rc: RawConfig, tmp_path: Path):
+def test_xsd_choice_max_occurs_unbounded(rc: RawConfig, tmp_path: Path):
 
     xsd = """
     <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
@@ -528,7 +528,7 @@ def test_xsd_choice_max_occurs_unbound(rc: RawConfig, tmp_path: Path):
 			<xs:documentation>Žemės sklypo pasikeitimo informacija</xs:documentation>
 		</xs:annotation>
 		<xs:complexType mixed="true">
-			<xs:choice maxOccurs="unbound">
+			<xs:choice maxOccurs="unbounded">
 				<xs:element name="parcel_unique_number" minOccurs="1" maxOccurs="1">
 					<xs:annotation>
 						<xs:documentation>Žemės sklypo unikalus numeris</xs:documentation>
@@ -558,34 +558,28 @@ def test_xsd_choice_max_occurs_unbound(rc: RawConfig, tmp_path: Path):
     """
 
     table = """
- id | d | r | b | m | property             | type             | ref     | source                      | prepare | level | access | uri | title | description
-    | manifest                             |                  |         |                             |         |       |        |     |       |
-    |   | resource1                        | xml              |         |                             |         |       |        |     |       |
-    |                                      |                  |         |                             |         |       |        |     |       |
-    |   |   |   | Parcel1                  |                  |         | /parcels/parcel             |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
-    |   |   |   |   | parcels              | ref              | Parcels |                             |         |       |        |     |       |
-    |   |   |   |   | text                 | string           |         | text()                      |         |       |        |     |       |
-    |   |   |   |   | parcel_unique_number | integer required |         | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
-    |                                      |                  |         |                             |         |       |        |     |       |
-    |   |   |   | Parcel2                  |                  |         | /parcels/parcel             |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
-    |   |   |   |   | parcels              | ref              | Parcels |                             |         |       |        |     |       |
-    |   |   |   |   | text                 | string           |         | text()                      |         |       |        |     |       |
-    |   |   |   |   | sign_of_change       | integer required |         | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
-    |                                      | enum             |         | 1                           |         |       |        |     |       |
-    |                                      |                  |         | 2                           |         |       |        |     |       |
-    |                                      |                  |         | 3                           |         |       |        |     |       |
-    |                                      |                  |         |                             |         |       |        |     |       |
-    |   |   |   | Parcels                  |                  |         | /parcels                    |         |       |        |     |       | Pasikeitusių žemės sklypų sąrašas
-    |   |   |   |   | text                 | string           |         | text()                      |         |       |        |     |       |
-    |   |   |   |   | parcel[]             | backref          | Parcel1 |                             |         |       |        |     |       |
-    |   |   |   |   | parcel1[]            | backref          | Parcel2 |                             |         |       |        |     |       |
-    |   |   |   |   | parcel1[].text       | string           |         | parcel/text()               |         |       |        |     |       |
-    |   |   |   |   | parcel1[].parcel_unique_number | integer required |         | parcel/parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
-    |   |   |   |   | parcel2[].text       | string           |         | parcel/text()               |         |       |        |     |       |
-    |   |   |   |   | parcel2[].sign_of_change | integer required |         | parcel/sign_of_change/text() |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
-    |                                      | enum             |         | 1                           |         |       |        |     |       |
-    |                                      |                  |         | 2                           |         |       |        |     |       |
-    |                                      |                  |         | 3                           |         |       |        |     |       |
+ id | d | r | b | m | property                      | type    | ref     | source                      | prepare | level | access | uri | title | description
+    | manifest                                      |         |         |                             |         |       |        |     |       |
+    |   | resource1                                 | xml     |         |                             |         |       |        |     |       |
+    |                                               |         |         |                             |         |       |        |     |       |
+    |   |   |   | Parcels                           |         |         | /parcels                    |         |       |        |     |       | Pasikeitusių žemės sklypų sąrašas
+    |   |   |   |   | parcel[]                      | backref | Parcel  | parcel                      |         |       |        |     |       |
+    |   |   |   |   | parcel[].parcel_unique_number | integer |         | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
+    |   |   |   |   | parcel[].sign_of_change       | integer |         | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
+    |                                               | enum    |         | 1                           |         |       |        |     |       |
+    |                                               |         |         | 2                           |         |       |        |     |       |
+    |                                               |         |         | 3                           |         |       |        |     |       |
+    |   |   |   |   | parcel[].text                 | string  |         | text()                      |         |       |        |     |       |
+    |   |   |   |   | text                          | string  |         | text()                      |         |       |        |     |       |
+    |                                               |         |         |                             |         |       |        |     |       |
+    |   |   |   | Parcel                            |         |         | /parcels/parcel             |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
+    |   |   |   |   | parcel_unique_number          | integer |         | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
+    |   |   |   |   | parcels                       | ref     | Parcels |                             |         |       |        |     |       |
+    |   |   |   |   | sign_of_change                | integer |         | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
+    |                                               | enum    |         | 1                           |         |       |        |     |       |
+    |                                               |         |         | 2                           |         |       |        |     |       |
+    |                                               |         |         | 3                           |         |       |        |     |       |
+    |   |   |   |   | text                          | string  |         | text()                      |         |       |        |     |       |
 
 """
 
@@ -626,27 +620,29 @@ def test_xsd_attributes(rc: RawConfig, tmp_path: Path):
     """
 
     table = """
- id | d | r | b | m | property    | type            | ref    | source             | prepare | level | access | uri | title | description
-    | manifest                    |                 |        |                    |         |       |        |     |       |
-    |   | resource1               | xml             |        |                    |         |       |        |     |       |
-    |                             |                 |        |                    |         |       |        |     |       |
-    |   |   |   | Salyga          |                 |        | /SALYGOS/SALYGA    |         |       |        |     |       |
-    |   |   |   |   | kodas       | string          |        | @kodas             |         |       |        |     |       |
-    |   |   |   |   | nr          | integer         |        | @nr                |         |       |        |     |       |
-    |   |   |   |   | text        | string          |        | text()             |         |       |        |     |       |
-    |   |   |   |   | reiksme     | string required |        | REIKSME/text()     |         |       |        |     |       |
-    |   |   |   |   | pavadinimas | string          |        | PAVADINIMAS/text() |         |       |        |     |       |
-    |   |   |   |   | aprasymas   | string          |        | APRASYMAS/text()   |         |       |        |     |       |
-    |                             |                 |        |                    |         |       |        |     |       |
-    |   |   |   | Salygos         |                 |        | /SALYGOS           |         |       |        |     |       |
-    |   |   |   |   | text        | string          |        | text()             |         |       |        |     |       |
-    |   |   |   |   | salyga      | ref required    | Salyga |                    |         |       |        |     |       |
-    |   |   |   |   | salyga.kodas | string          |        | SALYGA/@kodas      |         |       |        |     |       |
-    |   |   |   |   | salyga.nr   | integer         |        | SALYGA/@nr         |         |       |        |     |       |
-    |   |   |   |   | salyga.text | string          |        | SALYGA/text()      |         |       |        |     |       |
-    |   |   |   |   | salyga.reiksme | string required |        | SALYGA/REIKSME/text() |         |       |        |     |       |
-    |   |   |   |   | salyga.pavadinimas | string          |        | SALYGA/PAVADINIMAS/text() |         |       |        |     |       |
-    |   |   |   |   | salyga.aprasymas | string          |        | SALYGA/APRASYMAS/text() |         |       |        |     |       |
+ id | d | r | b | m | property             | type             | ref     | source             | prepare | level | access | uri | title | description
+    | manifest                             |                  |         |                    |         |       |        |     |       |
+    |   | resource1                        | xml              |         |                    |         |       |        |     |       |
+    |                                      |                  |         |                    |         |       |        |     |       |
+    |   |   |   | Salygos                  |                  |         | /SALYGOS           |         |       |        |     |       |
+    |   |   |   |   | salyga[]             | backref required | Salyga  | SALYGA             |         |       |        |     |       |
+    |   |   |   |   | salyga[].aprasymas   | string           |         | APRASYMAS/text()   |         |       |        |     |       |
+    |   |   |   |   | salyga[].kodas       | string           |         | @kodas             |         |       |        |     |       |
+    |   |   |   |   | salyga[].nr          | integer          |         | @nr                |         |       |        |     |       |
+    |   |   |   |   | salyga[].pavadinimas | string           |         | PAVADINIMAS/text() |         |       |        |     |       |
+    |   |   |   |   | salyga[].reiksme     | string required  |         | REIKSME/text()     |         |       |        |     |       |
+    |   |   |   |   | salyga[].text        | string           |         | text()             |         |       |        |     |       |
+    |   |   |   |   | text                 | string           |         | text()             |         |       |        |     |       |
+    |                                      |                  |         |                    |         |       |        |     |       |
+    |   |   |   | Salyga                   |                  |         | /SALYGOS/SALYGA    |         |       |        |     |       |
+    |   |   |   |   | aprasymas            | string           |         | APRASYMAS/text()   |         |       |        |     |       |
+    |   |   |   |   | kodas                | string           |         | @kodas             |         |       |        |     |       |
+    |   |   |   |   | nr                   | integer          |         | @nr                |         |       |        |     |       |
+    |   |   |   |   | pavadinimas          | string           |         | PAVADINIMAS/text() |         |       |        |     |       |
+    |   |   |   |   | reiksme              | string required  |         | REIKSME/text()     |         |       |        |     |       |
+    |   |   |   |   | salygos              | ref              | Salygos |                    |         |       |        |     |       |
+    |   |   |   |   | text                 | string           |         | text()             |         |       |        |     |       |
+
 """
 
     path = tmp_path / 'manifest.xsd'
@@ -689,23 +685,6 @@ def test_xsd_model_one_property(rc: RawConfig, tmp_path: Path):
     """
 
     table = """
- id | d | r | b | m | property                 | type     | ref | source                        | prepare | level | access | uri | title | description
-    | manifest                                 |          |     |                               |         |       |        |     |       |
-    |   | resource1                            | xml      |     |                               |         |       |        |     |       |
-    |                                          |          |     |                               |         |       |        |     |       |
-    |   |   |   | Extracttz                    |          |     | /getTzByTRAResponse/extracttz |         |       |        |     |       |
-    |   |   |   |   | extract_preparation_time | datetime |     | extractPreparationTime/text() |         |       |        |     |       |
-    |   |   |   |   | phipoteka                | integer  |     | phipoteka/text()              |         |       |        |     |       |
-    |                                          |          |     |                               |         |       |        |     |       |
-    |   |   |   | Klaida                       |          |     | /getTzByTRAResponse/klaida    |         |       |        |     |       |
-    |   |   |   |   | aprasymas                | string   |     | Aprasymas/text()              |         |       |        |     |       |
-    |                                          |          |     |                               |         |       |        |     |       |
-    |   |   |   | GetTzByTRAResponse           |          |     | /getTzByTRAResponse           |         |       |        |     |       |
-    |   |   |   |   | search_parameters        | string   |     | searchParameters/text()       |         |       |        |     |       |
-    |   |   |   |   | extracttz.extract_preparation_time | datetime |     | extracttz/extractPreparationTime/text() |         |       |        |     |       |
-    |   |   |   |   | extracttz.phipoteka      | integer  |     | extracttz/phipoteka/text()    |         |       |        |     |       |
-    |   |   |   |   | klaida.aprasymas         | string   |     | klaida/Aprasymas/text()       |         |       |        |     |       |
-
 """
     path = tmp_path / 'manifest.xsd'
     with open(path, "w") as xsd_file:
