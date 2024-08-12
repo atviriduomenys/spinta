@@ -790,7 +790,7 @@ class XSDReader:
                     choice_copy = deepcopy(choice)
                     for node_in_choice in choice:
                         choice_node_parent.insert(0, node_in_choice)
-                    returned_model_names, new_root_properties = self._create_model(
+                    returned_model_names = self._create_model(
                         node_copy,
                         source_path=source_path,
                         parent_model=parent_model,
