@@ -858,7 +858,7 @@ class XSDReader:
 
     def _add_refs_for_backrefs(self):
         for model in self.models.values():
-            for property_id, prop in model.properties:
+            for property_id, prop in model.properties.items():
                 if prop["type"] == "backref":
                     referenced_model = self.models[prop["model"]]
                     referenced_model.add_ref_property(model)
@@ -906,22 +906,24 @@ class XSDReader:
 
         self.new_models[model.name] = model
 
+        new_properties = {}
         for property_id, prop in model.properties.items():
             if prop["type"] in ("ref", "backref"):
                 referee = self.models[prop["model"]]
                 parse_referee = True
                 while len(referee.properties) == 1:
                     ref_property_id, ref_prop = list(referee.properties.items())[0]
+
+                    # if it's not a ref, this means that it's a final property, and we add it as a property itself
                     if ref_prop["type"] not in ("ref", "backref"):
-                        ref_prop["external"]["name"] = f'{prop["external"]["name"]}/{ref_prop["external"]["name"]}'
+                        prop["external"]["name"] = f'{prop["external"]["name"]}/{ref_prop["external"]["name"]}'
                         parse_referee = False
-                        model.properties[property_id] = ref_prop
                         break
 
                     if prop["type"] == "backref" and ref_prop["type"] == "backref":
+                        # basically, do nothing
                         break
                     else:
-
                         referee = self.models[ref_prop["model"]]
                         if prop["type"] == "ref" and ref_prop["type"] == "backref":
                             prop["type"] = "backref"
@@ -932,6 +934,9 @@ class XSDReader:
 
                 if not self._has_backref(model, referee) and parse_referee:
                     self._remove_proxy_models(referee)
+
+            new_properties[property_id] = prop
+        model.properties = new_properties
 
     def _remove_unneeded_models(self):
         """

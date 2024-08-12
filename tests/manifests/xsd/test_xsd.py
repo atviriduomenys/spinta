@@ -294,10 +294,10 @@ def test_xsd_ref(rc: RawConfig, tmp_path: Path):
     |                                           |                  |                         |                                          |         |       |        |     |       |
     |   |   |   | Asmuo                         |                  |                         | /klientu_saraso_rezultatas/asmenys/asmuo |         |       |        |     |       |
     |   |   |   |   | ak                        | string required  |                         | @ak                                      |         |       |        |     |       |
-    |   |   |   |   | asmenys                   | ref              | Asmenys                 |                                          |         |       |        |     |       |
     |   |   |   |   | id                        | string required  |                         | @id                                      |         |       |        |     |       |
-    |   |   |   |   | klientu_saraso_rezultatas | ref              | KlientuSarasoRezultatas |                                          |         |       |        |     |       |
     |   |   |   |   | text                      | string           |                         | text()                                   |         |       |        |     |       |
+    |   |   |   |   | klientu_saraso_rezultatas | ref              | KlientuSarasoRezultatas |                                          |         |       |        |     |       |
+    |   |   |   |   | asmenys                   | ref              | Asmenys                 |                                          |         |       |        |     |       |
 """
 
     path = tmp_path / 'manifest.xsd'
@@ -1081,3 +1081,6 @@ def test_xsd_enumeration(rc: RawConfig, tmp_path: Path):
         xsd_file.write(xsd)
     manifest = load_manifest(rc, path)
     assert manifest == table
+
+
+# todo  add test from gr 605 - refs and arrays
