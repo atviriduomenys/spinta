@@ -531,8 +531,10 @@ class XSDReader:
                 if not sequences:
                     choices = complex_type.xpath("./*[local-name() = 'choice']")
                     if choices and choices[0].get('maxOccurs') == 'unbounded':
-                        sequences = choices
                         is_array = True
+
+                if XSDReader.is_array(typed_element):
+                    is_array = True
 
                 # avoiding recursion
                 if typed_element.get("name") in source_path.split("/"):
@@ -950,8 +952,9 @@ class XSDReader:
                         if prop["type"] == "ref" and ref_prop["type"] == "backref":
                             prop["type"] = "backref"
                             property_id = f"{property_id}[]"
-                        prop["external"]["name"] = f'{prop["external"]["name"]}/{ref_prop["external"]["name"]}'
-                        prop["model"] = ref_prop["model"]
+                        if "external" in prop and "external" in ref_prop:
+                            prop["external"]["name"] = f'{prop["external"]["name"]}/{ref_prop["external"]["name"]}'
+                            prop["model"] = ref_prop["model"]
 
                 if not self._has_backref(model, referee) and parse_referee:
                     self._remove_proxy_models(referee)
