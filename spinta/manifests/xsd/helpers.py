@@ -407,7 +407,7 @@ class XSDReader:
         ref = node.get("ref")
         if ":" in ref:
             ref = ref.split(":")[1]
-        xpath_query = f"//*[@name='{ref}']"
+        xpath_query = f"/*/*[@name='{ref}']"
         referenced_node = self.root.xpath(xpath_query)[0]
         return referenced_node
 
@@ -759,10 +759,13 @@ class XSDReader:
                     properties.update(model.properties_from_simple_elements(sequence_node))
                 # TODO: in this case, it might be something else, not sequence too
 
-            if complex_type_node.xpath(f'./*[local-name() = "sequence"]') \
-                    or complex_type_node.xpath(f'./*[local-name() = "all"]')\
-                    or complex_type_node.xpath(f'./*[local-name() = "simpleContent"]')\
-                    or len(complex_type_node) > 0:
+            if (
+                complex_type_node.xpath(f'./*[local-name() = "sequence"]') or
+                complex_type_node.xpath(f'./*[local-name() = "all"]') or
+                complex_type_node.xpath(f'./*[local-name() = "simpleContent"]') or
+                choices or
+                len(complex_type_node) > 0
+            ):
                 """
                 source: https://stackoverflow.com/questions/36286056/the-difference-between-all-sequence-choice-and-group-in-xsd
                     When to use xsd:all, xsd:sequence, xsd:choice, or xsd:group:
