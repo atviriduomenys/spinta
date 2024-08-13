@@ -863,6 +863,10 @@ class XSDReader:
                     referenced_model = self.models[prop["model"]]
                     referenced_model.add_ref_property(model)
 
+    def _sort_properties_alpabetically(self):
+        for model in self.models.values():
+            model.properties = dict(sorted(model.properties.items()))
+
     def start(self):
         self._extract_root()
 
@@ -878,6 +882,8 @@ class XSDReader:
 
         self._add_refs_for_backrefs()
 
+        self._sort_properties_alpabetically()
+
     def remove_extra_root_models(self, model: XSDModel) -> XSDModel:
         """
         removes root models that have only one property from the root
@@ -892,9 +898,6 @@ class XSDReader:
             else:
                 stop_removing = True
 
-            #     todo: what if a root element is an array, like in klasifikatoriai. There can be only one
-            #      root element. So it's rowset, and then inside rowset the re are many rows.
-            #      Is this somehow important for us, for later reading the xml, or not?
         return model
 
     def _remove_proxy_models(self, model: XSDModel):
@@ -1022,8 +1025,6 @@ class XSDReader:
 
                 self._add_model_nested_properties(parsed_model, parsed_model)
 
-            parsed_model.properties = dict(sorted(parsed_model.properties.items()))
-
 
 def read_schema(
     context: Context,
@@ -1111,15 +1112,6 @@ def read_schema(
     -----------Nested properties-------------
 
     Root model or models can have nested properties if they have any properties that point to other models.
-
-
-    TODO: there are 3 types of creating references:
-     through ref
-     through type
-     direct, when one element that corresponds to a model is inside another one. This still doesn't work.
-     It also seems that it even stopped adding models if they are connected this way.
-
-    TODO: JADIS 455 sukuria Asmuo modelį, bet ne property jam modelyje Israsas
 
     """
     xsd = XSDReader(path, dataset_name)
