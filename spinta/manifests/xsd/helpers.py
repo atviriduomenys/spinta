@@ -926,6 +926,7 @@ class XSDReader:
 
                         # also transfer all attributes of the property
                         prop["required"] = ref_prop["required"]
+                        prop["description"] = ref_prop["description"]
 
                         is_array = False
                         if prop["type"] == "backref":
@@ -946,12 +947,14 @@ class XSDReader:
                         break
                     else:
                         referee = self.models[ref_prop["model"]]
+                        referee.parent_model = model
                         if prop["type"] == "ref" and ref_prop["type"] == "backref":
                             prop["type"] = "backref"
                             property_id = f"{property_id}[]"
                         if "external" in prop and "external" in ref_prop:
                             prop["external"]["name"] = f'{prop["external"]["name"]}/{ref_prop["external"]["name"]}'
                             prop["model"] = ref_prop["model"]
+
 
                 if not self._has_backref(model, referee) and parse_referee:
                     self._remove_proxy_models(referee)
