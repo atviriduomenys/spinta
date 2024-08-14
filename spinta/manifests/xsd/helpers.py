@@ -735,14 +735,13 @@ class XSDReader:
                     choices = complex_type_node.xpath(f'./*[local-name() = "choice"]/*[local-name() = "choice"]')
                 else:
                     choices = complex_type_node.xpath(f'./*[local-name() = "sequence"]/*[local-name() = "choice"]')
-            if choices:
-                if choices[0].get("maxOccurs") != "unbounded":
-                    return self._split_choice(
-                        node,
-                        source_path=source_path,
-                        parent_model=parent_model,
-                        is_root_model=is_root_model
-                    )
+            if choices and choices[0].get("maxOccurs") != "unbounded":
+                return self._split_choice(
+                    node,
+                    source_path=source_path,
+                    parent_model=parent_model,
+                    is_root_model=is_root_model
+                )
 
             # if complextype node's property mixed is true, it allows text inside
             if complex_type_node.get("mixed") == "true":
@@ -814,6 +813,9 @@ class XSDReader:
                     sequence_or_all_node,
                     model=model,
                     source_path=new_source_path)
+                if properties_required is False:
+                    for prop in properties_from_references.values():
+                        prop["required"] = False
                 properties.update(properties_from_references)
 
                 # complex type child nodes - to models
@@ -821,6 +823,9 @@ class XSDReader:
                     sequence_or_all_node,
                     model=model,
                     source_path=new_source_path)
+                if properties_required is False:
+                    for prop in properties_from_references.values():
+                        prop["required"] = False
                 properties.update(properties_from_references)
 
         model.properties = properties
@@ -1144,3 +1149,16 @@ def read_schema(
     for model_name, parsed_model in xsd.models.items():
 
         yield None, parsed_model.get_data()
+
+
+# todo šitoj situacijoj neturėtų būti required:
+# < xs: choice
+# minOccurs = "0"
+# maxOccurs = "unbounded" >
+# < xs: element
+# ref = "PAVARDE" / >
+# < xs: element
+# ref = "VARDAS" / >
+# < xs: element
+# ref = "PAVADINIMAS" / >
+# < / xs: choice >
