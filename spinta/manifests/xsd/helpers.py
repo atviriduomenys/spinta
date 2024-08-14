@@ -923,10 +923,20 @@ class XSDReader:
                     # if it's not a ref, this means that it's a final property, and we add it as a property itself
                     if ref_prop["type"] not in ("ref", "backref"):
                         prop["external"]["name"] = f'{prop["external"]["name"]}/{ref_prop["external"]["name"]}'
+
+                        # also transfer all attributes of the property
                         prop["required"] = ref_prop["required"]
+
+                        is_array = False
+                        if prop["type"] == "backref":
+                            is_array = True
+
                         prop["type"] = ref_prop["type"]
                         del prop["model"]
                         property_id = ref_property_id
+
+                        if is_array:
+                            property_id = f"{property_id}[]"
 
                         parse_referee = False
                         break
