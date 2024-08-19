@@ -578,7 +578,8 @@ class XSDReader:
             referenced_element = self._get_referenced_node(ref_element)
 
             if self.node_is_simple_type_or_inline(referenced_element):
-                property_id, prop = model.simple_element_to_property(referenced_element)
+                is_array = XSDReader.is_array(ref_element)
+                property_id, prop = model.simple_element_to_property(referenced_element, is_array=is_array)
                 if not XSDReader.is_required(ref_element):
                     prop["required"] = False
                 properties[property_id] = prop
@@ -1162,3 +1163,4 @@ def read_schema(
 # < xs: element
 # ref = "PAVADINIMAS" / >
 # < / xs: choice >
+# todo 47 - dokumentas turėtų būti array, bet ne ref, o paprasta savybė array
