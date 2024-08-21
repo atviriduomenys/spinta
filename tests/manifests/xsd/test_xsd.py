@@ -235,7 +235,7 @@ def test_xsd_ref(rc: RawConfig, tmp_path: Path):
 <xs:element name="klientu_saraso_rezultatas">
   <xs:complexType mixed="true">
     <xs:sequence>
-      <xs:element ref="asmenys"               minOccurs="0" maxOccurs="1" />
+      <xs:element ref="asmenys" minOccurs="0" maxOccurs="1" />
     </xs:sequence>
   </xs:complexType>
 </xs:element>
@@ -244,7 +244,7 @@ def test_xsd_ref(rc: RawConfig, tmp_path: Path):
 <xs:element name="asmenys">
   <xs:complexType mixed="true">
     <xs:sequence>
-      <xs:element ref="asmuo"                 minOccurs="0" maxOccurs="unbounded" />
+      <xs:element ref="asmuo" minOccurs="0" maxOccurs="unbounded" />
     </xs:sequence>
 
     <xs:attribute name="puslapis" type="xs:long" use="required">
@@ -277,28 +277,27 @@ def test_xsd_ref(rc: RawConfig, tmp_path: Path):
     | manifest                                  |                  |                         |                                          |         |       |        |     |       |
     |   | resource1                             | xml              |                         |                                          |         |       |        |     |       |
     |                                           |                  |                         |                                          |         |       |        |     |       |
-    |   |   |   | Asmuo                         |                  |                         | /klientu_saraso_rezultatas/asmenys/asmuo |         |       |        |     |       |
-    |   |   |   |   | ak                        | string required  |                         | @ak                                      |         |       |        |     |       |
-    |   |   |   |   | asmenys                   | ref              | Asmenys                 |                                          |         |       |        |     |       |
-    |   |   |   |   | id                        | string required  |                         | @id                                      |         |       |        |     |       |
-    |   |   |   |   | text                      | string           |                         | text()                                   |         |       |        |     |       |
-    |   |   |   |   | klientu_saraso_rezultatas | ref              | KlientuSarasoRezultatas |                                          |         |       |        |     |       |
-    |                                           |                  |                         |                                          |         |       |        |     |       |
-    |   |   |   | Asmenys                       |                  |                         | /klientu_saraso_rezultatas/asmenys       |         |       |        |     |       |
-    |   |   |   |   | asmuo[]                   | backref          | Asmuo                   |                                          |         |       |        |     |       |
-    |   |   |   |   | puslapis                  | integer required |                         | @puslapis                                |         |       |        |     |       | rezultatu puslapio numeris
-    |   |   |   |   | text                      | string           |                         | text()                                   |         |       |        |     |       |
-    |                                           |                  |                         |                                          |         |       |        |     |       |
     |   |   |   | KlientuSarasoRezultatas       |                  |                         | /klientu_saraso_rezultatas               |         |       |        |     |       |
     |   |   |   |   | asmenys                   | ref              | Asmenys                 | asmenys                                  |         |       |        |     |       |
-    |   |   |   |   | asmenys.asmuo[]           | backref          | Asmuo                   |                                          |         |       |        |     |       |
+    |   |   |   |   | asmenys.asmuo[]           | backref          | Asmuo                   | asmenys/asmuo                            |         |       |        |     |       |
     |   |   |   |   | asmenys.asmuo[].ak        | string required  |                         | @ak                                      |         |       |        |     |       |
     |   |   |   |   | asmenys.asmuo[].id        | string required  |                         | @id                                      |         |       |        |     |       |
     |   |   |   |   | asmenys.asmuo[].text      | string           |                         | text()                                   |         |       |        |     |       |
     |   |   |   |   | asmenys.puslapis          | integer required |                         | asmenys/@puslapis                        |         |       |        |     |       | rezultatu puslapio numeris
     |   |   |   |   | asmenys.text              | string           |                         | asmenys/text()                           |         |       |        |     |       |
     |   |   |   |   | text                      | string           |                         | text()                                   |         |       |        |     |       |
-
+    |                                           |                  |                         |                                          |         |       |        |     |       |
+    |   |   |   | Asmenys                       |                  |                         | /klientu_saraso_rezultatas/asmenys       |         |       |        |     |       |
+    |   |   |   |   | asmuo[]                   | backref          | Asmuo                   | asmuo                                    |         |       |        |     |       |
+    |   |   |   |   | puslapis                  | integer required |                         | @puslapis                                |         |       |        |     |       | rezultatu puslapio numeris
+    |   |   |   |   | text                      | string           |                         | text()                                   |         |       |        |     |       |
+    |                                           |                  |                         |                                          |         |       |        |     |       |
+    |   |   |   | Asmuo                         |                  |                         | /klientu_saraso_rezultatas/asmenys/asmuo |         |       |        |     |       |
+    |   |   |   |   | ak                        | string required  |                         | @ak                                      |         |       |        |     |       |
+    |   |   |   |   | asmenys                   | ref              | Asmenys                 |                                          |         |       |        |     |       |
+    |   |   |   |   | id                        | string required  |                         | @id                                      |         |       |        |     |       |
+    |   |   |   |   | klientu_saraso_rezultatas | ref              | KlientuSarasoRezultatas |                                          |         |       |        |     |       |
+    |   |   |   |   | text                      | string           |                         | text()                                   |         |       |        |     |       |
 """
 
     path = tmp_path / 'manifest.xsd'
@@ -348,15 +347,16 @@ def test_xsd_resource_model(rc: RawConfig, tmp_path: Path):
     |   |   |   | Resource                    |                  |         | /                                  |         |       |        | http://www.w3.org/2000/01/rdf-schema#Resource |       | Įvairūs duomenys
     |   |   |   |   | klaida                  | string           |         | klaida/text()                      |         |       |        |                                               |       | Klaidos atveju - klaidos pranešimas
     |                                         |                  |         |                                    |         |       |        |                                               |       |
-    |   |   |   | Asmenys                     |                  |         | /klientu_saraso_rezultatas/asmenys |         |       |        |                                               |       |
-    |   |   |   |   | puslapis                | integer required |         | @puslapis                          |         |       |        |                                               |       | rezultatu puslapio numeris
-    |   |   |   |   | text                    | string           |         | text()                             |         |       |        |                                               |       |
-    |                                         |                  |         |                                    |         |       |        |                                               |       |
     |   |   |   | KlientuSarasoRezultatas     |                  |         | /klientu_saraso_rezultatas         |         |       |        |                                               |       |
     |   |   |   |   | asmenys                 | ref              | Asmenys | asmenys                            |         |       |        |                                               |       |
     |   |   |   |   | asmenys.puslapis        | integer required |         | asmenys/@puslapis                  |         |       |        |                                               |       | rezultatu puslapio numeris
     |   |   |   |   | asmenys.text            | string           |         | asmenys/text()                     |         |       |        |                                               |       |
     |   |   |   |   | text                    | string           |         | text()                             |         |       |        |                                               |       |
+    |                                         |                  |         |                                    |         |       |        |                                               |       |
+    |   |   |   | Asmenys                     |                  |         | /klientu_saraso_rezultatas/asmenys |         |       |        |                                               |       |
+    |   |   |   |   | puslapis                | integer required |         | @puslapis                          |         |       |        |                                               |       | rezultatu puslapio numeris
+    |   |   |   |   | text                    | string           |         | text()                             |         |       |        |                                               |       |
+
 """
 
     path = tmp_path / 'manifest.xsd'
@@ -471,34 +471,35 @@ def test_xsd_choice(rc: RawConfig, tmp_path: Path):
     """
 
     table = """
-id | d | r | b | m | property             | type             | ref     | source                      | prepare | level | access | uri | title | description
-   | manifest                             |                  |         |                             |         |       |        |     |       |
-   |   | resource1                        | xml              |         |                             |         |       |        |     |       |
-   |                                      |                  |         |                             |         |       |        |     |       |
-   |   |   |   | Parcel1                  |                  |         | /parcels/parcel             |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
-   |   |   |   |   | parcels              | ref              | Parcels |                             |         |       |        |     |       |
-   |   |   |   |   | text                 | string           |         | text()                      |         |       |        |     |       |
-   |   |   |   |   | parcel_unique_number | integer required |         | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
-   |                                      |                  |         |                             |         |       |        |     |       |
-   |   |   |   | Parcel2                  |                  |         | /parcels/parcel             |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
-   |   |   |   |   | parcels              | ref              | Parcels |                             |         |       |        |     |       |
-   |   |   |   |   | text                 | string           |         | text()                      |         |       |        |     |       |
-   |   |   |   |   | sign_of_change       | integer required |         | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
-   |                                      | enum             |         | 1                           |         |       |        |     |       |
-   |                                      |                  |         | 2                           |         |       |        |     |       |
-   |                                      |                  |         | 3                           |         |       |        |     |       |
-   |                                      |                  |         |                             |         |       |        |     |       |
-   |   |   |   | Parcels                  |                  |         | /parcels                    |         |       |        |     |       | Pasikeitusių žemės sklypų sąrašas
-   |   |   |   |   | text                 | string           |         | text()                      |         |       |        |     |       |
-   |   |   |   |   | parcel[]             | backref          | Parcel1 |                             |         |       |        |     |       |
-   |   |   |   |   | parcel1[]            | backref          | Parcel2 |                             |         |       |        |     |       |
-   |   |   |   |   | parcel1[].text       | string           |         | parcel/text()               |         |       |        |     |       |
-   |   |   |   |   | parcel1[].parcel_unique_number | integer required |         | parcel/parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
-   |   |   |   |   | parcel2[].text       | string           |         | parcel/text()               |         |       |        |     |       |
-   |   |   |   |   | parcel2[].sign_of_change | integer required |         | parcel/sign_of_change/text() |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
-   |                                      | enum             |         | 1                           |         |       |        |     |       |
-   |                                      |                  |         | 2                           |         |       |        |     |       |
-   |                                      |                  |         | 3                           |         |       |        |     |       |
+ id | d | r | b | m | property                      | type             | ref     | source                      | prepare | level | access | uri | title | description
+    | manifest                                      |                  |         |                             |         |       |        |     |       |
+    |   | resource1                                 | xml              |         |                             |         |       |        |     |       |
+    |                                               |                  |         |                             |         |       |        |     |       |
+    |   |   |   | Parcels                           |                  |         | /parcels                    |         |       |        |     |       | Pasikeitusių žemės sklypų sąrašas
+    |   |   |   |   | parcel1[]                     | backref          | Parcel2 | parcel                      |         |       |        |     |       |
+    |   |   |   |   | parcel1[].sign_of_change      | integer required |         | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
+    |                                               | enum             |         | 1                           |         |       |        |     |       |
+    |                                               |                  |         | 2                           |         |       |        |     |       |
+    |                                               |                  |         | 3                           |         |       |        |     |       |
+    |   |   |   |   | parcel1[].text                | string           |         | text()                      |         |       |        |     |       |
+    |   |   |   |   | parcel[]                      | backref          | Parcel1 | parcel                      |         |       |        |     |       |
+    |   |   |   |   | parcel[].parcel_unique_number | integer required |         | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
+    |   |   |   |   | parcel[].text                 | string           |         | text()                      |         |       |        |     |       |
+    |   |   |   |   | text                          | string           |         | text()                      |         |       |        |     |       |
+    |                                               |                  |         |                             |         |       |        |     |       |
+    |   |   |   | Parcel1                           |                  |         | /parcels/parcel             |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
+    |   |   |   |   | parcel_unique_number          | integer required |         | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
+    |   |   |   |   | parcels                       | ref              | Parcels |                             |         |       |        |     |       |
+    |   |   |   |   | text                          | string           |         | text()                      |         |       |        |     |       |
+    |                                               |                  |         |                             |         |       |        |     |       |
+    |   |   |   | Parcel2                           |                  |         | /parcels/parcel             |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
+    |   |   |   |   | parcels                       | ref              | Parcels |                             |         |       |        |     |       |
+    |   |   |   |   | sign_of_change                | integer required |         | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
+    |                                               | enum             |         | 1                           |         |       |        |     |       |
+    |                                               |                  |         | 2                           |         |       |        |     |       |
+    |                                               |                  |         | 3                           |         |       |        |     |       |
+    |   |   |   |   | text                          | string           |         | text()                      |         |       |        |     |       |
+
 """
 
     path = tmp_path / 'manifest.xsd'
@@ -509,7 +510,7 @@ id | d | r | b | m | property             | type             | ref     | source 
     assert manifest == table
 
 
-def test_xsd_choice_max_occurs_unbound(rc: RawConfig, tmp_path: Path):
+def test_xsd_choice_max_occurs_unbounded(rc: RawConfig, tmp_path: Path):
 
     xsd = """
     <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
@@ -528,7 +529,7 @@ def test_xsd_choice_max_occurs_unbound(rc: RawConfig, tmp_path: Path):
 			<xs:documentation>Žemės sklypo pasikeitimo informacija</xs:documentation>
 		</xs:annotation>
 		<xs:complexType mixed="true">
-			<xs:choice maxOccurs="unbound">
+			<xs:choice maxOccurs="unbounded">
 				<xs:element name="parcel_unique_number" minOccurs="1" maxOccurs="1">
 					<xs:annotation>
 						<xs:documentation>Žemės sklypo unikalus numeris</xs:documentation>
@@ -558,34 +559,28 @@ def test_xsd_choice_max_occurs_unbound(rc: RawConfig, tmp_path: Path):
     """
 
     table = """
- id | d | r | b | m | property             | type             | ref     | source                      | prepare | level | access | uri | title | description
-    | manifest                             |                  |         |                             |         |       |        |     |       |
-    |   | resource1                        | xml              |         |                             |         |       |        |     |       |
-    |                                      |                  |         |                             |         |       |        |     |       |
-    |   |   |   | Parcel1                  |                  |         | /parcels/parcel             |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
-    |   |   |   |   | parcels              | ref              | Parcels |                             |         |       |        |     |       |
-    |   |   |   |   | text                 | string           |         | text()                      |         |       |        |     |       |
-    |   |   |   |   | parcel_unique_number | integer required |         | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
-    |                                      |                  |         |                             |         |       |        |     |       |
-    |   |   |   | Parcel2                  |                  |         | /parcels/parcel             |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
-    |   |   |   |   | parcels              | ref              | Parcels |                             |         |       |        |     |       |
-    |   |   |   |   | text                 | string           |         | text()                      |         |       |        |     |       |
-    |   |   |   |   | sign_of_change       | integer required |         | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
-    |                                      | enum             |         | 1                           |         |       |        |     |       |
-    |                                      |                  |         | 2                           |         |       |        |     |       |
-    |                                      |                  |         | 3                           |         |       |        |     |       |
-    |                                      |                  |         |                             |         |       |        |     |       |
-    |   |   |   | Parcels                  |                  |         | /parcels                    |         |       |        |     |       | Pasikeitusių žemės sklypų sąrašas
-    |   |   |   |   | text                 | string           |         | text()                      |         |       |        |     |       |
-    |   |   |   |   | parcel[]             | backref          | Parcel1 |                             |         |       |        |     |       |
-    |   |   |   |   | parcel1[]            | backref          | Parcel2 |                             |         |       |        |     |       |
-    |   |   |   |   | parcel1[].text       | string           |         | parcel/text()               |         |       |        |     |       |
-    |   |   |   |   | parcel1[].parcel_unique_number | integer required |         | parcel/parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
-    |   |   |   |   | parcel2[].text       | string           |         | parcel/text()               |         |       |        |     |       |
-    |   |   |   |   | parcel2[].sign_of_change | integer required |         | parcel/sign_of_change/text() |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
-    |                                      | enum             |         | 1                           |         |       |        |     |       |
-    |                                      |                  |         | 2                           |         |       |        |     |       |
-    |                                      |                  |         | 3                           |         |       |        |     |       |
+ id | d | r | b | m | property                      | type    | ref     | source                      | prepare | level | access | uri | title | description
+    | manifest                                      |         |         |                             |         |       |        |     |       |
+    |   | resource1                                 | xml     |         |                             |         |       |        |     |       |
+    |                                               |         |         |                             |         |       |        |     |       |
+    |   |   |   | Parcels                           |         |         | /parcels                    |         |       |        |     |       | Pasikeitusių žemės sklypų sąrašas
+    |   |   |   |   | parcel[]                      | backref | Parcel  | parcel                      |         |       |        |     |       |
+    |   |   |   |   | parcel[].parcel_unique_number | integer |         | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
+    |   |   |   |   | parcel[].sign_of_change       | integer |         | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
+    |                                               | enum    |         | 1                           |         |       |        |     |       |
+    |                                               |         |         | 2                           |         |       |        |     |       |
+    |                                               |         |         | 3                           |         |       |        |     |       |
+    |   |   |   |   | parcel[].text                 | string  |         | text()                      |         |       |        |     |       |
+    |   |   |   |   | text                          | string  |         | text()                      |         |       |        |     |       |
+    |                                               |         |         |                             |         |       |        |     |       |
+    |   |   |   | Parcel                            |         |         | /parcels/parcel             |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
+    |   |   |   |   | parcel_unique_number          | integer |         | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
+    |   |   |   |   | parcels                       | ref     | Parcels |                             |         |       |        |     |       |
+    |   |   |   |   | sign_of_change                | integer |         | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
+    |                                               | enum    |         | 1                           |         |       |        |     |       |
+    |                                               |         |         | 2                           |         |       |        |     |       |
+    |                                               |         |         | 3                           |         |       |        |     |       |
+    |   |   |   |   | text                          | string  |         | text()                      |         |       |        |     |       |
 
 """
 
@@ -626,27 +621,29 @@ def test_xsd_attributes(rc: RawConfig, tmp_path: Path):
     """
 
     table = """
- id | d | r | b | m | property    | type            | ref    | source             | prepare | level | access | uri | title | description
-    | manifest                    |                 |        |                    |         |       |        |     |       |
-    |   | resource1               | xml             |        |                    |         |       |        |     |       |
-    |                             |                 |        |                    |         |       |        |     |       |
-    |   |   |   | Salyga          |                 |        | /SALYGOS/SALYGA    |         |       |        |     |       |
-    |   |   |   |   | kodas       | string          |        | @kodas             |         |       |        |     |       |
-    |   |   |   |   | nr          | integer         |        | @nr                |         |       |        |     |       |
-    |   |   |   |   | text        | string          |        | text()             |         |       |        |     |       |
-    |   |   |   |   | reiksme     | string required |        | REIKSME/text()     |         |       |        |     |       |
-    |   |   |   |   | pavadinimas | string          |        | PAVADINIMAS/text() |         |       |        |     |       |
-    |   |   |   |   | aprasymas   | string          |        | APRASYMAS/text()   |         |       |        |     |       |
-    |                             |                 |        |                    |         |       |        |     |       |
-    |   |   |   | Salygos         |                 |        | /SALYGOS           |         |       |        |     |       |
-    |   |   |   |   | text        | string          |        | text()             |         |       |        |     |       |
-    |   |   |   |   | salyga      | ref required    | Salyga |                    |         |       |        |     |       |
-    |   |   |   |   | salyga.kodas | string          |        | SALYGA/@kodas      |         |       |        |     |       |
-    |   |   |   |   | salyga.nr   | integer         |        | SALYGA/@nr         |         |       |        |     |       |
-    |   |   |   |   | salyga.text | string          |        | SALYGA/text()      |         |       |        |     |       |
-    |   |   |   |   | salyga.reiksme | string required |        | SALYGA/REIKSME/text() |         |       |        |     |       |
-    |   |   |   |   | salyga.pavadinimas | string          |        | SALYGA/PAVADINIMAS/text() |         |       |        |     |       |
-    |   |   |   |   | salyga.aprasymas | string          |        | SALYGA/APRASYMAS/text() |         |       |        |     |       |
+ id | d | r | b | m | property             | type             | ref     | source             | prepare | level | access | uri | title | description
+    | manifest                             |                  |         |                    |         |       |        |     |       |
+    |   | resource1                        | xml              |         |                    |         |       |        |     |       |
+    |                                      |                  |         |                    |         |       |        |     |       |
+    |   |   |   | Salygos                  |                  |         | /SALYGOS           |         |       |        |     |       |
+    |   |   |   |   | salyga[]             | backref          | Salyga  | SALYGA             |         |       |        |     |       |
+    |   |   |   |   | salyga[].aprasymas   | string           |         | APRASYMAS/text()   |         |       |        |     |       |
+    |   |   |   |   | salyga[].kodas       | string           |         | @kodas             |         |       |        |     |       |
+    |   |   |   |   | salyga[].nr          | integer          |         | @nr                |         |       |        |     |       |
+    |   |   |   |   | salyga[].pavadinimas | string           |         | PAVADINIMAS/text() |         |       |        |     |       |
+    |   |   |   |   | salyga[].reiksme     | string required  |         | REIKSME/text()     |         |       |        |     |       |
+    |   |   |   |   | salyga[].text        | string           |         | text()             |         |       |        |     |       |
+    |   |   |   |   | text                 | string           |         | text()             |         |       |        |     |       |
+    |                                      |                  |         |                    |         |       |        |     |       |
+    |   |   |   | Salyga                   |                  |         | /SALYGOS/SALYGA    |         |       |        |     |       |
+    |   |   |   |   | aprasymas            | string           |         | APRASYMAS/text()   |         |       |        |     |       |
+    |   |   |   |   | kodas                | string           |         | @kodas             |         |       |        |     |       |
+    |   |   |   |   | nr                   | integer          |         | @nr                |         |       |        |     |       |
+    |   |   |   |   | pavadinimas          | string           |         | PAVADINIMAS/text() |         |       |        |     |       |
+    |   |   |   |   | reiksme              | string required  |         | REIKSME/text()     |         |       |        |     |       |
+    |   |   |   |   | salygos              | ref              | Salygos |                    |         |       |        |     |       |
+    |   |   |   |   | text                 | string           |         | text()             |         |       |        |     |       |
+
 """
 
     path = tmp_path / 'manifest.xsd'
@@ -689,22 +686,20 @@ def test_xsd_model_one_property(rc: RawConfig, tmp_path: Path):
     """
 
     table = """
- id | d | r | b | m | property                 | type     | ref | source                        | prepare | level | access | uri | title | description
-    | manifest                                 |          |     |                               |         |       |        |     |       |
-    |   | resource1                            | xml      |     |                               |         |       |        |     |       |
-    |                                          |          |     |                               |         |       |        |     |       |
-    |   |   |   | Extracttz                    |          |     | /getTzByTRAResponse/extracttz |         |       |        |     |       |
-    |   |   |   |   | extract_preparation_time | datetime |     | extractPreparationTime/text() |         |       |        |     |       |
-    |   |   |   |   | phipoteka                | integer  |     | phipoteka/text()              |         |       |        |     |       |
-    |                                          |          |     |                               |         |       |        |     |       |
-    |   |   |   | Klaida                       |          |     | /getTzByTRAResponse/klaida    |         |       |        |     |       |
-    |   |   |   |   | aprasymas                | string   |     | Aprasymas/text()              |         |       |        |     |       |
-    |                                          |          |     |                               |         |       |        |     |       |
-    |   |   |   | GetTzByTRAResponse           |          |     | /getTzByTRAResponse           |         |       |        |     |       |
-    |   |   |   |   | search_parameters        | string   |     | searchParameters/text()       |         |       |        |     |       |
-    |   |   |   |   | extracttz.extract_preparation_time | datetime |     | extracttz/extractPreparationTime/text() |         |       |        |     |       |
-    |   |   |   |   | extracttz.phipoteka      | integer  |     | extracttz/phipoteka/text()    |         |       |        |     |       |
-    |   |   |   |   | klaida.aprasymas         | string   |     | klaida/Aprasymas/text()       |         |       |        |     |       |
+ id | d | r | b | m | property                           | type     | ref       | source                                  | prepare | level | access | uri | title | description
+    | manifest                                           |          |           |                                         |         |       |        |     |       |
+    |   | resource1                                      | xml      |           |                                         |         |       |        |     |       |
+    |                                                    |          |           |                                         |         |       |        |     |       |
+    |   |   |   | GetTzByTRAResponse                     |          |           | /getTzByTRAResponse                     |         |       |        |     |       |
+    |   |   |   |   | aprasymas                          | string   |           | klaida/Aprasymas/text()                 |         |       |        |     |       |
+    |   |   |   |   | extracttz                          | ref      | Extracttz | extracttz                               |         |       |        |     |       |
+    |   |   |   |   | extracttz.extract_preparation_time | datetime |           | extracttz/extractPreparationTime/text() |         |       |        |     |       |
+    |   |   |   |   | extracttz.phipoteka                | integer  |           | extracttz/phipoteka/text()              |         |       |        |     |       |
+    |   |   |   |   | search_parameters                  | string   |           | searchParameters/text()                 |         |       |        |     |       |
+    |                                                    |          |           |                                         |         |       |        |     |       |
+    |   |   |   | Extracttz                              |          |           | /getTzByTRAResponse/extracttz           |         |       |        |     |       |
+    |   |   |   |   | extract_preparation_time           | datetime |           | extractPreparationTime/text()           |         |       |        |     |       |
+    |   |   |   |   | phipoteka                          | integer  |           | phipoteka/text()                        |         |       |        |     |       |
 
 """
     path = tmp_path / 'manifest.xsd'
@@ -757,15 +752,14 @@ def test_xsd_separate_simple_type(rc: RawConfig, tmp_path: Path):
 """
 
     table = """
- id | d | r | b | m | property                | type   | ref | source                         | prepare | level | access | uri                                           | title | description
-    | manifest                                |        |     |                                |         |       |        |                                               |       |
-    |   | resource1                           | xml    |     |                                |         |       |        |                                               |       |
-    |                                         |        |     |                                |         |       |        |                                               |       |
-    |   |   |   | Tyrimas                     |        |     | /TYRIMAS                       |         |       |        |                                               |       |
-    |   |   |   |   | ct_e200ats_duom_sukurti | string |     | CT_E200ATS_DUOM_SUKURTI/text() |         |       |        |                                               |       | E200-ats duomenų sukūrimo data ir laikas
-    |   |   |   |   | ct_paciento_spi         | string |     | CT_PACIENTO_SPI/text()         |         |       |        |                                               |       | Paciento prisirašymo įstaigos pavadinimas
-    |   |   |   |   | ct_ctd_eminys_gautas    | string |     | CT_CTD_EMINYS_GAUTAS/text()    |         |       |        |                                               |       | Ėminio gavimo data
-
+ id | d | r | b | m | property                | type   | ref | source                         | prepare | level | access | uri | title | description
+    | manifest                                |        |     |                                |         |       |        |     |       |
+    |   | resource1                           | xml    |     |                                |         |       |        |     |       |
+    |                                         |        |     |                                |         |       |        |     |       |
+    |   |   |   | Tyrimas                     |        |     | /TYRIMAS                       |         |       |        |     |       |
+    |   |   |   |   | ct_ctd_eminys_gautas    | string |     | CT_CTD_EMINYS_GAUTAS/text()    |         |       |        |     |       | Ėminio gavimo data
+    |   |   |   |   | ct_e200ats_duom_sukurti | string |     | CT_E200ATS_DUOM_SUKURTI/text() |         |       |        |     |       | E200-ats duomenų sukūrimo data ir laikas
+    |   |   |   |   | ct_paciento_spi         | string |     | CT_PACIENTO_SPI/text()         |         |       |        |     |       | Paciento prisirašymo įstaigos pavadinimas
 """
     path = tmp_path / 'manifest.xsd'
     with open(path, "w") as xsd_file:
@@ -817,38 +811,43 @@ def test_xsd_sequence_choice_sequence(rc: RawConfig, tmp_path: Path):
 """
 
     table = """
- id | d | r | b | m | property         | type            | ref | source                       | prepare | level | access | uri | title | description
-    | manifest                         |                 |     |                              |         |       |        |     |       |
-    |   | resource1                    | xml             |     |                              |         |       |        |     |       |
-    |                                  |                 |     |                              |         |       |        |     |       |
-    |   |   |   | Documents1           |                 |     | /data/responseData/documents |         |       |        |     |       |
-    |   |   |   |   | birth_date       | string          |     | birthDate/text()             |         |       |        |     |       |
-    |   |   |   |   | last_name        | string          |     | lastName/text()              |         |       |        |     |       |
-    |   |   |   |   | first_name       | string          |     | firstName/text()             |         |       |        |     |       |
-    |   |   |   |   | code             | string          |     | code/text()                  |         |       |        |     |       |
-    |   |   |   |   | iltu_code        | string          |     | iltu_code/text()             |         |       |        |     |       |
-    |                                  |                 |     |                              |         |       |        |     |       |
-    |   |   |   | Documents2           |                 |     | /data/responseData/documents |         |       |        |     |       |
-    |   |   |   |   | business_name    | string          |     | businessName/text()          |         |       |        |     |       |
-    |   |   |   |   | code             | string          |     | code/text()                  |         |       |        |     |       |
-    |   |   |   |   | iltu_code        | string          |     | iltu_code/text()             |         |       |        |     |       |
-    |                                  |                 |     |                              |         |       |        |     |       |
-    |   |   |   | ResponseData         |                 |     | /data/responseData           |         |       |        |     |       |
-    |   |   |   |   | statement_id     | string required |     | statementId/text()           |         |       |        |     |       |
-    |   |   |   |   | title            | string required |     | title/text()                 |         |       |        |     |       |
-    |                                  |                 |     |                              |         |       |        |     |       |
-    |   |   |   | Data                 |                 |     | /data                        |         |       |        |     |       |
-    |   |   |   |   | response_message | string          |     | responseMessage/text()       |         |       |        |     |       |
-    |   |   |   |   | response_data.documents1.birth_date | string          |     | responseData/documents/birthDate/text() |         |       |        |     |       |
-    |   |   |   |   | response_data.documents1.last_name | string          |     | responseData/documents/lastName/text() |         |       |        |     |       |
-    |   |   |   |   | response_data.documents1.first_name | string          |     | responseData/documents/firstName/text() |         |       |        |     |       |
-    |   |   |   |   | response_data.documents1.code | string          |     | responseData/documents/code/text() |         |       |        |     |       |
-    |   |   |   |   | response_data.documents1.iltu_code | string          |     | responseData/documents/iltu_code/text() |         |       |        |     |       |
-    |   |   |   |   | response_data.documents2.business_name | string          |     | responseData/documents/businessName/text() |         |       |        |     |       |
-    |   |   |   |   | response_data.documents2.code | string          |     | responseData/documents/code/text() |         |       |        |     |       |
-    |   |   |   |   | response_data.documents2.iltu_code | string          |     | responseData/documents/iltu_code/text() |         |       |        |     |       |
-    |   |   |   |   | response_data.statement_id | string required |     | responseData/statementId/text() |         |       |        |     |       |
-    |   |   |   |   | response_data.title | string required |     | responseData/title/text()    |         |       |        |     |       |
+ id | d | r | b | m | property                               | type            | ref          | source                                     | prepare | level | access | uri | title | description
+    | manifest                                               |                 |              |                                            |         |       |        |     |       |
+    |   | resource1                                          | xml             |              |                                            |         |       |        |     |       |
+    |                                                        |                 |              |                                            |         |       |        |     |       |
+    |   |   |   | Data                                       |                 |              | /data                                      |         |       |        |     |       |
+    |   |   |   |   | response_data                          | ref             | ResponseData | responseData                               |         |       |        |     |       |
+    |   |   |   |   | response_data.documents                | ref required    | Documents1   | responseData/documents                     |         |       |        |     |       |
+    |   |   |   |   | response_data.documents.birth_date     | string          |              | responseData/documents/birthDate/text()    |         |       |        |     |       |
+    |   |   |   |   | response_data.documents.code           | string          |              | responseData/documents/code/text()         |         |       |        |     |       |
+    |   |   |   |   | response_data.documents.first_name     | string          |              | responseData/documents/firstName/text()    |         |       |        |     |       |
+    |   |   |   |   | response_data.documents.iltu_code      | string          |              | responseData/documents/iltu_code/text()    |         |       |        |     |       |
+    |   |   |   |   | response_data.documents.last_name      | string          |              | responseData/documents/lastName/text()     |         |       |        |     |       |
+    |   |   |   |   | response_data.documents1               | ref required    | Documents2   | responseData/documents                     |         |       |        |     |       |
+    |   |   |   |   | response_data.documents1.business_name | string          |              | responseData/documents/businessName/text() |         |       |        |     |       |
+    |   |   |   |   | response_data.documents1.code          | string          |              | responseData/documents/code/text()         |         |       |        |     |       |
+    |   |   |   |   | response_data.documents1.iltu_code     | string          |              | responseData/documents/iltu_code/text()    |         |       |        |     |       |
+    |   |   |   |   | response_data.statement_id             | string required |              | responseData/statementId/text()            |         |       |        |     |       |
+    |   |   |   |   | response_data.title                    | string required |              | responseData/title/text()                  |         |       |        |     |       |
+    |   |   |   |   | response_message                       | string          |              | responseMessage/text()                     |         |       |        |     |       |
+    |                                                        |                 |              |                                            |         |       |        |     |       |
+    |   |   |   | ResponseData                               |                 |              | /data/responseData                         |         |       |        |     |       |
+    |   |   |   |   | documents                              | ref required    | Documents1   | documents                                  |         |       |        |     |       |
+    |   |   |   |   | documents1                             | ref required    | Documents2   | documents                                  |         |       |        |     |       |
+    |   |   |   |   | statement_id                           | string required |              | statementId/text()                         |         |       |        |     |       |
+    |   |   |   |   | title                                  | string required |              | title/text()                               |         |       |        |     |       |
+    |                                                        |                 |              |                                            |         |       |        |     |       |
+    |   |   |   | Documents1                                 |                 |              | /data/responseData/documents               |         |       |        |     |       |
+    |   |   |   |   | birth_date                             | string          |              | birthDate/text()                           |         |       |        |     |       |
+    |   |   |   |   | code                                   | string          |              | code/text()                                |         |       |        |     |       |
+    |   |   |   |   | first_name                             | string          |              | firstName/text()                           |         |       |        |     |       |
+    |   |   |   |   | iltu_code                              | string          |              | iltu_code/text()                           |         |       |        |     |       |
+    |   |   |   |   | last_name                              | string          |              | lastName/text()                            |         |       |        |     |       |
+    |                                                        |                 |              |                                            |         |       |        |     |       |
+    |   |   |   | Documents2                                 |                 |              | /data/responseData/documents               |         |       |        |     |       |
+    |   |   |   |   | business_name                          | string          |              | businessName/text()                        |         |       |        |     |       |
+    |   |   |   |   | code                                   | string          |              | code/text()                                |         |       |        |     |       |
+    |   |   |   |   | iltu_code                              | string          |              | iltu_code/text()                           |         |       |        |     |       |
 """
     path = tmp_path / 'manifest.xsd'
     with open(path, "w") as xsd_file:
@@ -891,19 +890,18 @@ def test_xsd_complex_ontent(rc: RawConfig, tmp_path: Path):
     |   | resource1                     | xml    |     |                         |         |       |        |     |       |
     |                                   |        |     |                         |         |       |        |     |       |
     |   |   |   | BeFull                |        |     | /BE_FULL                |         |       |        |     |       |
-    |   |   |   |   | title1            | string |     | title1/text()           |         |       |        |     |       |
-    |   |   |   |   | title2            | string |     | title2/text()           |         |       |        |     |       |
+    |   |   |   |   | contract_list     | string |     | ContractList/text()     |         |       |        |     |       |
+    |   |   |   |   | contract_statusas | string |     | ContractStatusas/text() |         |       |        |     |       |
+    |   |   |   |   | doc_list          | string |     | DocList/text()          |         |       |        |     |       |
+    |   |   |   |   | preorder_list     | string |     | PreorderList/text()     |         |       |        |     |       |
+    |   |   |   |   | preorder_statusas | string |     | PreorderStatusas/text() |         |       |        |     |       |
     |   |   |   |   | printeddate       | string |     | printeddate/text()      |         |       |        |     |       |
     |   |   |   |   | searchparameter1  | string |     | searchparameter1/text() |         |       |        |     |       |
     |   |   |   |   | searchparameter2  | string |     | searchparameter2/text() |         |       |        |     |       |
     |   |   |   |   | searchparameter3  | string |     | searchparameter3/text() |         |       |        |     |       |
     |   |   |   |   | statusas          | string |     | statusas/text()         |         |       |        |     |       |
-    |   |   |   |   | doc_list          | string |     | DocList/text()          |         |       |        |     |       |
-    |   |   |   |   | preorder_statusas | string |     | PreorderStatusas/text() |         |       |        |     |       |
-    |   |   |   |   | preorder_list     | string |     | PreorderList/text()     |         |       |        |     |       |
-    |   |   |   |   | contract_statusas | string |     | ContractStatusas/text() |         |       |        |     |       |
-    |   |   |   |   | contract_list     | string |     | ContractList/text()     |         |       |        |     |       |
-
+    |   |   |   |   | title1            | string |     | title1/text()           |         |       |        |     |       |
+    |   |   |   |   | title2            | string |     | title2/text()           |         |       |        |     |       |
 """
     path = tmp_path / 'manifest.xsd'
     with open(path, "w") as xsd_file:
@@ -958,16 +956,18 @@ def test_xsd_recursion(rc: RawConfig, tmp_path: Path):
 """
 
     table = """
- id | d | r | b | m | property         | type            | ref | source                            | prepare | level | access | uri | title | description
-    | manifest                         |                 |     |                                   |         |       |        |     |       |
-    |   | resource1                    | xml             |     |                                   |         |       |        |     |       |
-    |                                  |                 |     |                                   |         |       |        |     |       |
-    |   |   |   | Action               |                 |     | /data/responseData/actions/action |         |       |        |     |       |
-    |   |   |   |   | code             | string required |     | code/text()                       |         |       |        |     |       | Paslaugos kodas (RC kodas)
-    |                                  |                 |     |                                   |         |       |        |     |       |
-    |   |   |   | Data                 |                 |     | /data                             |         |       |        |     |       |
-    |   |   |   |   | response_message | string          |     | responseMessage/text()            |         |       |        |     |       |
-    |   |   |   |   | action.code      | string required |     | action/code/text()                |         |       |        |     |       | Paslaugos kodas (RC kodas)
+ id | d | r | b | m | property               | type            | ref     | source                     | prepare | level | access | uri | title | description
+    | manifest                               |                 |         |                            |         |       |        |     |       |
+    |   | resource1                          | xml             |         |                            |         |       |        |     |       |
+    |                                        |                 |         |                            |         |       |        |     |       |
+    |   |   |   | Data                       |                 |         | /data                      |         |       |        |     |       |
+    |   |   |   |   | response_data[]        | backref         | Actions | responseData/actions       |         |       |        |     |       |
+    |   |   |   |   | response_data[].code[] | string required |         | action/code/text()         |         |       |        |     |       | Paslaugos kodas (RC kodas)
+    |   |   |   |   | response_message       | string          |         | responseMessage/text()     |         |       |        |     |       |
+    |                                        |                 |         |                            |         |       |        |     |       |
+    |   |   |   | Actions                    |                 |         | /data/responseData/actions |         |       |        |     |       |
+    |   |   |   |   | code[]                 | string required |         | action/code/text()         |         |       |        |     |       | Paslaugos kodas (RC kodas)
+    |   |   |   |   | data                   | ref             | Data    |                            |         |       |        |     |       |
 
 """
     path = tmp_path / 'manifest.xsd'
@@ -1041,49 +1041,54 @@ def test_xsd_enumeration(rc: RawConfig, tmp_path: Path):
 """
 
     table = """
- id | d | r | b | m | property                     | type            | ref | source                              | prepare | level | access | uri | title | description
-    | manifest                                     |                 |     |                                     |         |       |        |     |       |
-    |   | resource1                                | xml             |     |                                     |         |       |        |     |       |
-    |                                              |                 |     |                                     |         |       |        |     |       |
-    |   |   |   | ResponseData                     |                 |     | /data/responseData                  |         |       |        |     |       |
-    |   |   |   |   | who_may_consitute            | string required |     | who_may_consitute/text()            |         |       |        |     |       | Įgaliojimą gali sudaryti.
-    |                                              | enum            |     | fiz                                 |         |       |        |     |       |
-    |                                              |                 |     | fiz-notarial                        |         |       |        |     |       |
-    |                                              |                 |     | jur                                 |         |       |        |     |       |
-    |                                              |                 |     | jur-notarial                        |         |       |        |     |       |
-    |                                              |                 |     | fiz-jur                             |         |       |        |     |       |
-    |                                              |                 |     | fiz-notarial-jur-notarial           |         |       |        |     |       |
-    |                                              |                 |     | fiz-notarial-jur                    |         |       |        |     |       |
-    |                                              |                 |     | fiz-jur-notarial                    |         |       |        |     |       |
-    |   |   |   |   | default_description_editable | string required |     | default_description_editable/text() |         |       |        |     |       | Ar numatytasis aprašymas gali būti redaguojamas? 0 - NE, 1 - TAIP
-    |                                              | enum            |     | 0                                   |         |       |        |     |       |
-    |                                              |                 |     | 1                                   |         |       |        |     |       |
-    |   |   |   |   | digital_service              | string required |     | digital_service/text()              |         |       |        |     |       | El. paslauga. Reikšmės: digital - Tik elektroninė paslauga, analog - Tik neelektroninė paslauga, digital-or-analog - Elektroninė arba neelektroninė paslauga
-    |                                              | enum            |     | digital                             |         |       |        |     |       |
-    |                                              |                 |     | analog                              |         |       |        |     |       |
-    |                                              |                 |     | digital-or-analog                   |         |       |        |     |       |
-    |                                              |                 |     |                                     |         |       |        |     |       |
-    |   |   |   | Data                             |                 |     | /data                               |         |       |        |     |       |
-    |   |   |   |   | response_message             | string          |     | responseMessage/text()              |         |       |        |     |       |
-    |   |   |   |   | response_data.who_may_consitute | string required |     | responseData/who_may_consitute/text() |         |       |        |     |       | Įgaliojimą gali sudaryti.
-    |                                              | enum            |     | fiz                                 |         |       |        |     |       |
-    |                                              |                 |     | fiz-notarial                        |         |       |        |     |       |
-    |                                              |                 |     | jur                                 |         |       |        |     |       |
-    |                                              |                 |     | jur-notarial                        |         |       |        |     |       |
-    |                                              |                 |     | fiz-jur                             |         |       |        |     |       |
-    |                                              |                 |     | fiz-notarial-jur-notarial           |         |       |        |     |       |
-    |                                              |                 |     | fiz-notarial-jur                    |         |       |        |     |       |
-    |                                              |                 |     | fiz-jur-notarial                    |         |       |        |     |       |
-    |   |   |   |   | response_data.default_description_editable | string required |     | responseData/default_description_editable/text() |         |       |        |     |       | Ar numatytasis aprašymas gali būti redaguojamas? 0 - NE, 1 - TAIP
-    |                                              | enum            |     | 0                                   |         |       |        |     |       |
-    |                                              |                 |     | 1                                   |         |       |        |     |       |
-    |   |   |   |   | response_data.digital_service | string required |     | responseData/digital_service/text() |         |       |        |     |       | El. paslauga. Reikšmės: digital - Tik elektroninė paslauga, analog - Tik neelektroninė paslauga, digital-or-analog - Elektroninė arba neelektroninė paslauga
-    |                                              | enum            |     | digital                             |         |       |        |     |       |
-    |                                              |                 |     | analog                              |         |       |        |     |       |
-    |                                              |                 |     | digital-or-analog                   |         |       |        |     |       |
+ id | d | r | b | m | property                                   | type            | ref          | source                                           | prepare | level | access | uri | title | description
+    | manifest                                                   |                 |              |                                                  |         |       |        |     |       |
+    |   | resource1                                              | xml             |              |                                                  |         |       |        |     |       |
+    |                                                            |                 |              |                                                  |         |       |        |     |       |
+    |   |   |   | Data                                           |                 |              | /data                                            |         |       |        |     |       |
+    |   |   |   |   | response_data                              | ref             | ResponseData | responseData                                     |         |       |        |     |       |
+    |   |   |   |   | response_data.default_description_editable | string required |              | responseData/default_description_editable/text() |         |       |        |     |       | Ar numatytasis aprašymas gali būti redaguojamas? 0 - NE, 1 - TAIP
+    |                                                            | enum            |              | 0                                                |         |       |        |     |       |
+    |                                                            |                 |              | 1                                                |         |       |        |     |       |
+    |   |   |   |   | response_data.digital_service              | string required |              | responseData/digital_service/text()              |         |       |        |     |       | El. paslauga. Reikšmės: digital - Tik elektroninė paslauga, analog - Tik neelektroninė paslauga, digital-or-analog - Elektroninė arba neelektroninė paslauga
+    |                                                            | enum            |              | digital                                          |         |       |        |     |       |
+    |                                                            |                 |              | analog                                           |         |       |        |     |       |
+    |                                                            |                 |              | digital-or-analog                                |         |       |        |     |       |
+    |   |   |   |   | response_data.who_may_consitute            | string required |              | responseData/who_may_consitute/text()            |         |       |        |     |       | Įgaliojimą gali sudaryti.
+    |                                                            | enum            |              | fiz                                              |         |       |        |     |       |
+    |                                                            |                 |              | fiz-notarial                                     |         |       |        |     |       |
+    |                                                            |                 |              | jur                                              |         |       |        |     |       |
+    |                                                            |                 |              | jur-notarial                                     |         |       |        |     |       |
+    |                                                            |                 |              | fiz-jur                                          |         |       |        |     |       |
+    |                                                            |                 |              | fiz-notarial-jur-notarial                        |         |       |        |     |       |
+    |                                                            |                 |              | fiz-notarial-jur                                 |         |       |        |     |       |
+    |                                                            |                 |              | fiz-jur-notarial                                 |         |       |        |     |       |
+    |   |   |   |   | response_message                           | string          |              | responseMessage/text()                           |         |       |        |     |       |
+    |                                                            |                 |              |                                                  |         |       |        |     |       |
+    |   |   |   | ResponseData                                   |                 |              | /data/responseData                               |         |       |        |     |       |
+    |   |   |   |   | default_description_editable               | string required |              | default_description_editable/text()              |         |       |        |     |       | Ar numatytasis aprašymas gali būti redaguojamas? 0 - NE, 1 - TAIP
+    |                                                            | enum            |              | 0                                                |         |       |        |     |       |
+    |                                                            |                 |              | 1                                                |         |       |        |     |       |
+    |   |   |   |   | digital_service                            | string required |              | digital_service/text()                           |         |       |        |     |       | El. paslauga. Reikšmės: digital - Tik elektroninė paslauga, analog - Tik neelektroninė paslauga, digital-or-analog - Elektroninė arba neelektroninė paslauga
+    |                                                            | enum            |              | digital                                          |         |       |        |     |       |
+    |                                                            |                 |              | analog                                           |         |       |        |     |       |
+    |                                                            |                 |              | digital-or-analog                                |         |       |        |     |       |
+    |   |   |   |   | who_may_consitute                          | string required |              | who_may_consitute/text()                         |         |       |        |     |       | Įgaliojimą gali sudaryti.
+    |                                                            | enum            |              | fiz                                              |         |       |        |     |       |
+    |                                                            |                 |              | fiz-notarial                                     |         |       |        |     |       |
+    |                                                            |                 |              | jur                                              |         |       |        |     |       |
+    |                                                            |                 |              | jur-notarial                                     |         |       |        |     |       |
+    |                                                            |                 |              | fiz-jur                                          |         |       |        |     |       |
+    |                                                            |                 |              | fiz-notarial-jur-notarial                        |         |       |        |     |       |
+    |                                                            |                 |              | fiz-notarial-jur                                 |         |       |        |     |       |
+    |                                                            |                 |              | fiz-jur-notarial                                 |         |       |        |     |       |
+
 """
     path = tmp_path / 'manifest.xsd'
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
     manifest = load_manifest(rc, path)
     assert manifest == table
+
+
+# todo  add test from gr 605 - refs and arrays

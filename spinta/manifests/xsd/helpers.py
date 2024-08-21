@@ -289,7 +289,7 @@ class XSDModel:
         return any([prop["type"] not in ("ref", "backerf") for prop in self.properties.values()])
 
     def add_ref_property(self, ref_model):
-        property_id = to_property_name(ref_model.basename)
+        property_id = self.deduplicate(to_property_name(ref_model.basename))
         prop = {"type": "ref", "model": ref_model.name}
         self.properties.update({property_id: prop})
 
@@ -531,95 +531,33 @@ class XSDReader:
                 if not sequences:
                     choices = complex_type.xpath("./*[local-name() = 'choice']")
                     if choices and choices[0].get('maxOccurs') == 'unbounded':
-                        sequences = choices
                         is_array = True
-                if sequences:
-                    sequence = sequences[0]
-                else:
-                    sequence = None
 
-                # proxy element (for array), we don't create a model for it, it's to indicate an array
-                new_referenced_element = None
-                previous_referenced_element = None
-                previous_referenced_element_name = None
-                # we check for the length of sequence, because it can have more than one element, but also length of
-                # complexType because it can have attributes too.
-                if (
-                        sequence is not None and
-                        len(sequence) == 1 and
-                        (len(complex_type) == 1 or (len(complex_type) == 2 and len(complex_type.xpath("./*[local-name() = 'annotation']")) > 0)) and
-                        (self._node_has_separate_complex_type(sequence[0]) or sequence[0].xpath(f'./*[local-name() = "complexType"]'))
-                ):
-                    new_source_path += f'/{typed_element.get("name")}'
-                    is_array = (
-                        is_array or
-                        XSDReader.is_array(complex_type) or
-                        XSDReader.is_array(complex_type[0][0]) or
-                        XSDReader.is_array(typed_element) or
-                        XSDReader.is_array(sequence[0])
-                    )
-
-                    previous_referenced_element = typed_element
-                    previous_referenced_element_name = typed_element.get("name")
-                    complex_type = self._get_separate_complex_type_node(sequence[0])
-
-                    # TODO: we probably don't need both
-                    new_referenced_element = sequence[0]
-                    typed_element = sequence[0]
-
-                    if self.node_is_simple_type_or_inline(new_referenced_element):
-                        property_id, prop = model.simple_element_to_property(
-                            typed_element,
-                            is_array=is_array,
-                            source_path=previous_referenced_element_name)
-                        if not XSDReader.is_required(typed_element):
-                            prop["required"] = False
-                        properties[property_id] = prop
-                        continue
+                if XSDReader.is_array(typed_element):
+                    is_array = True
 
                 # avoiding recursion
                 if typed_element.get("name") in source_path.split("/"):
                     continue
 
-                is_array = is_array or XSDReader.is_array(typed_element)
-                if not is_array:
-                    if previous_referenced_element:
-                        is_array = XSDReader.is_array(previous_referenced_element)
-
-                if not is_array:
-                    referenced_model_names = self._create_model(
-                        typed_element,
-                        source_path=new_source_path,
-                        parent_model=model
-                    )
-                    property_type = "ref"
-                else:
-                    referenced_element_properties = {
-                        to_property_name(model.basename):
-                        {
-                            "type": "ref",
-                            "model": f"{model.name}"
-                        }
-                    }
+                if is_array:
                     property_type = "backref"
-                    referenced_model_names = self._create_model(
-                        typed_element,
-                        source_path=new_source_path,
-                        parent_model=model,
-                        additional_properties=referenced_element_properties
-                    )
+
+                else:
+                    property_type = "ref"
+                referenced_model_names = self._create_model(
+                    typed_element,
+                    source_path=new_source_path,
+                    parent_model=model,
+                )
 
                 for referenced_model_name in referenced_model_names:
                     property_id, prop = model.simple_element_to_property(typed_element, is_array=is_array)
                     prop["external"]["name"] = prop["external"]["name"].replace("/text()", '')
-                    if new_referenced_element is not None and new_referenced_element.get("mixed") != "true":
-                        _, referenced_prop = model.simple_element_to_property(previous_referenced_element, is_array=is_array)
-                        prop["external"]["name"] = f'{previous_referenced_element_name}/{prop["external"]["name"]}'
-                        property_id = to_property_name(previous_referenced_element_name)
-                        if is_array:
-                            if not property_id.endswith("[]"):
-                                property_id += "[]"
-                            property_type = "backref"
+                    if is_array:
+                        if not property_id.endswith("[]"):
+                            property_id += "[]"
+                        property_type = "backref"
                     prop["type"] = property_type
                     prop["model"] = f"{referenced_model_name}"
                     properties[property_id] = prop
@@ -640,7 +578,8 @@ class XSDReader:
             referenced_element = self._get_referenced_node(ref_element)
 
             if self.node_is_simple_type_or_inline(referenced_element):
-                property_id, prop = model.simple_element_to_property(referenced_element)
+                is_array = XSDReader.is_array(ref_element)
+                property_id, prop = model.simple_element_to_property(referenced_element, is_array=is_array)
                 if not XSDReader.is_required(ref_element):
                     prop["required"] = False
                 properties[property_id] = prop
@@ -655,51 +594,14 @@ class XSDReader:
                 if not sequences:
                     choices = complex_type.xpath("./*[local-name() = 'choice']")
                     if choices and XSDReader.is_array(choices[0]):
-                        sequences = choices
                         # we only make this array if it's only one choice, which means it's a wrapper for an array
                         # also, if it's mixed, and has choices inside, it's not an array even if choices are unbound
                         if len(choices[0]) == 1 and not complex_type.get("mixed") == "true":
                             is_array = True
-                if sequences:
-                    sequence = sequences[0]
-                else:
-                    sequence = None
-
-                new_referenced_element = None
 
                 # if we only have one ref element and if it's inside a choice/sequence (this node) which is maxOccurs = unbounded then it's array
                 if XSDReader.is_array(node) and len(node) == 1:
                     is_array = True
-
-                # if it's a proxy model, we don't create it, but make reference to the next model
-                # we check for the length of sequence, because it can have more than one element, but also length of
-                # complexType because it can have attributes too.
-                if (
-                        sequence is not None and
-                        len(sequence) == 1 and
-                        len(complex_type) == 1 and
-                        self.node_is_ref(sequence[0]) and
-                        not complex_type.get("mixed") == "true"
-                ):
-                    if ref_element.get("name") is not None:
-                        new_source_path += f'/{ref_element.get("name")}'
-                    new_source_path += f'/{referenced_element.get("name")}'
-
-                    previous_referenced_element_name = referenced_element.get("name")
-                    new_referenced_element = self._get_referenced_node(complex_type[0][0])
-                    referenced_element = new_referenced_element
-
-                    is_array = is_array or XSDReader.is_array(referenced_element) or XSDReader.is_array(complex_type[0][0]) or XSDReader.is_array(sequence)
-
-                    if self.node_is_simple_type_or_inline(referenced_element):
-                        property_id, prop = model.simple_element_to_property(
-                            referenced_element,
-                            is_array=is_array,
-                            source_path=previous_referenced_element_name)
-                        if not XSDReader.is_required(ref_element):
-                            prop["required"] = False
-                        properties[property_id] = prop
-                        continue
 
                 # avoiding recursion
                 if referenced_element.get("name") in source_path.split("/"):
@@ -708,35 +610,19 @@ class XSDReader:
                 if XSDReader.is_array(ref_element):
                     is_array = True
 
-                if not is_array:
-                    referenced_model_names = self._create_model(
-                        referenced_element,
-                        source_path=new_source_path,
-                        parent_model=model
-                    )
-                    property_type = "ref"
-                else:
-                    referenced_element_properties = {
-                        to_property_name(model.basename):
-                        {
-                            "type": "ref",
-                            "model": f"{model.name}"
-                        }
-                    }
+                if is_array:
                     property_type = "backref"
-                    referenced_model_names = self._create_model(
-                        referenced_element,
-                        source_path=new_source_path,
-                        parent_model=model,
-                        additional_properties=referenced_element_properties
-                    )
+                else:
+                    property_type = "ref"
+                referenced_model_names = self._create_model(
+                    referenced_element,
+                    source_path=new_source_path,
+                    parent_model=model
+                )
 
                 for referenced_model_name in referenced_model_names:
                     property_id, prop = model.simple_element_to_property(ref_element, is_array=is_array)
                     prop['external']['name'] = prop['external']['name'].rstrip('/text()')
-                    if new_referenced_element is not None:
-                        _, referenced_prop = model.simple_element_to_property(referenced_element, is_array=is_array)
-                        prop['external']['name'] += f'/{referenced_prop["external"]["name"].rstrip("/text()")}'
 
                     if is_array:
                         if not property_id.endswith("[]"):
@@ -755,7 +641,6 @@ class XSDReader:
         node: _Element,
         source_path: str,
         parent_model: XSDModel,
-        additional_properties: dict[str, dict[str, str | bool | dict[str, str]]],
         is_root_model: bool = False
     ) -> list[str]:
         """
@@ -794,7 +679,6 @@ class XSDReader:
                         node_copy,
                         source_path=source_path,
                         parent_model=parent_model,
-                        additional_properties=additional_properties,
                         is_root_model=is_root_model
                     )
 
@@ -809,7 +693,6 @@ class XSDReader:
                         node_copy,
                         source_path=source_path,
                         parent_model=parent_model,
-                        additional_properties=additional_properties,
                         is_root_model=is_root_model
                     )
                     model_names.extend(returned_model_names)
@@ -823,7 +706,6 @@ class XSDReader:
         source_path: str = "",
         is_root_model: bool = False,
         parent_model: XSDModel = None,
-        additional_properties: dict[str, str | bool | dict[str, str | dict[str, Any]]] = None
     ) -> list[str]:
         """
         Parses an element and makes a model out of it. If it is a complete model, it will be added to the models list.
@@ -831,12 +713,8 @@ class XSDReader:
         model = XSDModel(self)
         model.parent_model = parent_model
 
-        if additional_properties is None:
-            additional_properties = {}
-
         # properties of this model
         properties = {}
-        properties.update(additional_properties)
         properties.update(model.attributes_to_properties(node))
 
         new_source_path = f"{source_path}/{node.get('name')}"
@@ -858,15 +736,13 @@ class XSDReader:
                     choices = complex_type_node.xpath(f'./*[local-name() = "choice"]/*[local-name() = "choice"]')
                 else:
                     choices = complex_type_node.xpath(f'./*[local-name() = "sequence"]/*[local-name() = "choice"]')
-            if choices:
-                if choices[0].get("maxOccurs") != "unbounded":
-                    return self._split_choice(
-                        node,
-                        source_path=source_path,
-                        parent_model=parent_model,
-                        additional_properties=additional_properties,
-                        is_root_model=is_root_model
-                    )
+            if choices and choices[0].get("maxOccurs") != "unbounded":
+                return self._split_choice(
+                    node,
+                    source_path=source_path,
+                    parent_model=parent_model,
+                    is_root_model=is_root_model
+                )
 
             # if complextype node's property mixed is true, it allows text inside
             if complex_type_node.get("mixed") == "true":
@@ -884,11 +760,11 @@ class XSDReader:
                 # TODO: in this case, it might be something else, not sequence too
 
             if (
-                    complex_type_node.xpath(f'./*[local-name() = "sequence"]') or
-                    complex_type_node.xpath(f'./*[local-name() = "all"]') or
-                    complex_type_node.xpath(f'./*[local-name() = "simpleContent"]') or
-                    choices or
-                    len(complex_type_node) > 0
+                complex_type_node.xpath(f'./*[local-name() = "sequence"]') or
+                complex_type_node.xpath(f'./*[local-name() = "all"]') or
+                complex_type_node.xpath(f'./*[local-name() = "simpleContent"]') or
+                choices or
+                len(complex_type_node) > 0
             ):
                 """
                 source: https://stackoverflow.com/questions/36286056/the-difference-between-all-sequence-choice-and-group-in-xsd
@@ -938,6 +814,9 @@ class XSDReader:
                     sequence_or_all_node,
                     model=model,
                     source_path=new_source_path)
+                if properties_required is False:
+                    for prop in properties_from_references.values():
+                        prop["required"] = False
                 properties.update(properties_from_references)
 
                 # complex type child nodes - to models
@@ -945,6 +824,9 @@ class XSDReader:
                     sequence_or_all_node,
                     model=model,
                     source_path=new_source_path)
+                if properties_required is False:
+                    for prop in properties_from_references.values():
+                        prop["required"] = False
                 properties.update(properties_from_references)
 
         model.properties = properties
@@ -983,6 +865,17 @@ class XSDReader:
     def _extract_namespaces(self):
         self.namespaces = self.root.nsmap
 
+    def _add_refs_for_backrefs(self):
+        for model in self.models.values():
+            for property_id, prop in model.properties.items():
+                if prop["type"] == "backref":
+                    referenced_model = self.models[prop["model"]]
+                    referenced_model.add_ref_property(model)
+
+    def _sort_properties_alpabetically(self):
+        for model in self.models.values():
+            model.properties = dict(sorted(model.properties.items()))
+
     def start(self):
         self._extract_root()
 
@@ -992,7 +885,113 @@ class XSDReader:
 
         self._parse_root_node()
 
+        self._remove_unneeded_models()
+
         self._compile_nested_properties()
+
+        self._add_refs_for_backrefs()
+
+        self._sort_properties_alpabetically()
+
+    def remove_extra_root_models(self, model: XSDModel) -> XSDModel:
+        """
+        removes root models that have only one property from the root
+        """
+        stop_removing = False
+
+        while not stop_removing:
+            # remove the model itself if it's a root proxy model
+            if (len(model.properties) == 1) and (list(model.properties.values())[0]["type"] in ("ref", "backref")):
+                model = self.models[list(model.properties.values())[0]["model"]]
+                model.parent_model = None
+            else:
+                stop_removing = True
+
+        return model
+
+    def _remove_proxy_models(self, model: XSDModel):
+        """ Removes models which have only one property
+            Usually these are proxy models to indicate arrays, but there can be other situations
+            Removes the models that are in the middle of other models
+            or at the end and have one property, then this property is joined to the referring model.
+        """
+
+        self.new_models[model.name] = model
+
+        new_properties = {}
+        for property_id, prop in model.properties.items():
+            if prop["type"] in ("ref", "backref"):
+                referee = self.models[prop["model"]]
+                parse_referee = True
+                while len(referee.properties) == 1:
+                    ref_property_id, ref_prop = list(referee.properties.items())[0]
+
+                    # if it's not a ref, this means that it's a final property, and we add it as a property itself
+                    if ref_prop["type"] not in ("ref", "backref"):
+                        prop["external"]["name"] = f'{prop["external"]["name"]}/{ref_prop["external"]["name"]}'
+
+                        # also transfer all attributes of the property
+                        prop["required"] = ref_prop["required"]
+                        prop["description"] = ref_prop["description"]
+
+                        is_array = False
+                        if prop["type"] == "backref":
+                            is_array = True
+
+                        prop["type"] = ref_prop["type"]
+                        del prop["model"]
+                        property_id = ref_property_id
+
+                        if is_array:
+                            property_id = f"{property_id}[]"
+
+                        parse_referee = False
+                        break
+
+                    if prop["type"] == "backref" and ref_prop["type"] == "backref":
+                        # basically, do nothing
+                        break
+                    else:
+                        referee = self.models[ref_prop["model"]]
+                        referee.parent_model = model
+                        if prop["type"] == "ref" and ref_prop["type"] == "backref":
+                            prop["type"] = "backref"
+                            property_id = f"{property_id}[]"
+                        if "external" in prop and "external" in ref_prop:
+                            prop["external"]["name"] = f'{prop["external"]["name"]}/{ref_prop["external"]["name"]}'
+                            prop["model"] = ref_prop["model"]
+
+
+                if not self._has_backref(model, referee) and parse_referee:
+                    self._remove_proxy_models(referee)
+
+            new_properties[property_id] = prop
+        model.properties = new_properties
+
+    def _remove_unneeded_models(self):
+        """
+        Proxy models are those that have only one property which is a ref to another model.
+        They can act as placeholders, or as array indicators.
+        If either one of them is an array, drop the proxy model and replace the reference to point to the new model
+        If both referencing properties are not arrays, the resulting model shouldn't be an array, and if any of them is an array, the resulting ref is an array (backref).
+        If both models, the referrer and the referee are arrays, do not drop them, because this means that it's an array of arrays.
+        """
+        self.new_models = {}
+        for model_name, model in self.models.items():
+
+            # we need to start from root models
+            if model.parent_model is None:
+                model = self.remove_extra_root_models(model)
+                self._remove_proxy_models(model)
+
+        self.models = self.new_models
+
+    def _has_backref(self, model: XSDModel, ref_model: XSDModel) -> bool:
+        has_backref = False
+        for ref_model_property in ref_model.properties.values():
+            if (ref_model_property.get("type") == "backref") and (ref_model_property.get('model') == model.name):
+                has_backref = True
+        return has_backref
 
     def _add_model_nested_properties(self, root_model: XSDModel, model: XSDModel, property_prefix: str = "", source_path: str = ""):
         """recursively gather nested properties or root model"""
@@ -1029,12 +1028,7 @@ class XSDReader:
                 # If it's a ref, we need to build the path from the root of the model. If it's backref (array) -
                 # it's relative to array
                 if prop["type"] == "ref":
-                    has_backref = False
-                    for ref_model_property in ref_model.properties.values():
-                        if (ref_model_property.get("type") == "backref") and (ref_model_property.get('model') == model.name):
-                            has_backref = True
-                            break
-                    if has_backref:
+                    if self._has_backref(model, ref_model):
                         continue
                     if source_path:
                         new_source_path = f"{source_path}/{ref_model.external['name'].replace(model.external['name'], '').lstrip('/')}"
@@ -1057,20 +1051,6 @@ class XSDReader:
             if parsed_model.parent_model is None or parsed_model.parent_model.name not in self.models:
 
                 self._add_model_nested_properties(parsed_model, parsed_model)
-
-                # parsed_model.properties.update(nested_properties)
-
-                # if some nested properties are backrefs and still don't have refs
-                # (in case o indirect links), we need to add them
-
-                for prop in parsed_model.properties.values():
-                    if prop.get("type") == "backref":
-                        ref_model_name = prop.get("model")
-                        ref_model = self.models[ref_model_name]
-                        if ref_model:
-                            ref_model.add_ref_property(parsed_model)
-
-            parsed_model.properties = dict(sorted(parsed_model.properties.items()))
 
 
 def read_schema(
@@ -1160,15 +1140,6 @@ def read_schema(
 
     Root model or models can have nested properties if they have any properties that point to other models.
 
-
-    TODO: there are 3 types of creating references:
-     through ref
-     through type
-     direct, when one element that corresponds to a model is inside another one. This still doesn't work.
-     It also seems that it even stopped adding models if they are connected this way.
-
-    TODO: JADIS 455 sukuria Asmuo modelį, bet ne property jam modelyje Israsas
-
     """
     xsd = XSDReader(path, dataset_name)
 
@@ -1179,3 +1150,16 @@ def read_schema(
     for model_name, parsed_model in xsd.models.items():
 
         yield None, parsed_model.get_data()
+
+
+# todo šitoj situacijoj neturėtų būti required:
+# < xs: choice
+# minOccurs = "0"
+# maxOccurs = "unbounded" >
+# < xs: element
+# ref = "PAVARDE" / >
+# < xs: element
+# ref = "VARDAS" / >
+# < xs: element
+# ref = "PAVADINIMAS" / >
+# < / xs: choice >
