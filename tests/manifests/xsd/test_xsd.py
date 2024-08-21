@@ -235,7 +235,7 @@ def test_xsd_ref(rc: RawConfig, tmp_path: Path):
 <xs:element name="klientu_saraso_rezultatas">
   <xs:complexType mixed="true">
     <xs:sequence>
-      <xs:element ref="asmenys"               minOccurs="0" maxOccurs="1" />
+      <xs:element ref="asmenys" minOccurs="0" maxOccurs="1" />
     </xs:sequence>
   </xs:complexType>
 </xs:element>
@@ -244,7 +244,7 @@ def test_xsd_ref(rc: RawConfig, tmp_path: Path):
 <xs:element name="asmenys">
   <xs:complexType mixed="true">
     <xs:sequence>
-      <xs:element ref="asmuo"                 minOccurs="0" maxOccurs="unbounded" />
+      <xs:element ref="asmuo" minOccurs="0" maxOccurs="unbounded" />
     </xs:sequence>
 
     <xs:attribute name="puslapis" type="xs:long" use="required">
@@ -340,31 +340,23 @@ def test_xsd_resource_model(rc: RawConfig, tmp_path: Path):
     """
 
     table = """
- id | d | r | b | m | property                  | type             | ref                     | source                                   | prepare | level | access | uri | title | description
-    | manifest                                  |                  |                         |                                          |         |       |        |     |       |
-    |   | resource1                             | xml              |                         |                                          |         |       |        |     |       |
-    |                                           |                  |                         |                                          |         |       |        |     |       |
-    |   |   |   | KlientuSarasoRezultatas       |                  |                         | /klientu_saraso_rezultatas               |         |       |        |     |       |
-    |   |   |   |   | asmenys                   | ref              | Asmenys                 | asmenys                                  |         |       |        |     |       |
-    |   |   |   |   | asmenys.asmuo[]           | backref          | Asmuo                   | asmenys/asmuo                            |         |       |        |     |       |
-    |   |   |   |   | asmenys.asmuo[].ak        | string required  |                         | @ak                                      |         |       |        |     |       |
-    |   |   |   |   | asmenys.asmuo[].id        | string required  |                         | @id                                      |         |       |        |     |       |
-    |   |   |   |   | asmenys.asmuo[].text      | string           |                         | text()                                   |         |       |        |     |       |
-    |   |   |   |   | asmenys.puslapis          | integer required |                         | asmenys/@puslapis                        |         |       |        |     |       | rezultatu puslapio numeris
-    |   |   |   |   | asmenys.text              | string           |                         | asmenys/text()                           |         |       |        |     |       |
-    |   |   |   |   | text                      | string           |                         | text()                                   |         |       |        |     |       |
-    |                                           |                  |                         |                                          |         |       |        |     |       |
-    |   |   |   | Asmenys                       |                  |                         | /klientu_saraso_rezultatas/asmenys       |         |       |        |     |       |
-    |   |   |   |   | asmuo[]                   | backref          | Asmuo                   | asmuo                                    |         |       |        |     |       |
-    |   |   |   |   | puslapis                  | integer required |                         | @puslapis                                |         |       |        |     |       | rezultatu puslapio numeris
-    |   |   |   |   | text                      | string           |                         | text()                                   |         |       |        |     |       |
-    |                                           |                  |                         |                                          |         |       |        |     |       |
-    |   |   |   | Asmuo                         |                  |                         | /klientu_saraso_rezultatas/asmenys/asmuo |         |       |        |     |       |
-    |   |   |   |   | ak                        | string required  |                         | @ak                                      |         |       |        |     |       |
-    |   |   |   |   | asmenys                   | ref              | Asmenys                 |                                          |         |       |        |     |       |
-    |   |   |   |   | id                        | string required  |                         | @id                                      |         |       |        |     |       |
-    |   |   |   |   | klientu_saraso_rezultatas | ref              | KlientuSarasoRezultatas |                                          |         |       |        |     |       |
-    |   |   |   |   | text                      | string           |                         | text()                                   |         |       |        |     |       |
+ id | d | r | b | m | property                | type             | ref     | source                             | prepare | level | access | uri                                           | title | description
+    | manifest                                |                  |         |                                    |         |       |        |                                               |       |
+    |   | resource1                           | xml              |         |                                    |         |       |        |                                               |       |
+    |                                         |                  |         |                                    |         |       |        |                                               |       |
+    |   |   |   | Resource                    |                  |         | /                                  |         |       |        | http://www.w3.org/2000/01/rdf-schema#Resource |       | Įvairūs duomenys
+    |   |   |   |   | klaida                  | string           |         | klaida/text()                      |         |       |        |                                               |       | Klaidos atveju - klaidos pranešimas
+    |                                         |                  |         |                                    |         |       |        |                                               |       |
+    |   |   |   | KlientuSarasoRezultatas     |                  |         | /klientu_saraso_rezultatas         |         |       |        |                                               |       |
+    |   |   |   |   | asmenys                 | ref              | Asmenys | asmenys                            |         |       |        |                                               |       |
+    |   |   |   |   | asmenys.puslapis        | integer required |         | asmenys/@puslapis                  |         |       |        |                                               |       | rezultatu puslapio numeris
+    |   |   |   |   | asmenys.text            | string           |         | asmenys/text()                     |         |       |        |                                               |       |
+    |   |   |   |   | text                    | string           |         | text()                             |         |       |        |                                               |       |
+    |                                         |                  |         |                                    |         |       |        |                                               |       |
+    |   |   |   | Asmenys                     |                  |         | /klientu_saraso_rezultatas/asmenys |         |       |        |                                               |       |
+    |   |   |   |   | puslapis                | integer required |         | @puslapis                          |         |       |        |                                               |       | rezultatu puslapio numeris
+    |   |   |   |   | text                    | string           |         | text()                             |         |       |        |                                               |       |
+
 """
 
     path = tmp_path / 'manifest.xsd'
@@ -634,7 +626,7 @@ def test_xsd_attributes(rc: RawConfig, tmp_path: Path):
     |   | resource1                        | xml              |         |                    |         |       |        |     |       |
     |                                      |                  |         |                    |         |       |        |     |       |
     |   |   |   | Salygos                  |                  |         | /SALYGOS           |         |       |        |     |       |
-    |   |   |   |   | salyga[]             | backref required | Salyga  | SALYGA             |         |       |        |     |       |
+    |   |   |   |   | salyga[]             | backref          | Salyga  | SALYGA             |         |       |        |     |       |
     |   |   |   |   | salyga[].aprasymas   | string           |         | APRASYMAS/text()   |         |       |        |     |       |
     |   |   |   |   | salyga[].kodas       | string           |         | @kodas             |         |       |        |     |       |
     |   |   |   |   | salyga[].nr          | integer          |         | @nr                |         |       |        |     |       |
@@ -699,15 +691,16 @@ def test_xsd_model_one_property(rc: RawConfig, tmp_path: Path):
     |   | resource1                                      | xml      |           |                                         |         |       |        |     |       |
     |                                                    |          |           |                                         |         |       |        |     |       |
     |   |   |   | GetTzByTRAResponse                     |          |           | /getTzByTRAResponse                     |         |       |        |     |       |
+    |   |   |   |   | aprasymas                          | string   |           | klaida/Aprasymas/text()                 |         |       |        |     |       |
     |   |   |   |   | extracttz                          | ref      | Extracttz | extracttz                               |         |       |        |     |       |
     |   |   |   |   | extracttz.extract_preparation_time | datetime |           | extracttz/extractPreparationTime/text() |         |       |        |     |       |
     |   |   |   |   | extracttz.phipoteka                | integer  |           | extracttz/phipoteka/text()              |         |       |        |     |       |
-    |   |   |   |   | klaida                             | string   |           | klaida/Aprasymas/text()                 |         |       |        |     |       |
     |   |   |   |   | search_parameters                  | string   |           | searchParameters/text()                 |         |       |        |     |       |
     |                                                    |          |           |                                         |         |       |        |     |       |
     |   |   |   | Extracttz                              |          |           | /getTzByTRAResponse/extracttz           |         |       |        |     |       |
     |   |   |   |   | extract_preparation_time           | datetime |           | extractPreparationTime/text()           |         |       |        |     |       |
     |   |   |   |   | phipoteka                          | integer  |           | phipoteka/text()                        |         |       |        |     |       |
+
 """
     path = tmp_path / 'manifest.xsd'
     with open(path, "w") as xsd_file:
@@ -963,13 +956,19 @@ def test_xsd_recursion(rc: RawConfig, tmp_path: Path):
 """
 
     table = """
- id | d | r | b | m | property         | type            | ref | source                                  | prepare | level | access | uri | title | description
-    | manifest                         |                 |     |                                         |         |       |        |     |       |
-    |   | resource1                    | xml             |     |                                         |         |       |        |     |       |
-    |                                  |                 |     |                                         |         |       |        |     |       |
-    |   |   |   | Data                 |                 |     | /data                                   |         |       |        |     |       |
-    |   |   |   |   | response_data    | string required |     | responseData/actions/action/code/text() |         |       |        |     |       | Paslaugos kodas (RC kodas)
-    |   |   |   |   | response_message | string          |     | responseMessage/text()                  |         |       |        |     |       |
+ id | d | r | b | m | property               | type            | ref     | source                     | prepare | level | access | uri | title | description
+    | manifest                               |                 |         |                            |         |       |        |     |       |
+    |   | resource1                          | xml             |         |                            |         |       |        |     |       |
+    |                                        |                 |         |                            |         |       |        |     |       |
+    |   |   |   | Data                       |                 |         | /data                      |         |       |        |     |       |
+    |   |   |   |   | response_data[]        | backref         | Actions | responseData/actions       |         |       |        |     |       |
+    |   |   |   |   | response_data[].code[] | string required |         | action/code/text()         |         |       |        |     |       | Paslaugos kodas (RC kodas)
+    |   |   |   |   | response_message       | string          |         | responseMessage/text()     |         |       |        |     |       |
+    |                                        |                 |         |                            |         |       |        |     |       |
+    |   |   |   | Actions                    |                 |         | /data/responseData/actions |         |       |        |     |       |
+    |   |   |   |   | code[]                 | string required |         | action/code/text()         |         |       |        |     |       | Paslaugos kodas (RC kodas)
+    |   |   |   |   | data                   | ref             | Data    |                            |         |       |        |     |       |
+
 """
     path = tmp_path / 'manifest.xsd'
     with open(path, "w") as xsd_file:
