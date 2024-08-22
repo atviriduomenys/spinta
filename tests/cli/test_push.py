@@ -1404,7 +1404,7 @@ def test_push_postgresql_big_datastream(
     # Configure local server with SQL backend
     tmp = Sqlite(db)
     rc = rc.fork({
-        'push_page_size': 100
+        'default_page_size': 100
     })
     localrc = create_rc(rc, tmp_path, tmp)
 
@@ -2618,7 +2618,7 @@ def test_push_page_multiple_keys(
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(table))
     # Configure local server with SQL backend
     rc = rc.fork({
-        'push_page_size': 2
+        'default_page_size': 2
     })
     localrc = create_rc(rc, tmp_path, multi_type_geodb)
 
@@ -2773,7 +2773,7 @@ def test_push_with_geometry(
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(table))
     # Configure local server with SQL backend
     rc = rc.fork({
-        'push_page_size': 2
+        'default_page_size': 2
     })
     localrc = create_rc(rc, tmp_path, sqlite)
 

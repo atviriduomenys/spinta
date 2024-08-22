@@ -215,10 +215,15 @@ CONFIG = {
 
     'env': 'prod',
 
-    # Limit of objects in the page
-    'push_page_size': None,
+    # Default limit of objects in a page
+    # If None is given default is 100000
+    'default_page_size': 100000,
 
-    # Limit of objects in the page
+    # Enable pagination by default for all requests (push/get)
+    # If None is given default is True
+    'enable_pagination': True,
+
+    # Limit of objects in a page
     'sync_page_size': None,
 
     # Default languages

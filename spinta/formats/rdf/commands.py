@@ -15,7 +15,7 @@ from spinta import commands
 from spinta.backends.components import SelectTree
 from spinta.backends.helpers import get_model_reserved_props
 from spinta.backends.helpers import select_model_props
-from spinta.components import Action, Namespace
+from spinta.components import Action, Namespace, page_in_data
 from spinta.components import Context
 from spinta.components import Model
 from spinta.components import UrlParams
@@ -355,7 +355,7 @@ def prepare_data_for_response(
     prop_names: List[str],
 ) -> dict:
     value = value.copy()
-    reserved = get_model_reserved_props(action, model)
+    reserved = get_model_reserved_props(action, page_in_data(value))
 
     available_prefixes = _get_available_prefixes(context, model)
 
