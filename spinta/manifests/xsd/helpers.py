@@ -525,44 +525,47 @@ class XSDReader:
 
                 is_array = False
 
-                # TODO fix this because it probably doesn't cover all cases, only something like <complexType><sequence><item>
-                #  https://github.com/atviriduomenys/spinta/issues/613
-                sequences = complex_type.xpath("./*[local-name() = 'sequence']")
-                if not sequences:
-                    choices = complex_type.xpath("./*[local-name() = 'choice']")
-                    if choices and choices[0].get('maxOccurs') == 'unbounded':
-                        is_array = True
-
-                if XSDReader.is_array(typed_element):
-                    is_array = True
+                referenced_element = typed_element
 
                 # avoiding recursion
-                if typed_element.get("name") in source_path.split("/"):
+                if referenced_element.get("name") in source_path.split("/"):
                     continue
 
-                if is_array:
-                    property_type = "backref"
-
-                else:
-                    property_type = "ref"
-                referenced_model_names = self._create_model(
-                    typed_element,
-                    source_path=new_source_path,
-                    parent_model=model,
-                )
-
-                for referenced_model_name in referenced_model_names:
-                    property_id, prop = model.simple_element_to_property(typed_element, is_array=is_array)
-                    prop["external"]["name"] = prop["external"]["name"].replace("/text()", '')
-                    if is_array:
-                        if not property_id.endswith("[]"):
-                            property_id += "[]"
-                        property_type = "backref"
-                    prop["type"] = property_type
-                    prop["model"] = f"{referenced_model_name}"
-                    properties[property_id] = prop
+                built_properties = self._build_properties(complex_type, is_array, model, new_source_path, node,
+                                                          properties, referenced_element)
+                properties.update(built_properties)
 
         return properties
+
+    def _build_properties(self, complex_type: _Element, is_array: bool, model: XSDModel, new_source_path: str, node: _Element, properties: dict, referenced_element: _Element) -> dict:
+        sequences = complex_type.xpath("./*[local-name() = 'sequence']")
+        if not sequences:
+            choices = complex_type.xpath("./*[local-name() = 'choice']")
+            if choices and XSDReader.is_array(choices[0]):
+                if len(choices[0]) == 1 and not complex_type.get("mixed") == "true":
+                    is_array = True
+        # if we only have one ref element and if it's inside a choice/sequence (this node) which is maxOccurs = unbounded then it's array
+        if XSDReader.is_array(node) and len(node) == 1:
+            is_array = True
+        if is_array:
+            property_type = "backref"
+        else:
+            property_type = "ref"
+        referenced_model_names = self._create_model(
+            referenced_element,
+            source_path=new_source_path,
+            parent_model=model,
+        )
+        for referenced_model_name in referenced_model_names:
+            property_id, prop = model.simple_element_to_property(referenced_element, is_array=is_array)
+            prop["external"]["name"] = prop["external"]["name"].replace("/text()", '')
+            if is_array:
+                if not property_id.endswith("[]"):
+                    property_id += "[]"
+                property_type = "backref"
+            prop["type"] = property_type
+            prop["model"] = f"{referenced_model_name}"
+            properties[property_id] = prop
 
     def _properties_from_references(
         self,
@@ -585,54 +588,18 @@ class XSDReader:
                 properties[property_id] = prop
             else:
                 is_array = False
-                    # TODO fix this because it probably doesn't cover all cases, only something like <complexType><sequence><item>
-                    #  also it covers choice now.
-                    #  https://github.com/atviriduomenys/spinta/issues/613
+
+                if XSDReader.is_array(ref_element):
+                    is_array = True
 
                 complex_type = referenced_element.xpath("./*[local-name() = 'complexType']")[0]
-                sequences = complex_type.xpath("./*[local-name() = 'sequence']")
-                if not sequences:
-                    choices = complex_type.xpath("./*[local-name() = 'choice']")
-                    if choices and XSDReader.is_array(choices[0]):
-                        # we only make this array if it's only one choice, which means it's a wrapper for an array
-                        # also, if it's mixed, and has choices inside, it's not an array even if choices are unbound
-                        if len(choices[0]) == 1 and not complex_type.get("mixed") == "true":
-                            is_array = True
-
-                # if we only have one ref element and if it's inside a choice/sequence (this node) which is maxOccurs = unbounded then it's array
-                if XSDReader.is_array(node) and len(node) == 1:
-                    is_array = True
 
                 # avoiding recursion
                 if referenced_element.get("name") in source_path.split("/"):
                     continue
 
-                if XSDReader.is_array(ref_element):
-                    is_array = True
-
-                if is_array:
-                    property_type = "backref"
-                else:
-                    property_type = "ref"
-                referenced_model_names = self._create_model(
-                    referenced_element,
-                    source_path=new_source_path,
-                    parent_model=model
-                )
-
-                for referenced_model_name in referenced_model_names:
-                    property_id, prop = model.simple_element_to_property(ref_element, is_array=is_array)
-                    prop['external']['name'] = prop['external']['name'].rstrip('/text()')
-
-                    if is_array:
-                        if not property_id.endswith("[]"):
-                            property_id += "[]"
-                        property_type = "backref"
-
-                    prop['type'] = property_type
-                    prop['model'] = f'{referenced_model_name}'
-
-                    properties[property_id] = prop
+                built_properties = self._build_properties(complex_type, is_array, model, new_source_path, node, properties, referenced_element)
+                properties.update(built_properties)
 
         return properties
 
@@ -757,7 +724,6 @@ class XSDReader:
                 if complex_content_base_node.xpath(f'./*[local-name() = "sequence"]'):
                     sequence_node = complex_content_base_node.xpath(f'./*[local-name() = "sequence"]')[0]
                     properties.update(model.properties_from_simple_elements(sequence_node))
-                # TODO: in this case, it might be something else, not sequence too
 
             if (
                 complex_type_node.xpath(f'./*[local-name() = "sequence"]') or
@@ -1106,9 +1072,9 @@ def read_schema(
                             B2. If maxOccurs = 1
                                 B21. If both have annotation, then it's a model
                                 B22. If only one of them has annotation, it's a part of a path
-                            todo finish defining behaviours of different options for sequences
 
-            c) element has a choice. todo define behaviour here
+
+            c) element has a choice.
 
     4. complex type described separately
 
@@ -1150,16 +1116,3 @@ def read_schema(
     for model_name, parsed_model in xsd.models.items():
 
         yield None, parsed_model.get_data()
-
-
-# todo šitoj situacijoj neturėtų būti required:
-# < xs: choice
-# minOccurs = "0"
-# maxOccurs = "unbounded" >
-# < xs: element
-# ref = "PAVARDE" / >
-# < xs: element
-# ref = "VARDAS" / >
-# < xs: element
-# ref = "PAVADINIMAS" / >
-# < / xs: choice >
