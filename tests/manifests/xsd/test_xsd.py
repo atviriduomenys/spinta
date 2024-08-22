@@ -1089,6 +1089,3 @@ def test_xsd_enumeration(rc: RawConfig, tmp_path: Path):
         xsd_file.write(xsd)
     manifest = load_manifest(rc, path)
     assert manifest == table
-
-
-# todo  add test from gr 605 - refs and arrays
