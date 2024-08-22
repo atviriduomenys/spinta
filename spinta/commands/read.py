@@ -230,7 +230,7 @@ def get_page(
     while not page_meta.is_finished:
         page_meta.is_finished = True
         query = add_page_expr(expr, model_page)
-        rows = commands.getall(context, model, backend, params=params, page=model_page, query=query, default_expand=default_expand)
+        rows = commands.getall(context, model, backend, params=params, query=query, default_expand=default_expand)
 
         yield from get_paginated_values(model_page, page_meta, rows, extract_source_page_keys)
 

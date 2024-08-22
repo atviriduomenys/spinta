@@ -181,6 +181,7 @@ def test_paginate_all_none_values(rc: RawConfig):
     FROM "example/Planet"
     ORDER BY "example/Planet".name ASC,
              "example/Planet"._id ASC
+    LIMIT :param_1
     '''
 
 
@@ -207,6 +208,7 @@ def test_paginate_half_none_values(rc: RawConfig):
     ORDER BY "example/Planet".name ASC,
              "example/Planet"._id ASC,
              "example/Planet".code ASC
+    LIMIT :param_1
     '''
 
 
@@ -233,6 +235,7 @@ def test_paginate_half_none_values_desc(rc: RawConfig):
     ORDER BY "example/Planet".name DESC,
              "example/Planet"._id ASC,
              "example/Planet".code DESC
+    LIMIT :param_1
     '''
 
 
@@ -254,6 +257,7 @@ def test_paginate_given_values_page_and_ref_not_given(rc: RawConfig):
     WHERE "example/Planet"._id > :id_1
       OR "example/Planet"._id IS NULL
     ORDER BY "example/Planet"._id ASC
+    LIMIT :param_1
     '''
 
 
@@ -280,6 +284,7 @@ def test_paginate_given_values_page_not_given(rc: RawConfig):
            OR "example/Planet"._id IS NULL)
     ORDER BY "example/Planet".name ASC,
              "example/Planet"._id ASC
+    LIMIT :param_1
     '''
 
 
@@ -339,6 +344,7 @@ def test_paginate_given_values_private(rc: RawConfig):
     ORDER BY "example/Planet".name ASC,
              "example/Planet".code ASC,
              "example/Planet"._id ASC
+    LIMIT :param_1
     '''
 
 
@@ -371,6 +377,7 @@ def test_paginate_given_values_two_keys(rc: RawConfig):
     ORDER BY "example/Planet".name ASC,
              "example/Planet".code ASC,
              "example/Planet"._id ASC
+    LIMIT :param_1
     '''
 
 
@@ -433,6 +440,7 @@ def test_paginate_given_values_five_keys(rc: RawConfig):
              "example/Planet"."user" ASC,
              "example/Planet".pass ASC,
              "example/Planet"._id ASC
+    LIMIT :param_1
     '''
 
 
@@ -464,6 +472,7 @@ def test_paginate_desc(rc: RawConfig):
     ORDER BY "example/Planet".name ASC,
              "example/Planet".code DESC,
              "example/Planet"._id ASC
+    LIMIT :param_1
     '''
 
 
