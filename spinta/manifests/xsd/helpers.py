@@ -502,6 +502,50 @@ class XSDReader:
             return True
         return False
 
+    def _build_ref_properties(self, complex_type: _Element, is_array: bool, model: XSDModel, new_source_path: str, node: _Element, referenced_element: _Element) -> dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]:
+        """
+        Helper method for methods properties_from_references and properties_from_type_references
+        """
+
+        properties = {}
+
+        sequences = complex_type.xpath("./*[local-name() = 'sequence']")
+        if not sequences:
+            choices = complex_type.xpath("./*[local-name() = 'choice']")
+            if choices and XSDReader.is_array(choices[0]):
+                if len(choices[0]) == 1 and not complex_type.get("mixed") == "true":
+                    is_array = True
+
+        # NOTE: it's not fully clear, if it's a ref or a backref if `choice` `maxOccurs="unbounded" always, or only
+        #  when there's only one element inside
+        # if we only have one ref element and if it's inside a choice/sequence (this node) which is maxOccurs = unbounded then it's array
+        # if XSDReader.is_array(node) and len(node) == 1:
+        if XSDReader.is_array(node):
+            is_array = True
+        if XSDReader.is_array(referenced_element):
+            is_array = True
+        if is_array:
+            property_type = "backref"
+        else:
+            property_type = "ref"
+        referenced_model_names = self._create_model(
+            referenced_element,
+            source_path=new_source_path,
+            parent_model=model,
+        )
+        for referenced_model_name in referenced_model_names:
+            property_id, prop = model.simple_element_to_property(referenced_element, is_array=is_array)
+            prop["external"]["name"] = prop["external"]["name"].replace("/text()", '')
+            if is_array:
+                if not property_id.endswith("[]"):
+                    property_id += "[]"
+                property_type = "backref"
+            prop["type"] = property_type
+            prop["model"] = f"{referenced_model_name}"
+            properties[property_id] = prop
+
+        return properties
+
     def _properties_from_type_references(
         self,
         node: _Element,
@@ -531,41 +575,11 @@ class XSDReader:
                 if referenced_element.get("name") in source_path.split("/"):
                     continue
 
-                built_properties = self._build_properties(complex_type, is_array, model, new_source_path, node,
-                                                          properties, referenced_element)
+                built_properties = self._build_ref_properties(complex_type, is_array, model, new_source_path, node,
+                                                              referenced_element)
                 properties.update(built_properties)
 
         return properties
-
-    def _build_properties(self, complex_type: _Element, is_array: bool, model: XSDModel, new_source_path: str, node: _Element, properties: dict, referenced_element: _Element) -> dict:
-        sequences = complex_type.xpath("./*[local-name() = 'sequence']")
-        if not sequences:
-            choices = complex_type.xpath("./*[local-name() = 'choice']")
-            if choices and XSDReader.is_array(choices[0]):
-                if len(choices[0]) == 1 and not complex_type.get("mixed") == "true":
-                    is_array = True
-        # if we only have one ref element and if it's inside a choice/sequence (this node) which is maxOccurs = unbounded then it's array
-        if XSDReader.is_array(node) and len(node) == 1:
-            is_array = True
-        if is_array:
-            property_type = "backref"
-        else:
-            property_type = "ref"
-        referenced_model_names = self._create_model(
-            referenced_element,
-            source_path=new_source_path,
-            parent_model=model,
-        )
-        for referenced_model_name in referenced_model_names:
-            property_id, prop = model.simple_element_to_property(referenced_element, is_array=is_array)
-            prop["external"]["name"] = prop["external"]["name"].replace("/text()", '')
-            if is_array:
-                if not property_id.endswith("[]"):
-                    property_id += "[]"
-                property_type = "backref"
-            prop["type"] = property_type
-            prop["model"] = f"{referenced_model_name}"
-            properties[property_id] = prop
 
     def _properties_from_references(
         self,
@@ -598,7 +612,7 @@ class XSDReader:
                 if referenced_element.get("name") in source_path.split("/"):
                     continue
 
-                built_properties = self._build_properties(complex_type, is_array, model, new_source_path, node, properties, referenced_element)
+                built_properties = self._build_ref_properties(complex_type, is_array, model, new_source_path, node, referenced_element)
                 properties.update(built_properties)
 
         return properties
@@ -898,7 +912,8 @@ class XSDReader:
 
                         # also transfer all attributes of the property
                         prop["required"] = ref_prop["required"]
-                        prop["description"] = ref_prop["description"]
+                        if ref_prop["description"]:
+                            prop["description"] = ref_prop["description"]
 
                         is_array = False
                         if prop["type"] == "backref":
