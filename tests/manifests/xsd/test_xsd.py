@@ -476,13 +476,13 @@ def test_xsd_choice(rc: RawConfig, tmp_path: Path):
     |   | resource1                                 | xml              |         |                             |         |       |        |     |       |
     |                                               |                  |         |                             |         |       |        |     |       |
     |   |   |   | Parcels                           |                  |         | /parcels                    |         |       |        |     |       | Pasikeitusių žemės sklypų sąrašas
-    |   |   |   |   | parcel1[]                     | backref          | Parcel2 | parcel                      |         |       |        |     |       |
+    |   |   |   |   | parcel1[]                     | backref          | Parcel2 | parcel                      |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
     |   |   |   |   | parcel1[].sign_of_change      | integer required |         | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
     |                                               | enum             |         | 1                           |         |       |        |     |       |
     |                                               |                  |         | 2                           |         |       |        |     |       |
     |                                               |                  |         | 3                           |         |       |        |     |       |
     |   |   |   |   | parcel1[].text                | string           |         | text()                      |         |       |        |     |       |
-    |   |   |   |   | parcel[]                      | backref          | Parcel1 | parcel                      |         |       |        |     |       |
+    |   |   |   |   | parcel[]                      | backref          | Parcel1 | parcel                      |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
     |   |   |   |   | parcel[].parcel_unique_number | integer required |         | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
     |   |   |   |   | parcel[].text                 | string           |         | text()                      |         |       |        |     |       |
     |   |   |   |   | text                          | string           |         | text()                      |         |       |        |     |       |
@@ -564,7 +564,7 @@ def test_xsd_choice_max_occurs_unbounded(rc: RawConfig, tmp_path: Path):
     |   | resource1                                 | xml     |         |                             |         |       |        |     |       |
     |                                               |         |         |                             |         |       |        |     |       |
     |   |   |   | Parcels                           |         |         | /parcels                    |         |       |        |     |       | Pasikeitusių žemės sklypų sąrašas
-    |   |   |   |   | parcel[]                      | backref | Parcel  | parcel                      |         |       |        |     |       |
+    |   |   |   |   | parcel[]                      | backref | Parcel  | parcel                      |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
     |   |   |   |   | parcel[].parcel_unique_number | integer |         | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
     |   |   |   |   | parcel[].sign_of_change       | integer |         | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
     |                                               | enum    |         | 1                           |         |       |        |     |       |

@@ -780,7 +780,7 @@ def test_properties_from_references_complex_not_array():
 
     assert result == {
    'fiziniai_asmenys': {
-     'description': '',
+     'description': 'Pagrindiniai juridinio asmens duomenys.',
      'enums': {},
      'external': {'name': 'FIZINIAI_ASMENYS'},
      'model': 'test/FiziniaiAsmenys',
@@ -788,7 +788,7 @@ def test_properties_from_references_complex_not_array():
      'type': 'ref',
    },
    'objektai': {
-     'description': '',
+     'description': 'Pagrindiniai juridinio asmens duomenys.',
      'enums': {},
      'external': {'name': 'OBJEKTAI'},
      'model': 'test/Objektai',
@@ -910,7 +910,7 @@ def test_properties_from_references_complex_array():
 
     assert result == {
    'fiziniai_asmenys[]': {
-     'description': '',
+     'description': 'Pagrindiniai juridinio asmens duomenys.',
      'enums': {},
      'external': {'name': 'FIZINIAI_ASMENYS'},
      'model': 'test/FiziniaiAsmenys',
@@ -918,7 +918,7 @@ def test_properties_from_references_complex_array():
      'type': 'backref',
    },
    'objektai[]': {
-     'description': '',
+     'description': 'Pagrindiniai juridinio asmens duomenys.',
      'enums': {},
      'external': {'name': 'OBJEKTAI'},
      'model': 'test/Objektai',

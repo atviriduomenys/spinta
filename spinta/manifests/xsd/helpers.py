@@ -594,6 +594,10 @@ class XSDReader:
             new_source_path = source_path
             referenced_element = self._get_referenced_node(ref_element)
 
+            # avoiding recursion
+            if referenced_element.get("name") in source_path.split("/"):
+                continue
+
             if self.node_is_simple_type_or_inline(referenced_element):
                 is_array = XSDReader.is_array(ref_element)
                 property_id, prop = model.simple_element_to_property(referenced_element, is_array=is_array)
@@ -608,11 +612,10 @@ class XSDReader:
 
                 complex_type = referenced_element.xpath("./*[local-name() = 'complexType']")[0]
 
-                # avoiding recursion
-                if referenced_element.get("name") in source_path.split("/"):
-                    continue
-
                 built_properties = self._build_ref_properties(complex_type, is_array, model, new_source_path, node, referenced_element)
+                for prop in built_properties.values():
+                    if not XSDReader.is_required(ref_element):
+                        prop["required"] = False
                 properties.update(built_properties)
 
         return properties
