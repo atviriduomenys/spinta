@@ -3,7 +3,7 @@
 Changes
 #######
 
-0.1.68 (unreleased)
+0.1.68 (2024-08-23)
 ===================
 
 Backwards incompatible:
