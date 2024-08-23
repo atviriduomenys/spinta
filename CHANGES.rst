@@ -10,6 +10,7 @@ Changes
 
   .. _#622: https://github.com/atviriduomenys/spinta/issues/622
 
+
 0.1.68 (2024-08-23)
 ===================
 
