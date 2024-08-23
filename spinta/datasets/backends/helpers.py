@@ -70,7 +70,7 @@ def handle_ref_key_assignment(context: Context, keymap: KeyMap, env: Env, value:
                 found_value = True
 
             if not found_value:
-                raise NoPrimaryKeyCandidatesFound(ref, value=target_value)
+                raise NoPrimaryKeyCandidatesFound(ref, values=target_value)
         else:
             val = keymap.encode(keymap_name, target_value)
         val = {'_id': val}

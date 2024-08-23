@@ -30,7 +30,7 @@ from spinta.commands import gen_object_id
 from spinta.commands import is_object_id
 from spinta.commands import load_operator_value
 from spinta.commands import prepare
-from spinta.components import Action, UrlParams
+from spinta.components import Action, UrlParams, page_in_data
 from spinta.components import Context
 from spinta.components import DataItem
 from spinta.components import Model
@@ -663,7 +663,7 @@ def prepare_data_for_response(
             prop_names,
             value,
             select,
-            get_model_reserved_props(action, model),
+            get_model_reserved_props(action, page_in_data(value)),
         )
     }
 
@@ -1437,7 +1437,7 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    if len(value) == 1 and select:
+    if len(value) == 1 and select is not None:
         for key, data in value.items():
             if key not in select.keys():
                 return data

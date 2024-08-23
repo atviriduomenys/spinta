@@ -933,9 +933,10 @@ def test_html_text_with_lang(
         }
     })
 
-    resp = app.get("/example/html/text/lang/Country/:format/html?lang(*)&select(id,name)&sort(id)", headers=Headers(headers={
-        'accept-language': 'lt'
-    }))
+    resp = app.get("/example/html/text/lang/Country/:format/html?lang(*)&select(id,name)&sort(id)",
+                   headers=Headers(headers={
+                       'accept-language': 'lt'
+                   }))
 
     assert _table_with_header(resp) == [
         {
@@ -952,9 +953,10 @@ def test_html_text_with_lang(
         }
     ]
 
-    resp = app.get("/example/html/text/lang/Country/:format/html?lang(en)&select(id,name)&sort(id)", headers=Headers(headers={
-        'accept-language': 'lt'
-    }))
+    resp = app.get("/example/html/text/lang/Country/:format/html?lang(en)&select(id,name)&sort(id)",
+                   headers=Headers(headers={
+                       'accept-language': 'lt'
+                   }))
 
     assert _table_with_header(resp) == [
         {
@@ -967,9 +969,10 @@ def test_html_text_with_lang(
         }
     ]
 
-    resp = app.get("/example/html/text/lang/Country/:format/html?lang(en,lt)&select(id,name)&sort(id)", headers=Headers(headers={
-        'accept-language': 'lt'
-    }))
+    resp = app.get("/example/html/text/lang/Country/:format/html?lang(en,lt)&select(id,name)&sort(id)",
+                   headers=Headers(headers={
+                       'accept-language': 'lt'
+                   }))
 
     assert _table_with_header(resp) == [
         {
@@ -1033,9 +1036,10 @@ def test_html_changes_text(
         }
     })
 
-    resp = app.get("/example/html/text/changes/Country/:changes/-10/:format/html?select(id,name)", headers=Headers(headers={
-        'accept-language': 'lt'
-    }))
+    resp = app.get("/example/html/text/changes/Country/:changes/-10/:format/html?select(id,name)",
+                   headers=Headers(headers={
+                       'accept-language': 'lt'
+                   }))
 
     assert _table_with_header(resp) == [
         {
@@ -1051,3 +1055,108 @@ def test_html_changes_text(
             'name@lt': {'value': 'Anglija'},
         }
     ]
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_html_empty(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property | type    | ref     | access  | level | uri
+    example/html/empty       |         |         |         |       | 
+      |   |   |   |          | prefix  | rdf     |         |       | http://www.rdf.com
+      |   |   |   |          |         | pav     |         |       | http://purl.org/pav/
+      |   |   |   |          |         | dcat    |         |       | http://www.dcat.com
+      |   |   |   |          |         | dct     |         |       | http://dct.com
+      |   |   | Country      |         | name    |         |       | 
+      |   |   |   | id       | integer |         |         |       |
+      |   |   |   | name     | string  |         | open    | 3     |
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    app = create_test_client(context)
+    app.authmodel('example/html', ['insert', 'getall', 'search', 'changes'])
+
+    resp = app.get("/example/html/empty/Country/:format/html?select(id,name)")
+    assert resp.context['header'] == ['id', 'name']
+    assert resp.context['data'] == []
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_html_changes_text_one(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property | type    | ref     | access  | level | uri
+    example/html/text/changes |         |         |         |       | 
+      |   |   |   |          | prefix  | rdf     |         |       | http://www.rdf.com
+      |   |   |   |          |         | pav     |         |       | http://purl.org/pav/
+      |   |   |   |          |         | dcat    |         |       | http://www.dcat.com
+      |   |   |   |          |         | dct     |         |       | http://dct.com
+      |   |   | Country      |         | name    |         |       | 
+      |   |   |   | id       | integer |         |         |       |
+      |   |   |   | name     | text    |         | open    | 3     |
+      |   |   |   | name@en  | string  |         | open    |       |
+      |   |   |   | name@lt  | string  |         | open    |       |
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    app = create_test_client(context)
+    app.authmodel('example/html', ['insert', 'getall', 'search', 'changes'])
+
+    pushdata(app, f'/example/html/text/changes/Country', {
+        'id': 0,
+        'name': {
+            'en': 'Lietuva'
+        }
+    })
+    pushdata(app, f'/example/html/text/changes/Country', {
+        'id': 1,
+        'name': {
+            'lt': 'Anglija',
+            'en': 'England',
+            'C': 'UK'
+        }
+    })
+
+    resp = app.get("/example/html/text/changes/Country/:changes/-10/:format/html", headers=Headers(headers={
+        'accept-language': 'lt'
+    }))
+
+    table = _table_with_header(resp)
+    first = table[0]
+    second = table[1]
+
+    # This is hacky, but changes does not support full AST query parsing
+    assert first['id'] == {'value': 0}
+    assert first['name@en'] == {'value': 'Lietuva'}
+    assert first['name@lt'] == {
+        'color': Color.null.value,
+        'value': ''
+    }
+    assert first['name@C'] == {
+        'color': Color.null.value,
+        'value': ''
+    }
+    assert second['id'] == {'value': 1}
+    assert second['name@en'] == {'value': 'England'}
+    assert second['name@lt'] == {'value': 'Anglija'}
+    assert second['name@C'] == {'value': 'UK'}

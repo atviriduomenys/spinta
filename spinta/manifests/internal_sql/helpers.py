@@ -302,7 +302,8 @@ def load_internal_namespace_from_name(
         parts.append(part)
         name = '/'.join(parts)
 
-        if name not in objects['ns']:
+        ns = objects['ns'].get(name, None)
+        if ns is None:
             ns = Namespace()
             data = {
                 'type': 'ns',
@@ -312,11 +313,8 @@ def load_internal_namespace_from_name(
             }
             commands.load(context, ns, data, manifest)
             ns.generated = True
-        else:
-            ns = objects['ns'][name]
-            pass
 
-        if parent:
+        if parent is not None:
             if ns.name == parent.name:
                 raise RuntimeError(f"Self reference in {path!r}.")
 
@@ -328,7 +326,6 @@ def load_internal_namespace_from_name(
             ns.parent = manifest
 
         parent = ns
-
     return ns
 
 
@@ -381,18 +378,25 @@ def write_internal_sql_manifest(context: Context, dsn: str, manifest: Manifest):
     engine = sa.create_engine(dsn)
     inspect = sa.inspect(engine)
     with engine.connect() as conn:
-        meta = sa.MetaData(conn)
-        table = get_table_structure(meta)
-        if inspect.has_table('_manifest'):
-            conn.execute(table.delete())
-        else:
-            table.create()
-        rows = datasets_to_sql(context, manifest)
-        index = 0
-        for row in rows:
-            row['index'] = index
-            index += 1
-            conn.execute(table.insert().values(row))
+        trans = conn.begin()
+        try:
+            meta = sa.MetaData(conn)
+            table = get_table_structure(meta)
+            if inspect.has_table('_manifest'):
+                conn.execute(table.delete())
+            else:
+                table.create()
+            rows = datasets_to_sql(context, manifest)
+            index = 0
+            for row in rows:
+                row['index'] = index
+                index += 1
+                conn.execute(table.insert().values(row))
+
+            trans.commit()
+        except Exception as e:
+            trans.rollback()
+            raise e
 
 
 def _handle_id(item_id: Any):

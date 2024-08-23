@@ -3,9 +3,118 @@
 Changes
 #######
 
-0.1.64 (unreleased)
+0.1.68 (unreleased)
 ===================
 
+Backwards incompatible:
+
+- Renamed `push_page_size` config field to `default_page_size` (`#735`_).
+
+Improvements:
+
+- Changed default config `sync_page_size` and `default_page_size` parameters to be `100000` instead of `1000` (`#735`_).
+
+New features:
+
+- Added `enable_pagination` config field, which will enable or disable default pagination behaviour. Request and schema
+  specifications take priority, meaning even if `enable_pagination` is set to `False`, you can still specify `page(disable:false)`
+  to enable it for specific requests (`#735`_).
+
+  .. _#735: https://github.com/atviriduomenys/spinta/issues/735
+
+0.1.67 (2024-08-02)
+===================
+
+Backwards incompatible:
+
+- Changed `spinta_sqlite` driver name to `spinta`. Old naming was unnecessary since you needed to use `sqlite+spinta_sqlite:///...`,
+  now you can just use `sqlite+spinta:///...` (`#723`_).
+- `spinta push` `state` database now will always going to append `sqlite+spinta:///` prefix, instead of `sqlite:///`. This
+  ensures, that `sqlite` version is now dependant on `sqlean` library, instead of taking default python `sqlite` version
+  (makes it easier to ensure, that users are using correct version of `sqlite`) (`#723`_).
+- Changed `sqlalchemy` default `sqlite` driver to `SQLiteDialect_spinta` (instead of `SQLiteDialect_pysqlite`). Meaning
+  every time you use `sqlite:///...` it will default to `spinta` driver, instead of `pysqlite` (default `sqlalchemy`) (`#723`_).
+
+Improvements:
+
+- Writing `InternalSQLManifest` now is done using `transaction`, meaning if there are errors, it will rollback any changes
+  (This is useful when doing `copy` on already existing structure, since it clears all old data before writing new) (`#715`_).
+
+- Changed `state` db, to always use `spinta` `sqlite` driver (`#723`_).
+
+  .. _#723: https://github.com/atviriduomenys/spinta/issues/723
+
+Bug fixes:
+
+- Fixed `InternalSQLManifest` structure being fetched without index order (`#715`_).
+
+  .. _#715: https://github.com/atviriduomenys/spinta/issues/715
+
+0.1.66 (2024-07-23)
+===================
+
+New features:
+
+- Added support for `eq`, `&` and `|` operators to `Dask` `backend` (`#702`_).
+
+  .. _#702: https://github.com/atviriduomenys/spinta/issues/702
+
+
+Bug fixes:
+
+- Fixed `formula` being ignored when using `inspect` (`#685`_).
+
+  .. _#685: https://github.com/atviriduomenys/spinta/issues/685
+
+- Fixed errors with different formats when returning empty data (`#684`_).
+
+  .. _#684: https://github.com/atviriduomenys/spinta/issues/684
+
+- Fixed `keymap.yml` not updating mapping when changing `client_name` (`#688`_).
+
+  .. _#688: https://github.com/atviriduomenys/spinta/issues/688
+
+- Fixed error when opening `changes` in `html` format, when there is no `select` and you have
+  only one language given to `Text` property (`#693`_).
+
+  .. _#693: https://github.com/atviriduomenys/spinta/issues/693
+
+- Fixed assertion error when only selecting not expanded `array` (`#696`_).
+
+  .. _#696: https://github.com/atviriduomenys/spinta/issues/696
+
+- Fixed issue, where sometimes `json` `blank nodes` gets discarded and return empty `dict` (`#699`_).
+
+  .. _#699: https://github.com/atviriduomenys/spinta/issues/696
+
+- Fixed error when trying to use `Dask` `backend` `&` and `|` operators (`#705`_).
+
+  .. _#705: https://github.com/atviriduomenys/spinta/issues/705
+
+0.1.65 (2024-07-03)
+===================
+
+Backwards incompatible changes:
+
+- Changed `starlette` version requirement from `"*"` to `">=0.22"`. From version `0.22.0` `starlette` added better
+  compatibility support for `AnyIO`.
+
+Bug fixes:
+
+- Fixed `getone` with `jsonl` format (`#679`_)
+
+- Rolled back `Templates` warning fixes (caused errors with older `starlette` versions) (`#679`_)
+
+.. _#679: https://github.com/atviriduomenys/spinta/issues/679
+
+0.1.64 (2024-07-02)
+===================
+
+Bug fixes:
+
+- Changed json Geometry type converter import to BaseGeometry (`#673`_)
+
+    .. _#673: https://github.com/atviriduomenys/spinta/issues/673
 
 0.1.63 (2024-06-27)
 ===================

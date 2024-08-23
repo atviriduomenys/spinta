@@ -106,7 +106,7 @@ def select(env, arg):
         return None
     prop = _get_property_for_select(env, arg.name)
     if is_expandable_not_expanded(env, prop):
-        return None
+        return Selected(None, prop, prep=[])
     return env.call('select', prop.dtype)
 
 
@@ -488,19 +488,6 @@ COMPARE_STRING = [
     'startswith',
     'contains',
 ]
-
-
-def _get_from_flatprops(model: Model, prop: str):
-    if prop in model.flatprops:
-        return model.flatprops[prop]
-    else:
-        raise exceptions.FieldNotInResource(model, property=prop)
-
-
-@ufunc.resolver(PgQueryBuilder, Bind, object, names=COMPARE)
-def compare(env, op, field, value):
-    prop = _get_from_flatprops(env.model, field.name)
-    return env.call(op, prop.dtype, value)
 
 
 @ufunc.resolver(PgQueryBuilder, GetAttr, object, names=COMPARE)
@@ -1054,7 +1041,7 @@ def sort(env, expr):
 
 @ufunc.resolver(PgQueryBuilder, Bind)
 def sort(env, field):
-    prop = _get_from_flatprops(env.model, field.name)
+    prop = env.model.get_from_flatprops(field.name)
     return env.call('asc', prop.dtype)
 
 
@@ -1065,7 +1052,7 @@ def sort(env, dtype):
 
 @ufunc.resolver(PgQueryBuilder, Negative_)
 def sort(env, field):
-    prop = _get_from_flatprops(env.model, field.name)
+    prop = env.model.get_from_flatprops(field.name)
     return env.call('desc', prop.dtype)
 
 

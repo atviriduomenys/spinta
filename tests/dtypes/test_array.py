@@ -262,3 +262,53 @@ def test_array_shortcut_inherit_access_private(manifest_type, rc, tmp_path, post
 
     result = app.get(f'/example/dtypes/array/private/Country/{LT}')
     assert 'languages' not in result.json()
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_array_select_only_array(manifest_type, rc, tmp_path, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(
+        rc,
+        '''
+    d | r | b | m | property    | type    | ref      | access
+    example/dtypes/array/one    |         |          |
+                                |         |          |
+      |   |   | Language        |         |          |
+      |   |   |   | name        | string  |          | open
+                                |         |          |
+      |   |   | Country         |         |          |
+      |   |   |   | name        | string  |          | open
+      |   |   |   | languages[] | ref     | Language | open
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    app = create_test_client(context)
+    app.authorize(['spinta_set_meta_fields'])
+    app.authmodel('example/dtypes/array/one', ['insert', 'getone', 'getall', 'search'])
+
+    LIT = "c8e4cd60-0b15-4b23-a691-09cdf2ebd9c0"
+    app.post('example/dtypes/array/one/Language', json={
+        '_id': LIT,
+        'name': 'Lithuanian',
+    })
+
+    LT = 'd73306fb-4ee5-483d-9bad-d86f98e1869c'
+    app.post('example/dtypes/array/one/Country', json={
+        '_id': LT,
+        'name': 'Lithuania',
+        'languages': [
+            {'_id': LIT}
+        ]
+    })
+    result = app.get('/example/dtypes/array/one/Country?select(languages)')
+    assert result.json()['_data'] == [{'languages': []}]
+
+    result = app.get('/example/dtypes/array/one/Country?select(languages)&expand()')
+    assert result.json()['_data'] == [{'languages': [
+        {
+            '_id': LIT
+        }
+    ]}]

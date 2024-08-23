@@ -23,6 +23,7 @@ from spinta.testing.manifest import bootstrap_manifest, load_manifest_and_contex
 from spinta.testing.request import render_data
 from spinta.testing.manifest import load_manifest
 from spinta.testing.manifest import load_manifest_get_context
+from spinta.testing.types.geometry import round_point, round_url
 from spinta.types.geometry.constants import WGS84, LKS94
 
 
@@ -218,16 +219,16 @@ def test_geometry_html(
 
 osm_url = (
     'https://www.openstreetmap.org/?'
-    'mlat=54.68569111173754&'
-    'mlon=25.286688302053335'
-    '#map=19/54.68569111173754/25.286688302053335'
+    'mlat=54.685691&'
+    'mlon=25.286688'
+    '#map=19/54.685691/25.286688'
 )
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
 @pytest.mark.parametrize('wkt, srid, link', [
     ('POINT (6061789 582964)', LKS94, osm_url),
-    ('POINT (54.68569111173754 25.286688302053335)', WGS84, osm_url),
+    ('POINT (54.685691 25.286688)', WGS84, osm_url),
 ])
 def test_geometry_coordinate_transformation(
     manifest_type: str,
@@ -266,8 +267,8 @@ def test_geometry_coordinate_transformation(
         action=Action.GETALL,
         select=None,
     )
-    assert result.value == wkt
-    assert result.link == link
+    assert round_point(result.value, 6) == wkt
+    assert round_url(result.link, 6) == link
 
 
 @pytest.mark.manifests('internal_sql', 'csv')

@@ -16,7 +16,8 @@ from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
 from spinta.backends.nobackend.components import NoBackend
 from spinta.compat import urlparams_to_expr
-from spinta.components import Context, Node, Action, UrlParams, Page, PageBy, get_page_size
+from spinta.components import Context, Node, Action, UrlParams, Page, PageBy, get_page_size, Config, \
+    is_pagination_enabled, ParamsPage
 from spinta.components import Model
 from spinta.components import Property
 from spinta.core.ufuncs import Expr
@@ -28,7 +29,7 @@ from spinta.types.datatype import DataType
 from spinta.types.datatype import File
 from spinta.types.datatype import Object
 from spinta.typing import ObjectData
-from spinta.ufuncs.basequerybuilder.components import QueryParams
+from spinta.ufuncs.basequerybuilder.components import QueryParams, QueryPage
 from spinta.ufuncs.basequerybuilder.helpers import update_query_with_url_params, add_page_expr
 from spinta.ufuncs.loadbuilder.helpers import get_allowed_page_property_types
 from spinta.utils.data import take
@@ -50,7 +51,7 @@ async def getall(
 
     copy_page = prepare_page_for_get_all(context, model, params)
 
-    is_page_enabled = backend.paginated and copy_page and copy_page and copy_page.is_enabled
+    is_page_enabled = copy_page and copy_page and copy_page.is_enabled
     expr = urlparams_to_expr(params)
     query_params = QueryParams()
     update_query_with_url_params(query_params, params)
@@ -69,17 +70,14 @@ async def getall(
         if is_page_enabled:
             rows = get_page(context, model, backend, copy_page, expr, params.limit, default_expand=False, params=query_params)
         else:
-            if backend.support_expand:
-                rows = commands.getall(context, model, backend, params=query_params, query=expr, default_expand=False)
-            else:
-                rows = commands.getall(context, model, backend, params=query_params, query=expr)
+            rows = commands.getall(context, model, backend, params=query_params, query=expr, default_expand=False)
 
     rows = prepare_data_for_response(
         context,
         model,
         action,
         params,
-        rows
+        rows,
     )
 
     rows = log_response(context, rows)
@@ -93,7 +91,7 @@ def prepare_data_for_response(
     action: Action,
     params: UrlParams,
     rows,
-    reserved: List[str] = None
+    reserved: List[str] = None,
 ):
     if isinstance(rows, dict):
         rows = [rows]
@@ -109,7 +107,7 @@ def prepare_data_for_response(
             reserved = ['_type', '_id', '_revision', '_base']
         else:
             reserved = ['_type', '_id', '_revision']
-        if model.page.is_enabled:
+        if is_pagination_enabled(model, params):
             reserved.append('_page')
     prop_names = get_select_prop_names(
         context,
@@ -151,13 +149,12 @@ def prepare_page_for_get_all(context: Context, model: Model, params: UrlParams):
     if model.page:
         copied = deepcopy(model.page)
         copied.clear()
+        copied.is_enabled = is_pagination_enabled(model, params)
 
-        if params.page:
-            copied.is_enabled = params.page.is_enabled
         if copied.is_enabled:
-            config = context.get('config')
-            page_size = config.push_page_size
-            size = params.page and params.page.size or copied.size or page_size or 1000
+            config: Config = context.get('config')
+            page_size = config.default_page_size
+            size = params.page and params.page.size or copied.size or page_size
             copied.size = size
 
             if params.sort:
@@ -190,9 +187,15 @@ def prepare_page_for_get_all(context: Context, model: Model, params: UrlParams):
 
                 copied.by = new_order
 
-            if params.page and params.page.values:
-                copied.update_values_from_list(params.page.values)
+            if params.page is not None:
+                if params.page.values:
+                    copied.update_values_from_list(params.page.values)
 
+                params.page.is_enabled = copied.is_enabled
+            else:
+                params.page = ParamsPage(
+                    is_enabled= copied.is_enabled
+                )
         return copied
 
 
@@ -227,10 +230,7 @@ def get_page(
     while not page_meta.is_finished:
         page_meta.is_finished = True
         query = add_page_expr(expr, model_page)
-        if backend.support_expand:
-            rows = commands.getall(context, model, backend, params=params, query=query, default_expand=default_expand)
-        else:
-            rows = commands.getall(context, model, backend, params=params, query=query)
+        rows = commands.getall(context, model, backend, params=params, query=query, default_expand=default_expand)
 
         yield from get_paginated_values(model_page, page_meta, rows, extract_source_page_keys)
 

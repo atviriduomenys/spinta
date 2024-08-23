@@ -23,7 +23,7 @@ from responses import RequestsMock, CallbackResponse, FalseBool
 from spinta import api
 from spinta import auth
 from spinta import commands
-from spinta.auth import create_client_file, get_clients_path
+from spinta.auth import create_client_file, get_clients_path, yaml
 from spinta.client import add_client_credentials
 from spinta.components import Context
 from spinta.core.config import RawConfig
@@ -314,3 +314,10 @@ class CustomCallbackResponse(CallbackResponse):
             return False, reason
 
         return True, ""
+
+
+def get_keymap_data(path: pathlib.Path):
+    keymap = {}
+    if path.exists():
+        keymap = yaml.load(path)
+    return keymap

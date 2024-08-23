@@ -476,3 +476,37 @@ def test_csv_changes_text(
         ['0', 'LT', 'Lithuania', 'Lietuva'],
         ['1', 'UK', 'England', 'Anglija'],
     ]
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_csv_empty(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property | type    | ref     | access  | level | uri
+    example/csv/empty        |         |         |         |       | 
+      |   |   |   |          | prefix  | rdf     |         |       | http://www.rdf.com
+      |   |   |   |          |         | pav     |         |       | http://purl.org/pav/
+      |   |   |   |          |         | dcat    |         |       | http://www.dcat.com
+      |   |   |   |          |         | dct     |         |       | http://dct.com
+      |   |   | Country      |         | name    |         |       | 
+      |   |   |   | id       | integer |         |         |       |
+      |   |   |   | name     | string  |         | open    | 3     |
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    app = create_test_client(context)
+    app.authmodel('example/csv', ['insert', 'getall', 'search', 'changes'])
+
+    assert parse_csv(app.get("/example/csv/empty/Country/:format/csv?select(id,name)")) == [
+        ['id', 'name'],
+    ]
