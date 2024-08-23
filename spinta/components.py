@@ -16,8 +16,6 @@ import pathlib
 from typing import Type
 from typing import TypedDict
 
-from mypy.dmypy.client import request
-
 from spinta.core.ufuncs import Expr, Bind
 from spinta.exceptions import InvalidPageKey, InvalidPushWithPageParameterCount
 from spinta import exceptions
