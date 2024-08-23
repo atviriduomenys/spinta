@@ -270,6 +270,7 @@ def test_paginate_none_values(db_dialect: str, rc: RawConfig, mocker):
       "PLANET"."CODE",
       "PLANET"."NAME"
     FROM "PLANET" ORDER BY "PLANET"."ID" ASC NULLS LAST
+     LIMIT :param_1
     '''
 
 
@@ -293,6 +294,7 @@ def test_paginate_none_values(db_dialect: str, rc: RawConfig, mocker):
       "PLANET"."CODE",
       "PLANET"."NAME"
     FROM "PLANET" ORDER BY CASE WHEN ("PLANET"."ID" IS NULL) THEN 1 ELSE 0 END, "PLANET"."ID" ASC
+     LIMIT :param_1
     '''
 
 
@@ -337,6 +339,7 @@ def test_paginate_given_values_page_not_given(db_dialect: str, rc: RawConfig, mo
       "PLANET"."CODE"
     FROM "PLANET"
     WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL ORDER BY "PLANET"."NAME" ASC NULLS LAST
+     LIMIT :param_1
     '''
 
 
@@ -361,6 +364,7 @@ def test_paginate_given_values_page_not_given(db_dialect: str, rc: RawConfig, mo
       "PLANET"."CODE"
     FROM "PLANET"
     WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL ORDER BY CASE WHEN ("PLANET"."NAME" IS NULL) THEN 1 ELSE 0 END, "PLANET"."NAME" ASC
+     LIMIT :param_1
     '''
 
 
@@ -437,6 +441,7 @@ def test_paginate_given_values_private(db_dialect: str, rc: RawConfig, mocker):
     FROM "PLANET"
     WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL OR "PLANET"."NAME" = :NAME_2
       AND ("PLANET"."CODE" > :CODE_1 OR "PLANET"."CODE" IS NULL) ORDER BY "PLANET"."NAME" ASC NULLS LAST, "PLANET"."CODE" ASC NULLS LAST
+      LIMIT :param_1
     '''
 
 
@@ -463,6 +468,7 @@ def test_paginate_given_values_private(db_dialect: str, rc: RawConfig, mocker):
     FROM "PLANET"
     WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL OR "PLANET"."NAME" = :NAME_2
       AND ("PLANET"."CODE" > :CODE_1 OR "PLANET"."CODE" IS NULL) ORDER BY CASE WHEN ("PLANET"."NAME" IS NULL) THEN 1 ELSE 0 END, "PLANET"."NAME" ASC, CASE WHEN ("PLANET"."CODE" IS NULL) THEN 1 ELSE 0 END, "PLANET"."CODE" ASC
+     LIMIT :param_1
     '''
 
 
@@ -489,6 +495,7 @@ def test_paginate_given_values_two_keys(db_dialect: str, rc: RawConfig, mocker):
     FROM "PLANET"
     WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL OR "PLANET"."NAME" = :NAME_2
       AND ("PLANET"."CODE" > :CODE_1 OR "PLANET"."CODE" IS NULL) ORDER BY "PLANET"."NAME" ASC NULLS LAST, "PLANET"."CODE" ASC NULLS LAST
+     LIMIT :param_1
     '''
 
 
@@ -515,6 +522,7 @@ def test_paginate_given_values_two_keys(db_dialect: str, rc: RawConfig, mocker):
     FROM "PLANET"
     WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL OR "PLANET"."NAME" = :NAME_2
       AND ("PLANET"."CODE" > :CODE_1 OR "PLANET"."CODE" IS NULL) ORDER BY CASE WHEN ("PLANET"."NAME" IS NULL) THEN 1 ELSE 0 END, "PLANET"."NAME" ASC, CASE WHEN ("PLANET"."CODE" IS NULL) THEN 1 ELSE 0 END, "PLANET"."CODE" ASC
+     LIMIT :param_1
     '''
 
 
@@ -541,6 +549,7 @@ def test_paginate_given_values_two_keys_ref_not_given(db_dialect: str, rc: RawCo
     FROM "PLANET"
     WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL OR "PLANET"."NAME" = :NAME_2
       AND ("PLANET"."CODE" > :CODE_1 OR "PLANET"."CODE" IS NULL) ORDER BY "PLANET"."NAME" ASC NULLS LAST, "PLANET"."CODE" ASC NULLS LAST
+     LIMIT :param_1
     '''
 
 
@@ -567,6 +576,7 @@ def test_paginate_given_values_two_keys_ref_not_given(db_dialect: str, rc: RawCo
     FROM "PLANET"
     WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL OR "PLANET"."NAME" = :NAME_2
       AND ("PLANET"."CODE" > :CODE_1 OR "PLANET"."CODE" IS NULL) ORDER BY CASE WHEN ("PLANET"."NAME" IS NULL) THEN 1 ELSE 0 END, "PLANET"."NAME" ASC, CASE WHEN ("PLANET"."CODE" IS NULL) THEN 1 ELSE 0 END, "PLANET"."CODE" ASC
+     LIMIT :param_1
     '''
 
 
@@ -593,6 +603,7 @@ def test_paginate_desc(db_dialect: str, rc: RawConfig, mocker):
     FROM "PLANET"
     WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL OR "PLANET"."NAME" = :NAME_2
       AND "PLANET"."CODE" < :CODE_1 ORDER BY "PLANET"."NAME" ASC NULLS LAST, "PLANET"."CODE" DESC NULLS FIRST
+     LIMIT :param_1
     '''
 
 
@@ -619,6 +630,7 @@ def test_paginate_desc(db_dialect: str, rc: RawConfig, mocker):
     FROM "PLANET"
     WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL OR "PLANET"."NAME" = :NAME_2
       AND "PLANET"."CODE" < :CODE_1 ORDER BY CASE WHEN ("PLANET"."NAME" IS NULL) THEN 1 ELSE 0 END, "PLANET"."NAME" ASC, CASE WHEN ("PLANET"."CODE" IS NOT NULL) THEN 1 ELSE 0 END, "PLANET"."CODE" DESC
+     LIMIT :param_1
     '''
 
 

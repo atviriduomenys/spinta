@@ -65,15 +65,6 @@ def update_query_with_url_params(query_params: QueryParams, url_params: UrlParam
     query_params.expand = url_params.expand
 
 
-def filter_page_values(page: Page):
-    new_page = Page()
-    for by, page_by in page.by.items():
-        # new_page.by[by] = page_by
-        if page_by.value is not None:
-            new_page.by[by] = page_by
-    return new_page
-
-
 def _create_or_condition(condition_info: list):
     action = condition_info[0]
     page_by = condition_info[1]

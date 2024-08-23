@@ -53,7 +53,7 @@ def _fetch_all_model_data(
     server: str,
     error_counter: ErrorCounter
 ):
-    limit = config.sync_page_size or 1000
+    limit = config.sync_page_size
     page = ''
     page_columns = []
     if model.page and model.page.by and model.backend.paginated and model.page.is_enabled:

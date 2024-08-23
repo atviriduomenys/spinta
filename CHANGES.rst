@@ -6,6 +6,21 @@ Changes
 0.1.68 (unreleased)
 ===================
 
+Backwards incompatible:
+
+- Renamed `push_page_size` config field to `default_page_size` (`#735`_).
+
+Improvements:
+
+- Changed default config `sync_page_size` and `default_page_size` parameters to be `100000` instead of `1000` (`#735`_).
+
+New features:
+
+- Added `enable_pagination` config field, which will enable or disable default pagination behaviour. Request and schema
+  specifications take priority, meaning even if `enable_pagination` is set to `False`, you can still specify `page(disable:false)`
+  to enable it for specific requests (`#735`_).
+
+  .. _#735: https://github.com/atviriduomenys/spinta/issues/735
 
 0.1.67 (2024-08-02)
 ===================
