@@ -3,12 +3,18 @@
 Changes
 #######
 
-0.1.69 (unreleased)
+0.1.69 (2024-08-23)
 ===================
+
+Improvements:
 
 - Nested properties for XSD. (`#622`_).
 
   .. _#622: https://github.com/atviriduomenys/spinta/issues/622
+
+Bug fixes:
+
+- Removed `from mypy.dmypy.client import request` import from `spinta/components.py`.
 
 0.1.68 (2024-08-23)
 ===================
