@@ -106,6 +106,7 @@ def test_getall_pagination_disabled(
     response = app.get(f'/example/getall/test/Test?page({encoded_page}, disable: true)')
     json_response = response.json()
     assert len(json_response["_data"]) == 5
+    assert '_page' not in json_response
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
@@ -144,6 +145,91 @@ def test_getall_pagination_enabled(
     response = app.get(f'/example/getall/test/Test?page("{encoded_page}")')
     json_response = response.json()
     assert len(json_response["_data"]) == 2
+    assert '_page' in json_response
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_getall_pagination_disabled_in_config(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    rc = rc.fork({
+        "enable_pagination": False
+    })
+    context = bootstrap_manifest(
+        rc, '''
+            d | r | b | m | property | type    | ref     | access  | uri
+            example/getall/test      |         |         |         |
+              |   |   | Test         |         | value   |         | 
+              |   |   |   | value    | integer |         | open    | 
+            ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    app = create_test_client(context)
+    app.authmodel('example/getall/test', ['insert', 'getall', 'search'])
+    app.post('/example/getall/test/Test', json={'value': 0})
+    app.post('/example/getall/test/Test', json={'value': 3})
+    resp_2 = app.post('/example/getall/test/Test', json={'value': 410}).json()
+    app.post('/example/getall/test/Test', json={'value': 707})
+    app.post('/example/getall/test/Test', json={'value': 1000})
+    encoded_page = {
+        "value": resp_2["value"],
+        "_id": resp_2["_id"]
+    }
+    encoded_page = encode_page_values_manually(encoded_page)
+    response = app.get(f'/example/getall/test/Test?page("{encoded_page}")')
+    json_response = response.json()
+    assert len(json_response["_data"]) == 5
+    assert '_page' not in json_response
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_getall_pagination_disabled_in_config_enabled_in_request(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    rc = rc.fork({
+        "enable_pagination": False
+    })
+    context = bootstrap_manifest(
+        rc, '''
+            d | r | b | m | property | type    | ref     | access  | uri
+            example/getall/test      |         |         |         |
+              |   |   | Test         |         | value   |         | 
+              |   |   |   | value    | integer |         | open    | 
+            ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    app = create_test_client(context)
+    app.authmodel('example/getall/test', ['insert', 'getall', 'search'])
+    app.post('/example/getall/test/Test', json={'value': 0})
+    app.post('/example/getall/test/Test', json={'value': 3})
+    resp_2 = app.post('/example/getall/test/Test', json={'value': 410}).json()
+    app.post('/example/getall/test/Test', json={'value': 707})
+    app.post('/example/getall/test/Test', json={'value': 1000})
+    encoded_page = {
+        "value": resp_2["value"],
+        "_id": resp_2["_id"]
+    }
+    encoded_page = encode_page_values_manually(encoded_page)
+    response = app.get(f'/example/getall/test/Test?page("{encoded_page}", disable:false)')
+    json_response = response.json()
+    assert len(json_response["_data"]) == 2
+    assert '_page' in json_response
 
 
 @pytest.mark.manifests('internal_sql', 'csv')

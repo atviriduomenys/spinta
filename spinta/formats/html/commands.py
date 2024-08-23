@@ -20,7 +20,7 @@ from spinta.backends.components import SelectTree
 from spinta.backends.helpers import get_model_reserved_props, get_select_prop_names, select_props
 from spinta.backends.helpers import get_ns_reserved_props
 from spinta.backends.helpers import select_model_props
-from spinta.components import Action
+from spinta.components import Action, is_pagination_enabled, page_in_data
 from spinta.components import Context
 from spinta.components import Model
 from spinta.components import Namespace
@@ -56,14 +56,14 @@ from spinta.utils.schema import NotAvailable
 from spinta.utils.url import build_url_path
 
 
-def _get_model_reserved_props(action: Action, model: Model) -> List[str]:
+def _get_model_reserved_props(action: Action, include_page: bool) -> List[str]:
     if action == Action.GETALL:
         reserved = ['_id']
     elif action == action.SEARCH:
         reserved = ['_id', '_base']
     else:
-        return get_model_reserved_props(action, model)
-    if model.page.is_enabled:
+        return get_model_reserved_props(action, include_page)
+    if include_page:
         reserved.append('_page')
     return reserved
 
@@ -215,7 +215,7 @@ def _get_model_tabular_header(
     if model.name == '_ns':
         reserved = get_ns_reserved_props(action)
     else:
-        reserved = _get_model_reserved_props(action, model)
+        reserved = _get_model_reserved_props(action, is_pagination_enabled(model, params))
     return get_model_tabular_header(
         context,
         model,
@@ -325,7 +325,7 @@ def prepare_data_for_response(
         else:
             value['name'] = _ModelName(value['name'])
 
-    reserved = _get_model_reserved_props(action, model)
+    reserved = _get_model_reserved_props(action, page_in_data(value))
 
     data = {
         prop.name: commands.prepare_dtype_for_response(

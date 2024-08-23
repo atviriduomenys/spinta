@@ -120,6 +120,6 @@ def getall(
         if '__id' in row:
             row['_id'] = row.pop('__id')
         row['_type'] = model.model_type()
-        if model.page.is_enabled:
+        if env.page.page_.is_enabled:
             row['_page'] = get_page_values(env, row)
         yield commands.cast_backend_to_python(context, model, backend, row)
