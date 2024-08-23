@@ -3,6 +3,13 @@
 Changes
 #######
 
+0.1.68 (2024-06-27)
+===================
+
+- Nested properties for XSD. (`#622`_).
+
+  .. _#622: https://github.com/atviriduomenys/spinta/issues/622
+
 0.1.64 (unreleased)
 ===================
 
