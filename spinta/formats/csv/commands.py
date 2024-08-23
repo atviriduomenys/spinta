@@ -99,11 +99,12 @@ def _render_model_csv(
     stream = IterableFile()
     writer = csv.DictWriter(stream, fieldnames=cols)
     writer.writeheader()
-    memory = next(rows)
+    memory = next(rows, None)
     for row in rows:
         writer.writerow({k: v for k, v in memory.items() if k != '_page.next'})
         yield from stream
         memory = row
 
-    writer.writerow(memory)
+    if memory is not None:
+        writer.writerow(memory)
     yield from stream

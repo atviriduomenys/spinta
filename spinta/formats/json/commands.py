@@ -79,7 +79,7 @@ def prepare_dtype_for_response(
     if 'C' in value:
         value[''] = value.pop('C')
 
-    if len(value) == 1 and select:
+    if len(value) == 1 and select is not None:
         for key, data in value.items():
             key = 'C' if key == '' else key
             if key not in select.keys():

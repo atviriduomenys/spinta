@@ -286,7 +286,7 @@ def flat_select_to_nested(select: Optional[List[str]]) -> SelectTree:
     return res
 
 
-def get_model_reserved_props(action: Action, model: Model) -> List[str]:
+def get_model_reserved_props(action: Action, include_page: bool) -> List[str]:
     if action == Action.GETALL:
         reserved = ['_type', '_id', '_revision']
     elif action == Action.SEARCH:
@@ -295,7 +295,7 @@ def get_model_reserved_props(action: Action, model: Model) -> List[str]:
         return ['_cid', '_created', '_op', '_id', '_txn', '_revision']
     else:
         reserved = ['_type', '_id', '_revision']
-    if model.page.is_enabled:
+    if include_page:
         reserved.append('_page')
     return reserved
 

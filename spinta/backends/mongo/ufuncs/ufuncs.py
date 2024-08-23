@@ -174,19 +174,6 @@ COMPARE = [
 ]
 
 
-@ufunc.resolver(MongoQueryBuilder, Bind, object, names=list(COMPARE))
-def compare(env, op, field, value):
-    prop = _get_from_flatprops(env.model, field.name)
-    return env.call(op, prop.dtype, value)
-
-
-def _get_from_flatprops(model: Model, prop: str):
-    if prop in model.flatprops:
-        return model.flatprops[prop]
-    else:
-        raise exceptions.FieldNotInResource(model, property=prop)
-
-
 @ufunc.resolver(MongoQueryBuilder, DataType, object, names=[
     'eq', 'lt', 'le', 'gt', 'ge', 'contains', 'startswith',
 ])
@@ -373,7 +360,7 @@ FUNCS = [
 
 @ufunc.resolver(MongoQueryBuilder, Bind, names=FUNCS)
 def func(env, name, field):
-    prop = _get_from_flatprops(env.model, field.name)
+    prop = env.model.get_from_flatprops(field.name)
     return env.call(name, prop.dtype)
 
 
@@ -427,7 +414,7 @@ def sort(env, expr):
 
 @ufunc.resolver(MongoQueryBuilder, Bind)
 def sort(env, field):
-    prop = _get_from_flatprops(env.model, field.name)
+    prop = env.model.get_from_flatprops(field.name)
     return env.call('asc', prop.dtype)
 
 

@@ -194,7 +194,7 @@ class PgQueryBuilder(BaseQueryBuilder):
         base_model = get_property_base_model(inherit_model, prop)
 
         if not base_model:
-            raise PropertyNotFound(prop)
+            raise PropertyNotFound(model, property=prop)
 
         ltable = self.backend.get_table(inherit_model)
         lrkey = self.backend.get_column(ltable, inherit_model.properties['_id'])

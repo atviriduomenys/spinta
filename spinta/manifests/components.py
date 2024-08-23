@@ -107,3 +107,4 @@ class ManifestPath:
     name: str = None
     path: str = None
     file: IO = None
+    prepare: str = None
