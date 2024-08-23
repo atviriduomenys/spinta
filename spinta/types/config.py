@@ -85,7 +85,7 @@ def load(context: Context, config: Config) -> Config:
     config.always_show_id = rc.get('always_show_id', default=False)
     config.default_page_size = rc.get('default_page_size', default=100000, cast=int)
     config.enable_pagination = rc.get('enable_pagination', default=True, cast=bool)
-    config.sync_page_size = rc.get('sync_page_size', default=1000, cast=int)
+    config.sync_page_size = rc.get('sync_page_size', default=100000, cast=int)
     config.languages = rc.get('languages', default=[])
     config.check_names = rc.get('check', 'names', default=False)
     config.root = rc.get('root', default=None)

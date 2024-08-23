@@ -224,7 +224,8 @@ CONFIG = {
     'enable_pagination': True,
 
     # Limit of objects in a page
-    'sync_page_size': None,
+    # If None is given default is 100000
+    'sync_page_size': 100000,
 
     # Default languages
     # Top most popular EU languages + lt, gathered from https://en.wikipedia.org/wiki/List_of_languages_by_number_of_speakers_in_Europe
