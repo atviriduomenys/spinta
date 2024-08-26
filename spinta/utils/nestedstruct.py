@@ -204,9 +204,7 @@ def flat_dicts_to_nested(value, list_keys: list = None):
 
     for k, v in dict(value).items():
         names = k.split('.')
-        last_value = v
-        vref = res
-        recursive_nesting(last_value, vref, names, 0)
+        recursive_nesting(v, res, names, 0)
     return res
 
 
