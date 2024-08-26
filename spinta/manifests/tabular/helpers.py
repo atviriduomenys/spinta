@@ -39,7 +39,7 @@ from spinta.components import Model
 from spinta.components import Namespace
 from spinta.components import Property
 from spinta.core.enums import Access
-from spinta.core.ufuncs import unparse, Expr
+from spinta.core.ufuncs import unparse
 from spinta.datasets.components import Dataset
 from spinta.dimensions.enum.components import Enums
 from spinta.dimensions.lang.components import LangData
@@ -1318,8 +1318,17 @@ class EnumReader(TabularReader):
         ]):
             return
 
-        # source = row[SOURCE] if row[SOURCE] is not None else row[PREPARE]
-        source = str(row[SOURCE]) or row[PREPARE]
+        # FIXME AST should be handled by Env
+        source = str(row[SOURCE])
+        if not source:
+            prepare = _parse_spyna(self, row[PREPARE])
+            if isinstance(prepare, dict):
+                if prepare['name'] == 'negative':
+                    prepare = -prepare['args'][0]
+                else:
+                    prepare = row[PREPARE]
+            source = str(prepare)
+
         if not source:
             self.error(
                 "At least source or prepare must be specified for an enum."

@@ -3056,3 +3056,154 @@ def test_advanced_denorm_lvl_3(context, rc, tmp_path, geodb_denorm):
         'country.year': 1204,
         'country.planet.name': 'Zeme',
     }]
+
+
+def test_keymap_ref_keys_valid_order(context, rc, tmp_path, sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''                   
+        d | r | m | property        | type    | ref                | source       | prepare             | access
+    datasets/keymap                 |         |                    |              |                     |
+      | rs                          | sql     |                    |              |                     |
+      |   | Planet                  |         | code               | PLANET       |                     | open
+      |   |   | code                | string  |                    | CODE         |                     |
+      |   |   | name                | string  |                    | NAME         |                     |
+      |   | Country                 |         | code               | COUNTRY      |                     | open
+      |   |   | code                | string  |                    | CODE         |                     |
+      |   |   | name                | string  |                    | NAME         |                     |
+      |   |   | planet              | ref     | Planet             | PLANET_CODE  |                     |
+      |   |   | planet_name         | ref     | Planet[name]       | PLANET_NAME  |                     |
+      |   |   | planet_combine      | ref     | Planet[code, name] |              | planet, planet_name |
+      '''))
+
+    sqlite.init({
+        'PLANET': [
+            sa.Column('CODE', sa.Text, primary_key=True),
+            sa.Column('NAME', sa.Text),
+        ],
+        'COUNTRY': [
+            sa.Column('CODE', sa.Text, primary_key=True),
+            sa.Column('NAME', sa.Text),
+            sa.Column('PLANET_CODE', sa.Text),
+            sa.Column('PLANET_NAME', sa.Text),
+        ],
+    })
+
+    sqlite.write('PLANET', [
+        {'CODE': 'ER', 'NAME': 'Earth'},
+        {'CODE': 'MS', 'NAME': 'Mars'},
+    ])
+    sqlite.write('COUNTRY', [
+        {'CODE': 'LT', 'NAME': 'Lithuania', 'PLANET_CODE': 'ER', 'PLANET_NAME': 'Earth'},
+        {'CODE': 'LV', 'NAME': 'Latvia', 'PLANET_CODE': 'ER', 'PLANET_NAME': 'Earth'},
+        {'CODE': 'S5', 'NAME': 's58467', 'PLANET_CODE': 'MS', 'PLANET_NAME': 'Mars'},
+    ])
+
+    app = create_client(rc, tmp_path, sqlite)
+
+    resp = app.get('/datasets/keymap/Planet')
+    id_mapping = {data['code']: data['_id'] for data in resp.json()['_data']}
+    assert listdata(resp, '_id', 'code', 'name', sort='code', full=True) == [{
+        '_id': id_mapping['ER'],
+        'code': 'ER',
+        'name': 'Earth'
+    }, {
+        '_id': id_mapping['MS'],
+        'code': 'MS',
+        'name': 'Mars'
+    }]
+
+    resp = app.get('/datasets/keymap/Country')
+    assert listdata(resp, 'code', 'name', 'planet._id', 'planet_name._id', 'planet_combine._id', sort='code', full=True) == [
+        {
+            'code': 'LT',
+            'name': 'Lithuania',
+            'planet._id': id_mapping['ER'],
+            'planet_name._id': id_mapping['ER'],
+            'planet_combine._id': id_mapping['ER']
+        },
+        {
+            'code': 'LV',
+            'name': 'Latvia',
+            'planet._id': id_mapping['ER'],
+            'planet_name._id': id_mapping['ER'],
+            'planet_combine._id': id_mapping['ER']
+        },
+        {
+            'code': 'S5',
+            'name': 's58467',
+            'planet._id': id_mapping['MS'],
+            'planet_name._id': id_mapping['MS'],
+            'planet_combine._id': id_mapping['MS']
+        }
+    ]
+
+
+def test_keymap_ref_keys_invalid_order(context, rc, tmp_path, sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''                   
+        d | r | m | property        | type    | ref                | source       | prepare             | access
+    datasets/keymap                 |         |                    |              |                     |
+      | rs                          | sql     |                    |              |                     |
+      |   | Planet                  |         | code               | PLANET       |                     | open
+      |   |   | code                | string  |                    | CODE         |                     |
+      |   |   | name                | string  |                    | NAME         |                     |
+      |   | Country                 |         | code               | COUNTRY      |                     | open
+      |   |   | code                | string  |                    | CODE         |                     |
+      |   |   | name                | string  |                    | NAME         |                     |
+      |   |   | planet              | ref     | Planet             | PLANET_CODE  |                     |
+      |   |   | planet_name         | ref     | Planet[name]       | PLANET_NAME  |                     |
+      |   |   | planet_combine      | ref     | Planet[code, name] |              | planet, planet_name |
+      '''))
+
+    sqlite.init({
+        'PLANET': [
+            sa.Column('CODE', sa.Text, primary_key=True),
+            sa.Column('NAME', sa.Text),
+        ],
+        'COUNTRY': [
+            sa.Column('CODE', sa.Text, primary_key=True),
+            sa.Column('NAME', sa.Text),
+            sa.Column('PLANET_CODE', sa.Text),
+            sa.Column('PLANET_NAME', sa.Text),
+        ],
+    })
+
+    sqlite.write('PLANET', [
+        {'CODE': 'ER', 'NAME': 'Earth'},
+        {'CODE': 'MS', 'NAME': 'Mars'},
+    ])
+    sqlite.write('COUNTRY', [
+        {'CODE': 'LT', 'NAME': 'Lithuania', 'PLANET_CODE': 'ER', 'PLANET_NAME': 'Earth'},
+        {'CODE': 'LV', 'NAME': 'Latvia', 'PLANET_CODE': 'ER', 'PLANET_NAME': 'Earth'},
+        {'CODE': 'S5', 'NAME': 's58467', 'PLANET_CODE': 'MS', 'PLANET_NAME': 'Mars'},
+    ])
+
+    app = create_client(rc, tmp_path, sqlite)
+
+    resp = app.get('/datasets/keymap/Country')
+    data = resp.json()['_data']
+    id_mapping = {
+        'ER': data[0]['planet']['_id'],
+        'MS': data[2]['planet']['_id']
+    }
+    assert listdata(resp, 'code', 'name', 'planet._id', 'planet_name._id', 'planet_combine._id', sort='code', full=True) == [
+        {
+            'code': 'LT',
+            'name': 'Lithuania',
+            'planet._id': id_mapping['ER'],
+            'planet_name._id': id_mapping['ER'],
+            'planet_combine._id': id_mapping['ER']
+        },
+        {
+            'code': 'LV',
+            'name': 'Latvia',
+            'planet._id': id_mapping['ER'],
+            'planet_name._id': id_mapping['ER'],
+            'planet_combine._id': id_mapping['ER']
+        },
+        {
+            'code': 'S5',
+            'name': 's58467',
+            'planet._id': id_mapping['MS'],
+            'planet_name._id': id_mapping['MS'],
+            'planet_combine._id': id_mapping['MS']
+        }
+    ]

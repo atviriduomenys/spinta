@@ -1,7 +1,7 @@
 .. default-role:: literal
 
 Spinta is a command line tool and REST JSON API service for publishing and
-mapping data between different phisical data models, JSON API and semantic data
+mapping data between different physical data models, JSON API and semantic data
 models. It supports a great deal of data schemes and formats.
 
 .. image:: https://gitlab.com/atviriduomenys/spinta/badges/master/pipeline.svg
@@ -12,7 +12,7 @@ models. It supports a great deal of data schemes and formats.
 
 ::
 
-    Phisical data        Different       Real time         REST JSON
+    Physical data        Different       Real time         REST JSON
        sources            formats      transformation         API
                     
                           +-----+

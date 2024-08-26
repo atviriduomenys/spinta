@@ -134,7 +134,7 @@ def push(
         ensure_data_dir(config.data_path / 'push')
         state = config.data_path / 'push' / f'{creds.remote}.db'
 
-    state = f'sqlite:///{state}'
+    state = f'sqlite+spinta:///{state}'
 
     manifest = store.manifest
     if dataset and not commands.has_dataset(context, manifest, dataset):

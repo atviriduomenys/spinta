@@ -89,3 +89,21 @@ def flatten(it: Iterable[Union[T, List[T]]]) -> Iterator[T]:
             yield from x
         else:
             yield x
+
+
+# Based on https://stackoverflow.com/a/54500174
+# This is one of the fastest ways to get first value
+def first_dict_value(it: dict, default=None):
+    res = default
+    for res in it:
+        return it[res]
+    return res
+
+
+# Based on https://stackoverflow.com/a/54500174
+# This is one of the fastest ways to get first key
+def first_dict_key(it: dict, default=None):
+    res = default
+    for res in it:
+        return res
+    return res

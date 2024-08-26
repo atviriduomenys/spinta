@@ -15,3 +15,4 @@ project.
    tests
    functions
    manifests
+   git-flow

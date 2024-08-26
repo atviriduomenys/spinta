@@ -12,7 +12,7 @@ from typing import Optional
 
 import dateutil
 import shapely.geometry.base
-from pyproj.crs import CRS
+from pyproj import CRS, Transformer
 from shapely import wkt
 
 from spinta import commands
@@ -30,7 +30,7 @@ from spinta.commands import gen_object_id
 from spinta.commands import is_object_id
 from spinta.commands import load_operator_value
 from spinta.commands import prepare
-from spinta.components import Action, UrlParams
+from spinta.components import Action, UrlParams, page_in_data
 from spinta.components import Context
 from spinta.components import DataItem
 from spinta.components import Model
@@ -417,15 +417,16 @@ def simple_data_check(
             raise SRIDNotSetForGeometry(dtype)
 
         crs = CRS.from_user_input(srid)
-        area = crs.area_of_use
+        transformer = Transformer.from_crs(crs.geodetic_crs, crs, always_xy=True)
+        west, south, east, north = transformer.transform_bounds(*crs.area_of_use.bounds)
         bounding_area = shapely.geometry.box(
-            minx=area.west,
-            maxx=area.east,
-            miny=area.south,
-            maxy=area.north
+            minx=west,
+            maxx=east,
+            miny=south,
+            maxy=north
         )
         if not bounding_area.contains(shape):
-            raise CoordinatesOutOfRange(dtype, given=value, srid=crs, bounds=crs.area_of_use.bounds)
+            raise CoordinatesOutOfRange(dtype, given=value, srid=crs, bounds=(west, south, east, north))
 
 
 @commands.complex_data_check.register(Context, DataItem, Model, Backend)
@@ -662,7 +663,7 @@ def prepare_data_for_response(
             prop_names,
             value,
             select,
-            get_model_reserved_props(action, model),
+            get_model_reserved_props(action, page_in_data(value)),
         )
     }
 
@@ -1436,7 +1437,7 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    if len(value) == 1 and select:
+    if len(value) == 1 and select is not None:
         for key, data in value.items():
             if key not in select.keys():
                 return data

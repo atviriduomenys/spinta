@@ -470,3 +470,8 @@ COMPARE = [
 def compare(env: BaseQueryBuilder, op: str, nested: NestedProperty, value: object):
     return env.call(op, nested.right, value)
 
+
+@ufunc.resolver(BaseQueryBuilder, Bind, object, names=COMPARE)
+def compare(env, op, field, value):
+    prop = env.model.get_from_flatprops(field.name)
+    return env.call(op, prop.dtype, value)

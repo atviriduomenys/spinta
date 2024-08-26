@@ -18,6 +18,8 @@ from spinta.core.config import RawConfig
 from spinta.datasets.keymaps.components import KeyMap
 from sqlalchemy.dialects.sqlite import insert
 
+from spinta.exceptions import KeyMapGivenKeyMissmatch
+
 
 class SqlAlchemyKeyMap(KeyMap):
     dsn: str = None
@@ -65,36 +67,40 @@ class SqlAlchemyKeyMap(KeyMap):
         else:
             value, hashed = hash_return
 
-        tmp_name = None
-        if '.' in name:
-            tmp_name = name.split('.')[0]
-
         table = self.get_table(name)
+        current_key = self.conn.execute(
+            sa.select([table.c.key]).where(
+                table.c.hash == hashed
+            )
+        ).scalar()
+
+        # Key was found in the table and no primary was given
+        if current_key is not None and primary_key is None:
+            return current_key
 
         if primary_key is not None:
-            primary_key_table = self.get_table(tmp_name if tmp_name else name)
-            query = sa.select([primary_key_table.c.key]).where(primary_key_table.c.key == primary_key)
-        else:
-            query = sa.select([table.c.key]).where(table.c.hash == hashed)
-        key = self.conn.execute(query).scalar()
+            # Given primary key matches found key
+            if primary_key == current_key:
+                return primary_key
 
-        if primary_key:
-            stmt = insert(table).values(
-                key=primary_key,
-                hash=hashed,
-                value=value
-            )
-            stmt = stmt.on_conflict_do_nothing()
-            self.conn.execute(stmt)
-            return primary_key
-        if key is None:
-            key = str(uuid.uuid4())
-            self.conn.execute(table.insert(), {
-                'key': key,
-                'hash': hashed,
-                'value': value,
-            })
-        return key
+            if current_key is not None and current_key != primary_key:
+                raise KeyMapGivenKeyMissmatch(
+                    name=name,
+                    given_key=primary_key,
+                    found_key=current_key
+                )
+
+            current_key = primary_key
+
+        if current_key is None:
+            current_key = str(uuid.uuid4())
+
+        self.conn.execute(table.insert(), {
+            'key': current_key,
+            'hash': hashed,
+            'value': value,
+        })
+        return current_key
 
     def decode(self, name: str, key: str) -> object:
         table = self.get_table(name)
@@ -102,6 +108,23 @@ class SqlAlchemyKeyMap(KeyMap):
         value = self.conn.execute(query).scalar()
         value = msgpack.loads(value, raw=False)
         return value
+
+    def contains_key(self, name: str, value: Any) -> bool:
+        result = _hash_value(value)
+
+        if result is None:
+            return False
+
+        encoded_value, encoded_hash = result
+
+        table = self.get_table(name)
+        query = sa.select([sa.func.count()]).where(
+            sa.and_(
+                table.c.value == encoded_value,
+                table.c.hash == encoded_hash
+            )
+        )
+        return self.conn.execute(query).scalar() > 0
 
     def get_sync_data(self, name: str) -> object:
         table = self.get_table('_synchronize')
@@ -181,7 +204,7 @@ def configure(context: Context, keymap: SqlAlchemyKeyMap):
     ensure_data_dir(config.data_path)
     dsn = dsn.format(data_dir=config.data_path)
     if dsn.startswith('sqlite:///'):
-        dsn = dsn.replace('sqlite:///', 'sqlite+spinta_sqlite:///')
+        dsn = dsn.replace('sqlite:///', 'sqlite+spinta:///')
     keymap.dsn = dsn
 
 

@@ -855,3 +855,44 @@ def test_rdf_changes_text(
                    f'  <name xml:lang="lt">Anglija</name>\n' \
                    f'</rdf:Description>\n' \
                    f'</rdf:RDF>\n'
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_rdf_empty(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property | type    | ref     | access  | level | uri
+    example/rdf/empty        |         |         |         |       | 
+      |   |   |   |          | prefix  | rdf     |         |       | http://www.rdf.com
+      |   |   |   |          |         | pav     |         |       | http://purl.org/pav/
+      |   |   |   |          |         | dcat    |         |       | http://www.dcat.com
+      |   |   |   |          |         | dct     |         |       | http://dct.com
+      |   |   | Country      |         | name    |         |       | 
+      |   |   |   | id       | integer |         |         |       |
+      |   |   |   | name     | string  |         | open    | 3     |
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    app = create_test_client(context)
+    app.authmodel('example/rdf', ['insert', 'getall', 'search', 'changes'])
+
+    resp = app.get("/example/rdf/empty/Country/:format/rdf?select(id,name)").text
+    assert resp == f'<?xml version="1.0" encoding="UTF-8"?>\n' \
+                   f'<rdf:RDF\n' \
+                   f' xmlns:rdf="http://www.rdf.com"\n' \
+                   f' xmlns:pav="http://purl.org/pav/"\n' \
+                   f' xmlns:xml="http://www.w3.org/XML/1998/namespace"\n' \
+                   f' xmlns:dcat="http://www.dcat.com"\n' \
+                   f' xmlns:dct="http://dct.com"\n' \
+                   f' xmlns="https://testserver/">\n' \
+                   f'</rdf:RDF>\n'

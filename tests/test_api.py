@@ -1,3 +1,4 @@
+import pathlib
 import uuid
 from typing import Any
 from typing import Dict
@@ -7,14 +8,17 @@ from typing import cast
 
 import pytest
 
-from spinta.auth import query_client, delete_client_file, get_clients_path
+from spinta import commands
+from spinta.auth import query_client, delete_client_file, get_clients_path, get_keymap_path
+from spinta.cli.helpers.store import _ensure_config_dir
 from spinta.components import Context
-from spinta.core.config import RawConfig
+from spinta.core.config import RawConfig, configure_rc
 from spinta.formats.html.components import Cell
 from spinta.formats.html.helpers import short_id
-from spinta.testing.client import TestClient
+from spinta.testing.client import TestClient, get_keymap_data
 from spinta.testing.client import TestClientResponse
 from spinta.testing.client import get_html_tree
+from spinta.testing.context import create_test_context
 from spinta.testing.utils import get_error_codes, get_error_context, error
 from spinta.testing.manifest import prepare_manifest
 from spinta.testing.data import pushdata
@@ -82,6 +86,25 @@ def ensure_clients_dont_exist(context: Context, client_ids: list):
         for item in client_ids:
             if item in keymap_keys:
                 clean_up_auth_client(context, keymap[item])
+
+
+def ensure_temp_context_and_app(
+    rc: RawConfig,
+    tmp_path: pathlib.Path
+) -> Tuple[Context, TestClient]:
+    temp_rc = configure_rc(rc.fork({
+        'config_path': str(tmp_path),
+    }), None)
+    context = create_test_context(temp_rc)
+    config = context.get("config")
+    commands.load(context, config)
+    _ensure_config_dir(
+        config,
+        config.config_path,
+        config.default_auth_client,
+    )
+    app = create_test_client(context)
+    return context, app
 
 
 def test_version(app):
@@ -1410,12 +1433,13 @@ def test_get_gt_ge_lt_le_ne(app):
     (None, None, "onlysecret")
 ], ids=["all given", "only name", "only scope", "only secret"])
 def test_auth_clients_create_authorized_correct(
-    context: Context,
-    app: TestClient,
+    rc: RawConfig,
+    tmp_path: pathlib.Path,
     client_name: str,
     scopes: list,
     secret: str
 ):
+    context, app = ensure_temp_context_and_app(rc, tmp_path)
     path = get_clients_path(context.get('config'))
     if client_name:
         ensure_clients_dont_exist(context, [client_name])
@@ -1449,9 +1473,10 @@ def test_auth_clients_create_authorized_correct(
 
 
 def test_auth_clients_create_authorized_incorrect(
-    context: Context,
-    app: TestClient,
+    rc: RawConfig,
+    tmp_path: pathlib.Path
 ):
+    context, app = ensure_temp_context_and_app(rc, tmp_path)
     ensure_clients_dont_exist(context, ["exists"])
     app.authorize(["spinta_auth_clients"])
     resp_created = app.post('/auth/clients', json={
@@ -1493,9 +1518,10 @@ def test_auth_clients_create_authorized_incorrect(
 
 
 def test_auth_clients_create_unauthorized(
-    context: Context,
-    app: TestClient
+    rc: RawConfig,
+    tmp_path: pathlib.Path
 ):
+    context, app = ensure_temp_context_and_app(rc, tmp_path)
     ensure_clients_dont_exist(context, ["test"])
     resp = app.post('/auth/clients', json={
         "client_name": "test",
@@ -1509,9 +1535,10 @@ def test_auth_clients_create_unauthorized(
 
 
 def test_auth_clients_delete_unauthorized(
-    context: Context,
-    app: TestClient,
+    rc: RawConfig,
+    tmp_path: pathlib.Path
 ):
+    context, app = ensure_temp_context_and_app(rc, tmp_path)
     ensure_clients_dont_exist(context, ["to_delete"])
     app.authorize(["spinta_auth_clients"])
     resp_create = app.post('/auth/clients', json={
@@ -1530,9 +1557,10 @@ def test_auth_clients_delete_unauthorized(
 
 
 def test_auth_clients_delete_authorized_correct(
-    context: Context,
-    app: TestClient,
+    rc: RawConfig,
+    tmp_path: pathlib.Path
 ):
+    context, app = ensure_temp_context_and_app(rc, tmp_path)
     ensure_clients_dont_exist(context, ["to_delete"])
     app.authorize(["spinta_auth_clients"])
     resp = app.post('/auth/clients', json={
@@ -1546,9 +1574,10 @@ def test_auth_clients_delete_authorized_correct(
 
 
 def test_auth_clients_delete_authorized_incorrect(
-    context: Context,
-    app: TestClient,
+    rc: RawConfig,
+    tmp_path: pathlib.Path
 ):
+    context, app = ensure_temp_context_and_app(rc, tmp_path)
     app.authorize(["spinta_auth_clients"])
     resp = app.delete('/auth/clients/non-existent')
     assert resp.status_code == 400
@@ -1556,9 +1585,10 @@ def test_auth_clients_delete_authorized_incorrect(
 
 
 def test_auth_clients_get_authorized(
-    context: Context,
-    app: TestClient,
+    rc: RawConfig,
+    tmp_path: pathlib.Path
 ):
+    context, app = ensure_temp_context_and_app(rc, tmp_path)
     ensure_clients_dont_exist(context, ["to_get"])
     app.authorize(["spinta_auth_clients"])
     resp_created = app.post('/auth/clients', json={
@@ -1580,9 +1610,10 @@ def test_auth_clients_get_authorized(
 
 
 def test_auth_clients_get_unauthorized(
-    context: Context,
-    app: TestClient,
+    rc: RawConfig,
+    tmp_path: pathlib.Path
 ):
+    context, app = ensure_temp_context_and_app(rc, tmp_path)
     ensure_clients_dont_exist(context, ["to_get", 'normal'])
     app.authorize(["spinta_auth_clients"])
     resp_created = app.post('/auth/clients', json={
@@ -1616,9 +1647,10 @@ def test_auth_clients_get_unauthorized(
 
 
 def test_auth_clients_get_all_authorized(
-    context: Context,
-    app: TestClient,
+    rc: RawConfig,
+    tmp_path: pathlib.Path
 ):
+    context, app = ensure_temp_context_and_app(rc, tmp_path)
     ensure_clients_dont_exist(context, ["one", "two", "three"])
     app.authorize(["spinta_auth_clients"])
 
@@ -1661,9 +1693,10 @@ def test_auth_clients_get_all_authorized(
 
 
 def test_auth_clients_get_all_unauthorized(
-    context: Context,
-    app: TestClient,
+    rc: RawConfig,
+    tmp_path: pathlib.Path
 ):
+    context, app = ensure_temp_context_and_app(rc, tmp_path)
     ensure_clients_dont_exist(context, ["one", "two", "three"])
     app.authorize(["spinta_auth_clients"])
 
@@ -1703,12 +1736,13 @@ def test_auth_clients_get_all_unauthorized(
     (None, None, "onlysecret")
 ], ids=["all given", "none given", "only name", "only scope", "only secret"])
 def test_auth_clients_update_authorized_admin_correct(
-    context: Context,
-    app: TestClient,
+    rc: RawConfig,
+    tmp_path: pathlib.Path,
     client_name: str,
     scopes: list,
     secret: str
 ):
+    context, app = ensure_temp_context_and_app(rc, tmp_path)
     path = get_clients_path(context.get("config"))
     ensure_clients_dont_exist(context, ["TEST", client_name])
     app.authorize(["spinta_auth_clients"])
@@ -1740,7 +1774,16 @@ def test_auth_clients_update_authorized_admin_correct(
     }
     if not client_name:
         assert resp_client_name == "TEST"
+
+    # Query client with id
     client = query_client(path, client=resp_json["client_id"])
+    if secret:
+        assert client.check_client_secret(secret)
+    else:
+        assert client.check_client_secret("OLD_SECRET")
+
+    # Query client with name
+    client = query_client(path, client=resp_json["client_name"], is_name=True)
     if secret:
         assert client.check_client_secret(secret)
     else:
@@ -1751,9 +1794,10 @@ def test_auth_clients_update_authorized_admin_correct(
 
 
 def test_auth_clients_update_authorized_admin_incorrect(
-    context: Context,
-    app: TestClient
+    rc: RawConfig,
+    tmp_path: pathlib.Path
 ):
+    context, app = ensure_temp_context_and_app(rc, tmp_path)
     ensure_clients_dont_exist(context, ["TEST", "NEW"])
     app.authorize(["spinta_auth_clients"])
     resp_test = app.post('/auth/clients', json={
@@ -1784,9 +1828,10 @@ def test_auth_clients_update_authorized_admin_incorrect(
 
 
 def test_auth_clients_update_authorized_correct(
-    context: Context,
-    app: TestClient
+    rc: RawConfig,
+    tmp_path: pathlib.Path
 ):
+    context, app = ensure_temp_context_and_app(rc, tmp_path)
     path = get_clients_path(context.get("config"))
     ensure_clients_dont_exist(context, ["TEST"])
     app.authorize(["spinta_auth_clients"])
@@ -1821,9 +1866,10 @@ def test_auth_clients_update_authorized_correct(
 
 
 def test_auth_clients_update_authorized_incorrect(
-    context: Context,
-    app: TestClient
+    rc: RawConfig,
+    tmp_path: pathlib.Path
 ):
+    context, app = ensure_temp_context_and_app(rc, tmp_path)
     ensure_clients_dont_exist(context, ["TEST"])
     app.authorize(["spinta_auth_clients"])
     resp_created = app.post('/auth/clients', json={
@@ -1867,9 +1913,10 @@ def test_auth_clients_update_authorized_incorrect(
 
 
 def test_auth_clients_update_unauthorized(
-    context: Context,
-    app: TestClient
+    rc: RawConfig,
+    tmp_path: pathlib.Path
 ):
+    context, app = ensure_temp_context_and_app(rc, tmp_path)
     ensure_clients_dont_exist(context, ["TEST"])
     app.authorize(["spinta_auth_clients"])
     resp_created = app.post('/auth/clients', json={
@@ -1890,3 +1937,72 @@ def test_auth_clients_update_unauthorized(
 
     # Clean up
     clean_up_auth_client(context, resp_created.json()["client_id"])
+
+
+def test_auth_clients_update_name_full_check(
+    rc: RawConfig,
+    tmp_path: pathlib.Path
+):
+    context, app = ensure_temp_context_and_app(rc, tmp_path)
+    path = get_clients_path(context.get("config"))
+    keymap_path = get_keymap_path(path)
+    ensure_clients_dont_exist(context, ["TEST", "TESTNEW", "TESTNEWOTHER"])
+    app.authorize(["spinta_auth_clients"])
+    resp = app.post('/auth/clients', json={
+        "client_name": "TEST",
+        "secret": "OLD_SECRET",
+        "scopes": [
+            "spinta_auth_clients",
+            "spinta_getall"
+        ]
+    })
+    assert resp.status_code == 200
+    test_client_id = resp.json()['client_id']
+
+    resp_new = app.post('/auth/clients', json={
+        "client_name": "TESTNEW",
+        "secret": "OLD_SECRET",
+        "scopes": [
+            "spinta_getall"
+        ]
+    })
+    assert resp_new.status_code == 200
+    test_new_client_id = resp_new.json()['client_id']
+
+    app.authorize(scopes=["spinta_auth_clients"], creds=("TEST", "OLD_SECRET"), strict_set=True)
+    resp = app.patch(f'/auth/clients/{test_client_id}', json={
+        "client_name": "TESTNEW"
+    })
+    assert resp.status_code == 400
+    assert get_error_codes(resp.json()) == ["ClientWithNameAlreadyExists"]
+
+    keymap = get_keymap_data(keymap_path)
+    assert "TEST" in keymap
+    test_id = keymap["TEST"]
+    assert "TESTNEW" in keymap
+    test_new_id = keymap["TESTNEW"]
+    app.authorize(scopes=["spinta_auth_clients"], creds=("TEST", "OLD_SECRET"), strict_set=True)
+    resp = app.patch(f'/auth/clients/{test_new_client_id}', json={
+        "client_name": "TESTNEWOTHER"
+    })
+    resp_json = resp.json()
+
+    assert resp.status_code == 200
+    assert resp.json() == {
+        "client_id": resp_json["client_id"],
+        "client_name": "TESTNEWOTHER",
+        "scopes": [
+            "spinta_getall"
+        ]
+    }
+
+    keymap = get_keymap_data(keymap_path)
+    assert "TEST" in keymap
+    assert keymap["TEST"] == test_id
+    assert "TESTNEWOTHER" in keymap
+    assert keymap["TESTNEWOTHER"] == test_new_id
+    assert "TESTNEW" not in keymap
+
+    # Clean up
+    clean_up_auth_client(context, test_client_id)
+    clean_up_auth_client(context, test_new_client_id)

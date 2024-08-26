@@ -2,10 +2,12 @@ import hashlib
 import json
 from typing import Any
 from typing import List
+from typing import Union
 
 import msgpack
 import sqlalchemy as sa
 
+from sqlalchemy.engine.row import Row
 from spinta.auth import authorized
 from spinta.cli.helpers.push.components import PushRow
 from spinta.components import Action, Page
@@ -39,16 +41,24 @@ def _load_page_from_dict(model: Model, values: dict):
             model.page.add_prop(key, prop, item)
 
 
-def extract_state_page_keys(row: dict):
+def extract_state_page_keys(row: Union[dict, Row]):
     result = []
+
+    if isinstance(row, Row):
+        row = row._mapping
+
     for key, value in row.items():
         if 'page.' in key:
             result.append(value)
     return result
 
 
-def extract_state_page_id_key(row: dict):
+def extract_state_page_id_key(row: Union[dict, Row]):
     result = []
+
+    if isinstance(row, Row):
+        row = row._mapping
+
     for key, value in row.items():
         if key == 'id':
             result.append(value)

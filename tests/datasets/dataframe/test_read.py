@@ -1564,6 +1564,166 @@ def test_xml_json_csv_combined_read_parametrize_advanced_iterate_pages(rc: RawCo
     ]
 
 
+def test_json_keymap_ref_keys_valid_order(context, rc, tmp_path, sqlite):
+    json_manifest = {
+        "planets": [
+            {
+                "code": "ER",
+                "name": "Earth",
+                "countries": [
+                    {
+                        "code": "LT",
+                        "name": "Lithuania"
+                    },
+                    {
+                        "code": "LV",
+                        "name": "Latvia"
+                    }
+                ]
+            },
+            {
+                "code": "MS",
+                "name": "Mars",
+                "countries": [
+                    {
+                        "code": "S5",
+                        "name": "s58467"
+                    }
+                ]
+            }
+        ]
+    }
+    path = tmp_path / 'countries.json'
+    path.write_text(json.dumps(json_manifest))
+
+    context, manifest = prepare_manifest(rc, f'''                   
+            d | r | m | property        | type    | ref                | source              | prepare             | access
+        datasets/json/keymap            |         |                    |                     |                     |
+          | rs                          | json    |                    | {path}              |                     |
+          |   | Planet                  |         | code               | planets             |                     | open
+          |   |   | code                | string  |                    | code                |                     |
+          |   |   | name                | string  |                    | name                |                     |
+          |   | Country                 |         | code               | planets[].countries |                     | open
+          |   |   | code                | string  |                    | code                |                     |
+          |   |   | name                | string  |                    | name                |                     |
+          |   |   | planet              | ref     | Planet             | ..                  |                     |
+          |   |   | planet_name         | ref     | Planet[name]       | ..name              |                     |
+          ''', mode=Mode.external)
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel('datasets/json/keymap', ['getall'])
+
+    resp = app.get('/datasets/json/keymap/Planet')
+    id_mapping = {data['code']: data['_id'] for data in resp.json()['_data']}
+    assert listdata(resp, '_id', 'code', 'name', sort='code', full=True) == [{
+        '_id': id_mapping['ER'],
+        'code': 'ER',
+        'name': 'Earth'
+    }, {
+        '_id': id_mapping['MS'],
+        'code': 'MS',
+        'name': 'Mars'
+    }]
+
+    resp = app.get('/datasets/json/keymap/Country')
+    assert listdata(resp, 'code', 'name', 'planet._id', 'planet_name._id', 'planet_combine._id', sort='code', full=True) == [
+        {
+            'code': 'LT',
+            'name': 'Lithuania',
+            'planet._id': id_mapping['ER'],
+            'planet_name._id': id_mapping['ER'],
+        },
+        {
+            'code': 'LV',
+            'name': 'Latvia',
+            'planet._id': id_mapping['ER'],
+            'planet_name._id': id_mapping['ER'],
+        },
+        {
+            'code': 'S5',
+            'name': 's58467',
+            'planet._id': id_mapping['MS'],
+            'planet_name._id': id_mapping['MS'],
+        }
+    ]
+
+
+def test_json_keymap_ref_keys_invalid_order(context, rc, tmp_path, sqlite):
+    json_manifest = {
+        "planets": [
+            {
+                "code": "ER",
+                "name": "Earth",
+                "countries": [
+                    {
+                        "code": "LT",
+                        "name": "Lithuania"
+                    },
+                    {
+                        "code": "LV",
+                        "name": "Latvia"
+                    }
+                ]
+            },
+            {
+                "code": "MS",
+                "name": "Mars",
+                "countries": [
+                    {
+                        "code": "S5",
+                        "name": "s58467"
+                    }
+                ]
+            }
+        ]
+    }
+    path = tmp_path / 'countries.json'
+    path.write_text(json.dumps(json_manifest))
+
+    context, manifest = prepare_manifest(rc, f'''                   
+                d | r | m | property        | type    | ref                | source              | prepare             | access
+            datasets/json/keymap            |         |                    |                     |                     |
+              | rs                          | json    |                    | {path}              |                     |
+              |   | Planet                  |         | code               | planets             |                     | open
+              |   |   | code                | string  |                    | code                |                     |
+              |   |   | name                | string  |                    | name                |                     |
+              |   | Country                 |         | code               | planets[].countries |                     | open
+              |   |   | code                | string  |                    | code                |                     |
+              |   |   | name                | string  |                    | name                |                     |
+              |   |   | planet              | ref     | Planet             | ..                  |                     |
+              |   |   | planet_name         | ref     | Planet[name]       | ..name              |                     |
+              ''', mode=Mode.external)
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel('datasets/json/keymap', ['getall'])
+    resp = app.get('datasets/json/keymap/Country')
+    data = resp.json()['_data']
+    id_mapping = {
+        'ER': data[0]['planet']['_id'],
+        'MS': data[2]['planet']['_id']
+    }
+    assert listdata(resp, 'code', 'name', 'planet._id', 'planet_name._id', 'planet_combine._id', sort='code', full=True) == [
+        {
+            'code': 'LT',
+            'name': 'Lithuania',
+            'planet._id': id_mapping['ER'],
+            'planet_name._id': id_mapping['ER'],
+        },
+        {
+            'code': 'LV',
+            'name': 'Latvia',
+            'planet._id': id_mapping['ER'],
+            'planet_name._id': id_mapping['ER'],
+        },
+        {
+            'code': 'S5',
+            'name': 's58467',
+            'planet._id': id_mapping['MS'],
+            'planet_name._id': id_mapping['MS'],
+        }
+    ]
+
+
 def test_soap(rc: RawConfig, tmp_path: Path, responses: RequestsMock):
     response = """
     <soap:Envelope

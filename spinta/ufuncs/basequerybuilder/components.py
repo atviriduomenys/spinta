@@ -13,11 +13,13 @@ class QueryPage:
     select: list
     sort: list
 
-    def __init__(self):
-        self.size = 0
-        self.select = []
-        self.sort = []
-        self.page_ = Page()
+    def __init__(self, size = None, select = None, sort = None, page = None):
+        self.size = size
+        self.select = [] if select is None else select
+        self.sort = [] if sort is None else sort
+        # By default, we set pagination to disabled
+        # It gets updated if there is pagination query, which should set to most up-to-date page
+        self.page_ = Page(is_enabled=False) if page is None else page
 
 
 class QueryParams:

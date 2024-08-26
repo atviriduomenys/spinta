@@ -10,7 +10,6 @@ from typing import List
 from typing import Optional
 from typing import TypeVar
 
-import pkg_resources as pres
 from itertools import chain
 from itertools import count
 from starlette.requests import Request
@@ -21,7 +20,7 @@ from spinta.backends.components import SelectTree
 from spinta.backends.helpers import get_model_reserved_props, get_select_prop_names, select_props
 from spinta.backends.helpers import get_ns_reserved_props
 from spinta.backends.helpers import select_model_props
-from spinta.components import Action
+from spinta.components import Action, is_pagination_enabled, page_in_data
 from spinta.components import Context
 from spinta.components import Model
 from spinta.components import Namespace
@@ -52,18 +51,19 @@ from spinta.types.datatype import Inherit
 from spinta.types.text.components import Text
 from spinta.utils.encoding import is_url_safe_base64, encode_page_values
 from spinta.utils.nestedstruct import flatten, sepgetter
+from spinta.utils.path import resource_filename
 from spinta.utils.schema import NotAvailable
 from spinta.utils.url import build_url_path
 
 
-def _get_model_reserved_props(action: Action, model: Model) -> List[str]:
+def _get_model_reserved_props(action: Action, include_page: bool) -> List[str]:
     if action == Action.GETALL:
         reserved = ['_id']
     elif action == action.SEARCH:
         reserved = ['_id', '_base']
     else:
-        return get_model_reserved_props(action, model)
-    if model.page.is_enabled:
+        return get_model_reserved_props(action, include_page)
+    if include_page:
         reserved.append('_page')
     return reserved
 
@@ -86,8 +86,8 @@ def _render_check(request: Request, data: Dict[str, Any] = None):
     else:
         result = data
 
-    templates = Jinja2Templates(directory=pres.resource_filename('spinta', 'templates'))
-    return templates.TemplateResponse('form.html', {
+    templates = Jinja2Templates(directory=str(resource_filename('spinta', 'templates')))
+    return templates.TemplateResponse( 'form.html', {
         'request': request,
         'title': "Duomenų struktūros aprašo tikrinimas",
         'description': (
@@ -215,7 +215,7 @@ def _get_model_tabular_header(
     if model.name == '_ns':
         reserved = get_ns_reserved_props(action)
     else:
-        reserved = _get_model_reserved_props(action, model)
+        reserved = _get_model_reserved_props(action, is_pagination_enabled(model, params))
     return get_model_tabular_header(
         context,
         model,
@@ -284,9 +284,9 @@ def _render_model(
         ctx['data'] = list(ctx['data'])
 
     templates = Jinja2Templates(
-        directory=pres.resource_filename('spinta', 'templates')
+        directory=str(resource_filename('spinta', 'templates'))
     )
-    return templates.TemplateResponse('data.html', ctx, headers=http_headers)
+    return templates.TemplateResponse( 'data.html', ctx, headers=http_headers)
 
 
 @dataclasses.dataclass
@@ -325,7 +325,7 @@ def prepare_data_for_response(
         else:
             value['name'] = _ModelName(value['name'])
 
-    reserved = _get_model_reserved_props(action, model)
+    reserved = _get_model_reserved_props(action, page_in_data(value))
 
     data = {
         prop.name: commands.prepare_dtype_for_response(
@@ -812,7 +812,7 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    if len(value) == 1:
+    if len(value) == 1 and select is not None:
         for key, data in value.items():
             if key not in select.keys():
                 return _value_or_null(data)

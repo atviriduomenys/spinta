@@ -1462,28 +1462,28 @@ def test_summary_geometry_with_srid(rc: RawConfig, postgresql: str, request: Fix
             ''', backend=postgresql, request=request)
     app = create_test_client(context)
     app.authmodel('example/summary/geometry_srid', ['insert', 'getall', 'search'])
-    app.post('/example/summary/geometry_srid/Test', json={'value': 'POINT(19.05 53.90)'})
-    app.post('/example/summary/geometry_srid/Test', json={'value': 'POINT(19.05 53.90)'})
-    resp_10_20 = app.post('/example/summary/geometry_srid/Test', json={'value': 'POINT(22.10 54.00)'})
-    resp_40_80 = app.post('/example/summary/geometry_srid/Test', json={'value': 'POINT(26.00 56.00)'})
+    app.post('/example/summary/geometry_srid/Test', json={'value': 'POINT(180000.05 6000000.15)'})
+    app.post('/example/summary/geometry_srid/Test', json={'value': 'POINT(180000.05 6000000.15)'})
+    resp_10_20 = app.post('/example/summary/geometry_srid/Test', json={'value': 'POINT(200000.15 6200000.05)'})
+    resp_40_80 = app.post('/example/summary/geometry_srid/Test', json={'value': 'POINT(400000.15 6200000.05)'})
     response = app.get('/example/summary/geometry_srid/Test/:summary/value')
     json_response = response.json()
 
     assert len(json_response["_data"]) == 3
     assert dict_equals(json_response["_data"][0], {
         'cluster': 2,
-        'centroid': 'POINT(19.05 53.9)',
+        'centroid': 'POINT(180000.05 6000000.15)',
         '_type': 'example/summary/geometry_srid/Test'
     })
     assert dict_equals(json_response["_data"][1], {
         'cluster': 1,
-        'centroid': 'POINT(22.1 54)',
+        'centroid': 'POINT(200000.15 6200000.05)',
         "_id": resp_10_20.json()["_id"],
         '_type': 'example/summary/geometry_srid/Test'
     })
     assert dict_equals(json_response["_data"][2], {
         'cluster': 1,
-        'centroid': 'POINT(26 56)',
+        'centroid': 'POINT(400000.15 6200000.05)',
         "_id": resp_40_80.json()["_id"],
         '_type': 'example/summary/geometry_srid/Test'
     })
@@ -1678,29 +1678,30 @@ def test_summary_geometry_bbox_with_srid(rc: RawConfig, postgresql: str, request
               |   |   |   | value    | geometry(3346) |         | open    | 
             ''', backend=postgresql, request=request)
     app = create_test_client(context)
+
     app.authmodel('example/summary/geometry', ['insert', 'getall', 'search'])
-    app.post('/example/summary/geometry/TestSrid', json={'value': 'POINT(19.5 53.9)'})
-    app.post('/example/summary/geometry/TestSrid', json={'value': 'POINT(19.5 53.9)'})
-    resp_10_20 = app.post('/example/summary/geometry/TestSrid', json={'value': 'POINT(20 55)'})
-    resp_40_80 = app.post('/example/summary/geometry/TestSrid', json={'value': 'POINT(22 55.5)'})
-    response = app.get('/example/summary/geometry/TestSrid/:summary/value?bbox(0, 0, 100, 100)')
+    app.post('/example/summary/geometry/TestSrid', json={'value': 'POINT(180000.05 6000000.15)'})
+    app.post('/example/summary/geometry/TestSrid', json={'value': 'POINT(180000.05 6000000.15)'})
+    resp_10_20 = app.post('/example/summary/geometry/TestSrid', json={'value': 'POINT(200000.15 6200000.05)'})
+    resp_40_80 = app.post('/example/summary/geometry/TestSrid', json={'value': 'POINT(400000.15 6200000.05)'})
+    response = app.get('/example/summary/geometry/TestSrid/:summary/value?bbox(180000, 6000000, 400001, 6200001)')
     json_response = response.json()
 
     assert len(json_response["_data"]) == 3
     assert dict_equals(json_response["_data"][0], {
         'cluster': 2,
-        'centroid': 'POINT(19.5 53.9)',
+        'centroid': 'POINT(180000.05 6000000.15)',
         '_type': 'example/summary/geometry/TestSrid'
     })
     assert dict_equals(json_response["_data"][1], {
         'cluster': 1,
-        'centroid': 'POINT(20 55)',
+        'centroid': 'POINT(200000.15 6200000.05)',
         "_id": resp_10_20.json()["_id"],
         '_type': 'example/summary/geometry/TestSrid'
     })
     assert dict_equals(json_response["_data"][2], {
         'cluster': 1,
-        'centroid': 'POINT(22 55.5)',
+        'centroid': 'POINT(400000.15 6200000.05)',
         "_id": resp_40_80.json()["_id"],
         '_type': 'example/summary/geometry/TestSrid'
     })

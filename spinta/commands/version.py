@@ -1,4 +1,4 @@
-from pkg_resources import get_distribution, DistributionNotFound
+import importlib.metadata
 
 from setuptools_scm import get_version as get_scm_version
 
@@ -8,9 +8,8 @@ from spinta.components import Context
 
 @get_version.register(Context)
 def get_version(context: Context):
-    try:
-        version = get_distribution('spinta').version
-    except DistributionNotFound:
+    version = importlib.metadata.version('spinta')
+    if version is None:
         version = get_scm_version()
 
     return {

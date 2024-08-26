@@ -18,7 +18,7 @@ from spinta.testing.context import create_test_context
 from spinta.testing.datasets import Sqlite
 from spinta.testing.manifest import compare_manifest, load_manifest_and_context
 from spinta.testing.tabular import create_tabular_manifest
-from spinta.testing.manifest import load_manifest
+import sqlalchemy_utils as su
 
 
 @pytest.fixture()
@@ -1845,6 +1845,107 @@ datasets/xml/inspect            |                        |        |
   |   |   | weather_temperature | number unique          |        | weather/temperature
   |   |   | weather_wind_speed  | number unique          |        | weather/wind_speed
   |   |   | country             | ref                    | Country | ..
+    ''', context)
+    assert a == b
+
+
+def test_inspect_with_postgresql_schema(
+    rc_new: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path,
+    postgresql
+):
+    db = f'{postgresql}/inspect_schema'
+    if su.database_exists(db):
+        su.drop_database(db)
+    su.create_database(db)
+    engine = sa.create_engine(db)
+    with engine.connect() as conn:
+        engine.execute(sa.schema.CreateSchema("test_schema"))
+        meta = sa.MetaData(conn, schema="test_schema")
+        sa.Table(
+            'cities',
+            meta,
+            sa.Column('id', sa.Integer),
+            sa.Column('name', sa.Text)
+        )
+        meta.create_all()
+
+    result_file_path = tmp_path / 'result.csv'
+    # Configure Spinta.
+    # Default schema
+    cli.invoke(rc_new, [
+        'inspect',
+        '-r', 'sql', db,
+        '-o', tmp_path / 'result.csv',
+    ])
+    # Check what was detected.
+    context, manifest = load_manifest_and_context(rc_new, result_file_path)
+    commands.get_dataset(context, manifest, 'inspect_schema').resources['resource1'].external = 'postgresql'
+    a, b = compare_manifest(manifest, f'''
+       d | r | m | property  | type    | ref       | source     | prepare | access  | title
+       inspect_schema        |         |           |            |         |         |
+         | resource1         | sql     |           | postgresql |         |         |
+''', context)
+    assert a == b
+
+    # Configure Spinta.
+    # Test schema
+    cli.invoke(rc_new, [
+        'inspect',
+        '-r', 'sql', db,
+        '-f', 'connect(schema: test_schema)',
+        '-o', tmp_path / 'result.csv',
+    ])
+    # Check what was detected.
+    context, manifest = load_manifest_and_context(rc_new, result_file_path)
+    commands.get_dataset(context, manifest, 'inspect_schema').resources['resource1'].external = 'postgresql'
+    a, b = compare_manifest(manifest, f'''
+       d | r | m | property  | type    | ref       | source     | prepare                      | access  | title
+       inspect_schema        |         |           |            |                              |         |
+         | resource1         | sql     |           | postgresql | connect(schema: test_schema) |         |
+                             |         |           |            |                              |         |
+         |   | Cities        |         |           | cities     |                              |         |
+         |   |   | id        | integer |           | id         |                              |         |
+         |   |   | name      | string  |           | name       |                              |         |
+''', context)
+    assert a == b
+
+    if su.database_exists(db):
+        su.drop_database(db)
+
+
+def test_inspect_json_blank_node(
+    rc_new: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    json_manifest = {
+        "id": 5,
+        "test": 10
+    }
+    path = tmp_path / 'manifest.json'
+    path.write_text(json.dumps(json_manifest))
+
+    result_file_path = tmp_path / 'result.csv'
+    # Configure Spinta.
+
+    cli.invoke(rc_new, [
+        'inspect',
+        '-r', 'json', path,
+        '-o', tmp_path / 'result.csv',
+    ])
+    # Check what was detected.
+    context, manifest = load_manifest_and_context(rc_new, result_file_path)
+    commands.get_dataset(context, manifest, 'dataset').resources['resource'].external = 'resource.json'
+    a, b = compare_manifest(manifest, f'''
+d | r | m | property | type                    | ref    | source
+dataset              |                         |        |
+  | resource         | json                    |        | resource.json
+                     |                         |        |
+  |   | Model1       |                         |        | .
+  |   |   | id       | integer required unique |        | id
+  |   |   | test     | binary required unique  |        | test
     ''', context)
     assert a == b
 

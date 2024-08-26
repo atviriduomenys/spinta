@@ -59,10 +59,10 @@ def getall(
                     if isinstance(sel.prop.dtype, PrimaryKey):
                         val = generate_pk_for_row(sel.prop.model, row, keymap, val)
                     elif isinstance(sel.prop.dtype, Ref):
-                        val = handle_ref_key_assignment(keymap, env, val, sel.prop.dtype)
+                        val = handle_ref_key_assignment(context, keymap, env, val, sel.prop.dtype)
                 res[key] = val
 
-            if model.page.is_enabled:
+            if env.page.page_.is_enabled:
                 res['_page'] = get_page_values(env, row)
 
             res['_type'] = model.model_type()

@@ -1,14 +1,17 @@
 from typing import Any
 
-from spinta.components import Property, Model
-from spinta.core.ufuncs import Env
+from spinta import commands, spyna
+from spinta.components import Property, Model, Context, Mode
+from spinta.core.ufuncs import Env, asttoexpr
 from spinta.datasets.enums import Level
 from spinta.datasets.keymaps.components import KeyMap
-from spinta.exceptions import GivenValueCountMissmatch
+from spinta.exceptions import GivenValueCountMissmatch, MultiplePrimaryKeyCandidatesFound, NoPrimaryKeyCandidatesFound
 from spinta.types.datatype import Ref, Array
+from spinta.types.namespace import check_if_model_has_backend_and_source
+from spinta.utils.schema import NA
 
 
-def handle_ref_key_assignment(keymap: KeyMap, env: Env, value: Any, ref: Ref) -> dict:
+def handle_ref_key_assignment(context: Context, keymap: KeyMap, env: Env, value: Any, ref: Ref) -> dict:
     keymap_name = ref.model.model_type()
     if ref.refprops != ref.model.external.pkeys:
         keymap_name = f'{keymap_name}.{"_".join(prop.name for prop in ref.refprops)}'
@@ -22,7 +25,7 @@ def handle_ref_key_assignment(keymap: KeyMap, env: Env, value: Any, ref: Ref) ->
     for prop in ref.refprops:
         if isinstance(prop.dtype, Array) and env:
             items = env.resolve(prop.external.prepare)
-            prop_count_mapping[prop.name] = len(items)
+            prop_count_mapping[prop.name] = len(items) if items is not NA else 1
         else:
             prop_count_mapping[prop.name] = 1
     expected_count = sum(item for item in prop_count_mapping.values())
@@ -30,9 +33,46 @@ def handle_ref_key_assignment(keymap: KeyMap, env: Env, value: Any, ref: Ref) ->
         raise GivenValueCountMissmatch(given_count=len(value), expected_count=expected_count)
 
     if not ref.prop.level or ref.prop.level.value > 3:
+        target_value = value
         if len(value) == 1:
-            value = value[0]
-        val = keymap.encode(keymap_name, value)
+            target_value = value[0]
+
+        val = None
+        contains = keymap.contains_key(keymap_name, target_value)
+        if not contains:
+            if target_value is None:
+                return {'_id': None}
+
+            ref_model = ref.model
+
+            # FIXME Quick hack when trying to get `Internal` model keys while running in `External` mode (should probably return error, or None)
+            if ref_model.mode == Mode.external and not check_if_model_has_backend_and_source(ref_model):
+                return {
+                    '_id': keymap.encode(keymap_name, target_value)
+                }
+
+            expr_parts = ['select()']
+            for i, prop in enumerate(ref.refprops):
+                expr_parts.append(f'{prop.place}="{value[i]}"')
+            expr = asttoexpr(spyna.parse('&'.join(expr_parts)))
+            rows = commands.getall(
+                context,
+                ref_model,
+                ref_model.backend,
+                query=expr
+            )
+
+            found_value = False
+            for row in rows:
+                if val is not None:
+                    raise MultiplePrimaryKeyCandidatesFound(ref, values=target_value)
+                val = row['_id']
+                found_value = True
+
+            if not found_value:
+                raise NoPrimaryKeyCandidatesFound(ref, values=target_value)
+        else:
+            val = keymap.encode(keymap_name, target_value)
         val = {'_id': val}
     else:
         val = {}

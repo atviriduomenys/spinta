@@ -1,3 +1,4 @@
+from functools import reduce
 from typing import Dict, Any, Tuple, List
 
 from spinta.auth import authorized
@@ -13,14 +14,33 @@ import base64 as b64
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Expr, name='and')
-def and_(env: DaskDataFrameQueryBuilder, expr: Expr):
+def and_(env, expr):
     args, kwargs = expr.resolve(env)
-    args = [
-        env.call('_resolve_unresolved', arg)
-        for arg in args
-        if arg is not None
-    ]
-    return args
+    args = [a for a in args if a is not None]
+    return env.call('and', args)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, list, name='and')
+def and_(env, args):
+    if len(args) > 1:
+        return reduce(lambda x, y: x & y, args)
+    elif args:
+        return args[0]
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Expr, name='or')
+def or_(env, expr):
+    args, kwargs = expr.resolve(env)
+    args = [a for a in args if a is not None]
+    return env.call('or', args)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, list, name='or')
+def or_(env, args):
+    if len(args) > 1:
+        return reduce(lambda x, y: x | y, args)
+    elif args:
+        return args[0]
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder)
@@ -378,3 +398,27 @@ def base64(env: DaskDataFrameQueryBuilder, dtype: Binary) -> Selected:
         item=item,
         prop=dtype.prop
     )
+
+
+COMPARE = [
+    'eq',
+    'ne',
+    'lt',
+    'le',
+    'gt',
+    'ge',
+    'startswith',
+    'contains',
+]
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Bind, object, names=COMPARE)
+def compare(env, op, field, value):
+    prop = env.model.get_from_flatprops(field.name)
+    return env.call(op, prop.dtype, value)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, DataType, object, name="eq")
+def eq_(env: DaskDataFrameQueryBuilder, dtype: DataType, obj: object):
+    name = dtype.prop.external.name
+    return env.dataframe[name] == str(obj)

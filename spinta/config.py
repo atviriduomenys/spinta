@@ -216,11 +216,17 @@ CONFIG = {
 
     'env': 'prod',
 
-    # Limit of objects in the page
-    'push_page_size': None,
+    # Default limit of objects in a page
+    # If None is given default is 100000
+    'default_page_size': 100000,
 
-    # Limit of objects in the page
-    'sync_page_size': None,
+    # Enable pagination by default for all requests (push/get)
+    # If None is given default is True
+    'enable_pagination': True,
+
+    # Limit of objects in a page
+    # If None is given default is 100000
+    'sync_page_size': 100000,
 
     # Default languages
     # Top most popular EU languages + lt, gathered from https://en.wikipedia.org/wiki/List_of_languages_by_number_of_speakers_in_Europe
