@@ -233,6 +233,10 @@ Bug fixes:
   __ https://github.com/atviriduomenys/spinta/issues/654
 
 
+- Added support for wsdl(soap) (`#315`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/315
+
 0.1.62 (2024-02-29)
 ===================
 

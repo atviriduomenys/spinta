@@ -34,3 +34,10 @@ class Json(DaskBackend):
     def begin(self):
         yield
 
+
+class Soap(DaskBackend):
+    type: str = 'soap'
+
+    @contextlib.contextmanager
+    def begin(self):
+        yield

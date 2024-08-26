@@ -104,6 +104,7 @@ tabulate = "*"
 pyproj = "*"
 xmltodict = "*"
 sqlean-py = "*"
+zeep = "*"
 
 
 [tool.poetry.group.dev.dependencies]

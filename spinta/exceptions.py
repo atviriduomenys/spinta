@@ -918,3 +918,21 @@ class NoPrimaryKeyCandidatesFound(UserError):
     While assigning foreign key for non-primary key `Ref` property, using values: {values!r}
     no possible matches were found. This can occur when trying to assign values that do not exist in foreign table.
     '''
+
+
+class SoapServiceError(Exception):
+    template = "SOAP service is not defined"
+
+
+class SoapServicePortError(Exception):
+    template = "SOAP port is not defined"
+
+
+class SoapServiceSourceError(Exception):
+    template = "Port {port} not in model source"
+
+
+class SoapServiceOperationError(Exception):
+    template = "no SOAP service operation defined"
+
+

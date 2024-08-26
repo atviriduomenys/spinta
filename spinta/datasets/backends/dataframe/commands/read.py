@@ -1,31 +1,37 @@
 import io
 import json
 import pathlib
+
 from typing import Dict, Any, Iterator
 
 import dask
 import numpy as np
 import requests
+import zeep
 from dask.dataframe import DataFrame
 from lxml import etree
+from lxml.etree import _Element
+from zeep import Client
 
 from spinta import commands
 from spinta.components import Context, Property, Model
 from spinta.core.ufuncs import Expr
-from spinta.datasets.backends.dataframe.components import DaskBackend, Csv, Xml, Json
+from spinta.datasets.backends.dataframe.components import DaskBackend, Csv, Xml, Json, Soap
 from spinta.datasets.backends.dataframe.ufuncs.components import TabularResource
 from spinta.datasets.backends.dataframe.ufuncs.query.components import DaskDataFrameQueryBuilder
 from spinta.datasets.backends.helpers import handle_ref_key_assignment
-from spinta.datasets.components import Resource
+from spinta.datasets.components import Resource, Param
 from spinta.datasets.helpers import get_enum_filters, get_ref_filters
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.datasets.utils import iterparams
 from spinta.dimensions.enum.helpers import get_prop_enum
 from spinta.dimensions.param.components import ResolvedParams
-from spinta.exceptions import PropertyNotFound, NoExternalName, ValueNotInEnum
+
+from spinta.exceptions import ValueNotInEnum, PropertyNotFound, NoExternalName, SoapServiceError, \
+    SoapServicePortError, SoapServiceSourceError, SoapServiceOperationError
 from spinta.manifests.components import Manifest
 from spinta.manifests.dict.helpers import is_list_of_dicts, is_blank_node
-from spinta.types.datatype import PrimaryKey, Ref, DataType, Boolean, Number, Integer, DateTime
+from spinta.types.datatype import PrimaryKey, Ref, DataType, Boolean, Number, Integer, DateTime, Object
 from spinta.typing import ObjectData
 from spinta.ufuncs.basequerybuilder.components import Selected
 from spinta.ufuncs.helpers import merge_formulas
@@ -101,6 +107,12 @@ def _get_row_value(context: Context, row: Any, sel: Any) -> Any:
             else:
                 raise ValueNotInEnum(sel.prop, value=val)
 
+        if isinstance(sel.prop.dtype, Object):
+            object_properties = {}
+            for object_prop_id, object_prop in sel.prop.dtype.properties.items():
+                object_properties[object_prop_id] = val[object_prop.external.name]
+            val = object_properties
+
         return val
     if isinstance(sel, tuple):
         return tuple(_get_row_value(context, row, v) for v in sel)
@@ -109,8 +121,6 @@ def _get_row_value(context: Context, row: Any, sel: Any) -> Any:
     if isinstance(sel, dict):
         return {k: _get_row_value(context, row, v) for k, v in sel.items()}
     return sel
-
-
 
 
 @commands.load.register(Context, DaskBackend, dict)
@@ -339,6 +349,104 @@ def _get_data_json(url: str, source: str, model_props: dict):
             yield from _parse_json(f.read(), source, model_props)
 
 
+def _get_data_soap(url: str, source: str, model_props: dict, namespaces: dict, model_params: list[Param], query: Expr):
+    # Service model source description needs to be in the following format:
+    # service.port.port_type.operation
+    # Example:
+    # Get.GetPort.GetPortType.GetData
+
+    def get_query_params(query: Expr):
+        # params from query of the call to spinta
+        query_params = {}
+        for expression in query.args:
+            if expression.name == "eq":
+                param_name = expression.args[0].args[0]
+                param_value = expression.args[1]
+                query_params[param_name] = param_value
+        return query_params
+
+    def get_soap_params(model_params: list[Param]):
+        # params to pass to the SOAP service
+        query_params = get_query_params(query)
+        soap_params = {}
+        for model_param in model_params:
+            param_name = model_param.name
+            if param_name in model_props and param_name in query_params:
+                soap_params[model_props[param_name]["source"]] = query_params[param_name]
+        return soap_params
+
+    def get_operation(source: str, client: Client):
+        # gets operation from zeep client that is described in model source
+        model_source_path = source.split(".")
+
+        services = client.wsdl.services
+
+        if services:
+            for service_name, service in services.items():
+                if service_name == model_source_path[0]:
+                    break
+        else:
+            raise SoapServiceError
+
+        if service.ports:
+            for port_name, port in service.ports.items():
+                if port_name == model_source_path[1]:
+                    break
+            else:
+                raise SoapServicePortError("Soap port does not exist")
+
+        port_type = port.binding.port_type
+
+        if port_type.name.localname == model_source_path[2]:
+            operations = port_type.operations
+        else:
+            raise SoapServiceSourceError(port=port_type.name.localname)
+        if operations:
+            for operation_name, operation in operations.items():
+                if operation_name == model_source_path[3]:
+                    break
+        else:
+            raise SoapServiceOperationError
+
+        operation_to_call = getattr(client.service, operation_name)
+
+        return operation_to_call, operation
+
+    def prepare_results(operation, data_xml: _Element):
+
+        output_message = operation.output_message
+        response_operation_name = output_message.name.localname
+
+        results = {}
+        for source, element in output_message.parts["return"].type.elements:
+            element_node = data_xml.xpath(f"//{source}")[0]
+
+            if element_node.text is not None:
+                results[source] = element_node.text
+            else:
+                node_text = etree.tostring(element_node[0]).decode("utf-8")
+                node_text = node_text.replace(' xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"', "")
+                results[source] = node_text
+
+        results[response_operation_name] = results
+
+        return results
+
+    client = zeep.Client(wsdl=url)
+    soap_params = get_soap_params(model_params)
+    operation_to_call, operation = get_operation(source, client)
+
+    with client.settings(raw_response=True):
+        data = operation_to_call(soap_params).text
+    data_xml = etree.fromstring(data)
+    results = prepare_results(operation, data_xml)
+
+    # return all parameters, input and output together
+    soap_params.update(results)
+
+    yield soap_params
+
+
 def _get_prop_full_source(source: str, prop_source: str):
     if prop_source.startswith(".."):
         split = prop_source[1:].count(".")
@@ -442,6 +550,44 @@ def getall(
     yield from _dask_get_all(context, query, df, backend, model, builder)
 
 
+@commands.getall.register(Context, Model, Soap)
+def getall(
+    context: Context,
+    model: Model,
+    backend: Soap,
+    *,
+    query: Expr = None,
+    resolved_params: ResolvedParams = None,
+    **kwargs
+) -> Iterator[ObjectData]:
+    bases = parametrize_bases(
+        context,
+        model,
+        model.external.resource,
+        resolved_params
+    )
+    builder = DaskDataFrameQueryBuilder(context)
+    builder.update(model=model)
+    props = {}
+    for prop in model.properties.values():
+        if prop.external and prop.external.name:
+            props[prop.name] = {
+                "source": prop.external.name,
+                "pkeys": _get_pkeys_if_ref(prop)
+            }
+
+    meta = _get_dask_dataframe_meta(model)
+    df = dask.bag.from_sequence(bases).map(
+        _get_data_soap,
+        namespaces=_gather_namespaces_from_model(context, model),
+        source=model.external.name,
+        model_props=props,
+        model_params=model.params,
+        query=query
+    ).flatten().to_dataframe(meta=meta)
+    yield from _dask_get_all(context, query, df, backend, model, builder)
+
+
 def _gather_namespaces_from_model(context: Context, model: Model):
     result = {}
     if model.external and model.external.dataset:
@@ -508,7 +654,6 @@ def _dask_get_all(context: Context, query: Expr, df: dask.dataframe, backend: Da
     expr = env.resolve(query)
     where = env.execute(expr)
     qry = env.build(where)
-
     for i, row in qry.iterrows():
         row = row.to_dict()
         res = {
