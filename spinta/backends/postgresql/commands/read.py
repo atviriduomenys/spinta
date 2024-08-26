@@ -13,7 +13,7 @@ from spinta.typing import ObjectData
 from spinta.ufuncs.basequerybuilder.components import QueryParams
 from spinta.ufuncs.basequerybuilder.helpers import get_page_values
 from spinta.ufuncs.resultbuilder.helpers import get_row_value, backend_result_builder_getter
-from spinta.utils.nestedstruct import flat_dicts_to_nested
+from spinta.utils.nestedstruct import flat_dicts_to_nested, extract_list_property_names
 
 
 @overload
@@ -66,16 +66,10 @@ def getall(
     conn = connection.execution_options(stream_results=True)
     result = conn.execute(qry)
 
-    list_keys = []
     env_selected = env.selected
     is_page_enabled = env.page.page_.is_enabled
     result_builder_getter = backend_result_builder_getter(context, backend)
-
-    for key in env_selected.keys():
-        if key in model.flatprops:
-            prop = model.flatprops[key]
-            if prop.list is not None and prop.list.place not in list_keys:
-                list_keys.append(prop.list.place)
+    list_keys = extract_list_property_names(model, env_selected.keys())
 
     for row in result:
         res = {}
