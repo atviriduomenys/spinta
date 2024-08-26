@@ -1,6 +1,5 @@
 from collections import abc
 
-from line_profiler import profile
 from multipledispatch import dispatch
 from typing import Any, Union
 
@@ -15,7 +14,6 @@ from spinta.ufuncs.resultbuilder.components import ResultBuilder
 from spinta.utils.schema import NA
 
 ResultBuilderGetter = abc.Callable[[], ResultBuilder]
-
 
 def _resolve_expr(context: Context, row: Any, sel: Selected, result_builder_getter: Union[ResultBuilderGetter, ResultBuilder]) -> Any:
     if sel.item is None:
@@ -134,10 +132,8 @@ def get_row_value(context: Context, backend: Backend, row: Any, sel: Any, check_
     )
 
 
-@profile
 def backend_result_builder_getter(context: Context, backend: Backend) -> ResultBuilderGetter:
     return lambda: commands.get_result_builder(context, backend)
-
 
 
 def _get_row_value(
