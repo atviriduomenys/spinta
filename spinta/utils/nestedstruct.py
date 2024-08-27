@@ -204,9 +204,7 @@ def flat_dicts_to_nested(value, list_keys: list = None):
 
     for k, v in dict(value).items():
         names = k.split('.')
-        last_value = v
-        vref = res
-        recursive_nesting(last_value, vref, names, 0)
+        recursive_nesting(v, res, names, 0)
     return res
 
 
@@ -221,3 +219,16 @@ def get_root_attr(value: str):
 
 def get_last_attr(value: str):
     return value.split("@")[-1].split(".")[-1]
+
+
+def extract_list_property_names(
+    model: Model,
+    properties: List[str],
+) -> List[str]:
+    list_keys = []
+    for key in properties:
+        if key in model.flatprops:
+            prop = model.flatprops[key]
+            if prop.list is not None and prop.list.place not in list_keys:
+                list_keys.append(prop.list.place)
+    return list_keys
