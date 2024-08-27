@@ -112,6 +112,11 @@ class XSDModel:
         self.parent_model: XSDModel | None = None
         self.is_root_model: bool | None = None
 
+    def __eq__(self, other: XSDModel) -> bool:
+        if self.external["name"] != other.external["name"]:
+            return False
+        
+
     def get_data(self):
         model_data: dict = {
             "type": "model",
@@ -859,6 +864,26 @@ class XSDReader:
         for model in self.models.values():
             model.properties = dict(sorted(model.properties.items()))
 
+
+    def _remove_duplicate_models(self):
+        """removes models that are exactly the same"""
+
+        # model name and duplicate name
+        model_pairs = {}
+
+        for model_name, model in self.models.values():
+            for another_model_name, another_model in self.models.values():
+                if (model is not another_model) and (model == another_model):
+                    model_pairs[model_name] = another_model_name
+
+        for model_name, another_model_name in model_pairs.items():
+            parent_model = self.models[model_name].parent_model
+            if parent_model:
+                for property_id, prop in parent_model.properties.items():
+                    if "external" in prop and prop["external"]["name"] == another_model_name:
+                        prop["external"]["name"] = model_name
+                        self.models.pop(another_model_name)
+
     def start(self):
         self._extract_root()
 
@@ -868,7 +893,11 @@ class XSDReader:
 
         self._parse_root_node()
 
+        # models transformations
+
         self._remove_unneeded_models()
+
+        self._remove_duplicate_models()
 
         self._compile_nested_properties()
 
