@@ -28,7 +28,7 @@ exceptiongroup==1.2.2
     # via anyio
 h11==0.14.0
     # via uvicorn
-idna==3.7
+idna==3.8
     # via
     #   anyio
     #   requests
