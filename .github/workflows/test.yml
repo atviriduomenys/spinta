@@ -20,12 +20,12 @@ jobs:
     - uses: actions/checkout@v2
 
 
-    # https://github.com/marketplace/actions/setup-postgresql-with-postgis
+    # https://github.com/marketplace/actions/setup-postgresql-with-postgis-12
     - name: Start PostgreSQL with PostGIS
-      uses: huaxk/postgis-action@v1
+      uses: ireznik/postgis-action@v12
       with:
-        # https://https://hub.docker.com/r/mdillon/postgis
-        postgresql version: '11'
+        # https://hub.docker.com/r/postgis/postgis
+        postgresql version: '16-3.4'
         postgresql password: 'secret'
         postgresql user: 'ci'
         postgresql db: 'spinta'
