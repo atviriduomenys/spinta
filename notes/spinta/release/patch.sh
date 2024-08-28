@@ -15,9 +15,9 @@ git checkout $RELEASE_VERSION
 git pull
 git tag -l -n1 | sort -h | tail -n5
 
-export CURRENT_PATCH=68
-export NEW_PATCH=69
-export FUTURE_PATCH=70
+export CURRENT_PATCH=69
+export NEW_PATCH=70
+export FUTURE_PATCH=71
 
 export CURRENT_VERSION=$RELEASE_VERSION.$CURRENT_PATCH
 export NEW_VERSION=$RELEASE_VERSION.$NEW_PATCH
@@ -30,7 +30,16 @@ git status
 
 
 # notes/spinta/release/common.sh    Check outdated packages and upgrade them
-# No dependencies to install or update
+# Package operations: 0 installs, 8 updates, 0 removals
+#
+#   • Updating idna (3.7 -> 3.8)
+#   • Updating zipp (3.20.0 -> 3.20.1)
+#   • Updating mypy (1.11.1 -> 1.11.2)
+#   • Updating pyparsing (3.1.2 -> 3.1.4)
+#   • Updating rich (13.7.1 -> 13.8.0)
+#   • Updating httpx (0.27.0 -> 0.27.1)
+#   • Updating phonenumbers (8.13.43 -> 8.13.44)
+#   • Updating typer (0.12.4 -> 0.12.5)
 
 # Run Makefile
 cd docs
@@ -46,10 +55,8 @@ head CHANGES.rst
 # notes/docker.sh                   Start docker compose
 # notes/spinta/release/common.sh    Reset test database
 
-# Removed unnecessary import
-
 poetry run pytest -vvx --tb=short tests
-#| 2045 passed, 42 skipped, 400 warnings in 317.47s (0:05:17)
+#| 2045 passed, 42 skipped, 397 warnings in 315.41s (0:05:15)
 
 # If possible run same tests using test and prod env library versions
 # Test env
