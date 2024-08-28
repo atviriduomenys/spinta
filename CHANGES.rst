@@ -6,6 +6,10 @@ Changes
 0.1.71 (unreleased)
 ===================
 
+Improvements:
+
+- Changed `postgresql` github actions and docker compose version to `16-3.4` (`P#129`).
+
 
 0.1.70 (2024-08-27)
 ===================
