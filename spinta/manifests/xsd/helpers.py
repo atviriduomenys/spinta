@@ -115,7 +115,9 @@ class XSDModel:
     def __eq__(self, other: XSDModel) -> bool:
         if self.external["name"] != other.external["name"]:
             return False
-        
+        if self.properties != other.properties:
+            return False
+        return True
 
     def get_data(self):
         model_data: dict = {
@@ -864,24 +866,27 @@ class XSDReader:
         for model in self.models.values():
             model.properties = dict(sorted(model.properties.items()))
 
-
     def _remove_duplicate_models(self):
         """removes models that are exactly the same"""
 
         # model name and duplicate name
+        # todo there can be more than one duplicate
         model_pairs = {}
 
-        for model_name, model in self.models.values():
-            for another_model_name, another_model in self.models.values():
+        for model_name, model in self.models.items():
+            for another_model_name, another_model in self.models.items():
                 if (model is not another_model) and (model == another_model):
-                    model_pairs[model_name] = another_model_name
+                    if another_model_name not in model_pairs:
+                        model_pairs[model_name] = another_model_name
 
         for model_name, another_model_name in model_pairs.items():
-            parent_model = self.models[model_name].parent_model
+            parent_model = self.models[another_model_name].parent_model
             if parent_model:
                 for property_id, prop in parent_model.properties.items():
-                    if "external" in prop and prop["external"]["name"] == another_model_name:
-                        prop["external"]["name"] = model_name
+                    if "model" in prop and prop["model"] == another_model_name:
+                        prop["model"] = model_name
+                        if not self.models[model_name].parent_model:
+                            self.models[model_name].parent_model = self.models[model_name].parent_model
                         self.models.pop(another_model_name)
 
     def start(self):
