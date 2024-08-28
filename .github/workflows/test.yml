@@ -20,14 +20,15 @@ jobs:
     - uses: actions/checkout@v2
 
 
-    # https://github.com/marketplace/actions/setup-postgresql-and-postgis-for-linux-macos-windows
+    # https://github.com/marketplace/actions/setup-postgresql-with-postgis-12
     - name: Start PostgreSQL with PostGIS
-      uses: nyurik/action-setup-postgis@v2
+      uses: ireznik/postgis-action@v12
       with:
-        version: '16'
-        password: 'secret'
-        username: 'ci'
-        database: 'spinta'
+        # https://hub.docker.com/r/postgis/postgis
+        postgresql version: '16-3.4'
+        postgresql password: 'secret'
+        postgresql user: 'ci'
+        postgresql db: 'spinta'
 
     # https://github.com/marketplace/actions/mongodb-in-github-actions
     - name: Start MongoDB
