@@ -3,9 +3,18 @@
 Changes
 #######
 
-0.1.70 (unreleased)
+0.1.71 (unreleased)
 ===================
 
+
+0.1.70 (2024-08-27)
+===================
+
+Improvements:
+
+- Improved performance of `PostgreSQL` and `SQL` `backend` `getall` functions (`#746`_).
+
+  .. _#746: https://github.com/atviriduomenys/spinta/issues/746
 
 0.1.69 (2024-08-23)
 ===================
