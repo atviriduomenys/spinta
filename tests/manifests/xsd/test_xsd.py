@@ -5,7 +5,6 @@ from spinta.testing.manifest import load_manifest
 
 
 def test_xsd(rc: RawConfig, tmp_path: Path):
-
     xsd = """
     <xs:schema attributeFormDefault="unqualified" elementFormDefault="qualified" xmlns:xs="http://www.w3.org/2001/XMLSchema">
   <xs:element name="ADMINISTRACINIAI">
@@ -161,6 +160,32 @@ def test_xsd(rc: RawConfig, tmp_path: Path):
     |   |   |   |   | vardas_k        | string required  |     | VARDAS_K/text()                   |         |       |        |     |       |
     |   |   |   |   | vardas_k_lot    | string required  |     | VARDAS_K_LOT/text()               |         |       |        |     |       |
     |                                 |                  |     |                                   |         |       |        |     |       |
+    |   |   |   | Adresas             |                  |     | /ADRESAI/ADRESAS                  |         |       |        |     |       |
+    |   |   |   |   | aob_id          | integer required |     | AOB_ID/text()                     |         |       |        |     |       |
+    |   |   |   |   | aob_iki         | date required    |     | AOB_IKI/text()                    |         |       |        |     |       |
+    |   |   |   |   | aob_kodas       | integer required |     | AOB_KODAS/text()                  |         |       |        |     |       |
+    |   |   |   |   | aob_nuo         | date required    |     | AOB_NUO/text()                    |         |       |        |     |       |
+    |   |   |   |   | gat_kodas       | integer required |     | GAT_KODAS/text()                  |         |       |        |     |       |
+    |   |   |   |   | gyv_kodas       | integer required |     | GYV_KODAS/text()                  |         |       |        |     |       |
+    |   |   |   |   | iki             | date required    |     | IKI/text()                        |         |       |        |     |       |
+    |   |   |   |   | korpuso_nr      | string required  |     | KORPUSO_NR/text()                 |         |       |        |     |       |
+    |   |   |   |   | nr              | string required  |     | NR/text()                         |         |       |        |     |       |
+    |   |   |   |   | nuo             | date required    |     | NUO/text()                        |         |       |        |     |       |
+    |   |   |   |   | pasto_kodas     | string required  |     | PASTO_KODAS/text()                |         |       |        |     |       |
+    |                                 |                  |     |                                   |         |       |        |     |       |
+    |   |   |   | Gatve               |                  |     | /GATVES/GATVE                     |         |       |        |     |       |
+    |   |   |   |   | gat_id          | integer required |     | GAT_ID/text()                     |         |       |        |     |       |
+    |   |   |   |   | gat_iki         | date required    |     | GAT_IKI/text()                    |         |       |        |     |       |
+    |   |   |   |   | gat_kodas       | integer required |     | GAT_KODAS/text()                  |         |       |        |     |       |
+    |   |   |   |   | gat_nuo         | date required    |     | GAT_NUO/text()                    |         |       |        |     |       |
+    |   |   |   |   | gyv_kodas       | integer required |     | GYV_KODAS/text()                  |         |       |        |     |       |
+    |   |   |   |   | iki             | date required    |     | IKI/text()                        |         |       |        |     |       |
+    |   |   |   |   | nuo             | date required    |     | NUO/text()                        |         |       |        |     |       |
+    |   |   |   |   | tipas           | string required  |     | TIPAS/text()                      |         |       |        |     |       |
+    |   |   |   |   | tipo_santrumpa  | string required  |     | TIPO_SANTRUMPA/text()             |         |       |        |     |       |
+    |   |   |   |   | vardas_k        | string required  |     | VARDAS_K/text()                   |         |       |        |     |       |
+    |   |   |   |   | vardas_k_lot    | string required  |     | VARDAS_K_LOT/text()               |         |       |        |     |       |
+    |                                 |                  |     |                                   |         |       |        |     |       |
     |   |   |   | Gyvenviete          |                  |     | /GYVENVIETES/GYVENVIETE           |         |       |        |     |       |
     |   |   |   |   | adm_kodas       | integer required |     | ADM_KODAS/text()                  |         |       |        |     |       |
     |   |   |   |   | gyv_id          | integer required |     | GYV_ID/text()                     |         |       |        |     |       |
@@ -176,31 +201,11 @@ def test_xsd(rc: RawConfig, tmp_path: Path):
     |   |   |   |   | vardas_v        | string required  |     | VARDAS_V/text()                   |         |       |        |     |       |
     |   |   |   |   | vardas_v_lot    | string required  |     | VARDAS_V_LOT/text()               |         |       |        |     |       |
     |                                 |                  |     |                                   |         |       |        |     |       |
-    |   |   |   | Gatve               |                  |     | /GATVES/GATVE                     |         |       |        |     |       |
-    |   |   |   |   | gat_id          | integer required |     | GAT_ID/text()                     |         |       |        |     |       |
-    |   |   |   |   | gat_iki         | date required    |     | GAT_IKI/text()                    |         |       |        |     |       |
-    |   |   |   |   | gat_kodas       | integer required |     | GAT_KODAS/text()                  |         |       |        |     |       |
-    |   |   |   |   | gat_nuo         | date required    |     | GAT_NUO/text()                    |         |       |        |     |       |
-    |   |   |   |   | gyv_kodas       | integer required |     | GYV_KODAS/text()                  |         |       |        |     |       |
+    |   |   |   | Kodas               |                  |     | /KODAI/KODAS                      |         |       |        |     |       |
     |   |   |   |   | iki             | date required    |     | IKI/text()                        |         |       |        |     |       |
-    |   |   |   |   | nuo             | date required    |     | NUO/text()                        |         |       |        |     |       |
-    |   |   |   |   | tipas           | string required  |     | TIPAS/text()                      |         |       |        |     |       |
-    |   |   |   |   | tipo_santrumpa  | string required  |     | TIPO_SANTRUMPA/text()             |         |       |        |     |       |
-    |   |   |   |   | vardas_k        | string required  |     | VARDAS_K/text()                   |         |       |        |     |       |
-    |   |   |   |   | vardas_k_lot    | string required  |     | VARDAS_K_LOT/text()               |         |       |        |     |       |
-    |                                 |                  |     |                                   |         |       |        |     |       |
-    |   |   |   | Adresas             |                  |     | /ADRESAI/ADRESAS                  |         |       |        |     |       |
-    |   |   |   |   | aob_id          | integer required |     | AOB_ID/text()                     |         |       |        |     |       |
-    |   |   |   |   | aob_iki         | date required    |     | AOB_IKI/text()                    |         |       |        |     |       |
-    |   |   |   |   | aob_kodas       | integer required |     | AOB_KODAS/text()                  |         |       |        |     |       |
-    |   |   |   |   | aob_nuo         | date required    |     | AOB_NUO/text()                    |         |       |        |     |       |
-    |   |   |   |   | gat_kodas       | integer required |     | GAT_KODAS/text()                  |         |       |        |     |       |
-    |   |   |   |   | gyv_kodas       | integer required |     | GYV_KODAS/text()                  |         |       |        |     |       |
-    |   |   |   |   | iki             | date required    |     | IKI/text()                        |         |       |        |     |       |
-    |   |   |   |   | korpuso_nr      | string required  |     | KORPUSO_NR/text()                 |         |       |        |     |       |
-    |   |   |   |   | nr              | string required  |     | NR/text()                         |         |       |        |     |       |
     |   |   |   |   | nuo             | date required    |     | NUO/text()                        |         |       |        |     |       |
     |   |   |   |   | pasto_kodas     | string required  |     | PASTO_KODAS/text()                |         |       |        |     |       |
+    |   |   |   |   | pasto_viet_pav  | string required  |     | PASTO_VIET_PAV/text()             |         |       |        |     |       |
     |                                 |                  |     |                                   |         |       |        |     |       |
     |   |   |   | Patalpa             |                  |     | /PATALPOS/PATALPA                 |         |       |        |     |       |
     |   |   |   |   | aob_kodas       | integer required |     | AOB_KODAS/text()                  |         |       |        |     |       |
@@ -211,12 +216,6 @@ def test_xsd(rc: RawConfig, tmp_path: Path):
     |   |   |   |   | pat_kodas       | integer required |     | PAT_KODAS/text()                  |         |       |        |     |       |
     |   |   |   |   | pat_nuo         | date required    |     | PAT_NUO/text()                    |         |       |        |     |       |
     |   |   |   |   | patalpos_nr     | string required  |     | PATALPOS_NR/text()                |         |       |        |     |       |
-    |                                 |                  |     |                                   |         |       |        |     |       |
-    |   |   |   | Kodas               |                  |     | /KODAI/KODAS                      |         |       |        |     |       |
-    |   |   |   |   | iki             | date required    |     | IKI/text()                        |         |       |        |     |       |
-    |   |   |   |   | nuo             | date required    |     | NUO/text()                        |         |       |        |     |       |
-    |   |   |   |   | pasto_kodas     | string required  |     | PASTO_KODAS/text()                |         |       |        |     |       |
-    |   |   |   |   | pasto_viet_pav  | string required  |     | PASTO_VIET_PAV/text()             |         |       |        |     |       |
 """
     path = tmp_path / 'manifest.xsd'
     with open(path, "w") as xsd_file:
@@ -226,7 +225,6 @@ def test_xsd(rc: RawConfig, tmp_path: Path):
 
 
 def test_xsd_ref(rc: RawConfig, tmp_path: Path):
-
     xsd = """
 
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
@@ -277,16 +275,6 @@ def test_xsd_ref(rc: RawConfig, tmp_path: Path):
     | manifest                                  |                  |                         |                                          |         |       |        |     |       |
     |   | resource1                             | xml              |                         |                                          |         |       |        |     |       |
     |                                           |                  |                         |                                          |         |       |        |     |       |
-    |   |   |   | KlientuSarasoRezultatas       |                  |                         | /klientu_saraso_rezultatas               |         |       |        |     |       |
-    |   |   |   |   | asmenys                   | ref              | Asmenys                 | asmenys                                  |         |       |        |     |       |
-    |   |   |   |   | asmenys.asmuo[]           | backref          | Asmuo                   | asmenys/asmuo                            |         |       |        |     |       |
-    |   |   |   |   | asmenys.asmuo[].ak        | string required  |                         | @ak                                      |         |       |        |     |       |
-    |   |   |   |   | asmenys.asmuo[].id        | string required  |                         | @id                                      |         |       |        |     |       |
-    |   |   |   |   | asmenys.asmuo[].text      | string           |                         | text()                                   |         |       |        |     |       |
-    |   |   |   |   | asmenys.puslapis          | integer required |                         | asmenys/@puslapis                        |         |       |        |     |       | rezultatu puslapio numeris
-    |   |   |   |   | asmenys.text              | string           |                         | asmenys/text()                           |         |       |        |     |       |
-    |   |   |   |   | text                      | string           |                         | text()                                   |         |       |        |     |       |
-    |                                           |                  |                         |                                          |         |       |        |     |       |
     |   |   |   | Asmenys                       |                  |                         | /klientu_saraso_rezultatas/asmenys       |         |       |        |     |       |
     |   |   |   |   | asmuo[]                   | backref          | Asmuo                   | asmuo                                    |         |       |        |     |       |
     |   |   |   |   | puslapis                  | integer required |                         | @puslapis                                |         |       |        |     |       | rezultatu puslapio numeris
@@ -297,6 +285,16 @@ def test_xsd_ref(rc: RawConfig, tmp_path: Path):
     |   |   |   |   | asmenys                   | ref              | Asmenys                 |                                          |         |       |        |     |       |
     |   |   |   |   | id                        | string required  |                         | @id                                      |         |       |        |     |       |
     |   |   |   |   | klientu_saraso_rezultatas | ref              | KlientuSarasoRezultatas |                                          |         |       |        |     |       |
+    |   |   |   |   | text                      | string           |                         | text()                                   |         |       |        |     |       |
+    |                                           |                  |                         |                                          |         |       |        |     |       |
+    |   |   |   | KlientuSarasoRezultatas       |                  |                         | /klientu_saraso_rezultatas               |         |       |        |     |       |
+    |   |   |   |   | asmenys                   | ref              | Asmenys                 | asmenys                                  |         |       |        |     |       |
+    |   |   |   |   | asmenys.asmuo[]           | backref          | Asmuo                   | asmenys/asmuo                            |         |       |        |     |       |
+    |   |   |   |   | asmenys.asmuo[].ak        | string required  |                         | @ak                                      |         |       |        |     |       |
+    |   |   |   |   | asmenys.asmuo[].id        | string required  |                         | @id                                      |         |       |        |     |       |
+    |   |   |   |   | asmenys.asmuo[].text      | string           |                         | text()                                   |         |       |        |     |       |
+    |   |   |   |   | asmenys.puslapis          | integer required |                         | asmenys/@puslapis                        |         |       |        |     |       | rezultatu puslapio numeris
+    |   |   |   |   | asmenys.text              | string           |                         | asmenys/text()                           |         |       |        |     |       |
     |   |   |   |   | text                      | string           |                         | text()                                   |         |       |        |     |       |
 """
 
@@ -309,7 +307,6 @@ def test_xsd_ref(rc: RawConfig, tmp_path: Path):
 
 
 def test_xsd_resource_model(rc: RawConfig, tmp_path: Path):
-
     xsd = """
 
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
@@ -344,8 +341,9 @@ def test_xsd_resource_model(rc: RawConfig, tmp_path: Path):
     | manifest                                |                  |         |                                    |         |       |        |                                               |       |
     |   | resource1                           | xml              |         |                                    |         |       |        |                                               |       |
     |                                         |                  |         |                                    |         |       |        |                                               |       |
-    |   |   |   | Resource                    |                  |         | /                                  |         |       |        | http://www.w3.org/2000/01/rdf-schema#Resource |       | Įvairūs duomenys
-    |   |   |   |   | klaida                  | string           |         | klaida/text()                      |         |       |        |                                               |       | Klaidos atveju - klaidos pranešimas
+    |   |   |   | Asmenys                     |                  |         | /klientu_saraso_rezultatas/asmenys |         |       |        |                                               |       |
+    |   |   |   |   | puslapis                | integer required |         | @puslapis                          |         |       |        |                                               |       | rezultatu puslapio numeris
+    |   |   |   |   | text                    | string           |         | text()                             |         |       |        |                                               |       |
     |                                         |                  |         |                                    |         |       |        |                                               |       |
     |   |   |   | KlientuSarasoRezultatas     |                  |         | /klientu_saraso_rezultatas         |         |       |        |                                               |       |
     |   |   |   |   | asmenys                 | ref              | Asmenys | asmenys                            |         |       |        |                                               |       |
@@ -353,10 +351,8 @@ def test_xsd_resource_model(rc: RawConfig, tmp_path: Path):
     |   |   |   |   | asmenys.text            | string           |         | asmenys/text()                     |         |       |        |                                               |       |
     |   |   |   |   | text                    | string           |         | text()                             |         |       |        |                                               |       |
     |                                         |                  |         |                                    |         |       |        |                                               |       |
-    |   |   |   | Asmenys                     |                  |         | /klientu_saraso_rezultatas/asmenys |         |       |        |                                               |       |
-    |   |   |   |   | puslapis                | integer required |         | @puslapis                          |         |       |        |                                               |       | rezultatu puslapio numeris
-    |   |   |   |   | text                    | string           |         | text()                             |         |       |        |                                               |       |
-
+    |   |   |   | Resource                    |                  |         | /                                  |         |       |        | http://www.w3.org/2000/01/rdf-schema#Resource |       | Įvairūs duomenys
+    |   |   |   |   | klaida                  | string           |         | klaida/text()                      |         |       |        |                                               |       | Klaidos atveju - klaidos pranešimas
 """
 
     path = tmp_path / 'manifest.xsd'
@@ -368,7 +364,6 @@ def test_xsd_resource_model(rc: RawConfig, tmp_path: Path):
 
 
 def test_xsd_separate_type(rc: RawConfig, tmp_path: Path):
-
     xsd = """
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
 
@@ -423,7 +418,6 @@ id | d | r | b | m | property            | type            | ref              | 
 
 
 def test_xsd_choice(rc: RawConfig, tmp_path: Path):
-
     xsd = """
     <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
 	<xs:element name="parcels">
@@ -475,18 +469,6 @@ def test_xsd_choice(rc: RawConfig, tmp_path: Path):
     | manifest                                      |                  |         |                             |         |       |        |     |       |
     |   | resource1                                 | xml              |         |                             |         |       |        |     |       |
     |                                               |                  |         |                             |         |       |        |     |       |
-    |   |   |   | Parcels                           |                  |         | /parcels                    |         |       |        |     |       | Pasikeitusių žemės sklypų sąrašas
-    |   |   |   |   | parcel1[]                     | backref          | Parcel2 | parcel                      |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
-    |   |   |   |   | parcel1[].sign_of_change      | integer required |         | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
-    |                                               | enum             |         | 1                           |         |       |        |     |       |
-    |                                               |                  |         | 2                           |         |       |        |     |       |
-    |                                               |                  |         | 3                           |         |       |        |     |       |
-    |   |   |   |   | parcel1[].text                | string           |         | text()                      |         |       |        |     |       |
-    |   |   |   |   | parcel[]                      | backref          | Parcel1 | parcel                      |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
-    |   |   |   |   | parcel[].parcel_unique_number | integer required |         | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
-    |   |   |   |   | parcel[].text                 | string           |         | text()                      |         |       |        |     |       |
-    |   |   |   |   | text                          | string           |         | text()                      |         |       |        |     |       |
-    |                                               |                  |         |                             |         |       |        |     |       |
     |   |   |   | Parcel1                           |                  |         | /parcels/parcel             |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
     |   |   |   |   | parcel_unique_number          | integer required |         | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
     |   |   |   |   | parcels                       | ref              | Parcels |                             |         |       |        |     |       |
@@ -498,6 +480,18 @@ def test_xsd_choice(rc: RawConfig, tmp_path: Path):
     |                                               | enum             |         | 1                           |         |       |        |     |       |
     |                                               |                  |         | 2                           |         |       |        |     |       |
     |                                               |                  |         | 3                           |         |       |        |     |       |
+    |   |   |   |   | text                          | string           |         | text()                      |         |       |        |     |       |
+    |                                               |                  |         |                             |         |       |        |     |       |
+    |   |   |   | Parcels                           |                  |         | /parcels                    |         |       |        |     |       | Pasikeitusių žemės sklypų sąrašas
+    |   |   |   |   | parcel1[]                     | backref          | Parcel2 | parcel                      |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
+    |   |   |   |   | parcel1[].sign_of_change      | integer required |         | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
+    |                                               | enum             |         | 1                           |         |       |        |     |       |
+    |                                               |                  |         | 2                           |         |       |        |     |       |
+    |                                               |                  |         | 3                           |         |       |        |     |       |
+    |   |   |   |   | parcel1[].text                | string           |         | text()                      |         |       |        |     |       |
+    |   |   |   |   | parcel[]                      | backref          | Parcel1 | parcel                      |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
+    |   |   |   |   | parcel[].parcel_unique_number | integer required |         | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
+    |   |   |   |   | parcel[].text                 | string           |         | text()                      |         |       |        |     |       |
     |   |   |   |   | text                          | string           |         | text()                      |         |       |        |     |       |
 
 """
@@ -511,7 +505,6 @@ def test_xsd_choice(rc: RawConfig, tmp_path: Path):
 
 
 def test_xsd_choice_max_occurs_unbounded(rc: RawConfig, tmp_path: Path):
-
     xsd = """
     <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
 	<xs:element name="parcels">
@@ -563,6 +556,15 @@ def test_xsd_choice_max_occurs_unbounded(rc: RawConfig, tmp_path: Path):
     | manifest                                      |         |         |                             |         |       |        |     |       |
     |   | resource1                                 | xml     |         |                             |         |       |        |     |       |
     |                                               |         |         |                             |         |       |        |     |       |
+    |   |   |   | Parcel                            |         |         | /parcels/parcel             |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
+    |   |   |   |   | parcel_unique_number          | integer |         | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
+    |   |   |   |   | parcels                       | ref     | Parcels |                             |         |       |        |     |       |
+    |   |   |   |   | sign_of_change                | integer |         | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
+    |                                               | enum    |         | 1                           |         |       |        |     |       |
+    |                                               |         |         | 2                           |         |       |        |     |       |
+    |                                               |         |         | 3                           |         |       |        |     |       |
+    |   |   |   |   | text                          | string  |         | text()                      |         |       |        |     |       |
+    |                                               |         |         |                             |         |       |        |     |       |
     |   |   |   | Parcels                           |         |         | /parcels                    |         |       |        |     |       | Pasikeitusių žemės sklypų sąrašas
     |   |   |   |   | parcel[]                      | backref | Parcel  | parcel                      |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
     |   |   |   |   | parcel[].parcel_unique_number | integer |         | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
@@ -572,16 +574,6 @@ def test_xsd_choice_max_occurs_unbounded(rc: RawConfig, tmp_path: Path):
     |                                               |         |         | 3                           |         |       |        |     |       |
     |   |   |   |   | parcel[].text                 | string  |         | text()                      |         |       |        |     |       |
     |   |   |   |   | text                          | string  |         | text()                      |         |       |        |     |       |
-    |                                               |         |         |                             |         |       |        |     |       |
-    |   |   |   | Parcel                            |         |         | /parcels/parcel             |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
-    |   |   |   |   | parcel_unique_number          | integer |         | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
-    |   |   |   |   | parcels                       | ref     | Parcels |                             |         |       |        |     |       |
-    |   |   |   |   | sign_of_change                | integer |         | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
-    |                                               | enum    |         | 1                           |         |       |        |     |       |
-    |                                               |         |         | 2                           |         |       |        |     |       |
-    |                                               |         |         | 3                           |         |       |        |     |       |
-    |   |   |   |   | text                          | string  |         | text()                      |         |       |        |     |       |
-
 """
 
     path = tmp_path / 'manifest.xsd'
@@ -621,28 +613,28 @@ def test_xsd_attributes(rc: RawConfig, tmp_path: Path):
     """
 
     table = """
- id | d | r | b | m | property             | type             | ref     | source             | prepare | level | access | uri | title | description
-    | manifest                             |                  |         |                    |         |       |        |     |       |
-    |   | resource1                        | xml              |         |                    |         |       |        |     |       |
-    |                                      |                  |         |                    |         |       |        |     |       |
-    |   |   |   | Salygos                  |                  |         | /SALYGOS           |         |       |        |     |       |
-    |   |   |   |   | salyga[]             | backref          | Salyga  | SALYGA             |         |       |        |     |       |
-    |   |   |   |   | salyga[].aprasymas   | string           |         | APRASYMAS/text()   |         |       |        |     |       |
-    |   |   |   |   | salyga[].kodas       | string           |         | @kodas             |         |       |        |     |       |
-    |   |   |   |   | salyga[].nr          | integer          |         | @nr                |         |       |        |     |       |
-    |   |   |   |   | salyga[].pavadinimas | string           |         | PAVADINIMAS/text() |         |       |        |     |       |
-    |   |   |   |   | salyga[].reiksme     | string required  |         | REIKSME/text()     |         |       |        |     |       |
-    |   |   |   |   | salyga[].text        | string           |         | text()             |         |       |        |     |       |
-    |   |   |   |   | text                 | string           |         | text()             |         |       |        |     |       |
-    |                                      |                  |         |                    |         |       |        |     |       |
-    |   |   |   | Salyga                   |                  |         | /SALYGOS/SALYGA    |         |       |        |     |       |
-    |   |   |   |   | aprasymas            | string           |         | APRASYMAS/text()   |         |       |        |     |       |
-    |   |   |   |   | kodas                | string           |         | @kodas             |         |       |        |     |       |
-    |   |   |   |   | nr                   | integer          |         | @nr                |         |       |        |     |       |
-    |   |   |   |   | pavadinimas          | string           |         | PAVADINIMAS/text() |         |       |        |     |       |
-    |   |   |   |   | reiksme              | string required  |         | REIKSME/text()     |         |       |        |     |       |
-    |   |   |   |   | salygos              | ref              | Salygos |                    |         |       |        |     |       |
-    |   |   |   |   | text                 | string           |         | text()             |         |       |        |     |       |
+ id | d | r | b | m | property             | type            | ref     | source             | prepare | level | access | uri | title | description
+    | manifest                             |                 |         |                    |         |       |        |     |       |
+    |   | resource1                        | xml             |         |                    |         |       |        |     |       |
+    |                                      |                 |         |                    |         |       |        |     |       |
+    |   |   |   | Salyga                   |                 |         | /SALYGOS/SALYGA    |         |       |        |     |       |
+    |   |   |   |   | aprasymas            | string          |         | APRASYMAS/text()   |         |       |        |     |       |
+    |   |   |   |   | kodas                | string          |         | @kodas             |         |       |        |     |       |
+    |   |   |   |   | nr                   | integer         |         | @nr                |         |       |        |     |       |
+    |   |   |   |   | pavadinimas          | string          |         | PAVADINIMAS/text() |         |       |        |     |       |
+    |   |   |   |   | reiksme              | string required |         | REIKSME/text()     |         |       |        |     |       |
+    |   |   |   |   | salygos              | ref             | Salygos |                    |         |       |        |     |       |
+    |   |   |   |   | text                 | string          |         | text()             |         |       |        |     |       |
+    |                                      |                 |         |                    |         |       |        |     |       |
+    |   |   |   | Salygos                  |                 |         | /SALYGOS           |         |       |        |     |       |
+    |   |   |   |   | salyga[]             | backref         | Salyga  | SALYGA             |         |       |        |     |       |
+    |   |   |   |   | salyga[].aprasymas   | string          |         | APRASYMAS/text()   |         |       |        |     |       |
+    |   |   |   |   | salyga[].kodas       | string          |         | @kodas             |         |       |        |     |       |
+    |   |   |   |   | salyga[].nr          | integer         |         | @nr                |         |       |        |     |       |
+    |   |   |   |   | salyga[].pavadinimas | string          |         | PAVADINIMAS/text() |         |       |        |     |       |
+    |   |   |   |   | salyga[].reiksme     | string required |         | REIKSME/text()     |         |       |        |     |       |
+    |   |   |   |   | salyga[].text        | string          |         | text()             |         |       |        |     |       |
+    |   |   |   |   | text                 | string          |         | text()             |         |       |        |     |       |
 
 """
 
@@ -655,7 +647,6 @@ def test_xsd_attributes(rc: RawConfig, tmp_path: Path):
 
 
 def test_xsd_model_one_property(rc: RawConfig, tmp_path: Path):
-
     xsd = """
     <xs:schema xmlns="http://eTaarPlat.ServiceContracts/2007/08/Messages" xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" targetNamespace="http://eTaarPlat.ServiceContracts/2007/08/Messages">
 
@@ -690,16 +681,16 @@ def test_xsd_model_one_property(rc: RawConfig, tmp_path: Path):
     | manifest                                           |          |           |                                         |         |       |        |     |       |
     |   | resource1                                      | xml      |           |                                         |         |       |        |     |       |
     |                                                    |          |           |                                         |         |       |        |     |       |
+    |   |   |   | Extracttz                              |          |           | /getTzByTRAResponse/extracttz           |         |       |        |     |       |
+    |   |   |   |   | extract_preparation_time           | datetime |           | extractPreparationTime/text()           |         |       |        |     |       |
+    |   |   |   |   | phipoteka                          | integer  |           | phipoteka/text()                        |         |       |        |     |       |
+    |                                                    |          |           |                                         |         |       |        |     |       |
     |   |   |   | GetTzByTRAResponse                     |          |           | /getTzByTRAResponse                     |         |       |        |     |       |
     |   |   |   |   | aprasymas                          | string   |           | klaida/Aprasymas/text()                 |         |       |        |     |       |
     |   |   |   |   | extracttz                          | ref      | Extracttz | extracttz                               |         |       |        |     |       |
     |   |   |   |   | extracttz.extract_preparation_time | datetime |           | extracttz/extractPreparationTime/text() |         |       |        |     |       |
     |   |   |   |   | extracttz.phipoteka                | integer  |           | extracttz/phipoteka/text()              |         |       |        |     |       |
     |   |   |   |   | search_parameters                  | string   |           | searchParameters/text()                 |         |       |        |     |       |
-    |                                                    |          |           |                                         |         |       |        |     |       |
-    |   |   |   | Extracttz                              |          |           | /getTzByTRAResponse/extracttz           |         |       |        |     |       |
-    |   |   |   |   | extract_preparation_time           | datetime |           | extractPreparationTime/text()           |         |       |        |     |       |
-    |   |   |   |   | phipoteka                          | integer  |           | phipoteka/text()                        |         |       |        |     |       |
 
 """
     path = tmp_path / 'manifest.xsd'
@@ -831,12 +822,6 @@ def test_xsd_sequence_choice_sequence(rc: RawConfig, tmp_path: Path):
     |   |   |   |   | response_data.title                    | string required |              | responseData/title/text()                  |         |       |        |     |       |
     |   |   |   |   | response_message                       | string          |              | responseMessage/text()                     |         |       |        |     |       |
     |                                                        |                 |              |                                            |         |       |        |     |       |
-    |   |   |   | ResponseData                               |                 |              | /data/responseData                         |         |       |        |     |       |
-    |   |   |   |   | documents                              | ref required    | Documents1   | documents                                  |         |       |        |     |       |
-    |   |   |   |   | documents1                             | ref required    | Documents2   | documents                                  |         |       |        |     |       |
-    |   |   |   |   | statement_id                           | string required |              | statementId/text()                         |         |       |        |     |       |
-    |   |   |   |   | title                                  | string required |              | title/text()                               |         |       |        |     |       |
-    |                                                        |                 |              |                                            |         |       |        |     |       |
     |   |   |   | Documents1                                 |                 |              | /data/responseData/documents               |         |       |        |     |       |
     |   |   |   |   | birth_date                             | string          |              | birthDate/text()                           |         |       |        |     |       |
     |   |   |   |   | code                                   | string          |              | code/text()                                |         |       |        |     |       |
@@ -848,6 +833,13 @@ def test_xsd_sequence_choice_sequence(rc: RawConfig, tmp_path: Path):
     |   |   |   |   | business_name                          | string          |              | businessName/text()                        |         |       |        |     |       |
     |   |   |   |   | code                                   | string          |              | code/text()                                |         |       |        |     |       |
     |   |   |   |   | iltu_code                              | string          |              | iltu_code/text()                           |         |       |        |     |       |
+    |                                                        |                 |              |                                            |         |       |        |     |       |
+    |   |   |   | ResponseData                               |                 |              | /data/responseData                         |         |       |        |     |       |
+    |   |   |   |   | documents                              | ref required    | Documents1   | documents                                  |         |       |        |     |       |
+    |   |   |   |   | documents1                             | ref required    | Documents2   | documents                                  |         |       |        |     |       |
+    |   |   |   |   | statement_id                           | string required |              | statementId/text()                         |         |       |        |     |       |
+    |   |   |   |   | title                                  | string required |              | title/text()                               |         |       |        |     |       |
+
 """
     path = tmp_path / 'manifest.xsd'
     with open(path, "w") as xsd_file:
@@ -960,14 +952,14 @@ def test_xsd_recursion(rc: RawConfig, tmp_path: Path):
     | manifest                               |                 |         |                            |         |       |        |     |       |
     |   | resource1                          | xml             |         |                            |         |       |        |     |       |
     |                                        |                 |         |                            |         |       |        |     |       |
+    |   |   |   | Actions                    |                 |         | /data/responseData/actions |         |       |        |     |       |
+    |   |   |   |   | code[]                 | string required |         | action/code/text()         |         |       |        |     |       | Paslaugos kodas (RC kodas)
+    |   |   |   |   | data                   | ref             | Data    |                            |         |       |        |     |       |
+    |                                        |                 |         |                            |         |       |        |     |       |
     |   |   |   | Data                       |                 |         | /data                      |         |       |        |     |       |
     |   |   |   |   | response_data[]        | backref         | Actions | responseData/actions       |         |       |        |     |       |
     |   |   |   |   | response_data[].code[] | string required |         | action/code/text()         |         |       |        |     |       | Paslaugos kodas (RC kodas)
     |   |   |   |   | response_message       | string          |         | responseMessage/text()     |         |       |        |     |       |
-    |                                        |                 |         |                            |         |       |        |     |       |
-    |   |   |   | Actions                    |                 |         | /data/responseData/actions |         |       |        |     |       |
-    |   |   |   |   | code[]                 | string required |         | action/code/text()         |         |       |        |     |       | Paslaugos kodas (RC kodas)
-    |   |   |   |   | data                   | ref             | Data    |                            |         |       |        |     |       |
 
 """
     path = tmp_path / 'manifest.xsd'
@@ -1084,6 +1076,82 @@ def test_xsd_enumeration(rc: RawConfig, tmp_path: Path):
     |                                                            |                 |              | fiz-jur-notarial                                 |         |       |        |     |       |
 
 """
+    path = tmp_path / 'manifest.xsd'
+    with open(path, "w") as xsd_file:
+        xsd_file.write(xsd)
+    manifest = load_manifest(rc, path)
+    assert manifest == table
+
+
+def test_duplicate_removal(rc: RawConfig, tmp_path: Path):
+    xsd = """
+    <xs:schema xmlns="http://eTaarPlat.ServiceContracts/2007/08/Messages" elementFormDefault="qualified" targetNamespace="http://eTaarPlat.ServiceContracts/2007/08/Messages" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+        <xs:element name="getDocumentsByWagonResponse" nillable="true" type="getDocumentsByWagonResponse" />
+        <xs:complexType name="getDocumentsByWagonResponse">
+            <xs:sequence>
+                <xs:element minOccurs="0" maxOccurs="1" name="searchParameters" type="getDocumentsByWagonSearchParams" />
+                <xs:choice minOccurs="1" maxOccurs="1">
+                    <xs:element minOccurs="0" maxOccurs="1" name="klaida" type="Klaida" />
+                    <xs:element minOccurs="0" maxOccurs="1" name="extract" type="Extract" />
+                </xs:choice>
+            </xs:sequence>
+        </xs:complexType>
+        <xs:complexType name="getDocumentsByWagonSearchParams">
+            <xs:sequence>
+                <xs:element minOccurs="0" maxOccurs="1" name="searchType" type="xs:string" />
+                <xs:element minOccurs="0" maxOccurs="1" name="code" type="xs:string" />
+                <xs:element minOccurs="0" maxOccurs="1" name="RegDateFrom" type="xs:string" />
+                <xs:element minOccurs="0" maxOccurs="1" name="RegDateTo" type="xs:string" />
+            </xs:sequence>
+        </xs:complexType>
+        <xs:complexType name="Klaida">
+                    <xs:sequence>
+                        <xs:element minOccurs="0" maxOccurs="1" name="Aprasymas" type="xs:string" />
+                    </xs:sequence>
+        </xs:complexType>
+        <xs:complexType name="Extract">
+                    <xs:sequence>
+                        <xs:element minOccurs="1" maxOccurs="1" name="extractPreparationTime" type="xs:dateTime" />
+                        <xs:element minOccurs="1" maxOccurs="1" name="lastUpdateTime" type="xs:dateTime" />
+                    </xs:sequence>
+        </xs:complexType>
+    </xs:schema>
+"""
+
+    table = """
+ id | d | r | b | m | property                         | type              | ref              | source                                        | prepare | level | access | uri | title | description
+    | manifest                                         |                   |                  |                                               |         |       |        |     |       |
+    |   | resource1                                    | xml               |                  |                                               |         |       |        |     |       |
+    |                                                  |                   |                  |                                               |         |       |        |     |       |
+    |   |   |   | Extract                              |                   |                  | /getDocumentsByWagonResponse/extract          |         |       |        |     |       |
+    |   |   |   |   | extract_preparation_time         | datetime required |                  | extractPreparationTime/text()                 |         |       |        |     |       |
+    |   |   |   |   | last_update_time                 | datetime required |                  | lastUpdateTime/text()                         |         |       |        |     |       |
+    |                                                  |                   |                  |                                               |         |       |        |     |       |
+    |   |   |   | GetDocumentsByWagonResponse1         |                   |                  | /getDocumentsByWagonResponse                  |         |       |        |     |       |
+    |   |   |   |   | aprasymas                        | string            |                  | klaida/Aprasymas/text()                       |         |       |        |     |       |
+    |   |   |   |   | search_parameters                | ref               | SearchParameters | searchParameters                              |         |       |        |     |       |
+    |   |   |   |   | search_parameters.code           | string            |                  | searchParameters/code/text()                  |         |       |        |     |       |
+    |   |   |   |   | search_parameters.reg_date_from  | string            |                  | searchParameters/RegDateFrom/text()           |         |       |        |     |       |
+    |   |   |   |   | search_parameters.reg_date_to    | string            |                  | searchParameters/RegDateTo/text()             |         |       |        |     |       |
+    |   |   |   |   | search_parameters.search_type    | string            |                  | searchParameters/searchType/text()            |         |       |        |     |       |
+    |                                                  |                   |                  |                                               |         |       |        |     |       |
+    |   |   |   | GetDocumentsByWagonResponse2         |                   |                  | /getDocumentsByWagonResponse                  |         |       |        |     |       |
+    |   |   |   |   | extract                          | ref               | Extract          | extract                                       |         |       |        |     |       |
+    |   |   |   |   | extract.extract_preparation_time | datetime required |                  | extract/extractPreparationTime/text()         |         |       |        |     |       |
+    |   |   |   |   | extract.last_update_time         | datetime required |                  | extract/lastUpdateTime/text()                 |         |       |        |     |       |
+    |   |   |   |   | search_parameters                | ref               | SearchParameters | searchParameters                              |         |       |        |     |       |
+    |   |   |   |   | search_parameters.code           | string            |                  | searchParameters/code/text()                  |         |       |        |     |       |
+    |   |   |   |   | search_parameters.reg_date_from  | string            |                  | searchParameters/RegDateFrom/text()           |         |       |        |     |       |
+    |   |   |   |   | search_parameters.reg_date_to    | string            |                  | searchParameters/RegDateTo/text()             |         |       |        |     |       |
+    |   |   |   |   | search_parameters.search_type    | string            |                  | searchParameters/searchType/text()            |         |       |        |     |       |
+    |                                                  |                   |                  |                                               |         |       |        |     |       |
+    |   |   |   | SearchParameters                     |                   |                  | /getDocumentsByWagonResponse/searchParameters |         |       |        |     |       |
+    |   |   |   |   | code                             | string            |                  | code/text()                                   |         |       |        |     |       |
+    |   |   |   |   | reg_date_from                    | string            |                  | RegDateFrom/text()                            |         |       |        |     |       |
+    |   |   |   |   | reg_date_to                      | string            |                  | RegDateTo/text()                              |         |       |        |     |       |
+    |   |   |   |   | search_type                      | string            |                  | searchType/text()                             |         |       |        |     |       |
+    """
+
     path = tmp_path / 'manifest.xsd'
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)

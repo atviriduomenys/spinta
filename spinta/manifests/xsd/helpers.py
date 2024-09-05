@@ -862,7 +862,7 @@ class XSDReader:
                     referenced_model = self.models[prop["model"]]
                     referenced_model.add_ref_property(model)
 
-    def _sort_properties_alpabetically(self):
+    def _sort_properties_alphabetically(self):
         for model in self.models.values():
             model.properties = dict(sorted(model.properties.items()))
 
@@ -876,10 +876,10 @@ class XSDReader:
         for model_name, model in self.models.items():
             for another_model_name, another_model in self.models.items():
                 if (model is not another_model) and (model == another_model):
-                    if another_model_name not in model_pairs:
-                        model_pairs[model_name] = another_model_name
+                    if another_model_name not in model_pairs.values():
+                        model_pairs[another_model_name] = model_name
 
-        for model_name, another_model_name in model_pairs.items():
+        for another_model_name, model_name in model_pairs.items():
             parent_model = self.models[another_model_name].parent_model
             if parent_model:
                 for property_id, prop in parent_model.properties.items():
@@ -902,13 +902,15 @@ class XSDReader:
 
         self._remove_unneeded_models()
 
+        self.models = dict(sorted(self.models.items()))
+
         self._remove_duplicate_models()
 
         self._compile_nested_properties()
 
         self._add_refs_for_backrefs()
 
-        self._sort_properties_alpabetically()
+        self._sort_properties_alphabetically()
 
     def remove_extra_root_models(self, model: XSDModel) -> XSDModel:
         """
