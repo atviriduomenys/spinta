@@ -869,8 +869,6 @@ class XSDReader:
     def _remove_duplicate_models(self):
         """removes models that are exactly the same"""
 
-        # model name and duplicate name
-        # todo there can be more than one duplicate
         model_pairs = {}
 
         for model_name, model in self.models.items():
