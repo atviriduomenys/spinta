@@ -9,6 +9,9 @@ from spinta.components import Context
 def require_auth(context: Context, client: str = None):
     # TODO: probably commands should also use an existing token in order to
     #       track who changed what.
+
+    # If `client` is not None, make sure, that you run this command after config is initialized
+    # And client migrations have happened.
     if client is None:
         token = AdminToken()
     else:

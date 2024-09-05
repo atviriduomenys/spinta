@@ -180,6 +180,10 @@ class UserError(BaseError):
     status_code = 400
 
 
+class UpgradeError(BaseError):
+    status_code = 500
+
+
 class ConflictingValue(UserError):
     status_code = 409
     template = "Conflicting value."
@@ -917,4 +921,20 @@ class NoPrimaryKeyCandidatesFound(UserError):
     template = '''
     While assigning foreign key for non-primary key `Ref` property, using values: {values!r}
     no possible matches were found. This can occur when trying to assign values that do not exist in foreign table.
+    '''
+
+
+class ClientsMigrationRequired(UpgradeError):
+    template = '''
+    Clients folder structure is out of date. Please migrate it using:
+    'spinta upgrade', or 'spinta upgrade -r clients' commands.
+    
+    Old structure used to be:
+    ../clients/???.yml
+    
+    New structure is:
+    ../clients/helpers/keymap.yml
+    ../clients/id/??/??/???.yml
+    
+    Where `keymap.yml` stores `client_name` and `client_id` mapping.
     '''

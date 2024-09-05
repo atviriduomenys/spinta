@@ -42,6 +42,7 @@ from spinta.exceptions import InvalidToken, NoTokenValidationKey, ClientWithName
 from spinta.exceptions import AuthorizedClientsOnly
 from spinta.exceptions import BasicAuthRequired
 from spinta.utils import passwords
+from spinta.utils.config import get_clients_path, get_helpers_path, get_keymap_path, get_id_path, get_config_path
 from spinta.utils.scopes import name_to_scope
 from spinta.utils.types import is_str_uuid
 
@@ -579,10 +580,20 @@ def client_exists(path: pathlib.Path, client: str) -> bool:
     return False
 
 
+#@retry(stop=stop_after_attempt(5))
+def _load_keymap_data(keymap_path: pathlib.Path) -> dict:
+    keymap = yaml.load(keymap_path)
+    if keymap is None:
+        raise Exception()
+    if not isinstance(keymap, dict):
+        raise Exception()
+    return keymap
+
+
 def client_name_exists(path: pathlib.Path, client: str) -> bool:
     keymap_path = get_keymap_path(path)
     if keymap_path.exists():
-        keymap = yaml.load(keymap_path)
+        keymap = _load_keymap_data(keymap_path)
         if client in keymap.keys():
             return True
     return False
@@ -605,7 +616,7 @@ def create_client_file(
 
     keymap = {}
     if keymap_path.exists():
-        keymap = yaml.load(keymap_path)
+        keymap = _load_keymap_data(keymap_path)
 
     if client_name_exists(path, name):
         raise ClientWithNameAlreadyExists(client_name=name)
@@ -643,7 +654,7 @@ def delete_client_file(path: pathlib.Path, client_id: str):
         keymap_path = get_keymap_path(path)
         remove_path = get_client_file_path(path, client_id)
         if keymap_path.exists():
-            keymap = yaml.load(keymap_path)
+            keymap = _load_keymap_data(keymap_path)
             changed = False
             keymap_values = list(keymap.values())
             keymap_keys = list(keymap.keys())
@@ -687,7 +698,7 @@ def update_client_file(
         client_path = get_client_file_path(path, client_id)
         keymap = {}
         if keymap_path.exists():
-            keymap = yaml.load(keymap_path)
+            keymap = _load_keymap_data(keymap_path)
         if new_name != client.name:
             if client_name_exists(path, new_name):
                 raise ClientWithNameAlreadyExists(client_name=new_name)
@@ -715,89 +726,16 @@ def update_client_file(
         raise (InvalidClientError(description='Invalid client id or secret'))
 
 
-def migrate_old_client_file(path: pathlib.Path, client_file: str):
-    try:
-        old_data = yaml.load(path / client_file)
-    except FileNotFoundError:
-        raise (InvalidClientError(description='Invalid client id or secret'))
-
-    old_path = path / client_file
-
-    old_data["client_name"] = old_data["client_id"]
-    if not is_str_uuid(old_data["client_id"]):
-        old_data["client_id"] = str(uuid.uuid4())
-    new_client_file = old_data["client_id"]
-
-    new_path = path / 'id' / new_client_file[:2] / new_client_file[2:4] / f'{new_client_file[4:]}.yml'
-
-    os.makedirs(path / 'id' / new_client_file[:2] / new_client_file[2:4], exist_ok=True)
-    shutil.copyfile(old_path, new_path)
-
-    with open(new_path) as fp:
-        data = yaml.load(fp)
-    data["client_id"] = old_data["client_id"]
-    data["client_name"] = old_data["client_name"]
-    yml.dump({
-        "client_id": data["client_id"],
-        "client_name": data["client_name"],
-        "client_secret_hash": data["client_secret_hash"],
-        "scopes": data["scopes"]
-    }, new_path)
-
-
-def create_client_file_name_id_mapping(path: pathlib.Path):
-    os.makedirs(path / 'helpers', exist_ok=True)
-    keymap_path = get_keymap_path(path)
-
-    items = os.listdir(path)
-    keymap = {}
-    if 'id' in items:
-        id_items = os.listdir(path / 'id')
-        for id0 in id_items:
-            if len(id0) == 2:
-                id0_items = os.listdir(path / 'id' / id0)
-                for id1 in id0_items:
-                    if len(id1) == 2:
-                        id1_items = os.listdir(path / 'id' / id0 / id1)
-                        for uuid_item in id1_items:
-                            if uuid_item.endswith('.yml') and len(uuid_item) == 36:
-                                try:
-                                    data = yaml.load(path / 'id' / id0 / id1 / uuid_item)
-                                    keymap[data["client_name"]] = data["client_id"]
-                                except FileNotFoundError:
-                                    raise (InvalidClientError(description='Invalid client id or secret'))
-    yml.dump(keymap, keymap_path)
-
-
-def handle_auth_client_files(config: Config):
-    path = get_clients_path(config)
-    if path.exists():
-        if not (path / 'id').exists():
-            items = os.listdir(path)
-            if items:
-                echo("Client file migrations has started")
-                for item in items:
-                    if item.endswith('.yml'):
-                        migrate_old_client_file(path, item)
-
-        create_client_file_name_id_mapping(path)
-
-
 def get_client_id_from_name(path: pathlib.Path, client_name: str):
     keymap_path = get_keymap_path(path)
     if keymap_path.exists():
-        keymap = yaml.load(keymap_path)
+        keymap = _load_keymap_data(keymap_path)
         if client_name in keymap.keys():
             return keymap[client_name]
     return None
 
 
-def get_keymap_path(path: pathlib.Path):
-    return path / 'helpers' / 'keymap.yml'
+def _requires_migration(path: pathlib.Path) -> bool:
+    return not path.exists()
 
-
-def get_clients_path(path: Union[Config, pathlib.Path]):
-    if isinstance(path, pathlib.Path):
-        return path / 'clients'
-    return path.config_path / 'clients'
 

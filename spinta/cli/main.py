@@ -24,6 +24,7 @@ from spinta.cli import server
 from spinta.cli.init import init
 from spinta.cli.show import show
 from spinta.cli.helpers.typer import add
+from spinta.cli.upgrade import upgrade
 from spinta.core.context import create_context
 
 log = logging.getLogger(__name__)
@@ -60,6 +61,7 @@ add(app, 'push', push.push, short_help="Push data into an external data store")
 add(app, 'run', server.run, short_help="Run development server")
 add(app, 'wait', server.wait, short_help="Wait while all backends are up")
 
+add(app, 'upgrade', upgrade, short_help="Run upgrade scripts")
 
 @app.callback(invoke_without_command=True)
 def main(
