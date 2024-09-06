@@ -873,7 +873,7 @@ class XSDReader:
 
         for model_name, model in self.models.items():
             for another_model_name, another_model in self.models.items():
-                if (model is not another_model) and (model == another_model):
+                if model is not another_model and model == another_model:
                     if another_model_name not in model_pairs.values():
                         model_pairs[another_model_name] = model_name
 
