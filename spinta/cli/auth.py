@@ -1,4 +1,5 @@
 import json
+import os
 import pathlib
 import sys
 import uuid
@@ -24,6 +25,7 @@ from spinta.client import get_access_token
 from spinta.client import get_client_credentials
 from spinta.components import Context
 from spinta.core.context import configure_context
+from spinta.utils.config import get_id_path, get_helpers_path, get_keymap_path
 
 
 def genkeys(
@@ -134,16 +136,27 @@ def client_add(
 
         if path is None:
             context = ctx.obj
-
-            config = context.get('config')
-            commands.load(context, config)
-
-            path = get_clients_path(config)
-            path.mkdir(exist_ok=True)
+            load_config(
+                context,
+                ensure_config_dir=True
+            )
         else:
             path = pathlib.Path(path)
             if not str(path).endswith('clients'):
                 path = get_clients_path(path)
+
+            # Ensure clients path exists
+            os.makedirs(path, exist_ok=True)
+
+            # Ensure id path exists
+            os.makedirs(get_id_path(path), exist_ok=True)
+
+            # Ensure helpers path exists
+            os.makedirs(get_helpers_path(path), exist_ok=True)
+
+            # Ensure keymap.yml exists
+            keymap_path = get_keymap_path(path)
+            keymap_path.touch(exist_ok=True)
 
         client_id = str(uuid.uuid4())
         name = name or client_id
