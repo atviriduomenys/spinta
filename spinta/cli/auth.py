@@ -14,7 +14,7 @@ from typer import Typer
 from typer import echo
 
 from spinta import commands
-from spinta.auth import KeyFileExists, get_clients_path
+from spinta.auth import KeyFileExists, get_clients_path, ensure_client_folders_exist
 from spinta.auth import KeyType
 from spinta.auth import create_client_file
 from spinta.auth import gen_auth_server_keys
@@ -25,7 +25,6 @@ from spinta.client import get_access_token
 from spinta.client import get_client_credentials
 from spinta.components import Context
 from spinta.core.context import configure_context
-from spinta.utils.config import get_id_path, get_helpers_path, get_keymap_path
 
 
 def genkeys(
@@ -145,18 +144,8 @@ def client_add(
             if not str(path).endswith('clients'):
                 path = get_clients_path(path)
 
-            # Ensure clients path exists
-            os.makedirs(path, exist_ok=True)
-
-            # Ensure id path exists
-            os.makedirs(get_id_path(path), exist_ok=True)
-
-            # Ensure helpers path exists
-            os.makedirs(get_helpers_path(path), exist_ok=True)
-
-            # Ensure keymap.yml exists
-            keymap_path = get_keymap_path(path)
-            keymap_path.touch(exist_ok=True)
+            # Ensure all files/folders exist for clients operations
+            ensure_client_folders_exist(path)
 
         client_id = str(uuid.uuid4())
         name = name or client_id

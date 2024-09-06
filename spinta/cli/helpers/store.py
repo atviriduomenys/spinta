@@ -4,7 +4,7 @@ from pathlib import Path
 import click
 
 from spinta import commands
-from spinta.auth import auth_server_keys_exists, client_name_exists, get_clients_path
+from spinta.auth import auth_server_keys_exists, client_name_exists, get_clients_path, ensure_client_folders_exist
 from spinta.auth import create_client_file
 from spinta.auth import gen_auth_server_keys
 from spinta.cli.helpers.upgrade.clients import requires_client_migration
@@ -13,7 +13,6 @@ from spinta.components import Context
 from spinta.components import Store
 from spinta.core.config import DEFAULT_CONFIG_PATH
 from spinta.exceptions import ClientsMigrationRequired
-from spinta.utils.config import get_helpers_path, get_keymap_path, get_id_path
 
 
 def _ensure_config_dir(
@@ -29,25 +28,14 @@ def _ensure_config_dir(
     if not path.exists() and path != DEFAULT_CONFIG_PATH:
         raise Exception(f"Config dir {path} does not exist!")
 
-    # Ensure clients directory.
-    clients_path = get_clients_path(config)
 
+    clients_path = get_clients_path(config)
     # Check if client migrations are needed
     if requires_client_migration(clients_path):
         raise ClientsMigrationRequired()
-    clients_path.mkdir(parents=True, exist_ok=True)
 
-    # Ensure clients/helpers directory
-    helpers_path = get_helpers_path(clients_path)
-    helpers_path.mkdir(parents=True, exist_ok=True)
-
-    # Ensure clients/helpers/keymap.yml exists
-    keymap_path = get_keymap_path(clients_path)
-    keymap_path.touch(exist_ok=True)
-
-    # Ensure clients/id directory
-    id_path = get_id_path(clients_path)
-    id_path.mkdir(parents=True, exist_ok=True)
+    # Ensure all files/folders exist for clients operations
+    ensure_client_folders_exist(clients_path)
 
     # Ensure auth server keys.
     if not auth_server_keys_exists(path):

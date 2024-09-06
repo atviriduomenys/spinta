@@ -43,7 +43,7 @@ from spinta.exceptions import InvalidToken, NoTokenValidationKey, ClientWithName
 from spinta.exceptions import AuthorizedClientsOnly
 from spinta.exceptions import BasicAuthRequired
 from spinta.utils import passwords
-from spinta.utils.config import get_clients_path, get_keymap_path, get_id_path
+from spinta.utils.config import get_clients_path, get_keymap_path, get_id_path, get_helpers_path
 from spinta.utils.scopes import name_to_scope
 from spinta.utils.types import is_str_uuid
 
@@ -774,3 +774,20 @@ def _requires_migration(path: pathlib.Path) -> bool:
 def get_default_auth_client_id(context: Context) -> str:
     config: Config = context.get('config')
     return get_client_id_from_name(get_clients_path(config.config_path), config.default_auth_client)
+
+
+def ensure_client_folders_exist(clients_path: pathlib.Path):
+    # Ensure clients folder exist
+    clients_path.mkdir(parents=True, exist_ok=True)
+
+    # Ensure clients/helpers directory
+    helpers_path = get_helpers_path(clients_path)
+    helpers_path.mkdir(parents=True, exist_ok=True)
+
+    # Ensure clients/helpers/keymap.yml exists
+    keymap_path = get_keymap_path(clients_path)
+    keymap_path.touch(exist_ok=True)
+
+    # Ensure clients/id directory
+    id_path = get_id_path(clients_path)
+    id_path.mkdir(parents=True, exist_ok=True)
