@@ -956,3 +956,12 @@ class ClientsIdFolderNotFound(UpgradeError):
     Make sure it exists.
     Consider running `spinta upgrade` or `spinta upgrade -r clients` commands 
     '''
+
+
+class InvalidClientsKeymapStructure(UpgradeError):
+    template = '''
+    Could not load Clients `keymap.yml`.
+    Structure is invalid.
+
+    Fix it or consider running `spinta upgrade -f -r clients` command.
+    '''

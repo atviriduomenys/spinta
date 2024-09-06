@@ -39,11 +39,11 @@ from spinta.components import ScopeFormatterFunc
 from spinta.core.enums import Access
 from spinta.components import Context, Action, Namespace, Model, Property
 from spinta.exceptions import InvalidToken, NoTokenValidationKey, ClientWithNameAlreadyExists, ClientAlreadyExists, \
-    ClientsKeymapNotFound, ClientsIdFolderNotFound
+    ClientsKeymapNotFound, ClientsIdFolderNotFound, InvalidClientsKeymapStructure
 from spinta.exceptions import AuthorizedClientsOnly
 from spinta.exceptions import BasicAuthRequired
 from spinta.utils import passwords
-from spinta.utils.config import get_clients_path, get_helpers_path, get_keymap_path, get_id_path, get_config_path
+from spinta.utils.config import get_clients_path, get_keymap_path, get_id_path
 from spinta.utils.scopes import name_to_scope
 from spinta.utils.types import is_str_uuid
 
@@ -590,13 +590,15 @@ def client_exists(path: pathlib.Path, client: str) -> bool:
     return False
 
 
-#@retry(stop=stop_after_attempt(5))
 def _load_keymap_data(keymap_path: pathlib.Path) -> dict:
     keymap = yaml.load(keymap_path)
+    # This could mean keymap is empty, or keymap has bad yml structure
     if keymap is None:
-        raise Exception()
+        if os.stat(keymap_path).st_size == 0:
+            return {}
+        raise InvalidClientsKeymapStructure()
     if not isinstance(keymap, dict):
-        raise Exception()
+        raise InvalidClientsKeymapStructure()
     return keymap
 
 
@@ -768,7 +770,7 @@ def _requires_migration(path: pathlib.Path) -> bool:
 
 
 # Get default auth client id using cache
-@lru_cache()
+@lru_cache
 def get_default_auth_client_id(context: Context) -> str:
     config: Config = context.get('config')
     return get_client_id_from_name(get_clients_path(config.config_path), config.default_auth_client)
