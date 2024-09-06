@@ -31,11 +31,11 @@ def _ensure_config_dir(
 
     # Ensure clients directory.
     clients_path = get_clients_path(config)
-    clients_path.mkdir(parents=True, exist_ok=True)
 
     # Check if client migrations are needed
     if requires_client_migration(clients_path):
         raise ClientsMigrationRequired()
+    clients_path.mkdir(parents=True, exist_ok=True)
 
     # Ensure clients/helpers directory
     helpers_path = get_helpers_path(clients_path)

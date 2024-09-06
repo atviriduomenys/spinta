@@ -93,6 +93,7 @@ def _recreate_keymap(
                     except FileNotFoundError:
                         raise (InvalidClientError(description='Invalid client id or secret'))
 
+    echo(f"Created keymap with {len(keymap)} users")
     yml.dump(keymap, keymap_path)
 
 
@@ -150,7 +151,7 @@ def _migrate_client_file(
         raise (InvalidClientError(description='Could not open client file'))
 
     if not _validate_file_structure(old_data):
-        return "SKIPPED (INVALID STRUCTURE)"
+        return "FAILED (INVALID STRUCTURE)"
 
     # Check if new valid client file exists, if so, skip it
     if old_data['client_id'] in keymap:

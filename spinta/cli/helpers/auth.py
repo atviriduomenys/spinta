@@ -1,5 +1,5 @@
 from spinta.accesslog import create_accesslog
-from spinta.auth import AdminToken, get_client_id_from_name, get_clients_path
+from spinta.auth import AdminToken, get_default_auth_client_id
 from spinta.auth import BearerTokenValidator
 from spinta.auth import Token
 from spinta.auth import create_client_access_token
@@ -17,7 +17,7 @@ def require_auth(context: Context, client: str = None):
     else:
         if client == 'default':
             config = context.get('config')
-            client = get_client_id_from_name(get_clients_path(config), config.default_auth_client)
+            client = get_default_auth_client_id(context)
             client = client if client else config.default_auth_client
         token = create_client_access_token(context, client)
         token = Token(token, BearerTokenValidator(context))

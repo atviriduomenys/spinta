@@ -2,7 +2,7 @@ from typing import List
 import sqlalchemy as sa
 
 from spinta import commands
-from spinta.auth import get_client_id_from_name, get_clients_path
+from spinta.auth import get_default_auth_client_id
 from spinta.components import Context, Action, Config, Namespace
 from spinta.core.enums import Access
 from spinta.exceptions import AuthorizedClientsOnly
@@ -59,7 +59,7 @@ def internal_authorized(
     token = context.get('auth.token')
 
     # Unauthorized clients can only access open nodes.
-    unauthorized = token.get_client_id() == get_client_id_from_name(get_clients_path(config), config.default_auth_client)
+    unauthorized = token.get_client_id() == get_default_auth_client_id(context)
 
     open_node = access >= Access.open
     if unauthorized and not open_node:

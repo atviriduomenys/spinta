@@ -938,3 +938,21 @@ class ClientsMigrationRequired(UpgradeError):
     
     Where `keymap.yml` stores `client_name` and `client_id` mapping.
     '''
+
+
+class ClientsKeymapNotFound(UpgradeError):
+    template = '''
+    Cannot find `../clients/helpers/keymap.yml` file.
+    
+    Make sure it exists.
+    Consider running `spinta upgrade` or `spinta upgrade -r clients` commands 
+    '''
+
+
+class ClientsIdFolderNotFound(UpgradeError):
+    template = '''
+    Cannot find `../clients/id` folder.
+
+    Make sure it exists.
+    Consider running `spinta upgrade` or `spinta upgrade -r clients` commands 
+    '''

@@ -7,7 +7,7 @@ from spinta.components import Context
 
 # Global upgrade script mapper
 # To add new script, just create script name and create `UpgradeComponent` for it
-# If there are no checks needed, just pas None to `check`
+# If there are no checks needed, just pass None to `check`
 __upgrade_scripts: Dict[str, UpgradeComponent] = {
     UPGRADE_CLIENTS_SCRIPT: UpgradeComponent(
         upgrade=migrate_clients,
