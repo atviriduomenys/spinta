@@ -44,7 +44,7 @@ def _ensure_config_dir(
         gen_auth_server_keys(path)
 
     # Ensure default client.
-    if not client_name_exists(clients_path, default_auth_client):
+    if default_auth_client and not client_name_exists(clients_path, default_auth_client):
         if verbose:
             click.echo(f"Initializing default auth client: {path}")
         create_client_file(

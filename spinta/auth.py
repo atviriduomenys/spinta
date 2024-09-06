@@ -765,10 +765,6 @@ def validate_id_path(id_path: pathlib.Path):
         raise ClientsIdFolderNotFound()
 
 
-def _requires_migration(path: pathlib.Path) -> bool:
-    return not path.exists()
-
-
 # Get default auth client id using cache
 @lru_cache
 def get_default_auth_client_id(context: Context) -> str:

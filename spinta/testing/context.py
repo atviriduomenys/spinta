@@ -73,6 +73,7 @@ class ContextForTests:
     def load(
         self: TestContext,
         overrides: Optional[Dict[str, Any]] = None,
+        ensure_config_dir: bool = True
     ) -> TestContext:
         # We pass context to tests unloaded, by doing this, we give test
         # functions opportunity to call `context.load` manually and provide
@@ -94,7 +95,7 @@ class ContextForTests:
                 }
             })
 
-        store = prepare_manifest(self)
+        store = prepare_manifest(self, ensure_config_dir=ensure_config_dir)
         commands.bootstrap(self, store.manifest)
 
         self.loaded = True
