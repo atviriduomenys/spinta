@@ -395,6 +395,10 @@ def query_client(path: pathlib.Path, client: str, is_name: bool = False) -> Clie
             raise (InvalidClientError(description='Invalid client name'))
         client = data[client]
     client_file = get_client_file_path(path, client)
+
+    id_path = get_id_path(path)
+    validate_id_path(id_path)
+
     try:
         data = yaml.load(client_file)
     except FileNotFoundError:
