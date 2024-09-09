@@ -8,6 +8,7 @@ import uuid
 from typing import Any, Tuple, Callable
 from typing import Dict
 from typing import Optional, List, Union
+from uuid import uuid4
 
 import httpx
 import lxml.html
@@ -23,7 +24,7 @@ from responses import RequestsMock, CallbackResponse, FalseBool
 from spinta import api
 from spinta import auth
 from spinta import commands
-from spinta.auth import create_client_file, get_clients_path, yaml
+from spinta.auth import create_client_file, get_clients_path, yaml, yml
 from spinta.client import add_client_credentials
 from spinta.components import Context
 from spinta.core.config import RawConfig
@@ -316,8 +317,16 @@ class CustomCallbackResponse(CallbackResponse):
         return True, ""
 
 
-def get_keymap_data(path: pathlib.Path):
-    keymap = {}
+def get_yaml_data(path: pathlib.Path) -> dict:
+    data = {}
     if path.exists():
-        keymap = yaml.load(path)
-    return keymap
+        data = yaml.load(path)
+    return data
+
+
+def create_old_client_file(client_path: pathlib.Path, data: dict, file_name: str = None):
+    if file_name is None:
+        file_name = data.get('client_id', str(uuid4()))
+
+    yml.dump(data, client_path / f'{file_name}.yml')
+

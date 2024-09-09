@@ -1,4 +1,5 @@
 from typing import List, Dict
+from typer import echo
 
 from spinta.cli.helpers.upgrade.clients import migrate_clients, cli_requires_clients_migration
 from spinta.cli.helpers.upgrade.components import UpgradeComponent, UPGRADE_CLIENTS_SCRIPT
@@ -14,6 +15,10 @@ __upgrade_scripts: Dict[str, UpgradeComponent] = {
         check=cli_requires_clients_migration
     )
 }
+
+UPGRADE_CHECK_STATUS_PASSED = "PASSED"
+UPGRADE_CHECK_STATUS_REQUIRED = "REQUIRED"
+UPGRADE_CHECK_STATUS_FORCED = "FORCED"
 
 
 # Returns a list of all available script names
@@ -52,10 +57,10 @@ def run_specific_script(
 ):
     script = __upgrade_scripts[script_name]
 
-    status = "PASSED"
+    status = UPGRADE_CHECK_STATUS_PASSED
     if force or script.check(context, **kwargs):
-        status = "FORCED" if force else "REQUIRED"
-        script_check_status_message(script_name, status)
+        status = UPGRADE_CHECK_STATUS_FORCED if force else UPGRADE_CHECK_STATUS_REQUIRED
+        echo(script_check_status_message(script_name, status))
         script.upgrade(context, destructive=destructive, **kwargs)
     else:
-        script_check_status_message(script_name, status)
+        echo(script_check_status_message(script_name, status))

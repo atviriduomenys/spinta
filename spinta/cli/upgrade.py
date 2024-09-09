@@ -6,7 +6,7 @@ from spinta.cli.helpers.store import load_config
 from spinta.cli.helpers.upgrade.scripts import run_specific_script, run_all_scripts, get_all_upgrade_script_names, \
     does_script_exist
 from spinta.core.context import configure_context
-from spinta.exceptions import UpgradeError
+from spinta.exceptions import UpgradeError, UpgradeScriptNotFound
 
 log = logging.getLogger(__name__)
 
@@ -44,7 +44,10 @@ def upgrade(
 
     if run is not None:
         if not does_script_exist(run):
-            raise Exception("SCRIPT DOES NOT EXIST")
+            raise UpgradeScriptNotFound(
+                script=run,
+                available_scripts=get_all_upgrade_script_names()
+            )
 
         run_specific_script(
             context=context,

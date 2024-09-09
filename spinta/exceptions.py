@@ -965,3 +965,9 @@ class InvalidClientsKeymapStructure(UpgradeError):
 
     Fix it or consider running `spinta upgrade -f -r clients` command.
     '''
+
+class UpgradeScriptNotFound(UserError):
+    template = '''
+    Upgrade script {script!r} not found.
+    Available scripts: {available_scripts}.
+    '''

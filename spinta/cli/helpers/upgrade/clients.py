@@ -21,6 +21,14 @@ yml.indent(mapping=2, sequence=4, offset=2)
 yml.width = 80
 yml.explicit_start = False
 
+CLIENT_STATUS_SUCCESS = "SUCCESS"
+CLIENT_STATUS_SKIPPED_MIGRATED = "SKIPPED (ALREADY MIGRATED)"
+CLIENT_STATUS_FAILED_INVALID = "FAILED (INVALID STRUCTURE)"
+CLIENT_STATUS_FAILED_MISSING_ID = "FAILED (MISSING `client_id` FIELD)"
+CLIENT_STATUS_FAILED_ID_NOT_UUID = "FAILED (`client_id` MUST BE UUID)"
+CLIENT_STATUS_FAILED_MISSING_SECRET = "FAILED (MISSING `client_secret_hash` FIELD)"
+CLIENT_STATUS_FAILED_MISSING_SCOPES = "FAILED (MISSING `scopes` FIELD)"
+CLIENT_STATUS_FAILED_MISSING_NAME = "FAILED (MISSING `client_name` FIELD)"
 
 def migrate_clients(context: Context, destructive: bool, **kwargs: Any):
     config: Config = context.get('config')
@@ -50,7 +58,7 @@ def migrate_clients(context: Context, destructive: bool, **kwargs: Any):
         keymap = {}
 
     if destructive:
-        script_destructive_warning(UPGRADE_CLIENTS_SCRIPT, "override already migrated files with old ones")
+        echo(script_destructive_warning(UPGRADE_CLIENTS_SCRIPT, "override already migrated files with old ones"))
 
     items = os.listdir(clients_path)
     for item in items:
@@ -61,7 +69,7 @@ def migrate_clients(context: Context, destructive: bool, **kwargs: Any):
                 destructive=destructive,
                 keymap=keymap
             )
-            echo(f"\tMigrating {item.ljust(40)}\tStatus: {status}")
+            echo(client_migration_status_message(item, status))
 
     _recreate_keymap(
         id_path=id_path,
@@ -111,32 +119,31 @@ def _generate_new_file_path(
 def _validate_file_structure(
     data: dict,
     old: bool = True
-) -> bool:
-    # Data must be dict
-    if not isinstance(data, dict):
-        return False
+) -> (bool, str):
+    if not isinstance(data, dict) or data == {}:
+        return False, CLIENT_STATUS_FAILED_INVALID
 
     # All versions must contain 'client_id' field
     if 'client_id' not in data:
-        return False
+        return False, CLIENT_STATUS_FAILED_MISSING_ID
     else:
         # If it's not old, then 'client_id' must be uuid
         if not old and is_str_uuid(data["client_id"]):
-            return False
+            return False, CLIENT_STATUS_FAILED_ID_NOT_UUID
 
     # All versions must contain 'client_secret_hash'
     if 'client_secret_hash' not in data:
-        return False
+        return False, CLIENT_STATUS_FAILED_MISSING_SECRET
 
     # All versions must contain 'scopes
     if 'scopes' not in data:
-        return False
+        return False, CLIENT_STATUS_FAILED_MISSING_SCOPES
 
     # Only new version must contain 'client_name'
     if not old and 'client_name' not in data:
-        return False
+        return False, CLIENT_STATUS_FAILED_MISSING_NAME
 
-    return True
+    return True, ""
 
 
 def _migrate_client_file(
@@ -150,35 +157,38 @@ def _migrate_client_file(
     except FileNotFoundError:
         raise (InvalidClientError(description='Could not open client file'))
 
-    if not _validate_file_structure(old_data):
-        return "FAILED (INVALID STRUCTURE)"
+    validated = _validate_file_structure(old_data)
+    if not validated[0]:
+        return validated[1]
+
+    client_name = old_data.get("client_name", old_data["client_id"])
+    client_id = old_data['client_id']
 
     # Check if new valid client file exists, if so, skip it
-    if old_data['client_id'] in keymap:
-        keymap_value = keymap[old_data['client_id']]
+    if client_name in keymap:
+        keymap_value = keymap[client_name]
         new_file_path = _generate_new_file_path(
             id_path,
             keymap_value
         )
+        client_id = keymap_value
         if new_file_path.exists() and not destructive:
-            return "SKIPPED (ALREADY MIGRATED)"
+            return CLIENT_STATUS_SKIPPED_MIGRATED
 
-    old_data["client_name"] = old_data["client_id"]
-    if not is_str_uuid(old_data["client_id"]):
-        old_data["client_id"] = str(uuid.uuid4())
-    new_client_file = old_data["client_id"]
+    if not is_str_uuid(client_id):
+        client_id = str(uuid.uuid4())
 
-    new_path = _generate_new_file_path(id_path, new_client_file)
-    os.makedirs(_generate_new_file_path(id_path, new_client_file, False), exist_ok=True)
+    new_path = _generate_new_file_path(id_path, client_id)
+    os.makedirs(_generate_new_file_path(id_path, client_id, False), exist_ok=True)
 
     data = {
-        "client_id": old_data["client_id"],
-        "client_name": old_data["client_name"],
+        "client_id": client_id,
+        "client_name": client_name,
         "client_secret_hash": old_data["client_secret_hash"],
         "scopes": old_data["scopes"]
     }
     yml.dump(data, new_path)
-    return "SUCCESS"
+    return CLIENT_STATUS_SUCCESS
 
 
 def cli_requires_clients_migration(context: Context, **kwargs: Any) -> bool:
@@ -220,3 +230,7 @@ def requires_client_migration(clients_path: pathlib.Path) -> bool:
             return True
 
     return False
+
+
+def client_migration_status_message(file_name: str, status: str) -> str:
+    return f"\tMigrating {file_name.ljust(40)}\tStatus: {status}"
