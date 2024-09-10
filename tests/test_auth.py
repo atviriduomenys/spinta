@@ -11,7 +11,7 @@ from authlib.jose import jwk
 from authlib.jose import jwt
 
 from spinta import auth, commands
-from spinta.auth import get_client_file_path, query_client, get_clients_path
+from spinta.auth import get_client_file_path, query_client, get_clients_path, ensure_client_folders_exist
 from spinta.components import Action, Context
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.utils import get_error_codes
@@ -247,10 +247,11 @@ def basic_auth(backends, rc, tmp_path, request):
     confdir = pathlib.Path(__file__).parent / 'config'
     shutil.copytree(str(confdir / 'keys'), str(tmp_path / 'keys'))
 
-    get_clients_path(tmp_path).mkdir()
+    path = get_clients_path(tmp_path)
+    ensure_client_folders_exist(path)
     new_id = uuid.uuid4()
     auth.create_client_file(
-        get_clients_path(tmp_path),
+        path,
         name='default',
         client_id=str(new_id),
         secret='secret',

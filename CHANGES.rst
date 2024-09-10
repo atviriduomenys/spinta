@@ -6,9 +6,36 @@ Changes
 0.1.71 (unreleased)
 ===================
 
+Backwards incompatible:
+
+- Spinta no longer automatically migrates `clients` structure (`#122`_). Now you have to manually use
+  `spinta upgrade` command to migrate files. Meaning if there are issues with `clients` file structure you will going to
+  get errors, suggesting to fix the problem, or run `spinta upgrade` command (`#764`_).
+
 Improvements:
 
 - Changed `postgresql` github actions and docker compose version to `16-3.4` (`P#129`).
+
+New features:
+
+- Added `spinta upgrade` command, that will migrate backwards incompatible changes between versions (`#764`_).
+
+  - Use `spinta upgrade` to run all scripts.
+  - `spinta upgrade -m <script_name>` to run specific script.
+  - `spinta upgrade -f` to skip all checks and forcefully run scripts.
+  - `spinta upgrade -d` to run destructive mode, which, depending on script, will override existing changes.
+    Only use destructive mode, if you know what will be changed, and you have made backups.
+
+- Added `clients` migrate script to `spinta upgrade` command (`#764`_).
+  Main goal is to migrate client files from old structure to newly introduced one in `#122`_ task.
+
+  - You can specify it with `spinta upgrade -r clients` command.
+  - Use `spinta upgrade -r clients -f` if you want to make sure that all files are migrated correctly. It will skip
+    already migrated files and update `keymap.yml`.
+  - `spinta upgrade -r clients -f -d` will override any new files that match old ones. This is destructive and there are
+    no rollbacks for it, so only use it if you have backups and understand what will be changed.
+
+  .. _#764: https://github.com/atviriduomenys/spinta/issues/764
 
 
 0.1.70 (2024-08-27)
