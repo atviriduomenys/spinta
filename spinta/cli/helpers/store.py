@@ -4,13 +4,15 @@ from pathlib import Path
 import click
 
 from spinta import commands
-from spinta.auth import auth_server_keys_exists, client_name_exists, get_clients_path
+from spinta.auth import auth_server_keys_exists, client_name_exists, get_clients_path, ensure_client_folders_exist
 from spinta.auth import create_client_file
 from spinta.auth import gen_auth_server_keys
+from spinta.cli.helpers.upgrade.clients import requires_client_migration
 from spinta.components import Config
 from spinta.components import Context
 from spinta.components import Store
 from spinta.core.config import DEFAULT_CONFIG_PATH
+from spinta.exceptions import ClientsMigrationRequired
 
 
 def _ensure_config_dir(
@@ -26,9 +28,14 @@ def _ensure_config_dir(
     if not path.exists() and path != DEFAULT_CONFIG_PATH:
         raise Exception(f"Config dir {path} does not exist!")
 
-    # Ensure clients directory.
+
     clients_path = get_clients_path(config)
-    clients_path.mkdir(parents=True, exist_ok=True)
+    # Check if client migrations are needed
+    if requires_client_migration(clients_path):
+        raise ClientsMigrationRequired()
+
+    # Ensure all files/folders exist for clients operations
+    ensure_client_folders_exist(clients_path)
 
     # Ensure auth server keys.
     if not auth_server_keys_exists(path):
@@ -37,7 +44,7 @@ def _ensure_config_dir(
         gen_auth_server_keys(path)
 
     # Ensure default client.
-    if not client_name_exists(clients_path, default_auth_client):
+    if default_auth_client and not client_name_exists(clients_path, default_auth_client):
         if verbose:
             click.echo(f"Initializing default auth client: {path}")
         create_client_file(
