@@ -30,6 +30,7 @@ CLIENT_STATUS_FAILED_MISSING_SECRET = "FAILED (MISSING `client_secret_hash` FIEL
 CLIENT_STATUS_FAILED_MISSING_SCOPES = "FAILED (MISSING `scopes` FIELD)"
 CLIENT_STATUS_FAILED_MISSING_NAME = "FAILED (MISSING `client_name` FIELD)"
 
+
 def migrate_clients(context: Context, destructive: bool, **kwargs: Any):
     config: Config = context.get('config')
     config_path = config.config_path or DEFAULT_CONFIG_PATH
