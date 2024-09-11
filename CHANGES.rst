@@ -16,6 +16,10 @@ Improvements:
 
 - Changed `postgresql` github actions and docker compose version to `16-3.4` (`P#129`).
 
+- Changed report bug link to `atviriduomenys@vssa.lt` email (`#758`_).
+
+  .. _#758: https://github.com/atviriduomenys/spinta/issues/758
+
 New features:
 
 - Added `spinta upgrade` command, that will migrate backwards incompatible changes between versions (`#764`_).
