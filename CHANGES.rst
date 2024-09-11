@@ -37,6 +37,10 @@ New features:
 
   .. _#764: https://github.com/atviriduomenys/spinta/issues/764
 
+Bug fixes:
+
+- Added missing cluster limit to `:summary` for `Geometry` type properties. Now it's set to 25 clusters (`P#130`).
+
 
 0.1.70 (2024-08-27)
 ===================

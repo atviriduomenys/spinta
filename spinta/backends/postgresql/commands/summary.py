@@ -366,7 +366,8 @@ def summary(
         key = "_id"
         if dtype.prop.level and dtype.prop.level < 4:
             if len(dtype.refprops) > 1:
-                raise NotImplementedFeature(dtype.prop, feature="Ability to get summary for Ref type Property, when level is 3 and below and there are multiple refprops")
+                raise NotImplementedFeature(dtype.prop,
+                                            feature="Ability to get summary for Ref type Property, when level is 3 and below and there are multiple refprops")
             key = dtype.refprops[0].name
         model = get_table_name(dtype.prop)
         uri = dtype.model.uri
@@ -447,12 +448,28 @@ def summary(
                 'srid': dtype.srid
             }
 
-        count_exec = connection.execute(sa.text(f'SELECT COUNT(DISTINCT "{prop}") FROM "{model}" {bounding_box}'), params)
+        maximum_cluster_amount = 25
+        # This is more optimized, since it will only return up to set limit of rows instead of trying to calculate all
+        # Limit is the amount of clusters to create
+        count_exec = connection.execute(
+            sa.text(
+                f'''
+                SELECT COUNT(*) FROM (
+                    SELECT DISTINCT "{prop}"
+                    FROM "{model}"
+                    {bounding_box}
+                    LIMIT {maximum_cluster_amount}
+                );
+                '''),
+            params
+        )
         count = 0
         for item in count_exec:
             count = item[0]
         params['count'] = count
-        result = connection.execute(sa.text(f'''
+
+        result = connection.execute(
+            sa.text(f'''
                 WITH clusters AS (
                     SELECT 
                     ST_ClusterKMeans(
@@ -472,7 +489,9 @@ def summary(
                 FROM clusters
                 GROUP BY cluster_id
                 ORDER BY MIN(clusters.created_at);
-                '''), params)
+                '''),
+            params
+        )
         for item in result:
             data = flat_dicts_to_nested(dict(item))
             if data["cluster"]:
