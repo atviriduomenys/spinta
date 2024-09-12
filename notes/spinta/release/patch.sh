@@ -15,9 +15,9 @@ git checkout $RELEASE_VERSION
 git pull
 git tag -l -n1 | sort -h | tail -n5
 
-export CURRENT_PATCH=69
-export NEW_PATCH=70
-export FUTURE_PATCH=71
+export CURRENT_PATCH=70
+export NEW_PATCH=71
+export FUTURE_PATCH=72
 
 export CURRENT_VERSION=$RELEASE_VERSION.$CURRENT_PATCH
 export NEW_VERSION=$RELEASE_VERSION.$NEW_PATCH
@@ -30,16 +30,25 @@ git status
 
 
 # notes/spinta/release/common.sh    Check outdated packages and upgrade them
-# Package operations: 0 installs, 8 updates, 0 removals
-#
-#   • Updating idna (3.7 -> 3.8)
-#   • Updating zipp (3.20.0 -> 3.20.1)
-#   • Updating mypy (1.11.1 -> 1.11.2)
-#   • Updating pyparsing (3.1.2 -> 3.1.4)
-#   • Updating rich (13.7.1 -> 13.8.0)
-#   • Updating httpx (0.27.0 -> 0.27.1)
-#   • Updating phonenumbers (8.13.43 -> 8.13.44)
-#   • Updating typer (0.12.4 -> 0.12.5)
+#| Package operations: 0 installs, 17 updates, 0 removals
+#|
+#|   • Updating certifi (2024.7.4 -> 2024.8.30)
+#|   • Updating executing (2.0.1 -> 2.1.0)
+#|   • Updating cffi (1.17.0 -> 1.17.1)
+#|   • Updating greenlet (3.0.3 -> 3.1.0)
+#|   • Updating multidict (6.0.5 -> 6.1.0)
+#|   • Updating pytz (2024.1 -> 2024.2)
+#|   • Updating cryptography (43.0.0 -> 43.0.1)
+#|   • Updating fsspec (2024.6.1 -> 2024.9.0)
+#|   • Updating importlib-metadata (8.4.0 -> 8.5.0)
+#|   • Updating rich (13.8.0 -> 13.8.1)
+#|   • Updating setuptools (73.0.1 -> 74.1.2)
+#|   • Updating sqlalchemy (1.4.53 -> 1.4.54)
+#|   • Updating yarl (1.9.4 -> 1.11.1)
+#|   • Updating httpx (0.27.1 -> 0.27.2)
+#|   • Updating msgpack (1.0.8 -> 1.1.0)
+#|   • Updating phonenumbers (8.13.44 -> 8.13.45)
+#|   • Updating starlette (0.38.2 -> 0.38.5)
 
 # Run Makefile
 cd docs
@@ -56,7 +65,7 @@ head CHANGES.rst
 # notes/spinta/release/common.sh    Reset test database
 
 poetry run pytest -vvx --tb=short tests
-#| 2045 passed, 42 skipped, 397 warnings in 315.41s (0:05:15)
+#| 2067 passed, 42 skipped, 397 warnings in 311.51s (0:05:11)
 
 # If possible run same tests using test and prod env library versions
 # Test env
@@ -81,7 +90,7 @@ BASEDIR=$PWD/var/instances/$INSTANCE
 
 # notes/spinta/release/common.sh    Run server in EXTERNAL mode
 # notes/spinta/release/common.sh    Run migrations
-#| (2862 rows)
+#| (2912 rows)
 
 # notes/spinta/release/common.sh    Run server in INTERNAL mode
 # Don't forget to add client to server and credentials;
