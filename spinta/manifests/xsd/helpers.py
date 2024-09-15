@@ -81,6 +81,20 @@ DATATYPES_MAPPING = {
 
 
 class XSDModel:
+    deduplicate: Deduplicator
+    xsd: 'XSDReader'
+    dataset_name: str
+    node: _Element
+    type: str = "model"
+    name: str | None = None
+    basename: str | None = None
+    external: dict | None = None
+    properties: dict | None = None
+    uri: str | None = None
+    description: str | None = None
+    root_properties: dict | None = None
+    parent_model: XSDModel | None = None
+    is_root_model: bool | None = None
     """
     Class for creating and handling DSA models from XSD files.
 
@@ -97,20 +111,16 @@ class XSDModel:
 
     def __init__(self, xsd: 'XSDReader', node: _Element = None):
         self.deduplicate = Deduplicator()
-
         self.xsd: 'XSDReader' = xsd
         self.dataset_name: str = xsd.dataset_name
         self.node: _Element = node
-        self.type: str = "model"
-        self.name: str | None = None
-        self.basename: str | None = None
-        self.external: dict | None = None
-        self.properties: dict | None = None
-        self.uri: str | None = None
-        self.description: str | None = None
-        self.root_properties: dict | None = None
-        self.parent_model: XSDModel | None = None
-        self.is_root_model: bool | None = None
+
+    def __eq__(self, other: XSDModel) -> bool:
+        if self.external["name"] != other.external["name"]:
+            return False
+        if self.properties != other.properties:
+            return False
+        return True
 
     def get_data(self):
         model_data: dict = {
@@ -855,9 +865,30 @@ class XSDReader:
                     referenced_model = self.models[prop["model"]]
                     referenced_model.add_ref_property(model)
 
-    def _sort_properties_alpabetically(self):
+    def _sort_properties_alphabetically(self):
         for model in self.models.values():
             model.properties = dict(sorted(model.properties.items()))
+
+    def _remove_duplicate_models(self):
+        """removes models that are exactly the same"""
+
+        model_pairs = {}
+
+        for model_name, model in self.models.items():
+            for another_model_name, another_model in self.models.items():
+                if model is not another_model and model == another_model:
+                    if another_model_name not in model_pairs.values() and another_model_name not in model_pairs:
+                        model_pairs[another_model_name] = model_name
+
+        for another_model_name, model_name in model_pairs.items():
+            parent_model = self.models[another_model_name].parent_model
+            if parent_model:
+                for property_id, prop in parent_model.properties.items():
+                    if "model" in prop and prop["model"] == another_model_name:
+                        prop["model"] = model_name
+                        if not self.models[model_name].parent_model:
+                            self.models[model_name].parent_model = self.models[model_name].parent_model
+                        self.models.pop(another_model_name)
 
     def start(self):
         self._extract_root()
@@ -868,13 +899,19 @@ class XSDReader:
 
         self._parse_root_node()
 
+        # models transformations
+
         self._remove_unneeded_models()
+
+        self.models = dict(sorted(self.models.items()))
+
+        self._remove_duplicate_models()
 
         self._compile_nested_properties()
 
         self._add_refs_for_backrefs()
 
-        self._sort_properties_alpabetically()
+        self._sort_properties_alphabetically()
 
     def remove_extra_root_models(self, model: XSDModel) -> XSDModel:
         """
