@@ -81,6 +81,20 @@ DATATYPES_MAPPING = {
 
 
 class XSDModel:
+    deduplicate: Deduplicator
+    xsd: 'XSDReader'
+    dataset_name: str
+    node: _Element
+    type: str = "model"
+    name: str | None = None
+    basename: str | None = None
+    external: dict | None = None
+    properties: dict | None = None
+    uri: str | None = None
+    description: str | None = None
+    root_properties: dict | None = None
+    parent_model: XSDModel | None = None
+    is_root_model: bool | None = None
     """
     Class for creating and handling DSA models from XSD files.
 
@@ -97,20 +111,9 @@ class XSDModel:
 
     def __init__(self, xsd: 'XSDReader', node: _Element = None):
         self.deduplicate = Deduplicator()
-
         self.xsd: 'XSDReader' = xsd
         self.dataset_name: str = xsd.dataset_name
         self.node: _Element = node
-        self.type: str = "model"
-        self.name: str | None = None
-        self.basename: str | None = None
-        self.external: dict | None = None
-        self.properties: dict | None = None
-        self.uri: str | None = None
-        self.description: str | None = None
-        self.root_properties: dict | None = None
-        self.parent_model: XSDModel | None = None
-        self.is_root_model: bool | None = None
 
     def __eq__(self, other: XSDModel) -> bool:
         if self.external["name"] != other.external["name"]:
@@ -874,7 +877,7 @@ class XSDReader:
         for model_name, model in self.models.items():
             for another_model_name, another_model in self.models.items():
                 if model is not another_model and model == another_model:
-                    if another_model_name not in model_pairs.values():
+                    if another_model_name not in model_pairs.values() and another_model_name not in model_pairs:
                         model_pairs[another_model_name] = model_name
 
         for another_model_name, model_name in model_pairs.items():
