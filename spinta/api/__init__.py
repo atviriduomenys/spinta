@@ -365,7 +365,7 @@ def init(context: Context):
         Route('/favicon.ico', favicon, methods=['GET']),
         Route('/version', version, methods=['GET']),
         Route('/auth/token', auth_token, methods=['POST']),
-        Route('/_srid/{srid:int}/{x:float}/{y:float}', srid_check, methods=['GET']),
+        Route('/_srid/{srid:int}/{x:spinta_float}/{y:spinta_float}', srid_check, methods=['GET']),
         Route('/auth/clients', auth_clients_get_all, methods=['GET']),
         Route('/auth/clients', auth_clients_add, methods=['POST']),
         Route('/auth/clients/{client}', auth_clients_get_specific, methods=['GET']),
