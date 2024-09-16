@@ -429,6 +429,33 @@ def test_srid_service(
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
+def test_srid_service_negative_values(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+):
+    context = load_manifest_get_context(rc, '''
+    d | r | b | m | property | type | ref
+    ''', manifest_type=manifest_type, tmp_path=tmp_path)
+
+    app = create_test_client(context)
+
+    resp = app.get(f'/_srid/2770/-68600.50/-16700.10', follow_redirects=False)
+    assert resp.status_code == 307
+
+    purl = urllib.parse.urlparse(resp.headers['location'])
+    query = urllib.parse.parse_qs(purl.query)
+    x, y = query['mlat'][0], query['mlon'][0]
+    assert x[:8] == '26.92553'
+    assert y[:8] == '-138.789'
+
+    _, x, y = purl.fragment.split('/')
+    assert x[:8] == '26.92553'
+    assert y[:8] == '-138.789'
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_geometry_delete(
     manifest_type: str,
     tmp_path: Path,

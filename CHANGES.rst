@@ -6,6 +6,16 @@ Changes
 0.1.72 (unreleased)
 ===================
 
+Improvements:
+
+- Added support for negative float values in `starlette` float routing (use `spinta_float` instead of `float` type) (`#781`_).
+
+  .. _#781: https://github.com/atviriduomenys/spinta/issues/781
+
+Bug fixes:
+
+- Fixed `_srid` routing error, when using negative float values as coordinates (`#781`_).
+
 
 0.1.71 (2024-09-12)
 ===================
