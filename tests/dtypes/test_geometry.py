@@ -25,6 +25,7 @@ from spinta.testing.manifest import load_manifest
 from spinta.testing.manifest import load_manifest_get_context
 from spinta.testing.types.geometry import round_point, round_url
 from spinta.types.geometry.constants import WGS84, LKS94
+from spinta.types.geometry.helpers import is_crs_always_xy, get_crs_bounding_area
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
@@ -618,7 +619,98 @@ def test_geometry_write_out_of_bounds(
 
     resp = app.post(f'/{model}', json={
         "number": 0,
+        "point": "Point(400000 6000000)"
+    })
+    assert resp.status_code == 400
+    assert resp.json()['errors'][0]['code'] == 'CoordinatesOutOfRange'
+
+    resp = app.post(f'/{model}', json={
+        "number": 0,
         "point_1": "Point(-181 0)"
     })
     assert resp.status_code == 400
     assert resp.json()['errors'][0]['code'] == 'CoordinatesOutOfRange'
+
+
+@pytest.mark.parametrize('srid, result', [
+    # WGS84 (3857) east, north
+    (3857, True),
+    # OSGB36 (27700), east, north
+    (27700, True),
+    # RGF93 (2154), east, north
+    (2154, True),
+    # ETRS89 (3067), east, north
+    (3067, True),
+    # CH1903+ / LV95 (2056), east, north
+    (2056, True),
+    # PSAD56 (24893), east, north
+    (24893, True),
+    # BD72 (31370), east, north
+    (31370, True),
+    # MGI (31283), north, east
+    (31283, False),
+    # WGS84 (4326) north, east
+    (4326, False),
+    # LKS94 (3346), north, east
+    (3346, False),
+    # Pulkovo 1942 (3120), north, east
+    (3120, False),
+    # LKS-92 (3059), north, east
+    (3059, False),
+    # Estonian Coordinate System of 1992 (3300), north, east
+    (3300, False),
+    # China Geodetic Coordinate System 2000 (4480), north, east
+    (4480, False),
+])
+def test_geometry_always_xy_function(
+    srid: int,
+    result: bool
+):
+    assert is_crs_always_xy(srid) == result
+
+
+@pytest.mark.parametrize('srid, bbox', [
+    # WGS84 (3857) east, north
+    (3857, shapely.geometry.box(
+        minx=-20037508.34,
+        maxx=20037508.34,
+        miny=-20048966.1,
+        maxy=20048966.1
+    )),
+    # RGF93 (2154), east, north
+    (2154, shapely.geometry.box(
+        minx=-378305.81,
+        maxx=1320649.57,
+        miny=6005281.2,
+        maxy=7235612.72
+    )),
+    # WGS84 (4326) north, east
+    (4326, shapely.geometry.box(
+        minx=-90.0,
+        maxx=90.0,
+        miny=-180,
+        maxy=180
+    )),
+    # LKS94 (3346), north, east
+    (3346, shapely.geometry.box(
+        minx=5972477.98,
+        maxx=6268543.17,
+        miny=172763.81,
+        maxy=685350.95
+    )),
+    # China Geodetic Coordinate System 2000 (4480), north, east
+    (4480, shapely.geometry.box(
+        minx=16.7,
+        maxx=53.56,
+        miny=73.62,
+        maxy=134.77
+    )),
+])
+def test_geometry_crs_bounding_area(
+    srid: int,
+    bbox: shapely.geometry.Polygon
+):
+    assert get_crs_bounding_area(srid).equals_exact(
+        bbox,
+        tolerance=0.1
+    )
