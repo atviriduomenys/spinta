@@ -57,6 +57,7 @@ from spinta.types.datatype import Ref
 from spinta.types.datatype import String
 from spinta.types.datatype import Time
 from spinta.types.geometry.components import Geometry
+from spinta.types.geometry.helpers import get_crs_bounding_area
 from spinta.types.text.components import Text
 from spinta.utils.config import asbool
 from spinta.utils.encoding import encode_page_values
@@ -416,17 +417,10 @@ def simple_data_check(
         if srid is None:
             raise SRIDNotSetForGeometry(dtype)
 
-        crs = CRS.from_user_input(srid)
-        transformer = Transformer.from_crs(crs.geodetic_crs, crs, always_xy=True)
-        west, south, east, north = transformer.transform_bounds(*crs.area_of_use.bounds)
-        bounding_area = shapely.geometry.box(
-            minx=west,
-            maxx=east,
-            miny=south,
-            maxy=north
-        )
+        bounding_area = get_crs_bounding_area(srid)
+
         if not bounding_area.contains(shape):
-            raise CoordinatesOutOfRange(dtype, given=value, srid=crs, bounds=(west, south, east, north))
+            raise CoordinatesOutOfRange(dtype, given=value, srid=srid, bounds=bounding_area.bounds)
 
 
 @commands.complex_data_check.register(Context, DataItem, Model, Backend)
