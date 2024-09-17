@@ -1348,6 +1348,16 @@ class EnumReader(TabularReader):
         if row[LEVEL]:
             self.error(f"Enum's do not have a level, but level {row[LEVEL]!r} is given.")
 
+        self.data = {
+            'id': row[ID],
+            'name': self.name,
+            'source': row[SOURCE],
+            'prepare': _parse_spyna(self, row[PREPARE]),
+            'access': row[ACCESS],
+            'title': row[TITLE],
+            'description': row[DESCRIPTION],
+        }
+
         node_data: PropertyRow = self._get_node_data(row)
 
         if 'enums' not in node_data:
