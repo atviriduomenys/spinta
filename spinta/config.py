@@ -148,7 +148,7 @@ CONFIG = {
     'manifests': {
         'default': {
             'type': 'memory',
-            'backend': '',
+            'backend': 'default',
             'mode': 'internal',
             'keymap': '',
         },
