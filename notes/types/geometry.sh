@@ -49,88 +49,88 @@ psql -h localhost -p 54321 -U admin spinta -c '\d "'$DATASET'/Lake3D"'
 
 # notes/spinta/client.sh    Configure client
 
-http POST "$SERVER/$DATASET/Lake" $AUTH \
+http POST "$SERVER/$DATASET/Lake" "$AUTH" \
     name="Victoria" \
-    place="POINT (432224 6237902)" \
+    place="POINT (6237902 432224)" \
     shape="POLYGON ((
-        432588.50000000 6237680.75000000,
-        432585.62500000 6237684.50000000,
-        432587.00000000 6237682.50000000,
-        432588.50000000 6237680.75000000
+        6237680.75000000 432588.50000000,
+        6237684.50000000 432585.62500000,
+        6237682.50000000 432587.00000000,
+        6237680.75000000 432588.50000000
     ))"
 #| Geometry SRID (0) does not match column SRID (3346)
 
 
-http POST "$SERVER/$DATASET/Lake" $AUTH \
+http POST "$SERVER/$DATASET/Lake" "$AUTH" \
     name="Victoria" \
-    place="SRID=3346; POINT (432224 6237902)" \
+    place="SRID=3346; POINT (6237902 432224)" \
     shape="SRID=3346; POLYGON ((
-        432588.50000000 6237680.75000000,
-        432585.62500000 6237684.50000000,
-        432587.00000000 6237682.50000000,
-        432588.50000000 6237680.75000000
+        6237680.75000000 432588.50000000,
+        6237684.50000000 432585.62500000,
+        6237682.50000000 432587.00000000,
+        6237680.75000000 432588.50000000
     ))"
 #| HTTP/1.1 201 Created
 
 
-http POST "$SERVER/$DATASET/Lake" $AUTH \
+http POST "$SERVER/$DATASET/Lake" "$AUTH" \
     name="Victoria" \
-    place="SRID=3346; POINT (432224 6237902)" \
+    place="SRID=3346; POINT (6237902 432224)" \
     shape="SRID=3346; ((
-        432588.50000000 6237680.75000000,
-        432585.62500000 6237684.50000000,
-        432587.00000000 6237682.50000000,
-        432588.50000000 6237680.75000000
+        6237680.75000000 432588.50000000,
+        6237684.50000000 432585.62500000,
+        6237682.50000000 432587.00000000,
+        6237680.75000000 432588.50000000
     ))"
 #| parse error - invalid geometry
 
 
-http POST "$SERVER/$DATASET/Lake" $AUTH \
+http POST "$SERVER/$DATASET/Lake" "$AUTH" \
     name="Victoria" \
-    place="SRID=3346; POINT (432224 6237902 42)"
+    place="SRID=3346; POINT (6237902 432224 42)"
 #| Geometry has Z dimension but column does not
 
 
-http POST "$SERVER/$DATASET/Lake" $AUTH \
+http POST "$SERVER/$DATASET/Lake" "$AUTH" \
     name="Victoria" \
     shape="SRID=3346; POLYGON ((
-        432588.50000000 6237680.75000000 42,
-        432585.62500000 6237684.50000000 42,
-        432587.00000000 6237682.50000000 42,
-        432588.50000000 6237680.75000000 42
+        6237680.75000000 432588.50000000 42,
+        6237684.50000000 432585.62500000 42,
+        6237682.50000000 432587.00000000 42,
+        6237680.75000000 432588.50000000 42
     ))"
 #| Geometry has Z dimension but column does not
 
-http POST "$SERVER/$DATASET/Lake3D" $AUTH \
+http POST "$SERVER/$DATASET/Lake3D" "$AUTH" \
     name="Victoria" \
-    place="SRID=3346; POINT (432224 6237902 42)"
+    place="SRID=3346; POINT (6237902 432224 42)"
 #| HTTP/1.1 201 Created
 
 
-http POST "$SERVER/$DATASET/Lake3D" $AUTH \
+http POST "$SERVER/$DATASET/Lake3D" "$AUTH" \
     name="Victoria" \
-    place="SRID=3346; POINT (432224 6237902)"
+    place="SRID=3346; POINT (6237902 432224)"
 #| Column has Z dimension but geometry does not
 
 
-http POST "$SERVER/$DATASET/Lake3D" $AUTH \
+http POST "$SERVER/$DATASET/Lake3D" "$AUTH" \
     name="Victoria" \
     shape="SRID=3346; POLYGON ((
-        432588.50000000 6237680.75000000 42,
-        432585.62500000 6237684.50000000 42,
-        432587.00000000 6237682.50000000 42,
-        432588.50000000 6237680.75000000 42
+        6237680.75000000 432588.50000000 42,
+        6237684.50000000 432585.62500000 42,
+        6237682.50000000 432587.00000000 42,
+        6237680.75000000 432588.50000000 42
     ))"
 #| HTTP/1.1 201 Created
 
 
-http POST "$SERVER/$DATASET/Lake3D" $AUTH \
+http POST "$SERVER/$DATASET/Lake3D" "$AUTH" \
     name="Victoria" \
     shape="SRID=3346; POLYGON ((
-        432588.50000000 6237680.75000000,
-        432585.62500000 6237684.50000000,
-        432587.00000000 6237682.50000000,
-        432588.50000000 6237680.75000000
+        6237680.75000000 432588.50000000,
+        6237684.50000000 432585.62500000,
+        6237682.50000000 432587.00000000,
+        6237680.75000000 432588.50000000
     ))"
 #| Column has Z dimension but geometry does not
 
@@ -139,26 +139,26 @@ http POST "$SERVER/$DATASET/Lake3D" $AUTH \
 http GET "$SERVER/$DATASET/Lake?select(name,place)&format(ascii)"
 #| --------  ----------------------
 #| name      place
-#| Victoria  POINT (432224 6237902)
+#| Victoria  POINT (6237902 432224)
 #| --------  ----------------------
 
 
 http GET "$SERVER/$DATASET/Lake?select(name,shape)&format(ascii)"
 #| --------  --------------------------------------------------------------------------------------------
 #| name      shape
-#| Victoria  POLYGON ((432588.5 6237680.75, 432585.625 6237684.5, 432587 6237682.5, 432588.5 6237680.75))
+#| Victoria  POLYGON ((6237680.75 432588.5, 6237684.5 432585.625, 6237682.5 432587, 6237680.75 432588.5))
 #| --------  --------------------------------------------------------------------------------------------
 
 
 http GET "$SERVER/$DATASET/Lake3D?select(name,place)&format(ascii)"
 #| --------  ---------------------------
 #| name      place
-#| Victoria  POINT Z (432224 6237902 42)
+#| Victoria  POINT Z (6237902 432224 42)
 #| --------  ---------------------------
 
 
 http GET "$SERVER/$DATASET/Lake3D?select(name,shape)&shape!=null&format(ascii)"
 #| --------  ----------------------------------------------------------------------------------------------------------
 #| name      shape
-#| Victoria  POLYGON Z ((432588.5 6237680.75 42, 432585.625 6237684.5 42, 432587 6237682.5 42, 432588.5 6237680.75 42))
+#| Victoria  POLYGON Z ((6237680.75 432588.5 42, 6237684.5 432585.625 42, 6237682.5 432587 42, 6237680.75 432588.5 42))
 #| --------  ----------------------------------------------------------------------------------------------------------

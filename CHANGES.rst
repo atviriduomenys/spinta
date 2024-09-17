@@ -16,6 +16,10 @@ Bug fixes:
 
 - Fixed `_srid` routing error, when using negative float values as coordinates (`#781`_).
 
+- Fixed `Geometry` boundary check not respecting `SRID` latitude and longitude order (used to always assume, that x = longitude,
+  y = latitude, now it will try to switch based on `SRID`) (`#737`_).
+
+  .. _#737: https://github.com/atviriduomenys/spinta/issues/737
 
 0.1.71 (2024-09-12)
 ===================
