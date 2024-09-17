@@ -31,7 +31,7 @@ def get_osm_link(value: WKBElement, srid: Optional[Union[int, Geometry]]) -> Opt
         shape = transform(transformer.transform, shape)
     centroid = shape.centroid
 
-    # According to WGS84 (4326) `axis_info
+    # According to WGS84 (4326) `axis_info`
     # Axis order is:
     # x: Axis(name=Geodetic latitude, abbrev=Lat, direction=north, unit_auth_code=EPSG, unit_code=9122, unit_name=degree)
     # y: Axis(name=Geodetic longitude, abbrev=Lon, direction=east, unit_auth_code=EPSG, unit_code=9122, unit_name=degree)

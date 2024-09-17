@@ -632,6 +632,50 @@ def test_geometry_write_out_of_bounds(
     assert resp.json()['errors'][0]['code'] == 'CoordinatesOutOfRange'
 
 
+def test_geometry_write_within_bounds(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, f'''
+        d | r | b | m | property                | type           | access
+        backends/postgres/dtypes/geometry/within |                | 
+          |   |   | Point                       |                | 
+          |   |   |   | point                   | geometry(3346) | open
+          |   |   |   | point_1                 | geometry       | open
+          |   |   |   | point_2                 | geometry(3857) | open
+          |   |   |   | number                  | integer        | open
+    ''', backend=postgresql, request=request)
+
+    ns: str = 'backends/postgres/dtypes/geometry/within'
+    model: str = f'{ns}/Point'
+
+    app = create_test_client(context)
+    app.authmodel(model, [
+        'insert',
+        'update',
+        'patch'
+    ])
+
+    resp = app.post(f'/{model}', json={
+        "number": 0,
+        "point": "Point(6000000 400000)"
+    })
+    assert resp.status_code == 201
+
+    resp = app.post(f'/{model}', json={
+        "number": 0,
+        "point_1": "Point(0 60)"
+    })
+    assert resp.status_code == 201
+
+    resp = app.post(f'/{model}', json={
+        "number": 0,
+        "point_2": "Point(-20000000 20000000)"
+    })
+    assert resp.status_code == 201
+
+
 @pytest.mark.parametrize('srid, result', [
     # WGS84 (3857) east, north
     (3857, True),
