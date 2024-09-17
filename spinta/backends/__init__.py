@@ -1848,6 +1848,11 @@ def reload_backend_metadata(context, manifest, backend):
     pass
 
 
+@commands.reload_backend_metadata.register(Context, Manifest, type(None))
+def reload_backend_metadata(context, manifest, backend):
+    pass
+
+
 def _check_if_nan(value: Any) -> bool:
     # Check for nan values, IEEE 754 defines that comparing with nan always returns false
     if value != value:

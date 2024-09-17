@@ -12,6 +12,11 @@ Improvements:
 
   .. _#781: https://github.com/atviriduomenys/spinta/issues/781
 
+- Changed `manifests.default.backend` config value from `''` to `'default'`. Now if nothing is set, default backend will be
+  `MemoryBackend` instead of nothing (`#798`_).
+
+  .. _#798: https://github.com/atviriduomenys/spinta/issues/798
+
 Bug fixes:
 
 - Fixed `_srid` routing error, when using negative float values as coordinates (`#781`_).
@@ -20,6 +25,8 @@ Bug fixes:
   y = latitude, now it will try to switch based on `SRID`) (`#737`_).
 
   .. _#737: https://github.com/atviriduomenys/spinta/issues/737
+
+- Fixed some errors when trying to access api endpoints, while server is running with default config settings (`#798`_).
 
 0.1.71 (2024-09-12)
 ===================
