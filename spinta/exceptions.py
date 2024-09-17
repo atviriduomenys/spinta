@@ -319,7 +319,7 @@ class InvalidManifestFile(BaseError):
 
 
 class CoordinatesOutOfRange(UserError):
-    template = 'Given coordinates: {given!r} ar not within the {srid!r} available bounds: {bounds} (west, south, east, north).'
+    template = 'Given coordinates: {given!r} ar not within the `EPSG: {srid!r}` available bounds: {bounds} (west, south, east, north).'
 
 
 class ManifestFileDoesNotExist(BaseError):
