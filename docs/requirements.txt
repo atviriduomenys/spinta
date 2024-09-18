@@ -28,7 +28,7 @@ exceptiongroup==1.2.2
     # via anyio
 h11==0.14.0
     # via uvicorn
-idna==3.8
+idna==3.10
     # via
     #   anyio
     #   requests
@@ -57,7 +57,7 @@ sphinx==7.4.7
     #   sphinx-rtd-theme
     #   sphinxcontrib-httpdomain
     #   sphinxcontrib-jquery
-sphinx-autobuild==2024.9.3
+sphinx-autobuild==2024.9.17
     # via -r requirements.in
 sphinx-rtd-theme==2.0.0
     # via -r requirements.in
@@ -85,7 +85,7 @@ typing-extensions==4.12.2
     # via
     #   anyio
     #   uvicorn
-urllib3==2.2.2
+urllib3==2.2.3
     # via requests
 uvicorn==0.30.6
     # via sphinx-autobuild

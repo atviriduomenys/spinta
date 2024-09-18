@@ -15,9 +15,9 @@ git checkout $RELEASE_VERSION
 git pull
 git tag -l -n1 | sort -h | tail -n5
 
-export CURRENT_PATCH=70
-export NEW_PATCH=71
-export FUTURE_PATCH=72
+export CURRENT_PATCH=71
+export NEW_PATCH=72
+export FUTURE_PATCH=73
 
 export CURRENT_VERSION=$RELEASE_VERSION.$CURRENT_PATCH
 export NEW_VERSION=$RELEASE_VERSION.$NEW_PATCH
@@ -30,25 +30,12 @@ git status
 
 
 # notes/spinta/release/common.sh    Check outdated packages and upgrade them
-#| Package operations: 0 installs, 17 updates, 0 removals
+#| Package operations: 0 installs, 4 updates, 0 removals
 #|
-#|   • Updating certifi (2024.7.4 -> 2024.8.30)
-#|   • Updating executing (2.0.1 -> 2.1.0)
-#|   • Updating cffi (1.17.0 -> 1.17.1)
-#|   • Updating greenlet (3.0.3 -> 3.1.0)
-#|   • Updating multidict (6.0.5 -> 6.1.0)
-#|   • Updating pytz (2024.1 -> 2024.2)
-#|   • Updating cryptography (43.0.0 -> 43.0.1)
-#|   • Updating fsspec (2024.6.1 -> 2024.9.0)
-#|   • Updating importlib-metadata (8.4.0 -> 8.5.0)
-#|   • Updating rich (13.8.0 -> 13.8.1)
-#|   • Updating setuptools (73.0.1 -> 74.1.2)
-#|   • Updating sqlalchemy (1.4.53 -> 1.4.54)
-#|   • Updating yarl (1.9.4 -> 1.11.1)
-#|   • Updating httpx (0.27.1 -> 0.27.2)
-#|   • Updating msgpack (1.0.8 -> 1.1.0)
-#|   • Updating phonenumbers (8.13.44 -> 8.13.45)
-#|   • Updating starlette (0.38.2 -> 0.38.5)
+#|   • Updating idna (3.8 -> 3.10)
+#|   • Updating urllib3 (2.2.2 -> 2.2.3)
+#|   • Updating zipp (3.20.1 -> 3.20.2)
+#|   • Updating setuptools (74.1.2 -> 75.1.0)
 
 # Run Makefile
 cd docs
@@ -65,7 +52,7 @@ head CHANGES.rst
 # notes/spinta/release/common.sh    Reset test database
 
 poetry run pytest -vvx --tb=short tests
-#| 2067 passed, 42 skipped, 397 warnings in 311.51s (0:05:11)
+#| 2092 passed, 42 skipped, 397 warnings in 331.76s (0:05:31)
 
 # If possible run same tests using test and prod env library versions
 # Test env
@@ -90,7 +77,7 @@ BASEDIR=$PWD/var/instances/$INSTANCE
 
 # notes/spinta/release/common.sh    Run server in EXTERNAL mode
 # notes/spinta/release/common.sh    Run migrations
-#| (2912 rows)
+#| (2942 rows)
 
 # notes/spinta/release/common.sh    Run server in INTERNAL mode
 # Don't forget to add client to server and credentials;
