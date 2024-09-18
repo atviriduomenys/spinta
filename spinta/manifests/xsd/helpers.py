@@ -116,11 +116,9 @@ class XSDModel:
         self.node: _Element = node
 
     def __eq__(self, other: XSDModel) -> bool:
-        if self.external["name"] != other.external["name"]:
-            return False
-        if self.properties != other.properties:
-            return False
-        return True
+        if self.properties == other.properties:
+            return True
+        return False
 
     def get_data(self):
         model_data: dict = {
@@ -869,6 +867,17 @@ class XSDReader:
         for model in self.models.values():
             model.properties = dict(sorted(model.properties.items()))
 
+    def _remove_sources_from_secondary_models(self):
+        """
+        Only models which represent root elements for XML need to have source
+        """
+
+        for parsed_model in self.models.values():
+
+            # we need to add root properties to properties if it's a root model
+            if parsed_model.parent_model is not None and parsed_model.parent_model.name in self.models:
+                parsed_model.external["name"] = ""
+
     def _remove_duplicate_models(self):
         """removes models that are exactly the same"""
 
@@ -882,7 +891,7 @@ class XSDReader:
 
         for another_model_name, model_name in model_pairs.items():
             parent_model = self.models[another_model_name].parent_model
-            if parent_model:
+            if parent_model and parent_model.name in self.models:
                 for property_id, prop in parent_model.properties.items():
                     if "model" in prop and prop["model"] == another_model_name:
                         prop["model"] = model_name
@@ -908,6 +917,8 @@ class XSDReader:
         self._remove_duplicate_models()
 
         self._compile_nested_properties()
+
+        self._remove_sources_from_secondary_models()
 
         self._add_refs_for_backrefs()
 
@@ -1066,7 +1077,7 @@ class XSDReader:
         root_model.properties.update(root_properties)
 
     def _compile_nested_properties(self):
-        for model_name, parsed_model in self.models.items():
+        for parsed_model in self.models.values():
 
             # we need to add root properties to properties if it's a root model
             if parsed_model.parent_model is None or parsed_model.parent_model.name not in self.models:
