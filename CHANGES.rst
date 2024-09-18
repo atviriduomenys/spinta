@@ -6,6 +6,11 @@ Changes
 0.1.73 (unreleased)
 ===================
 
+Improvements:
+
+- Added removal of duplicate models when converting `XSD` to `DSA` even when `source` is different (`#792`_).
+
+  .. _#792: https://github.com/atviriduomenys/spinta/issues/792
 
 0.1.72 (2024-09-18)
 ===================
