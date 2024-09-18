@@ -3,7 +3,11 @@
 Changes
 #######
 
-0.1.72 (unreleased)
+0.1.73 (unreleased)
+===================
+
+
+0.1.72 (2024-09-18)
 ===================
 
 Improvements:
@@ -17,6 +21,10 @@ Improvements:
 
   .. _#798: https://github.com/atviriduomenys/spinta/issues/798
 
+- Added removal of duplicate models when converting `XSD` to `DSA` (`#752`_).
+
+  .. _#752: https://github.com/atviriduomenys/spinta/issues/752
+
 Bug fixes:
 
 - Fixed `_srid` routing error, when using negative float values as coordinates (`#781`_).
@@ -27,6 +35,10 @@ Bug fixes:
   .. _#737: https://github.com/atviriduomenys/spinta/issues/737
 
 - Fixed some errors when trying to access api endpoints, while server is running with default config settings (`#798`_).
+
+- Fixed a problem in `PropertyReader` and `EnumReader` where enums were always added to the top level `property` (`#540`_).
+
+  .. _#540: https://github.com/atviriduomenys/spinta/issues/540
 
 0.1.71 (2024-09-12)
 ===================
