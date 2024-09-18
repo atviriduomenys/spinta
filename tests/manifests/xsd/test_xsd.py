@@ -99,7 +99,7 @@ def test_xsd_ref(rc: RawConfig, tmp_path: Path):
     |   |   |   |   | puslapis     | integer required |         | @puslapis      |         |       |        |     |       | rezultatu puslapio numeris
     |   |   |   |   | text         | string           |         | text()         |         |       |        |     |       |
     |                              |                  |         |                |         |       |        |     |       |
-    |   |   |   | Asmuo            |                  |         | /asmenys/asmuo |         |       |        |     |       |
+    |   |   |   | Asmuo            |                  |         |                |         |       |        |     |       |
     |   |   |   |   | ak           | string required  |         | @ak            |         |       |        |     |       |
     |   |   |   |   | asmenys      | ref              | Asmenys |                |         |       |        |     |       |
     |   |   |   |   | id           | string required  |         | @id            |         |       |        |     |       |
@@ -588,7 +588,7 @@ def test_xsd_recursion(rc: RawConfig, tmp_path: Path):
     | manifest                               |                 |         |                            |         |       |        |     |       |
     |   | resource1                          | xml             |         |                            |         |       |        |     |       |
     |                                        |                 |         |                            |         |       |        |     |       |
-    |   |   |   | Actions                    |                 |         | /data/responseData/actions |         |       |        |     |       |
+    |   |   |   | Actions                    |                 |         |                            |         |       |        |     |       |
     |   |   |   |   | code[]                 | string required |         | action/code/text()         |         |       |        |     |       | Paslaugos kodas (RC kodas)
     |   |   |   |   | data                   | ref             | Data    |                            |         |       |        |     |       |
     |                                        |                 |         |                            |         |       |        |     |       |
@@ -689,7 +689,7 @@ def test_duplicate_removal(rc: RawConfig, tmp_path: Path):
     | manifest                                         |                   |                  |                                               |         |       |        |     |       |
     |   | resource1                                    | xml               |                  |                                               |         |       |        |     |       |
     |                                                  |                   |                  |                                               |         |       |        |     |       |
-    |   |   |   | Extract                              |                   |                  | /getDocumentsByWagonResponse/extract          |         |       |        |     |       |
+    |   |   |   | Extract                              |                   |                  |                                               |         |       |        |     |       |
     |   |   |   |   | extract_preparation_time         | datetime required |                  | extractPreparationTime/text()                 |         |       |        |     |       |
     |   |   |   |   | last_update_time                 | datetime required |                  | lastUpdateTime/text()                         |         |       |        |     |       |
     |                                                  |                   |                  |                                               |         |       |        |     |       |
@@ -707,7 +707,7 @@ def test_duplicate_removal(rc: RawConfig, tmp_path: Path):
     |   |   |   |   | search_parameters.code           | string            |                  | searchParameters/code/text()                  |         |       |        |     |       |
     |   |   |   |   | search_parameters.search_type    | string            |                  | searchParameters/searchType/text()            |         |       |        |     |       |
     |                                                  |                   |                  |                                               |         |       |        |     |       |
-    |   |   |   | SearchParameters                     |                   |                  | /getDocumentsByWagonResponse/searchParameters |         |       |        |     |       |
+    |   |   |   | SearchParameters                     |                   |                  |                                               |         |       |        |     |       |
     |   |   |   |   | code                             | string            |                  | code/text()                                   |         |       |        |     |       |
     |   |   |   |   | search_type                      | string            |                  | searchType/text()                             |         |       |        |     |       |
 
