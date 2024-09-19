@@ -6,7 +6,7 @@
 #
 alabaster==0.7.16
     # via sphinx
-anyio==4.4.0
+anyio==4.5.0
     # via
     #   starlette
     #   watchfiles
@@ -57,7 +57,7 @@ sphinx==7.4.7
     #   sphinx-rtd-theme
     #   sphinxcontrib-httpdomain
     #   sphinxcontrib-jquery
-sphinx-autobuild==2024.9.17
+sphinx-autobuild==2024.9.19
     # via -r requirements.in
 sphinx-rtd-theme==2.0.0
     # via -r requirements.in
