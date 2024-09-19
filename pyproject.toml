@@ -80,7 +80,8 @@ sqlalchemy = "~1.4"
 sqlalchemy-utils = "*"
 
 # Mongo backend dependendencies
-pymongo = "*"
+# https://github.com/atviriduomenys/spinta/issues/806
+pymongo = "<=4.8.0"
 
 # Excel dependencies
 xlrd = "*"

@@ -6,6 +6,11 @@ Changes
 0.1.73 (unreleased)
 ===================
 
+Backwards incompatible changes:
+
+- Changed `pymongo` version requirement from `"*"` to `"<=4.8.0"`. Version `4.9.0` changed import paths, that broke `spinta` (`#806`_).
+
+  .. _#806: https://github.com/atviriduomenys/spinta/issues/806
 
 0.1.72 (2024-09-18)
 ===================
