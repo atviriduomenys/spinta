@@ -36,8 +36,10 @@ def _validate_form_data(form: FormData):
 class InspectRequestForm:
     dataset: str
     manifest_path: str = None
+    manifest_is_file: bool = False
     manifest_type: str = None
     resource_path: str = None
+    resource_is_file: bool = False
     resource_type: str = None
     resource_prepare: str = None
 
@@ -63,12 +65,11 @@ class InspectRequestForm:
         )
 
     def clean_up(self):
-        if self._resource_tmp_file:
-            os.unlink(self._resource_tmp_file.name)
-            self._resource_tmp_file = None
-        if self._manifest_tmp_file:
-            os.unlink(self._manifest_tmp_file.name)
-            self._manifest_tmp_file = None
+        if self.resource_path and self.resource_is_file:
+            os.unlink(self.resource_path)
+
+        if self.manifest_path and self.manifest_is_file:
+            os.unlink(self.manifest_path)
 
     def get_manifest(self) -> ManifestPath:
         if self.manifest_path:
@@ -99,12 +100,11 @@ class InspectRequestForm:
                 raise InvalidInputData(key="manifest.source", given=manifest_source, condition="it must be URL")
             self.manifest_path = manifest_source
         elif manifest_file:
-            tmp = tempfile.NamedTemporaryFile(delete=False)
-            read = await manifest_file.read()
-            tmp.write(read)
-            tmp.close()
-            self.manifest_path = tmp.name
-            self._manifest_tmp_file = tmp
+            with tempfile.NamedTemporaryFile(delete=False) as tmp:
+                read = await manifest_file.read()
+                tmp.write(read)
+                self.manifest_path = tmp.name
+                self.manifest_is_file = True
 
         self.manifest_type = manifest_type
         if not self.manifest_type and self.manifest_path:
@@ -121,12 +121,11 @@ class InspectRequestForm:
                 raise InvalidInputData(key="resource.source", given=resource_source, condition="it must be URL")
             self.resource_path = resource_source
         elif resource_file:
-            tmp = tempfile.NamedTemporaryFile(delete=False)
-            read = await resource_file.read()
-            tmp.write(read)
-            tmp.close()
-            self.resource_path = tmp.name
-            self._resource_tmp_file = tmp
+            with tempfile.NamedTemporaryFile(delete=False) as tmp:
+                read = await resource_file.read()
+                tmp.write(read)
+                self.resource_path = tmp.name
+                self.resource_is_file = True
 
         self.dataset = dataset
         self.resource_prepare = resource_prepare

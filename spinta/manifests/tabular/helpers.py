@@ -4,6 +4,7 @@ import csv
 import pathlib
 import logging
 import textwrap
+import types
 import uuid
 from operator import itemgetter
 from itertools import zip_longest
@@ -1660,11 +1661,16 @@ def read_tabular_manifest(
     else:
         raise ValueError(f"Unknown tabular manifest format {format_!r}.")
 
-    yield from _read_tabular_manifest_rows(
-        path,
-        rows,
-        rename_duplicates=rename_duplicates,
-    )
+    try:
+        yield from _read_tabular_manifest_rows(
+            path,
+            rows,
+            rename_duplicates=rename_duplicates,
+        )
+    except Exception:
+        if isinstance(rows, types.GeneratorType):
+            rows.close()
+        raise
 
 
 def _read_txt_manifest(
