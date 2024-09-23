@@ -6,6 +6,11 @@ Changes
 0.1.74 (unreleased)
 ===================
 
+Bug fixes:
+
+- Fixed `api` `inspect` `clean_up` function failing when there are exceptions while reading `manifest` files (`#813`_).
+
+  .. _#813: https://github.com/atviriduomenys/spinta/issues/813
 
 0.1.73 (2024-09-19)
 ===================
