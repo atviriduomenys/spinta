@@ -15,8 +15,9 @@ from spinta.auth import get_client_file_path, query_client, get_clients_path, en
 from spinta.components import Action, Context
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.utils import get_error_codes
-from spinta.testing.client import create_test_client
+from spinta.testing.client import create_test_client, get_yaml_data
 from spinta.testing.context import create_test_context
+from spinta.utils.config import get_keymap_path
 
 
 def test_app(context, app):
@@ -91,6 +92,30 @@ def test_client_add(rc, cli: SpintaCliRunner, tmp_path):
     assert client == {
         'client_id': client['client_id'],
         'client_name': client['client_id'],
+        'client_secret_hash': client['client_secret_hash'],
+        'scopes': [],
+    }
+
+
+def test_client_add_default_path(rc, cli: SpintaCliRunner, tmp_path):
+    config_path = tmp_path / 'config'
+    config_path.mkdir(exist_ok=True)
+    rc = rc.fork({
+        'config_path': config_path
+    })
+    result = cli.invoke(rc, ['client', 'add', '-n', 'test'])
+    clients_path = get_clients_path(config_path)
+    keymap = get_keymap_path(clients_path)
+
+    keymap_data = get_yaml_data(keymap)
+    client_path = get_client_file_path(clients_path, keymap_data['test'])
+
+    assert f'client created and saved to:\n\n    {client_path}' in result.output
+
+    client = get_yaml_data(client_path)
+    assert client == {
+        'client_id': client['client_id'],
+        'client_name': 'test',
         'client_secret_hash': client['client_secret_hash'],
         'scopes': [],
     }

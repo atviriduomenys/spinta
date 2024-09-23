@@ -134,17 +134,18 @@ def client_add(
 
         if path is None:
             context = ctx.obj
-            load_config(
+            config = load_config(
                 context,
                 ensure_config_dir=True
             )
+            path = get_clients_path(config)
         else:
             path = pathlib.Path(path)
             if not str(path).endswith('clients'):
                 path = get_clients_path(path)
 
-            # Ensure all files/folders exist for clients operations
-            ensure_client_folders_exist(path)
+        # Ensure all files/folders exist for clients operations
+        ensure_client_folders_exist(path)
 
         client_id = str(uuid.uuid4())
         name = name or client_id
