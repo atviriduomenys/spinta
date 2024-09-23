@@ -22,8 +22,8 @@ from spinta.utils.types import is_str_uuid
 from starlette.responses import JSONResponse
 
 
-def _clean_up_file(file):
-    os.unlink(file.name)
+def _clean_up_file(file_path: str):
+    os.unlink(file_path)
 
 
 def _setup_context(main_context: Context, manifest_path) -> Context:
@@ -123,7 +123,7 @@ def _parse_and_validate_dataset_name(context: Context, manifest: Manifest, param
     return dataset_name
 
 
-async def _create_and_validate_tmp_file(context: Context, manifest: Manifest, request: Request):
+async def _create_and_validate_tmp_file(context: Context, manifest: Manifest, request: Request) -> str:
     headers = request.headers
     if 'content-type' not in headers:
         raise ModifySchemaRequiresFile()
@@ -133,21 +133,25 @@ async def _create_and_validate_tmp_file(context: Context, manifest: Manifest, re
     config: Config = context.get('config')
     max_size = config.max_api_file_size
     data_stream = request.stream()
-    tmp = tempfile.NamedTemporaryFile(delete=False)
 
+    file_path = None
     file_is_valid = True
-    async for data_block in data_stream:
-        tmp.write(data_block)
-        if tmp.tell() > max_size * 1e+6:
-            file_is_valid = False
-            break
-    tmp.close()
+    with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        file_path = tmp.name
+        async for data_block in data_stream:
+            tmp.write(data_block)
+            if tmp.tell() > max_size * 1e+6:
+                file_is_valid = False
+                break
 
-    if not file_is_valid:
-        _clean_up_file(tmp)
+    if not file_is_valid and file_path is not None:
+        _clean_up_file(file_path)
         raise FileSizeTooLarge(manifest, allowed_amount=max_size, measure='MB')
 
-    return tmp
+    if file_path is None:
+        raise Exception("NO FILE PATH")
+
+    return file_path
 
 
 def reset_affected_objects(context: Context, manifest: Manifest, dataset_name: str):
@@ -170,10 +174,10 @@ async def schema_api(context: Context, request: Request, params: UrlParams):
         raise NotSupportedManifestType(manifest, manifest_name=manifest.name, supported_type="dynamic", given_type="static")
 
     dataset_name = _parse_and_validate_dataset_name(context, manifest, params)
-    tmp_file = await _create_and_validate_tmp_file(context, manifest, request)
+    tmp_path = await _create_and_validate_tmp_file(context, manifest, request)
 
     try:
-        manifest_path = ManifestPath(type='csv', path=tmp_file.name)
+        manifest_path = ManifestPath(type='csv', path=tmp_path)
         target_context = _setup_context(context, manifest_path)
         store = prepare_manifest(target_context, ensure_config_dir=True, full_load=True)
         target_manifest = store.manifest
@@ -194,8 +198,8 @@ async def schema_api(context: Context, request: Request, params: UrlParams):
         commands.reload_backend_metadata(context, manifest, backend)
         reset_affected_objects(context, manifest, dataset_name)
 
-        _clean_up_file(tmp_file)
+        _clean_up_file(tmp_path)
         return JSONResponse({"status": "ok"}, status_code=200)
     except Exception as e:
-        _clean_up_file(tmp_file)
+        _clean_up_file(tmp_path)
         raise e
