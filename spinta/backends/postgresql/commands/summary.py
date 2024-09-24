@@ -459,7 +459,7 @@ def summary(
                     FROM "{model}"
                     {bounding_box}
                     LIMIT {maximum_cluster_amount}
-                );
+                ) AS filtered_data;
                 '''),
             params
         )
