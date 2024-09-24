@@ -12,6 +12,11 @@ Bug fixes:
 
   .. _#813: https://github.com/atviriduomenys/spinta/issues/813
 
+- Fixed `clients add` not finding `config_path` when using `config.yml` instead of setting it with `-p` (`#818`_).
+
+  .. _#818: https://github.com/atviriduomenys/spinta/issues/818
+
+
 0.1.73 (2024-09-19)
 ===================
 
