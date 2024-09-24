@@ -3,7 +3,11 @@
 Changes
 #######
 
-0.1.74 (unreleased)
+0.1.75 (unreleased)
+===================
+
+
+0.1.74 (2024-09-24)
 ===================
 
 Bug fixes:
@@ -12,7 +16,7 @@ Bug fixes:
 
   .. _#813: https://github.com/atviriduomenys/spinta/issues/813
 
-- Fixed `clients add` not finding `config_path` when using `config.yml` instead of setting it with `-p` (`#818`_).
+- Fixed `client add` not finding `config_path` when using `config.yml` instead of setting it with `-p` (`#818`_).
 
   .. _#818: https://github.com/atviriduomenys/spinta/issues/818
 

@@ -15,9 +15,9 @@ git checkout $RELEASE_VERSION
 git pull
 git tag -l -n1 | sort -h | tail -n5
 
-export CURRENT_PATCH=72
-export NEW_PATCH=73
-export FUTURE_PATCH=74
+export CURRENT_PATCH=73
+export NEW_PATCH=74
+export FUTURE_PATCH=75
 
 export CURRENT_VERSION=$RELEASE_VERSION.$CURRENT_PATCH
 export NEW_VERSION=$RELEASE_VERSION.$NEW_PATCH
@@ -30,9 +30,14 @@ git status
 
 
 # notes/spinta/release/common.sh    Check outdated packages and upgrade them
-#| Package operations: 0 installs, 1 update, 0 removals
+#| Package operations: 0 installs, 5 updates, 0 removals
 #|
-#|   • Updating anyio (4.4.0 -> 4.5.0)
+#|   • Updating greenlet (3.1.0 -> 3.1.1)
+#|   • Updating tzdata (2024.1 -> 2024.2)
+#|   • Updating yarl (1.11.1 -> 1.12.1)
+#|   • Updating python-multipart (0.0.9 -> 0.0.10)
+#|   • Updating starlette (0.38.5 -> 0.39.0)
+
 
 # Run Makefile
 cd docs
@@ -49,7 +54,7 @@ head CHANGES.rst
 # notes/spinta/release/common.sh    Reset test database
 
 poetry run pytest -vvx --tb=short tests
-#| 2092 passed, 42 skipped, 397 warnings in 323.59s (0:05:23)
+#| 2093 passed, 42 skipped, 397 warnings in 328.29s (0:05:28)
 
 # If possible run same tests using test and prod env library versions
 # Test env
@@ -74,7 +79,7 @@ BASEDIR=$PWD/var/instances/$INSTANCE
 
 # notes/spinta/release/common.sh    Run server in EXTERNAL mode
 # notes/spinta/release/common.sh    Run migrations
-#| (2942 rows)
+#| (2956 rows)
 
 # notes/spinta/release/common.sh    Run server in INTERNAL mode
 # Don't forget to add client to server and credentials;
