@@ -25,7 +25,7 @@ jobs:
       uses: ireznik/postgis-action@v12
       with:
         # https://hub.docker.com/r/postgis/postgis
-        postgresql version: '16-3.4'
+        postgresql version: '11-3.3'
         postgresql password: 'secret'
         postgresql user: 'ci'
         postgresql db: 'spinta'

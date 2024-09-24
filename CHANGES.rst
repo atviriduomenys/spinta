@@ -6,6 +6,18 @@ Changes
 0.1.75 (unreleased)
 ===================
 
+Improvements:
+
+- Reverted github actions `postgresql` version to `11`, until production server is updated to `16`, so we don't get similar
+  issues again (`#827`_).
+
+
+Bug fixes:
+
+- Fixed `summary` for `Geometry` not working with older than 16 `postgresql` version (`#827`_).
+
+  .. _#827: https://github.com/atviriduomenys/spinta/issues/827
+
 
 0.1.74 (2024-09-24)
 ===================
