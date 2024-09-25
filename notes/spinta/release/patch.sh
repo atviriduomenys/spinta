@@ -15,9 +15,9 @@ git checkout $RELEASE_VERSION
 git pull
 git tag -l -n1 | sort -h | tail -n5
 
-export CURRENT_PATCH=73
-export NEW_PATCH=74
-export FUTURE_PATCH=75
+export CURRENT_PATCH=74
+export NEW_PATCH=75
+export FUTURE_PATCH=76
 
 export CURRENT_VERSION=$RELEASE_VERSION.$CURRENT_PATCH
 export NEW_VERSION=$RELEASE_VERSION.$NEW_PATCH
@@ -30,13 +30,7 @@ git status
 
 
 # notes/spinta/release/common.sh    Check outdated packages and upgrade them
-#| Package operations: 0 installs, 5 updates, 0 removals
-#|
-#|   • Updating greenlet (3.1.0 -> 3.1.1)
-#|   • Updating tzdata (2024.1 -> 2024.2)
-#|   • Updating yarl (1.11.1 -> 1.12.1)
-#|   • Updating python-multipart (0.0.9 -> 0.0.10)
-#|   • Updating starlette (0.38.5 -> 0.39.0)
+#| No dependencies to install or update
 
 
 # Run Makefile
@@ -54,7 +48,7 @@ head CHANGES.rst
 # notes/spinta/release/common.sh    Reset test database
 
 poetry run pytest -vvx --tb=short tests
-#| 2093 passed, 42 skipped, 397 warnings in 328.29s (0:05:28)
+#| 2093 passed, 42 skipped, 397 warnings in 324.27s (0:05:24)
 
 # If possible run same tests using test and prod env library versions
 # Test env
