@@ -89,12 +89,14 @@ class XSDModel:
     name: str | None = None
     basename: str | None = None
     external: dict | None = None
-    properties: dict | None = None
+    properties: dict = {}
     uri: str | None = None
     description: str | None = None
     root_properties: dict | None = None
     parent_model: XSDModel | None = None
     is_root_model: bool | None = None
+    element_name: str | None = None
+    complex_type_name: str | None = None
     """
     Class for creating and handling DSA models from XSD files.
 
@@ -265,6 +267,9 @@ class XSDModel:
         from_root: bool = False,
         properties_required: bool = None
     ) -> dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]:
+        is_array = False
+        if self.xsd.is_array(node):
+            is_array = True
 
         properties = {}
         elements = node.xpath(f'./*[local-name() = "element"]')
@@ -279,6 +284,8 @@ class XSDModel:
                     prop["required"] = True
                 if properties_required is False:
                     prop["required"] = False
+                if is_array:
+                    property_id = f"{property_id}[]"
                 properties[property_id] = prop
         return properties
 
@@ -353,7 +360,7 @@ class XSDReader:
 
         return enums
 
-    def _extract_custom_types(self, node: _Element):
+    def _extract_custom_simple_types(self, node: _Element):
         """
         format of custom types:
         {
@@ -618,6 +625,9 @@ class XSDReader:
                 if XSDReader.is_array(ref_element):
                     is_array = True
 
+                if XSDReader.is_array(node):
+                    is_array = True
+
                 complex_type = referenced_element.xpath("./*[local-name() = 'complexType']")[0]
 
                 built_properties = self._build_ref_properties(complex_type, is_array, model, new_source_path, node, referenced_element)
@@ -861,7 +871,14 @@ class XSDReader:
             for property_id, prop in model.properties.items():
                 if prop["type"] == "backref":
                     referenced_model = self.models[prop["model"]]
-                    referenced_model.add_ref_property(model)
+                    # checking if the ref already exists.
+                    # They can exist multiple times, but refs should be added only once
+                    prop_added = False
+                    for prop in referenced_model.properties.values():
+                        if "model" in prop and prop["model"] == model.name:
+                            prop_added = True
+                    if not prop_added:
+                        referenced_model.add_ref_property(model)
 
     def _sort_properties_alphabetically(self):
         for model in self.models.values():
@@ -881,29 +898,45 @@ class XSDReader:
     def _remove_duplicate_models(self):
         """removes models that are exactly the same"""
 
-        model_pairs = {}
+        do_loop = True
 
-        for model_name, model in self.models.items():
-            for another_model_name, another_model in self.models.items():
-                if model is not another_model and model == another_model:
-                    if another_model_name not in model_pairs.values() and another_model_name not in model_pairs:
-                        model_pairs[another_model_name] = model_name
+        while do_loop:
 
-        for another_model_name, model_name in model_pairs.items():
-            parent_model = self.models[another_model_name].parent_model
-            if parent_model and parent_model.name in self.models:
-                for property_id, prop in parent_model.properties.items():
-                    if "model" in prop and prop["model"] == another_model_name:
-                        prop["model"] = model_name
-                        if not self.models[model_name].parent_model:
-                            self.models[model_name].parent_model = self.models[model_name].parent_model
-                        self.models.pop(another_model_name)
+            model_pairs = {}
+
+            for model_name, model in self.models.items():
+                for another_model_name, another_model in self.models.items():
+                    if model is not another_model and model == another_model:
+                        if another_model_name not in model_pairs.values() and another_model_name not in model_pairs:
+                            model_pairs[another_model_name] = model_name
+
+            for another_model_name, model_name in model_pairs.items():
+                parent_model = self.models[another_model_name].parent_model
+                if parent_model and parent_model.name in self.models:
+                    for property_id, prop in parent_model.properties.items():
+                        if "model" in prop and prop["model"] == another_model_name:
+                            prop["model"] = model_name
+                            if not self.models[model_name].parent_model:
+                                self.models[model_name].parent_model = self.models[model_name].parent_model
+                            self.models.pop(another_model_name)
+
+            if not model_pairs:
+                do_loop = False
+            else:
+                print(self.dataset_name)
+                for old_model, new_model in model_pairs.items():
+                    print(f"{old_model.split('/')[1]} -> {new_model.split('/')[1]}")
 
     def start(self):
         self._extract_root()
 
+        # preparation part
+
         self._extract_namespaces()
-        self._extract_custom_types(self.root)
+        self._extract_custom_simple_types(self.root)
+
+        # main part
+
         self._add_resource_model()
 
         self._parse_root_node()

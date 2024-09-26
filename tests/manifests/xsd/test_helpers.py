@@ -666,7 +666,7 @@ def test_extract_custom_types():
     schema = etree.fromstring(element_string)
     xsd = XSDReader("test.xsd", "dataset1")
     xsd.root = schema
-    xsd._extract_custom_types(schema)
+    xsd._extract_custom_simple_types(schema)
     assert xsd.custom_types == {
         "data_laikas":
             {
