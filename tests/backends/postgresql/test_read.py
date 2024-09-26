@@ -1010,7 +1010,7 @@ def test_checksum_geometry(
     context = bootstrap_manifest(
         rc, '''
     d | r | b | m | property   | type                 | ref      | prepare   | access | level
-    datasets/result/checksum   |                      |          |           |        |
+    datasets/geometry/checksum |                      |          |           |        |
       |   |   | Country        |                      | id, name |           |        |
       |   |   |   | id         | integer              |          |           | open   |
       |   |   |   | name       | string               |          |           | open   |
@@ -1041,22 +1041,22 @@ def test_checksum_geometry(
         }
     }
 
-    resp = app.post('/datasets/result/checksum/Country', json={
+    resp = app.post('/datasets/geometry/checksum/Country', json={
         '_id': lt_id,
         **country_data[lt_id]
     })
     assert resp.status_code == 201
-    resp = app.post('/datasets/result/checksum/Country', json={
+    resp = app.post('/datasets/geometry/checksum/Country', json={
         '_id': lv_id,
         **country_data[lv_id]
     })
     assert resp.status_code == 201
 
-    resp = app.get('/datasets/result/checksum/Country?select(id, name, poly)&sort(id)').json()
+    resp = app.get('/datasets/geometry/checksum/Country?select(id, name, poly)&sort(id)').json()
     lt_checksum = get_data_checksum(resp['_data'][0])
     lv_checksum = get_data_checksum(resp['_data'][1])
 
-    resp = app.get('/datasets/result/checksum/Country?select(_id, id, checksum())')
+    resp = app.get('/datasets/geometry/checksum/Country?select(_id, id, checksum())')
     assert resp.status_code == 200
     assert listdata(resp, '_id', 'id', 'checksum()', sort='id', full=True) == [
         {
