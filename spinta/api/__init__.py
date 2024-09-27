@@ -344,7 +344,6 @@ async def error(request, exc):
 
 async def srid_check(request: Request):
     from shapely.geometry import Point
-    from geoalchemy2.shape import from_shape
     from spinta.backends.postgresql.types.geometry.helpers import get_osm_link
 
     srid = request.path_params['srid']
@@ -352,8 +351,7 @@ async def srid_check(request: Request):
     y = request.path_params['y']
 
     point = Point(x, y)
-    wkb = from_shape(point, srid)
-    osm_link = get_osm_link(wkb, srid)
+    osm_link = get_osm_link(point, srid)
     return RedirectResponse(url=osm_link)
 
 

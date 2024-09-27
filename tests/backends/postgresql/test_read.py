@@ -997,3 +997,76 @@ def test_checksum_result(
             )
         },
     ]
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_checksum_geometry(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property   | type                 | ref      | prepare   | access | level
+    datasets/geometry/checksum |                      |          |           |        |
+      |   |   | Country        |                      | id, name |           |        |
+      |   |   |   | id         | integer              |          |           | open   |
+      |   |   |   | name       | string               |          |           | open   |
+      |   |   |   | poly       | geometry(polygon)    |          |           | open   |
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+
+    app = create_test_client(context)
+    app.authorize(['spinta_insert', 'spinta_getall', 'spinta_wipe', 'spinta_search', 'spinta_set_meta_fields'])
+    lt_id = str(uuid.uuid4())
+    lv_id = str(uuid.uuid4())
+
+    country_data = {
+        lt_id: {
+            'id': 0,
+            'name': 'Lithuania',
+            'poly': 'POLYGON ((80 50, 50 50, 50 80, 80 80, 80 50))'
+        },
+        lv_id: {
+            'id': 1,
+            'name': 'Latvia',
+            'poly': 'POLYGON ((20 50, 50 20, 20 20, 20 50))'
+        }
+    }
+
+    resp = app.post('/datasets/geometry/checksum/Country', json={
+        '_id': lt_id,
+        **country_data[lt_id]
+    })
+    assert resp.status_code == 201
+    resp = app.post('/datasets/geometry/checksum/Country', json={
+        '_id': lv_id,
+        **country_data[lv_id]
+    })
+    assert resp.status_code == 201
+
+    resp = app.get('/datasets/geometry/checksum/Country?select(id, name, poly)&sort(id)').json()
+    lt_checksum = get_data_checksum(resp['_data'][0])
+    lv_checksum = get_data_checksum(resp['_data'][1])
+
+    resp = app.get('/datasets/geometry/checksum/Country?select(_id, id, checksum())')
+    assert resp.status_code == 200
+    assert listdata(resp, '_id', 'id', 'checksum()', sort='id', full=True) == [
+        {
+            '_id': lt_id,
+            'id': 0,
+            'checksum()': lt_checksum
+        },
+        {
+            '_id': lv_id,
+            'id': 1,
+            'checksum()': lv_checksum
+        },
+    ]

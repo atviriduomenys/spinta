@@ -6,6 +6,16 @@ Changes
 0.1.76 (unreleased)
 ===================
 
+Bug fixes:
+
+- Fixed `checksum()` function bug, where it tried to calculate checksums before converting data from `backend` specific to
+  python types (`#832`_).
+
+- Fixed an oversight where `geoalchemy2` values were propagated to `prepare_dtype_for_response` instead of being converted to
+  `backend` indifferent type (`shapely.geometry.base.BaseGeometry`) (`#832`_).
+
+  .. _#832: https://github.com/atviriduomenys/spinta/issues/832
+
 
 0.1.75 (2024-09-24)
 ===================
