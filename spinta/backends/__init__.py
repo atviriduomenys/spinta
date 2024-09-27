@@ -12,8 +12,10 @@ from typing import Optional
 
 import dateutil
 import shapely.geometry.base
-from pyproj import CRS, Transformer
 from shapely import wkt
+
+from geoalchemy2.elements import WKTElement, WKBElement
+from geoalchemy2.shape import to_shape
 
 from spinta import commands
 from spinta import exceptions
@@ -1773,6 +1775,30 @@ def cast_backend_to_python(
         except:
             return data
     return data
+
+
+@commands.cast_backend_to_python.register(Context, Geometry, Backend, WKTElement)
+def cast_backend_to_python(
+    context: Context,
+    dtype: Geometry,
+    backend: Backend,
+    data: WKTElement,
+) -> Any:
+    if _check_if_nan(data):
+        return None
+    return to_shape(data)
+
+
+@commands.cast_backend_to_python.register(Context, Geometry, Backend, WKBElement)
+def cast_backend_to_python(
+    context: Context,
+    dtype: Geometry,
+    backend: Backend,
+    data: WKBElement,
+) -> Any:
+    if _check_if_nan(data):
+        return None
+    return to_shape(data)
 
 
 @commands.cast_backend_to_python.register(Context, Ref, Backend, object)

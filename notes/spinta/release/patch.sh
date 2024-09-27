@@ -15,9 +15,9 @@ git checkout $RELEASE_VERSION
 git pull
 git tag -l -n1 | sort -h | tail -n5
 
-export CURRENT_PATCH=71
-export NEW_PATCH=72
-export FUTURE_PATCH=73
+export CURRENT_PATCH=74
+export NEW_PATCH=75
+export FUTURE_PATCH=76
 
 export CURRENT_VERSION=$RELEASE_VERSION.$CURRENT_PATCH
 export NEW_VERSION=$RELEASE_VERSION.$NEW_PATCH
@@ -30,12 +30,8 @@ git status
 
 
 # notes/spinta/release/common.sh    Check outdated packages and upgrade them
-#| Package operations: 0 installs, 4 updates, 0 removals
-#|
-#|   • Updating idna (3.8 -> 3.10)
-#|   • Updating urllib3 (2.2.2 -> 2.2.3)
-#|   • Updating zipp (3.20.1 -> 3.20.2)
-#|   • Updating setuptools (74.1.2 -> 75.1.0)
+#| No dependencies to install or update
+
 
 # Run Makefile
 cd docs
@@ -52,7 +48,7 @@ head CHANGES.rst
 # notes/spinta/release/common.sh    Reset test database
 
 poetry run pytest -vvx --tb=short tests
-#| 2092 passed, 42 skipped, 397 warnings in 331.76s (0:05:31)
+#| 2093 passed, 42 skipped, 397 warnings in 324.27s (0:05:24)
 
 # If possible run same tests using test and prod env library versions
 # Test env
@@ -77,7 +73,7 @@ BASEDIR=$PWD/var/instances/$INSTANCE
 
 # notes/spinta/release/common.sh    Run server in EXTERNAL mode
 # notes/spinta/release/common.sh    Run migrations
-#| (2942 rows)
+#| (2956 rows)
 
 # notes/spinta/release/common.sh    Run server in INTERNAL mode
 # Don't forget to add client to server and credentials;

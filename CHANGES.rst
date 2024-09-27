@@ -3,7 +3,7 @@
 Changes
 #######
 
-0.1.73 (unreleased)
+0.1.76 (unreleased)
 ===================
 
 Improvements:
@@ -11,6 +11,56 @@ Improvements:
 - Added removal of duplicate models when converting `XSD` to `DSA` even when `source` is different (`#792`_).
 
   .. _#792: https://github.com/atviriduomenys/spinta/issues/792
+
+Bug fixes:
+
+- Fixed `checksum()` function bug, where it tried to calculate checksums before converting data from `backend` specific to
+  python types (`#832`_).
+
+- Fixed an oversight where `geoalchemy2` values were propagated to `prepare_dtype_for_response` instead of being converted to
+  `backend` indifferent type (`shapely.geometry.base.BaseGeometry`) (`#832`_).
+
+  .. _#832: https://github.com/atviriduomenys/spinta/issues/832
+
+
+0.1.75 (2024-09-24)
+===================
+
+Improvements:
+
+- Reverted github actions `postgresql` version to `11`, until production server is updated to `16`, so we don't get similar
+  issues again (`#827`_).
+
+
+Bug fixes:
+
+- Fixed `summary` for `Geometry` not working with older than 16 `postgresql` version (`#827`_).
+
+  .. _#827: https://github.com/atviriduomenys/spinta/issues/827
+
+
+0.1.74 (2024-09-24)
+===================
+
+Bug fixes:
+
+- Fixed `api` `inspect` `clean_up` function failing when there are exceptions while reading `manifest` files (`#813`_).
+
+  .. _#813: https://github.com/atviriduomenys/spinta/issues/813
+
+- Fixed `client add` not finding `config_path` when using `config.yml` instead of setting it with `-p` (`#818`_).
+
+  .. _#818: https://github.com/atviriduomenys/spinta/issues/818
+
+
+0.1.73 (2024-09-19)
+===================
+
+Backwards incompatible changes:
+
+- Changed `pymongo` version requirement from `"*"` to `"<=4.8.0"`. Version `4.9.0` changed import paths, that broke `spinta` (`#806`_).
+
+  .. _#806: https://github.com/atviriduomenys/spinta/issues/806
 
 0.1.72 (2024-09-18)
 ===================
