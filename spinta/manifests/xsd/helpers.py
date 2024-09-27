@@ -13,7 +13,6 @@ from urllib.request import urlopen
 from spinta.core.ufuncs import Expr
 from spinta.utils.naming import to_property_name, to_model_name, Deduplicator, to_dataset_name
 
-
 # mapping of XSD datatypes to DSA datatypes
 # XSD datatypes: https://www.w3.org/TR/xmlschema11-2/#built-in-datatypes
 # DSA datatypes: https://atviriduomenys.readthedocs.io/dsa/duomenu-tipai.html#duomenu-tipai
@@ -79,6 +78,9 @@ DATATYPES_MAPPING = {
 
 }
 
+class XSDProperty:
+    pass
+
 
 class XSDModel:
     deduplicate: Deduplicator
@@ -89,12 +91,14 @@ class XSDModel:
     name: str | None = None
     basename: str | None = None
     external: dict | None = None
-    properties: dict | None = None
+    properties: dict = {}
     uri: str | None = None
     description: str | None = None
     root_properties: dict | None = None
     parent_model: XSDModel | None = None
     is_root_model: bool | None = None
+    element_name: str | None = None
+    complex_type_name: str | None = None
     """
     Class for creating and handling DSA models from XSD files.
 
@@ -116,11 +120,9 @@ class XSDModel:
         self.node: _Element = node
 
     def __eq__(self, other: XSDModel) -> bool:
-        if self.external["name"] != other.external["name"]:
-            return False
-        if self.properties != other.properties:
-            return False
-        return True
+        if self.properties == other.properties:
+            return True
+        return False
 
     def get_data(self):
         model_data: dict = {
@@ -163,7 +165,8 @@ class XSDModel:
 
         return enums
 
-    def _node_to_partial_property(self, node: _Element) -> tuple[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]:
+    def _node_to_partial_property(self, node: _Element) -> tuple[
+        str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]:
         """Node can be either element or attribute.
         This function only processes things common to attributes and elements"""
         prop = dict()
@@ -186,8 +189,8 @@ class XSDModel:
         return self.deduplicate(property_id), prop
 
     def attributes_to_properties(
-        self,
-        element: _Element
+            self,
+            element: _Element
     ) -> dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]:
         properties = {}
         attributes = element.xpath(f'./*[local-name() = "attribute"]')
@@ -216,10 +219,10 @@ class XSDModel:
         return properties
 
     def simple_element_to_property(
-        self,
-        element: _Element,
-        is_array: bool = False,
-        source_path: str = None
+            self,
+            element: _Element,
+            is_array: bool = False,
+            source_path: str = None
     ) -> tuple[str, dict[str, str | bool | dict[str, Any]]]:
         """
         simple element is an element which is either
@@ -262,11 +265,14 @@ class XSDModel:
         return property_id, prop
 
     def properties_from_simple_elements(
-        self,
-        node: _Element,
-        from_root: bool = False,
-        properties_required: bool = None
+            self,
+            node: _Element,
+            from_root: bool = False,
+            properties_required: bool = None
     ) -> dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]:
+        is_array = False
+        if self.xsd.is_array(node):
+            is_array = True
 
         properties = {}
         elements = node.xpath(f'./*[local-name() = "element"]')
@@ -281,7 +287,34 @@ class XSDModel:
                     prop["required"] = True
                 if properties_required is False:
                     prop["required"] = False
+                if is_array:
+                    property_id = f"{property_id}[]"
                 properties[property_id] = prop
+        return properties
+
+    def element_to_property(
+            self,
+            node: _Element,
+            from_root: bool = False,
+            properties_required: bool = None
+    ) -> dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]:
+
+        is_array = False
+        if self.xsd.is_array(node):
+            is_array = True
+        properties = {}
+        elements = node.xpath(f'./*[local-name() = "element"]')
+        for element in elements:
+            property_id, prop = self.simple_element_to_property(element)
+            if from_root:
+                prop["required"] = False
+            if properties_required is True:
+                prop["required"] = True
+            if properties_required is False:
+                prop["required"] = False
+            if is_array:
+                property_id = f"{property_id}[]"
+            properties[property_id] = prop
         return properties
 
     def get_text_property(self, property_type=None) -> dict[str, dict[str, str | dict[str, str]]]:
@@ -355,7 +388,7 @@ class XSDReader:
 
         return enums
 
-    def _extract_custom_types(self, node: _Element):
+    def _extract_custom_simple_types(self, node: _Element):
         """
         format of custom types:
         {
@@ -431,7 +464,7 @@ class XSDReader:
     def is_array(element: _Element) -> bool:
         max_occurs: str = element.get("maxOccurs", "1")
         return max_occurs == "unbounded" or int(max_occurs) > 1
-    
+
     def _extract_root(self):
         if self._path.startswith("http"):
             document = etree.parse(urlopen(self._path))
@@ -503,6 +536,12 @@ class XSDReader:
         return False
 
     @staticmethod
+    def _is_complex_type(node: _Element) -> bool:
+        if node.xpath('local-name()') == "complexType":
+            return True
+        return False
+
+    @staticmethod
     def is_required(element: _Element) -> bool:
         min_occurs = int(element.get("minOccurs", 1))
         if min_occurs > 0:
@@ -512,7 +551,9 @@ class XSDReader:
             return True
         return False
 
-    def _build_ref_properties(self, complex_type: _Element, is_array: bool, model: XSDModel, new_source_path: str, node: _Element, referenced_element: _Element) -> dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]:
+    def _build_ref_properties(self, complex_type: _Element, is_array: bool, model: XSDModel, new_source_path: str,
+                              node: _Element, referenced_element: _Element) -> dict[
+        str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]:
         """
         Helper method for methods properties_from_references and properties_from_type_references
         """
@@ -557,10 +598,10 @@ class XSDReader:
         return properties
 
     def _properties_from_type_references(
-        self,
-        node: _Element,
-        model: XSDModel,
-        source_path: str = ""
+            self,
+            node: _Element,
+            model: XSDModel,
+            source_path: str = ""
     ) -> dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]:
 
         properties = {}
@@ -592,10 +633,10 @@ class XSDReader:
         return properties
 
     def _properties_from_references(
-        self,
-        node: _Element,
-        model: XSDModel,
-        source_path: str = ""
+            self,
+            node: _Element,
+            model: XSDModel,
+            source_path: str = ""
     ) -> dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]:
 
         properties = {}
@@ -620,9 +661,13 @@ class XSDReader:
                 if XSDReader.is_array(ref_element):
                     is_array = True
 
+                if XSDReader.is_array(node):
+                    is_array = True
+
                 complex_type = referenced_element.xpath("./*[local-name() = 'complexType']")[0]
 
-                built_properties = self._build_ref_properties(complex_type, is_array, model, new_source_path, node, referenced_element)
+                built_properties = self._build_ref_properties(complex_type, is_array, model, new_source_path, node,
+                                                              referenced_element)
                 for prop in built_properties.values():
                     if not XSDReader.is_required(ref_element):
                         prop["required"] = False
@@ -631,11 +676,11 @@ class XSDReader:
         return properties
 
     def _split_choice(
-        self,
-        node: _Element,
-        source_path: str,
-        parent_model: XSDModel,
-        is_root_model: bool = False
+            self,
+            node: _Element,
+            source_path: str,
+            parent_model: XSDModel,
+            is_root_model: bool = False
     ) -> list[str]:
         """
         If there are choices in the element,
@@ -695,11 +740,11 @@ class XSDReader:
         return model_names
 
     def _create_model(
-        self,
-        node: _Element,
-        source_path: str = "",
-        is_root_model: bool = False,
-        parent_model: XSDModel = None,
+            self,
+            node: _Element,
+            source_path: str = "",
+            is_root_model: bool = False,
+            parent_model: XSDModel = None,
     ) -> list[str]:
         """
         Parses an element and makes a model out of it. If it is a complete model, it will be added to the models list.
@@ -745,7 +790,8 @@ class XSDReader:
             # if this is complexType node which has complexContent, with a separate
             # node, we need to join the contents of them both
             if complex_type_node.xpath(f'./*[local-name() = "complexContent"]'):
-                complex_type_node = complex_type_node.xpath(f'./*[local-name() = "complexContent"]/*[local-name() = "extension"]')[0]
+                complex_type_node = \
+                complex_type_node.xpath(f'./*[local-name() = "complexContent"]/*[local-name() = "extension"]')[0]
                 complex_content_base_name = complex_type_node.get("base")
                 complex_content_base_node = self._get_separate_complex_type_node_by_type(complex_content_base_name)
                 if complex_content_base_node.xpath(f'./*[local-name() = "sequence"]'):
@@ -753,11 +799,11 @@ class XSDReader:
                     properties.update(model.properties_from_simple_elements(sequence_node))
 
             if (
-                complex_type_node.xpath(f'./*[local-name() = "sequence"]') or
-                complex_type_node.xpath(f'./*[local-name() = "all"]') or
-                complex_type_node.xpath(f'./*[local-name() = "simpleContent"]') or
-                choices or
-                len(complex_type_node) > 0
+                    complex_type_node.xpath(f'./*[local-name() = "sequence"]') or
+                    complex_type_node.xpath(f'./*[local-name() = "all"]') or
+                    complex_type_node.xpath(f'./*[local-name() = "simpleContent"]') or
+                    choices or
+                    len(complex_type_node) > 0
             ):
                 """
                 source: https://stackoverflow.com/questions/36286056/the-difference-between-all-sequence-choice-and-group-in-xsd
@@ -780,7 +826,8 @@ class XSDReader:
                     sequence_or_all_nodes = complex_type_node.xpath(f'./*[local-name() = "choice"]')
                     properties_required = False
                 elif complex_type_node.xpath(f'./*[local-name() = "simpleContent"]'):
-                    sequence_or_all_nodes = complex_type_node.xpath(f'./*[local-name() = "simpleContent"]/*[local-name() = "extension"]')
+                    sequence_or_all_nodes = complex_type_node.xpath(
+                        f'./*[local-name() = "simpleContent"]/*[local-name() = "extension"]')
 
                     text_property_type = sequence_or_all_nodes[0].get("base")
                     if text_property_type is not None:
@@ -825,7 +872,6 @@ class XSDReader:
         model.properties = properties
 
         if properties:
-
             model.add_external_info(external_name=new_source_path)
             model.description = self.get_description(node)
             self.models[model.name] = model
@@ -846,6 +892,7 @@ class XSDReader:
             resource_model.set_name(self.deduplicate(f"Resource"))
             self.models[resource_model.name] = resource_model
 
+
     def _parse_root_node(self):
         for node in self.root:
             if (
@@ -863,39 +910,73 @@ class XSDReader:
             for property_id, prop in model.properties.items():
                 if prop["type"] == "backref":
                     referenced_model = self.models[prop["model"]]
-                    referenced_model.add_ref_property(model)
+                    prop_added = False
+                    for prop in referenced_model.properties.values():
+                        if "model" in prop and prop["model"] == model.name:
+                            prop_added = True
+                    if not prop_added:
+                        referenced_model.add_ref_property(model)
 
     def _sort_properties_alphabetically(self):
         for model in self.models.values():
             model.properties = dict(sorted(model.properties.items()))
 
+    def _remove_sources_from_secondary_models(self):
+        """
+        Only models which represent root elements for XML need to have source
+        """
+
+        for parsed_model in self.models.values():
+
+            # we need to add root properties to properties if it's a root model
+            if parsed_model.parent_model is not None and parsed_model.parent_model.name in self.models:
+                parsed_model.external["name"] = ""
+
     def _remove_duplicate_models(self):
         """removes models that are exactly the same"""
 
-        model_pairs = {}
+        do_loop = True
 
-        for model_name, model in self.models.items():
-            for another_model_name, another_model in self.models.items():
-                if model is not another_model and model == another_model:
-                    if another_model_name not in model_pairs.values() and another_model_name not in model_pairs:
-                        model_pairs[another_model_name] = model_name
+        while do_loop:
 
-        for another_model_name, model_name in model_pairs.items():
-            parent_model = self.models[another_model_name].parent_model
-            if parent_model:
-                for property_id, prop in parent_model.properties.items():
-                    if "model" in prop and prop["model"] == another_model_name:
-                        prop["model"] = model_name
-                        if not self.models[model_name].parent_model:
-                            self.models[model_name].parent_model = self.models[model_name].parent_model
-                        self.models.pop(another_model_name)
+            model_pairs = {}
+
+            for model_name, model in self.models.items():
+                for another_model_name, another_model in self.models.items():
+                    if model is not another_model and model == another_model:
+                        if another_model_name not in model_pairs.values() and another_model_name not in model_pairs:
+                            model_pairs[another_model_name] = model_name
+
+            for another_model_name, model_name in model_pairs.items():
+                parent_model = self.models[another_model_name].parent_model
+                if parent_model and parent_model.name in self.models:
+                    for property_id, prop in parent_model.properties.items():
+                        if "model" in prop and prop["model"] == another_model_name:
+                            prop["model"] = model_name
+                            if not self.models[model_name].parent_model:
+                                self.models[model_name].parent_model = self.models[model_name].parent_model
+                            self.models.pop(another_model_name)
+
+            if not model_pairs:
+                do_loop = False
+            else:
+                print(self.dataset_name)
+                for old_model, new_model in model_pairs.items():
+                    print(f"{old_model.split('/')[1]} -> {new_model.split('/')[1]}")
 
     def start(self):
         self._extract_root()
 
+        # preparation part
+
         self._extract_namespaces()
-        self._extract_custom_types(self.root)
+        self._extract_custom_simple_types(self.root)
+
+        # main part
+
         self._add_resource_model()
+
+        # self._register_global_models()
 
         self._parse_root_node()
 
@@ -908,6 +989,8 @@ class XSDReader:
         self._remove_duplicate_models()
 
         self._compile_nested_properties()
+
+        self._remove_sources_from_secondary_models()
 
         self._add_refs_for_backrefs()
 
@@ -982,7 +1065,6 @@ class XSDReader:
                             prop["external"]["name"] = f'{prop["external"]["name"]}/{ref_prop["external"]["name"]}'
                             prop["model"] = ref_prop["model"]
 
-
                 if not self._has_backref(model, referee) and parse_referee:
                     self._remove_proxy_models(referee)
 
@@ -1014,7 +1096,8 @@ class XSDReader:
                 has_backref = True
         return has_backref
 
-    def _add_model_nested_properties(self, root_model: XSDModel, model: XSDModel, property_prefix: str = "", source_path: str = ""):
+    def _add_model_nested_properties(self, root_model: XSDModel, model: XSDModel, property_prefix: str = "",
+                                     source_path: str = ""):
         """recursively gather nested properties or root model"""
         # go forward, add property prefix, which is constructed rom properties that came rom beore models, and construct pathh orward also
         # probably will need to cut beginning for path sometimes
@@ -1061,24 +1144,24 @@ class XSDReader:
                 else:
                     new_source_path = ""
 
-                self._add_model_nested_properties(root_model, ref_model, property_prefix=property_id, source_path=new_source_path)
+                self._add_model_nested_properties(root_model, ref_model, property_prefix=property_id,
+                                                  source_path=new_source_path)
 
         root_model.properties.update(root_properties)
 
     def _compile_nested_properties(self):
-        for model_name, parsed_model in self.models.items():
+        for parsed_model in self.models.values():
 
             # we need to add root properties to properties if it's a root model
             if parsed_model.parent_model is None or parsed_model.parent_model.name not in self.models:
-
                 self._add_model_nested_properties(parsed_model, parsed_model)
 
 
 def read_schema(
-    context: Context,
-    path: str,
-    prepare: str = None,
-    dataset_name: str = ''
+        context: Context,
+        path: str,
+        prepare: str = None,
+        dataset_name: str = ''
 ) -> dict[Any, dict[str, str | dict[str, str | bool | dict[str, str | dict[str, Any]]]]]:
     """
     This reads XSD schema from the url provided in path and yields asd schema models
@@ -1169,5 +1252,4 @@ def read_schema(
     yield None, xsd.dataset_and_resource_info
 
     for model_name, parsed_model in xsd.models.items():
-
         yield None, parsed_model.get_data()
