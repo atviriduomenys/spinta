@@ -15,11 +15,14 @@ from itertools import count
 from starlette.requests import Request
 from starlette.templating import Jinja2Templates
 
+from shapely.geometry.base import BaseGeometry
+
 from spinta import commands
 from spinta.backends.components import SelectTree
 from spinta.backends.helpers import get_model_reserved_props, get_select_prop_names, select_props
 from spinta.backends.helpers import get_ns_reserved_props
 from spinta.backends.helpers import select_model_props
+from spinta.backends.postgresql.types.geometry.helpers import get_display_value, get_osm_link
 from spinta.components import Action, is_pagination_enabled, page_in_data
 from spinta.components import Context
 from spinta.components import Model
@@ -48,6 +51,7 @@ from spinta.types.datatype import Number
 from spinta.types.datatype import Binary
 from spinta.types.datatype import JSON
 from spinta.types.datatype import Inherit
+from spinta.types.geometry.components import Geometry
 from spinta.types.text.components import Text
 from spinta.utils.encoding import is_url_safe_base64, encode_page_values
 from spinta.utils.nestedstruct import flatten, sepgetter
@@ -821,6 +825,22 @@ def prepare_dtype_for_response(
         k: _value_or_null(v)
         for k, v in value.items()
     }
+
+
+@commands.prepare_dtype_for_response.register(Context, Html, Geometry, BaseGeometry)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: Geometry,
+    value: BaseGeometry,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    display_value = get_display_value(value)
+    osm_link = get_osm_link(value, dtype)
+    return Cell(display_value, link=osm_link)
 
 
 def _value_or_null(value):

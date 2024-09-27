@@ -47,5 +47,5 @@ def prepare_dtype_for_response(
 ):
     shape = to_shape(value)
     display_value = get_display_value(shape)
-    osm_link = get_osm_link(value, dtype)
+    osm_link = get_osm_link(shape, dtype)
     return Cell(display_value, link=osm_link)
