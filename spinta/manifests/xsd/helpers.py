@@ -89,14 +89,13 @@ class XSDModel:
     name: str | None = None
     basename: str | None = None
     external: dict | None = None
-    properties: dict = {}
+    properties: dict | None = None
     uri: str | None = None
     description: str | None = None
     root_properties: dict | None = None
     parent_model: XSDModel | None = None
     is_root_model: bool | None = None
-    element_name: str | None = None
-    complex_type_name: str | None = None
+
     """
     Class for creating and handling DSA models from XSD files.
 
