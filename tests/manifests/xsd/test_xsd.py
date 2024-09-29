@@ -895,7 +895,8 @@ def test_duplicate_removal_different_models(rc: RawConfig, tmp_path: Path):
 
 def test_duplicate_removal_two_level(rc: RawConfig, tmp_path: Path):
     """
-    in this situation, "Extract" model has to be only once
+    if a ref refers to another model, and this model refers to yet another, and they both produce duplicates,
+    all those duplicates should be removed.
     """
     xsd = """
     <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
