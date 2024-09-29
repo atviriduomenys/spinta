@@ -891,3 +891,94 @@ def test_duplicate_removal_different_models(rc: RawConfig, tmp_path: Path):
         xsd_file.write(xsd)
     manifest = load_manifest(rc, path)
     assert manifest == table
+
+
+def test_duplicate_removal_two_level(rc: RawConfig, tmp_path: Path):
+    """
+    in this situation, "Extract" model has to be only once
+    """
+    xsd = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+    <xs:element name="Maker">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="name" type="xs:string"/>
+                <xs:element name="code" type="xs:string"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+    
+    <xs:element name="Documentation">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="country" type="xs:string"/>
+                <xs:element ref="Maker"/>
+            </xs:sequence>
+        </xs:complexType>
+    
+    </xs:element>
+
+    <xs:element name="Car">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="colour" type="xs:string"/>
+                <xs:element name="make" type="xs:string"/>
+                <xs:element ref="Documentation"/>
+            </xs:sequence>
+        </xs:complexType>
+        
+    </xs:element>
+    
+        <xs:element name="Ship">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="colour" type="xs:string"/>
+                <xs:element name="make" type="xs:string"/>
+                <xs:element ref="Documentation"/>
+            </xs:sequence>
+        </xs:complexType>
+        
+    </xs:element>
+
+</xs:schema>
+"""
+
+    table = """
+ id | d | r | b | m | property                 | type            | ref           | source                              | prepare | level | access | uri | title | description
+    | manifest                                 |                 |               |                                     |         |       |        |     |       |
+    |   | resource1                            | xml             |               |                                     |         |       |        |     |       |
+    |                                          |                 |               |                                     |         |       |        |     |       |
+    |   |   |   | Car                          |                 |               | /Car                                |         |       |        |     |       |
+    |   |   |   |   | colour                   | string required |               | colour/text()                       |         |       |        |     |       |
+    |   |   |   |   | documentation            | ref required    | Documentation | Documentation                       |         |       |        |     |       |
+    |   |   |   |   | documentation.country    | string required |               | Documentation/country/text()        |         |       |        |     |       |
+    |   |   |   |   | documentation.maker      | ref required    | Maker         | Documentation/Maker                 |         |       |        |     |       |
+    |   |   |   |   | documentation.maker.code | string required |               | Documentation/Maker/code/text()     |         |       |        |     |       |
+    |   |   |   |   | documentation.maker.name | string required |               | Documentation/Maker/name/text()     |         |       |        |     |       |
+    |   |   |   |   | make                     | string required |               | make/text()                         |         |       |        |     |       |
+    |                                          |                 |               |                                     |         |       |        |     |       |
+    |   |   |   | Documentation                |                 |               |                                     |         |       |        |     |       |
+    |   |   |   |   | country                  | string required |               | country/text()                      |         |       |        |     |       |
+    |   |   |   |   | maker                    | ref required    | Maker         | Maker                               |         |       |        |     |       |
+    |                                          |                 |               |                                     |         |       |        |     |       |
+    |   |   |   | Maker                        |                 |               |                                     |         |       |        |     |       |
+    |   |   |   |   | code                     | string required |               | code/text()                         |         |       |        |     |       |
+    |   |   |   |   | name                     | string required |               | name/text()                         |         |       |        |     |       |
+    |                                          |                 |               |                                     |         |       |        |     |       |
+    |   |   |   | Ship                         |                 |               | /Ship                               |         |       |        |     |       |
+    |   |   |   |   | colour                   | string required |               | colour/text()                       |         |       |        |     |       |
+    |   |   |   |   | documentation            | ref required    | Documentation | Documentation                       |         |       |        |     |       |
+    |   |   |   |   | documentation.country    | string required |               | Car/Documentation/country/text()    |         |       |        |     |       |
+    |   |   |   |   | documentation.maker      | ref required    | Maker         | Car/Documentation/Maker             |         |       |        |     |       |
+    |   |   |   |   | documentation.maker.code | string required |               | Car/Documentation/Maker/code/text() |         |       |        |     |       |
+    |   |   |   |   | documentation.maker.name | string required |               | Car/Documentation/Maker/name/text() |         |       |        |     |       |
+    |   |   |   |   | make                     | string required |               | make/text()                         |         |       |        |     |       |
+
+  """
+
+    path = tmp_path / 'manifest.xsd'
+    with open(path, "w") as xsd_file:
+        xsd_file.write(xsd)
+    manifest = load_manifest(rc, path)
+    assert manifest == table
