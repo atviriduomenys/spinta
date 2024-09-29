@@ -901,8 +901,6 @@ class XSDReader:
 
         while do_loop:
 
-            do_not_remove = []
-
             model_pairs = {}
 
             for model_name, model in self.models.items():
