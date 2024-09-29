@@ -901,6 +901,8 @@ class XSDReader:
 
         while do_loop:
 
+            do_not_remove = []
+
             model_pairs = {}
 
             for model_name, model in self.models.items():
@@ -918,8 +920,6 @@ class XSDReader:
                     for property_id, prop in parent_model.properties.items():
                         if "model" in prop and prop["model"] == another_model_name:
                             prop["model"] = model_name
-                            if not self.models[model_name].parent_model:
-                                self.models[model_name].parent_model = self.models[model_name].parent_model
                 self.models.pop(another_model_name)
 
             if not model_pairs:
