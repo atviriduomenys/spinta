@@ -902,7 +902,7 @@ class XSDReader:
         # preparation part
 
         self._extract_namespaces()
-        self._extract_custom_simple_types(self.root)
+        self._extract_custom_types(self.root)
 
         # main part
 

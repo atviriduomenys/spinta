@@ -311,16 +311,16 @@ def test_xsd_choice_max_occurs_unbounded(rc: RawConfig, tmp_path: Path):
     """
 
     table = """
- id | d | r | b | m | property             | type    | ref | source                      | prepare | level | access | uri | title | description
-    | manifest                             |         |     |                             |         |       |        |     |       |
-    |   | resource1                        | xml     |     |                             |         |       |        |     |       |
-    |                                      |         |     |                             |         |       |        |     |       |
-    |   |   |   | Parcel                   |         |     | /parcel                     |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
-    |   |   |   |   | parcel_unique_number | integer |     | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
-    |   |   |   |   | sign_of_change       | integer |     | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
-    |                                      | enum    |     | 1                           |         |       |        |     |       |
-    |                                      |         |     | 2                           |         |       |        |     |       |
-    |   |   |   |   | text                 | string  |     | text()                      |         |       |        |     |       |
+ id | d | r | b | m | property               | type    | ref | source                      | prepare | level | access | uri | title | description
+    | manifest                               |         |     |                             |         |       |        |     |       |
+    |   | resource1                          | xml     |     |                             |         |       |        |     |       |
+    |                                        |         |     |                             |         |       |        |     |       |
+    |   |   |   | Parcel                     |         |     | /parcel                     |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
+    |   |   |   |   | parcel_unique_number[] | integer |     | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
+    |   |   |   |   | sign_of_change[]       | integer |     | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
+    |                                        | enum    |     | 1                           |         |       |        |     |       |
+    |                                        |         |     | 2                           |         |       |        |     |       |
+    |   |   |   |   | text                   | string  |     | text()                      |         |       |        |     |       |
 
 """
 
