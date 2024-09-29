@@ -906,7 +906,10 @@ class XSDReader:
             for model_name, model in self.models.items():
                 for another_model_name, another_model in self.models.items():
                     if model is not another_model and model == another_model:
-                        if another_model_name not in model_pairs.values() and another_model_name not in model_pairs:
+                        if (
+                            another_model_name not in model_pairs.values() and
+                            another_model_name not in model_pairs
+                        ):
                             model_pairs[another_model_name] = model_name
 
             for another_model_name, model_name in model_pairs.items():
@@ -917,7 +920,7 @@ class XSDReader:
                             prop["model"] = model_name
                             if not self.models[model_name].parent_model:
                                 self.models[model_name].parent_model = self.models[model_name].parent_model
-                            self.models.pop(another_model_name)
+                self.models.pop(another_model_name)
 
             if not model_pairs:
                 do_loop = False
