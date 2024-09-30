@@ -519,7 +519,7 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None
 ):
-    super_ = commands.prepare_dtype_for_response[Context, Format, Ref, dict]
+    super_ = commands.prepare_dtype_for_response[Context, Format, Ref, type(value)]
     data_dict = super_(context, fmt, dtype, value, data=data, action=action, select=select)
     prefixes = data['_available_prefixes']
     attributes = {}
