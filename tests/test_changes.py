@@ -1,6 +1,12 @@
 import pytest
+from _pytest.fixtures import FixtureRequest
+import sqlalchemy as sa
+from pathlib import Path
 
-from spinta.testing.data import send
+from spinta.core.config import RawConfig
+from spinta.testing.client import create_test_client
+from spinta.testing.data import send, listdata
+from spinta.testing.manifest import bootstrap_manifest
 
 
 @pytest.mark.models(
@@ -123,3 +129,203 @@ def test_changes_with_ref(context, app):
         ('insert', 'Vilnius', country.id),
         ('insert', 'Kaunas', country.id),
     ]
+
+
+def test_changes_with_ref_reassign(context, app):
+    model = 'backends/postgres/Country'
+    app.authmodel(model, ['insert'])
+    lt = send(app, model, 'insert', {'title': 'Lithuania'})
+    lv = send(app, model, 'insert', {'title': 'Latvia'})
+
+    model = 'backends/postgres/City'
+    app.authmodel(model, ['insert', 'changes', 'patch'])
+    vilnius = send(app, model, 'insert', {'title': 'Vilnius', 'country': {'_id': lt.id}})
+    kaunas = send(app, model, 'insert', {'title': 'Kaunas', 'country': {'_id': lv.id}})
+    send(app, model, 'patch', kaunas, {'country': {'_id': lt.id}})
+
+    resp = app.get(f"{model}/:changes/:format/ascii")
+    _, header, *lines, _ = resp.text.splitlines()
+    header = header.split()
+    assert header == [
+        '_cid',
+        '_created',
+        '_op',
+        '_id',
+        '_txn',
+        '_revision',
+        'title',
+        'country._id',
+    ]
+    lines = (dict(zip(header, line.split())) for line in lines)
+    lines = [
+        (
+            x['_op'],
+            x['_id'],
+            x['country._id'],
+        )
+        for x in lines
+    ]
+    assert lines == [
+        ('insert', vilnius.id, lt.id),
+        ('insert', kaunas.id, lv.id),
+        ('patch', kaunas.id, lt.id),
+    ]
+
+    assert app.get(f"{model}/:changes/:format/html").status_code == 200
+    assert app.get(f"{model}/:changes/:format/json").status_code == 200
+    assert app.get(f"{model}/:changes/:format/jsonl").status_code == 200
+    assert app.get(f"{model}/:changes/:format/rdf").status_code == 200
+
+
+def test_changes_with_ref_unassign(context, app):
+    model = 'backends/postgres/Country'
+    app.authmodel(model, ['insert'])
+    lt = send(app, model, 'insert', {'title': 'Lithuania'})
+    lv = send(app, model, 'insert', {'title': 'Latvia'})
+
+    model = 'backends/postgres/City'
+    app.authmodel(model, ['insert', 'changes', 'patch'])
+    vilnius = send(app, model, 'insert', {'title': 'Vilnius', 'country': {'_id': lt.id}})
+    kaunas = send(app, model, 'insert', {'title': 'Kaunas', 'country': {'_id': lv.id}})
+    send(app, model, 'patch', kaunas, {'country': None})
+
+    resp = app.get(f"{model}/:changes/:format/ascii")
+    _, header, *lines, _ = resp.text.splitlines()
+    header = header.split()
+    assert header == [
+        '_cid',
+        '_created',
+        '_op',
+        '_id',
+        '_txn',
+        '_revision',
+        'title',
+        'country._id',
+    ]
+    lines = (dict(zip(header, line.split())) for line in lines)
+    lines = [
+        (
+            x['_op'],
+            x['_id'],
+            x['country._id'],
+        )
+        for x in lines
+    ]
+    assert lines == [
+        ('insert', vilnius.id, lt.id),
+        ('insert', kaunas.id, lv.id),
+        ('patch', kaunas.id, '∅'),
+    ]
+
+    assert app.get(f"{model}/:changes/:format/html").status_code == 200
+    assert app.get(f"{model}/:changes/:format/json").status_code == 200
+    assert app.get(f"{model}/:changes/:format/jsonl").status_code == 200
+    assert app.get(f"{model}/:changes/:format/rdf").status_code == 200
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_changes_invalid_ref_changelog(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+            d | r | b | m | property | type    | ref      | access  | uri
+            example/ref/invalid     |         |          |         |
+              |   |   | Test         |         | id, name, ref | open    | 
+              |   |   |   | id       | integer |          |         | 
+              |   |   |   | name     | string  |          |         |
+              |   |   |   | ref      | ref     | Ref      |         |
+              |   |   | Ref          |         | id       | open    | 
+              |   |   |   | id       | integer |          |         | 
+            ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    app = create_test_client(context)
+    app.authmodel('example/ref/invalid', ['insert', 'getall', 'search', 'patch', 'changes'])
+    ref = send(app, 'example/ref/invalid/Ref', 'insert', {'id': 0})
+    model = '/example/ref/invalid/Test'
+    test = send(app, model, 'insert', {'id': 0, 'name': 'Test', 'ref': {'_id': ref.id}})
+    test0 = send(app, model, 'patch', test, {'ref': None})
+    test1 = send(app, model, 'patch', test0, {'ref': None})
+    test2 = send(app, model, 'patch', test1, {'ref': None})
+    test3 = send(app, model, 'patch', test2, {'ref': None})
+
+    # Imitate incorrect changelog
+    engine = sa.create_engine(postgresql)
+    with engine.connect() as conn:
+        conn.execute(f'''
+        UPDATE "example/ref/invalid/Test/:changelog" 
+        SET data = \'{{"ref": null}}\'
+        WHERE _revision = '{test0.rev}'
+        ''')
+
+        conn.execute(f'''
+        UPDATE "example/ref/invalid/Test/:changelog" 
+        SET data = \'{{"ref": {{"_id": null}}}}\'
+        WHERE _revision = '{test1.rev}'
+        ''')
+
+        conn.execute(f'''
+        UPDATE "example/ref/invalid/Test/:changelog" 
+        SET data = \'{{"ref": ""}}\'
+        WHERE _revision = '{test2.rev}'
+        ''')
+
+        conn.execute(f'''
+        UPDATE "example/ref/invalid/Test/:changelog" 
+        SET data = \'{{"ref": {{"_id": ""}}}}\'
+        WHERE _revision = '{test3.rev}'
+        ''')
+
+    resp = app.get(f"{model}/:changes/:format/ascii")
+    _, header, *lines, _ = resp.text.splitlines()
+    header = header.split()
+    assert header == [
+        '_cid',
+        '_created',
+        '_op',
+        '_id',
+        '_txn',
+        '_revision',
+        'id',
+        'name',
+        'ref._id',
+    ]
+    lines = (dict(zip(header, line.split())) for line in lines)
+    lines = [
+        (
+            x['_cid'],
+            x['_op'],
+            x['_id'],
+            x['ref._id'],
+        )
+        for x in lines
+    ]
+    assert lines == [
+        ('1', 'insert', test.id, ref.id),
+        ('2', 'patch', test.id, '∅'),
+        ('3', 'patch', test.id, '∅'),
+        ('4', 'patch', test.id, '∅'),
+        ('5', 'patch', test.id, '∅'),
+    ]
+
+    resp = app.get(f"{model}/:changes/:format/json")
+    assert listdata(resp, '_cid', '_op', '_id', 'ref') == [
+        (1, 'insert', test.id, {'_id': ref.id}),
+        (2, 'patch', test.id, None),
+        (3, 'patch', test.id, None),
+        (4, 'patch', test.id, None),
+        (5, 'patch', test.id, None)
+    ]
+
+    assert app.get(f"{model}/:changes/:format/html").status_code == 200
+    assert app.get(f"{model}/:changes/:format/jsonl").status_code == 200
+    assert app.get(f"{model}/:changes/:format/rdf").status_code == 200

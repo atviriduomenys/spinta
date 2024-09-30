@@ -948,7 +948,10 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    if value is None or all(val is None for val in value.values()):
+    # There are some cases where data changelog was not logging ref unassignment correctly and would store values as
+    # empty string, instead of null
+    # https://github.com/atviriduomenys/spinta/issues/556
+    if value is None or all(val is None or val == "" for val in value.values()):
         return None
 
     properties = dtype.model.properties.copy()
@@ -1001,6 +1004,12 @@ def prepare_dtype_for_response(
 ):
     # FIXME: Backend should never return references as strings! References
     #        should always be dicts.
+
+    # This is a workaround for `"value": ""` cases, where they should have been `"value": null`
+    # https://github.com/atviriduomenys/spinta/issues/556
+    if value == "":
+        return None
+
     return {'_id': value}
 
 

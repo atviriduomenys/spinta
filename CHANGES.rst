@@ -16,6 +16,11 @@ Bug fixes:
 
   .. _#832: https://github.com/atviriduomenys/spinta/issues/832
 
+- Fixed errors when `Ref` changelog values were incorrect. Now, if changelog ref `_id`, or ref itself is `""`, it assumes
+  that it is supposed to be `None` (`#556`_).
+
+  .. _#556: https://github.com/atviriduomenys/spinta/issues/556
+
 
 0.1.75 (2024-09-24)
 ===================
