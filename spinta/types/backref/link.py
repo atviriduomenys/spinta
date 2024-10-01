@@ -91,16 +91,9 @@ def _link_backref(context: Context, dtype: BackRef):
 def link(context: Context, dtype: BackRef) -> None:
     _link_backref(context, dtype)
 
-    if dtype.refprop.list is not None:
-        raise OneToManyBackRefNotSupported(dtype)
 
     # relationship needs to add unique
     # FIXME: at least in some cases (one to many relationship, for example) this is setting unique incorrectly
     #  In one to one relationship, this ref has to be unique. In one to many relationship it can't be unique.
     #  https://github.com/atviriduomenys/spinta/issues/592
     # dtype.refprop.dtype.unique = True
-
-
-@commands.link.register(Context, ArrayBackRef)
-def link(context: Context, dtype: ArrayBackRef):
-    _link_backref(context, dtype)

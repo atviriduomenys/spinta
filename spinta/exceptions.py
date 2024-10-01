@@ -797,7 +797,7 @@ class DataTypeCannotBeUsedForNesting(UserError):
     template = "Type {dtype!r} cannot be used for nesting properties."
 
 
-class NestedDataTypeMissmatch(UserError):
+class NestedDataTypeMismatch(UserError):
     template = "While nesting, {initial!r} type cannot be cast to {required!r} type."
 
 
