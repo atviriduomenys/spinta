@@ -1000,15 +1000,10 @@ def _get_parent_data_array(reader: PropertyReader, given_row: dict, full_name: s
     array_depth = name.count('[]')
     root_name = name.replace('[]', '')
     
-    if given_row.get('type') == DataTypeEnum.BACKREF.value:
-        dtype_type = DataTypeEnum._ARRAY_BACKREF.value
-    else:
-        dtype_type = DataTypeEnum._PARTIAL_ARRAY.value
-    
     empty_array_row = torow(DATASET, {
         'property': full_name,
-        'type': dtype_type,
-        'access': given_row.get('access', 'open'),
+        'type': DataTypeEnum._PARTIAL_ARRAY.value,
+        'access': given_row['access'],
     })
     
     if not current_parent:
@@ -1035,7 +1030,7 @@ def _get_parent_data_array(reader: PropertyReader, given_row: dict, full_name: s
 def _process_allowed_array_type(reader: PropertyReader, current_parent: dict, empty_array_row: dict) -> dict:
     if current_parent.get('items') and current_parent['items'].get('type') not in ALLOWED_ARRAY_TYPES:
         raise NestedDataTypeMismatch(initial=current_parent['type'], required=DataTypeEnum.ARRAY.value)
-    elif not current_parent.get('items'):
+    if not current_parent.get('items'):
         current_parent['items'] = _empty_property(_array_datatype_handler(reader, empty_array_row))
     
     return current_parent['items']
