@@ -382,8 +382,14 @@ def simple_data_check(
     backend: Backend,
     value: object,
 ) -> None:
+    if value is None:
+        return
+
     if value and not isinstance(value, dict):
         raise exceptions.InvalidRefValue(prop, value=value)
+
+    if isinstance(value, dict) and '_id' in value and value['_id'] is None:
+        raise Exception("CANNOT EXPLICITLY SET REF._id to NONE")
 
 
 @commands.simple_data_check.register(Context, DataItem, BackRef, Property, Backend, object)

@@ -1064,6 +1064,18 @@ def before_write(
     data: DataSubItem,
 ) -> dict:
     patch = {}
+    # If patch is None, then just set every child to None
+    if data.patch is None:
+        for prop in dtype.properties.values():
+            value = commands.before_write(
+                context,
+                prop.dtype,
+                backend,
+                data=data,
+            )
+            patch.update(value)
+        return patch
+
     for prop in dtype.properties.values():
         value = commands.before_write(
             context,
@@ -1133,6 +1145,23 @@ def before_write(
     *,
     data: DataSubItem,
 ) -> dict:
+    # If patch is None, it means that parent was set to null, meaning all children should also be set to null
+    if data.patch is None:
+        patch = {}
+        if not dtype.inherited:
+            patch[f'{dtype.prop.place}._id'] = None
+
+        for prop in dtype.properties.values():
+            value = commands.before_write(
+                context,
+                prop.dtype,
+                backend,
+                data=data,
+            )
+            patch.update(value)
+
+        return patch
+
     patch = flatten_value(data.patch, dtype.prop)
     return {
         f'{dtype.prop.place}.{k}': v for k, v in patch.items() if k
@@ -1147,6 +1176,14 @@ def before_write(
     *,
     data: DataSubItem,
 ) -> dict:
+    # If patch is None, it means that all children should be set to null
+    if data.patch is None:
+        patch = commands.before_write(context, dtype.rel_prop.dtype, backend, data=data)
+        return {
+            key.replace(dtype.rel_prop.place, dtype.prop.place): value
+            for key, value in patch.items() if key != dtype.rel_prop.place
+        }
+
     patch = flatten_value(data.patch, dtype.prop)
     key = dtype.prop.place.split('.', maxsplit=1)[-1]
     if patch.get(key):

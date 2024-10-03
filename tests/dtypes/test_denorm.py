@@ -7,7 +7,7 @@ from _pytest.fixtures import FixtureRequest
 from spinta.core.config import RawConfig
 from spinta.exceptions import InvalidDenormProperty, RefPropTypeMissmatch
 from spinta.testing.client import create_test_client
-from spinta.testing.data import listdata
+from spinta.testing.data import listdata, send
 from spinta.testing.manifest import bootstrap_manifest
 
 
@@ -1311,4 +1311,198 @@ def test_denorm_nested_override_and_new_property(
             'country.id': 1,
             'country.planet.name': 'Mars',
         }
+    ]
+
+
+def test_denorm_override_wipe(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, '''
+    d | r | b | m | property            | type    | ref     | source | level | access
+    datasets/denorm/wipe                |         |         |        |       |
+      |   |   | Planet                  |         | id      |        |       |
+      |   |   |   | id                  | integer |         |        |       | open
+      |   |   |   | name                | string  |         |        |       | open
+      |   |   |   |                     |         |         |        |       |           
+      |   |   | Country                 |         | id      |        |       |
+      |   |   |   | id                  | integer |         |        |       | open
+      |   |   |   | name                | string  |         |        |       | open
+      |   |   |   | planet              | ref     | Planet  |        | 4     | open
+      |   |   |   | planet.name         | string  |         |        |       | open
+      |   |   |   | planet.new          | integer |         |        |       | open
+      |   |   |   | planet.id           |         |         |        |       | open
+
+    ''', backend=postgresql, request=request)
+
+    app = create_test_client(context)
+    app.authorize(['spinta_set_meta_fields'])
+
+    planet_model = 'datasets/denorm/wipe/Planet'
+    app.authmodel(planet_model, [
+        'insert',
+        'getall',
+        'search'
+    ])
+    earth_id = str(uuid.uuid4())
+    app.post(planet_model, json={
+        '_id': earth_id,
+        'id': 0,
+        'name': 'Earth'
+    })
+
+    country_model = 'datasets/denorm/wipe/Country'
+    app.authmodel(country_model, [
+        'insert',
+        'getall',
+        'search',
+        'patch'
+    ])
+
+    lithuania_id = str(uuid.uuid4())
+    lt = send(app, country_model, 'insert', {
+        '_id': lithuania_id,
+        'id': 0,
+        'name': 'Lithuania',
+        'planet': {
+            '_id': earth_id,
+            'name': 'NEW EARTH',
+            'new': 10
+        }
+    })
+    resp = app.get(country_model)
+    assert listdata(resp, 'id', 'name', 'planet') == [
+        (0, 'Lithuania', {
+            '_id': earth_id,
+            'id': 0,
+            'name': 'NEW EARTH',
+            'new': 10
+        })
+    ]
+
+    send(app, country_model, 'patch', lt, {
+        'planet': None
+    })
+
+    resp = app.get(country_model)
+    assert listdata(resp, 'id', 'name', 'planet') == [
+        (0, 'Lithuania', None)
+    ]
+
+
+def test_denorm_nested_override_wipe(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, '''
+    d | r | b | m | property            | type    | ref     | source | level | access
+    datasets/denorm/wipe/nested         |         |         |        |       |
+      |   |   | Planet                  |         | id      |        |       |
+      |   |   |   | id                  | integer |         |        |       | open
+      |   |   |   | name                | string  |         |        |       | open
+      |   |   |   |                     |         |         |        |       |           
+      |   |   | Country                 |         | id      |        |       |
+      |   |   |   | id                  | integer |         |        |       | open
+      |   |   |   | name                | string  |         |        |       | open
+      |   |   |   | planet              | ref     | Planet  |        | 4     | open
+      |   |   |   | planet.name         | string  |         |        |       | open
+      |   |   |   | planet.new          | integer |         |        |       | open
+      |   |   |   | planet.id           |         |         |        |       | open
+      |   |   |   |                     |         |         |        |       |           
+      |   |   | City                    |         | id      |        |       |
+      |   |   |   | id                  | integer |         |        |       | open
+      |   |   |   | name                | string  |         |        |       | open
+      |   |   |   | country             | ref     | Country |        | 4     | open
+      |   |   |   | country.test        | string  |         |        |       | open
+      |   |   |   | country.planet.name |         |         |        |       | open
+      |   |   |   | country.planet.test | integer |         |        |       | open
+
+    ''', backend=postgresql, request=request)
+
+    app = create_test_client(context)
+    app.authorize(['spinta_set_meta_fields'])
+
+    planet_model = 'datasets/denorm/wipe/nested/Planet'
+    country_model = 'datasets/denorm/wipe/nested/Country'
+    city_model = 'datasets/denorm/wipe/nested/City'
+
+    app.authmodel(planet_model, [
+        'insert',
+        'getall',
+        'search'
+    ])
+    earth_id = str(uuid.uuid4())
+    app.post(planet_model, json={
+        '_id': earth_id,
+        'id': 0,
+        'name': 'Earth'
+    })
+
+    app.authmodel(country_model, [
+        'insert',
+        'getall',
+        'search',
+        'patch'
+    ])
+
+    lithuania_id = str(uuid.uuid4())
+    app.post(country_model, json = {
+        '_id': lithuania_id,
+        'id': 0,
+        'name': 'Lithuania',
+        'planet': {
+            '_id': earth_id,
+            'name': 'NEW EARTH',
+            'new': 10
+        }
+    })
+    resp = app.get(country_model)
+    assert listdata(resp, 'id', 'name', 'planet') == [
+        (0, 'Lithuania', {
+            '_id': earth_id,
+            'id': 0,
+            'name': 'NEW EARTH',
+            'new': 10
+        })
+    ]
+
+    app.authmodel(city_model, [
+        'insert',
+        'getall',
+        'search',
+        'patch'
+    ])
+
+    vln = send(app, city_model, 'insert', {
+        'id': 0,
+        'name': 'Vilnius',
+        'country': {
+            '_id': lithuania_id,
+            'test': 'NEW',
+            'planet': {
+                'test': 0
+            }
+        }
+    })
+    resp = app.get(city_model)
+    assert listdata(resp, 'id', 'name', 'country') == [
+        (0, 'Vilnius', {
+            '_id': lithuania_id,
+            'test': 'NEW',
+            'planet': {
+                'name': 'Earth',
+                'test': 0
+            },
+        })
+    ]
+
+    send(app, city_model, 'patch', vln, {
+        'country': None
+    })
+
+    resp = app.get(city_model)
+    assert listdata(resp, 'id', 'name', 'country') == [
+        (0, 'Lithuania', None)
     ]

@@ -238,10 +238,10 @@ def select(env, dtype, leaf):
 
 
 @ufunc.resolver(PgQueryBuilder, Ref)
-def select(env, dtype):
+def select(env, dtype: Ref):
     uri = dtype.model.uri_prop
     prep = {}
-    if dtype.prop.given.explicit:
+    if not dtype.inherited:
         name = '_id'
         if env.query_params.prioritize_uri and uri is not None:
             fpr = ForeignProperty(None, dtype, dtype.model.properties['_id'].dtype)
@@ -261,9 +261,9 @@ def select(env, dtype):
 
 
 @ufunc.resolver(PgQueryBuilder, ExternalRef)
-def select(env, dtype):
+def select(env, dtype: ExternalRef):
     prep = {}
-    if dtype.prop.given.explicit:
+    if not dtype.inherited:
         table = env.backend.get_table(env.model)
         if dtype.model.given.pkeys or dtype.explicit:
             props = dtype.refprops
@@ -390,13 +390,13 @@ def select(env, dtype):
     ref = dtype.prop.parent
     if isinstance(ref, Property) and isinstance(ref.dtype, Ref):
         fpr = None
-        if not ref.given.explicit:
+        if ref.dtype.inherited:
             root_ref_parent = ref.parent
 
             while root_ref_parent and isinstance(root_ref_parent, Property) and isinstance(root_ref_parent.dtype, Ref):
                 fpr = ForeignProperty(fpr, root_ref_parent.dtype, root_ref_parent.dtype.model.properties['_id'].dtype)
 
-                if root_ref_parent.given.explicit:
+                if not root_ref_parent.dtype.inherited:
                     break
                 root_ref_parent = root_ref_parent.parent
 
