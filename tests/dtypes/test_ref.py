@@ -6,8 +6,6 @@ from spinta.core.config import RawConfig
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata, send
 from spinta.testing.manifest import bootstrap_manifest
-from spinta.testing.manifest import load_manifest
-from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.utils import get_error_codes
 import pytest
 
@@ -148,6 +146,10 @@ def test_ref_unassign_incorrect(
     assert listdata(result, 'name', 'country') == [
         ('Vilnius', {'_id': lt.id})
     ]
+    resp = app.patch(f'{city_model}/{vln.id}', json={
+        '_revision': vln.rev,
+        'country': {'_id': None}
+    })
 
-    # Should get error
-    send(app, city_model, 'patch', vln, {'country': {'_id': None}})
+    assert resp.status_code == 400
+    assert get_error_codes(resp.json()) == ["DirectRefValueUnassignment"]

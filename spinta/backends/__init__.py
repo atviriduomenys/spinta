@@ -41,7 +41,8 @@ from spinta.components import Node
 from spinta.components import Property
 from spinta.core.ufuncs import asttoexpr
 from spinta.exceptions import ConflictingValue, RequiredProperty, LangNotDeclared, TooManyLangsGiven, \
-    UnableToDetermineRequiredLang, CoordinatesOutOfRange, InheritPropertyValueMissmatch, SRIDNotSetForGeometry
+    UnableToDetermineRequiredLang, CoordinatesOutOfRange, InheritPropertyValueMissmatch, SRIDNotSetForGeometry, \
+    DirectRefValueUnassignment
 from spinta.exceptions import NoItemRevision
 from spinta.formats.components import Format
 from spinta.manifests.components import Manifest
@@ -389,7 +390,7 @@ def simple_data_check(
         raise exceptions.InvalidRefValue(prop, value=value)
 
     if isinstance(value, dict) and '_id' in value and value['_id'] is None:
-        raise Exception("CANNOT EXPLICITLY SET REF._id to NONE")
+        raise DirectRefValueUnassignment(dtype)
 
 
 @commands.simple_data_check.register(Context, DataItem, BackRef, Property, Backend, object)

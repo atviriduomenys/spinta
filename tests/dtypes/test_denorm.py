@@ -1448,7 +1448,7 @@ def test_denorm_nested_override_wipe(
     ])
 
     lithuania_id = str(uuid.uuid4())
-    app.post(country_model, json = {
+    app.post(country_model, json={
         '_id': lithuania_id,
         'id': 0,
         'name': 'Lithuania',
@@ -1504,5 +1504,9 @@ def test_denorm_nested_override_wipe(
 
     resp = app.get(city_model)
     assert listdata(resp, 'id', 'name', 'country') == [
-        (0, 'Lithuania', None)
+        (0, 'Lithuania', {
+            '_id': None,
+            'planet': None,
+            'test': None
+        })
     ]
