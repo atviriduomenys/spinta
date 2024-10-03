@@ -307,7 +307,7 @@ class XSDReader:
         # TODO: two options: -
         #  1. we register all top level things first and then use when we need them
         #  2. we register every model (from element or separate complexType) when we meet them, but check if we already have processed them before (by XSD name)
-        #
+        #  I like the second option better. I think it will be more
 
         self.process_top_level()
 
