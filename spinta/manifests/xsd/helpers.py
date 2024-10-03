@@ -75,7 +75,6 @@ DATATYPES_MAPPING = {
     "dayTimeDuration": "integer",
     "dateTimeStamp": "datetime",
     "": "string",
-
 }
 
 class XSDProperty:
@@ -346,6 +345,7 @@ class XSDReader:
         self._dataset_given_name: str = dataset_name
         self._set_dataset_and_resource_info()
         self.deduplicate: Deduplicator = Deduplicator()
+        self.root: _Element
 
     def get_property_type(self, node: _Element) -> str:
         if node.get("ref"):
@@ -1157,99 +1157,99 @@ class XSDReader:
                 self._add_model_nested_properties(parsed_model, parsed_model)
 
 
-def read_schema(
-        context: Context,
-        path: str,
-        prepare: str = None,
-        dataset_name: str = ''
-) -> dict[Any, dict[str, str | dict[str, str | bool | dict[str, str | dict[str, Any]]]]]:
-    """
-    This reads XSD schema from the url provided in path and yields asd schema models
-
-    For now this is adjusted for XSD schemas of Registrų centras
-
-    Elements can be:
-    1. Simple type inline
-    2. Simple type
-    3. Complex type
-    4. Complex type described separately
-
-    Elements can have annotations, which we add as description to either a model or a property.
-
-    1. Simple type.
-        a) not a reference. It's a property
-        b) a reference
-            i. maxOccurs = 1
-                A. both referencing and referenced elements has annotations. A ref property
-                B. Only one or none of the elements has annotations. A part of the path
-            ii. maxOccurs > 1 - a ref property
-    2. Inline type.
-
-        a) inline type or a custom type referencing to simple type. A property
-        b) complex type defined separately of this element.
-
-        If it's a root element, it's then added as a property to a special Resource model.
-
-        Simple type can have annotation too.
-
-    3. Complex type
-        If element is complex type, it can be either a property or a model,
-        or a part of a source path for a property or model, depending on other factors
-
-            a) element has attributes. Then it's a model and attributes are properties.
-            b) element has a sequence
-                i. There is more than one element in the sequence. Then it's a model/end part of the model.
-                   We treat child elements in the same way as we do root elements (recursion) and build a path
-                ii. There is only one element in the sequence. It can then be a property, a model or an intermediate
-                    in the path of a model.
-                    Options:
-                        A. That element isn't a ref.
-                            We treat child elements in the same way as we do root elements (recursion) and build a path
-                        B. That element is a ref.
-                            B1. If maxOccurs > 1, this is a model, and that other element is also a model
-                            B2. If maxOccurs = 1
-                                B21. If both have annotation, then it's a model
-                                B22. If only one of them has annotation, it's a part of a path
-
-
-            c) element has a choice.
-
-    4. complex type described separately
-
-    We will build a list of models
-    (another option was to make a generator for parsing models, and going deeper, but that would
-    be more complex when returning models. although this option is also possible, but it can
-    be reworked into this from an option with a list)
-
-    If some model has references in the sequence, we need to also add those as models,
-    mark their type as backref. In this case, we add them at the moment we meet them
-    as xsd refs, because this way we will know that they are backrefs. We also need to add refs on
-    those models to the current model.
-
-    Element can be as a ref in more than one other element.
-
-    Other things to handle: Resource model, custom types, enumerations, choices
-
-    Element can be turned into:
-        1. A property (including reference properties)
-        2. A model (including referenced models)
-        3. A part of another model (as a path)
-        4. A part of another property (as a path)
-
-    Attribute can only be turned into a property
-
-    A property can also be text()
-
-    -----------Nested properties-------------
-
-    Root model or models can have nested properties if they have any properties that point to other models.
-
-    """
-    xsd = XSDReader(path, dataset_name)
-
-    xsd.start()
-
-    yield None, xsd.dataset_and_resource_info
-
-    for model_name, parsed_model in xsd.models.items():
-        yield None, parsed_model.get_data()
+# def read_schema(
+#         context: Context,
+#         path: str,
+#         prepare: str = None,
+#         dataset_name: str = ''
+# ) -> dict[Any, dict[str, str | dict[str, str | bool | dict[str, str | dict[str, Any]]]]]:
+#     """
+#     This reads XSD schema from the url provided in path and yields asd schema models
+#
+#     For now this is adjusted for XSD schemas of Registrų centras
+#
+#     Elements can be:
+#     1. Simple type inline
+#     2. Simple type
+#     3. Complex type
+#     4. Complex type described separately
+#
+#     Elements can have annotations, which we add as description to either a model or a property.
+#
+#     1. Simple type.
+#         a) not a reference. It's a property
+#         b) a reference
+#             i. maxOccurs = 1
+#                 A. both referencing and referenced elements has annotations. A ref property
+#                 B. Only one or none of the elements has annotations. A part of the path
+#             ii. maxOccurs > 1 - a ref property
+#     2. Inline type.
+#
+#         a) inline type or a custom type referencing to simple type. A property
+#         b) complex type defined separately of this element.
+#
+#         If it's a root element, it's then added as a property to a special Resource model.
+#
+#         Simple type can have annotation too.
+#
+#     3. Complex type
+#         If element is complex type, it can be either a property or a model,
+#         or a part of a source path for a property or model, depending on other factors
+#
+#             a) element has attributes. Then it's a model and attributes are properties.
+#             b) element has a sequence
+#                 i. There is more than one element in the sequence. Then it's a model/end part of the model.
+#                    We treat child elements in the same way as we do root elements (recursion) and build a path
+#                 ii. There is only one element in the sequence. It can then be a property, a model or an intermediate
+#                     in the path of a model.
+#                     Options:
+#                         A. That element isn't a ref.
+#                             We treat child elements in the same way as we do root elements (recursion) and build a path
+#                         B. That element is a ref.
+#                             B1. If maxOccurs > 1, this is a model, and that other element is also a model
+#                             B2. If maxOccurs = 1
+#                                 B21. If both have annotation, then it's a model
+#                                 B22. If only one of them has annotation, it's a part of a path
+#
+#
+#             c) element has a choice.
+#
+#     4. complex type described separately
+#
+#     We will build a list of models
+#     (another option was to make a generator for parsing models, and going deeper, but that would
+#     be more complex when returning models. although this option is also possible, but it can
+#     be reworked into this from an option with a list)
+#
+#     If some model has references in the sequence, we need to also add those as models,
+#     mark their type as backref. In this case, we add them at the moment we meet them
+#     as xsd refs, because this way we will know that they are backrefs. We also need to add refs on
+#     those models to the current model.
+#
+#     Element can be as a ref in more than one other element.
+#
+#     Other things to handle: Resource model, custom types, enumerations, choices
+#
+#     Element can be turned into:
+#         1. A property (including reference properties)
+#         2. A model (including referenced models)
+#         3. A part of another model (as a path)
+#         4. A part of another property (as a path)
+#
+#     Attribute can only be turned into a property
+#
+#     A property can also be text()
+#
+#     -----------Nested properties-------------
+#
+#     Root model or models can have nested properties if they have any properties that point to other models.
+#
+#     """
+#     xsd = XSDReader(path, dataset_name)
+#
+#     xsd.start()
+#
+#     yield None, xsd.dataset_and_resource_info
+#
+#     for model_name, parsed_model in xsd.models.items():
+#         yield None, parsed_model.get_data()
