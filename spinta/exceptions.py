@@ -971,3 +971,6 @@ class UpgradeScriptNotFound(UserError):
     Upgrade script {script!r} not found.
     Available scripts: {available_scripts}.
     '''
+
+class InvalidScopes(UserError):
+    template = "Request contains invalid, unknown or malformed scopes: {scopes}."
