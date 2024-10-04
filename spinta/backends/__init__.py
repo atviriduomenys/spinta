@@ -961,7 +961,9 @@ def prepare_dtype_for_response(
     properties = dtype.model.properties.copy()
     properties.update(dtype.properties)
 
+    nullable = True
     if select and select != {'*': {}}:
+        nullable = False
         names = get_select_prop_names(
             context,
             dtype,
@@ -996,7 +998,7 @@ def prepare_dtype_for_response(
     # There are some cases where data changelog was not logging ref unassignment correctly and would store values as
     # empty string, instead of null
     # https://github.com/atviriduomenys/spinta/issues/556
-    if result is None or all(val is None or val == "" for val in result.values()):
+    if nullable and all(val is None or val == "" for val in result.values()):
         return None
 
     return result
@@ -1038,7 +1040,9 @@ def prepare_dtype_for_response(
     if value is None:
         return None
 
+    nullable = True
     if select and select != {'*': {}}:
+        nullable = False
         names = get_select_prop_names(
             context,
             dtype,
@@ -1049,7 +1053,7 @@ def prepare_dtype_for_response(
     else:
         names = value.keys()
 
-    data = {}
+    result = {}
     props = dtype.properties.copy()
     props.update(dtype.model.properties)
 
@@ -1060,7 +1064,7 @@ def prepare_dtype_for_response(
         value,
         select,
     ):
-        data[prop.name] = commands.prepare_dtype_for_response(
+        result[prop.name] = commands.prepare_dtype_for_response(
             context,
             fmt,
             prop.dtype,
@@ -1071,10 +1075,10 @@ def prepare_dtype_for_response(
         )
 
     # Apply None checks at the end, since there might be nested values that are only calculated at the end
-    if data is None or all(val is None for val in data.values()):
+    if nullable and all(val is None for val in result.values()):
         return None
 
-    return data
+    return result
 
 
 @commands.prepare_dtype_for_response.register(Context, Format, Object, dict)
