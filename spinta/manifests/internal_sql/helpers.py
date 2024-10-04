@@ -280,6 +280,9 @@ def _load_internal_manifest_node(
     node.parent = manifest
     node.manifest = manifest
     commands.load(context, node, data, manifest, source=source)
+    except KeyError:
+        pp(data)
+        raise
     return node
 
 
@@ -1111,10 +1114,22 @@ def _property_to_sql(
             data['source'] = prop.external.name
             data['prepare'] = _handle_prepare(prop.external.prepare)
     yield_rows = []
+
     if isinstance(prop.dtype, Array):
         yield_array_row = prop.dtype.items
         yield_rows.append(yield_array_row)
-    if isinstance(prop.dtype, Ref):
+
+    if isinstance(prop.dtype, BackRef):
+        model = prop.model
+        if model.external and model.external.dataset:
+            data['ref'] = prop.dtype.model.name
+            rkey = prop.dtype.refprop.place
+            if prop.dtype.explicit:
+                data['ref'] += f'[{rkey}]'
+        else:
+            data['ref'] = prop.dtype.model.name
+
+    elif isinstance(prop.dtype, Ref):
         model = prop.model
         if model.external and model.external.dataset:
             data['ref'] = prop.dtype.model.name
@@ -1129,18 +1144,11 @@ def _property_to_sql(
         if prop.dtype.properties:
             for obj_prop in prop.dtype.properties.values():
                 yield_rows.append(obj_prop)
-    elif isinstance(prop.dtype, BackRef):
-        model = prop.model
-        if model.external and model.external.dataset:
-            data['ref'] = prop.dtype.model.name
-            rkey = prop.dtype.refprop.place
-            if prop.dtype.explicit:
-                data['ref'] += f'[{rkey}]'
-        else:
-            data['ref'] = prop.dtype.model.name
+
     elif isinstance(prop.dtype, Object):
         for obj_prop in prop.dtype.properties.values():
             yield_rows.append(obj_prop)
+
     elif isinstance(prop.dtype, Text):
         for lang_prop in prop.dtype.langs.values():
             yield_rows.append(lang_prop)

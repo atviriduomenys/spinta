@@ -199,11 +199,8 @@ class Ref(DataType):
     }
 
 
-class BackRef(DataType):
-    model: Model
+class BackRef(Ref):
     refprop: Property
-    explicit: bool = False
-    properties: Dict[str, Property] = {}
 
     schema = {
         'model': {'type': 'string'},
@@ -400,11 +397,6 @@ def load(context: Context, dtype: Ref, data: dict, manifest: Manifest) -> DataTy
     _add_leaf_props(dtype.prop)
     return dtype
 
-@load.register(Context, BackRef, dict, Manifest)
-def load(context: Context, dtype: BackRef, data: dict, manifest: Manifest) -> DataType:
-    dtype  = _load_properties(context, dtype, data, manifest)
-    _add_leaf_props(dtype.prop)
-    return dtype
 
 def _load_properties(context: Context, dtype: DataType, data: dict, manifest: Manifest) -> None:
     props = {}

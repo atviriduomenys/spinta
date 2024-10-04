@@ -176,13 +176,12 @@ def write_mermaid_manifest(context: Context, output: str, manifest: InlineManife
                                 type=RelationshipType.DEPENDENCY,
                                 label=model_property.name
                             ))
-                    elif (isinstance(model_property.dtype, Ref) or
-                          isinstance(model_property.dtype, BackRef) or
-                          isinstance(model_property.dtype, ArrayBackRef)):
-                        if isinstance(model_property.dtype, ArrayBackRef):
-                            multiplicity = '*'
-                        else:
-                            multiplicity = '1'
+                        
+                    if (
+                        isinstance(model_property.dtype, Ref)
+                        or isinstance(model_property.dtype, BackRef)
+                    ):
+                        multiplicity = '1'
                         mermaid.add_relationship(
                             MermaidRelationship(
                                 node1=mermaid_class.name,
@@ -198,7 +197,10 @@ def write_mermaid_manifest(context: Context, output: str, manifest: InlineManife
                     elif isinstance(model_property.dtype, Inherit):
                         continue
 
-                    elif isinstance(model_property.dtype, PartialArray):
+                    elif (
+                        isinstance(model_property.dtype, PartialArray)
+                        or isinstance(model_property.dtype, ArrayBackRef)
+                    ):
                         multiplicity = '*'
 
                         if hasattr(model_property.dtype, "items"):

@@ -6,7 +6,7 @@ from spinta import commands
 from spinta.accesslog import log_response
 from spinta.backends.helpers import get_select_tree, get_select_prop_names
 from spinta.compat import urlparams_to_expr
-from spinta.manifests.internal_sql.commands.manifest import get_model_name_list, get_namespace_name_list
+from spinta.manifests.internal_sql.commands.manifest import get_model_name_list
 from spinta.renderer import render
 from spinta.components import Context, Namespace, Action, UrlParams
 from spinta.manifests.internal_sql.components import InternalSQLManifest
@@ -58,8 +58,6 @@ def getall(
             recursive=True
         )
     elif params.all:
-        accesslog = context.get('accesslog')
-
         prepare_data_for_response_kwargs = {}
         for model in commands.traverse_ns_models(context, ns, manifest, action, internal=True):
             commands.authorize(context, action, model)
