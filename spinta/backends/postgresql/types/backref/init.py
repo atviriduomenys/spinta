@@ -6,4 +6,4 @@ from spinta.types.datatype import BackRef
 
 @commands.prepare.register(Context, PostgreSQL, BackRef)
 def prepare(context: Context, backend: PostgreSQL, dtype: BackRef, **kwargs):
-    pass
+    return None
