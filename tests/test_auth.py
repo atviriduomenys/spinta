@@ -339,3 +339,23 @@ def test_http_basic_auth(basic_auth):
 def test_get_client_file_path_uuid(tmp_path):
     file_name = "a6c06c3a-3aa4-4704-b144-4fc23e2152f7"
     assert str(get_client_file_path(get_clients_path(tmp_path), file_name)) == str(tmp_path / 'clients' / 'id' / 'a6' / 'c0' / '6c3a-3aa4-4704-b144-4fc23e2152f7.yml')
+
+def test_invalid_scope(context, app):
+    client_id = 'test'
+    client_secret = 'secret'
+    unknown_scope = 'unknown_scope1'
+
+    resp = app.post('/auth/token', auth=(client_id, client_secret), data={
+        'grant_type': 'client_credentials',
+        'scope': unknown_scope,
+    })
+    assert resp.status_code == 400, resp.text
+
+    expected_error = [{
+        "type": "system",
+        "code": "InvalidScopes",
+        "template": "Request contains invalid, unknown or malformed scopes: {scopes}.",
+        "context": {"scopes": unknown_scope},
+        "message": f"Request contains invalid, unknown or malformed scopes: {unknown_scope}."
+    }]
+    assert resp.json() == {"error": expected_error}
