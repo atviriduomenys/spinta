@@ -222,7 +222,7 @@ def _read_model_data_with_page(
     for item in stream:
         for key, value in item.items():
             if not key.startswith('_'):
-                prop = model.properties[key]
+                prop = model.flatprops[key]
                 item[key] = commands.prepare_dtype_for_response(
                     context,
                     fmt,
