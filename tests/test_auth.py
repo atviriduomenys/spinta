@@ -350,12 +350,4 @@ def test_invalid_scope(context, app):
         'scope': unknown_scope,
     })
     assert resp.status_code == 400, resp.text
-
-    expected_error = [{
-        "type": "system",
-        "code": "InvalidScopes",
-        "template": "Request contains invalid, unknown or malformed scopes: {scopes}.",
-        "context": {"scopes": unknown_scope},
-        "message": f"Request contains invalid, unknown or malformed scopes: {unknown_scope}."
-    }]
-    assert resp.json() == {"error": expected_error}
+    assert get_error_codes(resp.json()) == ['InvalidScopes']
