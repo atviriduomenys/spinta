@@ -1850,6 +1850,10 @@ def cast_backend_to_python(
                     value
                 )
             result[key] = converted
+
+        if not result or all(value is None for value in result.values()):
+            return None
+
         return result
     return data
 
