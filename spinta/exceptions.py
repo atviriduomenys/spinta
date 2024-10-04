@@ -974,6 +974,10 @@ class UpgradeScriptNotFound(UserError):
     '''
 
 
+class InvalidScopes(UserError):
+    template = "Request contains invalid, unknown or malformed scopes: {scopes}."
+
+
 class DirectRefValueUnassignment(UserError):
     template = '''
     Cannot directly set ref's _id value to None.
