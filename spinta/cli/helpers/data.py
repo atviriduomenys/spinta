@@ -14,9 +14,10 @@ import tqdm
 
 from spinta import commands
 from spinta import components
+from spinta.backends.helpers import get_select_tree
 from spinta.cli.helpers.errors import ErrorCounter
 from spinta.formats.components import Format
-from spinta.components import Context
+from spinta.components import Context, Action
 from spinta.components import DataStream
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
@@ -98,7 +99,23 @@ def read_model_data(
             return
 
     prop_filer, needs_filtering = filter_allowed_props_for_model(model)
+    prop_select_tree = get_select_tree(context, Action.GETALL, None)
+    fmt = Format()
+    action = Action.GETALL
     for item in stream:
+        for key, value in item.items():
+            if not key.startswith('_'):
+                prop = model.properties[key]
+                item[key] = commands.prepare_dtype_for_response(
+                    context,
+                    fmt,
+                    prop.dtype,
+                    value,
+                    data=item,
+                    action=action,
+                    select=prop_select_tree,
+                )
+
         if needs_filtering:
             item = filter_dict_by_keys(prop_filer, item)
         yield item

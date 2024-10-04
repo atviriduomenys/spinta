@@ -1504,9 +1504,5 @@ def test_denorm_nested_override_wipe(
 
     resp = app.get(city_model)
     assert listdata(resp, 'id', 'name', 'country') == [
-        (0, 'Lithuania', {
-            '_id': None,
-            'planet': None,
-            'test': None
-        })
+        (0, 'Vilnius', None)
     ]

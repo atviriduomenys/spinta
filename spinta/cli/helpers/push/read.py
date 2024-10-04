@@ -9,6 +9,8 @@ import requests
 import sqlalchemy as sa
 import tqdm
 
+from spinta import commands
+from spinta.backends.helpers import get_select_tree
 from spinta.cli.helpers.data import ModelRow, count_rows, read_model_data, filter_allowed_props_for_model, \
     filter_dict_by_keys
 from spinta.cli.helpers.errors import ErrorCounter
@@ -19,10 +21,11 @@ from spinta.cli.helpers.push.utils import get_data_checksum, extract_state_page_
     construct_where_condition_from_page
 import spinta.cli.push as cli_push
 from spinta.commands.read import get_page, PaginationMetaData, get_paginated_values
-from spinta.components import Context
+from spinta.components import Context, Action
 from spinta.components import Model
 from spinta.components import Page, get_page_size
 from spinta.core.ufuncs import Expr
+from spinta.formats.components import Format
 from spinta.ufuncs.basequerybuilder.components import QueryParams
 from spinta.utils.itertools import peek
 
@@ -212,9 +215,27 @@ def _read_model_data_with_page(
             return
 
     prop_filer, needs_filtering = filter_allowed_props_for_model(model)
+
+    prop_select_tree = get_select_tree(context, Action.GETALL, None)
+    fmt = Format()
+    action = Action.GETALL
     for item in stream:
+        for key, value in item.items():
+            if not key.startswith('_'):
+                prop = model.properties[key]
+                item[key] = commands.prepare_dtype_for_response(
+                    context,
+                    fmt,
+                    prop.dtype,
+                    value,
+                    data=item,
+                    action=action,
+                    select=prop_select_tree,
+                )
+
         if needs_filtering:
             item = filter_dict_by_keys(prop_filer, item)
+
         yield item
 
 
