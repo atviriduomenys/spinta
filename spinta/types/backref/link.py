@@ -2,6 +2,7 @@ from spinta import commands
 from spinta.components import Context, Model, Property
 from spinta.exceptions import ModelReferenceNotFound, MultipleBackRefReferencesFound, NoBackRefReferencesFound, \
     NoReferencesFound, OneToManyBackRefNotSupported
+from spinta.manifests.tabular.constants import DataTypeEnum
 from spinta.types.datatype import BackRef, Ref, Array, ArrayBackRef, Object, Denorm, DataType
 from spinta.types.helpers import set_dtype_backend
 
@@ -91,6 +92,10 @@ def _link_backref(context: Context, dtype: BackRef):
 def link(context: Context, dtype: BackRef) -> None:
     _link_backref(context, dtype)
 
+    if dtype.prop.parent.dtype.name == DataTypeEnum._ARRAY_BACKREF.value or dtype.refprop.list is None:
+        return
+    
+    raise OneToManyBackRefNotSupported(dtype)
 
     # relationship needs to add unique
     # FIXME: at least in some cases (one to many relationship, for example) this is setting unique incorrectly
