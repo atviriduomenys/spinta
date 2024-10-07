@@ -29,7 +29,7 @@ def get_column(backend: Sql, dtype: DataType, table: sa.Table, **kwargs):
 @commands.get_column.register(Sql, Ref)
 def get_column(backend: Sql, dtype: Ref, table: sa.Table, **kwargs):
     prop = dtype.prop
-    if prop.external is None or not prop.external.name and prop.given.explicit:
+    if prop.external is None or not prop.external.name and not dtype.inherited:
         raise NoExternalName(prop)
 
     if prop.external.name:

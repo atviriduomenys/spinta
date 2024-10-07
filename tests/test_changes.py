@@ -253,10 +253,12 @@ def test_changes_invalid_ref_changelog(
     ref = send(app, 'example/ref/invalid/Ref', 'insert', {'id': 0})
     model = '/example/ref/invalid/Test'
     test = send(app, model, 'insert', {'id': 0, 'name': 'Test', 'ref': {'_id': ref.id}})
-    test0 = send(app, model, 'patch', test, {'ref': None})
-    test1 = send(app, model, 'patch', test0, {'ref': None})
-    test2 = send(app, model, 'patch', test1, {'ref': None})
-    test3 = send(app, model, 'patch', test2, {'ref': None})
+
+    # Generate different change (need to do id changes, so it generates entries (same changes are skipped)
+    test0 = send(app, model, 'patch', test, {'id': 1, 'ref': None})
+    test1 = send(app, model, 'patch', test0, {'id': 2})
+    test2 = send(app, model, 'patch', test1, {'id': 3})
+    test3 = send(app, model, 'patch', test2, {'id': 0})
 
     # Imitate incorrect changelog
     engine = sa.create_engine(postgresql)

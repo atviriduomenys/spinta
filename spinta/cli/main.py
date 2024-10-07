@@ -63,6 +63,7 @@ add(app, 'wait', server.wait, short_help="Wait while all backends are up")
 
 add(app, 'upgrade', upgrade, short_help="Run upgrade scripts")
 
+
 @app.callback(invoke_without_command=True)
 def main(
     ctx: TyperContext,

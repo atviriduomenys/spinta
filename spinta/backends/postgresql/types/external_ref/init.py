@@ -10,7 +10,7 @@ from spinta.backends.postgresql.helpers import get_column_name
 @commands.prepare.register(Context, PostgreSQL, ExternalRef)
 def prepare(context: Context, backend: PostgreSQL, dtype: ExternalRef, **kwargs):
     columns = []
-    if dtype.prop.given.explicit:
+    if not dtype.inherited:
         if dtype.model.given.pkeys or dtype.explicit:
             for prop in dtype.refprops:
                 # Skip if refprop is already defined in properties, but is not Denorm type
