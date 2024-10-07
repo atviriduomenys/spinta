@@ -58,6 +58,7 @@ from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.types.datatype import String
 from spinta.types.datatype import Time
+from spinta.types.datatype import UUID
 from spinta.types.geometry.components import Geometry
 from spinta.types.geometry.helpers import get_crs_bounding_area
 from spinta.types.text.components import Text
@@ -759,7 +760,6 @@ def _select_prop_props(
             select,
         )
 
-
 @commands.prepare_dtype_for_response.register(Context, Format, DataType, object)
 def prepare_dtype_for_response(
     context: Context,
@@ -771,6 +771,8 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
+    #if isinstance(value, uuid.UUID):
+    #    value = value.hex
     assert isinstance(value, (str, int, float, bool, type(None), list, dict)), (
         f"prepare_dtype_for_response must return only primitive, json "
         f"serializable types, {type(value)} is not a primitive data type, "
@@ -792,6 +794,18 @@ def prepare_dtype_for_response(
 ):
     return dtype.default
 
+@commands.prepare_dtype_for_response.register(Context, Format, UUID, uuid.UUID)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: UUID,
+    value: uuid.UUID,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    return value.hex
 
 @commands.prepare_dtype_for_response.register(Context, Format, File, NotAvailable)
 def prepare_dtype_for_response(

@@ -323,11 +323,11 @@ class UUID(DataType):
             return value
 
         if isinstance(value, uuid.UUID):
-            return value.hex
+            return value
 
         if isinstance(value, str):
             try:
-                return uuid.UUID(value).hex
+                return uuid.UUID(value)
             except ValueError:
                 raise exceptions.InvalidValue(self, value=value)
 

@@ -735,22 +735,14 @@ def prepare_dtype_for_response(
     context: Context,
     fmt: Html,
     dtype: UUID,
-    value: String,
+    value: str,
     *,
     data: Dict[str, Any],
     action: Action,
     select: dict = None,
 ):
-    res = commands.prepare_dtype_for_response[Context, Format, UUID, str](
-        context,
-        fmt,
-        dtype,
-        value,
-        data=data,
-        action=action,
-        select=select,
-    )
-    return res
+    super_ = commands.prepare_dtype_for_response[Context, Format, UUID, str]
+    return super_(context, fmt, dtype, value, data=data, action=action, select=select)
 
 @commands.prepare_dtype_for_response.register(Context, Html, ArrayBackRef, tuple)
 def prepare_dtype_for_response(

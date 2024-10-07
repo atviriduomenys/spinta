@@ -102,11 +102,8 @@ def prepare(context: Context, backend: PostgreSQL, dtype: DataType, **kwargs):
         'url': sa.String,
         'uri': sa.String,
         'denorm': sa.String,
-        'uuid': UUID,
+        'uuid': UUID(as_uuid=True),
     }
-
-    if dtype.name == 'uuid':
-        return sa.Column(name, UUID(as_uuid=True))
 
     if dtype.name not in types:
         raise Exception(
