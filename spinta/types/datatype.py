@@ -15,6 +15,7 @@ from spinta.components import Context, Component, Property
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
 from spinta.manifests.components import Manifest
+from spinta.manifests.tabular.constants import DataTypeEnum
 from spinta.types.helpers import check_no_extra_keys
 from spinta.types.helpers import set_dtype_backend
 from spinta.utils.schema import NA, NotAvailable
@@ -200,7 +201,10 @@ class Ref(DataType):
 
 
 class BackRef(Ref):
+    model: Model
     refprop: Property
+    explicit: bool = False
+    properties: Dict[str, Property] = {}
 
     schema = {
         'model': {'type': 'string'},
@@ -234,7 +238,23 @@ class Array(DataType):
             raise exceptions.InvalidValue(self)
 
 
-class ArrayBackRef(Array):
+class ArrayBackRef(DataType):
+    schema = {
+        'items': {},
+    }
+
+    items: Property = None
+    expandable = True
+
+    def load(self, value: Any):
+        if value is None or value is NA:
+            return value
+
+        if isinstance(value, list):
+            return list(value)
+        else:
+            raise exceptions.InvalidValue(self)
+
     def get_type_repr(self):
         return "array"
 
@@ -388,17 +408,29 @@ def _add_leaf_props(prop: Property) -> None:
 
 @load.register(Context, Partial, dict, Manifest)
 def load(context: Context, dtype: Partial, data: dict, manifest: Manifest) -> DataType:
-    return _load_properties(context, dtype, data, manifest)
+    return _load_properties(context, dtype, manifest)
 
 
 @load.register(Context, Ref, dict, Manifest)
 def load(context: Context, dtype: Ref, data: dict, manifest: Manifest) -> DataType:
-    dtype  = _load_properties(context, dtype, data, manifest)
+    dtype  = _load_properties(context, dtype, manifest)
     _add_leaf_props(dtype.prop)
     return dtype
 
 
-def _load_properties(context: Context, dtype: DataType, data: dict, manifest: Manifest) -> None:
+@load.register(Context, BackRef, dict, Manifest)
+def load(context: Context, dtype: BackRef, data: dict, manifest: Manifest) -> DataType:
+    dtype  = _load_properties(context, dtype, manifest)
+    _add_leaf_props(dtype.prop)
+    return dtype
+
+
+@load.register(Context, Object, dict, Manifest)
+def load(context: Context, dtype: Object, data: dict, manifest: Manifest) -> DataType:
+    return _load_properties(context, dtype, manifest)
+
+
+def _load_properties(context: Context, dtype: DataType, manifest: Manifest) -> None:
     props = {}
     for name, params in (dtype.properties or {}).items():
         place = f"{dtype.prop.place}.{name}"
@@ -415,13 +447,17 @@ def _load_properties(context: Context, dtype: DataType, data: dict, manifest: Ma
     return dtype
 
 
-@load.register(Context, Object, dict, Manifest)
-def load(context: Context, dtype: Object, data: dict, manifest: Manifest) -> DataType:
-    return _load_properties(context, dtype, data, manifest)
-
-
 @load.register(Context, Array, dict, Manifest)
 def load(context: Context, dtype: Array, data: dict, manifest: Manifest) -> DataType:
+    return _load_array(context, dtype, manifest)
+
+
+@load.register(Context, ArrayBackRef, dict, Manifest)
+def load(context: Context, dtype: ArrayBackRef, data: dict, manifest: Manifest) -> DataType:
+    return _load_array(context, dtype, manifest)
+
+
+def _load_array(context: Context, dtype: Array | ArrayBackRef, manifest: Manifest) -> DataType:
     if dtype.items:
         assert isinstance(dtype.items, dict), type(dtype.items)
         prop: Property = dtype.prop.__class__()
@@ -462,15 +498,27 @@ def load(
     dtype: Array,
     value: object,
 ) -> Union[None, list]:
+    return _load_array_to_list(context, dtype, value)
+
+
+@load.register(Context, ArrayBackRef, object)
+def load(
+    context: Context,
+    dtype: ArrayBackRef,
+    value: object,
+) -> Union[None, list]:
+    return _load_array_to_list(context, dtype, value)
+
+
+def _load_array_to_list(context: Context, dtype: Array | ArrayBackRef, value: object) -> Union[None, list]:
     # loads value into native python list, including all list items
     value = dtype.load(value)
     if value is None or value is NA:
         return value
     return [
-        commands.load(context, dtype.items.dtype, item)
+        commands.load(context, dtype.items, item)
         for item in value
     ]
-
 
 @load.register(Context, Object, object)
 def load(context: Context, dtype: Object, value: object) -> dict:
@@ -502,6 +550,12 @@ def load(context: Context, dtype: Ref, value: object) -> dict:
     #         name: load(context, Property(), prop)
     #         for name, prop in value.get('properties', {}).items()
     #     }
+    return loaded_obj
+
+
+@load.register(Context, BackRef, object)
+def load(context: Context, dtype: BackRef, value: object) -> dict:
+    loaded_obj = dtype.load(value)
     return loaded_obj
 
 
