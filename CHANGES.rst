@@ -6,6 +6,23 @@ Changes
 0.1.76 (unreleased)
 ===================
 
+Backwards incompatible changes:
+
+- You can no longer directly set `Ref` foreign key values to `None`. Meaning you cannot set `"ref": {"_id": None}`.
+  Now, if you want to unassign `Ref` value, you have to set it to `None` (`"ref": None`), it will also now set all
+  nested values (`Denorm`) to `None` as well, this new features now ensures, that there cannot be floating `Denorm` values
+  when trying to remove references (`#846`_).
+
+
+Improvements:
+
+- Improved invalid scope error messaging for token auth (`#537`_).
+
+  .. _#537: https://github.com/atviriduomenys/spinta/issues/537
+
+- Added ability to remove all nested property values for `Ref` type, when assigning `None` to the value itself (`#846`_).
+
+
 Bug fixes:
 
 - Fixed `checksum()` function bug, where it tried to calculate checksums before converting data from `backend` specific to
@@ -20,6 +37,10 @@ Bug fixes:
   that it is supposed to be `None` (`#556`_).
 
   .. _#556: https://github.com/atviriduomenys/spinta/issues/556
+
+- Fixed `Ref` value unassignment not updating the values in database (`#846`_).
+
+  .. _#846: https://github.com/atviriduomenys/spinta/issues/846
 
 
 0.1.75 (2024-09-24)
