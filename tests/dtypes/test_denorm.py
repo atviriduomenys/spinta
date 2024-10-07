@@ -1506,3 +1506,120 @@ def test_denorm_nested_override_wipe(
     assert listdata(resp, 'id', 'name', 'country') == [
         (0, 'Vilnius', None)
     ]
+
+
+def test_denorm_external_nested_override_wipe(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, '''
+    d | r | b | m | property            | type    | ref     | source | level | access
+    datasets/denorm/wipe/nested/ex      |         |         |        |       |
+      |   |   | Planet                  |         | id      |        |       |
+      |   |   |   | id                  | integer |         |        |       | open
+      |   |   |   | name                | string  |         |        |       | open
+      |   |   |   |                     |         |         |        |       |           
+      |   |   | Country                 |         | id      |        |       |
+      |   |   |   | id                  | integer |         |        |       | open
+      |   |   |   | name                | string  |         |        |       | open
+      |   |   |   | planet              | ref     | Planet  |        | 4     | open
+      |   |   |   | planet.name         | string  |         |        |       | open
+      |   |   |   | planet.new          | integer |         |        |       | open
+      |   |   |   | planet.id           |         |         |        |       | open
+      |   |   |   |                     |         |         |        |       |           
+      |   |   | City                    |         | id      |        |       |
+      |   |   |   | id                  | integer |         |        |       | open
+      |   |   |   | name                | string  |         |        |       | open
+      |   |   |   | country             | ref     | Country |        | 3     | open
+      |   |   |   | country.test        | string  |         |        |       | open
+      |   |   |   | country.planet.name |         |         |        |       | open
+      |   |   |   | country.planet.test | integer |         |        |       | open
+
+    ''', backend=postgresql, request=request)
+
+    app = create_test_client(context)
+    app.authorize(['spinta_set_meta_fields'])
+
+    planet_model = 'datasets/denorm/wipe/nested/ex/Planet'
+    country_model = 'datasets/denorm/wipe/nested/ex/Country'
+    city_model = 'datasets/denorm/wipe/nested/ex/City'
+
+    app.authmodel(planet_model, [
+        'insert',
+        'getall',
+        'search'
+    ])
+    earth_id = str(uuid.uuid4())
+    app.post(planet_model, json={
+        '_id': earth_id,
+        'id': 0,
+        'name': 'Earth'
+    })
+
+    app.authmodel(country_model, [
+        'insert',
+        'getall',
+        'search',
+        'patch'
+    ])
+
+    lithuania_id = str(uuid.uuid4())
+    app.post(country_model, json={
+        '_id': lithuania_id,
+        'id': 0,
+        'name': 'Lithuania',
+        'planet': {
+            '_id': earth_id,
+            'name': 'NEW EARTH',
+            'new': 10
+        }
+    })
+    resp = app.get(country_model)
+    assert listdata(resp, 'id', 'name', 'planet') == [
+        (0, 'Lithuania', {
+            '_id': earth_id,
+            'id': 0,
+            'name': 'NEW EARTH',
+            'new': 10
+        })
+    ]
+
+    app.authmodel(city_model, [
+        'insert',
+        'getall',
+        'search',
+        'patch'
+    ])
+
+    vln = send(app, city_model, 'insert', {
+        'id': 0,
+        'name': 'Vilnius',
+        'country': {
+            'id': 0,
+            'test': 'NEW',
+            'planet': {
+                'test': 0
+            }
+        }
+    })
+    resp = app.get(city_model)
+    assert listdata(resp, 'id', 'name', 'country') == [
+        (0, 'Vilnius', {
+            'id': 0,
+            'test': 'NEW',
+            'planet': {
+                'name': 'Earth',
+                'test': 0
+            },
+        })
+    ]
+
+    send(app, city_model, 'patch', vln, {
+        'country': None
+    })
+
+    resp = app.get(city_model)
+    assert listdata(resp, 'id', 'name', 'country') == [
+        (0, 'Vilnius', None)
+    ]

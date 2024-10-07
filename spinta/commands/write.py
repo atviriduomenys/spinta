@@ -27,7 +27,7 @@ from spinta.components import Context, Node, UrlParams, Action, DataItem, Namesp
 from spinta.core.ufuncs import asttoexpr
 from spinta.formats.components import Format
 from spinta.renderer import render
-from spinta.types.datatype import DataType, Object, Array, File, Ref, Denorm, Inherit, BackRef
+from spinta.types.datatype import DataType, Object, Array, File, Ref, Denorm, Inherit, BackRef, ExternalRef
 from spinta.urlparams import get_model_by_name
 from spinta.utils.aiotools import agroupby
 from spinta.utils.aiotools import aslice, alist, aiter
@@ -1150,6 +1150,41 @@ def before_write(
         patch = {}
         if not dtype.inherited:
             patch[f'{dtype.prop.place}._id'] = None
+
+        for prop in dtype.properties.values():
+            value = commands.before_write(
+                context,
+                prop.dtype,
+                backend,
+                data=data,
+            )
+            patch.update(value)
+
+        return patch
+
+    patch = flatten_value(data.patch, dtype.prop)
+    return {
+        f'{dtype.prop.place}.{k}': v for k, v in patch.items() if k
+    }
+
+
+@commands.before_write.register(Context, ExternalRef, Backend)
+def before_write(
+    context: Context,
+    dtype: ExternalRef,
+    backend: Backend,
+    *,
+    data: DataSubItem,
+) -> dict:
+    # If patch is None, it means that parent was set to null, meaning all children should also be set to null
+    if data.patch is None:
+        patch = {}
+        if not dtype.inherited:
+            if dtype.explicit or not dtype.model.external.unknown_primary_key:
+                for ref_prop in dtype.refprops:
+                    patch[f'{dtype.prop.place}.{ref_prop.name}'] = None
+            else:
+                patch[f'{dtype.prop.place}._id'] = None
 
         for prop in dtype.properties.values():
             value = commands.before_write(

@@ -351,6 +351,9 @@ def simple_data_check(
     backend: Backend,
     value: dict,
 ) -> None:
+    if value is None:
+        return
+
     denorm_prop_keys = [
         key for key in dtype.properties.keys()
     ]
@@ -359,6 +362,7 @@ def simple_data_check(
         allowed_keys = [prop.name for prop in dtype.refprops]
     else:
         allowed_keys = ['_id']
+
     allowed_keys.extend(denorm_prop_keys)
     for key in value.keys():
         if key not in allowed_keys:
@@ -372,6 +376,10 @@ def simple_data_check(
                 backend,
                 value[key]
             )
+
+    if value and isinstance(value, dict):
+        if all(val is None for key, val in value.items() if key in allowed_keys):
+            raise DirectRefValueUnassignment(dtype)
 
 
 @commands.simple_data_check.register(Context, DataItem, Ref, Property, Backend, object)
@@ -1054,8 +1062,8 @@ def prepare_dtype_for_response(
         names = value.keys()
 
     result = {}
-    props = dtype.properties.copy()
-    props.update(dtype.model.properties)
+    props = dtype.model.properties.copy()
+    props.update(dtype.properties)
 
     for prop, val, sel in select_props(
         dtype.model,

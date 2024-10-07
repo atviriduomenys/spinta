@@ -4,10 +4,9 @@ from _pytest.fixtures import FixtureRequest
 
 from spinta.core.config import RawConfig
 from spinta.testing.client import create_test_client
-from spinta.testing.data import listdata
+from spinta.testing.data import listdata, send
 from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.manifest import load_manifest
-from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.utils import get_error_codes
 import pytest
 
@@ -209,3 +208,152 @@ def test_external_ref_with_explicit_key(
             'country.id': 1
         }
     ]
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_external_ref_unassign(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property | type   | ref                           | source       | level | access
+    datasets/external/ref/m  |        |                               |              |       |
+      |   |   | Country      |        | code, name                    |              |       |
+      |   |   |   | code     | string |                               |              |       | open
+      |   |   |   | name     | string |                               |              |       | open
+      |   |   | City         |        |                               |              |       |
+      |   |   |   | name     | string |                               |              |       | open
+      |   |   |   | country  | ref    | Country                       |              | 3     | open
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+
+    app = create_test_client(context)
+    app.authorize(['spinta_insert', 'spinta_getall', 'spinta_changes', 'spinta_patch'])
+
+    city_model = "datasets/external/ref/m/City"
+    country_model = "datasets/external/ref/m/Country"
+    lt = send(app, country_model, 'insert', {'code': 'LT', 'name': 'Lithuania'})
+
+    vln = send(app, city_model, 'insert', {'name': 'Vilnius', 'country': {'code': 'LT', 'name': 'Lithuania'}})
+
+    result = app.get(city_model)
+    assert listdata(result, 'name', 'country') == [
+        ('Vilnius', {'code': 'LT', 'name': 'Lithuania'})
+    ]
+
+    send(app, city_model, 'patch', vln, {'country': None})
+
+    result = app.get(city_model)
+    assert listdata(result, 'name', 'country') == [
+        ('Vilnius', None)
+    ]
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_external_ref_unassign_invalid(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property | type   | ref                           | source       | level | access
+    datasets/external/ref/m  |        |                               |              |       |
+      |   |   | Country      |        | code, name                    |              |       |
+      |   |   |   | code     | string |                               |              |       | open
+      |   |   |   | name     | string |                               |              |       | open
+      |   |   | City         |        |                               |              |       |
+      |   |   |   | name     | string |                               |              |       | open
+      |   |   |   | country  | ref    | Country                       |              | 3     | open
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+
+    app = create_test_client(context)
+    app.authorize(['spinta_insert', 'spinta_getall', 'spinta_changes', 'spinta_patch'])
+
+    city_model = "datasets/external/ref/m/City"
+    country_model = "datasets/external/ref/m/Country"
+    lt = send(app, country_model, 'insert', {'code': 'LT', 'name': 'Lithuania'})
+
+    vln = send(app, city_model, 'insert', {'name': 'Vilnius', 'country': {'code': 'LT', 'name': 'Lithuania'}})
+
+    result = app.get(city_model)
+    assert listdata(result, 'name', 'country') == [
+        ('Vilnius', {'code': 'LT', 'name': 'Lithuania'})
+    ]
+
+    resp = app.patch(f'{city_model}/{vln.id}', json={
+        '_revision': vln.rev,
+        'country': {
+            'code': None,
+            'name': None
+        }
+    })
+    assert resp.status_code == 400
+    assert get_error_codes(resp.json()) == ["DirectRefValueUnassignment"]
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_external_ref_unassign_invalid_no_pk(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property | type   | ref                           | source       | level | access
+    datasets/external/ref/n   |        |                               |              |       |
+      |   |   | Country      |        |                               |              |       |
+      |   |   |   | code     | string |                               |              |       | open
+      |   |   |   | name     | string |                               |              |       | open
+      |   |   | City         |        |                               |              |       |
+      |   |   |   | name     | string |                               |              |       | open
+      |   |   |   | country  | ref    | Country                       |              | 3     | open
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+
+    app = create_test_client(context)
+    app.authorize(['spinta_insert', 'spinta_getall', 'spinta_changes', 'spinta_patch'])
+
+    city_model = "datasets/external/ref/n/City"
+    country_model = "datasets/external/ref/n/Country"
+    lt = send(app, country_model, 'insert', {'code': 'LT', 'name': 'Lithuania'})
+
+    vln = send(app, city_model, 'insert', {'name': 'Vilnius', 'country': {'_id': lt.id}})
+
+    result = app.get(city_model)
+    assert listdata(result, 'name', 'country') == [
+        ('Vilnius', {'_id': lt.id})
+    ]
+
+    resp = app.patch(f'{city_model}/{vln.id}', json={
+        '_revision': vln.rev,
+        'country': {
+            '_id': None,
+        }
+    })
+    assert resp.status_code == 400
+    assert get_error_codes(resp.json()) == ["DirectRefValueUnassignment"]
