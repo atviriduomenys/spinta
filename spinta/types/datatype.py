@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import uuid
 from datetime import date, time, datetime
 from typing import Dict
 from typing import List
@@ -316,6 +317,21 @@ class PartialArray(Array):
 class PageType(DataType):
     pass
 
+class UUID(DataType):
+    def load(self, value: Any):
+        if value is None or value is NA:
+            return value
+
+        if isinstance(value, uuid.UUID):
+            return value.hex
+
+        if isinstance(value, str):
+            try:
+                return uuid.UUID(value).hex
+            except ValueError:
+                raise exceptions.InvalidValue(self, value=value)
+
+        raise exceptions.InvalidValue(self, value=value)
 
 @commands.check.register(Context, DataType)
 def check(context: Context, dtype: DataType):
@@ -331,6 +347,13 @@ def load(context: Context, dtype: DataType, data: dict, manifest: Manifest) -> D
 @commands.link.register(Context, DataType)
 def link(context: Context, dtype: DataType) -> None:
     set_dtype_backend(dtype)
+
+
+@load.register(Context, UUID, dict, Manifest)
+def load(context: Context, dtype: UUID, data: dict, manifest: Manifest) -> UUID:
+    _load = commands.load[Context, DataType, dict, Manifest]
+    dtype: UUID = _load(context, dtype, data, manifest)
+    return dtype
 
 
 @load.register(Context, URI, dict, Manifest)

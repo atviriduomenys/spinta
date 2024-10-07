@@ -1,5 +1,6 @@
 import dataclasses
 import datetime
+import uuid
 from decimal import Decimal
 from typing import Any
 from typing import Dict
@@ -51,6 +52,7 @@ from spinta.types.datatype import Number
 from spinta.types.datatype import Binary
 from spinta.types.datatype import JSON
 from spinta.types.datatype import Inherit
+from spinta.types.datatype import UUID
 from spinta.types.geometry.components import Geometry
 from spinta.types.text.components import Text
 from spinta.utils.encoding import is_url_safe_base64, encode_page_values
@@ -727,6 +729,28 @@ def prepare_dtype_for_response(
     )
     return res
 
+
+@commands.prepare_dtype_for_response.register(Context, Html, UUID, str)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: UUID,
+    value: String,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    res = commands.prepare_dtype_for_response[Context, Format, UUID, str](
+        context,
+        fmt,
+        dtype,
+        value,
+        data=data,
+        action=action,
+        select=select,
+    )
+    return res
 
 @commands.prepare_dtype_for_response.register(Context, Html, ArrayBackRef, tuple)
 def prepare_dtype_for_response(
