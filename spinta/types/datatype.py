@@ -200,7 +200,7 @@ class Ref(DataType):
     }
 
 
-class BackRef(Ref):
+class BackRef(DataType):
     model: Model
     refprop: Property
     explicit: bool = False
@@ -516,7 +516,7 @@ def _load_array_to_list(context: Context, dtype: Array | ArrayBackRef, value: ob
     if value is None or value is NA:
         return value
     return [
-        commands.load(context, dtype.items, item)
+        commands.load(context, dtype.items.dtype, item)
         for item in value
     ]
 

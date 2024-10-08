@@ -135,7 +135,7 @@ def select(env, prop):
 
 
 @ufunc.resolver(PgQueryBuilder, DataType)
-def select(env, dtype):
+def select(env: PgQueryBuilder, dtype: DataType):
     table = env.backend.get_table(env.model)
 
     if dtype.prop.list is None:
@@ -321,26 +321,8 @@ def select(env, dtype):
 
 
 @ufunc.resolver(PgQueryBuilder, ArrayBackRef)
-def select(env, dtype):
-    fpr = ForeignProperty(
-        None,
-        left=dtype,
-        right=dtype.refprop.dtype,
-    )
-    refprop = dtype.refprop
-    required_columns = []
-    if refprop.level is None or refprop.level > Level.open:
-        column_name = fpr.right.prop.model.properties['_id'].name
-        required_columns.append((column_name, column_name))
-    else:
-        required_columns = []
-        for prop in dtype.refprop.dtype.refprops:
-            column_name = prop.name
-            required_columns.append((column_name, column_name))
-    selector = env.generate_backref_select(dtype.prop, dtype.refprop, required_columns, True)
-    table = env.get_backref_joined_table(fpr, selector)
-    column = table.c[dtype.prop.name]
-    return Selected(env.add_column(column), fpr.left.prop)
+def select(env: PgQueryBuilder, dtype: ArrayBackRef):
+    return Selected(prep=[])
 
 
 @ufunc.resolver(PgQueryBuilder, ForeignProperty)

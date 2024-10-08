@@ -429,6 +429,19 @@ def simple_data_check(
 ) -> None:
     if value is not NA:
         raise exceptions.CannotModifyBackRefProp(dtype)
+    
+
+@commands.simple_data_check.register(Context, DataItem, ArrayBackRef, Property, Backend, object)
+def simple_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: ArrayBackRef,
+    prop: Property,
+    backend: Backend,
+    value: object,
+) -> None:
+    if value is not NA:
+        raise exceptions.CannotModifyBackRefProp(dtype)
 
 
 @commands.simple_data_check.register(Context, DataItem, Geometry, Property, Backend, str)

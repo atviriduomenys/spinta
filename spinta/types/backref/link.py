@@ -92,7 +92,7 @@ def _link_backref(context: Context, dtype: BackRef):
 def link(context: Context, dtype: BackRef) -> None:
     _link_backref(context, dtype)
 
-    if dtype.prop.parent.dtype.name == DataTypeEnum._ARRAY_BACKREF.value or dtype.refprop.list is None:
+    if _is_parent_array_backref(dtype) or dtype.refprop.list is None:
         return
     
     raise OneToManyBackRefNotSupported(dtype)
@@ -102,3 +102,10 @@ def link(context: Context, dtype: BackRef) -> None:
     #  In one to one relationship, this ref has to be unique. In one to many relationship it can't be unique.
     #  https://github.com/atviriduomenys/spinta/issues/592
     # dtype.refprop.dtype.unique = True
+
+
+def _is_parent_array_backref(dtype: BackRef) -> bool:
+    parent = dtype.prop.parent
+    if parent and parent.dtype.name == DataTypeEnum._ARRAY_BACKREF.value:
+        return True
+    return False

@@ -2265,7 +2265,9 @@ def _property_to_tabular(
         elif prop.external:
             data['source'] = prop.external.name
             data['prepare'] = unparse(prop.external.prepare or NA)
+
     yield_rows = []
+
     if isinstance(prop.dtype, (Array, ArrayBackRef)):
         yield_array_row = prop.dtype.items
         yield_rows.append(yield_array_row)

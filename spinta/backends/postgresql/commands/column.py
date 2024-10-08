@@ -120,6 +120,10 @@ def get_column(backend: PostgreSQL, dtype: Ref, table: sa.Table = None, **kwargs
 @commands.get_column.register(PostgreSQL, BackRef)
 def get_column(backend: PostgreSQL, dtype: BackRef, table: sa.Table = None, **kwargs):
     prop = dtype.prop
+
+    if prop.list is not None:
+        return None
+
     r_prop = dtype.refprop
     columns = []
     if table is None:
