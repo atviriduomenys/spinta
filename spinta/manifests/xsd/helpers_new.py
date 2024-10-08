@@ -8,43 +8,12 @@ from typing import Any
 from urllib.request import urlopen
 
 from lxml import etree, objectify
-from lxml.etree import _Element, _Comment
+from lxml.etree import _Element, _Comment, QName
 
 from spinta.components import Context
 from spinta.core.ufuncs import Expr
 from spinta.utils.naming import Deduplicator, to_dataset_name
 
-xsd_example = """
-    <xs:schema xmlns="http://eTaarPlat.ServiceContracts/2007/08/Messages" elementFormDefault="qualified" targetNamespace="http://eTaarPlat.ServiceContracts/2007/08/Messages" xmlns:xs="http://www.w3.org/2001/XMLSchema">
-        <xs:element name="getDocumentsByWagonResponse" nillable="true" type="getDocumentsByWagonResponse" />
-        <xs:complexType name="getDocumentsByWagonResponse">
-            <xs:sequence>
-                <xs:element minOccurs="0" maxOccurs="1" name="searchParameters" type="getDocumentsByWagonSearchParams" />
-                <xs:choice minOccurs="1" maxOccurs="1">
-                    <xs:element minOccurs="0" maxOccurs="1" name="klaida" type="Klaida" />
-                    <xs:element minOccurs="0" maxOccurs="1" name="extract" type="Extract" />
-                </xs:choice>
-            </xs:sequence>
-        </xs:complexType>
-        <xs:complexType name="getDocumentsByWagonSearchParams">
-            <xs:sequence>
-                <xs:element minOccurs="0" maxOccurs="1" name="searchType" type="xs:string" />
-                <xs:element minOccurs="0" maxOccurs="1" name="code" type="xs:string" />
-            </xs:sequence>
-        </xs:complexType>
-        <xs:complexType name="Klaida">
-                    <xs:sequence>
-                        <xs:element minOccurs="0" maxOccurs="1" name="Aprasymas" type="xs:string" />
-                    </xs:sequence>
-        </xs:complexType>
-        <xs:complexType name="Extract">
-                    <xs:sequence>
-                        <xs:element minOccurs="1" maxOccurs="1" name="extractPreparationTime" type="xs:dateTime" />
-                        <xs:element minOccurs="1" maxOccurs="1" name="lastUpdateTime" type="xs:dateTime" />
-                    </xs:sequence>
-        </xs:complexType>
-    </xs:schema>
-"""
 
 DATATYPES_MAPPING = {
     "string": "string",
@@ -140,6 +109,7 @@ NODE_TYPES = [
 NODE_ATTRIBUTE_TYPES = ["minOccurs", "maxOccurs", "type", "use", "name", "ref", "base", "value"]
 IGNORED_NODE_ATTRIBUTE_TYPES = ["maxLength", "minLength"]
 
+
 class XSDType:
     name: str | None = None
     type: str
@@ -172,10 +142,11 @@ Example of a property:
         },
      },
 """
+
+
 class XSDProperty:
-    # todo change to name
-    id: str
-    id_raw: str  # todo change to xsd_name
+    name: str
+    xsd_name: str  # todo change to xsd_name
     source: str  # converts to ["external"]["name"]
     type: XSDType
     required: bool | None = None
@@ -218,6 +189,7 @@ class XSDProperty:
 
         return data
 
+
 class XSDModel:
     dataset_resource: XSDDatasetResource
     name: str | None = None
@@ -256,6 +228,8 @@ class XSDModel:
             model_data["uri"] = self.uri
 
         return model_data
+
+
 @dataclass
 class XSDDatasetResource:
     dataset_name: str | None = None
@@ -274,6 +248,7 @@ class XSDDatasetResource:
             'given_name': self.dataset_given_name
         }
 
+
 class XSDReader:
     dataset_resource: XSDDatasetResource
     models: dict[str, XSDModel]
@@ -290,12 +265,10 @@ class XSDReader:
         self.custom_types = {}
 
     def register_simple_types(self, state: State) -> None:
-        for node in self.xml_tree.nodes:
-            if node.is_top_level:
-                # TODO: change to xpath
-                if node.type is "simpleType":
-                    custom_type = self.process_simple_type(node, state)
-                    self.custom_types[custom_type.name] = custom_type
+        custom_types_nodes = self.root.xpath(f'./*[local-name() = "simpleType"]')
+        for node in custom_types_nodes:
+            custom_type = self.process_simple_type(node, state)
+            self.custom_types[custom_type.name] = custom_type
 
     def _extract_root(self):
         if self._path.startswith("http"):
@@ -335,8 +308,6 @@ class XSDReader:
 
         # reading XML and registering nodes
 
-        self.read_root(self.root, state)
-
         self._create_resource_model()
 
         # reading XSD and registering models and properties
@@ -346,10 +317,6 @@ class XSDReader:
         self.register_simple_types(state)
 
         # todo maybe add a function to check attributes of xml nodes
-
-        # TODO: two options: -
-        #  1. we register all top level things first and then use when we need them
-        #  2. we register every model (from element or separate complexType) when we meet them, but check if we already have processed them before (by XSD name)
 
         self.process_xml_tree(state)
 
@@ -361,79 +328,26 @@ class XSDReader:
         self._post_process_resource_model()
 
     # todo rename process_root or something
-    def process_xml_tree(self, state):
+    def process_xml_tree(self, state: State):
         state.model_deduplicate = Deduplicator()
-        for node in self.xml_tree.nodes:
-            if node.is_top_level:
-                if node.type == "element":
-                    return self.process_element(node, state)
-                elif node.type == "complexType":
-                    return self.process_complex_type(node, state)
-                elif node.type == "simpleType":
-                    # todo finish comment
-                    # simple types are processed in self.
-                    pass
-                else:
-                    raise RuntimeError(f'This node type cannot be at the top level: {node.type}')
-
-    # def process_node(self, node: XMLNode, state: State):
-    #     # todo if we get back a property that isn't a ref,
-    #     #  this means that it's not a model, but a single property
-    #     #  and we need to add it to the `resource` model
-    #     #  Otherwise we don't need to do anything as the model is already registered.
-
-
-            # return self.process_simple_type(node, state)
-
-        # if node.type == "complexContent":
-        #     return self.process_complex_content(node, state)
-        # if node.type == "simpleContent":
-        #     return self.process_simple_content(node, state)
-        # if node.type == "attribute":
-        #     return self.process_attribute(node, state)
-        # if node.type == "sequence":
-        #     return self.process_sequence(node, state)
-        # if node.type == "group":
-        #     return self.process_group(node, state)
-        # if node.type == "all":
-        #     return self.process_all(node, state)
-        # if node.type == "choice":
-        #     return self.process_choice(node, state)
-        # if node.type == "annotation":
-        #     return self.process_annotation(node, state)
-        # if node.type == "documentation":
-        #     return self.process_documentation(node, state)
-        # if node.type == "extension":
-        #     return self.process_extension(node, state)
-        # if node.type == "restriction":
-        #     return self.process_restriction(node, state)
-        # if node.type == "enumeration":
-        #     return self.process_enumeration(node, state)
-        # if node.type == "union":
-        #     return self.process_union(node, state)
-        # if node.type == "length":
-        #     return self.process_length(node, state)
-        # if node.type == "pattern":
-        #     return self.process_pattern(node, state)
-        # if node.type == "maxLength":
-        #     return self.process_max_length(node, state)
-        # if node.type == "minLength":
-        #     return self.process_min_length(node, state)
-        # if node.type == "whiteSpace":
-        #     return self.process_white_space(node, state)
-        # if node.type == "totalDigits":
-        #     return self.process_total_digits(node, state)
-        # if node.type == "fractionDigits":
-        #     return self.process_fraction_digits(node, state)
-        # if node.type == "minInclusive":
-        #     return self.process_min_inclusive(node, state)
-        # if node.type == "appinfo":
-        #     return self.process_appinfo(node, state)
-
+        for node in self.root.getchildren():
+            # We don't care about comments
+            if isinstance(node, etree._Comment):
+                continue
+            if QName(node).localname == "element":
+                return self.process_element(node, state)
+            elif QName(node).localname == "complexType":
+                return self.process_complex_type(node, state)
+            elif QName(node).localname == "simpleType":
+                # todo finish comment
+                # simple types are processed in self.
+                pass
+            else:
+                raise RuntimeError(f'This node type cannot be at the top level: {node.type}')
 
     #  XSD nodes processors
 
-    def process_element(self, node: XMLNode, state: State) -> list[XSDProperty]:
+    def process_element(self, node: _Element, state: State) -> list[XSDProperty]:
         """
         Element should return a property. It can return multiple properties if there is a choice somewhere down the way
         """
@@ -441,42 +355,44 @@ class XSDReader:
         props = []
         property_type_to = None
         property_ref_to = None
-        if node.attributes.get("name"):
-            property_name = node.attributes["name"]
-        elif node.attributes.get("ref"):
-            property_name = node.attributes["ref"]
+        if node.attrib.get("name"):
+            property_name = node.attrib["name"]
+        elif node.attrib.get("ref"):
+            property_name = node.attrib["ref"]
             property_ref_to = property_name
         else:
             raise RuntimeError(f'Element has to have either name or ref')
 
-        if node.attributes.get("type"):
-            property_type = node.attributes["type"]
+        if node.attrib.get("type"):
+            property_type = node.attrib["type"]
             if property_type not in DATATYPES_MAPPING and property_type not in self.custom_types:
-                property_type_to = node.attributes["type"]
+                property_type_to = node.attrib["type"]
 
-        if node.children:
-            for child in node.children:
-                if child.type == "complexType":
-                    models = self.process_complex_type(child, state)
-                    # usually it's one model, but in case of choice, can be multiple models
-                    for model in models:
-                        prop = XSDProperty()
-                        prop.ref_model = model
-                        prop.id_raw = property_name
-                        prop.type_to = property_type_to
-                        prop.ref_to = property_ref_to
-                        props.append(prop)
-                elif child.type == "simpleType":
+        for child in node.getchildren():
+            # We don't care about comments
+            if isinstance(child, etree._Comment):
+                continue
+            if QName(child).localname == "complexType":
+                models = self.process_complex_type(child, state)
+                # usually it's one model, but in case of choice, can be multiple models
+                for model in models:
                     prop = XSDProperty()
-                    prop.id_raw = property_name
-                    prop.type = self.process_simple_type(child, state)
-                    # we will process those in
+                    prop.ref_model = model
+                    prop.xsd_name = property_name
                     prop.type_to = property_type_to
                     prop.ref_to = property_ref_to
                     props.append(prop)
+            elif QName(child).localname == "simpleType":
+                prop = XSDProperty()
+                prop.xsd_name = property_name
+                prop.type = self.process_simple_type(child, state)
+                # we will process those in
+                prop.type_to = property_type_to
+                prop.ref_to = property_ref_to
+                props.append(prop)
 
-                else:
-                    raise RuntimeError(f"This node type cannot be in the complex type: {node.type}")
+            else:
+                raise RuntimeError(f"This node type cannot be in the complex type: {QName(node).localname}")
 
         # todo if element has choice inside, we will create multiple models, so multiple properties also
 
@@ -490,38 +406,36 @@ class XSDReader:
 
         #  todo factor in minoccurs and maxoccurs
 
-        self.models[model.basename] = model
+        return props
 
-        return [prop]
-
-    def process_complex_type(self, node: XMLNode, state: State) -> list[XSDModel]:
+    def process_complex_type(self, node: _Element, state: State) -> list[XSDModel]:
 
         model = XSDModel()
-        name = node.attributes.get("name")
+        name = node.attrib.get("name")
         if name:
             model.name = self.deduplicate_model_name(name)
         state.property_deduplicate = Deduplicator()
-        # todo change to list
-        properties = {}
+        properties = []
         choice_props = None
-        for child in node.children:
-            if child.type == "attribute":
+        for child in node.getchildren():
+            # We don't care about comments
+            if isinstance(child, etree._Comment):
+                continue
+            if QName(child).localname == "attribute":
                 prop = self.process_attribute(child, state)
-                prop.id = state.property_deduplicate(prop.id_raw)
-                properties[prop.id] = prop
+                prop.name = state.property_deduplicate(prop.xsd_name)
+                properties.append(prop)
 
-            elif child.type == "sequence":
+            elif QName(child).localname == "sequence":
                 sequence_props = self.process_sequence(child, state)
-                properties.update(sequence_props)
-            elif child.type == "choice":
+                properties.extend(sequence_props)
+            elif QName(child).localname == "choice":
                 choice_props = self.process_choice(child, state)
             else:
                 raise RuntimeError("")
 
         for prop in properties:
-            # TODO: in case of choice, maybe move this after deduplication of choice.
-            #  It's ok here, but can produce names with numbers where not necessary.
-            prop.id = state.property_deduplicate(prop.id_raw)
+            prop.name = state.property_deduplicate(prop.xsd_name)
         model.properties = properties
         if choice_props:
             pass
@@ -530,6 +444,7 @@ class XSDReader:
 
     def _map_type(self, xsd_type: str) -> XSDType:
         """Gets XSD Type, returns DSA type (XSDType class)"""
+        xsd_type = xsd_type.split(":")[-1]
         property_type = DATATYPES_MAPPING[xsd_type]
         dsa_type = XSDType()
         dsa_type.name = xsd_type
@@ -542,12 +457,12 @@ class XSDReader:
                 dsa_type.prepare = value
         return dsa_type
 
-    def process_attribute(self, node: XMLNode, state: State) -> XSDProperty:
+    def process_attribute(self, node: _Element, state: State) -> XSDProperty:
         prop = XSDProperty()
-        prop.source = f"@{node.attributes.get('name')}"
-        prop.id_raw = node.attributes.get('name')
+        prop.source = f"@{node.attrib.get('name')}"
+        prop.xsd_name = node.attrib.get('name')
 
-        attribute_type = node.attributes.get("type")
+        attribute_type = node.attrib.get("type")
 
         if attribute_type:
             if attribute_type in DATATYPES_MAPPING:
@@ -555,61 +470,72 @@ class XSDReader:
             elif attribute_type in self.custom_types:
                 prop.type = self.custom_types[attribute_type]
 
-        prop.type = node.attributes.get("type")
+        prop.type = node.attrib.get("type")
 
-        for child in node.children:
-            if child.type == "simpleType":
+        for child in node.getchildren():
+            # We don't care about comments
+            if isinstance(child, etree._Comment):
+                continue
+            if QName(child).localname == "simpleType":
                 prop.type = self.process_simple_type(child, state)
-            elif child.type == "annotation":
+            elif QName(child).localname == "annotation":
                 prop.description = self.process_annotation(child, state)
             else:
                 raise RuntimeError(f"Unexpected element type inside attribute element: {child.type}")
         return prop
 
-    def process_enumeration(self, node: XMLNode, state: State) -> dict[str, dict[str, str]]:
-        enum_value = node.attributes.get("value")
+    def process_enumeration(self, node: _Element, state: State) -> dict[str, dict[str, str]]:
+        enum_value = node.attrib.get("value")
         enum_item = {enum_value: {"source": enum_value}}
         return enum_item
 
-    def process_simple_type(self, node: XMLNode, state: State) -> XSDType:
+    def process_simple_type(self, node: _Element, state: State) -> XSDType:
         property_type = None
         description = None
-        for child in node.children:
-            if child.type == "restriction":
+        for child in node.getchildren():
+            # We don't care about comments
+            if isinstance(child, etree._Comment):
+                continue
+            if QName(child).localname == "restriction":
                 # get everything from restriction, just add name if exists
                 property_type = self.process_restriction(child, state)
-                if node.attributes.get("name"):
-                    property_type.name = node.attributes.get("name")
+                if node.attrib.get("name"):
+                    property_type.name = node.attrib.get("name")
             elif child.type == "annotation":
-                # TODO: handle adding this description to property
                 description = self.process_annotation(child, state)
             else:
                 raise RuntimeError(f"Unexpected element type inside simpleType element: {child.type}")
         property_type.description = description
         return property_type
 
-    def process_sequence(self, node: XMLNode, state: State) -> dict[str, XSDProperty]:
+    def process_sequence(self, node: _Element, state: State) -> dict[str, XSDProperty]:
         properties = {}
-        for child in node.children:
-            if child.type == "element":
+        for child in node.getchildren():
+            # We don't care about comments
+            if isinstance(child, etree._Comment):
+                continue
+            if QName(child).localname == "element":
                 properties_result = self.process_element(child, state)
                 for prop in properties_result:
                     properties["prop.id"] = prop
-            if child.type == "choice":
+            if QName(child).localname == "choice":
                 # todo finish this part
                 properties_result = self.process_choice(child, state)
             else:
                 raise RuntimeError(f"Unexpected element type inside sequence element: {child.type}")
         return properties
 
-    def process_choice(self, node: XMLNode, state: State) -> None:
-        properties = {}
-        for child in node.children:
-            if child.type == "element":
+    def process_choice(self, node: _Element, state: State) -> list[XSDProperty]:
+        properties = []
+        for child in node.getchildren():
+            # We don't care about comments
+            if isinstance(child, etree._Comment):
+                continue
+            if QName(child).localname == "element":
                 properties_result = self.process_element(child, state)
                 for prop in properties_result:
-                    properties["prop.id"] = prop
-            elif child.type == "sequence":
+                    properties.append(prop)
+            elif QName(child).localname == "sequence":
                 # TODO: there might be a few different sequences inside choice. The splitting needs to be done
                 #  in a way that in the end it creates two (or more) models, one with properties from one sequence, one with
                 #  properties from another.
@@ -642,41 +568,47 @@ class XSDReader:
         #     todo: think of how to make this work
         return properties
 
-    def process_group(self, node: XMLNode, state: State) -> None:
+    def process_group(self, node: _Element, state: State) -> None:
         pass
 
-    def process_all(self, node: XMLNode, state: State) -> None:
+    def process_all(self, node: _Element, state: State) -> None:
         pass
 
-    def process_simple_content(self, node: XMLNode, state: State) -> None:
+    def process_simple_content(self, node: _Element, state: State) -> None:
         pass
 
-    def process_complex_content(self, node: XMLNode, state: State) -> None:
+    def process_complex_content(self, node: _Element, state: State) -> None:
         pass
 
-    def process_annotation(self, node: XMLNode, state: State) -> str:
+    def process_annotation(self, node: _Element, state: State) -> str:
         description = ""
-        for child in node.children:
+        for child in node.getchildren():
+            # We don't care about comments
+            if isinstance(child, etree._Comment):
+                continue
             if child.type == "documentation":
                 description += self.process_documentation(node, state)
             else:
                 raise RuntimeError(f"Unexpected element type inside annotation element: {child.type}")
         return description
 
-    def process_documentation(self, node: XMLNode, state: State) -> str:
+    def process_documentation(self, node: _Element, state: State) -> str:
         return node.text
 
-    def process_extension(self, node: XMLNode, state: State) -> None:
+    def process_extension(self, node: _Element, state: State) -> None:
         pass
 
-    def process_restriction(self, node: XMLNode, state: State) -> XSDType:
+    def process_restriction(self, node: _Element, state: State) -> XSDType:
 
         property_type = XSDType()
-        base = node.attributes.get("base")
+        base = node.attrib.get("base")
         property_type.type = self._map_type(base)
         enumerations = {}
-        for child in node.children:
-            if child.type == "enumeration":
+        for child in node.getchildren():
+            # We don't care about comments
+            if isinstance(child, etree._Comment):
+                continue
+            if QName(child).localname == "enumeration":
                 enum = self.process_enumeration(child, state)
                 enumerations.update(enum)
             else:
@@ -686,47 +618,45 @@ class XSDReader:
             property_type.enums = enums
         return property_type
 
-
-    def process_union(self, node: XMLNode, state: State) -> None:
+    def process_union(self, node: _Element, state: State) -> None:
         pass
 
-    def process_length(self, node: XMLNode, state: State) -> None:
+    def process_length(self, node: _Element, state: State) -> None:
         pass
 
-    def process_pattern(self, node: XMLNode, state: State) -> None:
+    def process_pattern(self, node: _Element, state: State) -> None:
         pass
 
-    def process_max_length(self, node: XMLNode, state: State) -> None:
+    def process_max_length(self, node: _Element, state: State) -> None:
         pass
 
-    def process_min_length(self, node: XMLNode, state: State) -> None:
+    def process_min_length(self, node: _Element, state: State) -> None:
         pass
 
-    def process_white_space(self, node: XMLNode, state: State) -> None:
+    def process_white_space(self, node: _Element, state: State) -> None:
         pass
 
-    def process_total_digits(self, node: XMLNode, state: State) -> None:
+    def process_total_digits(self, node: _Element, state: State) -> None:
         # raise Exception("Unsupported element")
         # TODO: create specific error
         pass
 
-    def process_fraction_digits(self, node: XMLNode, state: State) -> None:
+    def process_fraction_digits(self, node: _Element, state: State) -> None:
         # logging.log(logging.INFO, "met an unsupported type fractionDigits")
         # TODO: configure logger
         pass
 
-    def process_min_inclusive(self, node: XMLNode, state: State) -> None:
+    def process_min_inclusive(self, node: _Element, state: State) -> None:
         pass
 
-    def process_max_inclusive(self, node: XMLNode, state: State) -> None:
+    def process_max_inclusive(self, node: _Element, state: State) -> None:
         pass
 
-    def process_appinfo(self, node: XMLNode, state: State) -> None:
+    def process_appinfo(self, node: _Element, state: State) -> None:
         pass
 
 class State:
     path = list[str]
-    is_top_level: bool
     after_processing_children: bool
     XSD_model_has_properties: bool
 
