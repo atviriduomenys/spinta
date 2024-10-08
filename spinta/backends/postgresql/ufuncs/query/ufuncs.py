@@ -32,6 +32,7 @@ from spinta.types.datatype import Object
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.types.datatype import String
+from spinta.types.datatype import UUID
 from spinta.types.text.components import Text
 from spinta.types.text.helpers import determine_language_property_for_text
 from spinta.ufuncs.basequerybuilder.components import ReservedProperty, \
@@ -614,6 +615,12 @@ def compare(
     raise exceptions.InvalidValue(dtype, op=op, arg=type(value).__name__)
 
 
+@ufunc.resolver(PgQueryBuilder, UUID, str)
+def eq(env, dtype, value):
+    column = env.backend.get_column(env.table, dtype.prop)
+    cond = _sa_compare('eq', column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
 @ufunc.resolver(PgQueryBuilder, DataType, type(None))
 def eq(env, dtype, value):
     column = env.backend.get_column(env.table, dtype.prop)
@@ -657,6 +664,13 @@ def eq(
 def _ensure_non_empty(op, s):
     if s == '':
         raise EmptyStringSearch(op=op)
+
+@ufunc.resolver(PgQueryBuilder, UUID, str, names=COMPARE_STRING)
+def compare(env: PgQueryBuilder, op: str, dtype: UUID, value: str):
+    if op in ('startswith', 'contains'):
+        _ensure_non_empty(op, value)
+    column = env.backend.get_column(env.table, dtype.prop).cast(sa.String)
+    return _sa_compare(op, column, value)
 
 
 @ufunc.resolver(PgQueryBuilder, ForeignProperty, String, str, names=COMPARE_STRING)
