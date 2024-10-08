@@ -803,7 +803,7 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    return value.hex
+    return str(value)
 
 @commands.prepare_dtype_for_response.register(Context, Format, File, NotAvailable)
 def prepare_dtype_for_response(
