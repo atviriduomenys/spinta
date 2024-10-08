@@ -83,7 +83,7 @@ def get_column(backend: PostgreSQL, dtype: String, table: sa.Table = None, **kwa
 
 @commands.get_column.register(PostgreSQL, Ref)
 def get_column(backend: PostgreSQL, dtype: Ref, table: sa.Table = None, **kwargs):
-    column = gcn(dtype.prop, replace=not dtype.prop.given.explicit)
+    column = gcn(dtype.prop, replace=dtype.inherited)
     prop = dtype.prop
     if table is None:
         table = get_table(backend, prop)
@@ -96,7 +96,7 @@ def get_column(backend: PostgreSQL, dtype: Ref, table: sa.Table = None, **kwargs
 
 @commands.get_column.register(PostgreSQL, ExternalRef)
 def get_column(backend: PostgreSQL, dtype: Ref, table: sa.Table = None, **kwargs):
-    column_prefix = gcn(dtype.prop, replace=not dtype.prop.given.explicit)
+    column_prefix = gcn(dtype.prop, replace=dtype.inherited)
     prop = dtype.prop
     if table is None:
         table = get_table(backend, prop)

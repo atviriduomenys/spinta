@@ -94,6 +94,7 @@ class XSDModel:
     root_properties: dict | None = None
     parent_model: XSDModel | None = None
     is_root_model: bool | None = None
+
     """
     Class for creating and handling DSA models from XSD files.
 
@@ -115,11 +116,9 @@ class XSDModel:
         self.node: _Element = node
 
     def __eq__(self, other: XSDModel) -> bool:
-        if self.external["name"] != other.external["name"]:
-            return False
-        if self.properties != other.properties:
-            return False
-        return True
+        if self.properties == other.properties:
+            return True
+        return False
 
     def get_data(self):
         model_data: dict = {
@@ -359,7 +358,7 @@ class XSDReader:
 
         return enums
 
-    def _extract_custom_types(self, node: _Element):
+    def _extract_custom_simple_types(self, node: _Element):
         """
         format of custom types:
         {
@@ -869,32 +868,67 @@ class XSDReader:
             for property_id, prop in model.properties.items():
                 if prop["type"] == "backref":
                     referenced_model = self.models[prop["model"]]
-                    referenced_model.add_ref_property(model)
+                    # checking if the ref already exists.
+                    # They can exist multiple times, but refs should be added only once
+                    prop_added = False
+                    for prop in referenced_model.properties.values():
+                        if "model" in prop and prop["model"] == model.name:
+                            prop_added = True
+                    if not prop_added:
+                        referenced_model.add_ref_property(model)
 
     def _sort_properties_alphabetically(self):
         for model in self.models.values():
             model.properties = dict(sorted(model.properties.items()))
 
+    def _remove_sources_from_secondary_models(self):
+        """
+        Only models which represent root elements for XML need to have source
+        """
+
+        for parsed_model in self.models.values():
+
+            # we need to add root properties to properties if it's a root model
+            if parsed_model.parent_model is not None and parsed_model.parent_model.name in self.models:
+                parsed_model.external["name"] = ""
+
     def _remove_duplicate_models(self):
         """removes models that are exactly the same"""
 
-        model_pairs = {}
+        do_loop = True
 
-        for model_name, model in self.models.items():
-            for another_model_name, another_model in self.models.items():
-                if model is not another_model and model == another_model:
-                    if another_model_name not in model_pairs.values() and another_model_name not in model_pairs:
-                        model_pairs[another_model_name] = model_name
+        do_not_remove = []
 
-        for another_model_name, model_name in model_pairs.items():
-            parent_model = self.models[another_model_name].parent_model
-            if parent_model:
-                for property_id, prop in parent_model.properties.items():
-                    if "model" in prop and prop["model"] == another_model_name:
-                        prop["model"] = model_name
-                        if not self.models[model_name].parent_model:
-                            self.models[model_name].parent_model = self.models[model_name].parent_model
-                        self.models.pop(another_model_name)
+        while do_loop:
+
+            model_pairs = {}
+
+            for model_name, model in self.models.items():
+                for another_model_name, another_model in self.models.items():
+                    if model is not another_model and model == another_model and another_model_name not in do_not_remove:
+                        if (
+                            another_model_name not in model_pairs.values() and
+                            another_model_name not in model_pairs
+                        ):
+                            model_pairs[another_model_name] = model_name
+
+            for another_model_name, model_name in model_pairs.items():
+                parent_model = self.models[another_model_name].parent_model
+                if parent_model and parent_model.name in self.models:
+                    for property_id, prop in parent_model.properties.items():
+                        if "model" in prop and prop["model"] == another_model_name:
+                            prop["model"] = model_name
+                    self.models.pop(another_model_name)
+                else:
+                    do_not_remove.append(another_model_name)
+                do_not_remove.append(model_name)
+
+            if not model_pairs:
+                do_loop = False
+            else:
+                print(self.dataset_name)
+                for old_model, new_model in model_pairs.items():
+                    print(f"{old_model.split('/')[1]} -> {new_model.split('/')[1]}")
 
     def start(self):
         self._extract_root()
@@ -902,7 +936,7 @@ class XSDReader:
         # preparation part
 
         self._extract_namespaces()
-        self._extract_custom_types(self.root)
+        self._extract_custom_simple_types(self.root)
 
         # main part
 
@@ -919,6 +953,8 @@ class XSDReader:
         self._remove_duplicate_models()
 
         self._compile_nested_properties()
+
+        self._remove_sources_from_secondary_models()
 
         self._add_refs_for_backrefs()
 
