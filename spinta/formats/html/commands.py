@@ -1,6 +1,5 @@
 import dataclasses
 import datetime
-import uuid
 from decimal import Decimal
 from typing import Any
 from typing import Dict

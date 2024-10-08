@@ -27,5 +27,5 @@ def fix_data_for_json(data):
     if isinstance(data, BaseGeometry):
         return data.wkt
     if isinstance(data, uuid.UUID):
-        return str(data)
+        return data.hex
     raise TypeError(f"{type(data)} probably won't serialize to JSON.")
