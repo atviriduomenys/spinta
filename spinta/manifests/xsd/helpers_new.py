@@ -298,6 +298,9 @@ class XSDReader:
     def _post_process_refs(self):
         pass
 
+    def _add_expand_to_top_level_models(self):
+        pass
+
     def start(self):
         # general part
         state = State()
@@ -326,6 +329,8 @@ class XSDReader:
         # post processing
 
         self._post_process_refs()
+
+        self._add_expand_to_top_level_models()
 
         # we need to add this here, because only now we will know if it has properties and if we need to create it
         self._post_process_resource_model()
