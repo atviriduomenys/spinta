@@ -146,6 +146,7 @@ class XSDType:
     enum: str | None = None
     enums: dict[str, dict[str, dict[str, str]]] | None = None
     prepare: Expr | None = None
+    description: str = ""
 
 
 """
@@ -172,17 +173,18 @@ Example of a property:
      },
 """
 class XSDProperty:
+    # todo change to name
     id: str
-    id_raw: str  # id before deduplication on the model
+    id_raw: str  # todo change to xsd_name
     source: str  # converts to ["external"]["name"]
     type: XSDType
     required: bool | None = None
     unique: bool |None = None
     is_array: bool
     ref_model: XSDModel
-    description: str | None = None
+    description: str = ""
     uri: str | None = None
-    xsd_ref_to: str | None = None  # if it is a ref to another model, here is it's name
+    xsd_ref_to: str | None = None  # if it is a ref to another model, here is it's xsd element name
     xsd_type_to: str | None = None  # if it's type is of another complexType, so ref to that type
 
     def __init__(self):
@@ -208,6 +210,11 @@ class XSDProperty:
 
         if self.type.enums is not None:
                 data["enums"] = self.type.enums,
+
+        if self.type.description is not None:
+            self.description += self.type.description
+
+        data["description"] = self.description
 
         return data
 
@@ -240,9 +247,9 @@ class XSDModel:
             model_data["description"] = self.description
         if self.properties is not None:
             properties = {}
-            for prop_id, prop in self.properties.items():
-                properties[prop_id] = prop.get_data()
-            model_data["properties"] = self.properties
+            for prop_name, prop in self.properties.items():
+                properties[prop_name] = prop.get_data()
+            model_data["properties"] = properties
         if self.source is not None:
             model_data["external"] = {"name": self.source}
         if self.uri is not None:
@@ -321,6 +328,7 @@ class XSDReader:
                 self.read_node(child_node, state)
 
     def read_node(self, node: _Element, state: State, parent: XMLNode = None) -> None:
+        # todo remove this step
         for child_node in node.getchildren():
             if isinstance(child_node, _Comment):
                 continue
@@ -345,6 +353,7 @@ class XSDReader:
     def register_simple_types(self, state: State) -> None:
         for node in self.xml_tree.nodes:
             if node.is_top_level:
+                # TODO: change to xpath
                 if node.type is "simpleType":
                     custom_type = self.process_simple_type(node, state)
                     self.custom_types[custom_type.name] = custom_type
@@ -397,6 +406,8 @@ class XSDReader:
 
         self.register_simple_types(state)
 
+        # todo maybe add a function to check attributes of xml nodes
+
         # TODO: two options: -
         #  1. we register all top level things first and then use when we need them
         #  2. we register every model (from element or separate complexType) when we meet them, but check if we already have processed them before (by XSD name)
@@ -410,22 +421,28 @@ class XSDReader:
         # we need to add this here, because only now we will know if it has properties and if we need to create it
         self._post_process_resource_model()
 
+    # todo rename process_root or something
     def process_xml_tree(self, state):
         state.model_deduplicate = Deduplicator()
         for node in self.xml_tree.nodes:
             if node.is_top_level:
-                self.process_node(node, state)
+                if node.type == "element":
+                    return self.process_element(node, state)
+                elif node.type == "complexType":
+                    return self.process_complex_type(node, state)
+                elif node.type == "simpleType":
+                    # todo finish comment
+                    # simple types are processed in self.
+                    pass
+                else:
+                    raise RuntimeError(f'This node type cannot be at the top level: {node.type}')
 
-    def process_node(self, node: XMLNode, state: State):
+    # def process_node(self, node: XMLNode, state: State):
+    #     # todo if we get back a property that isn't a ref,
+    #     #  this means that it's not a model, but a single property
+    #     #  and we need to add it to the `resource` model
+    #     #  Otherwise we don't need to do anything as the model is already registered.
 
-        if node.type == "element":
-            return self.process_element(node, state)
-        elif node.type == "complexType":
-            return self.process_complex_type(node, state)
-        elif node.type == "simpleType":
-            pass
-        else:
-            raise RuntimeError(f'This node type cannot be at the top level: {node.type}')
 
             # return self.process_simple_type(node, state)
 
@@ -478,24 +495,47 @@ class XSDReader:
     #  XSD nodes processors
 
     def process_element(self, node: XMLNode, state: State) -> list[XSDProperty]:
-        model = None
+        """
+        Element should return a property. It can return multiple properties if there is a choice somewhere down the way
+        """
+
+        props = []
+        property_type_to = None
+        property_ref_to = None
         if node.attributes.get("name"):
             property_name = node.attributes["name"]
         elif node.attributes.get("ref"):
             property_name = node.attributes["ref"]
+            property_ref_to = property_name
         else:
             raise RuntimeError(f'Element has to have either name or ref')
-        prop = XSDProperty()
-        prop.name = property_name
+
+        if node.attributes.get("type"):
+            property_type = node.attributes["type"]
+            if property_type not in DATATYPES_MAPPING and property_type not in self.custom_types:
+                property_type_to = node.attributes["type"]
+
         if node.children:
             for child in node.children:
                 if child.type == "complexType":
                     models = self.process_complex_type(child, state)
+                    # usually it's one model, but in case of choice, can be multiple models
                     for model in models:
-                        model.set_name(self.deduplicate_model_name(child.attributes.get("name")))
+                        prop = XSDProperty()
                         prop.ref_model = model
+                        prop.id_raw = property_name
+                        prop.type_to = property_type_to
+                        prop.ref_to = property_ref_to
+                        props.append(prop)
                 elif child.type == "simpleType":
-                    result = self.process_simple_type(child, state)
+                    prop = XSDProperty()
+                    prop.id_raw = property_name
+                    prop.type = self.process_simple_type(child, state)
+                    # we will process those in
+                    prop.type_to = property_type_to
+                    prop.ref_to = property_ref_to
+                    props.append(prop)
+
                 else:
                     raise RuntimeError(f"This node type cannot be in the complex type: {node.type}")
 
@@ -522,6 +562,7 @@ class XSDReader:
         if name:
             model.name = self.deduplicate_model_name(name)
         state.property_deduplicate = Deduplicator()
+        # todo change to list
         properties = {}
         choice_props = None
         for child in node.children:
@@ -534,8 +575,14 @@ class XSDReader:
                 sequence_props = self.process_sequence(child, state)
                 properties.update(sequence_props)
             elif child.type == "choice":
-                choice_props = self.process_sequence(child, state)
+                choice_props = self.process_choice(child, state)
+            else:
+                raise RuntimeError("")
 
+        for prop in properties:
+            # TODO: in case of choice, maybe move this after deduplication of choice.
+            #  It's ok here, but can produce names with numbers where not necessary.
+            prop.id = state.property_deduplicate(prop.id_raw)
         model.properties = properties
         if choice_props:
             pass
@@ -586,23 +633,75 @@ class XSDReader:
         return enum_item
 
     def process_simple_type(self, node: XMLNode, state: State) -> XSDType:
+        property_type = None
+        description = None
         for child in node.children:
             if child.type == "restriction":
                 # get everything from restriction, just add name if exists
                 property_type = self.process_restriction(child, state)
                 if node.attributes.get("name"):
                     property_type.name = node.attributes.get("name")
-
-                return property_type
-
+            elif child.type == "annotation":
+                # TODO: handle adding this description to property
+                description = self.process_annotation(child, state)
             else:
                 raise RuntimeError(f"Unexpected element type inside simpleType element: {child.type}")
+        property_type.description = description
+        return property_type
 
-    def process_sequence(self, node: XMLNode, state: State) -> None:
-        pass
+    def process_sequence(self, node: XMLNode, state: State) -> dict[str, XSDProperty]:
+        properties = {}
+        for child in node.children:
+            if child.type == "element":
+                properties_result = self.process_element(child, state)
+                for prop in properties_result:
+                    properties["prop.id"] = prop
+            if child.type == "choice":
+                # todo finish this part
+                properties_result = self.process_choice(child, state)
+            else:
+                raise RuntimeError(f"Unexpected element type inside sequence element: {child.type}")
+        return properties
 
     def process_choice(self, node: XMLNode, state: State) -> None:
-        pass
+        properties = {}
+        for child in node.children:
+            if child.type == "element":
+                properties_result = self.process_element(child, state)
+                for prop in properties_result:
+                    properties["prop.id"] = prop
+            elif child.type == "sequence":
+                # TODO: there might be a few different sequences inside choice. The splitting needs to be done
+                #  in a way that in the end it creates two (or more) models, one with properties from one sequence, one with
+                #  properties from another.
+                #  example:
+                #    <s:sequence>
+                #                  <s:element name="countryCode" minOccurs="0" maxOccurs="1">
+                #                 <s:annotation>
+                #                     <s:documentation>Valstybės kodas (ISO 3166-1, alpha-3)</s:documentation>
+                #                 </s:annotation>
+                #                 <s:simpleType>
+                #                     <s:restriction base="s:string">
+                #                         <s:pattern value="[a-zA-Z]{3}" />
+                #                     </s:restriction>
+                #                 </s:simpleType>
+                #             </s:element>
+                #             <s:choice>
+                #                 <s:sequence>
+                #                     <s:element minOccurs="0" maxOccurs="1" name="firstName" />
+                #                     <s:element minOccurs="0" maxOccurs="1" name="lastName" />
+                #                     <s:element minOccurs="0" maxOccurs="1" name="birthDate" />
+                #                 </s:sequence>
+                #                 <s:sequence>
+                #                     <s:element minOccurs="0" maxOccurs="1" name="businessName" />
+                #                 </s:sequence>
+                #             </s:choice>
+                #         </s:sequence>
+                pass
+            else:
+                raise RuntimeError(f"Unexpected element type inside sequence element: {child.type}")
+        #     todo: think of how to make this work
+        return properties
 
     def process_group(self, node: XMLNode, state: State) -> None:
         pass
@@ -746,5 +845,5 @@ def read_schema(
 
     yield None, xsd.dataset_resource.get_data()
 
-    for model_name, parsed_model in xsd.models.items():
-        yield None, parsed_model.get_data()
+    for model_name, model in xsd.models.items():
+        yield None, model.get_data()
