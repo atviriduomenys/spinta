@@ -111,8 +111,6 @@ def _get_row_value(context: Context, row: Any, sel: Any) -> Any:
     return sel
 
 
-
-
 @commands.load.register(Context, DaskBackend, dict)
 def load(context: Context, backend: DaskBackend, config: Dict[str, Any]):
     pass

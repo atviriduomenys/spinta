@@ -83,7 +83,7 @@ def _get_dtype_header(
 
     elif isinstance(dtype, Ref):
         if select is None or select == {'*': {}}:
-            if dtype.prop.given.explicit:
+            if not dtype.inherited:
                 yield get_separated_name(dtype, name, '_id')
             for key, prop in dtype.properties.items():
                 yield from _get_dtype_header(prop.dtype, select, get_separated_name(dtype, name, key), langs)

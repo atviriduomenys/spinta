@@ -25,12 +25,13 @@ def get_ref_value(context: Context, prop: Property):
 def link(context: Context, dtype: Partial):
     prop = dtype.prop
     parent = prop.parent
-    if parent:
+    if parent and isinstance(parent, Property):
         if isinstance(parent.dtype, Ref):
             props = dtype.properties
             result = get_ref_value(context, prop)
             prop.dtype = copy(result.dtype)
             prop.dtype.properties = props
+            prop.dtype.inherited = True
             prop.given.explicit = False
             prop.given.name = ''
             prop.dtype.prop = prop

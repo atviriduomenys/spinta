@@ -966,8 +966,20 @@ class InvalidClientsKeymapStructure(UpgradeError):
     Fix it or consider running `spinta upgrade -f -r clients` command.
     '''
 
+
 class UpgradeScriptNotFound(UserError):
     template = '''
     Upgrade script {script!r} not found.
     Available scripts: {available_scripts}.
+    '''
+
+
+class InvalidScopes(UserError):
+    template = "Request contains invalid, unknown or malformed scopes: {scopes}."
+
+
+class DirectRefValueUnassignment(UserError):
+    template = '''
+    Cannot directly set ref's _id value to None.
+    You have to set ref to None, which will also remove all additional stored values related to that ref (child properties).
     '''

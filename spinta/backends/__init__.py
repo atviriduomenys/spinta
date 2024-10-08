@@ -41,7 +41,8 @@ from spinta.components import Node
 from spinta.components import Property
 from spinta.core.ufuncs import asttoexpr
 from spinta.exceptions import ConflictingValue, RequiredProperty, LangNotDeclared, TooManyLangsGiven, \
-    UnableToDetermineRequiredLang, CoordinatesOutOfRange, InheritPropertyValueMissmatch, SRIDNotSetForGeometry
+    UnableToDetermineRequiredLang, CoordinatesOutOfRange, InheritPropertyValueMissmatch, SRIDNotSetForGeometry, \
+    DirectRefValueUnassignment
 from spinta.exceptions import NoItemRevision
 from spinta.formats.components import Format
 from spinta.manifests.components import Manifest
@@ -350,6 +351,9 @@ def simple_data_check(
     backend: Backend,
     value: dict,
 ) -> None:
+    if value is None:
+        return
+
     denorm_prop_keys = [
         key for key in dtype.properties.keys()
     ]
@@ -358,6 +362,7 @@ def simple_data_check(
         allowed_keys = [prop.name for prop in dtype.refprops]
     else:
         allowed_keys = ['_id']
+
     allowed_keys.extend(denorm_prop_keys)
     for key in value.keys():
         if key not in allowed_keys:
@@ -372,6 +377,10 @@ def simple_data_check(
                 value[key]
             )
 
+    if value and isinstance(value, dict):
+        if all(val is None for key, val in value.items() if key in allowed_keys):
+            raise DirectRefValueUnassignment(dtype)
+
 
 @commands.simple_data_check.register(Context, DataItem, Ref, Property, Backend, object)
 def simple_data_check(
@@ -382,8 +391,14 @@ def simple_data_check(
     backend: Backend,
     value: object,
 ) -> None:
+    if value is None:
+        return
+
     if value and not isinstance(value, dict):
         raise exceptions.InvalidRefValue(prop, value=value)
+
+    if isinstance(value, dict) and '_id' in value and value['_id'] is None:
+        raise DirectRefValueUnassignment(dtype)
 
 
 @commands.simple_data_check.register(Context, DataItem, BackRef, Property, Backend, object)
@@ -948,13 +963,15 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    if value is None or all(val is None for val in value.values()):
+    if value is None:
         return None
 
     properties = dtype.model.properties.copy()
     properties.update(dtype.properties)
 
+    nullable = True
     if select and select != {'*': {}}:
+        nullable = False
         names = get_select_prop_names(
             context,
             dtype,
@@ -985,6 +1002,13 @@ def prepare_dtype_for_response(
         )
     }
 
+    # Apply None checks at the end, since there might be nested values that are only calculated at the end
+    # There are some cases where data changelog was not logging ref unassignment correctly and would store values as
+    # empty string, instead of null
+    # https://github.com/atviriduomenys/spinta/issues/556
+    if nullable and all(val is None or val == "" for val in result.values()):
+        return None
+
     return result
 
 
@@ -1001,6 +1025,12 @@ def prepare_dtype_for_response(
 ):
     # FIXME: Backend should never return references as strings! References
     #        should always be dicts.
+
+    # This is a workaround for `"value": ""` cases, where they should have been `"value": null`
+    # https://github.com/atviriduomenys/spinta/issues/556
+    if value == "":
+        return None
+
     return {'_id': value}
 
 
@@ -1015,10 +1045,12 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    if value is None or all(val is None for val in value.values()):
+    if value is None:
         return None
 
+    nullable = True
     if select and select != {'*': {}}:
+        nullable = False
         names = get_select_prop_names(
             context,
             dtype,
@@ -1029,9 +1061,9 @@ def prepare_dtype_for_response(
     else:
         names = value.keys()
 
-    data = {}
-    props = dtype.properties.copy()
-    props.update(dtype.model.properties)
+    result = {}
+    props = dtype.model.properties.copy()
+    props.update(dtype.properties)
 
     for prop, val, sel in select_props(
         dtype.model,
@@ -1040,7 +1072,7 @@ def prepare_dtype_for_response(
         value,
         select,
     ):
-        data[prop.name] = commands.prepare_dtype_for_response(
+        result[prop.name] = commands.prepare_dtype_for_response(
             context,
             fmt,
             prop.dtype,
@@ -1049,7 +1081,12 @@ def prepare_dtype_for_response(
             action=action,
             select=sel,
         )
-    return data
+
+    # Apply None checks at the end, since there might be nested values that are only calculated at the end
+    if nullable and all(val is None for val in result.values()):
+        return None
+
+    return result
 
 
 @commands.prepare_dtype_for_response.register(Context, Format, Object, dict)
@@ -1825,6 +1862,10 @@ def cast_backend_to_python(
                     value
                 )
             result[key] = converted
+
+        if not result or all(value is None for value in result.values()):
+            return None
+
         return result
     return data
 

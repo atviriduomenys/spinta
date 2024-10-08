@@ -662,7 +662,7 @@ class PropertyReader(TabularReader):
             for i, part in enumerate(parts)
         )
         return STR_PROPERTIES + '.' + result if result else ''
-    
+
 
 def _initial_normal_property_schema(given_name: str, dtype: dict, row: dict):
     return {

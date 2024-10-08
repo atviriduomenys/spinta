@@ -15,6 +15,7 @@ from spinta.utils.schema import NA
 
 ResultBuilderGetter = abc.Callable[[], ResultBuilder]
 
+
 def _resolve_expr(context: Context, row: Any, sel: Selected, result_builder_getter: Union[ResultBuilderGetter, ResultBuilder]) -> Any:
     if sel.item is None:
         val = None
@@ -55,9 +56,6 @@ def _aggregate_values(data: Any, target: Property):
 
     # Start the recursive collection process
     return recursive_collect(data, 0)
-
-
-
 
 
 # This is the fastest way to call this function, use this if you do not want to recreate `ResultBuilder`
