@@ -1,10 +1,9 @@
-.. default-role:: literal
-
 Changes
 #######
 
 0.1.76 (unreleased)
 ===================
+
 
 Backwards incompatible changes:
 
@@ -16,6 +15,10 @@ Backwards incompatible changes:
 
 Improvements:
 
+- Added removal of duplicate models when converting `XSD` to `DSA` even when `source` is different (`#787`_).
+
+  .. _#787: https://github.com/atviriduomenys/spinta/issues/787
+
 - Improved invalid scope error messaging for token auth (`#537`_).
 
   .. _#537: https://github.com/atviriduomenys/spinta/issues/537
@@ -24,6 +27,10 @@ Improvements:
 
 
 Bug fixes:
+
+- Fixed a bug in XSD->DSA conversion, where properties need to become arrays in a `choice` which has `maxOccurs="unbounded"` (`#837`_).
+
+  .. _#837: https://github.com/atviriduomenys/spinta/issues/837
 
 - Fixed `checksum()` function bug, where it tried to calculate checksums before converting data from `backend` specific to
   python types (`#832`_).
