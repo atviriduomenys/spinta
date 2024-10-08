@@ -99,7 +99,7 @@ def test_xsd_ref(rc: RawConfig, tmp_path: Path):
     |   |   |   |   | puslapis     | integer required |         | @puslapis      |         |       |        |     |       | rezultatu puslapio numeris
     |   |   |   |   | text         | string           |         | text()         |         |       |        |     |       |
     |                              |                  |         |                |         |       |        |     |       |
-    |   |   |   | Asmuo            |                  |         | /asmenys/asmuo |         |       |        |     |       |
+    |   |   |   | Asmuo            |                  |         |                |         |       |        |     |       |
     |   |   |   |   | ak           | string required  |         | @ak            |         |       |        |     |       |
     |   |   |   |   | asmenys      | ref              | Asmenys |                |         |       |        |     |       |
     |   |   |   |   | id           | string required  |         | @id            |         |       |        |     |       |
@@ -311,16 +311,16 @@ def test_xsd_choice_max_occurs_unbounded(rc: RawConfig, tmp_path: Path):
     """
 
     table = """
- id | d | r | b | m | property             | type    | ref | source                      | prepare | level | access | uri | title | description
-    | manifest                             |         |     |                             |         |       |        |     |       |
-    |   | resource1                        | xml     |     |                             |         |       |        |     |       |
-    |                                      |         |     |                             |         |       |        |     |       |
-    |   |   |   | Parcel                   |         |     | /parcel                     |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
-    |   |   |   |   | parcel_unique_number | integer |     | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
-    |   |   |   |   | sign_of_change       | integer |     | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
-    |                                      | enum    |     | 1                           |         |       |        |     |       |
-    |                                      |         |     | 2                           |         |       |        |     |       |
-    |   |   |   |   | text                 | string  |     | text()                      |         |       |        |     |       |
+ id | d | r | b | m | property               | type    | ref | source                      | prepare | level | access | uri | title | description
+    | manifest                               |         |     |                             |         |       |        |     |       |
+    |   | resource1                          | xml     |     |                             |         |       |        |     |       |
+    |                                        |         |     |                             |         |       |        |     |       |
+    |   |   |   | Parcel                     |         |     | /parcel                     |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
+    |   |   |   |   | parcel_unique_number[] | integer |     | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
+    |   |   |   |   | sign_of_change[]       | integer |     | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
+    |                                        | enum    |     | 1                           |         |       |        |     |       |
+    |                                        |         |     | 2                           |         |       |        |     |       |
+    |   |   |   |   | text                   | string  |     | text()                      |         |       |        |     |       |
 
 """
 
@@ -588,7 +588,7 @@ def test_xsd_recursion(rc: RawConfig, tmp_path: Path):
     | manifest                               |                 |         |                            |         |       |        |     |       |
     |   | resource1                          | xml             |         |                            |         |       |        |     |       |
     |                                        |                 |         |                            |         |       |        |     |       |
-    |   |   |   | Actions                    |                 |         | /data/responseData/actions |         |       |        |     |       |
+    |   |   |   | Actions                    |                 |         |                            |         |       |        |     |       |
     |   |   |   |   | code[]                 | string required |         | action/code/text()         |         |       |        |     |       | Paslaugos kodas (RC kodas)
     |   |   |   |   | data                   | ref             | Data    |                            |         |       |        |     |       |
     |                                        |                 |         |                            |         |       |        |     |       |
@@ -689,7 +689,7 @@ def test_duplicate_removal(rc: RawConfig, tmp_path: Path):
     | manifest                                         |                   |                  |                                               |         |       |        |     |       |
     |   | resource1                                    | xml               |                  |                                               |         |       |        |     |       |
     |                                                  |                   |                  |                                               |         |       |        |     |       |
-    |   |   |   | Extract                              |                   |                  | /getDocumentsByWagonResponse/extract          |         |       |        |     |       |
+    |   |   |   | Extract                              |                   |                  |                                               |         |       |        |     |       |
     |   |   |   |   | extract_preparation_time         | datetime required |                  | extractPreparationTime/text()                 |         |       |        |     |       |
     |   |   |   |   | last_update_time                 | datetime required |                  | lastUpdateTime/text()                         |         |       |        |     |       |
     |                                                  |                   |                  |                                               |         |       |        |     |       |
@@ -707,9 +707,274 @@ def test_duplicate_removal(rc: RawConfig, tmp_path: Path):
     |   |   |   |   | search_parameters.code           | string            |                  | searchParameters/code/text()                  |         |       |        |     |       |
     |   |   |   |   | search_parameters.search_type    | string            |                  | searchParameters/searchType/text()            |         |       |        |     |       |
     |                                                  |                   |                  |                                               |         |       |        |     |       |
-    |   |   |   | SearchParameters                     |                   |                  | /getDocumentsByWagonResponse/searchParameters |         |       |        |     |       |
+    |   |   |   | SearchParameters                     |                   |                  |                                               |         |       |        |     |       |
     |   |   |   |   | code                             | string            |                  | code/text()                                   |         |       |        |     |       |
     |   |   |   |   | search_type                      | string            |                  | searchType/text()                             |         |       |        |     |       |
+
+  """
+
+    path = tmp_path / 'manifest.xsd'
+    with open(path, "w") as xsd_file:
+        xsd_file.write(xsd)
+    manifest = load_manifest(rc, path)
+    assert manifest == table
+
+
+def test_duplicate_removal_backref(rc: RawConfig, tmp_path: Path):
+    xsd = """
+    <xs:schema xmlns="http://eTaarPlat.ServiceContracts/2007/08/Messages" elementFormDefault="qualified" targetNamespace="http://eTaarPlat.ServiceContracts/2007/08/Messages" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+        <xs:element name="getDocumentsByWagonResponse" nillable="true" type="getDocumentsByWagonResponse" />
+        <xs:complexType name="getDocumentsByWagonResponse">
+            <xs:sequence>
+                <xs:element minOccurs="0" maxOccurs="unbounded" name="searchParameters" type="getDocumentsByWagonSearchParams" />
+                <xs:choice minOccurs="1" maxOccurs="1">
+                    <xs:element minOccurs="0" maxOccurs="1" name="klaida" type="Klaida" />
+                    <xs:element minOccurs="0" maxOccurs="1" name="extract" type="Extract" />
+                </xs:choice>
+            </xs:sequence>
+        </xs:complexType>
+        <xs:complexType name="getDocumentsByWagonSearchParams">
+            <xs:sequence>
+                <xs:element minOccurs="0" maxOccurs="1" name="searchType" type="xs:string" />
+                <xs:element minOccurs="0" maxOccurs="1" name="code" type="xs:string" />
+            </xs:sequence>
+        </xs:complexType>
+        <xs:complexType name="Klaida">
+                    <xs:sequence>
+                        <xs:element minOccurs="0" maxOccurs="1" name="Aprasymas" type="xs:string" />
+                    </xs:sequence>
+        </xs:complexType>
+        <xs:complexType name="Extract">
+                    <xs:sequence>
+                        <xs:element minOccurs="1" maxOccurs="1" name="extractPreparationTime" type="xs:dateTime" />
+                        <xs:element minOccurs="1" maxOccurs="1" name="lastUpdateTime" type="xs:dateTime" />
+                    </xs:sequence>
+        </xs:complexType>
+    </xs:schema>
+"""
+
+    table = """
+ id | d | r | b | m | property                         | type              | ref              | source                                        | prepare | level | access | uri | title | description
+    | manifest                                         |                   |                  |                                               |         |       |        |     |       |
+    |   | resource1                                    | xml               |                  |                                               |         |       |        |     |       |
+    |                                                  |                   |                  |                                               |         |       |        |     |       |
+    |   |   |   | Extract                              |                   |                  |                                               |         |       |        |     |       |
+    |   |   |   |   | extract_preparation_time         | datetime required |                  | extractPreparationTime/text()                 |         |       |        |     |       |
+    |   |   |   |   | last_update_time                 | datetime required |                  | lastUpdateTime/text()                         |         |       |        |     |       |
+    |                                                  |                   |                  |                                               |         |       |        |     |       |
+    |   |   |   | GetDocumentsByWagonResponse1         |                   |                  | /getDocumentsByWagonResponse                  |         |       |        |     |       |
+    |   |   |   |   | aprasymas                        | string            |                  | klaida/Aprasymas/text()                       |         |       |        |     |       |
+    |   |   |   |   | search_parameters[]              | backref           | SearchParameters | searchParameters                              |         |       |        |     |       |
+    |   |   |   |   | search_parameters[].code         | string            |                  | code/text()                                   |         |       |        |     |       |
+    |   |   |   |   | search_parameters[].search_type  | string            |                  | searchType/text()                             |         |       |        |     |       |
+    |                                                  |                   |                  |                                               |         |       |        |     |       |
+    |   |   |   | GetDocumentsByWagonResponse2         |                   |                  | /getDocumentsByWagonResponse                  |         |       |        |     |       |
+    |   |   |   |   | extract                          | ref               | Extract          | extract                                       |         |       |        |     |       |
+    |   |   |   |   | extract.extract_preparation_time | datetime required |                  | extract/extractPreparationTime/text()         |         |       |        |     |       |
+    |   |   |   |   | extract.last_update_time         | datetime required |                  | extract/lastUpdateTime/text()                 |         |       |        |     |       |
+    |   |   |   |   | search_parameters[]              | backref           | SearchParameters | searchParameters                              |         |       |        |     |       |
+    |   |   |   |   | search_parameters[].code         | string            |                  | code/text()                                   |         |       |        |     |       |
+    |   |   |   |   | search_parameters[].search_type  | string            |                  | searchType/text()                             |         |       |        |     |       |
+    |                                                  |                   |                  |                                               |         |       |        |     |       |
+    |   |   |   | SearchParameters                     |                   |                  |                                               |         |       |        |     |       |
+    |   |   |   |   | code                             | string            |                  | code/text()                                   |         |       |        |     |       |
+    |   |   |   |   | get_documents_by_wagon_response1 | ref               | GetDocumentsByWagonResponse1 |                                               |         |       |        |     |       |
+    |   |   |   |   | get_documents_by_wagon_response2 | ref               | GetDocumentsByWagonResponse2 |                                               |         |       |        |     |       |
+    |   |   |   |   | search_type                      | string            |                  | searchType/text()                             |         |       |        |     |       |
+
+  """
+
+    path = tmp_path / 'manifest.xsd'
+    with open(path, "w") as xsd_file:
+        xsd_file.write(xsd)
+    manifest = load_manifest(rc, path)
+    assert manifest == table
+
+
+def test_duplicate_removal_different_models(rc: RawConfig, tmp_path: Path):
+    """
+    in this situation, "Extract" model has to be only once
+    """
+    xsd = """
+    <xs:schema xmlns="http://eTaarPlat.ServiceContracts/2007/08/Messages" elementFormDefault="qualified" targetNamespace="http://eTaarPlat.ServiceContracts/2007/08/Messages" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+        <xs:element name="getDocumentsByWagonResponse" nillable="true" type="getDocumentsByWagonResponse" />
+        <xs:complexType name="getDocumentsByWagonResponse">
+            <xs:sequence>
+                <xs:element minOccurs="0" maxOccurs="1" name="searchParameters" type="getDocumentsByWagonSearchParams" />
+                <xs:choice minOccurs="1" maxOccurs="1">
+                    <xs:element minOccurs="0" maxOccurs="1" name="klaida" type="Klaida" />
+                    <xs:element minOccurs="0" maxOccurs="1" name="extract" type="Extract" />
+                </xs:choice>
+            </xs:sequence>
+        </xs:complexType>
+        <xs:complexType name="getDocumentsByWagonSearchParams">
+            <xs:sequence>
+                <xs:element minOccurs="0" maxOccurs="1" name="searchType" type="xs:string" />
+                <xs:element minOccurs="0" maxOccurs="1" name="code" type="xs:string" />
+            </xs:sequence>
+        </xs:complexType>
+        <xs:element name="getDocumentsByAirCraftResponse" nillable="true" type="getDocumentsByAirCraftResponse" />
+        <xs:complexType name="getDocumentsByAirCraftResponse">
+            <xs:sequence>
+                <xs:element minOccurs="0" maxOccurs="1" name="searchParameters" type="getDocumentsByAirCraftSearchParams" />
+                <xs:choice minOccurs="1" maxOccurs="1">
+                    <xs:element minOccurs="0" maxOccurs="1" name="klaida" type="Klaida" />
+                    <xs:element minOccurs="0" maxOccurs="1" name="extract" type="Extract" />
+                </xs:choice>
+            </xs:sequence>
+        </xs:complexType>
+        <xs:complexType name="getDocumentsByAirCraftSearchParams">
+            <xs:sequence>
+                <xs:element minOccurs="0" maxOccurs="1" name="searchType" type="xs:string" />
+                <xs:element minOccurs="0" maxOccurs="1" name="code" type="xs:string" />
+            </xs:sequence>
+        </xs:complexType>
+        <xs:complexType name="Klaida">
+                    <xs:sequence>
+                        <xs:element minOccurs="0" maxOccurs="1" name="Aprasymas" type="xs:string" />
+                    </xs:sequence>
+        </xs:complexType>
+        <xs:complexType name="Extract">
+                    <xs:sequence>
+                        <xs:element minOccurs="1" maxOccurs="1" name="extractPreparationTime" type="xs:dateTime" />
+                        <xs:element minOccurs="1" maxOccurs="1" name="lastUpdateTime" type="xs:dateTime" />
+                    </xs:sequence>
+        </xs:complexType>
+    </xs:schema>
+"""
+
+    table = """
+ id | d | r | b | m | property                         | type              | ref              | source                                                            | prepare | level | access | uri | title | description
+    | manifest                                         |                   |                  |                                                                   |         |       |        |     |       |
+    |   | resource1                                    | xml               |                  |                                                                   |         |       |        |     |       |
+    |                                                  |                   |                  |                                                                   |         |       |        |     |       |
+    |   |   |   | Extract                              |                   |                  |                                                                   |         |       |        |     |       |
+    |   |   |   |   | extract_preparation_time         | datetime required |                  | extractPreparationTime/text()                                     |         |       |        |     |       |
+    |   |   |   |   | last_update_time                 | datetime required |                  | lastUpdateTime/text()                                             |         |       |        |     |       |
+    |                                                  |                   |                  |                                                                   |         |       |        |     |       |
+    |   |   |   | GetDocumentsByAirCraftResponse1      |                   |                  | /getDocumentsByAirCraftResponse                                   |         |       |        |     |       |
+    |   |   |   |   | aprasymas                        | string            |                  | klaida/Aprasymas/text()                                           |         |       |        |     |       |
+    |   |   |   |   | search_parameters                | ref               | SearchParameters | searchParameters                                                  |         |       |        |     |       |
+    |   |   |   |   | search_parameters.code           | string            |                  | getDocumentsByWagonResponse/searchParameters/code/text()          |         |       |        |     |       |
+    |   |   |   |   | search_parameters.search_type    | string            |                  | getDocumentsByWagonResponse/searchParameters/searchType/text()    |         |       |        |     |       |
+    |                                                  |                   |                  |                                                                   |         |       |        |     |       |
+    |   |   |   | GetDocumentsByAirCraftResponse2      |                   |                  | /getDocumentsByAirCraftResponse                                   |         |       |        |     |       |
+    |   |   |   |   | extract                          | ref               | Extract          | extract                                                           |         |       |        |     |       |
+    |   |   |   |   | extract.extract_preparation_time | datetime required |                  | getDocumentsByWagonResponse/extract/extractPreparationTime/text() |         |       |        |     |       |
+    |   |   |   |   | extract.last_update_time         | datetime required |                  | getDocumentsByWagonResponse/extract/lastUpdateTime/text()         |         |       |        |     |       |
+    |   |   |   |   | search_parameters                | ref               | SearchParameters | searchParameters                                                  |         |       |        |     |       |
+    |   |   |   |   | search_parameters.code           | string            |                  | getDocumentsByWagonResponse/searchParameters/code/text()          |         |       |        |     |       |
+    |   |   |   |   | search_parameters.search_type    | string            |                  | getDocumentsByWagonResponse/searchParameters/searchType/text()    |         |       |        |     |       |
+    |                                                  |                   |                  |                                                                   |         |       |        |     |       |
+    |   |   |   | GetDocumentsByWagonResponse1         |                   |                  | /getDocumentsByWagonResponse                                      |         |       |        |     |       |
+    |   |   |   |   | aprasymas                        | string            |                  | klaida/Aprasymas/text()                                           |         |       |        |     |       |
+    |   |   |   |   | search_parameters                | ref               | SearchParameters | searchParameters                                                  |         |       |        |     |       |
+    |   |   |   |   | search_parameters.code           | string            |                  | searchParameters/code/text()                                      |         |       |        |     |       |
+    |   |   |   |   | search_parameters.search_type    | string            |                  | searchParameters/searchType/text()                                |         |       |        |     |       |
+    |                                                  |                   |                  |                                                                   |         |       |        |     |       |
+    |   |   |   | GetDocumentsByWagonResponse2         |                   |                  | /getDocumentsByWagonResponse                                      |         |       |        |     |       |
+    |   |   |   |   | extract                          | ref               | Extract          | extract                                                           |         |       |        |     |       |
+    |   |   |   |   | extract.extract_preparation_time | datetime required |                  | extract/extractPreparationTime/text()                             |         |       |        |     |       |
+    |   |   |   |   | extract.last_update_time         | datetime required |                  | extract/lastUpdateTime/text()                                     |         |       |        |     |       |
+    |   |   |   |   | search_parameters                | ref               | SearchParameters | searchParameters                                                  |         |       |        |     |       |
+    |   |   |   |   | search_parameters.code           | string            |                  | searchParameters/code/text()                                      |         |       |        |     |       |
+    |   |   |   |   | search_parameters.search_type    | string            |                  | searchParameters/searchType/text()                                |         |       |        |     |       |
+    |                                                  |                   |                  |                                                                   |         |       |        |     |       |
+    |   |   |   | SearchParameters                     |                   |                  |                                                                   |         |       |        |     |       |
+    |   |   |   |   | code                             | string            |                  | code/text()                                                       |         |       |        |     |       |
+    |   |   |   |   | search_type                      | string            |                  | searchType/text()                                                 |         |       |        |     |       |
+
+  """
+
+    path = tmp_path / 'manifest.xsd'
+    with open(path, "w") as xsd_file:
+        xsd_file.write(xsd)
+    manifest = load_manifest(rc, path)
+    assert manifest == table
+
+
+def test_duplicate_removal_two_level(rc: RawConfig, tmp_path: Path):
+    """
+    if a ref refers to another model, and this model refers to yet another, and they both produce duplicates,
+    all those duplicates should be removed.
+    """
+    xsd = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+    <xs:element name="Maker">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="name" type="xs:string"/>
+                <xs:element name="code" type="xs:string"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+    
+    <xs:element name="Documentation">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="country" type="xs:string"/>
+                <xs:element ref="Maker"/>
+            </xs:sequence>
+        </xs:complexType>
+    
+    </xs:element>
+
+    <xs:element name="Car">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="colour" type="xs:string"/>
+                <xs:element name="make" type="xs:string"/>
+                <xs:element ref="Documentation"/>
+            </xs:sequence>
+        </xs:complexType>
+        
+    </xs:element>
+    
+        <xs:element name="Ship">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="colour" type="xs:string"/>
+                <xs:element name="make" type="xs:string"/>
+                <xs:element ref="Documentation"/>
+            </xs:sequence>
+        </xs:complexType>
+        
+    </xs:element>
+
+</xs:schema>
+"""
+
+    table = """
+ id | d | r | b | m | property                 | type            | ref           | source                              | prepare | level | access | uri | title | description
+    | manifest                                 |                 |               |                                     |         |       |        |     |       |
+    |   | resource1                            | xml             |               |                                     |         |       |        |     |       |
+    |                                          |                 |               |                                     |         |       |        |     |       |
+    |   |   |   | Car                          |                 |               | /Car                                |         |       |        |     |       |
+    |   |   |   |   | colour                   | string required |               | colour/text()                       |         |       |        |     |       |
+    |   |   |   |   | documentation            | ref required    | Documentation | Documentation                       |         |       |        |     |       |
+    |   |   |   |   | documentation.country    | string required |               | Documentation/country/text()        |         |       |        |     |       |
+    |   |   |   |   | documentation.maker      | ref required    | Maker         | Documentation/Maker                 |         |       |        |     |       |
+    |   |   |   |   | documentation.maker.code | string required |               | Documentation/Maker/code/text()     |         |       |        |     |       |
+    |   |   |   |   | documentation.maker.name | string required |               | Documentation/Maker/name/text()     |         |       |        |     |       |
+    |   |   |   |   | make                     | string required |               | make/text()                         |         |       |        |     |       |
+    |                                          |                 |               |                                     |         |       |        |     |       |
+    |   |   |   | Documentation                |                 |               |                                     |         |       |        |     |       |
+    |   |   |   |   | country                  | string required |               | country/text()                      |         |       |        |     |       |
+    |   |   |   |   | maker                    | ref required    | Maker         | Maker                               |         |       |        |     |       |
+    |                                          |                 |               |                                     |         |       |        |     |       |
+    |   |   |   | Maker                        |                 |               |                                     |         |       |        |     |       |
+    |   |   |   |   | code                     | string required |               | code/text()                         |         |       |        |     |       |
+    |   |   |   |   | name                     | string required |               | name/text()                         |         |       |        |     |       |
+    |                                          |                 |               |                                     |         |       |        |     |       |
+    |   |   |   | Ship                         |                 |               | /Ship                               |         |       |        |     |       |
+    |   |   |   |   | colour                   | string required |               | colour/text()                       |         |       |        |     |       |
+    |   |   |   |   | documentation            | ref required    | Documentation | Documentation                       |         |       |        |     |       |
+    |   |   |   |   | documentation.country    | string required |               | Car/Documentation/country/text()    |         |       |        |     |       |
+    |   |   |   |   | documentation.maker      | ref required    | Maker         | Car/Documentation/Maker             |         |       |        |     |       |
+    |   |   |   |   | documentation.maker.code | string required |               | Car/Documentation/Maker/code/text() |         |       |        |     |       |
+    |   |   |   |   | documentation.maker.name | string required |               | Car/Documentation/Maker/name/text() |         |       |        |     |       |
+    |   |   |   |   | make                     | string required |               | make/text()                         |         |       |        |     |       |
 
   """
 
