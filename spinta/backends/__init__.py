@@ -771,8 +771,6 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    #if isinstance(value, uuid.UUID):
-    #    value = value.hex
     assert isinstance(value, (str, int, float, bool, type(None), list, dict)), (
         f"prepare_dtype_for_response must return only primitive, json "
         f"serializable types, {type(value)} is not a primitive data type, "
