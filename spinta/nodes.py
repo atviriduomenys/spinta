@@ -14,6 +14,7 @@ from spinta.components import Context
 from spinta.components import EntryId
 from spinta.components import Node
 from spinta.manifests.components import Manifest
+from spinta.manifests.tabular.constants import DataTypeEnum
 from spinta.utils.schema import NA
 from spinta.utils.schema import resolve_schema
 
@@ -134,7 +135,7 @@ def load_node(
     ...
 
 
-ARRAY_TYPES = ['array', 'partial_array']
+ARRAY_TYPES = [DataTypeEnum.ARRAY.value, DataTypeEnum._PARTIAL_ARRAY.value, DataTypeEnum._ARRAY_BACKREF.value]
 
 
 def load_node(

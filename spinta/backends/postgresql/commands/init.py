@@ -1,4 +1,4 @@
-from typing import overload
+from typing import Any, List, overload
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -41,7 +41,7 @@ def prepare(context: Context, backend: PostgreSQL, model: Model, ignore_duplicat
         if prop.name.startswith('_') and prop.name not in ('_id', '_revision'):
             continue
 
-        column = commands.prepare(context, backend, prop, **kwargs)
+        column: List[Any] | Any | None = commands.prepare(context, backend, prop, **kwargs)
 
         if isinstance(column, list):
             columns.extend(column)
