@@ -146,7 +146,7 @@ Example of a property:
 
 class XSDProperty:
     name: str
-    xsd_name: str  # todo change to xsd_name
+    xsd_name: str
     source: str  # converts to ["external"]["name"]
     type: XSDType
     required: bool | None = None
@@ -170,6 +170,9 @@ class XSDProperty:
                     "name": self.source,
                 }
         }
+
+        if self.type == "ref" or self.type == "backref":
+            data["model"] = self.ref_model.name
 
         if self.required is not None:
             data["required"] = self.required
@@ -201,7 +204,7 @@ class XSDModel:
     referred_from: list[tuple[XSDModel, str]] | None = None  # tuple - model, property id
     is_root_model: bool | None = None
     deduplicate_property_name: Deduplicator
-    xsd_type: str  # from complexType or from element
+    xsd_node_type: str | None = None  # from complexType or from element
 
     def __init__(self) -> None:
         self.properties = {}
