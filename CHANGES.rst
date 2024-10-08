@@ -1,7 +1,7 @@
 Changes
 #######
 
-0.1.76 (unreleased)
+0.1.76 (2024-10-08)
 ===================
 
 
@@ -9,7 +9,7 @@ Backwards incompatible changes:
 
 - You can no longer directly set `Ref` foreign key values to `None`. Meaning you cannot set `"ref": {"_id": None}`.
   Now, if you want to unassign `Ref` value, you have to set it to `None` (`"ref": None`), it will also now set all
-  nested values (`Denorm`) to `None` as well, this new features now ensures, that there cannot be floating `Denorm` values
+  nested values (`Denorm`) to `None` as well, this new feature now ensures, that there cannot be floating `Denorm` values
   when trying to remove references (`#846`_).
 
 
