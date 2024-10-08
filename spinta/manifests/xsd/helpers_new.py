@@ -274,43 +274,12 @@ class XSDDatasetResource:
             'given_name': self.dataset_given_name
         }
 
-
-class XMLNode:
-    parent: XMLNode | None = None
-    children: list[XMLNode] | None = None
-    type: str | None = None
-    text: str | None = None
-    is_top_level: bool | None = None
-    attributes: dict[str, str] | None = None
-
-    def __init__(self):
-        self.attributes = {}
-        self.children = []
-
-    def read_attributes(self, node: _Element):
-        attributes = node.attrib
-        for name, value in attributes.items():
-            if name in IGNORED_NODE_ATTRIBUTE_TYPES:
-                continue
-            elif name in NODE_ATTRIBUTE_TYPES:
-                self.attributes[name] = value
-            else:
-                raise RuntimeError(f'unknown attribute: {name}')
-
-class XMLTree:
-    nodes = list[XMLNode]
-
-    def __init__(self):
-        self.nodes = []
-
-
 class XSDReader:
     dataset_resource: XSDDatasetResource
     models: dict[str, XSDModel]
     _path: str
     root: _Element
     deduplicate_model_name: Deduplicator
-    xml_tree: XMLTree
     custom_types: dict[str, XSDType] | None = None
     top_level_element_models: dict[str, str]
     top_level_complex_type_models: dict[str, str]
@@ -318,37 +287,7 @@ class XSDReader:
     def __init__(self, path: str, dataset_name) -> None:
         self._path = path
         self.dataset_resource = XSDDatasetResource(dataset_given_name=dataset_name, resource_name="resource1")
-        self.xml_tree = XMLTree()
         self.custom_types = {}
-
-    def read_root(self, node, state):
-        state.is_top_level = True
-        for child_node in node.getchildren():
-            if not isinstance(child_node, _Comment):
-                self.read_node(child_node, state)
-
-    def read_node(self, node: _Element, state: State, parent: XMLNode = None) -> None:
-        # todo remove this step
-        for child_node in node.getchildren():
-            if isinstance(child_node, _Comment):
-                continue
-            xml_node = XMLNode()
-            xml_node.type = etree.QName(child_node).localname
-            xml_node.text = child_node.text
-            if xml_node.type not in NODE_TYPES:
-                raise RuntimeError(f"Unsupported node type: {xml_node.type}")
-            #      TODO: maybe create new error type
-            xml_node.read_attributes(child_node)
-            if state.is_top_level:
-                xml_node.is_top_level = True
-            else:
-                xml_node.is_top_level = False
-                xml_node.parent = parent
-            state.is_top_level = False
-            if parent:
-                parent.children.append(xml_node)
-            self.xml_tree.nodes.append(xml_node)
-            self.read_node(child_node, state, parent=xml_node)
 
     def register_simple_types(self, state: State) -> None:
         for node in self.xml_tree.nodes:
