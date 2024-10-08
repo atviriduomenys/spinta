@@ -18,6 +18,7 @@ from spinta.manifests.components import Manifest
 from spinta.types.helpers import check_no_extra_keys
 from spinta.types.helpers import set_dtype_backend
 from spinta.utils.schema import NA, NotAvailable
+from spinta.utils.types import is_str_uuid
 
 if TYPE_CHECKING:
     from spinta.backends.components import Backend
@@ -326,9 +327,9 @@ class UUID(DataType):
             return value
 
         if isinstance(value, str):
-            try:
+            if is_str_uuid(value):
                 return uuid.UUID(value)
-            except ValueError:
+            else:
                 raise exceptions.InvalidValue(self, value=value)
 
         raise exceptions.InvalidValue(self, value=value)
