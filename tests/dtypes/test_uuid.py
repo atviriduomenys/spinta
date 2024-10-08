@@ -37,16 +37,16 @@ def test_uuid(
         'search'
     ])
 
-    # post uuid in string hex format
-    entity_id_hex = uuid.uuid4().hex
+    # post uuid in string format
+    entity_id = str(uuid.uuid4())
     resp = app.post('/backends/postgres/dtypes/uuid/Entity', json={
-        'id': entity_id_hex
+        'id': entity_id
     })
     assert resp.status_code == 201
 
     # Read data when uuid is written in hex format
     resp = app.get('/backends/postgres/dtypes/uuid/Entity?select(id)')
-    assert listdata(resp, full=True) == [{'id': entity_id_hex}]
+    assert listdata(resp, full=True) == [{'id': entity_id}]
 
 
     invalid_uuid = "invalid-uuid"
