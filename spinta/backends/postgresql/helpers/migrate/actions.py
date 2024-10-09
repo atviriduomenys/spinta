@@ -342,6 +342,8 @@ class MigrationHandler:
         else:
             self.migrations.append(action)
 
+        return self
+
     def has_constraint_been_dropped(self, constraint_name: str):
         for migration in self.migrations:
             if isinstance(migration, DropConstraintMigrationAction):
