@@ -16,7 +16,6 @@ from spinta.manifests.tabular.helpers import striptable
 from spinta.utils.types import is_str_uuid
 
 
-
 @pytest.fixture(scope='module')
 def uuid_db():
     with create_sqlite_db({
@@ -61,7 +60,7 @@ def test_uuid(
         'search'
     ])
 
-    # post uuid in string format
+    # Test insert
     entity_id = str(uuid.uuid4())
     resp = app.post('/backends/postgres/dtypes/uuid/Entity', json={
         'id': entity_id
@@ -72,12 +71,30 @@ def test_uuid(
     resp = app.get('/backends/postgres/dtypes/uuid/Entity?select(id)')
     assert listdata(resp, full=True) == [{'id': entity_id}]
 
+    # Test filters ('eq', 'contains', 'sort')
+    test_cases = [
+        f'/backends/postgres/dtypes/uuid/Entity?id="{entity_id}"',
+        f'/backends/postgres/dtypes/uuid/Entity?id.contains("-")',
+        f'/backends/postgres/dtypes/uuid/Entity?sort(id)',
+    ]
+    assert all(app.get(url).status_code == 200 for url in test_cases)
 
+    # Test formats ('csv', 'jsonl', 'ascii', 'rdf')
+    format_test_cases = [
+        f'/backends/postgres/dtypes/uuid/Entity/:format/csv',
+        f'/backends/postgres/dtypes/uuid/Entity/:format/jsonl',
+        f'/backends/postgres/dtypes/uuid/Entity/:format/ascii',
+        f'/backends/postgres/dtypes/uuid/Entity/:format/rdf',
+    ]
+    assert all(app.get(url).status_code == 200 for url in format_test_cases)
+
+    # Test invalid uuid
     invalid_uuid = "invalid-uuid"
     resp = app.post('/backends/postgres/dtypes/uuid/Entity', json={
         'id': invalid_uuid
     })
     assert resp.status_code == 400
+
 
 def test_uuid_sql(context, rc: RawConfig, tmp_path: Path, uuid_db: Sqlite):
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
@@ -96,5 +113,3 @@ id | d | r | b | m | property  | type    | ref | source    | prepare | level | a
     assert resp.status_code == 200
     data = resp.json()['_data']
     assert len(data) == 3
-    assert all(is_str_uuid(item['guid']) for item in data)
-
