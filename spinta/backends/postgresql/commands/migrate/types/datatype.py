@@ -7,9 +7,11 @@ import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_pg_name
-from spinta.backends.postgresql.helpers.migrate.migrate import check_if_renamed, MigratePostgresMeta, \
+from spinta.backends.postgresql.helpers.migrate.migrate import MigratePostgresMeta, \
     adjust_kwargs, extract_literal_name_from_column, handle_unique_constraint_migration, contains_unique_constraint, \
-    handle_index_migration
+    handle_index_migration, extract_using_from_columns
+from spinta.backends.postgresql.helpers.migrate.name import has_been_renamed, get_pg_table_name, get_pg_column_name, \
+    get_pg_constraint_name, get_pg_removed_name, get_pg_index_name
 from spinta.components import Context
 from spinta.types.datatype import DataType
 from spinta.utils.schema import NotAvailable, NA
@@ -40,7 +42,7 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
 
     columns = old.copy()
 
-    if column.name != old_name:
+    if has_been_renamed(column.name, old_name):
         for col in old:
             if col.name == column.name:
                 commands.migrate(context, backend, meta, table, col, NA, **kwargs)
@@ -62,27 +64,16 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
     table_name = rename.get_table_name(table.name)
     old_type = extract_literal_name_from_column(old)
     new_type = extract_literal_name_from_column(new)
-    using = None
-
-    requires_cast = True
-    if isinstance(old.type, geoalchemy2.types.Geometry):
-        if isinstance(new.type, geoalchemy2.types.Geometry):
-            if old.type.srid != new.type.srid:
-                srid_name = old
-                srid = new.type.srid
-                if old.type.srid == -1:
-                    srid_name = sa.func.ST_SetSRID(old, 4326)
-                if new.type.srid == -1:
-                    srid = 4326
-                using = sa.func.ST_Transform(srid_name, srid).compile(compile_kwargs={"literal_binds": True})
-                requires_cast = False
 
     nullable = new.nullable if new.nullable != old.nullable else None
     type_ = new.type if old_type != new_type else None
     new_name = column_name if old.name != new.name else None
 
-    if type_ and requires_cast:
-        using = sa.func.cast(old, type_).compile(compile_kwargs={"literal_binds": True})
+    using = extract_using_from_columns(
+        old,
+        new,
+        type_
+    )
 
     if nullable is not None or type_ is not None or new_name is not None or using is not None:
         handler.add_action(ma.AlterColumnMigrationAction(
@@ -94,7 +85,7 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
             using=using
         ), foreign_key)
     removed = []
-    renamed = check_if_renamed(table.name, table_name, old.name, new.name)
+    renamed = has_been_renamed(table.name, table_name, old.name, new.name)
     handle_unique_constraint_migration(
         table,
         table_name,
@@ -128,25 +119,27 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
     inspector = meta.inspector
     handler = meta.handler
 
-    table_name = get_pg_name(rename.get_table_name(table.name))
+    table_name = get_pg_table_name(rename.get_table_name(table.name))
     handler.add_action(ma.AddColumnMigrationAction(
         table_name=table_name,
         column=new,
     ), foreign_key)
+
+    new_column_name = new.name
     if new.unique:
-        constraint_name = get_pg_name(f'{table_name}_{new.name}_key')
-        if not contains_unique_constraint(inspector, table_name, new.name):
+        constraint_name = get_pg_constraint_name(table_name, [new_column_name])
+        if not contains_unique_constraint(inspector, table_name, new_column_name):
             handler.add_action(ma.CreateUniqueConstraintMigrationAction(
                 constraint_name=constraint_name,
                 table_name=table_name,
-                columns=[new.name]
+                columns=[new_column_name]
             ))
     index_required = isinstance(new.type, geoalchemy2.types.Geometry)
     if index_required:
         handler.add_action(ma.CreateIndexMigrationAction(
             table_name=table_name,
-            columns=[new.name],
-            index_name=get_pg_name(f'idx_{table_name}_{new.name}'),
+            columns=[new_column_name],
+            index_name=get_pg_index_name(table_name, new_column_name),
             using='gist'
         ))
 
@@ -168,7 +161,7 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
     if not old.name.startswith("_"):
         table_name = rename.get_table_name(table.name)
         columns = inspector.get_columns(table.name)
-        remove_name = get_pg_name(f'__{old.name}')
+        remove_name = get_pg_removed_name(old.name)
 
         if any(remove_name == column["name"] for column in columns):
             handler.add_action(ma.DropColumnMigrationAction(
