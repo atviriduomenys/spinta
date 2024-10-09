@@ -31,47 +31,69 @@ def uuid_db():
                 ])
         yield db
 
+
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_uuid(
-    manifest_type: str,
-    tmp_path: Path,
-    rc: RawConfig,
-    postgresql: str,
-    request: FixtureRequest,
-):
+def test_insert(manifest_type: str, tmp_path: Path, rc: RawConfig, postgresql: str, request: FixtureRequest):
     context = bootstrap_manifest(
         rc, '''
-    d | r | b | m | property      | type
-    backends/postgres/dtypes/uuid |
-      |   |   | Entity            |
-      |   |   |   | id            | uuid
-    ''',
+        d | r | b | m | property      | type
+        backends/postgres/dtypes/uuid |
+          |   |   | Entity            |
+          |   |   |   | id            | uuid
+        ''',
         backend=postgresql,
         tmp_path=tmp_path,
         manifest_type=manifest_type,
         request=request,
         full_load=True
     )
-
     app = create_test_client(context)
-    app.authmodel('backends/postgres/dtypes/uuid/Entity', [
-        'insert',
-        'getall',
-        'search'
-    ])
-
-    # Test insert
+    app.authmodel('backends/postgres/dtypes/uuid/Entity', ['insert', 'getall', 'search'])
     entity_id = str(uuid.uuid4())
-    resp = app.post('/backends/postgres/dtypes/uuid/Entity', json={
-        'id': entity_id
-    })
+    resp = app.post('/backends/postgres/dtypes/uuid/Entity', json={'id': entity_id})
     assert resp.status_code == 201
 
-    # Read data when uuid is written in hex format
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_read_data(manifest_type: str, tmp_path: Path, rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(
+        rc, '''
+        d | r | b | m | property      | type
+        backends/postgres/dtypes/uuid |
+          |   |   | Entity            |
+          |   |   |   | id            | uuid
+        ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    app = create_test_client(context)
+    app.authmodel('backends/postgres/dtypes/uuid/Entity', ['insert', 'getall', 'search'])
+    entity_id = str(uuid.uuid4())
+    app.post('/backends/postgres/dtypes/uuid/Entity', json={'id': entity_id})
     resp = app.get('/backends/postgres/dtypes/uuid/Entity?select(id)')
     assert listdata(resp, full=True) == [{'id': entity_id}]
 
-    # Test filters ('eq', 'contains', 'sort')
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_filters(manifest_type: str, tmp_path: Path, rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(
+        rc, '''
+        d | r | b | m | property      | type
+        backends/postgres/dtypes/uuid |
+          |   |   | Entity            |
+          |   |   |   | id            | uuid
+        ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    app = create_test_client(context)
+    app.authmodel('backends/postgres/dtypes/uuid/Entity', ['insert', 'getall', 'search'])
+    entity_id = str(uuid.uuid4())
+    app.post('/backends/postgres/dtypes/uuid/Entity', json={'id': entity_id})
     test_cases = [
         f'/backends/postgres/dtypes/uuid/Entity?id="{entity_id}"',
         f'/backends/postgres/dtypes/uuid/Entity?id.contains("-")',
@@ -79,7 +101,23 @@ def test_uuid(
     ]
     assert all(app.get(url).status_code == 200 for url in test_cases)
 
-    # Test formats ('csv', 'jsonl', 'ascii', 'rdf')
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_formats(manifest_type: str, tmp_path: Path, rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(
+        rc, '''
+        d | r | b | m | property      | type
+        backends/postgres/dtypes/uuid |
+          |   |   | Entity            |
+          |   |   |   | id            | uuid
+        ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    app = create_test_client(context)
+    app.authmodel('backends/postgres/dtypes/uuid/Entity', ['insert', 'getall', 'search'])
     format_test_cases = [
         f'/backends/postgres/dtypes/uuid/Entity/:format/csv',
         f'/backends/postgres/dtypes/uuid/Entity/:format/jsonl',
@@ -88,11 +126,25 @@ def test_uuid(
     ]
     assert all(app.get(url).status_code == 200 for url in format_test_cases)
 
-    # Test invalid uuid
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_invalid_uuid(manifest_type: str, tmp_path: Path, rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(
+        rc, '''
+        d | r | b | m | property      | type
+        backends/postgres/dtypes/uuid |
+          |   |   | Entity            |
+          |   |   |   | id            | uuid
+        ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    app = create_test_client(context)
+    app.authmodel('backends/postgres/dtypes/uuid/Entity', ['insert', 'getall', 'search'])
     invalid_uuid = "invalid-uuid"
-    resp = app.post('/backends/postgres/dtypes/uuid/Entity', json={
-        'id': invalid_uuid
-    })
+    resp = app.post('/backends/postgres/dtypes/uuid/Entity', json={'id': invalid_uuid})
     assert resp.status_code == 400
 
 
@@ -113,3 +165,4 @@ id | d | r | b | m | property  | type    | ref | source    | prepare | level | a
     assert resp.status_code == 200
     data = resp.json()['_data']
     assert len(data) == 3
+    assert all(is_str_uuid(item['guid']) for item in data)
