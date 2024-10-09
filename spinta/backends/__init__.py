@@ -52,6 +52,7 @@ from spinta.types.datatype import DataType
 from spinta.types.datatype import Date
 from spinta.types.datatype import DateTime
 from spinta.types.datatype import File
+from spinta.types.money.components import Money
 from spinta.types.datatype import JSON
 from spinta.types.datatype import Number
 from spinta.types.datatype import Object
@@ -806,6 +807,20 @@ def prepare_dtype_for_response(
     select: dict = None,
 ):
     return dtype.default
+
+
+@commands.prepare_dtype_for_response.register(Context, Format, Money, decimal.Decimal)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: Money,
+    value: decimal.Decimal,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    return float(value)
 
 
 @commands.prepare_dtype_for_response.register(Context, Format, File, NotAvailable)
