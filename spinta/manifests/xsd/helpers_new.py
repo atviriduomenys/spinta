@@ -12,8 +12,7 @@ from lxml.etree import _Element, _Comment, QName
 
 from spinta.components import Context
 from spinta.core.ufuncs import Expr
-from spinta.utils.naming import Deduplicator, to_dataset_name
-
+from spinta.utils.naming import Deduplicator, to_dataset_name, to_property_name
 
 DATATYPES_MAPPING = {
     "string": "string",
@@ -111,12 +110,13 @@ IGNORED_NODE_ATTRIBUTE_TYPES = ["maxLength", "minLength"]
 
 
 class XSDType:
-    name: str | None = None
-    type: str
+    xsd_type: str | None = None
+    name: str
     enum: str | None = None
     enums: dict[str, dict[str, dict[str, str]]] | None = None
     prepare: Expr | None = None
     description: str = ""
+
 
 
 """
@@ -151,20 +151,33 @@ class XSDProperty:
     type: XSDType
     required: bool | None = None
     unique: bool |None = None
-    is_array: bool
-    ref_model: XSDModel
+    is_array: bool | None = None
+    ref_model: XSDModel |None = None
     description: str = ""
     uri: str | None = None
     xsd_ref_to: str | None = None  # if it is a ref to another model, here is it's xsd element name
     xsd_type_to: str | None = None  # if it's type is of another complexType, so ref to that type
 
-    def __init__(self):
-        self.required = False
+    def __init__(
+            self,
+            required: bool = False,
+            enums: dict[str, dict[str, str]] | None = None,
+            xsd_name: str | None = None,
+            property_type: XSDType | None = None,
+            source: str | None = None,
+            is_array: bool = False,
+    ):
+        self.required = required
         self.enums = {}
+        self.xsd_name = xsd_name
+        self.type = property_type
+        self.required = required
+        self.source = source
+        self.is_array = is_array
 
     def get_data(self) -> dict[str, Any]:
         data = {
-            "type": self.type.type,
+            "type": self.type.name,
             "external":
                 {
                     "name": self.source,
@@ -190,7 +203,12 @@ class XSDProperty:
 
         data["description"] = self.description
 
-        return data
+        property_name = self.name
+
+        if self.is_array:
+            property_name = f"{property_name}[]"
+
+        return {property_name: data}
 
 
 class XSDModel:
@@ -271,7 +289,7 @@ class XSDReader:
         custom_types_nodes = self.root.xpath(f'./*[local-name() = "simpleType"]')
         for node in custom_types_nodes:
             custom_type = self.process_simple_type(node, state)
-            self.custom_types[custom_type.name] = custom_type
+            self.custom_types[custom_type.xsd_type] = custom_type
 
     def _extract_root(self):
         if self._path.startswith("http"):
@@ -324,7 +342,7 @@ class XSDReader:
 
         # todo maybe add a function to check attributes of xml nodes
 
-        self.process_xml_tree(state)
+        self.process_root(state)
 
         # post processing
 
@@ -335,9 +353,7 @@ class XSDReader:
         # we need to add this here, because only now we will know if it has properties and if we need to create it
         self._post_process_resource_model()
 
-    # todo rename process_root or something
-    def process_xml_tree(self, state: State):
-        state.model_deduplicate = Deduplicator()
+    def process_root(self, state: State):
         for node in self.root.getchildren():
             # We don't care about comments
             if isinstance(node, etree._Comment):
@@ -347,19 +363,21 @@ class XSDReader:
             elif QName(node).localname == "complexType":
                 return self.process_complex_type(node, state)
             elif QName(node).localname == "simpleType":
-                # todo finish comment
-                # simple types are processed in self.
+                # simple types are processed in self.register_simple_types
                 pass
             else:
-                raise RuntimeError(f'This node type cannot be at the top level: {node.type}')
+                raise RuntimeError(f'This node type cannot be at the top level: {node.name}')
 
     #  XSD nodes processors
 
-    def process_element(self, node: _Element, state: State) -> list[XSDProperty]:
+    def process_element(self, node: _Element, state: State, is_array=False) -> list[XSDProperty]:
         """
-        Element should return a property. It can return multiple properties if there is a choice somewhere down the way
+        Element should return a property. It can return multiple properties if there is a choice somewhere down the way.
+        property name is set after returning all properties, because we need to do a deduplication first.
         """
-
+        # todo add more explanationary comments
+        is_array = is_array or node.attrib.get("maxOccurs", 1) == "unbounded" or int(node.attrib.get("maxOccurs", 1)) > 1
+        is_required = int(node.attrib.get("minOccurs", 1)) > 0
         props = []
         property_type_to = None
         property_ref_to = None
@@ -372,9 +390,28 @@ class XSDReader:
             raise RuntimeError(f'Element has to have either name or ref')
 
         if node.attrib.get("type"):
-            property_type = node.attrib["type"]
-            if property_type not in DATATYPES_MAPPING and property_type not in self.custom_types:
+
+            element_type = node.attrib["type"]
+
+            # separately defined simpleType
+            if element_type in self.custom_types:
+                property_type = self.custom_types[element_type]
+
+            # inline type
+            elif element_type in DATATYPES_MAPPING:
+                property_type = XSDType()
+                property_type.name = DATATYPES_MAPPING[element_type]
+
+            # separately defined complexType
+            else:
+                property_type = XSDType()
                 property_type_to = node.attrib["type"]
+                property_type_string = "backref" if is_array else "ref"
+                property_type.name = property_type_string
+            prop = XSDProperty(xsd_name=property_name, property_type=property_type, required=is_required, source=property_name, is_array=is_array)
+            prop.type_to = property_type_to
+            prop.ref_to = property_ref_to
+            props.append(prop)
 
         for child in node.getchildren():
             # We don't care about comments
@@ -384,38 +421,36 @@ class XSDReader:
                 models = self.process_complex_type(child, state)
                 # usually it's one model, but in case of choice, can be multiple models
                 for model in models:
-                    prop = XSDProperty()
+                    prop = XSDProperty(xsd_name=property_name, required=is_required, source=property_name, is_array=is_array)
                     prop.ref_model = model
-                    prop.xsd_name = property_name
-                    prop.type_to = property_type_to
-                    prop.ref_to = property_ref_to
+                    # todo add property type - ref or backref
+
                     props.append(prop)
             elif QName(child).localname == "simpleType":
-                prop = XSDProperty()
+                prop = XSDProperty(xsd_name=property_name, required=is_required, source=property_name, is_array=is_array)
                 prop.xsd_name = property_name
+                prop.source = property_name
                 prop.type = self.process_simple_type(child, state)
                 # we will process those in
                 prop.type_to = property_type_to
                 prop.ref_to = property_ref_to
+                prop.required = is_required
+                prop.is_array = is_array
                 props.append(prop)
 
             else:
                 raise RuntimeError(f"This node type cannot be in the complex type: {QName(node).localname}")
 
-        # todo if element has choice inside, we will create multiple models, so multiple properties also
-
-        # todo: if it's a top level, we only register a model and don't return anything.
-        #  if it's not a top level, we register a model and return a property
-
-        # todo decide where to deal with placeholder elements, which are not turned into a model
-        #  talk to Mantas if a model is considered a placeholder model if it has only one ref or even if it has more refs but nothing else
-
-        # todo If it's top level, we need to know if we need to add it to the resource model or not. Maybe after we return from this, we need to check if the property is `ref`. If it's top level and not ref, we add it to the "resource" model
-
-        #  todo factor in minoccurs and maxoccurs
-
         return props
 
+        # todo there is a case in RC with a type name that doesn't exist (or exists externally)
+        # todo deal with `mixed`
+        #  todo factor in minoccurs and maxoccurs
+        # todo If it's top level, we need to know if we need to add it to the resource model or not.
+        #  Maybe after we return from this, we need to check if the property is `ref`. If it's top level and not ref, we add it to the "resource" model
+        # todo decide where to deal with placeholder elements, which are not turned into a model
+        #  talk to Mantas if a model is considered a placeholder model if it has only one ref or even if it has more refs but nothing else
+        # todo handle unique (though it doesn't exist in RC)
     def process_complex_type(self, node: _Element, state: State) -> list[XSDModel]:
 
         model = XSDModel()
@@ -458,7 +493,7 @@ class XSDReader:
         dsa_type.name = xsd_type
         if ";" in property_type:
             property_type, target, value = property_type.split(";")
-            dsa_type.type = property_type
+            dsa_type.name = property_type
             if target == "enum":
                 dsa_type.enum = value
             if target == "prepare":
@@ -489,7 +524,7 @@ class XSDReader:
             elif QName(child).localname == "annotation":
                 prop.description = self.process_annotation(child, state)
             else:
-                raise RuntimeError(f"Unexpected element type inside attribute element: {child.type}")
+                raise RuntimeError(f"Unexpected element type inside attribute element: {QName(child).localname}")
         return prop
 
     def process_enumeration(self, node: _Element, state: State) -> dict[str, dict[str, str]]:
@@ -509,10 +544,10 @@ class XSDReader:
                 property_type = self.process_restriction(child, state)
                 if node.attrib.get("name"):
                     property_type.name = node.attrib.get("name")
-            elif child.type == "annotation":
+            elif QName(child).localname == "annotation":
                 description = self.process_annotation(child, state)
             else:
-                raise RuntimeError(f"Unexpected element type inside simpleType element: {child.type}")
+                raise RuntimeError(f"Unexpected element type inside simpleType element: {QName(child).localname}")
         property_type.description = description
         return property_type
 
@@ -530,7 +565,7 @@ class XSDReader:
                 # todo finish this part
                 properties_result = self.process_choice(child, state)
             else:
-                raise RuntimeError(f"Unexpected element type inside sequence element: {child.type}")
+                raise RuntimeError(f"Unexpected element type inside sequence element: {QName(child).localname}")
         return properties
 
     def process_choice(self, node: _Element, state: State) -> list[XSDProperty]:
@@ -572,7 +607,7 @@ class XSDReader:
                 #         </s:sequence>
                 pass
             else:
-                raise RuntimeError(f"Unexpected element type inside sequence element: {child.type}")
+                raise RuntimeError(f"Unexpected element type inside sequence element: {QName(child).localname}")
         #     todo: think of how to make this work
         return properties
 
@@ -594,10 +629,10 @@ class XSDReader:
             # We don't care about comments
             if isinstance(child, etree._Comment):
                 continue
-            if child.type == "documentation":
+            if QName(child).localname == "documentation":
                 description += self.process_documentation(node, state)
             else:
-                raise RuntimeError(f"Unexpected element type inside annotation element: {child.type}")
+                raise RuntimeError(f"Unexpected element type inside annotation element: {QName(child).localname}")
         return description
 
     def process_documentation(self, node: _Element, state: State) -> str:
@@ -608,9 +643,8 @@ class XSDReader:
 
     def process_restriction(self, node: _Element, state: State) -> XSDType:
 
-        property_type = XSDType()
         base = node.attrib.get("base")
-        property_type.type = self._map_type(base)
+        property_type = self._map_type(base)
         enumerations = {}
         for child in node.getchildren():
             # We don't care about comments
@@ -619,8 +653,12 @@ class XSDReader:
             if QName(child).localname == "enumeration":
                 enum = self.process_enumeration(child, state)
                 enumerations.update(enum)
+            elif QName(child).localname == "minInclusive":
+                logging.log(logging.INFO, f"met a tag {QName(child).localname}")
+            elif QName(child).localname == "maxInclusive":
+                logging.log(logging.INFO, f"met a tag {QName(child).localname}")
             else:
-                raise RuntimeError(f"Unexpected element type inside restriction element: {child.type}")
+                raise RuntimeError(f"Unexpected element type inside restriction element: {child}")
         if enumerations:
             enums = {"": enumerations}
             property_type.enums = enums

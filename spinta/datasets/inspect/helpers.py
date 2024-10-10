@@ -74,7 +74,7 @@ def create_manifest_from_inspect(
                     if not any(res.external == external for res in resources):
                         if only_url and not ("http://" in external or "https://" in external):
                             raise InvalidResourceSource(source=external)
-                        resources.append(ResourceTuple(type=resource.type, external=external, prepare=resource.prepare))
+                        resources.append(ResourceTuple(type=resource.name, external=external, prepare=resource.prepare))
 
         if resources:
             for resource in resources:

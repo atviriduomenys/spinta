@@ -752,7 +752,7 @@ def _sa_compare(op, column, value):
         raise NoneValueComparison(op=op)
 
     # Convert JSONB value from -> to ->> with astext
-    if isinstance(column.type, sa.JSON):
+    if isinstance(column.name, sa.JSON):
         if not isinstance(column, sa.Column):
             column = column.element
         column = column.astext

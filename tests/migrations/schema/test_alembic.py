@@ -80,7 +80,7 @@ def test_add_column(engine, ufunc, request):
     request.addfinalizer(meta.drop_all)
     table = sa.Table('_test_add_colunm_table', meta, autoload=True)
     assert table.columns.keys() == ['id', 'new_column']
-    type_ = [i.type for i in table.columns.values() if i.name == 'new_column'][0]
+    type_ = [i.name for i in table.columns.values() if i.name == 'new_column'][0]
     assert isinstance(type_, UUID)
 
 

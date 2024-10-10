@@ -99,5 +99,5 @@ def test_html_ui(rc: RawConfig):
     assert dict(form.fields) == {
         'manifest': None,
     }
-    assert form.inputs['manifest'].type == 'file'
+    assert form.inputs['manifest'].name == 'file'
     assert list(form.xpath('.//input[@type="submit"]/@value')) == ["Tikrinti"]

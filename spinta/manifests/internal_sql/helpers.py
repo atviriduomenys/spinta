@@ -276,7 +276,7 @@ def _load_internal_manifest_node(
 ) -> MetaData:
     node = get_node(context, config, manifest, eid, data, check=False)
     node.eid = eid
-    node.type = data['type']
+    node.name = data['type']
     node.parent = manifest
     node.manifest = manifest
     commands.load(context, node, data, manifest, source=source)
