@@ -102,6 +102,7 @@ def prepare(context: Context, backend: PostgreSQL, dtype: DataType, **kwargs):
         'url': sa.String,
         'uri': sa.String,
         'denorm': sa.String,
+        'uuid': UUID(as_uuid=True),
     }
 
     if dtype.name not in types:
