@@ -824,6 +824,11 @@ def ne(env, dtype, value):
     column = env.backend.get_column(env.table, dtype.prop)
     return _ne_compare(env, dtype.prop, column, value)
 
+@ufunc.resolver(PgQueryBuilder, UUID_dtype, str)
+def ne(env, dtype, value):
+    column = env.backend.get_column(env.table, dtype.prop)
+    return _ne_compare(env, dtype.prop, column, value)
+
 
 @ufunc.resolver(PgQueryBuilder, ForeignProperty, DataType, type(None))
 def ne(
