@@ -8,11 +8,11 @@ from spinta.exceptions import InvalidArgumentInExpression, CannotSelectTextAndSp
 from spinta.types.datatype import DataType, String, Ref, Object, Array, File, BackRef, PrimaryKey, ExternalRef
 from spinta.types.text.components import Text
 from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, Star, ReservedProperty, NestedProperty, \
-    ResultProperty
-from spinta.ufuncs.basequerybuilder.helpers import get_pagination_compare_query
+    ResultProperty, LiteralProperty
+from spinta.ufuncs.basequerybuilder.helpers import get_pagination_compare_query, process_literal_value
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.schema import NA
-
+from spinta.utils.types import is_value_literal
 
 # This file contains reusable resolvers, that should be backend independent
 # in case there are cases where you need to have backend specific, just overload them
@@ -25,6 +25,18 @@ from spinta.utils.schema import NA
 # ForeignProperty is used, when you need to access properties from other models
 # ReservedProperty is used, when datatypes do not have direct association to required field
 #   example: File (when accessing child properties), Ref (when accessing it's own key, without needing to join models)
+
+
+COMPARE = [
+    'eq',
+    'ne',
+    'lt',
+    'le',
+    'gt',
+    'ge',
+    'startswith',
+    'contains',
+]
 
 
 @ufunc.resolver(BaseQueryBuilder, Bind, Bind, name='getattr')
@@ -355,6 +367,14 @@ def select(
     return {k: env.call('select', v) for k, v in prep.items()}
 
 
+@ufunc.resolver(BaseQueryBuilder, LiteralProperty)
+def select(
+    env: BaseQueryBuilder,
+    prep: LiteralProperty,
+) -> Selected:
+    return Selected(prep=prep.value)
+
+
 @ufunc.resolver(BaseQueryBuilder, DataType, object)
 def select(env: BaseQueryBuilder, dtype: DataType, prep: Any) -> Selected:
     if isinstance(prep, str):
@@ -454,18 +474,6 @@ def validate_dtype_for_select(env, dtype: String, selected_props: List[Property]
                 raise CannotSelectTextAndSpecifiedLang(parent.dtype)
 
 
-COMPARE = [
-    'eq',
-    'ne',
-    'lt',
-    'le',
-    'gt',
-    'ge',
-    'startswith',
-    'contains',
-]
-
-
 @ufunc.resolver(BaseQueryBuilder, NestedProperty, object, names=COMPARE)
 def compare(env: BaseQueryBuilder, op: str, nested: NestedProperty, value: object):
     return env.call(op, nested.right, value)
@@ -475,3 +483,12 @@ def compare(env: BaseQueryBuilder, op: str, nested: NestedProperty, value: objec
 def compare(env, op, field, value):
     prop = env.model.get_from_flatprops(field.name)
     return env.call(op, prop.dtype, value)
+
+
+@ufunc.resolver(BaseQueryBuilder, Expr)
+def testlist(env: BaseQueryBuilder, expr: Expr) -> tuple:
+    args, kwargs = expr.resolve(env)
+    result = []
+    for arg in args:
+        result.append(process_literal_value(arg))
+    return tuple(result)
