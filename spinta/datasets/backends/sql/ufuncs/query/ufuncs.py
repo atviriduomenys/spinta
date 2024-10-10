@@ -31,7 +31,8 @@ from spinta.types.datatype import Ref
 from spinta.types.datatype import String
 from spinta.types.text.components import Text
 from spinta.types.text.helpers import determine_language_property_for_text
-from spinta.ufuncs.basequerybuilder.helpers import get_language_column
+from spinta.ufuncs.basequerybuilder.components import LiteralProperty
+from spinta.ufuncs.basequerybuilder.helpers import get_language_column, process_literal_value
 from spinta.ufuncs.basequerybuilder.ufuncs import Star
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.data import take
@@ -277,12 +278,6 @@ def list_(env: SqlQueryBuilder, expr: Expr) -> List[Any]:
     return list(args)
 
 
-@ufunc.resolver(SqlQueryBuilder, Expr)
-def testlist(env: SqlQueryBuilder, expr: Expr) -> Tuple[Any]:
-    args, kwargs = expr.resolve(env)
-    return tuple(args)
-
-
 @ufunc.resolver(SqlQueryBuilder)
 def count(env: SqlQueryBuilder):
     return sa.func.count()
@@ -375,7 +370,8 @@ def select(env: SqlQueryBuilder, prop: Property) -> Selected:
             if isinstance(prop.external.prepare, Expr):
                 result = env(this=prop).resolve(prop.external.prepare)
             else:
-                result = prop.external.prepare
+                result = process_literal_value(prop.external.prepare)
+
             # XXX: Maybe interpretation of prepare formula should be done under
             #      a different Env? This way, select resolvers would know when
             #      properties are resolved under a formula context and for
@@ -578,7 +574,7 @@ def join_table_on(env: SqlQueryBuilder, prop: Property) -> Any:
         if isinstance(prop.external.prepare, Expr):
             result = env.resolve(prop.external.prepare)
         else:
-            result = prop.external.prepare
+            result = process_literal_value(prop.external.prepare)
         return env.call('join_table_on', prop.dtype, result)
     else:
         return env.call('join_table_on', prop.dtype)
@@ -633,6 +629,16 @@ def join_table_on(env: SqlQueryBuilder, item: Bind):
     if not prop or not authorized(env.context, prop, Action.SEARCH):
         raise PropertyNotFound(env.model, property=item.name)
     return env.call('join_table_on', prop)
+
+
+@ufunc.resolver(SqlQueryBuilder, LiteralProperty)
+def join_table_on(env: SqlQueryBuilder, item: LiteralProperty):
+    return item.value
+
+
+@ufunc.resolver(SqlQueryBuilder, DataType, LiteralProperty)
+def join_table_on(env: SqlQueryBuilder, dtype: DataType, item: LiteralProperty):
+    return env.call('join_table_on', item)
 
 
 @ufunc.resolver(SqlQueryBuilder, Bind, name='len')
