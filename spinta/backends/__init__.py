@@ -41,7 +41,8 @@ from spinta.components import Node
 from spinta.components import Property
 from spinta.core.ufuncs import asttoexpr
 from spinta.exceptions import ConflictingValue, RequiredProperty, LangNotDeclared, TooManyLangsGiven, \
-    UnableToDetermineRequiredLang, CoordinatesOutOfRange, InheritPropertyValueMissmatch, SRIDNotSetForGeometry
+    UnableToDetermineRequiredLang, CoordinatesOutOfRange, InheritPropertyValueMissmatch, SRIDNotSetForGeometry, \
+    InvalidUuidValue
 from spinta.exceptions import NoItemRevision
 from spinta.formats.components import Format
 from spinta.manifests.components import Manifest
@@ -295,6 +296,22 @@ def simple_data_check(
     updating = data.action in (Action.UPDATE, Action.PATCH)
     if updating and '_revision' not in data.given:
         raise NoItemRevision(prop)
+
+
+@commands.simple_data_check.register(Context, DataItem, UUID, Property, Backend, str)
+def simple_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: UUID,
+    prop: Property,
+    backend: Backend,
+    value: str,
+) -> None:
+    if not isinstance(value, uuid.UUID):
+        try:
+            uuid.UUID(str(value))
+        except ValueError:
+            raise InvalidUuidValue(prop, value=value)
 
 
 @commands.simple_data_check.register(Context, DataItem, Object, Property, Backend, dict)
@@ -1647,6 +1664,23 @@ def cast_backend_to_python(
 ) -> Any:
     if _check_if_nan(data):
         return None
+    return data
+
+
+@commands.cast_backend_to_python.register(Context, UUID, Backend, object)
+def cast_backend_to_python(
+    context: Context,
+    dtype: UUID,
+    backend: Backend,
+    data: Any,
+) -> Any:
+    if _check_if_nan(data):
+        return None
+    if isinstance(data, str):
+        try:
+            return uuid.UUID(str(data))
+        except:
+            return data
     return data
 
 
