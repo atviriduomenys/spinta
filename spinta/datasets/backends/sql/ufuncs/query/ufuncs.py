@@ -306,13 +306,13 @@ def select(env: SqlQueryBuilder, expr: Expr):
         for key, arg in args:
             selected = env.call('select', arg)
             if selected is not None:
-                if selected.prop is None or selected.prop is not None and selected.prop.given.explicit:
+                if selected.prop is None or selected.prop is not None and not selected.prop.dtype.inherited:
                     env.selected[key] = selected
     else:
         for prop in take(['_id', all], env.model.properties).values():
             if authorized(env.context, prop, Action.GETALL):
                 processed = env.call('select', prop)
-                if prop.given.explicit or processed.prep is not None:
+                if not prop.dtype.inherited or processed.prep is not None:
                     env.selected[prop.place] = processed
 
     if not (len(args) == 1 and args[0][0] == '_page'):
@@ -398,7 +398,7 @@ def select(env: SqlQueryBuilder, prop: Property) -> Selected:
         elif not prop.dtype.requires_source:
             # Some DataTypes might have children that have source instead of themselves, like: Text
             result = env.call('select', prop.dtype)
-        elif not prop.given.explicit:
+        elif prop.dtype.inherited:
             # Some DataTypes might be inherited, or hidden, so we need to go through them in case they can be joined
             result = env.call('select', prop.dtype)
             if not isinstance(result, Selected):
@@ -428,10 +428,10 @@ def select(env: SqlQueryBuilder, dtype: Ref) -> Selected:
 
     for prop in dtype.properties.values():
         processed = env.call("select", prop)
-        if prop.given.explicit or processed.prep is not None:
+        if not prop.dtype.inherited or processed.prep is not None:
             env.selected[prop.place] = processed
 
-    if column is not None and dtype.prop.given.explicit:
+    if column is not None and not dtype.inherited:
         return Selected(
             item=env.add_column(column),
             prop=dtype.prop,
@@ -494,12 +494,12 @@ def select(env, dtype: Denorm):
     root_parent = ref
     if isinstance(ref, Property) and isinstance(ref.dtype, Ref):
         fpr = None
-        if not ref.given.explicit:
+        if ref.dtype.inherited:
             parent_list = []
             root_ref_parent = ref
             while root_ref_parent and isinstance(root_ref_parent, Property) and isinstance(root_ref_parent.dtype, Ref):
                 parent_list.append(root_ref_parent)
-                if root_ref_parent.given.explicit:
+                if not root_ref_parent.dtype.inherited:
                     break
                 root_ref_parent = root_ref_parent.parent
 
