@@ -14,8 +14,8 @@ from spinta.testing.manifest import prepare_manifest
 from spinta.testing.datasets import create_sqlite_db
 from spinta.testing.datasets import Sqlite
 from spinta.testing.tabular import create_tabular_manifest
+from spinta.testing.utils import get_error_codes
 from spinta.manifests.tabular.helpers import striptable
-from spinta.utils.types import is_str_uuid
 from spinta.components import Mode
 
 
@@ -29,8 +29,8 @@ def uuid_db():
     }) as db:
         db.write('test_uuid', [
                     {'id': 1, 'guid': '5394173a-7750-4dab-81ba-95c807e04f72'},
-                    {'id': 2, 'guid': str(uuid.uuid4())},
-                    {'id': 3, 'guid': str(uuid.uuid4())},
+                    {'id': 2, 'guid': '9c6aa93a-352b-4d36-a694-356aa99dfab2'},
+                    {'id': 3, 'guid': '6314ae6d-ac99-4fba-a121-c692ecac19d8'},
                 ])
         yield db
 
@@ -112,7 +112,7 @@ def test_filters(manifest_type: str, tmp_path: Path, rc: RawConfig, postgresql: 
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_formats(manifest_type: str, tmp_path: Path, rc: RawConfig, postgresql: str, request: FixtureRequest):
+def test_format_csv(manifest_type: str, tmp_path: Path, rc: RawConfig, postgresql: str, request: FixtureRequest):
     context = bootstrap_manifest(
         rc, '''
         d | r | b | m | property      | type
@@ -131,22 +131,81 @@ def test_formats(manifest_type: str, tmp_path: Path, rc: RawConfig, postgresql: 
     entity_id = str(uuid.uuid4())
     app.post('/backends/postgres/dtypes/uuid/Entity', json={'id': entity_id})
 
-    # CSV
     resp = app.get('/backends/postgres/dtypes/uuid/Entity/:format/csv?select(id)')
     assert resp.status_code == 200, f'CSV format failed: {resp.text}'
     assert resp.text == f'id\r\n{entity_id}\r\n'
 
-    # JSON
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_format_json(manifest_type: str, tmp_path: Path, rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(
+        rc, '''
+        d | r | b | m | property      | type
+        backends/postgres/dtypes/uuid |
+          |   |   | Entity            |
+          |   |   |   | id            | uuid
+        ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    app = create_test_client(context)
+    app.authmodel('backends/postgres/dtypes/uuid/Entity', ['insert', 'getall', 'search'])
+    entity_id = str(uuid.uuid4())
+    app.post('/backends/postgres/dtypes/uuid/Entity', json={'id': entity_id})
+
     resp = app.get('/backends/postgres/dtypes/uuid/Entity/:format/json?select(id)')
     assert resp.status_code == 200, f'JSON format failed: {resp.text}'
     assert resp.text == f'{{"_data":[{{"id":"{entity_id}"}}]}}'
 
-    # JSONL
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_format_jsonl(manifest_type: str, tmp_path: Path, rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(
+        rc, '''
+        d | r | b | m | property      | type
+        backends/postgres/dtypes/uuid |
+          |   |   | Entity            |
+          |   |   |   | id            | uuid
+        ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    app = create_test_client(context)
+    app.authmodel('backends/postgres/dtypes/uuid/Entity', ['insert', 'getall', 'search'])
+    entity_id = str(uuid.uuid4())
+    app.post('/backends/postgres/dtypes/uuid/Entity', json={'id': entity_id})
+
     resp = app.get('/backends/postgres/dtypes/uuid/Entity/:format/jsonl?select(id)')
     assert resp.status_code == 200, f'JSONL format failed: {resp.text}'
     assert resp.text == f'{{"id":"{entity_id}"}}\n'
 
-    # ASCII
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_format_ascii(manifest_type: str, tmp_path: Path, rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(
+        rc, '''
+        d | r | b | m | property      | type
+        backends/postgres/dtypes/uuid |
+          |   |   | Entity            |
+          |   |   |   | id            | uuid
+        ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    app = create_test_client(context)
+    app.authmodel('backends/postgres/dtypes/uuid/Entity', ['insert', 'getall', 'search'])
+    entity_id = str(uuid.uuid4())
+    app.post('/backends/postgres/dtypes/uuid/Entity', json={'id': entity_id})
+
     resp = app.get('/backends/postgres/dtypes/uuid/Entity/:format/ascii?select(id)')
     assert resp.status_code == 200, f'ASCII format failed: {resp.text}'
     assert resp.text == '------------------------------------\n' \
@@ -154,7 +213,27 @@ def test_formats(manifest_type: str, tmp_path: Path, rc: RawConfig, postgresql: 
                         f'{entity_id}\n' \
                         '------------------------------------\n'
 
-    # RDF
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_format_rdf(manifest_type: str, tmp_path: Path, rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(
+        rc, '''
+        d | r | b | m | property      | type
+        backends/postgres/dtypes/uuid |
+          |   |   | Entity            |
+          |   |   |   | id            | uuid
+        ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    app = create_test_client(context)
+    app.authmodel('backends/postgres/dtypes/uuid/Entity', ['insert', 'getall', 'search'])
+    entity_id = str(uuid.uuid4())
+    app.post('/backends/postgres/dtypes/uuid/Entity', json={'id': entity_id})
+
     resp = app.get('/backends/postgres/dtypes/uuid/Entity/:format/rdf?select(id)')
     assert resp.status_code == 200, f'RDF format failed: {resp.text}'
     assert resp.text == f'<?xml version="1.0" encoding="UTF-8"?>\n' \
@@ -189,6 +268,7 @@ def test_invalid_uuid(manifest_type: str, tmp_path: Path, rc: RawConfig, postgre
     invalid_uuid = "invalid-uuid"
     resp = app.post('/backends/postgres/dtypes/uuid/Entity', json={'id': invalid_uuid})
     assert resp.status_code == 400
+    assert get_error_codes(resp.json()) == ['InvalidValue']
 
 
 def test_uuid_sql(context, rc: RawConfig, tmp_path: Path, uuid_db: Sqlite):
@@ -204,11 +284,31 @@ id | d | r | b | m | property  | type    | ref | source    | prepare | level | a
 
     app = create_client(rc, tmp_path, uuid_db)
 
+    resp = app.get('/datasets/uuid/example/TestUUID')
+    assert resp.status_code == 200
+    assert listdata(resp, 'id', 'guid') == [
+        (1, '5394173a-7750-4dab-81ba-95c807e04f72'),
+        (2, '9c6aa93a-352b-4d36-a694-356aa99dfab2'),
+        (3, '6314ae6d-ac99-4fba-a121-c692ecac19d8')
+    ]
+
+
+def test_uuid_sql_select(context, rc: RawConfig, tmp_path: Path, uuid_db: Sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+id | d | r | b | m | property  | type    | ref | source    | prepare | level | access | uri | title | description
+   | datasets/uuid/example     |         |     |           |         |       |        |     |       |
+   |   | data                  | sql     |     |           |         |       |        |     |       |
+   |                           |         |     |           |         |       |        |     |       |
+   |   |   |   | TestUUID      |         | id  | test_uuid |         |       | open   |     |       |
+   |   |   |   |   | id        | integer |     | id        |         |       |        |     |       |
+   |   |   |   |   | guid      | uuid    |     | guid      |         |       |        |     |       |
+    '''))
+
+    app = create_client(rc, tmp_path, uuid_db)
+
     resp = app.get('/datasets/uuid/example/TestUUID?select(guid)')
     assert resp.status_code == 200
-    data = resp.json()['_data']
-    assert len(data) == 3
-    assert all(is_str_uuid(item['guid']) for item in data)
+    assert len(resp.json()['_data']) == 3
 
 
 def test_uuid_sql_filters(context, rc: RawConfig, tmp_path: Path, uuid_db: Sqlite):
@@ -239,16 +339,54 @@ def test_external_json(tmp_path: Path, rc: RawConfig):
         "test_uuid": [
             {
                 "id": 1,
-                "guid": str(uuid.uuid4())
+                "guid": '5394173a-7750-4dab-81ba-95c807e04f72'
             },
             {
                 "id": 2,
-                "guid": str(uuid.uuid4())
+                "guid": '9c6aa93a-352b-4d36-a694-356aa99dfab2'
             }
         ]
     }
     json_file = tmp_path / "TestUUID.json"
-    print(f'json_file: {json_file}')
+    with open(json_file, 'w') as file:
+        json.dump(test_data, file)
+
+    context, manifest = prepare_manifest(rc, f'''
+id | d | r | b | m | property  | type    | ref | source      | prepare | level | access | uri | title | description
+   | datasets/uuid/example     |         |     |             |         |       |        |     |       |
+   |   | data                  | json    |     | {json_file} |         |       |        |     |       |
+   |                           |         |     |             |         |       |        |     |       |
+   |   |   |   | TestUUID      |         | id  | test_uuid   |         |       | open   |     |       |
+   |   |   |   |   | id        | integer |     | id          |         |       |        |     |       |
+   |   |   |   |   | guid      | uuid    |     | guid        |         |       |        |     |       |
+        ''', mode=Mode.external)
+    context.loaded = True
+
+    app = create_test_client(context)
+    app.authmodel('datasets/uuid/example/TestUUID', ['insert', 'getall', 'search'])
+
+    resp = app.get('datasets/uuid/example/TestUUID')
+    assert resp.status_code == 200
+    assert listdata(resp, 'id', 'guid') == [
+        (1, '5394173a-7750-4dab-81ba-95c807e04f72'),
+        (2, '9c6aa93a-352b-4d36-a694-356aa99dfab2')
+    ]
+
+
+def test_external_json_select(tmp_path: Path, rc: RawConfig):
+    test_data ={
+        "test_uuid": [
+            {
+                "id": 1,
+                "guid": '5394173a-7750-4dab-81ba-95c807e04f72'
+            },
+            {
+                "id": 2,
+                "guid": '9c6aa93a-352b-4d36-a694-356aa99dfab2'
+            }
+        ]
+    }
+    json_file = tmp_path / "TestUUID.json"
     with open(json_file, 'w') as file:
         json.dump(test_data, file)
 
@@ -270,11 +408,38 @@ id | d | r | b | m | property  | type    | ref | source      | prepare | level |
     assert resp.status_code == 200
     assert len(resp.json()['_data']) == 2
 
-    for item in resp.json()['_data']:
-        assert is_str_uuid(item['guid']), f"Invalid UUID: {item['guid']}"
-
 
 def test_external_csv(tmp_path: Path, rc: RawConfig):
+    test_data = f'''id,guid,,,
+1,5394173a-7750-4dab-81ba-95c807e04f72,,,
+2,9c6aa93a-352b-4d36-a694-356aa99dfab2,,,'''
+    csv_file = tmp_path / "TestUUID.csv"
+    with open(csv_file, 'w') as file:
+        file.write(test_data)
+
+    context, manifest = prepare_manifest(rc, f'''
+id | d | r | b | m | property  | type    | ref | source      | prepare | level | access | uri | title | description
+   | datasets/uuid/example     |         |     |             |         |       |        |     |       |
+   |   | data                  | csv     |     | {csv_file}  |         |       |        |     |       |
+   |                           |         |     |             |         |       |        |     |       |
+   |   |   |   | TestUUID      |         | id  | test_uuid   |         |       | open   |     |       |
+   |   |   |   |   | id        | integer |     | id          |         |       |        |     |       |
+   |   |   |   |   | guid      | uuid    |     | guid        |         |       |        |     |       |
+    ''', mode=Mode.external)
+    context.loaded = True
+
+    app = create_test_client(context)
+    app.authmodel('datasets/uuid/example/TestUUID', ['insert', 'getall', 'search'])
+
+    resp = app.get('datasets/uuid/example/TestUUID')
+    assert resp.status_code == 200
+    assert listdata(resp, 'id', 'guid') == [
+        (1, '5394173a-7750-4dab-81ba-95c807e04f72'),
+        (2, '9c6aa93a-352b-4d36-a694-356aa99dfab2')
+    ]
+
+
+def test_external_csv_select(tmp_path: Path, rc: RawConfig):
     test_data = f'''id,guid,,,
 1,{str(uuid.uuid4())},,,
 2,{str(uuid.uuid4())},,,'''
@@ -297,12 +462,49 @@ id | d | r | b | m | property  | type    | ref | source      | prepare | level |
     app.authmodel('datasets/uuid/example/TestUUID', ['insert', 'getall', 'search'])
 
     resp = app.get('datasets/uuid/example/TestUUID?select(guid)')
+    assert resp.status_code == 200
     assert len(resp.json()['_data']) == 2
-    for item in resp.json()['_data']:
-        assert is_str_uuid(item['guid']), f"Invalid UUID: {item['guid']}"
 
 
 def test_external_xml(tmp_path: Path, rc: RawConfig):
+    test_data = f'''
+<items>
+    <test_uuid>
+        <id>1</id>
+        <guid>5394173a-7750-4dab-81ba-95c807e04f72</guid>
+    </test_uuid>
+    <test_uuid>
+        <id>2</id>
+        <guid>9c6aa93a-352b-4d36-a694-356aa99dfab2</guid>
+    </test_uuid>
+</items>
+'''
+    xml_file = tmp_path / "TestUUID.xml"
+    with open(xml_file, 'w') as file:
+        file.write(test_data)
+
+    context, manifest = prepare_manifest(rc, f'''
+id | d | r | b | m | property  | type    | ref | source            | prepare | level | access | uri | title | description
+   | datasets/uuid/example     |         |     |                   |         |       |        |     |       |
+   |   | data                  | xml     |     | {xml_file}        |         |       |        |     |       |
+   |                           |         |     |                   |         |       |        |     |       |
+   |   |   |   | TestUUID      |         | id  | /items/test_uuid  |         |       | open   |     |       |
+   |   |   |   |   | id        | integer |     | id                |         |       |        |     |       |
+   |   |   |   |   | guid      | uuid    |     | guid              |         |       |        |     |       |
+    ''', mode=Mode.external)
+    context.loaded = True
+
+    app = create_test_client(context)
+    app.authmodel('datasets/uuid/example/TestUUID', ['insert', 'getall', 'search'])
+
+    resp = app.get('datasets/uuid/example/TestUUID')
+    assert resp.status_code == 200
+    assert listdata(resp, 'id', 'guid') == [
+        (1, '5394173a-7750-4dab-81ba-95c807e04f72'),
+        (2, '9c6aa93a-352b-4d36-a694-356aa99dfab2')
+    ]
+
+def test_external_xml_select(tmp_path: Path, rc: RawConfig):
     test_data = f'''
 <items>
     <test_uuid>
@@ -334,7 +536,5 @@ id | d | r | b | m | property  | type    | ref | source            | prepare | l
     app.authmodel('datasets/uuid/example/TestUUID', ['insert', 'getall', 'search'])
 
     resp = app.get('datasets/uuid/example/TestUUID?select(guid)')
-    print(resp.json())
+    assert resp.status_code == 200
     assert len(resp.json()['_data']) == 2
-    for item in resp.json()['_data']:
-        assert is_str_uuid(item['guid']), f"Invalid UUID: {item['guid']}"
