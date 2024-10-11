@@ -1078,7 +1078,7 @@ def test_composite_non_pk_keys(context, rc, tmp_path, sqlite):
         (('eu', 'lt'), 'eu', 'lt', 'Lithuania'),
     ]
 
-    resp = app.get('/datasets/ds/City?select(country.name)')
+    resp = app.get('/datasets/ds/City')
     data = listdata(resp, 'country', 'name', sort='name')
     data = [
         (
