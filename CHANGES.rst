@@ -4,6 +4,11 @@ Changes
 0.1.77 (unreleased)
 ===================
 
+New feature:
+
+- Added support for literal values in `property` `prepare` expression (`#670`_).
+
+  .. _#670: https://github.com/atviriduomenys/spinta/issues/670
 
 0.1.76 (2024-10-08)
 ===================
