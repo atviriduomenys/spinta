@@ -177,7 +177,7 @@ def write_mermaid_manifest(context: Context, output: str, manifest: InlineManife
                                 label=model_property.name
                             ))
                         
-                    if (
+                    elif (
                         isinstance(model_property.dtype, Ref)
                         or isinstance(model_property.dtype, BackRef)
                     ):
