@@ -1325,7 +1325,7 @@ def prepare_dtype_for_response(
     context: Context,
     fmt: Format,
     dtype: ArrayBackRef,
-    value: List | Tuple,
+    value: (list, tuple),
     data: Dict[str, Any],
     action: Action,
     select: dict = None,
