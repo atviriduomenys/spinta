@@ -117,7 +117,8 @@ class XSDType:
     prepare: Expr | None = None
     description: str = ""
 
-
+    def __init__(self, name: str = None):
+        self.name = name
 
 """
 Example of a property:
@@ -375,17 +376,27 @@ class XSDReader:
         Element should return a property. It can return multiple properties if there is a choice somewhere down the way.
         property name is set after returning all properties, because we need to do a deduplication first.
         """
-        # todo add more explanationary comments
+        # todo add more explanatory comments
         is_array = is_array or node.attrib.get("maxOccurs", 1) == "unbounded" or int(node.attrib.get("maxOccurs", 1)) > 1
         is_required = int(node.attrib.get("minOccurs", 1)) > 0
         props = []
         property_type_to = None
-        property_ref_to = None
-        if node.attrib.get("name"):
-            property_name = node.attrib["name"]
-        elif node.attrib.get("ref"):
+
+        # ref - a reference to separately defined element
+        if node.attrib.get("ref"):
             property_name = node.attrib["ref"]
             property_ref_to = property_name
+            if is_array:
+                property_type = XSDType(name="backref")
+            else:
+                property_type = XSDType(name="ref")
+            prop = XSDProperty(xsd_name=property_name, property_type=property_type, required=is_required,
+                               source=property_name, is_array=is_array)
+            prop.xsd_ref_to = property_ref_to
+            return [prop]
+
+        elif node.attrib.get("name"):
+            property_name = node.attrib["name"]
         else:
             raise RuntimeError(f'Element has to have either name or ref')
 
@@ -406,12 +417,13 @@ class XSDReader:
             else:
                 property_type = XSDType()
                 property_type_to = node.attrib["type"]
-                property_type_string = "backref" if is_array else "ref"
-                property_type.name = property_type_string
+                property_type.name = "backref" if is_array else "ref"
             prop = XSDProperty(xsd_name=property_name, property_type=property_type, required=is_required, source=property_name, is_array=is_array)
             prop.type_to = property_type_to
-            prop.ref_to = property_ref_to
             props.append(prop)
+
+            if node.getchildren():
+                raise RuntimeError("element node shouldn't have children because it has type or ref attribute")
 
         for child in node.getchildren():
             # We don't care about comments
@@ -423,19 +435,17 @@ class XSDReader:
                 for model in models:
                     prop = XSDProperty(xsd_name=property_name, required=is_required, source=property_name, is_array=is_array)
                     prop.ref_model = model
-                    # todo add property type - ref or backref
+                    if is_array:
+                        property_type = "backref"
+                    else:
+                        property_type = "ref"
+                    prop.type = XSDType()
+                    prop.type.name = property_type
 
                     props.append(prop)
             elif QName(child).localname == "simpleType":
                 prop = XSDProperty(xsd_name=property_name, required=is_required, source=property_name, is_array=is_array)
-                prop.xsd_name = property_name
-                prop.source = property_name
                 prop.type = self.process_simple_type(child, state)
-                # we will process those in
-                prop.type_to = property_type_to
-                prop.ref_to = property_ref_to
-                prop.required = is_required
-                prop.is_array = is_array
                 props.append(prop)
 
             else:
@@ -445,7 +455,7 @@ class XSDReader:
 
         # todo there is a case in RC with a type name that doesn't exist (or exists externally)
         # todo deal with `mixed`
-        #  todo factor in minoccurs and maxoccurs
+        #  todo factor in minoccurs and maxoccurs everywhere
         # todo If it's top level, we need to know if we need to add it to the resource model or not.
         #  Maybe after we return from this, we need to check if the property is `ref`. If it's top level and not ref, we add it to the "resource" model
         # todo decide where to deal with placeholder elements, which are not turned into a model

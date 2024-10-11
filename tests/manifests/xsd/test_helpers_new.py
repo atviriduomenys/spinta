@@ -294,3 +294,107 @@ def test_process_element_complex_type(mock_process_complex_type):
     # Assert that 'required' is True
     assert result.required is True
 
+    assert result.type.name == "ref"
+
+
+def test_process_element_complex_type_separate():
+    xsd_schema = """
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <!-- Definition of an element 'country' with a complexType specified inside -->
+  <xs:element name="country" type="countryType"/>
+    <xs:complexType name="countryType">
+      <xs:sequence>
+        <!-- Two elements inside the complexType -->
+        <xs:element name="name" type="xs:string"/>
+        <xs:element name="population" type="xs:integer"/>
+      </xs:sequence>
+    </xs:complexType>
+
+</xs:schema>
+    """
+    xsd_root = etree.fromstring(xsd_schema)
+    element = xsd_root.xpath('./*[local-name() = "element"]')[0]
+
+    # Create an instance of XSDReader
+    reader = XSDReader("test", "test")
+
+    # Call the method you want to test (which uses process_complex_type internally)
+    state = State()
+    result = reader.process_element(element, state)[0]
+
+    assert isinstance(result, XSDProperty)
+
+    # Check that the first model's name is 'Country'
+    assert result.xsd_name == "country"
+
+    assert result.source == "country"
+
+    assert result.is_array is False
+
+    # Assert that 'required' is True
+    assert result.required is True
+
+
+def test_process_element_ref():
+    xsd_schema = """
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element ref="country"/>
+</xs:schema>
+
+    """
+    xsd_root = etree.fromstring(xsd_schema)
+    element = xsd_root.xpath('./*[local-name() = "element"]')[0]
+
+    # Create an instance of XSDReader
+    reader = XSDReader("test", "test")
+
+    # Call the method you want to test (which uses process_complex_type internally)
+    state = State()
+    result = reader.process_element(element, state)[0]
+
+    assert isinstance(result, XSDProperty)
+
+    # Check that the first model's name is 'Country'
+    assert result.xsd_name == "country"
+
+    assert result.source == "country"
+
+    assert result.is_array is False
+
+    # Assert that 'required' is True
+    assert result.required is True
+
+    assert result.type.name == 'ref'
+
+
+def test_process_element_ref_backref():
+    xsd_schema = """
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element ref="country" maxOccurs="unbounded"/>
+</xs:schema>
+
+    """
+    xsd_root = etree.fromstring(xsd_schema)
+    element = xsd_root.xpath('./*[local-name() = "element"]')[0]
+
+    # Create an instance of XSDReader
+    reader = XSDReader("test", "test")
+
+    # Call the method you want to test (which uses process_complex_type internally)
+    state = State()
+    result = reader.process_element(element, state)[0]
+
+    assert isinstance(result, XSDProperty)
+
+    # Check that the first model's name is 'Country'
+    assert result.xsd_name == "country"
+
+    assert result.source == "country"
+
+    assert result.is_array is True
+
+    # Assert that 'required' is True
+    assert result.required is True
+
+    assert result.type.name == 'backref'
