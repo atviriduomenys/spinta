@@ -537,6 +537,12 @@ def compare(env, op, dtype, value):
     cond = _sa_compare(op, column, value)
     return _prepare_condition(env, dtype.prop, cond)
 
+@ufunc.resolver(PgQueryBuilder, UUID_dtype, str, names=COMPARE)
+def compare(env, op, dtype, value):
+    column = env.backend.get_column(env.table, dtype.prop)
+    cond = _sa_compare(op, column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
 
 @ufunc.resolver(PgQueryBuilder, String, str, names=COMPARE)
 def compare(env, op, dtype, value):
