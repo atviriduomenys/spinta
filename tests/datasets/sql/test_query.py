@@ -653,3 +653,32 @@ def test_paginate_disabled(rc: RawConfig):
       "PLANET"."CODE"
     FROM "PLANET"
     '''
+
+
+def test_composite_non_pk_ref_with_literal(rc: RawConfig):
+    assert _build(rc, '''
+d | r | b | m | property | type    | ref                       | source       | prepare  | access
+example                  |         |                           |              |          |
+  |   |   | Translation  |         | id                        | TRANSLATION  |          | open
+  |   |   |   | id       | integer |                           | ID           |          |
+  |   |   |   | lang     | string  |                           | LANG         |          |
+  |   |   |   | name     | string  |                           | NAME         |          |
+  |   |   |   | city_id  | integer |                           | CITY_ID      |          |
+  |   |   |   |          |         |                           |              |          |
+  |   |   | City         |         | id                        | CITY         |          | open
+  |   |   |   | id       | integer |                           | ID           |          |
+  |   |   |   | en       | ref     | Translation[city_id,lang] |              | id, "en" |
+  |   |   |   | name_en  | string  |                           |              | en.name  |
+  |   |   |   | lt       | ref     | Translation[city_id,lang] |              | id, "lt" |
+  |   |   |   | name_lt  | string  |                           |              | lt.name  |
+        ''', 'example/City') == '''
+    SELECT
+      "CITY"."ID",
+      "TRANSLATION_1"."NAME",
+      "TRANSLATION_2"."NAME" AS "NAME_1"
+    FROM "CITY"
+    LEFT OUTER JOIN "TRANSLATION" AS "TRANSLATION_1" ON "CITY"."ID" = "TRANSLATION_1"."CITY_ID"
+      AND "TRANSLATION_1"."LANG" = :LANG_1
+    LEFT OUTER JOIN "TRANSLATION" AS "TRANSLATION_2" ON "CITY"."ID" = "TRANSLATION_2"."CITY_ID"
+      AND "TRANSLATION_2"."LANG" = :LANG_2
+    '''
