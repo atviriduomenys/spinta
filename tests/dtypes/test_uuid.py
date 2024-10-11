@@ -102,10 +102,13 @@ def test_filters(manifest_type: str, tmp_path: Path, rc: RawConfig, postgresql: 
     test_cases = [
         f'/backends/postgres/dtypes/uuid/Entity?id="{entity_id}"',
         f'/backends/postgres/dtypes/uuid/Entity?id!="{entity_id}"',
+        f'/backends/postgres/dtypes/uuid/Entity?id<"{entity_id}"',
         f'/backends/postgres/dtypes/uuid/Entity?id.contains("-")',
         f'/backends/postgres/dtypes/uuid/Entity?sort(id)',
     ]
-    assert all(app.get(url).status_code == 200 for url in test_cases)
+    for url in test_cases:
+        resp = app.get(url)
+        assert resp.status_code == 200, f'Failed: {url}'
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
@@ -224,6 +227,7 @@ id | d | r | b | m | property  | type    | ref | source    | prepare | level | a
     test_cases = [
         f'datasets/uuid/example/TestUUID?guid="5394173a-7750-4dab-81ba-95c807e04f72"',
         f'datasets/uuid/example/TestUUID?guid!="5394173a-7750-4dab-81ba-95c807e04f72"',
+        f'datasets/uuid/example/TestUUID?guid<"5394173a-7750-4dab-81ba-95c807e04f72"',
         f'datasets/uuid/example/TestUUID?guid.contains("-")',
         f'datasets/uuid/example/TestUUID?sort(guid)',
     ]
