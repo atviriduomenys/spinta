@@ -81,7 +81,7 @@ def test_read_data(manifest_type: str, tmp_path: Path, rc: RawConfig, postgresql
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_filters(manifest_type: str, tmp_path: Path, rc: RawConfig, postgresql: str, request: FixtureRequest):
+def test_filter_eq(manifest_type: str, tmp_path: Path, rc: RawConfig, postgresql: str, request: FixtureRequest):
     context = bootstrap_manifest(
         rc, '''
         d | r | b | m | property      | type
@@ -97,18 +97,138 @@ def test_filters(manifest_type: str, tmp_path: Path, rc: RawConfig, postgresql: 
     )
     app = create_test_client(context)
     app.authmodel('backends/postgres/dtypes/uuid/Entity', ['insert', 'getall', 'search'])
-    entity_id = str(uuid.uuid4())
-    app.post('/backends/postgres/dtypes/uuid/Entity', json={'id': entity_id})
-    test_cases = [
-        f'/backends/postgres/dtypes/uuid/Entity?id="{entity_id}"',
-        f'/backends/postgres/dtypes/uuid/Entity?id!="{entity_id}"',
-        f'/backends/postgres/dtypes/uuid/Entity?id<"{entity_id}"',
-        f'/backends/postgres/dtypes/uuid/Entity?id.contains("-")',
-        f'/backends/postgres/dtypes/uuid/Entity?sort(id)',
+    entity_ids = [str(uuid.uuid4()) for _ in range(3)]
+    app.post('/backends/postgres/dtypes/uuid/Entity', json={'_data':[
+                                                                    {'_op': 'insert', 'id': entity_ids[0]},
+                                                                    {'_op': 'insert', 'id': entity_ids[1]},
+                                                                    {'_op': 'insert', 'id': entity_ids[2]}
+                                                                    ]
+                                                                })
+    resp = app.get(f'/backends/postgres/dtypes/uuid/Entity?id="{entity_ids[0]}"')
+    assert resp.status_code == 200, f'Failed: {resp.url}'
+    assert listdata(resp, 'id') == [
+        (entity_ids[0])
     ]
-    for url in test_cases:
-        resp = app.get(url)
-        assert resp.status_code == 200, f'Failed: {url}'
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_filter_ne(manifest_type: str, tmp_path: Path, rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(
+        rc, '''
+        d | r | b | m | property      | type
+        backends/postgres/dtypes/uuid |
+          |   |   | Entity            |
+          |   |   |   | id            | uuid
+        ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    app = create_test_client(context)
+    app.authmodel('backends/postgres/dtypes/uuid/Entity', ['insert', 'getall', 'search'])
+    entity_ids = [str(uuid.uuid4()) for _ in range(3)]
+    app.post('/backends/postgres/dtypes/uuid/Entity', json={'_data': [
+        {'_op': 'insert', 'id': entity_ids[0]},
+        {'_op': 'insert', 'id': entity_ids[1]},
+        {'_op': 'insert', 'id': entity_ids[2]}
+    ]
+    })
+    resp = app.get(f'/backends/postgres/dtypes/uuid/Entity?id!="{entity_ids[0]}"')
+    assert resp.status_code == 200, f'Failed: {resp.url}'
+    assert sorted(listdata(resp, 'id')) == sorted([
+        (entity_ids[1]),
+        (entity_ids[2])
+    ])
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_filter_less_than(manifest_type: str, tmp_path: Path, rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(
+        rc, '''
+        d | r | b | m | property      | type
+        backends/postgres/dtypes/uuid |
+          |   |   | Entity            |
+          |   |   |   | id            | uuid
+        ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    app = create_test_client(context)
+    app.authmodel('backends/postgres/dtypes/uuid/Entity', ['insert', 'getall', 'search'])
+    app.post('/backends/postgres/dtypes/uuid/Entity', json={'_data': [
+        {'_op': 'insert', 'id': 'd1917f5c-7671-443a-8bdd-55ec0f233856'},
+        {'_op': 'insert', 'id': '1ecfcfb2-7dea-464d-a44c-74193130d15d'},
+        {'_op': 'insert', 'id': '1ad35c76-5bb5-49bf-84c6-cd588e8ad2a8'},
+        {'_op': 'insert', 'id': '2e80bf28-aed6-4db4-9e5f-a60e84a5fd20'}
+    ]
+    })
+    resp = app.get(f'/backends/postgres/dtypes/uuid/Entity?id<"2e80bf28-aed6-4db4-9e5f-a60e84a5fd20"')
+    assert resp.status_code == 200, f'Failed: {resp.url}'
+    assert sorted(listdata(resp, 'id')) == sorted([
+        '1ecfcfb2-7dea-464d-a44c-74193130d15d',
+        '1ad35c76-5bb5-49bf-84c6-cd588e8ad2a8'
+    ])
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_filter_contains(manifest_type: str, tmp_path: Path, rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(
+        rc, '''
+        d | r | b | m | property      | type
+        backends/postgres/dtypes/uuid |
+          |   |   | Entity            |
+          |   |   |   | id            | uuid
+        ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    app = create_test_client(context)
+    app.authmodel('backends/postgres/dtypes/uuid/Entity', ['insert', 'getall', 'search'])
+    app.post('/backends/postgres/dtypes/uuid/Entity', json={'_data': [
+        {'_op': 'insert', 'id': 'd1917f5c-7671-443a-8bdd-55ec0f233856'},
+        {'_op': 'insert', 'id': '1ecfcfb2-7dea-464d-a44c-74193130d15d'}
+    ]
+    })
+    resp = app.get(f'/backends/postgres/dtypes/uuid/Entity?id.contains("7671")')
+    assert resp.status_code == 200, f'Failed: {resp.url}'
+    assert listdata(resp, 'id') == ['d1917f5c-7671-443a-8bdd-55ec0f233856']
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_filter_sort(manifest_type: str, tmp_path: Path, rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(
+        rc, '''
+        d | r | b | m | property      | type
+        backends/postgres/dtypes/uuid |
+          |   |   | Entity            |
+          |   |   |   | id            | uuid
+        ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    app = create_test_client(context)
+    app.authmodel('backends/postgres/dtypes/uuid/Entity', ['insert', 'getall', 'search'])
+    entity_ids = [str(uuid.uuid4()) for _ in range(3)]
+    app.post('/backends/postgres/dtypes/uuid/Entity', json={'_data': [
+        {'_op': 'insert', 'id': entity_ids[0]},
+        {'_op': 'insert', 'id': entity_ids[1]},
+        {'_op': 'insert', 'id': entity_ids[2]}
+    ]
+    })
+    resp = app.get(f'/backends/postgres/dtypes/uuid/Entity?sort(id)')
+    assert resp.status_code == 200, f'Failed: {resp.url}'
+    assert listdata(resp, 'id') == sorted([
+        (entity_ids[0]),
+        (entity_ids[1]),
+        (entity_ids[2])
+    ])
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
