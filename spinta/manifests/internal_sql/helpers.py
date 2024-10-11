@@ -1118,13 +1118,9 @@ def _property_to_sql(
 
     elif isinstance(prop.dtype, (Ref, BackRef)):
         model = prop.model
+        data['ref'] = prop.dtype.model.name
 
         if model.external and model.external.dataset:
-            data['ref'] = to_relative_model_name(
-                prop.dtype.model,
-                model.external.dataset,
-            )
-
             if isinstance(prop.dtype, Ref):
                 pkeys = prop.dtype.model.external.pkeys
                 rkeys = prop.dtype.refprops
@@ -1136,9 +1132,6 @@ def _property_to_sql(
                 rkey = prop.dtype.refprop.place
                 if prop.dtype.explicit:
                     data['ref'] += f'[{rkey}]'
-
-        else:
-            data['ref'] = prop.dtype.model.name
 
         if prop.dtype.properties:
             for obj_prop in prop.dtype.properties.values():
