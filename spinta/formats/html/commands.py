@@ -415,6 +415,25 @@ def prepare_dtype_for_response(
         ))
     return Cell(value)
 
+@commands.prepare_dtype_for_response.register(Context, Html, UUID, object)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: UUID,
+    value: Any,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    link = data.pop('_link', True)
+    if dtype.prop.name == '_id' and link:
+        return Cell(short_id(str(value)), link=get_model_link(
+            dtype.prop.model,
+            pk=value,
+        ))
+    return Cell(value)
+
 
 @commands.prepare_dtype_for_response.register(Context, Html, Date, datetime.date)
 def prepare_dtype_for_response(
