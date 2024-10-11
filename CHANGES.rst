@@ -5,6 +5,11 @@ Changes
 ===================
 
 
+New features:
+
+- Added uuid data type (`#660`_).
+  .. _#660: https://github.com/atviriduomenys/spinta/issues/660
+
 0.1.76 (2024-10-08)
 ===================
 
