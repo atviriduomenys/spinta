@@ -142,7 +142,7 @@ def test_filter_ne(manifest_type: str, tmp_path: Path, rc: RawConfig, postgresql
     ])
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_filter_less_than(manifest_type: str, tmp_path: Path, rc: RawConfig, postgresql: str, request: FixtureRequest):
+def test_filter_lt(manifest_type: str, tmp_path: Path, rc: RawConfig, postgresql: str, request: FixtureRequest):
     context = bootstrap_manifest(
         rc, '''
         d | r | b | m | property      | type
@@ -431,7 +431,7 @@ id | d | r | b | m | property  | type    | ref | source    | prepare | level | a
     assert len(resp.json()['_data']) == 3
 
 
-def test_uuid_sql_filters(context, rc: RawConfig, tmp_path: Path, uuid_db: Sqlite):
+def test_uuid_sql_filter_eq(context, rc: RawConfig, tmp_path: Path, uuid_db: Sqlite):
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
 id | d | r | b | m | property  | type    | ref | source    | prepare | level | access | uri | title | description
    | datasets/uuid/example     |         |     |           |         |       |        |     |       |
@@ -443,15 +443,91 @@ id | d | r | b | m | property  | type    | ref | source    | prepare | level | a
     '''))
 
     app = create_client(rc, tmp_path, uuid_db)
-
-    test_cases = [
-        f'datasets/uuid/example/TestUUID?guid="5394173a-7750-4dab-81ba-95c807e04f72"',
-        f'datasets/uuid/example/TestUUID?guid!="5394173a-7750-4dab-81ba-95c807e04f72"',
-        f'datasets/uuid/example/TestUUID?guid<"5394173a-7750-4dab-81ba-95c807e04f72"',
-        f'datasets/uuid/example/TestUUID?guid.contains("-")',
-        f'datasets/uuid/example/TestUUID?sort(guid)',
+    resp = app.get('datasets/uuid/example/TestUUID?guid="5394173a-7750-4dab-81ba-95c807e04f72"')
+    assert resp.status_code == 200
+    assert listdata(resp, 'id', 'guid') == [
+        (1, '5394173a-7750-4dab-81ba-95c807e04f72')
     ]
-    assert all(app.get(url).status_code == 200 for url in test_cases)
+
+
+def test_uuid_sql_filter_ne(context, rc: RawConfig, tmp_path: Path, uuid_db: Sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+id | d | r | b | m | property  | type    | ref | source    | prepare | level | access | uri | title | description
+   | datasets/uuid/example     |         |     |           |         |       |        |     |       |
+   |   | data                  | sql     |     |           |         |       |        |     |       |
+   |                           |         |     |           |         |       |        |     |       |
+   |   |   |   | TestUUID      |         | id  | test_uuid |         |       | open   |     |       |
+   |   |   |   |   | id        | integer |     | id        |         |       |        |     |       |
+   |   |   |   |   | guid      | uuid    |     | guid      |         |       |        |     |       |
+    '''))
+
+    app = create_client(rc, tmp_path, uuid_db)
+    resp = app.get('datasets/uuid/example/TestUUID?guid!="5394173a-7750-4dab-81ba-95c807e04f72"')
+    assert resp.status_code == 200
+    assert sorted(listdata(resp, 'id', 'guid')) == sorted([
+        (2, '9c6aa93a-352b-4d36-a694-356aa99dfab2'),
+        (3, '6314ae6d-ac99-4fba-a121-c692ecac19d8')
+    ])
+
+
+def test_uuid_sql_filter_lt(context, rc: RawConfig, tmp_path: Path, uuid_db: Sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+id | d | r | b | m | property  | type    | ref | source    | prepare | level | access | uri | title | description
+   | datasets/uuid/example     |         |     |           |         |       |        |     |       |
+   |   | data                  | sql     |     |           |         |       |        |     |       |
+   |                           |         |     |           |         |       |        |     |       |
+   |   |   |   | TestUUID      |         | id  | test_uuid |         |       | open   |     |       |
+   |   |   |   |   | id        | integer |     | id        |         |       |        |     |       |
+   |   |   |   |   | guid      | uuid    |     | guid      |         |       |        |     |       |
+    '''))
+
+    app = create_client(rc, tmp_path, uuid_db)
+    resp = app.get('datasets/uuid/example/TestUUID?guid<"6314ae6d-ac99-4fba-a121-c692ecac19d8"')
+    assert resp.status_code == 200
+    assert listdata(resp, 'id', 'guid') == [
+        (1, '5394173a-7750-4dab-81ba-95c807e04f72')
+    ]
+
+
+def test_uuid_sql_filter_contains(context, rc: RawConfig, tmp_path: Path, uuid_db: Sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+id | d | r | b | m | property  | type    | ref | source    | prepare | level | access | uri | title | description
+   | datasets/uuid/example     |         |     |           |         |       |        |     |       |
+   |   | data                  | sql     |     |           |         |       |        |     |       |
+   |                           |         |     |           |         |       |        |     |       |
+   |   |   |   | TestUUID      |         | id  | test_uuid |         |       | open   |     |       |
+   |   |   |   |   | id        | integer |     | id        |         |       |        |     |       |
+   |   |   |   |   | guid      | uuid    |     | guid      |         |       |        |     |       |
+    '''))
+
+    app = create_client(rc, tmp_path, uuid_db)
+    resp = app.get('datasets/uuid/example/TestUUID?guid.contains("81ba")')
+    assert resp.status_code == 200
+    assert listdata(resp, 'id', 'guid') == [
+        (1, '5394173a-7750-4dab-81ba-95c807e04f72')
+    ]
+
+
+def test_uuid_sql_filter_sort(context, rc: RawConfig, tmp_path: Path, uuid_db: Sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+id | d | r | b | m | property  | type    | ref | source    | prepare | level | access | uri | title | description
+   | datasets/uuid/example     |         |     |           |         |       |        |     |       |
+   |   | data                  | sql     |     |           |         |       |        |     |       |
+   |                           |         |     |           |         |       |        |     |       |
+   |   |   |   | TestUUID      |         | id  | test_uuid |         |       | open   |     |       |
+   |   |   |   |   | id        | integer |     | id        |         |       |        |     |       |
+   |   |   |   |   | guid      | uuid    |     | guid      |         |       |        |     |       |
+    '''))
+
+    app = create_client(rc, tmp_path, uuid_db)
+    resp = app.get('datasets/uuid/example/TestUUID?sort(guid)')
+    assert resp.status_code == 200
+    assert listdata(resp, 'id', 'guid') == sorted([
+        (1, '5394173a-7750-4dab-81ba-95c807e04f72'),
+        (3, '6314ae6d-ac99-4fba-a121-c692ecac19d8'),
+        (2, '9c6aa93a-352b-4d36-a694-356aa99dfab2')
+    ])
+
 
 
 def test_external_json(tmp_path: Path, rc: RawConfig):
