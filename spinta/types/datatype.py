@@ -454,7 +454,18 @@ def load(context: Context, dtype: Array, data: dict, manifest: Manifest) -> Data
 
 @load.register(Context, ArrayBackRef, dict, Manifest)
 def load(context: Context, dtype: ArrayBackRef, data: dict, manifest: Manifest) -> DataType:
-    return _load_array(context, dtype, manifest)
+    if dtype.items:
+        assert isinstance(dtype.items, dict), type(dtype.items)
+        prop: Property = dtype.prop.__class__()
+        prop.name = dtype.prop.name
+        prop.place = dtype.prop.place
+        prop.parent = dtype.prop
+        prop.model = dtype.prop.model
+        commands.load(context, prop, dtype.items, manifest)
+        dtype.items = prop
+    else:
+        dtype.items = None
+    return dtype
 
 
 def _load_array(context: Context, dtype: Array | ArrayBackRef, manifest: Manifest) -> DataType:

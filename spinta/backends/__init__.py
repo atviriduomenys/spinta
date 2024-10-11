@@ -3,7 +3,7 @@ import datetime
 import decimal
 import pathlib
 import uuid
-from typing import Any
+from typing import Any, Tuple
 from typing import AsyncIterator
 from typing import Dict
 from typing import Iterable
@@ -148,6 +148,19 @@ def prepare_for_write(
     value: List[Any],
 ) -> List[Any]:
     # prepare array and it's items for datastore
+    return [
+        commands.prepare_for_write(context, dtype.items.dtype, backend, v)
+        for v in value
+    ]
+
+
+@commands.prepare_for_write.register(Context, ArrayBackRef, Backend, list)
+def prepare_for_write(
+    context: Context,
+    dtype: ArrayBackRef,
+    backend: Backend,
+    value: List[Any],
+) -> List[Any]:
     return [
         commands.prepare_for_write(context, dtype.items.dtype, backend, v)
         for v in value
@@ -1380,48 +1393,20 @@ def prepare_dtype_for_response(
     context: Context,
     fmt: Format,
     dtype: ArrayBackRef,
-    rows: Iterable,
+    value: List | Tuple,
     data: Dict[str, Any],
     action: Action,
     select: dict = None,
 ) -> list:
-    return_values = []
-    for value in rows:
-        if value is None or all(val is None for val in value.values()):
-            continue
-
-        if select and select != {'*': {}}:
-            names = get_select_prop_names(
-                context,
-                dtype,
-                dtype.model.properties,
-                action,
-                select,
-                reserved=['_id'],
-            )
-        else:
-            names = value.keys()
-
-        data = {
-            prop.name: commands.prepare_dtype_for_response(
-                context,
-                fmt,
-                prop.dtype,
-                val,
-                data=data,
-                action=action,
-                select=sel,
-            )
-            for prop, val, sel in select_props(
-                dtype.model,
-                names,
-                dtype.model.properties,
-                value,
-                select,
-            )
-        }
-        return_values.append(data)
-    return return_values
+    return _prepare_array_for_response(
+        context,
+        dtype,
+        fmt,
+        value,
+        data,
+        action,
+        select,
+    )
 
 
 @commands.prepare_dtype_for_response.register(Context, Format, ArrayBackRef, type(None))
@@ -1430,11 +1415,10 @@ def prepare_dtype_for_response(
     fmt: Format,
     dtype: ArrayBackRef,
     value: type(None),
-    *,
     data: Dict[str, Any],
     action: Action,
     select: dict = None,
-):
+) -> list:
     return []
 
 
