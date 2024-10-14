@@ -437,7 +437,7 @@ def prepare_dtype_for_response(
     return Cell(value)
 
 
-@commands.prepare_dtype_for_response.register(Context, Html, UUID, NotAvailable)
+@commands.prepare_dtype_for_response.register(Context, Html, UUID, (NotAvailable, type(None)))
 def prepare_dtype_for_response(
     context: Context,
     fmt: Html,
@@ -448,21 +448,11 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    pass
+    if value is None:
+        return Cell('', color=Color.null)
 
-
-@commands.prepare_dtype_for_response.register(Context, Html, UUID, type(None))
-def prepare_dtype_for_response(
-    context: Context,
-    fmt: Html,
-    dtype: UUID,
-    value: type(None),
-    *,
-    data: Dict[str, Any],
-    action: Action,
-    select: dict = None,
-):
-    pass
+    super_ = commands.prepare_dtype_for_response[Context, Format, File, NotAvailable]
+    return super_(context, fmt, dtype, value, data=data, action=action, select=select)
 
 
 @commands.prepare_dtype_for_response.register(Context, Html, Date, datetime.date)
