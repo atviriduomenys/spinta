@@ -29,6 +29,7 @@ from spinta.types.datatype import DataType, Denorm
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.types.datatype import String
+from spinta.types.datatype import UUID
 from spinta.types.text.components import Text
 from spinta.types.text.helpers import determine_language_property_for_text
 from spinta.ufuncs.basequerybuilder.components import LiteralProperty
@@ -142,6 +143,11 @@ def compare(
 @ufunc.resolver(SqlQueryBuilder, DataType, object, names=COMPARE)
 def compare(env: SqlQueryBuilder, op: str, dtype: DataType, value: Any):
     column = env.backend.get_column(env.table, dtype.prop)
+    return _sa_compare(op, column, value)
+
+@ufunc.resolver(SqlQueryBuilder, UUID, str, names=COMPARE)
+def compare(env: SqlQueryBuilder, op: str, dtype: DataType, value: Any):
+    column = env.backend.get_column(env.table, dtype.prop).cast(sa.String)
     return _sa_compare(op, column, value)
 
 

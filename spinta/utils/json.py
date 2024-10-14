@@ -4,6 +4,7 @@ import pathlib
 import decimal
 
 from shapely.geometry.base import BaseGeometry
+import uuid
 
 
 def fix_data_for_json(data):
@@ -25,4 +26,6 @@ def fix_data_for_json(data):
         return data
     if isinstance(data, BaseGeometry):
         return data.wkt
+    if isinstance(data, uuid.UUID):
+        return data.hex
     raise TypeError(f"{type(data)} probably won't serialize to JSON.")
