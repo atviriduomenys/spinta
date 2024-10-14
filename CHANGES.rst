@@ -4,11 +4,16 @@ Changes
 0.1.77 (unreleased)
 ===================
 
-
 New features:
 
+- Added support for literal values in `property` `prepare` expression (`#670`_).
+
+  .. _#670: https://github.com/atviriduomenys/spinta/issues/670
+
 - Added uuid data type (`#660`_).
+
   .. _#660: https://github.com/atviriduomenys/spinta/issues/660
+
 
 0.1.76 (2024-10-08)
 ===================

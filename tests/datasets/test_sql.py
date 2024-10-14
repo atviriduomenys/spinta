@@ -27,6 +27,32 @@ from spinta.testing.utils import error
 
 
 @pytest.fixture(scope='module')
+def translation_db():
+    with create_sqlite_db({
+        'cities': [
+            sa.Column('id', sa.Integer, primary_key=True),
+        ],
+        'translations': [
+            sa.Column('id', sa.Integer, primary_key=True),
+            sa.Column('lang', sa.Text),
+            sa.Column('name', sa.Text),
+            sa.Column('city_id', sa.Integer),
+        ]
+    }) as db:
+        db.write('translations', [
+            {'id': 0, 'lang': 'lt', 'name': 'Vilniaus miestas', 'city_id': 0},
+            {'id': 1, 'lang': 'en', 'name': 'City of Vilnius', 'city_id': 0},
+            {'id': 2, 'lang': 'lt', 'name': 'Kauno miestas', 'city_id': 1},
+            {'id': 3, 'lang': 'en', 'name': 'City of Kaunas', 'city_id': 1},
+        ])
+        db.write('cities', [
+            {'id': 0},
+            {'id': 1},
+        ])
+        yield db
+
+
+@pytest.fixture(scope='module')
 def geodb():
     with create_sqlite_db({
         'salis': [
@@ -3112,29 +3138,30 @@ def test_keymap_ref_keys_valid_order(context, rc, tmp_path, sqlite):
     }]
 
     resp = app.get('/datasets/keymap/Country')
-    assert listdata(resp, 'code', 'name', 'planet._id', 'planet_name._id', 'planet_combine._id', sort='code', full=True) == [
-        {
-            'code': 'LT',
-            'name': 'Lithuania',
-            'planet._id': id_mapping['ER'],
-            'planet_name._id': id_mapping['ER'],
-            'planet_combine._id': id_mapping['ER']
-        },
-        {
-            'code': 'LV',
-            'name': 'Latvia',
-            'planet._id': id_mapping['ER'],
-            'planet_name._id': id_mapping['ER'],
-            'planet_combine._id': id_mapping['ER']
-        },
-        {
-            'code': 'S5',
-            'name': 's58467',
-            'planet._id': id_mapping['MS'],
-            'planet_name._id': id_mapping['MS'],
-            'planet_combine._id': id_mapping['MS']
-        }
-    ]
+    assert listdata(resp, 'code', 'name', 'planet._id', 'planet_name._id', 'planet_combine._id', sort='code',
+                    full=True) == [
+               {
+                   'code': 'LT',
+                   'name': 'Lithuania',
+                   'planet._id': id_mapping['ER'],
+                   'planet_name._id': id_mapping['ER'],
+                   'planet_combine._id': id_mapping['ER']
+               },
+               {
+                   'code': 'LV',
+                   'name': 'Latvia',
+                   'planet._id': id_mapping['ER'],
+                   'planet_name._id': id_mapping['ER'],
+                   'planet_combine._id': id_mapping['ER']
+               },
+               {
+                   'code': 'S5',
+                   'name': 's58467',
+                   'planet._id': id_mapping['MS'],
+                   'planet_name._id': id_mapping['MS'],
+                   'planet_combine._id': id_mapping['MS']
+               }
+           ]
 
 
 def test_keymap_ref_keys_invalid_order(context, rc, tmp_path, sqlite):
@@ -3184,26 +3211,259 @@ def test_keymap_ref_keys_invalid_order(context, rc, tmp_path, sqlite):
         'ER': data[0]['planet']['_id'],
         'MS': data[2]['planet']['_id']
     }
-    assert listdata(resp, 'code', 'name', 'planet._id', 'planet_name._id', 'planet_combine._id', sort='code', full=True) == [
-        {
-            'code': 'LT',
-            'name': 'Lithuania',
-            'planet._id': id_mapping['ER'],
-            'planet_name._id': id_mapping['ER'],
-            'planet_combine._id': id_mapping['ER']
-        },
-        {
-            'code': 'LV',
-            'name': 'Latvia',
-            'planet._id': id_mapping['ER'],
-            'planet_name._id': id_mapping['ER'],
-            'planet_combine._id': id_mapping['ER']
-        },
-        {
-            'code': 'S5',
-            'name': 's58467',
-            'planet._id': id_mapping['MS'],
-            'planet_name._id': id_mapping['MS'],
-            'planet_combine._id': id_mapping['MS']
-        }
-    ]
+    assert listdata(resp, 'code', 'name', 'planet._id', 'planet_name._id', 'planet_combine._id', sort='code',
+                    full=True) == [
+               {
+                   'code': 'LT',
+                   'name': 'Lithuania',
+                   'planet._id': id_mapping['ER'],
+                   'planet_name._id': id_mapping['ER'],
+                   'planet_combine._id': id_mapping['ER']
+               },
+               {
+                   'code': 'LV',
+                   'name': 'Latvia',
+                   'planet._id': id_mapping['ER'],
+                   'planet_name._id': id_mapping['ER'],
+                   'planet_combine._id': id_mapping['ER']
+               },
+               {
+                   'code': 'S5',
+                   'name': 's58467',
+                   'planet._id': id_mapping['MS'],
+                   'planet_name._id': id_mapping['MS'],
+                   'planet_combine._id': id_mapping['MS']
+               }
+           ]
+
+
+def test_composite_non_pk_ref_with_literal(context, rc, tmp_path, sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+d | r | b | m | property | type    | ref                       | source       | prepare  | access
+example                  |         |                           |              |          |
+  |   |   | Translation  |         | id                        | translations |          | open
+  |   |   |   | id       | integer |                           | id           |          |
+  |   |   |   | lang     | string  |                           | lang         |          |
+  |   |   |   | name     | string  |                           | name         |          |
+  |   |   |   | city_id  | integer |                           | city_id      |          |
+  |   |   |   |          |         |                           |              |          |
+  |   |   | City         |         | id                        | cities       |          | open
+  |   |   |   | id       | integer |                           | id           |          |
+  |   |   |   | en       | ref     | Translation[city_id,lang] |              | id, "en" |
+  |   |   |   | name_en  | string  |                           |              | en.name  |
+  |   |   |   | lt       | ref     | Translation[city_id,lang] |              | id, "lt" |
+  |   |   |   | name_lt  | string  |                           |              | lt.name  |
+    '''))
+
+    sqlite.init({
+        'cities': [
+            sa.Column('id', sa.Integer, primary_key=True),
+        ],
+        'translations': [
+            sa.Column('id', sa.Integer, primary_key=True),
+            sa.Column('lang', sa.Text),
+            sa.Column('name', sa.Text),
+            sa.Column('city_id', sa.Integer),
+        ]
+    })
+
+    sqlite.write('translations', [
+        {'id': 0, 'lang': 'lt', 'name': 'Vilniaus miestas', 'city_id': 0},
+        {'id': 1, 'lang': 'en', 'name': 'City of Vilnius', 'city_id': 0},
+        {'id': 2, 'lang': 'lt', 'name': 'Kauno miestas', 'city_id': 1},
+        {'id': 3, 'lang': 'en', 'name': 'City of Kaunas', 'city_id': 1},
+    ])
+    sqlite.write('cities', [
+        {'id': 0},
+        {'id': 1},
+    ])
+
+    app = create_client(rc, tmp_path, sqlite)
+
+    resp = app.get('/example/Translation')
+    mapper = {}
+    for item in resp.json()['_data']:
+        mapper[(item['city_id'], item['lang'])] = item['_id']
+
+    resp = app.get('/example/City')
+    assert listdata(resp, sort='id', full=True) == [{
+        'id': 0,
+        'en._id': mapper[(0, 'en')],
+        'name_en': "City of Vilnius",
+        'lt._id': mapper[(0, 'lt')],
+        'name_lt': "Vilniaus miestas"
+    }, {
+        'id': 1,
+        'en._id': mapper[(1, 'en')],
+        'name_en': "City of Kaunas",
+        'lt._id': mapper[(1, 'lt')],
+        'name_lt': "Kauno miestas"
+    }]
+
+
+def test_non_pk_ref_only_literal(context, rc, tmp_path, sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+d | r | b | m | property | type    | ref                       | source       | prepare  | access
+example                  |         |                           |              |          |
+  |   |   | Translation  |         | id                        | translations |          | open
+  |   |   |   | id       | integer |                           | id           |          |
+  |   |   |   | lang     | string  |                           | lang         |          |
+  |   |   |   | name     | string  |                           | name         |          |
+  |   |   |   | city_id  | integer |                           | city_id      |          |
+  |   |   |   |          |         |                           |              |          |
+  |   |   | City         |         | id                        | cities       |          | open
+  |   |   |   | id       | integer |                           | id           |          |
+  |   |   |   | en       | ref     | Translation[lang]         |              | "en"     |
+  |   |   |   | name_en  | string  |                           |              | en.name  |
+  |   |   |   | lt       | ref     | Translation[lang]         |              | "lt"     |
+  |   |   |   | name_lt  | string  |                           |              | lt.name  |
+    '''))
+
+    sqlite.init({
+        'cities': [
+            sa.Column('id', sa.Integer, primary_key=True),
+        ],
+        'translations': [
+            sa.Column('id', sa.Integer, primary_key=True),
+            sa.Column('lang', sa.Text),
+            sa.Column('name', sa.Text),
+            sa.Column('city_id', sa.Integer),
+        ]
+    })
+
+    sqlite.write('translations', [
+        {'id': 0, 'lang': 'lt', 'name': 'Vilniaus miestas', 'city_id': 0},
+        {'id': 1, 'lang': 'en', 'name': 'City of Vilnius', 'city_id': 0},
+    ])
+    sqlite.write('cities', [
+        {'id': 0},
+    ])
+
+    app = create_client(rc, tmp_path, sqlite)
+
+    resp = app.get('/example/Translation')
+    mapper = {}
+    for item in resp.json()['_data']:
+        mapper[(item['city_id'], item['lang'])] = item['_id']
+
+    resp = app.get('/example/City')
+    assert listdata(resp, sort='id', full=True) == [{
+        'id': 0,
+        'en._id': mapper[(0, 'en')],
+        'name_en': "City of Vilnius",
+        'lt._id': mapper[(0, 'lt')],
+        'name_lt': "Vilniaus miestas"
+    }]
+
+
+def test_non_pk_external_ref_with_literal(context, rc, tmp_path, sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+d | r | b | m | property | type    | ref                       | source       | prepare  | access | level
+example                  |         |                           |              |          |        |
+  |   |   | Translation  |         | id                        | translations |          | open   |
+  |   |   |   | id       | integer |                           | id           |          |        |
+  |   |   |   | lang     | string  |                           | lang         |          |        |
+  |   |   |   | name     | string  |                           | name         |          |        |
+  |   |   |   | city_id  | integer |                           | city_id      |          |        |
+  |   |   |   |          |         |                           |              |          |        |
+  |   |   | City         |         | id                        | cities       |          | open   |
+  |   |   |   | id       | integer |                           | id           |          |        |
+  |   |   |   | en       | ref     | Translation[city_id,lang] |              | id, "en" |        | 3
+  |   |   |   | name_en  | string  |                           |              | en.name  |        |
+  |   |   |   | lt       | ref     | Translation[city_id,lang] |              | id, "lt" |        | 3
+  |   |   |   | name_lt  | string  |                           |              | lt.name  |        |
+    '''))
+
+    sqlite.init({
+        'cities': [
+            sa.Column('id', sa.Integer, primary_key=True),
+        ],
+        'translations': [
+            sa.Column('id', sa.Integer, primary_key=True),
+            sa.Column('lang', sa.Text),
+            sa.Column('name', sa.Text),
+            sa.Column('city_id', sa.Integer),
+        ]
+    })
+
+    sqlite.write('translations', [
+        {'id': 0, 'lang': 'lt', 'name': 'Vilniaus miestas', 'city_id': 0},
+        {'id': 1, 'lang': 'en', 'name': 'City of Vilnius', 'city_id': 0},
+        {'id': 2, 'lang': 'lt', 'name': 'Kauno miestas', 'city_id': 1},
+        {'id': 3, 'lang': 'en', 'name': 'City of Kaunas', 'city_id': 1},
+    ])
+    sqlite.write('cities', [
+        {'id': 0},
+        {'id': 1},
+    ])
+
+    app = create_client(rc, tmp_path, sqlite)
+
+    resp = app.get('/example/City')
+    assert listdata(resp, sort='id', full=True) == [{
+        'id': 0,
+        'en.city_id': 0,
+        'en.lang': "en",
+        'name_en': "City of Vilnius",
+        'lt.city_id': 0,
+        'lt.lang': "lt",
+        'name_lt': "Vilniaus miestas"
+    }, {
+        'id': 1,
+        'en.city_id': 1,
+        'en.lang': "en",
+        'name_en': "City of Kaunas",
+        'lt.city_id': 1,
+        'lt.lang': "lt",
+        'name_lt': "Kauno miestas",
+    }]
+
+
+def test_non_pk_external_ref_only_literal(context, rc, tmp_path, sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+d | r | b | m | property | type    | ref                       | source       | prepare  | access | level
+example                  |         |                           |              |          |        |
+  |   |   | Translation  |         | id                        | translations |          | open   |
+  |   |   |   | id       | integer |                           | id           |          |        |
+  |   |   |   | lang     | string  |                           | lang         |          |        |
+  |   |   |   | name     | string  |                           | name         |          |        |
+  |   |   |   | city_id  | integer |                           | city_id      |          |        |
+  |   |   |   |          |         |                           |              |          |        |
+  |   |   | City         |         | id                        | cities       |          | open   |
+  |   |   |   | id       | integer |                           | id           |          |        |
+  |   |   |   | en       | ref     | Translation[lang]         |              | "en"     |        | 3
+  |   |   |   | name_en  | string  |                           |              | en.name  |        |
+  |   |   |   | lt       | ref     | Translation[lang]         |              | "lt"     |        | 3
+  |   |   |   | name_lt  | string  |                           |              | lt.name  |        |
+    '''))
+
+    sqlite.init({
+        'cities': [
+            sa.Column('id', sa.Integer, primary_key=True),
+        ],
+        'translations': [
+            sa.Column('id', sa.Integer, primary_key=True),
+            sa.Column('lang', sa.Text),
+            sa.Column('name', sa.Text),
+            sa.Column('city_id', sa.Integer),
+        ]
+    })
+
+    sqlite.write('translations', [
+        {'id': 0, 'lang': 'lt', 'name': 'Vilniaus miestas', 'city_id': 0},
+        {'id': 1, 'lang': 'en', 'name': 'City of Vilnius', 'city_id': 0},
+    ])
+    sqlite.write('cities', [
+        {'id': 0},
+    ])
+
+    app = create_client(rc, tmp_path, sqlite)
+
+    resp = app.get('/example/City')
+    assert listdata(resp, sort='id', full=True) == [{
+        'id': 0,
+        'en.lang': "en",
+        'name_en': "City of Vilnius",
+        'lt.lang': "lt",
+        'name_lt': "Vilniaus miestas"
+    }]

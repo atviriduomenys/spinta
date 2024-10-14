@@ -148,3 +148,9 @@ class ResultProperty(Func):
     # Used when result is calculated at ResultBuilder level
     # for example: checksum()
     expr: Expr
+
+
+@dataclasses.dataclass
+class LiteralProperty(Func):
+    # Used when returning literal value
+    value: Any
