@@ -214,7 +214,7 @@ def test_migrate_create_simple_datatype_model(
         assert some_date.nullable
 
         some_date_time = columns['someDateTime']
-        assert isinstance(some_date_time.name, sa.DateTime)
+        assert isinstance(some_date_time.type, sa.DateTime)
         assert some_date_time.nullable
 
         some_time = columns['someTime']
@@ -234,7 +234,7 @@ def test_migrate_create_simple_datatype_model(
         assert some_uri.nullable
 
         some_binary = columns['someBinary']
-        assert isinstance(some_binary.name, sa.LargeBinary)
+        assert isinstance(some_binary.type, sa.LargeBinary)
         assert some_binary.nullable
 
         some_json = columns['someJson']
