@@ -198,19 +198,19 @@ def test_migrate_create_simple_datatype_model(
         }.issubset(columns.keys())
 
         some_text = columns['someText']
-        assert isinstance(some_text.name, sa.String)
+        assert isinstance(some_text.type, sa.String)
         assert some_text.nullable
 
         some_integer = columns['someInteger']
-        assert isinstance(some_integer.name, sa.Integer)
+        assert isinstance(some_integer.type, sa.Integer)
         assert some_integer.nullable
 
         some_number = columns['someNumber']
-        assert isinstance(some_number.name, sa.Float)
+        assert isinstance(some_number.type, sa.Float)
         assert some_number.nullable
 
         some_date = columns['someDate']
-        assert isinstance(some_date.name, sa.Date)
+        assert isinstance(some_date.type, sa.Date)
         assert some_date.nullable
 
         some_date_time = columns['someDateTime']
@@ -218,19 +218,19 @@ def test_migrate_create_simple_datatype_model(
         assert some_date_time.nullable
 
         some_time = columns['someTime']
-        assert isinstance(some_time.name, sa.Time)
+        assert isinstance(some_time.type, sa.Time)
         assert some_time.nullable
 
         some_boolean = columns['someBoolean']
-        assert isinstance(some_boolean.name, sa.Boolean)
+        assert isinstance(some_boolean.type, sa.Boolean)
         assert some_boolean.nullable
 
         some_url = columns['someUrl']
-        assert isinstance(some_url.name, sa.String)
+        assert isinstance(some_url.type, sa.String)
         assert some_url.nullable
 
         some_uri = columns['someUri']
-        assert isinstance(some_uri.name, sa.String)
+        assert isinstance(some_uri.type, sa.String)
         assert some_uri.nullable
 
         some_binary = columns['someBinary']
@@ -238,7 +238,7 @@ def test_migrate_create_simple_datatype_model(
         assert some_binary.nullable
 
         some_json = columns['someJson']
-        assert isinstance(some_json.name, sa.JSON)
+        assert isinstance(some_json.type, sa.JSON)
         assert some_json.nullable
 
         cleanup_table_list(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog'])
@@ -272,7 +272,7 @@ def test_migrate_add_simple_column(
         assert {'someText'}.issubset(columns.keys())
 
         some_text = columns['someText']
-        assert isinstance(some_text.name, sa.String)
+        assert isinstance(some_text.type, sa.String)
         assert some_text.nullable
 
         assert not {'someInteger'}.issubset(columns.keys())
@@ -320,7 +320,7 @@ def test_migrate_add_simple_column(
         assert {'someText', 'someInteger'}.issubset(columns.keys())
 
         some_integer = columns['someInteger']
-        assert isinstance(some_integer.name, sa.Integer)
+        assert isinstance(some_integer.type, sa.Integer)
         assert some_integer.nullable
 
         cleanup_table_list(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog'])
@@ -355,11 +355,11 @@ def test_migrate_remove_simple_column(
         assert {'someText', 'someInteger'}.issubset(columns.keys())
 
         some_text = columns['someText']
-        assert isinstance(some_text.name, sa.String)
+        assert isinstance(some_text.type, sa.String)
         assert some_text.nullable
 
         some_integer = columns['someInteger']
-        assert isinstance(some_integer.name, sa.Integer)
+        assert isinstance(some_integer.type, sa.Integer)
         assert some_integer.nullable
 
     override_manifest(context, tmp_path, '''
@@ -391,7 +391,7 @@ def test_migrate_remove_simple_column(
         assert {'someText', 'someInteger'}.issubset(columns.keys())
 
         some_integer = columns['someInteger']
-        assert isinstance(some_integer.name, sa.Integer)
+        assert isinstance(some_integer.type, sa.Integer)
         assert some_integer.nullable
 
         assert not {'__someInteger'}.issubset(columns.keys())
@@ -409,7 +409,7 @@ def test_migrate_remove_simple_column(
         assert {'someText', '__someInteger'}.issubset(columns.keys())
 
         some_integer = columns['__someInteger']
-        assert isinstance(some_integer.name, sa.Integer)
+        assert isinstance(some_integer.type, sa.Integer)
         assert some_integer.nullable
 
         assert not {'someInteger'}.issubset(columns.keys())
@@ -445,11 +445,11 @@ def test_migrate_multiple_times_remove_simple_column(
         assert {'someText', 'someInteger'}.issubset(columns.keys())
 
         some_text = columns['someText']
-        assert isinstance(some_text.name, sa.String)
+        assert isinstance(some_text.type, sa.String)
         assert some_text.nullable
 
         some_integer = columns['someInteger']
-        assert isinstance(some_integer.name, sa.Integer)
+        assert isinstance(some_integer.type, sa.Integer)
         assert some_integer.nullable
 
     override_manifest(context, tmp_path, '''
@@ -495,7 +495,7 @@ def test_migrate_multiple_times_remove_simple_column(
         assert {'someText', '__someInteger'}.issubset(columns.keys())
 
         some_integer = columns['__someInteger']
-        assert isinstance(some_integer.name, sa.Integer)
+        assert isinstance(some_integer.type, sa.Integer)
         assert some_integer.nullable
 
         assert not {'someInteger'}.issubset(columns.keys())
@@ -520,7 +520,7 @@ def test_migrate_multiple_times_remove_simple_column(
         assert {'someText', 'someInteger', '__someInteger'}.issubset(columns.keys())
 
         some_integer = columns['someInteger']
-        assert isinstance(some_integer.name, sa.Integer)
+        assert isinstance(some_integer.type, sa.Integer)
         assert some_integer.nullable
 
     override_manifest(context, tmp_path, '''
@@ -566,7 +566,7 @@ def test_migrate_multiple_times_remove_simple_column(
         assert {'someText', '__someInteger'}.issubset(columns.keys())
 
         some_integer = columns['__someInteger']
-        assert isinstance(some_integer.name, sa.Integer)
+        assert isinstance(some_integer.type, sa.Integer)
         assert some_integer.nullable
 
         assert not {'someInteger'}.issubset(columns.keys())
@@ -602,7 +602,7 @@ def test_migrate_add_unique_constraint(
         assert {'someText'}.issubset(columns.keys())
 
         some_text = columns['someText']
-        assert isinstance(some_text.name, sa.String)
+        assert isinstance(some_text.type, sa.String)
         assert some_text.nullable
 
     override_manifest(context, tmp_path, '''
@@ -676,7 +676,7 @@ def test_migrate_remove_unique_constraint(
         assert {'someText'}.issubset(columns.keys())
 
         some_text = columns['someText']
-        assert isinstance(some_text.name, sa.String)
+        assert isinstance(some_text.type, sa.String)
         assert some_text.nullable
 
         constraint_columns = get_table_unique_constraint_columns(tables['migrate/example/Test'])

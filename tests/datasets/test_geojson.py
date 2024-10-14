@@ -15,7 +15,7 @@ def test_geojson_resource(rc: RawConfig):
     '''
     context, manifest = load_manifest_and_context(rc, table, mode=Mode.external)
     backend = commands.get_model(context, manifest, 'example/City').backend
-    assert backend.name == 'geojson'
+    assert backend.type == 'geojson'
     assert manifest == table
 
     commands.wait(context, backend)

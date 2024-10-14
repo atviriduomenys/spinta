@@ -61,7 +61,7 @@ def load(
     dataset.resources = {}
     for name, params in (data.get('resources') or {}).items():
         resource = get_node(context, config, manifest, dataset.eid, data, parent=dataset, group='datasets', ctype='resource')
-        resource.name = params.get('type')
+        resource.type = params.get('type')
         resource.name = name
         resource.dataset = dataset
         dataset.resources[name] = commands.load(

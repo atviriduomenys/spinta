@@ -68,7 +68,7 @@ def create_manifest(
     mtype = rc.get('manifests', name, 'type', required=True)
     Manifest_ = config.components['manifests'][mtype]
     manifest = Manifest_()
-    manifest.name = mtype
+    manifest.type = mtype
     init_manifest(context, manifest, name)
     _configure_manifest(context, rc, store, manifest, seen)
     return manifest
@@ -197,7 +197,7 @@ def _load_manifest_node(
 ) -> MetaData:
     node = get_node(context, config, manifest, eid, data)
     node.eid = eid
-    node.name = data['type']
+    node.type = data['type']
     node.parent = manifest
     node.manifest = manifest
     commands.load(context, node, data, manifest, source=source)

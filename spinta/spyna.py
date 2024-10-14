@@ -162,22 +162,22 @@ class Visitor:
         }
 
     def value(self, node, token):
-        if token.name == 'STRING':
+        if token.type == 'STRING':
             return token.value[1:-1].encode().decode("unicode_escape")
-        if token.name == 'INT':
+        if token.type == 'INT':
             return int(token.value)
-        if token.name == 'FLOAT':
+        if token.type == 'FLOAT':
             return float(token.value)
-        if token.name == 'NULL':
+        if token.type == 'NULL':
             return None
-        if token.name == 'BOOL':
+        if token.type == 'BOOL':
             return self._const(token.value)
-        if token.name == 'ALL':
+        if token.type == 'ALL':
             return {
                 'name': 'op',
                 'args': ['*'],
             }
-        raise Exception(f"Unknown token type: {token.name}")
+        raise Exception(f"Unknown token type: {token.type}")
 
     def _const(self, name: str):
         return {
