@@ -12,6 +12,8 @@ from typing import TypeVar
 
 from itertools import chain
 from itertools import count
+
+from pygments.lexer import inherit
 from starlette.requests import Request
 from starlette.templating import Jinja2Templates
 
@@ -435,6 +437,34 @@ def prepare_dtype_for_response(
     return Cell(value)
 
 
+@commands.prepare_dtype_for_response.register(Context, Html, UUID, NotAvailable)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: UUID,
+    value: NotAvailable,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    pass
+
+
+@commands.prepare_dtype_for_response.register(Context, Html, UUID, type(None))
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: UUID,
+    value: type(None),
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    pass
+
+
 @commands.prepare_dtype_for_response.register(Context, Html, Date, datetime.date)
 def prepare_dtype_for_response(
     context: Context,
@@ -748,6 +778,24 @@ def prepare_dtype_for_response(
     return res
 
 
+@commands.prepare_dtype_for_response.register(Context, Html, Inherit, (NotAvailable, type(None)))
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: Inherit,
+    value: NotAvailable,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    if value is None:
+        return Cell('', color=Color.null)
+
+    super_ = commands.prepare_dtype_for_response[Context, Format, File, NotAvailable]
+    return super_(context, fmt, dtype, value, data=data, action=action, select=select)
+
+
 @commands.prepare_dtype_for_response.register(Context, Html, ArrayBackRef, tuple)
 def prepare_dtype_for_response(
     context: Context,
@@ -799,6 +847,24 @@ def prepare_dtype_for_response(
     fmt: Html,
     dtype: BackRef,
     value: dict,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    super_ = commands.prepare_dtype_for_response[Context, Format, BackRef, dict]
+    value = super_(context, fmt, dtype, value, data=data, action=action, select=select)
+    if value is None:
+        return Cell('', color=Color.null)
+    return value
+
+
+@commands.prepare_dtype_for_response.register(Context, Html, BackRef, str)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: BackRef,
+    value: str,
     *,
     data: Dict[str, Any],
     action: Action,
