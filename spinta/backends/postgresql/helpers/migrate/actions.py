@@ -141,7 +141,7 @@ class DowngradeTransferDataMigrationAction(MigrationAction):
             table_name,
             sa.MetaData(),
             source._copy(),
-            *[sa.Column(key, column.name) for key, column in columns.items()]
+            *[sa.Column(key, column.type) for key, column in columns.items()]
         )
         foreign_table = sa.Table(
             foreign_table_name,
@@ -180,7 +180,7 @@ class UpgradeTransferDataMigrationAction(MigrationAction):
             foreign_table_name,
             sa.MetaData(),
             sa.Column('_id', UUID),
-            *[sa.Column(key, column.name) for key, column in columns.items()]
+            *[sa.Column(key, column.type) for key, column in columns.items()]
         )
         self.query = target_table.update().values(
             **{

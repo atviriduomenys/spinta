@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 from lxml import etree
 
-from spinta.manifests.xsd.helpers_new import XSDReader, State, XSDProperty, XSDType, XSDModel
+from spinta.manifests.xsd2.helpers_new import XSDReader, State, XSDProperty, XSDType, XSDModel
 
 
 def test_process_element_inline_type():

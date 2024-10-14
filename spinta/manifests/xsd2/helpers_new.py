@@ -273,7 +273,7 @@ class XSDDatasetResource:
 
 class XSDReader:
     dataset_resource: XSDDatasetResource
-    models: dict[str, XSDModel]
+    models: list[XSDModel]
     _path: str
     root: _Element
     deduplicate_model_name: Deduplicator
@@ -496,6 +496,8 @@ class XSDReader:
             for choice_prop in choice_props:
                 pass
             # todo duplicate the model many times, each with each choice_prop and
+
+        self.models.append(model)
         return [model]
 
     def _map_type(self, xsd_type: str) -> XSDType:
