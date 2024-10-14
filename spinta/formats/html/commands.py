@@ -51,6 +51,7 @@ from spinta.types.datatype import Number
 from spinta.types.datatype import Binary
 from spinta.types.datatype import JSON
 from spinta.types.datatype import Inherit
+from spinta.types.datatype import UUID
 from spinta.types.geometry.components import Geometry
 from spinta.types.text.components import Text
 from spinta.utils.encoding import is_url_safe_base64, encode_page_values
@@ -409,6 +410,25 @@ def prepare_dtype_for_response(
     link = data.pop('_link', True)
     if dtype.prop.name == '_id' and link:
         return Cell(short_id(value), link=get_model_link(
+            dtype.prop.model,
+            pk=value,
+        ))
+    return Cell(value)
+
+@commands.prepare_dtype_for_response.register(Context, Html, UUID, object)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: UUID,
+    value: Any,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    link = data.pop('_link', True)
+    if dtype.prop.name == '_id' and link:
+        return Cell(short_id(str(value)), link=get_model_link(
             dtype.prop.model,
             pk=value,
         ))
