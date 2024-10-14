@@ -385,6 +385,10 @@ class UnknownParameter(BaseError):
     }
 
 
+class InvalidUuidValue(UserError):
+    template = "Invalid uuid value: {value}."
+
+
 class InvalidRefValue(UserError):
     template = "Invalid reference value: {value}."
 

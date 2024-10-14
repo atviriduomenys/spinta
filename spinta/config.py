@@ -124,6 +124,7 @@ CONFIG = {
             'page': 'spinta.types.datatype:PageType',
             'partial': 'spinta.types.datatype:Partial',
             'partial_array': 'spinta.types.datatype:PartialArray',
+            'uuid': 'spinta.types.datatype:UUID',
         },
         'urlparams': {
             'component': 'spinta.urlparams:UrlParams',
