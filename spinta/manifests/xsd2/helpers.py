@@ -285,6 +285,7 @@ class XSDReader:
         self._path = path
         self.dataset_resource = XSDDatasetResource(dataset_given_name=dataset_name, resource_name="resource1")
         self.custom_types = {}
+        self.models = []
 
     def register_simple_types(self, state: State) -> None:
         custom_types_nodes = self.root.xpath(f'./*[local-name() = "simpleType"]')
@@ -313,7 +314,7 @@ class XSDReader:
     def _post_process_resource_model(self):
         if self.resource_model.properties:
             self.resource_model.set_name(self.deduplicate_model_name(f"Resource"))
-            self.models[self.resource_model.name] = self.resource_model
+            self.models.append(self.resource_model)
 
     def _post_process_refs(self):
         pass
@@ -361,7 +362,11 @@ class XSDReader:
             if isinstance(node, etree._Comment):
                 continue
             if QName(node).localname == "element":
-                return self.process_element(node, state)
+                # todo add task for this and finish this
+                properties = self.process_element(node, state)
+                for prop in properties:
+                    if prop.type.name not in ("ref", "backref"):
+                        self.resource_model.properties[prop.name] = prop
             elif QName(node).localname == "complexType":
                 return self.process_complex_type(node, state)
             elif QName(node).localname == "simpleType":
@@ -403,7 +408,7 @@ class XSDReader:
 
         if node.attrib.get("type"):
 
-            element_type = node.attrib["type"]
+            element_type = node.attrib["type"].split(":")[-1]
 
             # separately defined simpleType
             if element_type in self.custom_types:
@@ -417,7 +422,7 @@ class XSDReader:
             # separately defined complexType
             else:
                 property_type = XSDType()
-                property_type_to = node.attrib["type"]
+                property_type_to = element_type
                 property_type.name = "backref" if is_array else "ref"
             prop = XSDProperty(xsd_name=property_name, property_type=property_type, required=is_required, source=property_name, is_array=is_array)
             prop.type_to = property_type_to
