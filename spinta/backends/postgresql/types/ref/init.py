@@ -18,7 +18,7 @@ def prepare(context: Context, backend: PostgreSQL, dtype: Ref, **kwargs):
     pkey_type = commands.get_primary_key_type(context, backend)
     columns = []
 
-    if dtype.prop.given.explicit:
+    if not dtype.inherited:
         columns = get_pg_foreign_key(
             dtype.prop,
             table_name=get_pg_name(get_table_name(dtype.model)),

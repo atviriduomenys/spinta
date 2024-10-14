@@ -39,7 +39,7 @@ from spinta.components import ScopeFormatterFunc
 from spinta.core.enums import Access
 from spinta.components import Context, Action, Namespace, Model, Property
 from spinta.exceptions import InvalidToken, NoTokenValidationKey, ClientWithNameAlreadyExists, ClientAlreadyExists, \
-    ClientsKeymapNotFound, ClientsIdFolderNotFound, InvalidClientsKeymapStructure
+    ClientsKeymapNotFound, ClientsIdFolderNotFound, InvalidClientsKeymapStructure, InvalidScopes
 from spinta.exceptions import AuthorizedClientsOnly
 from spinta.exceptions import BasicAuthRequired
 from spinta.utils import passwords
@@ -166,7 +166,8 @@ class Client(rfc6749.ClientMixin):
         unknown_scopes = scopes - self.scopes
         if unknown_scopes:
             log.warning(f"requested unknown scopes: %s", ', '.join(sorted(unknown_scopes)))
-            return False
+            unknown_scopes = ', '.join(sorted(unknown_scopes))
+            raise InvalidScopes(scopes = unknown_scopes)
         else:
             return True
 
