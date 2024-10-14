@@ -11,10 +11,15 @@ from lxml.etree import Element, QName
 from starlette.requests import Request
 from starlette.responses import StreamingResponse
 
+from shapely.geometry.base import BaseGeometry
+
+from geoalchemy2.elements import WKBElement
+
 from spinta import commands
 from spinta.backends.components import SelectTree
 from spinta.backends.helpers import get_model_reserved_props
 from spinta.backends.helpers import select_model_props
+from spinta.backends.helpers import get_select_prop_names, select_props
 from spinta.components import Action, Namespace, page_in_data
 from spinta.components import Context
 from spinta.components import Model
@@ -31,6 +36,8 @@ from spinta.types.datatype import Date
 from spinta.types.datatype import Time
 from spinta.types.datatype import DateTime
 from spinta.types.datatype import Number
+from spinta.types.datatype import ExternalRef, Array, BackRef, ArrayBackRef, Inherit, JSON, UUID, Object, Binary
+from spinta.types.geometry.components import Geometry
 from spinta.types.text.components import Text
 from spinta.utils.encoding import encode_page_values
 from spinta.utils.schema import NotAvailable
@@ -671,4 +678,355 @@ def prepare_dtype_for_response(
             ))
     return result
 
+
+@commands.prepare_dtype_for_response.register(Context, Rdf, ExternalRef, (dict, type(None)))
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Rdf,
+    dtype: ExternalRef,
+    value: dict,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None
+):
+    if value is None:
+        return None
+
+    return _create_element(
+        name=data['_elem_name'],
+        text=str(value)
+    )
+
+
+@commands.prepare_dtype_for_response.register(Context, Rdf, Geometry, BaseGeometry)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Rdf,
+    dtype: Geometry,
+    value: BaseGeometry,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None
+):
+    return _create_element(
+        name=data['_elem_name'],
+        text=str(value)
+    )
+
+
+@commands.prepare_dtype_for_response.register(Context, Rdf, Geometry, WKBElement)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Rdf,
+    dtype: Geometry,
+    value: WKBElement,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None
+):
+    return _create_element(
+        name=data['_elem_name'],
+        text=str(value)
+    )
+
+
+@commands.prepare_dtype_for_response.register(Context, Rdf, BackRef, (dict, type(None)))
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Rdf,
+    dtype: BackRef,
+    value: dict,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None
+):
+    if value is None:
+        return None
+
+    return _create_element(
+        name=data['_elem_name'],
+        text=str(value)
+    )
+
+
+@commands.prepare_dtype_for_response.register(Context, Rdf, BackRef, str)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Rdf,
+    dtype: BackRef,
+    value: str,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None
+):
+    return _create_element(
+        name=data['_elem_name'],
+        text=str(value)
+    )
+
+
+@commands.prepare_dtype_for_response.register(Context, Rdf, ArrayBackRef, (tuple, type(None)))
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Rdf,
+    dtype: ArrayBackRef,
+    value: tuple,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None
+):
+    if value is None:
+        return None
+
+    return _create_element(
+        name=data['_elem_name'],
+        text=str(value)
+    )
+
+
+@commands.prepare_dtype_for_response.register(Context, Rdf, ArrayBackRef, list)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Rdf,
+    dtype: ArrayBackRef,
+    value: list,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None
+):
+    return _create_element(
+        name=data['_elem_name'],
+        text=str(value)
+    )
+
+
+@commands.prepare_dtype_for_response.register(Context, Rdf, ArrayBackRef, type(None))
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Rdf,
+    dtype: ArrayBackRef,
+    value: type(None),
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None
+):
+    return None
+
+
+@commands.prepare_dtype_for_response.register(Context, Rdf, JSON, NotAvailable)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Rdf,
+    dtype: JSON,
+    value: NotAvailable,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None
+):
+    return _create_element(
+        name=data['_elem_name'],
+        text="<NA>"
+    )
+
+
+@commands.prepare_dtype_for_response.register(Context, Rdf, JSON, type(None))
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Rdf,
+    dtype: JSON,
+    value: type(None),
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None
+):
+    return None
+
+
+@commands.prepare_dtype_for_response.register(Context, Rdf, JSON, (object, type(None)))
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Rdf,
+    dtype: JSON,
+    value: object,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None
+):
+    return _create_element(
+        name=data['_elem_name'],
+        text=str(value)
+    )
+
+
+@commands.prepare_dtype_for_response.register(Context, Rdf, Object, dict)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Rdf,
+    dtype: Object,
+    value: dict,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None
+):
+    return _create_element(
+        name=data['_elem_name'],
+        text=str(value)
+    )
+
+
+@commands.prepare_dtype_for_response.register(Context, Rdf, Binary, bytes)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Rdf,
+    dtype: Binary,
+    value: bytes,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None
+):
+    return _create_element(
+        name=data['_elem_name'],
+        text=str(value)
+    )
+
+
+@commands.prepare_dtype_for_response.register(Context, Rdf, Array, (list, type(None)))
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Rdf,
+    dtype: Array,
+    value: List[Any],
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None
+):
+    if value is None:
+        return None
+
+    return _create_element(
+        name=data['_elem_name'],
+        text=str(value)
+    )
+
+
+@commands.prepare_dtype_for_response.register(Context, Rdf, Array, tuple)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Rdf,
+    dtype: Array,
+    value: tuple,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None
+):
+    return _create_element(
+        name=data['_elem_name'],
+        text=str(value)
+    )
+
+
+@commands.prepare_dtype_for_response.register(Context, Rdf, Inherit, (object, type(None)))
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Rdf,
+    dtype: Inherit,
+    value: object,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None
+):
+    if value is None:
+        return None
+
+    return _create_element(
+        name=data['_elem_name'],
+        text=str(value)
+    )
+
+
+@commands.prepare_dtype_for_response.register(Context, Rdf, Inherit, dict)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Rdf,
+    dtype: Inherit,
+    value: dict,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None
+):
+    return _create_element(
+        name=data['_elem_name'],
+        text=str(value)
+    )
+
+
+@commands.prepare_dtype_for_response.register(Context, Rdf, Inherit, NotAvailable)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Rdf,
+    dtype: Inherit,
+    value: NotAvailable,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None
+):
+    return _create_element(
+        name=data['_elem_name'],
+        text="<NA>"
+    )
+
+
+@commands.prepare_dtype_for_response.register(Context, Rdf, UUID, (object, type(None)))
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Rdf,
+    dtype: UUID,
+    value: object,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None
+):
+    if value is None:
+        return None
+
+    return _create_element(
+        name=data['_elem_name'],
+        text=str(value)
+    )
+
+
+@commands.prepare_dtype_for_response.register(Context, Rdf, UUID, NotAvailable)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Rdf,
+    dtype: UUID,
+    value: NotAvailable,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None
+):
+    return _create_element(
+        name=data['_elem_name'],
+        text="<NA>"
+    )
 
