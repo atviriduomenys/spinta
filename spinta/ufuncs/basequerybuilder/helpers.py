@@ -1,12 +1,13 @@
-from typing import Union
+from typing import Union, Any
 
 from spinta.components import Property, Page, UrlParams
 from spinta.core.ufuncs import Expr, asttoexpr
 from spinta.datasets.components import ExternalBackend
 from spinta.types.text.components import Text
 from spinta.types.text.helpers import determine_language_property_for_text
-from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryParams, QueryPage
+from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryParams, QueryPage, LiteralProperty
 from spinta.ufuncs.helpers import merge_formulas
+from spinta.utils.types import is_value_literal
 
 
 def is_expandable_not_expanded(env: BaseQueryBuilder, prop: Property):
@@ -174,3 +175,9 @@ def add_page_expr(expr: Expr, page: Page):
             page
         ]
     }))
+
+
+def process_literal_value(value: Any) -> Any:
+    if is_value_literal(value):
+        return LiteralProperty(value)
+    return value
