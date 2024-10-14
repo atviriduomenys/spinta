@@ -82,6 +82,7 @@ def handle_ref_key_assignment(context: Context, keymap: KeyMap, env: Env, value:
             if len(values) == 1:
                 values = values[0]
             val[prop] = values
+            i = i + count
     return val
 
 

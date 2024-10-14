@@ -3311,9 +3311,9 @@ example                  |         |                           |              | 
   |   |   |   |          |         |                           |              |          |
   |   |   | City         |         | id                        | cities       |          | open
   |   |   |   | id       | integer |                           | id           |          |
-  |   |   |   | en       | ref     | Translation[lang] |              | "en" |
+  |   |   |   | en       | ref     | Translation[lang]         |              | "en"     |
   |   |   |   | name_en  | string  |                           |              | en.name  |
-  |   |   |   | lt       | ref     | Translation[lang] |              | "lt" |
+  |   |   |   | lt       | ref     | Translation[lang]         |              | "lt"     |
   |   |   |   | name_lt  | string  |                           |              | lt.name  |
     '''))
 
@@ -3350,5 +3350,62 @@ example                  |         |                           |              | 
         'en._id': mapper[(0, 'en')],
         'name_en': "City of Vilnius",
         'lt._id': mapper[(0, 'lt')],
+        'name_lt': "Vilniaus miestas"
+    }]
+
+
+def test_non_pk_external_ref_literal(context, rc, tmp_path, sqlite):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+d | r | b | m | property | type    | ref                       | source       | prepare  | access | level
+example                  |         |                           |              |          |        |
+  |   |   | Translation  |         | id                        | translations |          | open   |
+  |   |   |   | id       | integer |                           | id           |          |        |
+  |   |   |   | lang     | string  |                           | lang         |          |        |
+  |   |   |   | name     | string  |                           | name         |          |        |
+  |   |   |   | city_id  | integer |                           | city_id      |          |        |
+  |   |   |   |          |         |                           |              |          |        |
+  |   |   | City         |         | id                        | cities       |          | open   |
+  |   |   |   | id       | integer |                           | id           |          |        |
+  |   |   |   | en       | ref     | Translation[city_id,lang] |              | id, "en" |        | 3
+  |   |   |   | name_en  | string  |                           |              | en.name  |        |
+  |   |   |   | lt       | ref     | Translation[city_id,lang] |              | id, "lt" |        | 3
+  |   |   |   | name_lt  | string  |                           |              | lt.name  |        |
+    '''))
+
+    sqlite.init({
+        'cities': [
+            sa.Column('id', sa.Integer, primary_key=True),
+        ],
+        'translations': [
+            sa.Column('id', sa.Integer, primary_key=True),
+            sa.Column('lang', sa.Text),
+            sa.Column('name', sa.Text),
+            sa.Column('city_id', sa.Integer),
+        ]
+    })
+
+    sqlite.write('translations', [
+        {'id': 0, 'lang': 'lt', 'name': 'Vilniaus miestas', 'city_id': 0},
+        {'id': 1, 'lang': 'en', 'name': 'City of Vilnius', 'city_id': 0},
+    ])
+    sqlite.write('cities', [
+        {'id': 0},
+    ])
+
+    app = create_client(rc, tmp_path, sqlite)
+
+    resp = app.get('/example/Translation')
+    mapper = {}
+    for item in resp.json()['_data']:
+        mapper[(item['city_id'], item['lang'])] = item['_id']
+
+    resp = app.get('/example/City')
+    assert listdata(resp, sort='id', full=True) == [{
+        'id': 0,
+        'en.city_id': 0,
+        'en.lang': "en",
+        'name_en': "City of Vilnius",
+        'lt.city_id': 0,
+        'lt.lang': "lt",
         'name_lt': "Vilniaus miestas"
     }]
