@@ -737,5 +737,5 @@ def read_schema(
 
     yield None, xsd.dataset_resource.get_data()
 
-    for model_name, model in xsd.models.items():
+    for model_name, model in xsd.models:
         yield None, model.get_data()
