@@ -6,4 +6,5 @@ class XsdManifest2(Manifest):
 
     @staticmethod
     def detect_from_path(path: str) -> bool:
+        print('HERE)')
         return path.endswith('.xsd') and path.startswith('xsd2+file://')

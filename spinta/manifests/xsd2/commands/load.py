@@ -4,7 +4,7 @@ from spinta import commands
 from spinta.components import Context
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
-from spinta.manifests.xsd.helpers import read_schema
+from spinta.manifests.xsd2.helpers import read_schema
 from spinta.manifests.xsd2.components import XsdManifest2
 
 log = logging.getLogger(__name__)
