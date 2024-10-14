@@ -3,6 +3,8 @@ from typing import cast
 from typing import Optional
 from pathlib import Path
 
+import xml.etree.ElementTree as ET
+
 import sqlalchemy as sa
 
 import pytest
@@ -758,3 +760,66 @@ def test_geometry_crs_bounding_area(
         bbox,
         tolerance=0.1
     )
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_geometry_rdf(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property          | type     | ref
+    backends/postgres/dtypes/geometry |          |
+      |   |   | City                  |          |
+      |   |   |   | name              | string   |
+      |   |   |   | coordinates       | geometry |
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+
+    app = create_test_client(context)
+    app.authmodel('backends/postgres/dtypes/geometry/City', [
+        'insert',
+        'getall',
+    ])
+
+    # Write data
+    resp = app.post('/backends/postgres/dtypes/geometry/City', json={
+        'name': "Vilnius",
+        'coordinates': 'POINT(54.6870458 25.2829111)',
+    })
+    assert resp.status_code == 201
+
+    # Read data
+    resp = app.get('/backends/postgres/dtypes/geometry/City/:format/rdf')
+    print(f'RESPONSE: {resp.text}')
+    namespaces = {
+        'rdf': 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
+        'pav': 'http://purl.org/pav/',
+        '': 'https://testserver/'
+    }
+    root = ET.fromstring(resp.text)
+    rdf_description = root.find('{http://www.w3.org/1999/02/22-rdf-syntax-ns#}Description')
+    id_value = rdf_description.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}about'].split('/')[-1]
+    version_value = rdf_description.attrib['{http://purl.org/pav/}version']
+    page_value = rdf_description.find('_page', namespaces).text
+
+    assert resp.text == f'<?xml version="1.0" encoding="UTF-8"?>\n' \
+                        f'<rdf:RDF\n' \
+                        f' xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"\n' \
+                        f' xmlns:pav="http://purl.org/pav/"\n' \
+                        f' xmlns:xml="http://www.w3.org/XML/1998/namespace"\n' \
+                        f' xmlns="https://testserver/">\n' \
+                        f'<rdf:Description rdf:about="/backends/postgres/dtypes/geometry/City/{id_value}" rdf:type="backends/postgres/dtypes/geometry/City" pav:version="{version_value}">\n ' \
+                        f' <_page>{page_value}</_page>\n ' \
+                        f' <name>Vilnius</name>\n ' \
+                        f" <coordinates>POINT (54.6870458 25.2829111)</coordinates>\n" \
+                        f'</rdf:Description>\n' \
+                        f'</rdf:RDF>\n'
