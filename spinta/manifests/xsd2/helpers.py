@@ -723,46 +723,6 @@ class State:
     after_processing_children: bool
     XSD_model_has_properties: bool
 
-#
-#
-# state = ElementState()
-#
-# # pirmas praėjimas - XML ir XSD logika
-# def process_element(state: State, node: _Element):
-#     name = ""
-#     state.path.append(node.g)
-#     return {"name": "getDocumentsByWagonResponse", "type": "model", "xsd":{"nillable": True, "node_type": "element", "type": "getDocumentsByWagonSearchParams"}}
-#
-# def process_complex_type(state: State, node: _Element):
-#     state.complex_types[node.get("name")] = {}  # sudedam info
-#     # jei turi pavadinim1 - dedam pavadinima, jei ne - kitas atvejis (vidinis complexType)
-#     return {"xsd":{"name"}}
-#
-# def process_sequence(state: State, node: _Element):
-#     pass
-#
-#
-#
-# # antras praėjimas - DSA logika
-# def process_element_2(state: State, node: _Element):
-#     xsd_type = node.get("type")
-#     type = state.complex_types[xsd_type]
-#     # pagal simple type
-#
-#
-#
-#     return {"type": "property", "name": node.get("name"), "dtype": "string"}
-#
-#     if state._is_root:
-#
-#
-#     return {"type": "model", "name": node.get("name")}
-#
-#
-#
-#     return {"type": "property", "name": node.get("name"), "dtype": "ref"}
-#
-
 
 def read_schema(
         context: Context,
