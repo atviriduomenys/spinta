@@ -463,6 +463,8 @@ class XSDReader:
         # todo handle unique (though it doesn't exist in RC)
     def process_complex_type(self, node: _Element, state: State) -> list[XSDModel]:
 
+        models = []
+
         model = XSDModel()
         name = node.attrib.get("name")
         if name:
@@ -491,7 +493,8 @@ class XSDReader:
             prop.name = state.property_deduplicate(prop.xsd_name)
         model.properties = properties
         if choice_props:
-            pass
+            for choice_prop in choice_props:
+                pass
             # todo duplicate the model many times, each with each choice_prop and
         return [model]
 
@@ -579,6 +582,7 @@ class XSDReader:
         return properties
 
     def process_choice(self, node: _Element, state: State) -> list[XSDProperty]:
+        # todo should return groups of properties, a group for each split. A group can have one property
         properties = []
         for child in node.getchildren():
             # We don't care about comments
