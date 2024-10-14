@@ -13,6 +13,7 @@ from urllib.request import urlopen
 from spinta.core.ufuncs import Expr
 from spinta.utils.naming import to_property_name, to_model_name, Deduplicator, to_dataset_name
 
+
 # mapping of XSD datatypes to DSA datatypes
 # XSD datatypes: https://www.w3.org/TR/xmlschema11-2/#built-in-datatypes
 # DSA datatypes: https://atviriduomenys.readthedocs.io/dsa/duomenu-tipai.html#duomenu-tipai
@@ -75,10 +76,8 @@ DATATYPES_MAPPING = {
     "dayTimeDuration": "integer",
     "dateTimeStamp": "datetime",
     "": "string",
-}
 
-class XSDProperty:
-    pass
+}
 
 
 class XSDModel:
@@ -90,14 +89,13 @@ class XSDModel:
     name: str | None = None
     basename: str | None = None
     external: dict | None = None
-    properties: dict = {}
+    properties: dict | None = None
     uri: str | None = None
     description: str | None = None
     root_properties: dict | None = None
     parent_model: XSDModel | None = None
     is_root_model: bool | None = None
-    element_name: str | None = None
-    complex_type_name: str | None = None
+
     """
     Class for creating and handling DSA models from XSD files.
 
@@ -164,8 +162,7 @@ class XSDModel:
 
         return enums
 
-    def _node_to_partial_property(self, node: _Element) -> tuple[
-        str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]:
+    def _node_to_partial_property(self, node: _Element) -> tuple[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]:
         """Node can be either element or attribute.
         This function only processes things common to attributes and elements"""
         prop = dict()
@@ -188,8 +185,8 @@ class XSDModel:
         return self.deduplicate(property_id), prop
 
     def attributes_to_properties(
-            self,
-            element: _Element
+        self,
+        element: _Element
     ) -> dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]:
         properties = {}
         attributes = element.xpath(f'./*[local-name() = "attribute"]')
@@ -218,10 +215,10 @@ class XSDModel:
         return properties
 
     def simple_element_to_property(
-            self,
-            element: _Element,
-            is_array: bool = False,
-            source_path: str = None
+        self,
+        element: _Element,
+        is_array: bool = False,
+        source_path: str = None
     ) -> tuple[str, dict[str, str | bool | dict[str, Any]]]:
         """
         simple element is an element which is either
@@ -264,10 +261,10 @@ class XSDModel:
         return property_id, prop
 
     def properties_from_simple_elements(
-            self,
-            node: _Element,
-            from_root: bool = False,
-            properties_required: bool = None
+        self,
+        node: _Element,
+        from_root: bool = False,
+        properties_required: bool = None
     ) -> dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]:
         is_array = False
         if self.xsd.is_array(node):
@@ -289,31 +286,6 @@ class XSDModel:
                 if is_array:
                     property_id = f"{property_id}[]"
                 properties[property_id] = prop
-        return properties
-
-    def element_to_property(
-            self,
-            node: _Element,
-            from_root: bool = False,
-            properties_required: bool = None
-    ) -> dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]:
-
-        is_array = False
-        if self.xsd.is_array(node):
-            is_array = True
-        properties = {}
-        elements = node.xpath(f'./*[local-name() = "element"]')
-        for element in elements:
-            property_id, prop = self.simple_element_to_property(element)
-            if from_root:
-                prop["required"] = False
-            if properties_required is True:
-                prop["required"] = True
-            if properties_required is False:
-                prop["required"] = False
-            if is_array:
-                property_id = f"{property_id}[]"
-            properties[property_id] = prop
         return properties
 
     def get_text_property(self, property_type=None) -> dict[str, dict[str, str | dict[str, str]]]:
@@ -345,7 +317,6 @@ class XSDReader:
         self._dataset_given_name: str = dataset_name
         self._set_dataset_and_resource_info()
         self.deduplicate: Deduplicator = Deduplicator()
-        self.root: _Element
 
     def get_property_type(self, node: _Element) -> str:
         if node.get("ref"):
@@ -464,7 +435,7 @@ class XSDReader:
     def is_array(element: _Element) -> bool:
         max_occurs: str = element.get("maxOccurs", "1")
         return max_occurs == "unbounded" or int(max_occurs) > 1
-
+    
     def _extract_root(self):
         if self._path.startswith("http"):
             document = etree.parse(urlopen(self._path))
@@ -536,12 +507,6 @@ class XSDReader:
         return False
 
     @staticmethod
-    def _is_complex_type(node: _Element) -> bool:
-        if node.xpath('local-name()') == "complexType":
-            return True
-        return False
-
-    @staticmethod
     def is_required(element: _Element) -> bool:
         min_occurs = int(element.get("minOccurs", 1))
         if min_occurs > 0:
@@ -551,9 +516,7 @@ class XSDReader:
             return True
         return False
 
-    def _build_ref_properties(self, complex_type: _Element, is_array: bool, model: XSDModel, new_source_path: str,
-                              node: _Element, referenced_element: _Element) -> dict[
-        str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]:
+    def _build_ref_properties(self, complex_type: _Element, is_array: bool, model: XSDModel, new_source_path: str, node: _Element, referenced_element: _Element) -> dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]:
         """
         Helper method for methods properties_from_references and properties_from_type_references
         """
@@ -598,10 +561,10 @@ class XSDReader:
         return properties
 
     def _properties_from_type_references(
-            self,
-            node: _Element,
-            model: XSDModel,
-            source_path: str = ""
+        self,
+        node: _Element,
+        model: XSDModel,
+        source_path: str = ""
     ) -> dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]:
 
         properties = {}
@@ -633,10 +596,10 @@ class XSDReader:
         return properties
 
     def _properties_from_references(
-            self,
-            node: _Element,
-            model: XSDModel,
-            source_path: str = ""
+        self,
+        node: _Element,
+        model: XSDModel,
+        source_path: str = ""
     ) -> dict[str, dict[str, str | bool | dict[str, str | dict[str, Any]]]]:
 
         properties = {}
@@ -666,8 +629,7 @@ class XSDReader:
 
                 complex_type = referenced_element.xpath("./*[local-name() = 'complexType']")[0]
 
-                built_properties = self._build_ref_properties(complex_type, is_array, model, new_source_path, node,
-                                                              referenced_element)
+                built_properties = self._build_ref_properties(complex_type, is_array, model, new_source_path, node, referenced_element)
                 for prop in built_properties.values():
                     if not XSDReader.is_required(ref_element):
                         prop["required"] = False
@@ -676,11 +638,11 @@ class XSDReader:
         return properties
 
     def _split_choice(
-            self,
-            node: _Element,
-            source_path: str,
-            parent_model: XSDModel,
-            is_root_model: bool = False
+        self,
+        node: _Element,
+        source_path: str,
+        parent_model: XSDModel,
+        is_root_model: bool = False
     ) -> list[str]:
         """
         If there are choices in the element,
@@ -740,11 +702,11 @@ class XSDReader:
         return model_names
 
     def _create_model(
-            self,
-            node: _Element,
-            source_path: str = "",
-            is_root_model: bool = False,
-            parent_model: XSDModel = None,
+        self,
+        node: _Element,
+        source_path: str = "",
+        is_root_model: bool = False,
+        parent_model: XSDModel = None,
     ) -> list[str]:
         """
         Parses an element and makes a model out of it. If it is a complete model, it will be added to the models list.
@@ -790,8 +752,7 @@ class XSDReader:
             # if this is complexType node which has complexContent, with a separate
             # node, we need to join the contents of them both
             if complex_type_node.xpath(f'./*[local-name() = "complexContent"]'):
-                complex_type_node = \
-                complex_type_node.xpath(f'./*[local-name() = "complexContent"]/*[local-name() = "extension"]')[0]
+                complex_type_node = complex_type_node.xpath(f'./*[local-name() = "complexContent"]/*[local-name() = "extension"]')[0]
                 complex_content_base_name = complex_type_node.get("base")
                 complex_content_base_node = self._get_separate_complex_type_node_by_type(complex_content_base_name)
                 if complex_content_base_node.xpath(f'./*[local-name() = "sequence"]'):
@@ -799,11 +760,11 @@ class XSDReader:
                     properties.update(model.properties_from_simple_elements(sequence_node))
 
             if (
-                    complex_type_node.xpath(f'./*[local-name() = "sequence"]') or
-                    complex_type_node.xpath(f'./*[local-name() = "all"]') or
-                    complex_type_node.xpath(f'./*[local-name() = "simpleContent"]') or
-                    choices or
-                    len(complex_type_node) > 0
+                complex_type_node.xpath(f'./*[local-name() = "sequence"]') or
+                complex_type_node.xpath(f'./*[local-name() = "all"]') or
+                complex_type_node.xpath(f'./*[local-name() = "simpleContent"]') or
+                choices or
+                len(complex_type_node) > 0
             ):
                 """
                 source: https://stackoverflow.com/questions/36286056/the-difference-between-all-sequence-choice-and-group-in-xsd
@@ -826,8 +787,7 @@ class XSDReader:
                     sequence_or_all_nodes = complex_type_node.xpath(f'./*[local-name() = "choice"]')
                     properties_required = False
                 elif complex_type_node.xpath(f'./*[local-name() = "simpleContent"]'):
-                    sequence_or_all_nodes = complex_type_node.xpath(
-                        f'./*[local-name() = "simpleContent"]/*[local-name() = "extension"]')
+                    sequence_or_all_nodes = complex_type_node.xpath(f'./*[local-name() = "simpleContent"]/*[local-name() = "extension"]')
 
                     text_property_type = sequence_or_all_nodes[0].get("base")
                     if text_property_type is not None:
@@ -872,6 +832,7 @@ class XSDReader:
         model.properties = properties
 
         if properties:
+
             model.add_external_info(external_name=new_source_path)
             model.description = self.get_description(node)
             self.models[model.name] = model
@@ -892,7 +853,6 @@ class XSDReader:
             resource_model.set_name(self.deduplicate(f"Resource"))
             self.models[resource_model.name] = resource_model
 
-
     def _parse_root_node(self):
         for node in self.root:
             if (
@@ -910,6 +870,8 @@ class XSDReader:
             for property_id, prop in model.properties.items():
                 if prop["type"] == "backref":
                     referenced_model = self.models[prop["model"]]
+                    # checking if the ref already exists.
+                    # They can exist multiple times, but refs should be added only once
                     prop_added = False
                     for prop in referenced_model.properties.values():
                         if "model" in prop and prop["model"] == model.name:
@@ -937,14 +899,19 @@ class XSDReader:
 
         do_loop = True
 
+        do_not_remove = []
+
         while do_loop:
 
             model_pairs = {}
 
             for model_name, model in self.models.items():
                 for another_model_name, another_model in self.models.items():
-                    if model is not another_model and model == another_model:
-                        if another_model_name not in model_pairs.values() and another_model_name not in model_pairs:
+                    if model is not another_model and model == another_model and another_model_name not in do_not_remove:
+                        if (
+                            another_model_name not in model_pairs.values() and
+                            another_model_name not in model_pairs
+                        ):
                             model_pairs[another_model_name] = model_name
 
             for another_model_name, model_name in model_pairs.items():
@@ -953,9 +920,10 @@ class XSDReader:
                     for property_id, prop in parent_model.properties.items():
                         if "model" in prop and prop["model"] == another_model_name:
                             prop["model"] = model_name
-                            if not self.models[model_name].parent_model:
-                                self.models[model_name].parent_model = self.models[model_name].parent_model
-                            self.models.pop(another_model_name)
+                    self.models.pop(another_model_name)
+                else:
+                    do_not_remove.append(another_model_name)
+                do_not_remove.append(model_name)
 
             if not model_pairs:
                 do_loop = False
@@ -975,8 +943,6 @@ class XSDReader:
         # main part
 
         self._add_resource_model()
-
-        # self._register_global_models()
 
         self._parse_root_node()
 
@@ -1065,6 +1031,7 @@ class XSDReader:
                             prop["external"]["name"] = f'{prop["external"]["name"]}/{ref_prop["external"]["name"]}'
                             prop["model"] = ref_prop["model"]
 
+
                 if not self._has_backref(model, referee) and parse_referee:
                     self._remove_proxy_models(referee)
 
@@ -1096,8 +1063,7 @@ class XSDReader:
                 has_backref = True
         return has_backref
 
-    def _add_model_nested_properties(self, root_model: XSDModel, model: XSDModel, property_prefix: str = "",
-                                     source_path: str = ""):
+    def _add_model_nested_properties(self, root_model: XSDModel, model: XSDModel, property_prefix: str = "", source_path: str = ""):
         """recursively gather nested properties or root model"""
         # go forward, add property prefix, which is constructed rom properties that came rom beore models, and construct pathh orward also
         # probably will need to cut beginning for path sometimes
@@ -1144,8 +1110,7 @@ class XSDReader:
                 else:
                     new_source_path = ""
 
-                self._add_model_nested_properties(root_model, ref_model, property_prefix=property_id,
-                                                  source_path=new_source_path)
+                self._add_model_nested_properties(root_model, ref_model, property_prefix=property_id, source_path=new_source_path)
 
         root_model.properties.update(root_properties)
 
@@ -1154,102 +1119,104 @@ class XSDReader:
 
             # we need to add root properties to properties if it's a root model
             if parsed_model.parent_model is None or parsed_model.parent_model.name not in self.models:
+
                 self._add_model_nested_properties(parsed_model, parsed_model)
 
 
-# def read_schema(
-#         context: Context,
-#         path: str,
-#         prepare: str = None,
-#         dataset_name: str = ''
-# ) -> dict[Any, dict[str, str | dict[str, str | bool | dict[str, str | dict[str, Any]]]]]:
-#     """
-#     This reads XSD schema from the url provided in path and yields asd schema models
-#
-#     For now this is adjusted for XSD schemas of Registrų centras
-#
-#     Elements can be:
-#     1. Simple type inline
-#     2. Simple type
-#     3. Complex type
-#     4. Complex type described separately
-#
-#     Elements can have annotations, which we add as description to either a model or a property.
-#
-#     1. Simple type.
-#         a) not a reference. It's a property
-#         b) a reference
-#             i. maxOccurs = 1
-#                 A. both referencing and referenced elements has annotations. A ref property
-#                 B. Only one or none of the elements has annotations. A part of the path
-#             ii. maxOccurs > 1 - a ref property
-#     2. Inline type.
-#
-#         a) inline type or a custom type referencing to simple type. A property
-#         b) complex type defined separately of this element.
-#
-#         If it's a root element, it's then added as a property to a special Resource model.
-#
-#         Simple type can have annotation too.
-#
-#     3. Complex type
-#         If element is complex type, it can be either a property or a model,
-#         or a part of a source path for a property or model, depending on other factors
-#
-#             a) element has attributes. Then it's a model and attributes are properties.
-#             b) element has a sequence
-#                 i. There is more than one element in the sequence. Then it's a model/end part of the model.
-#                    We treat child elements in the same way as we do root elements (recursion) and build a path
-#                 ii. There is only one element in the sequence. It can then be a property, a model or an intermediate
-#                     in the path of a model.
-#                     Options:
-#                         A. That element isn't a ref.
-#                             We treat child elements in the same way as we do root elements (recursion) and build a path
-#                         B. That element is a ref.
-#                             B1. If maxOccurs > 1, this is a model, and that other element is also a model
-#                             B2. If maxOccurs = 1
-#                                 B21. If both have annotation, then it's a model
-#                                 B22. If only one of them has annotation, it's a part of a path
-#
-#
-#             c) element has a choice.
-#
-#     4. complex type described separately
-#
-#     We will build a list of models
-#     (another option was to make a generator for parsing models, and going deeper, but that would
-#     be more complex when returning models. although this option is also possible, but it can
-#     be reworked into this from an option with a list)
-#
-#     If some model has references in the sequence, we need to also add those as models,
-#     mark their type as backref. In this case, we add them at the moment we meet them
-#     as xsd refs, because this way we will know that they are backrefs. We also need to add refs on
-#     those models to the current model.
-#
-#     Element can be as a ref in more than one other element.
-#
-#     Other things to handle: Resource model, custom types, enumerations, choices
-#
-#     Element can be turned into:
-#         1. A property (including reference properties)
-#         2. A model (including referenced models)
-#         3. A part of another model (as a path)
-#         4. A part of another property (as a path)
-#
-#     Attribute can only be turned into a property
-#
-#     A property can also be text()
-#
-#     -----------Nested properties-------------
-#
-#     Root model or models can have nested properties if they have any properties that point to other models.
-#
-#     """
-#     xsd = XSDReader(path, dataset_name)
-#
-#     xsd.start()
-#
-#     yield None, xsd.dataset_and_resource_info
-#
-#     for model_name, parsed_model in xsd.models.items():
-#         yield None, parsed_model.get_data()
+def read_schema(
+    context: Context,
+    path: str,
+    prepare: str = None,
+    dataset_name: str = ''
+) -> dict[Any, dict[str, str | dict[str, str | bool | dict[str, str | dict[str, Any]]]]]:
+    """
+    This reads XSD schema from the url provided in path and yields asd schema models
+
+    For now this is adjusted for XSD schemas of Registrų centras
+
+    Elements can be:
+    1. Simple type inline
+    2. Simple type
+    3. Complex type
+    4. Complex type described separately
+
+    Elements can have annotations, which we add as description to either a model or a property.
+
+    1. Simple type.
+        a) not a reference. It's a property
+        b) a reference
+            i. maxOccurs = 1
+                A. both referencing and referenced elements has annotations. A ref property
+                B. Only one or none of the elements has annotations. A part of the path
+            ii. maxOccurs > 1 - a ref property
+    2. Inline type.
+
+        a) inline type or a custom type referencing to simple type. A property
+        b) complex type defined separately of this element.
+
+        If it's a root element, it's then added as a property to a special Resource model.
+
+        Simple type can have annotation too.
+
+    3. Complex type
+        If element is complex type, it can be either a property or a model,
+        or a part of a source path for a property or model, depending on other factors
+
+            a) element has attributes. Then it's a model and attributes are properties.
+            b) element has a sequence
+                i. There is more than one element in the sequence. Then it's a model/end part of the model.
+                   We treat child elements in the same way as we do root elements (recursion) and build a path
+                ii. There is only one element in the sequence. It can then be a property, a model or an intermediate
+                    in the path of a model.
+                    Options:
+                        A. That element isn't a ref.
+                            We treat child elements in the same way as we do root elements (recursion) and build a path
+                        B. That element is a ref.
+                            B1. If maxOccurs > 1, this is a model, and that other element is also a model
+                            B2. If maxOccurs = 1
+                                B21. If both have annotation, then it's a model
+                                B22. If only one of them has annotation, it's a part of a path
+
+
+            c) element has a choice.
+
+    4. complex type described separately
+
+    We will build a list of models
+    (another option was to make a generator for parsing models, and going deeper, but that would
+    be more complex when returning models. although this option is also possible, but it can
+    be reworked into this from an option with a list)
+
+    If some model has references in the sequence, we need to also add those as models,
+    mark their type as backref. In this case, we add them at the moment we meet them
+    as xsd refs, because this way we will know that they are backrefs. We also need to add refs on
+    those models to the current model.
+
+    Element can be as a ref in more than one other element.
+
+    Other things to handle: Resource model, custom types, enumerations, choices
+
+    Element can be turned into:
+        1. A property (including reference properties)
+        2. A model (including referenced models)
+        3. A part of another model (as a path)
+        4. A part of another property (as a path)
+
+    Attribute can only be turned into a property
+
+    A property can also be text()
+
+    -----------Nested properties-------------
+
+    Root model or models can have nested properties if they have any properties that point to other models.
+
+    """
+    xsd = XSDReader(path, dataset_name)
+
+    xsd.start()
+
+    yield None, xsd.dataset_and_resource_info
+
+    for model_name, parsed_model in xsd.models.items():
+
+        yield None, parsed_model.get_data()
