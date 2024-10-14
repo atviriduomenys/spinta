@@ -227,6 +227,7 @@ class XSDModel:
 
     def __init__(self) -> None:
         self.properties = {}
+        self.deduplicate_property_name = Deduplicator()
 
     def set_name(self, name: str):
         self.basename = name
@@ -286,6 +287,7 @@ class XSDReader:
         self.dataset_resource = XSDDatasetResource(dataset_given_name=dataset_name, resource_name="resource1")
         self.custom_types = {}
         self.models = []
+        self.deduplicate_model_name = Deduplicator()
 
     def register_simple_types(self, state: State) -> None:
         custom_types_nodes = self.root.xpath(f'./*[local-name() = "simpleType"]')
@@ -366,6 +368,7 @@ class XSDReader:
                 properties = self.process_element(node, state)
                 for prop in properties:
                     if prop.type.name not in ("ref", "backref"):
+                        prop.name = self.resource_model.deduplicate_property_name(prop.xsd_name)
                         self.resource_model.properties[prop.name] = prop
             elif QName(node).localname == "complexType":
                 return self.process_complex_type(node, state)
