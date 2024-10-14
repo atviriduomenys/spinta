@@ -298,7 +298,8 @@ class XSDReader:
             objectify.deannotate(document, cleanup_namespaces=True)
             self.root = document.getroot()
         else:
-            with open(self._path) as file:
+            path = self._path.split("://")[-1]
+            with open(path) as file:
                 text = file.read()
                 self.root = etree.fromstring(bytes(text, encoding='utf-8'))
 
