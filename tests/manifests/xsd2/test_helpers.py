@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 from lxml import etree
 
-from spinta.manifests.xsd2.helpers import XSDReader, State, XSDProperty, XSDType, XSDModel
+from spinta.manifests.xsd2.helpers import XSDReader, State, XSDProperty, XSDType, XSDModel, XSDDatasetResource
 
 
 def test_process_element_inline_type():
@@ -252,7 +252,8 @@ def test_process_element_complex_type(mock_process_complex_type):
     """
     xsd_root = etree.fromstring(xsd_schema)
     element = xsd_root.xpath('./*[local-name() = "element"]')[0]
-    mock_model_1 = XSDModel()
+    dataset_resource = XSDDatasetResource(dataset_name="test")
+    mock_model_1 = XSDModel(dataset_resource=dataset_resource)
     mock_model_1.name = "Country",
     mock_model_1.source = "country",
 

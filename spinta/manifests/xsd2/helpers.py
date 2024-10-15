@@ -225,9 +225,11 @@ class XSDModel:
     deduplicate_property_name: Deduplicator
     xsd_node_type: str | None = None  # from complexType or from element
 
-    def __init__(self) -> None:
+    def __init__(self, dataset_resource) -> None:
         self.properties = {}
         self.deduplicate_property_name = Deduplicator()
+        self.dataset_resource = dataset_resource
+        self.source = ""
 
     def set_name(self, name: str):
         self.basename = name
@@ -236,17 +238,22 @@ class XSDModel:
     def get_data(self):
         model_data: dict = {
             "type": "model",
-            "name": self.name
+            "name": self.name,
+            "external":
+                {
+                    "name": self.source,
+                    "dataset": self.dataset_resource.dataset_name,
+                    "resource": self.dataset_resource.resource_name,
+                }
+
         }
         if self.description is not None:
             model_data["description"] = self.description
         if self.properties is not None:
             properties = {}
             for prop_name, prop in self.properties.items():
-                properties[prop_name] = prop.get_data()
+                properties.update(prop.get_data())
             model_data["properties"] = properties
-        if self.source is not None:
-            model_data["external"] = {"name": self.source}
         if self.uri is not None:
             model_data["uri"] = self.uri
 
@@ -259,12 +266,17 @@ class XSDDatasetResource:
     resource_name: str | None = None
     dataset_given_name: str | None = None
 
+    def __init__(self, dataset_name: str = None, resource_name: str = "resource1", dataset_given_name: str | None = None):
+        self.dataset_name = dataset_name
+        self.resource_name = resource_name
+        self.dataset_given_name = dataset_given_name
+
     def get_data(self):
         return {
             'type': 'dataset',
             'name': self.dataset_name,
             'resources': {
-                "resource1": {
+                self.resource_name: {
                     'type': 'xml',
                 },
             },
@@ -307,8 +319,9 @@ class XSDReader:
                 self.root = etree.fromstring(bytes(text, encoding='utf-8'))
 
     def _create_resource_model(self):
-        self.resource_model = XSDModel()
+        self.resource_model = XSDModel(dataset_resource=self.dataset_resource)
         self.resource_model.type = "model"
+        self.resource_model.source = "/"
         self.resource_model.description = "Įvairūs duomenys"
         self.resource_model.uri = "http://www.w3.org/2000/01/rdf-schema#Resource"
     #     resource model will be added to models at the end, if it has any peoperties
@@ -474,7 +487,7 @@ class XSDReader:
 
         models = []
 
-        model = XSDModel()
+        model = XSDModel(dataset_resource=self.dataset_resource)
         name = node.attrib.get("name")
         if name:
             model.name = self.deduplicate_model_name(name)
@@ -745,5 +758,5 @@ def read_schema(
 
     yield None, xsd.dataset_resource.get_data()
 
-    for model_name, model in xsd.models:
+    for model in xsd.models:
         yield None, model.get_data()
