@@ -434,7 +434,7 @@ def prepare_dtype_for_response(
             dtype.prop.model,
             pk=value,
         ))
-    return Cell(value)
+    return Cell(str(value))
 
 
 @commands.prepare_dtype_for_response.register(Context, Html, UUID, (NotAvailable, type(None)))
@@ -860,10 +860,8 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    super_ = commands.prepare_dtype_for_response[Context, Format, BackRef, dict]
+    super_ = commands.prepare_dtype_for_response[Context, Format, BackRef, str]
     value = super_(context, fmt, dtype, value, data=data, action=action, select=select)
-    if value is None:
-        return Cell('', color=Color.null)
     return value
 
 
