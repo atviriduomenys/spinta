@@ -14,7 +14,6 @@ from spinta import spyna
 from spinta.auth import authorized
 from spinta.backends import Backend
 from spinta.backends.components import SelectTree
-from spinta.backends.components import BackendOrigin
 from spinta.components import Action
 from spinta.components import Component
 from spinta.components import Context
@@ -24,7 +23,7 @@ from spinta.components import Property
 from spinta.exceptions import BackendUnavailable
 from spinta.types.datatype import DataType, Denorm
 from spinta.utils.data import take
-from spinta.backends.constants import TableType
+from spinta.backends.constants import TableType, BackendOrigin
 
 
 def validate_and_return_transaction(context: Context, backend: Backend, **kwargs):

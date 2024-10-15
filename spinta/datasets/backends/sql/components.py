@@ -4,6 +4,7 @@ import sqlalchemy as sa
 from sqlalchemy.engine.base import Engine
 
 from spinta import commands
+from spinta.backends.constants import BackendFeatures
 from spinta.components import Model
 from spinta.components import Property
 from spinta.datasets.components import ExternalBackend
@@ -15,7 +16,10 @@ class Sql(ExternalBackend):
     engine: Engine = None
     schema: sa.MetaData = None
     dbschema: str = None  # Database schema name
-    paginated: bool = True
+
+    features = {
+        BackendFeatures.PAGINATION
+    }
 
     @contextlib.contextmanager
     def transaction(self, write=False):

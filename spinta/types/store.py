@@ -7,7 +7,7 @@ import types
 import itertools
 
 from spinta import commands
-from spinta.backends.components import BackendOrigin
+from spinta.backends.constants import BackendOrigin
 from spinta.backends.helpers import load_backend
 from spinta.components import Context, Store
 from spinta.urlparams import get_model_by_name

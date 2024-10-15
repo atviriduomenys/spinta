@@ -2,6 +2,7 @@ import logging
 from typing import Iterator
 
 from spinta import commands
+from spinta.backends.helpers import validate_and_return_begin
 from spinta.components import Context
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
@@ -69,7 +70,6 @@ def getall(
                     elif isinstance(sel.prop.dtype, Ref):
                         val = handle_ref_key_assignment(context, keymap, env, val, sel.prop.dtype)
                 res[key] = val
-
             if is_page_enabled:
                 res['_page'] = get_page_values(env, row)
 
@@ -101,7 +101,7 @@ def getone(
         query[pk] = _id
 
     # building sqlalchemy query
-    context.attach(f'transaction.{backend.name}', backend.begin)
+    context.attach(f'transaction.{backend.name}', validate_and_return_begin, context, backend)
     conn = context.get(f'transaction.{backend.name}')
     table = model.external.name
     table = backend.get_table(model, table)

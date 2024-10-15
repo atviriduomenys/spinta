@@ -11,8 +11,8 @@ from sqlalchemy.engine import Engine
 from spinta import commands
 from spinta.utils.schema import NA
 from spinta.components import Model, Property
-from spinta.backends.constants import TableType
-from spinta.backends.components import Backend, BackendFeatures
+from spinta.backends.constants import TableType, BackendFeatures
+from spinta.backends.components import Backend
 from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.sqlalchemy import utcnow
 from spinta.exceptions import MultipleRowsFound, NotFoundError, BackendUnavailable
@@ -29,13 +29,13 @@ class PostgreSQL(Backend):
     features = {
         BackendFeatures.FILE_BLOCKS,
         BackendFeatures.WRITE,
+        BackendFeatures.EXPAND,
+        BackendFeatures.PAGINATION
     }
 
     engine: Engine = None
     schema: sa.MetaData = None
     tables: Dict[str, sa.Table] = None
-    paginated: bool = True
-    support_expand = True
 
     @contextlib.contextmanager
     def transaction(self, write=False):

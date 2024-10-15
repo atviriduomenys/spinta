@@ -1978,7 +1978,5 @@ def get_error_context(backend: Backend, *, prefix='this') -> Dict[str, str]:
         'type': f'{prefix}.type',
         'name': f'{prefix}.name',
         'origin': f'{prefix}.origin',
-        'features': f'{prefix}.features.keys()',
-        'support_pagination': f'{prefix}.paginated',
-        'support_expand': f'{prefix}.support_expand',
+        'features': f'{prefix}.features',
     }

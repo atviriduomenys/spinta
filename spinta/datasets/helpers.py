@@ -7,7 +7,7 @@ from typing import Set
 from spinta import exceptions
 from spinta.auth import authorized
 from spinta.backends import Backend
-from spinta.backends.components import BackendOrigin
+from spinta.backends.constants import BackendOrigin
 from spinta.backends.helpers import load_backend
 from spinta.components import Action
 from spinta.components import Context

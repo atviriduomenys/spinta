@@ -1,6 +1,5 @@
 from spinta import commands
-from spinta.backends.constants import TableType
-from spinta.backends.components import BackendFeatures
+from spinta.backends.constants import TableType, BackendFeatures
 from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_pg_name

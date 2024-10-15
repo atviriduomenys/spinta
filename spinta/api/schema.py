@@ -3,7 +3,7 @@ import tempfile
 from uuid import UUID
 
 from spinta import commands
-from spinta.auth import check_scope
+from spinta.auth import check_scope, Scopes
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.cli.migrate import MigrateMeta, MigrateRename
 from spinta.components import Context, UrlParams, Store, Model, Config, Property
@@ -165,7 +165,7 @@ def reset_affected_objects(context: Context, manifest: Manifest, dataset_name: s
 
 
 async def schema_api(context: Context, request: Request, params: UrlParams):
-    check_scope(context, 'schema_write')
+    check_scope(context, Scopes.SCHEMA_WRITE)
 
     store: Store = context.get('store')
     manifest = store.manifest

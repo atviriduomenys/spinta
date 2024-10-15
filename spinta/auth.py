@@ -56,6 +56,24 @@ yml.width = 80
 yml.explicit_start = False
 
 
+class Scopes(enum.Enum):
+    """
+    These are special scopes, that are not created from `Action` enum using authorize function.
+    """
+
+    # Grants access to manipulate client files through API
+    AUTH_CLIENTS = "auth_clients"
+
+    # Grants access to generate inspect files through API
+    INSPECT = "inspect"
+
+    # Grants access to manipulate backend schema through API
+    SCHEMA_WRITE = "schema_write"
+
+    # Grants access to change meta fields (like _id) through request
+    SET_META_FIELDS = "set_meta_fields"
+
+
 class AuthorizationServer(rfc6749.AuthorizationServer):
 
     def __init__(self, context):
@@ -424,9 +442,13 @@ def get_client_file_path(
     return client_file
 
 
-def check_scope(context: Context, scope: str):
+def check_scope(context: Context, scope: Union[Scopes, str]):
     config = context.get('config')
     token = context.get('auth.token')
+
+    if isinstance(scope, Scopes):
+        scope = scope.value
+
     token.check_scope(f'{config.scope_prefix}{scope}')
 
 
