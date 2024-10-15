@@ -53,6 +53,7 @@ CONFIG = {
             'xml': 'spinta.manifests.dict.components:XmlManifest',
             'internal': 'spinta.manifests.internal_sql.components:InternalSQLManifest',
             'xsd': 'spinta.manifests.xsd.components:XsdManifest',
+            'xsd2': 'spinta.manifests.xsd2.components:XsdManifest2',
         },
         'backends': {
             # In memory backends mostly usable in tests
