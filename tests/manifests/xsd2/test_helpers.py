@@ -25,7 +25,7 @@ def test_process_element_inline_type():
     assert result.xsd_name == "cityPopulation"
 
     # Assert that the 'source' is 'cityPopulation'
-    assert result.source == "cityPopulation"
+    assert result.source == "cityPopulation/text()"
 
     # Assert that 'required' is True
     assert result.required is True
@@ -57,7 +57,7 @@ def test_process_element_inline_type_array():
     assert result.xsd_name == "cityPopulation"
 
     # Assert that the 'source' is 'cityPopulation'
-    assert result.source == "cityPopulation"
+    assert result.source == "cityPopulation/text()"
 
     # Assert that 'required' is True
     assert result.required is True
@@ -98,7 +98,7 @@ def test_process_element_simple_type():
     assert result.xsd_name == "cityPopulation"
 
     # Assert that the 'source' is 'cityPopulation'
-    assert result.source == "cityPopulation"
+    assert result.source == "cityPopulation/text()"
 
     # Assert that 'required' is True
     assert result.required is True
@@ -139,7 +139,7 @@ def test_process_element_simple_type_array():
     assert result.xsd_name == "cityPopulation"
 
     # Assert that the 'source' is 'cityPopulation'
-    assert result.source == "cityPopulation"
+    assert result.source == "cityPopulation/text()"
 
     # Assert that 'required' is True
     assert result.required is True
@@ -179,7 +179,7 @@ def test_process_element_separate_simple_type():
     assert result.xsd_name == "cityPopulation"
 
     # Assert that the 'source' is 'cityPopulation'
-    assert result.source == "cityPopulation"
+    assert result.source == "cityPopulation/text()"
 
     # Assert that 'required' is True
     assert result.required is True
@@ -219,7 +219,7 @@ def test_process_element_separate_simple_type_array():
     assert result.xsd_name == "cityPopulation"
 
     # Assert that the 'source' is 'cityPopulation'
-    assert result.source == "cityPopulation"
+    assert result.source == "cityPopulation/text()"
 
     assert result.is_array is True
 

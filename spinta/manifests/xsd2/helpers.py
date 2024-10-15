@@ -441,7 +441,7 @@ class XSDReader:
                 property_type_to = element_type
                 property_type.name = "backref" if is_array else "ref"
 
-            if property_type in ("ref", "backref"):
+            if property_type.name in ("ref", "backref"):
                 source = property_name
             else:
                 source = f"{property_name}/text()"
@@ -472,7 +472,8 @@ class XSDReader:
 
                     props.append(prop)
             elif QName(child).localname == "simpleType":
-                prop = XSDProperty(xsd_name=property_name, required=is_required, source=property_name, is_array=is_array)
+                source = f"{property_name}/text()"
+                prop = XSDProperty(xsd_name=property_name, required=is_required, source=source, is_array=is_array)
                 prop.type = self.process_simple_type(child, state)
                 props.append(prop)
 
