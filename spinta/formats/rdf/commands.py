@@ -690,13 +690,69 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None
 ):
-    if value is None:
+    super_ = commands.prepare_dtype_for_response[Context, Format, Ref, type(value)]
+    data_dict = super_(context, fmt, dtype, value, data=data, action=action, select=select)
+    prefixes = data['_available_prefixes']
+    attributes = {}
+    children = []
+    if data_dict is None:
         return None
 
-    return _create_element(
-        name=data['_elem_name'],
-        text=str(value)
-    )
+    if len(data_dict) == 1 and '_id' in data_dict or '_uri' in data_dict:
+        if '_uri' in data_dict:
+            attributes[data['_resource_name']] = data_dict['_uri'].text
+        else:
+            attributes[data['_resource_name']] = get_model_link(
+                dtype.model,
+                pk=data_dict['_id'].text
+            )
+    else:
+        if isinstance(data['_elem_name'], QName):
+            prefix, name = _get_prefix_and_name(dtype.model.uri)
+            if name:
+                ref_model_name = _get_attribute_name(name, prefix, prefixes)
+            else:
+                ref_model_name = _get_attribute_name(dtype.model.basename, prefix, prefixes)
+            data_dict, ref_model_attrs = _get_attributes(
+                dtype.model,
+                data_dict,
+                data['_about_name'],
+                data['_type_name'],
+                data['_revision_name'],
+            )
+            ref_model_elem = _create_element(
+                name=ref_model_name,
+                attributes=ref_model_attrs,
+                children=list(data_dict.values())
+            )
+            children.append(ref_model_elem)
+        else:
+            data_dict['_type'] = _create_element(
+                name='_type',
+                text=dtype.model.model_type()
+            )
+            data_dict, description_attrs = _get_attributes(
+                dtype.model,
+                data_dict,
+                data['_about_name'],
+                data['_type_name'],
+                data['_revision_name'],
+            )
+            description_elem = _create_element(
+                name=_get_attribute_name(DESCRIPTION, RDF, prefixes),
+                attributes=description_attrs,
+                children=list(data_dict.values())
+            )
+            children.append(description_elem)
+
+    if attributes or children:
+        return _create_element(
+            name=data['_elem_name'],
+            attributes=attributes,
+            children=children
+        )
+    else:
+        return None
 
 
 @commands.prepare_dtype_for_response.register(Context, Rdf, Geometry, BaseGeometry)

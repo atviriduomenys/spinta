@@ -425,7 +425,11 @@ def test_external_ref_format_rdf(
                         f'<rdf:Description rdf:about="/datasets/internal/City/{id_value}" rdf:type="datasets/internal/City" pav:version="{version_value}">\n ' \
                         f' <_page>{page_value}</_page>\n ' \
                         f' <name>Vilnius</name>\n ' \
-                        f" <country>{{'code': 'lt'}}</country>\n" \
+                        f' <country>\n' \
+                        f'    <rdf:Description rdf:type="datasets/externalref/Country">\n' \
+                        f'      <country>lt</country>\n' \
+                        f'    </rdf:Description>\n' \
+                        f"  </country>\n" \
                         f'</rdf:Description>\n' \
                         f'</rdf:RDF>\n'
 
