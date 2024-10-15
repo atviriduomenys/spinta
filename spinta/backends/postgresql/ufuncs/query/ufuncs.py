@@ -423,6 +423,31 @@ def select(env, column):
     return Selected(env.add_column(column))
 
 
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, PrimaryKey)
+def select(
+    env: PgQueryBuilder,
+    fpr: ForeignProperty,
+    dtype: PrimaryKey,
+) -> Selected:
+    model = dtype.prop.model
+    pkeys = model.external.pkeys
+
+    if not pkeys:
+        raise RuntimeError(
+            f"Can't join {dtype.prop} on right table without primary key."
+        )
+
+    if len(pkeys) == 1:
+        prop = pkeys[0]
+        result = env.call('select', fpr, prop)
+    else:
+        result = [
+            env.call('select', fpr, prop)
+            for prop in pkeys
+        ]
+    return Selected(prop=dtype.prop, prep=result)
+
+
 @ufunc.resolver(PgQueryBuilder, int)
 def limit(env, n):
     env.limit = n
