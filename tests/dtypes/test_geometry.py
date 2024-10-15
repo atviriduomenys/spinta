@@ -799,7 +799,6 @@ def test_geometry_rdf(
 
     # Read data
     resp = app.get('/backends/postgres/dtypes/geometry/City/:format/rdf')
-    print(f'RESPONSE: {resp.text}')
     namespaces = {
         'rdf': 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
         'pav': 'http://purl.org/pav/',
