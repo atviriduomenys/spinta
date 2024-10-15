@@ -316,7 +316,6 @@ def detect_manifest_from_path(rc: RawConfig, path: str) -> Type[Manifest]:
             'components', 'manifests', name,
             cast=importstr,
         )
-        print(path, Manifest_)
         if Manifest_.detect_from_path(path):
             return Manifest_
     raise UnknownManifestTypeFromPath(path=path)
