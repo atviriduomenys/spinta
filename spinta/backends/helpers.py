@@ -21,9 +21,32 @@ from spinta.components import Context
 from spinta.components import Model
 from spinta.components import Namespace
 from spinta.components import Property
+from spinta.exceptions import BackendUnavailable
 from spinta.types.datatype import DataType, Denorm
 from spinta.utils.data import take
 from spinta.backends.constants import TableType
+
+
+def validate_and_return_transaction(context: Context, backend: Backend, **kwargs):
+    if not backend.available:
+        backend.available = commands.wait(context, backend)
+
+        # Backend is still unavailable
+        if not backend.available:
+            raise BackendUnavailable(backend)
+
+    return backend.transaction(**kwargs)
+
+
+def validate_and_return_begin(context: Context, backend: Backend, **kwargs):
+    if not backend.available:
+        backend.available = commands.wait(context, backend)
+
+        # Backend is still unavailable
+        if not backend.available:
+            raise BackendUnavailable(backend)
+
+    return backend.begin(**kwargs)
 
 
 def load_backend(

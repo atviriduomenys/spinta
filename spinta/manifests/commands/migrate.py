@@ -1,4 +1,5 @@
 from spinta import commands
+from spinta.backends.helpers import validate_and_return_begin
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.migrate import MigrateMeta, MigrateRename
 from spinta.components import Context
@@ -25,6 +26,6 @@ def migrate(context, manifest, migrate_meta):
         _validate_migrate_rename(context, migrate_meta.rename, manifest)
         backend = manifest.backend
         if backend:
-            context.attach(f'transaction.{backend.name}', backend.begin)
+            context.attach(f'transaction.{backend.name}', validate_and_return_begin, context, backend)
             commands.migrate(context, manifest, backend, migrate_meta)
 

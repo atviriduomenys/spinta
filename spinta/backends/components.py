@@ -5,9 +5,6 @@ from typing import Dict
 from typing import Optional
 from typing import Set
 
-from spinta.typing import ObjectData
-
-
 class BackendOrigin(enum.Enum):
     """Origin where backend was defined.
 
@@ -46,6 +43,8 @@ class Backend:
     paginated: bool = False
     support_expand: bool = False
 
+    available: bool = True
+
     def __repr__(self):
         return (
             f'<{self.__class__.__module__}.{self.__class__.__name__}'
@@ -54,6 +53,10 @@ class Backend:
 
     @contextlib.contextmanager
     def transaction(self):
+        raise NotImplementedError
+
+    @contextlib.contextmanager
+    def begin(self):
         raise NotImplementedError
 
     def bootstrapped(self):

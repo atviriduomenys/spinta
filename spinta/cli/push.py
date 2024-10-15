@@ -12,6 +12,7 @@ from typer import echo
 
 from spinta import exceptions, commands
 from spinta.auth import get_client_id_from_name, get_clients_path
+from spinta.backends.helpers import validate_and_return_transaction, validate_and_return_begin
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.data import ensure_data_dir
 from spinta.cli.helpers.errors import ErrorCounter
@@ -230,19 +231,19 @@ def push(
 
 
 def _attach_backends(context: Context, store: Store, manifest: Manifest) -> None:
-    context.attach('transaction', manifest.backend.transaction)
+    context.attach('transaction', validate_and_return_transaction, context, manifest.backend)
     backends = set()
     for backend in store.backends.values():
         backends.add(backend.name)
-        context.attach(f'transaction.{backend.name}', backend.begin)
+        context.attach(f'transaction.{backend.name}', validate_and_return_begin, context, backend)
     for backend in manifest.backends.values():
         backends.add(backend.name)
-        context.attach(f'transaction.{backend.name}', backend.begin)
+        context.attach(f'transaction.{backend.name}', validate_and_return_begin, context, backend)
     for dataset_ in commands.get_datasets(context, manifest).values():
         for resource in dataset_.resources.values():
             if resource.backend and resource.backend.name not in backends:
                 backends.add(resource.backend.name)
-                context.attach(f'transaction.{resource.backend.name}', resource.backend.begin)
+                context.attach(f'transaction.{resource.backend.name}', validate_and_return_begin, context, resource.backend)
 
 
 def _attach_keymaps(context: Context, store: Store) -> None:

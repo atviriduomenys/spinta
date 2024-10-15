@@ -17,6 +17,7 @@ from typer import Typer
 from typer import echo
 
 from spinta import commands
+from spinta.backends.helpers import validate_and_return_transaction, validate_and_return_begin
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.data import ModelRow
 from spinta.cli.helpers.data import count_rows
@@ -221,19 +222,19 @@ def detect(
     manifest = store.manifest
     with context:
         require_auth(context, auth)
-        context.attach('transaction', manifest.backend.transaction)
+        context.attach('transaction', validate_and_return_transaction, context, manifest.backend)
         backends = set()
         for backend in store.backends.values():
             backends.add(backend.name)
-            context.attach(f'transaction.{backend.name}', backend.begin)
+            context.attach(f'transaction.{backend.name}', validate_and_return_begin, context, backend)
         for backend in manifest.backends.values():
             backends.add(backend.name)
-            context.attach(f'transaction.{backend.name}', backend.begin)
+            context.attach(f'transaction.{backend.name}', validate_and_return_begin, context, backend)
         for dataset in commands.get_datasets(context, manifest).values():
             for resource in dataset.resources.values():
                 if resource.backend and resource.backend.name not in backends:
                     backends.add(resource.backend.name)
-                    context.attach(f'transaction.{resource.backend.name}', resource.backend.begin)
+                    context.attach(f'transaction.{resource.backend.name}', validate_and_return_begin, context, resource.backend)
         for keymap in store.keymaps.values():
             context.attach(f'keymap.{keymap.name}', lambda: keymap)
 

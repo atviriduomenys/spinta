@@ -97,7 +97,8 @@ def wait(
         for backend in sorted(backends, key=lambda b: b.name):
             if verbose:
                 print(f"  {backend.name}...")
-            if commands.wait(context, backend, fail=fail):
+            backend.available = commands.wait(context, backend, fail=fail)
+            if backend.available:
                 backends.remove(backend)
         if fail or not backends:
             break
