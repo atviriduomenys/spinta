@@ -440,7 +440,13 @@ class XSDReader:
                 property_type = XSDType()
                 property_type_to = element_type
                 property_type.name = "backref" if is_array else "ref"
-            prop = XSDProperty(xsd_name=property_name, property_type=property_type, required=is_required, source=property_name, is_array=is_array)
+
+            if property_type in ("ref", "backref"):
+                source = property_name
+            else:
+                source = f"{property_name}/text()"
+
+            prop = XSDProperty(xsd_name=property_name, property_type=property_type, required=is_required, source=source, is_array=is_array)
             prop.type_to = property_type_to
             props.append(prop)
 

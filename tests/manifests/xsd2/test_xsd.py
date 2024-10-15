@@ -995,13 +995,13 @@ def test_xsd_resource_model_only(rc: RawConfig, tmp_path: Path):
 """
 
     table = """
-id | d | r | b | m | property   | type             | ref | source     | prepare | level | access | uri                                           | title | description
-   | manifest                   |                  |     |            |         |       |        |                                               |       |
-   |   | resource1              | xml              |     |            |         |       |        |                                               |       |
-   |                            |                  |     |            |         |       |        |                                               |       |
-   |   |   |   | Resource       |                  |     | /          |         |       |        | http://www.w3.org/2000/01/rdf-schema#Resource |       | Įvairūs duomenys
-   |   |   |   |   | name       | string required  |     | name       |         |       |        |                                               |       |
-   |   |   |   |   | population | integer required |     | population |         |       |        |                                               |       |
+id | d | r | b | m | property   | type             | ref | source            | prepare | level | access | uri                                           | title | description
+   | manifest                   |                  |     |                   |         |       |        |                                               |       |
+   |   | resource1              | xml              |     |                   |         |       |        |                                               |       |
+   |                            |                  |     |                   |         |       |        |                                               |       |
+   |   |   |   | Resource       |                  |     | /                 |         |       |        | http://www.w3.org/2000/01/rdf-schema#Resource |       | Įvairūs duomenys
+   |   |   |   |   | name       | string required  |     | name/text()       |         |       |        |                                               |       |
+   |   |   |   |   | population | integer required |     | population/text() |         |       |        |                                               |       |
 """
     path = tmp_path / 'manifest.xsd'
     path_xsd2 = f"xsd2+file://{path}"
