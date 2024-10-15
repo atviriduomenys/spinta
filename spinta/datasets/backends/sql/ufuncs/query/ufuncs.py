@@ -6,6 +6,7 @@ from typing import Tuple
 from typing import TypeVar
 from typing import Union
 from typing import overload
+from typing import Dict
 
 import sqlalchemy as sa
 from sqlalchemy.sql.functions import Function
@@ -34,6 +35,7 @@ from spinta.types.text.components import Text
 from spinta.types.text.helpers import determine_language_property_for_text
 from spinta.ufuncs.basequerybuilder.helpers import get_language_column
 from spinta.ufuncs.basequerybuilder.ufuncs import Star
+from spinta.ufuncs.basequerybuilder.ufuncs import ResultProperty, NestedProperty, ReservedProperty
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.data import take
 from spinta.utils.itertools import flatten
@@ -785,3 +787,77 @@ def distinct(env: SqlQueryBuilder):
 def swap(env: SqlQueryBuilder, expr: Expr):
     args, kwargs = expr.resolve(env)
     return Expr('swap', *args, **kwargs)
+
+@ufunc.resolver(SqlQueryBuilder, ResultProperty)
+def select(env: SqlQueryBuilder, prop: ResultProperty):
+    return Selected(
+        prep=prop.expr
+    )
+
+@ufunc.resolver(SqlQueryBuilder, dict)
+def select(
+    env: SqlQueryBuilder,
+    prep: Dict[str, Any],
+) -> Dict[str, Any]:
+    return {k: env.call('select', v) for k, v in prep.items()}
+
+@ufunc.resolver(SqlQueryBuilder, NestedProperty)
+def select(env: SqlQueryBuilder, nested: NestedProperty) -> Selected:
+    return Selected(
+        prop=nested.left.prop,
+        prep=env.call('select', nested.right),
+    )
+
+@ufunc.resolver(SqlQueryBuilder, list)
+def select(
+    env: SqlQueryBuilder,
+    prep: List[Any],
+) -> List[Any]:
+    return [env.call('select', v) for v in prep]
+
+@ufunc.resolver(SqlQueryBuilder, ReservedProperty)
+def select(env, prop):
+    return env.call('select', prop.dtype, prop.param)
+
+@ufunc.resolver(SqlQueryBuilder, GetAttr)
+def select(env: SqlQueryBuilder, attr: GetAttr) -> Selected:
+    resolved = env.call('_resolve_getattr', attr)
+    return env.call('select', resolved)
+
+
+@ufunc.resolver(SqlQueryBuilder, GetAttr)
+def sort(env, field):
+    dtype = env.call('_resolve_getattr', field)
+    return env.call('sort', dtype)
+
+@ufunc.resolver(SqlQueryBuilder, ForeignProperty, PrimaryKey)
+def select(
+    env: SqlQueryBuilder,
+    fpr: ForeignProperty,
+    dtype: PrimaryKey,
+) -> Selected:
+    model = dtype.prop.model
+    pkeys = model.external.pkeys
+
+    if not pkeys:
+        raise RuntimeError(
+            f"Can't join {dtype.prop} on right table without primary key."
+        )
+
+    if len(pkeys) == 1:
+        prop = pkeys[0]
+        result = env.call('select', fpr, prop)
+    else:
+        result = [
+            env.call('select', fpr, prop)
+            for prop in pkeys
+        ]
+    return Selected(prop=dtype.prop, prep=result)
+
+@ufunc.resolver(SqlQueryBuilder, tuple)
+def select(
+    env: SqlQueryBuilder,
+    prep: Tuple[Any],
+) -> Tuple[Any]:
+    return tuple(env.call('select', v) for v in prep)
+
