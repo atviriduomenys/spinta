@@ -983,3 +983,30 @@ def test_duplicate_removal_two_level(rc: RawConfig, tmp_path: Path):
         xsd_file.write(xsd)
     manifest = load_manifest(rc, path)
     assert manifest == table
+
+
+def test_xsd_resource_model_only(rc: RawConfig, tmp_path: Path):
+    # recursion in XSD
+    xsd = """
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+<xs:element name="name" type="xs:string"/>
+<xs:element name="population" type="xs:int"/>
+</xs:schema>
+"""
+
+    table = """
+id | d | r | b | m | property   | type             | ref | source            | prepare | level | access | uri                                           | title | description
+   | manifest                   |                  |     |                   |         |       |        |                                               |       |
+   |   | resource1              | xml              |     |                   |         |       |        |                                               |       |
+   |                            |                  |     |                   |         |       |        |                                               |       |
+   |   |   |   | Resource       |                  |     | /                 |         |       |        | http://www.w3.org/2000/01/rdf-schema#Resource |       | Įvairūs duomenys
+   |   |   |   |   | name       | string           |     | name/text()       |         |       |        |                                               |       |
+   |   |   |   |   | population | integer          |     | population/text() |         |       |        |                                               |       |
+"""
+    # todo actually, those properties should be required. Fixed in the new version
+
+    path = tmp_path / 'manifest.xsd'
+    with open(path, "w") as xsd_file:
+        xsd_file.write(xsd)
+    manifest = load_manifest(rc, path)
+    assert manifest == table
