@@ -807,20 +807,6 @@ def prepare_dtype_for_response(
     )
 
 
-@commands.prepare_dtype_for_response.register(Context, Rdf, ArrayBackRef, type(None))
-def prepare_dtype_for_response(
-    context: Context,
-    fmt: Rdf,
-    dtype: ArrayBackRef,
-    value: type(None),
-    *,
-    data: Dict[str, Any],
-    action: Action,
-    select: dict = None
-):
-    return None
-
-
 @commands.prepare_dtype_for_response.register(Context, Rdf, JSON, NotAvailable)
 def prepare_dtype_for_response(
     context: Context,
@@ -836,20 +822,6 @@ def prepare_dtype_for_response(
         name=data['_elem_name'],
         text="<NA>"
     )
-
-
-@commands.prepare_dtype_for_response.register(Context, Rdf, JSON, type(None))
-def prepare_dtype_for_response(
-    context: Context,
-    fmt: Rdf,
-    dtype: JSON,
-    value: type(None),
-    *,
-    data: Dict[str, Any],
-    action: Action,
-    select: dict = None
-):
-    return None
 
 
 @commands.prepare_dtype_for_response.register(Context, Rdf, JSON, (object, type(None)))
