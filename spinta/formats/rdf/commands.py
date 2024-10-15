@@ -807,24 +807,7 @@ def prepare_dtype_for_response(
     )
 
 
-@commands.prepare_dtype_for_response.register(Context, Rdf, JSON, NotAvailable)
-def prepare_dtype_for_response(
-    context: Context,
-    fmt: Rdf,
-    dtype: JSON,
-    value: NotAvailable,
-    *,
-    data: Dict[str, Any],
-    action: Action,
-    select: dict = None
-):
-    return _create_element(
-        name=data['_elem_name'],
-        text="<NA>"
-    )
-
-
-@commands.prepare_dtype_for_response.register(Context, Rdf, JSON, (object, type(None)))
+@commands.prepare_dtype_for_response.register(Context, Rdf, JSON, (object, type(None), NotAvailable))
 def prepare_dtype_for_response(
     context: Context,
     fmt: Rdf,
@@ -835,6 +818,9 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None
 ):
+    if value is None or isinstance(value, NotAvailable):
+        return None
+
     return _create_element(
         name=data['_elem_name'],
         text=str(value)
@@ -912,7 +898,7 @@ def prepare_dtype_for_response(
     )
 
 
-@commands.prepare_dtype_for_response.register(Context, Rdf, Inherit, (object, type(None)))
+@commands.prepare_dtype_for_response.register(Context, Rdf, Inherit, (object, type(None), NotAvailable))
 def prepare_dtype_for_response(
     context: Context,
     fmt: Rdf,
@@ -923,7 +909,7 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None
 ):
-    if value is None:
+    if value is None or isinstance(value, NotAvailable):
         return None
 
     return _create_element(
@@ -949,24 +935,7 @@ def prepare_dtype_for_response(
     )
 
 
-@commands.prepare_dtype_for_response.register(Context, Rdf, Inherit, NotAvailable)
-def prepare_dtype_for_response(
-    context: Context,
-    fmt: Rdf,
-    dtype: Inherit,
-    value: NotAvailable,
-    *,
-    data: Dict[str, Any],
-    action: Action,
-    select: dict = None
-):
-    return _create_element(
-        name=data['_elem_name'],
-        text="<NA>"
-    )
-
-
-@commands.prepare_dtype_for_response.register(Context, Rdf, UUID, (object, type(None)))
+@commands.prepare_dtype_for_response.register(Context, Rdf, UUID, (object, type(None), NotAvailable))
 def prepare_dtype_for_response(
     context: Context,
     fmt: Rdf,
@@ -977,28 +946,10 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None
 ):
-    if value is None:
+    if value is None or isinstance(value, NotAvailable):
         return None
 
     return _create_element(
         name=data['_elem_name'],
         text=str(value)
     )
-
-
-@commands.prepare_dtype_for_response.register(Context, Rdf, UUID, NotAvailable)
-def prepare_dtype_for_response(
-    context: Context,
-    fmt: Rdf,
-    dtype: UUID,
-    value: NotAvailable,
-    *,
-    data: Dict[str, Any],
-    action: Action,
-    select: dict = None
-):
-    return _create_element(
-        name=data['_elem_name'],
-        text="<NA>"
-    )
-
