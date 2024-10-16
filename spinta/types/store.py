@@ -7,7 +7,7 @@ import types
 import itertools
 
 from spinta import commands
-from spinta.backends.components import BackendOrigin
+from spinta.backends.constants import BackendOrigin
 from spinta.backends.helpers import load_backend
 from spinta.components import Context, Store
 from spinta.urlparams import get_model_by_name
@@ -97,7 +97,8 @@ def wait(
         for backend in sorted(backends, key=lambda b: b.name):
             if verbose:
                 print(f"  {backend.name}...")
-            if commands.wait(context, backend, fail=fail):
+            backend.available = commands.wait(context, backend, fail=fail)
+            if backend.available:
                 backends.remove(backend)
         if fail or not backends:
             break

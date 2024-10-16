@@ -14,10 +14,7 @@ def wait(context: Context, backend: PostgreSQL, *, fail: bool = False) -> bool:
     try:
         conn = engine.connect()
     except sqlalchemy.exc.OperationalError:
-        if fail:
-            raise
-        else:
-            return False
+        return False
     else:
         conn.close()
         engine.dispose()

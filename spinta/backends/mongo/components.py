@@ -2,7 +2,7 @@ import contextlib
 
 import pymongo
 
-from spinta.backends.components import BackendFeatures
+from spinta.backends.constants import BackendFeatures
 from spinta.components import Model
 from spinta.components import Property
 from spinta.backends.components import Backend
@@ -22,8 +22,6 @@ class Mongo(Backend):
             'db': {'type': 'string', 'required': True},
         },
     }
-    # Currently disabled, issues with test_sort
-    paginated = False
 
     features = {
         BackendFeatures.WRITE,

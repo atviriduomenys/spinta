@@ -17,7 +17,7 @@ from toposort import toposort
 from spinta import commands
 from spinta import exceptions
 from spinta.auth import authorized
-from spinta.backends.components import BackendFeatures
+from spinta.backends.constants import BackendFeatures
 from spinta.backends.nobackend.components import NoBackend
 from spinta.components import Action
 from spinta.components import Config

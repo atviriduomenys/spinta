@@ -10,6 +10,7 @@ from typing import cast
 from toposort import toposort
 
 from spinta import commands
+from spinta.backends.helpers import validate_and_return_begin
 from spinta.commands.write import push_stream
 from spinta.commands.write import write
 from spinta.components import Action
@@ -55,7 +56,7 @@ async def run_migrations(context: Context, manifest: BackendManifest):
     for name, group in versions:
         if name not in backends:
             backend = store.backends[name]
-            context.attach(f'transaction.{backend.name}', backend.begin)
+            context.attach(f'transaction.{backend.name}', validate_and_return_begin, context, backend)
             backends[backend] = commands.migrate(context, manifest, backend)
         else:
             backend = None

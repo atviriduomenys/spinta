@@ -6,7 +6,7 @@ import contextlib
 
 from spinta.typing import ObjectData
 from spinta.backends.components import Backend
-from spinta.backends.components import BackendFeatures
+from spinta.backends.constants import BackendFeatures
 
 
 class Memory(Backend):

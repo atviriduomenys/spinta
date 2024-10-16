@@ -1970,3 +1970,13 @@ def _check_if_nan(value: Any) -> bool:
     if value != value:
         return True
     return False
+
+
+@commands.get_error_context.register(Backend)
+def get_error_context(backend: Backend, *, prefix='this') -> Dict[str, str]:
+    return {
+        'type': f'{prefix}.type',
+        'name': f'{prefix}.name',
+        'origin': f'{prefix}.origin',
+        'features': f'{prefix}.features',
+    }

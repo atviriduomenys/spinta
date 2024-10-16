@@ -1,5 +1,6 @@
 from typing import Union, Any
 
+from spinta.backends.constants import BackendFeatures
 from spinta.components import Property, Page, UrlParams
 from spinta.core.ufuncs import Expr, asttoexpr
 from spinta.datasets.components import ExternalBackend
@@ -10,7 +11,11 @@ from spinta.ufuncs.helpers import merge_formulas
 from spinta.utils.types import is_value_literal
 
 
-def is_expandable_not_expanded(env: BaseQueryBuilder, prop: Property):
+def expandable_not_expanded(env: BaseQueryBuilder, prop: Property):
+    # If backend does not support expand, assume it is always expanded
+    if not env.backend.supports(BackendFeatures.EXPAND):
+        return False
+
     return prop.dtype.expandable and (env.expand is None or (env.expand and prop not in env.expand))
 
 

@@ -4,6 +4,7 @@ from typing import Optional
 import pytest
 
 from spinta import commands
+from spinta.backends.helpers import validate_and_return_transaction
 from spinta.backends.memory.components import Memory
 from spinta.commands.write import dataitem_from_payload
 from spinta.components import Store
@@ -47,7 +48,7 @@ def test_integer(
         '_op': 'insert',
         'population': value,
     }
-    context.set('transaction', backend.transaction(write=True))
+    context.set('transaction', validate_and_return_transaction(context, backend, write=True))
     data = dataitem_from_payload(context, model, payload)
     data.given = commands.load(context, model, payload)
     commands.simple_data_check(context, data, model, backend)

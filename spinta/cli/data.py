@@ -7,6 +7,7 @@ from typer import Context as TyperContext
 from typer import Option
 
 from spinta import commands
+from spinta.backends.helpers import validate_and_return_transaction
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.cli.helpers.data import process_stream
@@ -31,7 +32,7 @@ def import_(
 
     with context:
         require_auth(context, auth)
-        context.attach('transaction', manifest.backend.transaction, write=True)
+        context.attach('transaction', validate_and_return_transaction, context, manifest.backend, write=True)
         with open(source) as f:
             stream = (json.loads(line.strip()) for line in f)
             stream = itertools.islice(stream, limit) if limit else stream
