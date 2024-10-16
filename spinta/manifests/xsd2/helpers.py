@@ -632,6 +632,8 @@ class XSDReader:
                 properties_result = self.process_element(child, state)
             elif QName(child).localname == "sequence":
                 properties_result = self.process_sequence(child, state)
+            elif QName(child).localname == "choice":
+                properties_result = self.process_choice(child, state)
             else:
                 raise RuntimeError(f"Unexpected element type inside sequence element: {QName(child).localname}")
 
