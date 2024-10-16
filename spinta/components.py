@@ -512,13 +512,21 @@ class Page:
     filter_only: bool
     first_time: bool
 
-    def __init__(self):
-        self.by = {}
-        self.size = None
-        self.is_enabled = True
-        self.filter_only = False
-        self.model = None
-        self.first_time = True
+    def __init__(
+        self,
+        by=None,
+        size=None,
+        is_enabled=True,
+        filter_only=False,
+        model=None,
+        first_time=True
+    ):
+        self.by = {} if by is None else by
+        self.size = size
+        self.is_enabled = is_enabled
+        self.filter_only = filter_only
+        self.model = model
+        self.first_time = first_time
 
     def __deepcopy__(self, memo):
         cls = self.__class__
@@ -595,7 +603,27 @@ def decode_page_values(encoded: Any):
 
 def get_page_size(config: Config, model: Model, page: Page = None):
     page_size = page.size if page is not None else None
-    return page_size or model.page.size or config.push_page_size
+    return page_size or model.page.size or config.default_page_size
+
+
+def pagination_enabled(model: Model, params: UrlParams = None) -> bool:
+    # Need to import there, because of circular import issues
+    # Once loaded python should store it in cache and not import it again
+    from spinta.backends.constants import BackendFeatures
+
+    # If model backend does not support pagination, we ignore anything else
+    if not model.backend or not model.backend.supports(BackendFeatures.PAGINATION):
+        return False
+
+    # Prioritize UrlParams page (if is_enabled not None, it means that it was explicitly given in URL).
+    if params is not None and params.page is not None and params.page.is_enabled is not None:
+        return params.page.is_enabled
+
+    return model.page.is_enabled
+
+
+def page_in_data(data: dict) -> bool:
+    return '_page' in data
 
 
 class ParamsPage:
@@ -603,7 +631,10 @@ class ParamsPage:
     size: int
     is_enabled: bool
 
-    def __init__(self, key=[], values=None, size=None, is_enabled=True):
+    def __init__(self, key=None, values=None, size=None, is_enabled=None):
+        if key is None:
+            key = []
+
         self.key = key
         self.values = values
         self.size = size
@@ -1076,7 +1107,8 @@ class Config:
     data_path: pathlib.Path
     AccessLog: Type[AccessLog]
     exporters: Dict[str, Format]
-    push_page_size: int = None
+    default_page_size: int
+    enable_pagination: bool
     sync_page_size: int = None
     languages: List[str]
     check_names: bool = False

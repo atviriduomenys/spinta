@@ -1,10 +1,20 @@
 from sqlalchemy.dialects import registry
 from sqlalchemy.dialects.sqlite.pysqlite import SQLiteDialect_pysqlite
+from sqlalchemy.dialects.sqlite.base import SQLiteDialect
+from sqlalchemy.dialects.sqlite import base
 
+# We use SQLiteDialect_pysqlite, instead of SQLiteDialect, because most of the code is the same, we only want to change
+# Where we get dbapi from
+# In the future, if there are errors related with sqlean and pysqlite, we can fully create our own dialect
 
-class SQLiteDialect_spinta_sqlite(SQLiteDialect_pysqlite):
-    driver = 'spinta_sqlite'
+# You use `sqlite+spinta:///...` uri to access it explicitly
+# Also because we set default to spinta you can also use `sqlite:///...`
+class SQLiteDialect_spinta(SQLiteDialect_pysqlite):
+    driver = 'spinta'
     supports_statement_cache = True
+
+    def __init__(self, **kwargs):
+        SQLiteDialect.__init__(self, **kwargs)
 
     @classmethod
     def dbapi(cls):
@@ -16,7 +26,10 @@ class SQLiteDialect_spinta_sqlite(SQLiteDialect_pysqlite):
 
 
 registry.register(
-    "sqlite.spinta_sqlite",
+    "sqlite.spinta",
     __name__,
-    "SQLiteDialect_spinta_sqlite"
+    "SQLiteDialect_spinta"
 )
+
+# This changes default sqlite dialect from pysqlite to spinta
+base.dialect = SQLiteDialect_spinta

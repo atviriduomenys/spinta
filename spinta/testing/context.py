@@ -10,6 +10,7 @@ import contextlib
 from pytest import FixtureRequest
 
 from spinta import commands
+from spinta.backends.helpers import validate_and_return_transaction
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.components import Node
 from spinta.components import Context
@@ -56,7 +57,7 @@ class ContextForTests:
                 store = self.get('store')
                 self.set('auth.token', AdminToken())
                 backend = store.manifest.backend
-                self.attach('transaction', backend.transaction, write=write)
+                self.attach('transaction', validate_and_return_transaction, self, backend, write=write)
                 yield self
 
     def wipe(self: TestContext, model: Union[str, Node]):
@@ -73,6 +74,7 @@ class ContextForTests:
     def load(
         self: TestContext,
         overrides: Optional[Dict[str, Any]] = None,
+        ensure_config_dir: bool = True
     ) -> TestContext:
         # We pass context to tests unloaded, by doing this, we give test
         # functions opportunity to call `context.load` manually and provide
@@ -94,7 +96,7 @@ class ContextForTests:
                 }
             })
 
-        store = prepare_manifest(self)
+        store = prepare_manifest(self, ensure_config_dir=ensure_config_dir)
         commands.bootstrap(self, store.manifest)
 
         self.loaded = True

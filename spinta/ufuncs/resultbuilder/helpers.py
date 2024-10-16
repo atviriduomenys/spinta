@@ -1,5 +1,7 @@
+from collections import abc
+
 from multipledispatch import dispatch
-from typing import Any
+from typing import Any, Union
 
 from spinta import commands
 from spinta.backends import Backend
@@ -11,20 +13,23 @@ from spinta.ufuncs.basequerybuilder.components import Selected
 from spinta.ufuncs.resultbuilder.components import ResultBuilder
 from spinta.utils.schema import NA
 
+ResultBuilderGetter = abc.Callable[[], ResultBuilder]
 
-def _resolve_expr(context: Context, result_builder: ResultBuilder, row: Any, sel: Selected) -> Any:
+
+def _resolve_expr(context: Context, row: Any, sel: Selected, result_builder_getter: Union[ResultBuilderGetter, ResultBuilder]) -> Any:
     if sel.item is None:
         val = None
     else:
         val = row[sel.item]
+
+    result_builder = result_builder_getter
+    if isinstance(result_builder, abc.Callable):
+        result_builder = result_builder()
     env = result_builder.init(val, sel.prop, row)
     return env.resolve(sel.prep)
 
 
-def _aggregate_values(data, target: Property):
-    if target is None or target.list is None:
-        return data
-
+def _aggregate_values(data: Any, target: Property):
     key_path = target.place
     key_parts = key_path.split('.')
 
@@ -53,33 +58,100 @@ def _aggregate_values(data, target: Property):
     return recursive_collect(data, 0)
 
 
-@dispatch(Context, Backend, object, object)
-def get_row_value(context: Context, backend: Backend, row: Any, sel: Any) -> Any:
-    return get_row_value(context, backend, row, sel, True)
-
-
-@dispatch(Context, Backend, object, object, bool)
-def get_row_value(context: Context, backend: Backend, row: Any, sel: Any, check_enums: bool) -> Any:
-    env = commands.get_result_builder(context, backend)
-    return get_row_value(context, env, row, sel, check_enums)
-
-
+# This is the fastest way to call this function, use this if you do not want to recreate `ResultBuilder`
 @dispatch(Context, ResultBuilder, object, object)
 def get_row_value(context: Context, result_builder: ResultBuilder, row: Any, sel: Any) -> Any:
-    return get_row_value(context, result_builder, row, sel, True)
+    return _get_row_value(
+        context,
+        row,
+        sel,
+        True,
+        result_builder
+    )
 
 
+# This is the fastest way to call this function, use this if you do not want to recreate `ResultBuilder`
 @dispatch(Context, ResultBuilder, object, object, bool)
 def get_row_value(context: Context, result_builder: ResultBuilder, row: Any, sel: Any, check_enums: bool) -> Any:
+    return _get_row_value(
+        context,
+        row,
+        sel,
+        check_enums,
+        result_builder
+    )
+
+
+# This is the second-fastest way to call this function, it allows for `ResultBuilder` recreation
+@dispatch(Context, abc.Callable, object, object, bool)
+def get_row_value(context: Context, result_builder_getter: ResultBuilderGetter, row: Any, sel: Any, check_enums: bool) -> Any:
+    return _get_row_value(
+        context,
+        row,
+        sel,
+        check_enums,
+        result_builder_getter
+    )
+
+
+# This is the second-fastest way to call this function, it allows for `ResultBuilder` recreation
+@dispatch(Context, abc.Callable, object, object)
+def get_row_value(context: Context, result_builder_getter: ResultBuilderGetter, row: Any, sel: Any) -> Any:
+    return _get_row_value(
+        context,
+        row,
+        sel,
+        True,
+        result_builder_getter
+    )
+
+
+# This is the slowest way to call this function, use this only if you cannot pass `backend_result_builder_getter` directly
+@dispatch(Context, Backend, object, object)
+def get_row_value(context: Context, backend: Backend, row: Any, sel: Any) -> Any:
+    return _get_row_value(
+        context,
+        row,
+        sel,
+        True,
+        backend_result_builder_getter(context, backend)
+    )
+
+
+# This is the slowest way to call this function, use this only if you cannot pass `backend_result_builder_getter` directly
+@dispatch(Context, Backend, object, object, bool)
+def get_row_value(context: Context, backend: Backend, row: Any, sel: Any, check_enums: bool) -> Any:
+    return _get_row_value(
+        context,
+        row,
+        sel,
+        check_enums,
+        backend_result_builder_getter(context, backend)
+    )
+
+
+def backend_result_builder_getter(context: Context, backend: Backend) -> ResultBuilderGetter:
+    return lambda: commands.get_result_builder(context, backend)
+
+
+def _get_row_value(
+    context: Context,
+    row: Any,
+    sel: Any,
+    check_enums: bool,
+    result_builder_getter: Union[ResultBuilderGetter, ResultBuilder]
+):
     if isinstance(sel, Selected):
         if isinstance(sel.prep, Expr):
-            val = _resolve_expr(context, result_builder, row, sel)
+            val = _resolve_expr(context, row, sel, result_builder_getter)
         elif sel.prep is not NA:
-            val = get_row_value(context, result_builder, row, sel.prep, check_enums)
+            val = _get_row_value(context, row, sel.prep, check_enums, result_builder_getter)
         else:
             if sel.item is not None:
                 val = row[sel.item]
-                val = _aggregate_values(val, sel.prop)
+                prop = sel.prop
+                if prop is not None and prop.list is not None:
+                    val = _aggregate_values(val, prop)
             else:
                 val = None
 
@@ -96,9 +168,9 @@ def get_row_value(context: Context, result_builder: ResultBuilder, row: Any, sel
 
         return val
     if isinstance(sel, tuple):
-        return tuple(get_row_value(context, result_builder, row, v, check_enums) for v in sel)
+        return tuple(_get_row_value(context, row, v, check_enums, result_builder_getter) for v in sel)
     if isinstance(sel, list):
-        return [get_row_value(context, result_builder, row, v, check_enums) for v in sel]
+        return [_get_row_value(context, row, v, check_enums, result_builder_getter) for v in sel]
     if isinstance(sel, dict):
-        return {k: get_row_value(context, result_builder, row, v, check_enums) for k, v in sel.items()}
+        return {k: _get_row_value(context, row, v, check_enums, result_builder_getter) for k, v in sel.items()}
     return sel

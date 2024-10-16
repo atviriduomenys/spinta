@@ -180,6 +180,10 @@ class UserError(BaseError):
     status_code = 400
 
 
+class UpgradeError(BaseError):
+    status_code = 500
+
+
 class ConflictingValue(UserError):
     status_code = 409
     template = "Conflicting value."
@@ -315,7 +319,7 @@ class InvalidManifestFile(BaseError):
 
 
 class CoordinatesOutOfRange(UserError):
-    template = 'Given coordinates: {given!r} ar not within the {srid!r} available bounds: {bounds} (west, south, east, north).'
+    template = 'Given coordinates: {given!r} ar not within the `EPSG: {srid!r}` available bounds: {bounds} (west, south, east, north).'
 
 
 class ManifestFileDoesNotExist(BaseError):
@@ -379,6 +383,10 @@ class UnknownParameter(BaseError):
     context = {
         'parameter': 'param',
     }
+
+
+class InvalidUuidValue(UserError):
+    template = "Invalid uuid value: {value}."
 
 
 class InvalidRefValue(UserError):
@@ -575,6 +583,7 @@ class RemoteClientScopesNotGiven(RemoteClientError):
         "{credentials} file."
     )
 
+
 class DupicateProperty(UserError):
     template = "Duplicate property {name}."
 
@@ -699,7 +708,7 @@ class TooShortPageSize(UserError):
     Which can cause either loss of data, or cause infinite loop while paginating.
     Affected row: {page_values}
     
-    To fix this, please either increase page size in the manifest, or 'push_page_size' value in the configs.
+    To fix this, please either increase page size in the manifest, or 'default_page_size' value in the configs.
     Alternatively make page's structure more complex, by adding more properties to it.
     
     When migrating from older versions to newer versions of spinta you might get this error if push state
@@ -917,4 +926,71 @@ class NoPrimaryKeyCandidatesFound(UserError):
     template = '''
     While assigning foreign key for non-primary key `Ref` property, using values: {values!r}
     no possible matches were found. This can occur when trying to assign values that do not exist in foreign table.
+    '''
+
+
+class ClientsMigrationRequired(UpgradeError):
+    template = '''
+    Clients folder structure is out of date. Please migrate it using:
+    'spinta upgrade', or 'spinta upgrade -r clients' commands.
+    
+    Old structure used to be:
+    ../clients/???.yml
+    
+    New structure is:
+    ../clients/helpers/keymap.yml
+    ../clients/id/??/??/???.yml
+    
+    Where `keymap.yml` stores `client_name` and `client_id` mapping.
+    '''
+
+
+class ClientsKeymapNotFound(UpgradeError):
+    template = '''
+    Cannot find `../clients/helpers/keymap.yml` file.
+    
+    Make sure it exists.
+    Consider running `spinta upgrade` or `spinta upgrade -r clients` commands 
+    '''
+
+
+class ClientsIdFolderNotFound(UpgradeError):
+    template = '''
+    Cannot find `../clients/id` folder.
+
+    Make sure it exists.
+    Consider running `spinta upgrade` or `spinta upgrade -r clients` commands 
+    '''
+
+
+class InvalidClientsKeymapStructure(UpgradeError):
+    template = '''
+    Could not load Clients `keymap.yml`.
+    Structure is invalid.
+
+    Fix it or consider running `spinta upgrade -f -r clients` command.
+    '''
+
+
+class UpgradeScriptNotFound(UserError):
+    template = '''
+    Upgrade script {script!r} not found.
+    Available scripts: {available_scripts}.
+    '''
+
+
+class InvalidScopes(UserError):
+    template = "Request contains invalid, unknown or malformed scopes: {scopes}."
+
+
+class DirectRefValueUnassignment(UserError):
+    template = '''
+    Cannot directly set ref's _id value to None.
+    You have to set ref to None, which will also remove all additional stored values related to that ref (child properties).
+    '''
+
+
+class BackendUnavailable(BaseError):
+    template = '''
+    Unable to access {name!r} backend, please try again later.
     '''

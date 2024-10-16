@@ -29,9 +29,11 @@ from spinta.types.datatype import DataType, Denorm
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.types.datatype import String
+from spinta.types.datatype import UUID
 from spinta.types.text.components import Text
 from spinta.types.text.helpers import determine_language_property_for_text
-from spinta.ufuncs.basequerybuilder.helpers import get_language_column
+from spinta.ufuncs.basequerybuilder.components import LiteralProperty
+from spinta.ufuncs.basequerybuilder.helpers import get_language_column, process_literal_value
 from spinta.ufuncs.basequerybuilder.ufuncs import Star
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.data import take
@@ -141,6 +143,11 @@ def compare(
 @ufunc.resolver(SqlQueryBuilder, DataType, object, names=COMPARE)
 def compare(env: SqlQueryBuilder, op: str, dtype: DataType, value: Any):
     column = env.backend.get_column(env.table, dtype.prop)
+    return _sa_compare(op, column, value)
+
+@ufunc.resolver(SqlQueryBuilder, UUID, str, names=COMPARE)
+def compare(env: SqlQueryBuilder, op: str, dtype: DataType, value: Any):
+    column = env.backend.get_column(env.table, dtype.prop).cast(sa.String)
     return _sa_compare(op, column, value)
 
 
@@ -277,12 +284,6 @@ def list_(env: SqlQueryBuilder, expr: Expr) -> List[Any]:
     return list(args)
 
 
-@ufunc.resolver(SqlQueryBuilder, Expr)
-def testlist(env: SqlQueryBuilder, expr: Expr) -> Tuple[Any]:
-    args, kwargs = expr.resolve(env)
-    return tuple(args)
-
-
 @ufunc.resolver(SqlQueryBuilder)
 def count(env: SqlQueryBuilder):
     return sa.func.count()
@@ -300,13 +301,13 @@ def select(env: SqlQueryBuilder, expr: Expr):
         for key, arg in args:
             selected = env.call('select', arg)
             if selected is not None:
-                if selected.prop is None or selected.prop is not None and selected.prop.given.explicit:
+                if selected.prop is None or selected.prop is not None and not selected.prop.dtype.inherited:
                     env.selected[key] = selected
     else:
         for prop in take(['_id', all], env.model.properties).values():
             if authorized(env.context, prop, Action.GETALL):
                 processed = env.call('select', prop)
-                if prop.given.explicit or processed.prep is not None:
+                if not prop.dtype.inherited or processed.prep is not None:
                     env.selected[prop.place] = processed
 
     if not (len(args) == 1 and args[0][0] == '_page'):
@@ -375,7 +376,8 @@ def select(env: SqlQueryBuilder, prop: Property) -> Selected:
             if isinstance(prop.external.prepare, Expr):
                 result = env(this=prop).resolve(prop.external.prepare)
             else:
-                result = prop.external.prepare
+                result = process_literal_value(prop.external.prepare)
+
             # XXX: Maybe interpretation of prepare formula should be done under
             #      a different Env? This way, select resolvers would know when
             #      properties are resolved under a formula context and for
@@ -392,7 +394,7 @@ def select(env: SqlQueryBuilder, prop: Property) -> Selected:
         elif not prop.dtype.requires_source:
             # Some DataTypes might have children that have source instead of themselves, like: Text
             result = env.call('select', prop.dtype)
-        elif not prop.given.explicit:
+        elif prop.dtype.inherited:
             # Some DataTypes might be inherited, or hidden, so we need to go through them in case they can be joined
             result = env.call('select', prop.dtype)
             if not isinstance(result, Selected):
@@ -422,10 +424,10 @@ def select(env: SqlQueryBuilder, dtype: Ref) -> Selected:
 
     for prop in dtype.properties.values():
         processed = env.call("select", prop)
-        if prop.given.explicit or processed.prep is not None:
+        if not prop.dtype.inherited or processed.prep is not None:
             env.selected[prop.place] = processed
 
-    if column is not None and dtype.prop.given.explicit:
+    if column is not None and not dtype.inherited:
         return Selected(
             item=env.add_column(column),
             prop=dtype.prop,
@@ -488,12 +490,12 @@ def select(env, dtype: Denorm):
     root_parent = ref
     if isinstance(ref, Property) and isinstance(ref.dtype, Ref):
         fpr = None
-        if not ref.given.explicit:
+        if ref.dtype.inherited:
             parent_list = []
             root_ref_parent = ref
             while root_ref_parent and isinstance(root_ref_parent, Property) and isinstance(root_ref_parent.dtype, Ref):
                 parent_list.append(root_ref_parent)
-                if root_ref_parent.given.explicit:
+                if not root_ref_parent.dtype.inherited:
                     break
                 root_ref_parent = root_ref_parent.parent
 
@@ -578,7 +580,7 @@ def join_table_on(env: SqlQueryBuilder, prop: Property) -> Any:
         if isinstance(prop.external.prepare, Expr):
             result = env.resolve(prop.external.prepare)
         else:
-            result = prop.external.prepare
+            result = process_literal_value(prop.external.prepare)
         return env.call('join_table_on', prop.dtype, result)
     else:
         return env.call('join_table_on', prop.dtype)
@@ -633,6 +635,16 @@ def join_table_on(env: SqlQueryBuilder, item: Bind):
     if not prop or not authorized(env.context, prop, Action.SEARCH):
         raise PropertyNotFound(env.model, property=item.name)
     return env.call('join_table_on', prop)
+
+
+@ufunc.resolver(SqlQueryBuilder, LiteralProperty)
+def join_table_on(env: SqlQueryBuilder, item: LiteralProperty):
+    return item.value
+
+
+@ufunc.resolver(SqlQueryBuilder, DataType, LiteralProperty)
+def join_table_on(env: SqlQueryBuilder, dtype: DataType, item: LiteralProperty):
+    return env.call('join_table_on', item)
 
 
 @ufunc.resolver(SqlQueryBuilder, Bind, name='len')

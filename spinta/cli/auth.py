@@ -13,7 +13,7 @@ from typer import Typer
 from typer import echo
 
 from spinta import commands
-from spinta.auth import KeyFileExists, get_clients_path
+from spinta.auth import KeyFileExists, get_clients_path, ensure_client_folders_exist
 from spinta.auth import KeyType
 from spinta.auth import create_client_file
 from spinta.auth import gen_auth_server_keys
@@ -134,16 +134,18 @@ def client_add(
 
         if path is None:
             context = ctx.obj
-
-            config = context.get('config')
-            commands.load(context, config)
-
+            config = load_config(
+                context,
+                ensure_config_dir=True
+            )
             path = get_clients_path(config)
-            path.mkdir(exist_ok=True)
         else:
             path = pathlib.Path(path)
             if not str(path).endswith('clients'):
                 path = get_clients_path(path)
+
+        # Ensure all files/folders exist for clients operations
+        ensure_client_folders_exist(path)
 
         client_id = str(uuid.uuid4())
         name = name or client_id

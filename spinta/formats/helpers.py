@@ -8,7 +8,7 @@ from spinta.backends.helpers import get_ns_reserved_props
 from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
 from spinta.backends.helpers import select_only_props
-from spinta.components import Action
+from spinta.components import Action, pagination_enabled
 from spinta.components import Context
 from spinta.components import Model
 from spinta.components import UrlParams
@@ -83,7 +83,7 @@ def _get_dtype_header(
 
     elif isinstance(dtype, Ref):
         if select is None or select == {'*': {}}:
-            if dtype.prop.given.explicit:
+            if not dtype.inherited:
                 yield get_separated_name(dtype, name, '_id')
             for key, prop in dtype.properties.items():
                 yield from _get_dtype_header(prop.dtype, select, get_separated_name(dtype, name, key), langs)
@@ -182,7 +182,7 @@ def get_model_tabular_header(
         if model.name == '_ns':
             reserved = get_ns_reserved_props(action)
         else:
-            reserved = get_model_reserved_props(action, model)
+            reserved = get_model_reserved_props(action, pagination_enabled(model, params))
 
     prop_select = params.select_props
     func_select = params.select_funcs

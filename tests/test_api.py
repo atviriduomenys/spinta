@@ -15,7 +15,7 @@ from spinta.components import Context
 from spinta.core.config import RawConfig, configure_rc
 from spinta.formats.html.components import Cell
 from spinta.formats.html.helpers import short_id
-from spinta.testing.client import TestClient, get_keymap_data
+from spinta.testing.client import TestClient, get_yaml_data
 from spinta.testing.client import TestClientResponse
 from spinta.testing.client import get_html_tree
 from spinta.testing.context import create_test_context
@@ -1976,7 +1976,7 @@ def test_auth_clients_update_name_full_check(
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["ClientWithNameAlreadyExists"]
 
-    keymap = get_keymap_data(keymap_path)
+    keymap = get_yaml_data(keymap_path)
     assert "TEST" in keymap
     test_id = keymap["TEST"]
     assert "TESTNEW" in keymap
@@ -1996,7 +1996,7 @@ def test_auth_clients_update_name_full_check(
         ]
     }
 
-    keymap = get_keymap_data(keymap_path)
+    keymap = get_yaml_data(keymap_path)
     assert "TEST" in keymap
     assert keymap["TEST"] == test_id
     assert "TESTNEWOTHER" in keymap

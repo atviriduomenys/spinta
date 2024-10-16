@@ -11,11 +11,11 @@ from sqlalchemy.engine import Engine
 from spinta import commands
 from spinta.utils.schema import NA
 from spinta.components import Model, Property
-from spinta.backends.constants import TableType
-from spinta.backends.components import Backend, BackendFeatures
+from spinta.backends.constants import TableType, BackendFeatures
+from spinta.backends.components import Backend
 from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.sqlalchemy import utcnow
-from spinta.exceptions import MultipleRowsFound, NotFoundError
+from spinta.exceptions import MultipleRowsFound, NotFoundError, BackendUnavailable
 
 
 class PostgreSQL(Backend):
@@ -29,38 +29,46 @@ class PostgreSQL(Backend):
     features = {
         BackendFeatures.FILE_BLOCKS,
         BackendFeatures.WRITE,
+        BackendFeatures.EXPAND,
+        BackendFeatures.PAGINATION
     }
 
     engine: Engine = None
     schema: sa.MetaData = None
     tables: Dict[str, sa.Table] = None
-    paginated: bool = True
-    support_expand = True
 
     @contextlib.contextmanager
     def transaction(self, write=False):
-        with self.engine.begin() as connection:
-            if write:
-                table = self.tables['_txn']
-                result = connection.execute(
-                    table.insert().values(
-                        # FIXME: commands.gen_object_id should be used here
-                        _id=str(uuid.uuid4()),
-                        datetime=utcnow(),
-                        client_type='',
-                        client_id='',
-                        errors=0,
+        try:
+            with self.engine.begin() as connection:
+                if write:
+                    table = self.tables['_txn']
+                    result = connection.execute(
+                        table.insert().values(
+                            # FIXME: commands.gen_object_id should be used here
+                            _id=str(uuid.uuid4()),
+                            datetime=utcnow(),
+                            client_type='',
+                            client_id='',
+                            errors=0,
+                        )
                     )
-                )
-                transaction_id = result.inserted_primary_key[0]
-                yield WriteTransaction(connection, transaction_id)
-            else:
-                yield ReadTransaction(connection)
+                    transaction_id = result.inserted_primary_key[0]
+                    yield WriteTransaction(connection, transaction_id)
+                else:
+                    yield ReadTransaction(connection)
+        except sa.exc.OperationalError:
+            self.available = False
+            raise BackendUnavailable(self)
 
     @contextlib.contextmanager
     def begin(self):
-        with self.engine.begin() as conn:
-            yield conn
+        try:
+            with self.engine.begin() as conn:
+                yield conn
+        except sa.exc.OperationalError:
+            self.available = False
+            raise BackendUnavailable(self)
 
     def get(self, connection, columns, condition, default=NA):
         scalar = isinstance(columns, sa.Column)

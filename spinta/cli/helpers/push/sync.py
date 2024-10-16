@@ -6,6 +6,7 @@ import tqdm
 from typer import echo
 
 from spinta.auth import authorized
+from spinta.backends.constants import BackendFeatures
 from spinta.cli.helpers.errors import ErrorCounter
 from spinta.cli.helpers.push import prepare_data_for_push_state
 from spinta.cli.helpers.push.utils import extract_state_page_id_key, construct_where_condition_from_page
@@ -53,10 +54,10 @@ def _fetch_all_model_data(
     server: str,
     error_counter: ErrorCounter
 ):
-    limit = config.sync_page_size or 1000
+    limit = config.sync_page_size
     page = ''
     page_columns = []
-    if model.page and model.page.by and model.backend.paginated and model.page.is_enabled:
+    if model.backend.supports(BackendFeatures.PAGINATION) and model.page and model.page.by and model.page.is_enabled:
         for page_by in model.page.by.values():
             page_columns.append(page_by.prop.name)
     while True:

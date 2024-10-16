@@ -9,11 +9,10 @@ from sqlalchemy.dialects.postgresql import UUID
 
 from spinta import exceptions
 from spinta.auth import authorized
-from spinta.backends.constants import TableType
-from spinta.backends.postgresql.components import BackendFeatures
+from spinta.backends.constants import TableType, BackendFeatures
 from spinta.backends.postgresql.ufuncs.query.components import PgQueryBuilder, InheritForeignProperty, Lower, Recurse, \
     Negative, Positive
-from spinta.components import Model, Property, Action, Page
+from spinta.components import Property, Action, Page
 from spinta.core.ufuncs import Bind, Negative as Negative_
 from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import ufunc, GetAttr
@@ -32,12 +31,13 @@ from spinta.types.datatype import Object
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.types.datatype import String
+from spinta.types.datatype import UUID as UUID_dtype
 from spinta.types.text.components import Text
 from spinta.types.text.helpers import determine_language_property_for_text
 from spinta.ufuncs.basequerybuilder.components import ReservedProperty, \
     NestedProperty, ResultProperty
 from spinta.ufuncs.basequerybuilder.helpers import get_column_with_extra, get_language_column, \
-    is_expandable_not_expanded
+    expandable_not_expanded
 from spinta.ufuncs.basequerybuilder.ufuncs import Star
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.data import take
@@ -93,7 +93,7 @@ def select(env, arg: Star) -> None:
         #       writes.
 
         # Check if prop is expanded or not
-        if is_expandable_not_expanded(env, prop):
+        if expandable_not_expanded(env, prop):
             continue
         env.selected[prop.place] = env.call('select', prop)
 
@@ -105,7 +105,7 @@ def select(env, arg):
     if arg.name == '_page':
         return None
     prop = _get_property_for_select(env, arg.name)
-    if is_expandable_not_expanded(env, prop):
+    if expandable_not_expanded(env, prop):
         return Selected(None, prop, prep=[])
     return env.call('select', prop.dtype)
 
@@ -238,10 +238,10 @@ def select(env, dtype, leaf):
 
 
 @ufunc.resolver(PgQueryBuilder, Ref)
-def select(env, dtype):
+def select(env, dtype: Ref):
     uri = dtype.model.uri_prop
     prep = {}
-    if dtype.prop.given.explicit:
+    if not dtype.inherited:
         name = '_id'
         if env.query_params.prioritize_uri and uri is not None:
             fpr = ForeignProperty(None, dtype, dtype.model.properties['_id'].dtype)
@@ -261,9 +261,9 @@ def select(env, dtype):
 
 
 @ufunc.resolver(PgQueryBuilder, ExternalRef)
-def select(env, dtype):
+def select(env, dtype: ExternalRef):
     prep = {}
-    if dtype.prop.given.explicit:
+    if not dtype.inherited:
         table = env.backend.get_table(env.model)
         if dtype.model.given.pkeys or dtype.explicit:
             props = dtype.refprops
@@ -390,13 +390,13 @@ def select(env, dtype):
     ref = dtype.prop.parent
     if isinstance(ref, Property) and isinstance(ref.dtype, Ref):
         fpr = None
-        if not ref.given.explicit:
+        if ref.dtype.inherited:
             root_ref_parent = ref.parent
 
             while root_ref_parent and isinstance(root_ref_parent, Property) and isinstance(root_ref_parent.dtype, Ref):
                 fpr = ForeignProperty(fpr, root_ref_parent.dtype, root_ref_parent.dtype.model.properties['_id'].dtype)
 
-                if root_ref_parent.given.explicit:
+                if not root_ref_parent.dtype.inherited:
                     break
                 root_ref_parent = root_ref_parent.parent
 
@@ -536,6 +536,12 @@ def compare(env, op, dtype, value):
     cond = _sa_compare(op, column, value)
     return _prepare_condition(env, dtype.prop, cond)
 
+@ufunc.resolver(PgQueryBuilder, UUID_dtype, str, names=COMPARE)
+def compare(env, op, dtype, value):
+    column = env.backend.get_column(env.table, dtype.prop)
+    cond = _sa_compare(op, column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
 
 @ufunc.resolver(PgQueryBuilder, String, str, names=COMPARE)
 def compare(env, op, dtype, value):
@@ -614,6 +620,12 @@ def compare(
     raise exceptions.InvalidValue(dtype, op=op, arg=type(value).__name__)
 
 
+@ufunc.resolver(PgQueryBuilder, UUID_dtype, str)
+def eq(env, dtype, value):
+    column = env.backend.get_column(env.table, dtype.prop)
+    cond = _sa_compare('eq', column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
 @ufunc.resolver(PgQueryBuilder, DataType, type(None))
 def eq(env, dtype, value):
     column = env.backend.get_column(env.table, dtype.prop)
@@ -657,6 +669,13 @@ def eq(
 def _ensure_non_empty(op, s):
     if s == '':
         raise EmptyStringSearch(op=op)
+
+@ufunc.resolver(PgQueryBuilder, UUID_dtype, str, names=COMPARE_STRING)
+def compare(env: PgQueryBuilder, op: str, dtype: UUID, value: str):
+    if op in ('startswith', 'contains'):
+        _ensure_non_empty(op, value)
+    column = env.backend.get_column(env.table, dtype.prop).cast(sa.String)
+    return _sa_compare(op, column, value)
 
 
 @ufunc.resolver(PgQueryBuilder, ForeignProperty, String, str, names=COMPARE_STRING)
@@ -806,6 +825,11 @@ def _prepare_condition(env: PgQueryBuilder, prop: Property, cond):
 
 
 @ufunc.resolver(PgQueryBuilder, DataType, type(None))
+def ne(env, dtype, value):
+    column = env.backend.get_column(env.table, dtype.prop)
+    return _ne_compare(env, dtype.prop, column, value)
+
+@ufunc.resolver(PgQueryBuilder, UUID_dtype, str)
 def ne(env, dtype, value):
     column = env.backend.get_column(env.table, dtype.prop)
     return _ne_compare(env, dtype.prop, column, value)

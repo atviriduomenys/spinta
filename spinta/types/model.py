@@ -13,6 +13,7 @@ from typing import overload
 from spinta import commands
 from spinta import exceptions
 from spinta.auth import authorized
+from spinta.backends.constants import BackendFeatures
 from spinta.backends.nobackend.components import NoBackend
 from spinta.commands import authorize
 from spinta.commands import check
@@ -25,7 +26,6 @@ from spinta.components import Model
 from spinta.components import Property
 from spinta.core.access import link_access_param
 from spinta.core.access import load_access_param
-from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.components import ExternalBackend
 from spinta.datasets.enums import Level
 from spinta.dimensions.comments.helpers import load_comments
@@ -214,36 +214,39 @@ def link(context: Context, model: Model):
     _link_model_page(model)
 
 
-def _link_model_page(model: Model):
-    if not model.backend or not model.backend.paginated:
-        model.page.is_enabled = False
-    else:
-        # Disable page if external backend and model.ref not given
-        if isinstance(model.backend, ExternalBackend):
-            if (model.external and not model.external.name) or not model.external:
-                model.page.is_enabled = False
-            else:
-                # Currently only supported external backend is SQL
-                if not isinstance(model.backend, Sql):
-                    model.page.is_enabled = False
-            if '_id' in model.page.by:
-                model.page.by.pop('_id')
-            if '-_id' in model.page.by:
-                model.page.by.pop('-_id')
-        else:
-            # Force '_id' to be page key if other keys failed the checks
-            if not model.page.is_enabled and page_contains_unsupported_keys(model.page):
-                model.page.by = {'_id': PageBy(model.properties['_id'])}
-                model.page.is_enabled = True
+def _disable_page_in_model(model: Model):
+    model.page.is_enabled = False
 
-            # Add _id to internal, if it's not added
-            if '_id' not in model.page.by and '-_id' not in model.page.by:
-                model.page.by['_id'] = PageBy(model.properties["_id"])
-        if len(model.page.by) == 0:
-            model.page.is_enabled = False
-    if not model.page.is_enabled:
-        del model.properties['_page']
-        del model.flatprops['_page']
+
+def _link_model_page(model: Model):
+    if not model.backend or not model.backend.supports(BackendFeatures.PAGINATION):
+        _disable_page_in_model(model)
+        return
+    # Disable page if external backend and model.ref not given
+    if isinstance(model.backend, ExternalBackend):
+        if (model.external and not model.external.name) or not model.external:
+            _disable_page_in_model(model)
+            return
+
+        if '_id' in model.page.by:
+            model.page.by.pop('_id')
+        if '-_id' in model.page.by:
+            model.page.by.pop('-_id')
+    else:
+        # Force '_id' to be page key if other keys failed the checks
+        if not model.page.is_enabled and page_contains_unsupported_keys(model.page):
+            model.page.by = {'_id': PageBy(model.properties['_id'])}
+            model.page.is_enabled = True
+
+        # Add _id to internal, if it's not added
+        if '_id' not in model.page.by and '-_id' not in model.page.by:
+            model.page.by['_id'] = PageBy(model.properties["_id"])
+
+    if len(model.page.by) == 0:
+        _disable_page_in_model(model)
+
+
+
 
 
 @overload

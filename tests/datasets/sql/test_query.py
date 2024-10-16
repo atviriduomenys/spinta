@@ -270,6 +270,7 @@ def test_paginate_none_values(db_dialect: str, rc: RawConfig, mocker):
       "PLANET"."CODE",
       "PLANET"."NAME"
     FROM "PLANET" ORDER BY "PLANET"."ID" ASC NULLS LAST
+     LIMIT :param_1
     '''
 
 
@@ -293,6 +294,7 @@ def test_paginate_none_values(db_dialect: str, rc: RawConfig, mocker):
       "PLANET"."CODE",
       "PLANET"."NAME"
     FROM "PLANET" ORDER BY CASE WHEN ("PLANET"."ID" IS NULL) THEN 1 ELSE 0 END, "PLANET"."ID" ASC
+     LIMIT :param_1
     '''
 
 
@@ -337,6 +339,7 @@ def test_paginate_given_values_page_not_given(db_dialect: str, rc: RawConfig, mo
       "PLANET"."CODE"
     FROM "PLANET"
     WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL ORDER BY "PLANET"."NAME" ASC NULLS LAST
+     LIMIT :param_1
     '''
 
 
@@ -361,6 +364,7 @@ def test_paginate_given_values_page_not_given(db_dialect: str, rc: RawConfig, mo
       "PLANET"."CODE"
     FROM "PLANET"
     WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL ORDER BY CASE WHEN ("PLANET"."NAME" IS NULL) THEN 1 ELSE 0 END, "PLANET"."NAME" ASC
+     LIMIT :param_1
     '''
 
 
@@ -437,6 +441,7 @@ def test_paginate_given_values_private(db_dialect: str, rc: RawConfig, mocker):
     FROM "PLANET"
     WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL OR "PLANET"."NAME" = :NAME_2
       AND ("PLANET"."CODE" > :CODE_1 OR "PLANET"."CODE" IS NULL) ORDER BY "PLANET"."NAME" ASC NULLS LAST, "PLANET"."CODE" ASC NULLS LAST
+      LIMIT :param_1
     '''
 
 
@@ -463,6 +468,7 @@ def test_paginate_given_values_private(db_dialect: str, rc: RawConfig, mocker):
     FROM "PLANET"
     WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL OR "PLANET"."NAME" = :NAME_2
       AND ("PLANET"."CODE" > :CODE_1 OR "PLANET"."CODE" IS NULL) ORDER BY CASE WHEN ("PLANET"."NAME" IS NULL) THEN 1 ELSE 0 END, "PLANET"."NAME" ASC, CASE WHEN ("PLANET"."CODE" IS NULL) THEN 1 ELSE 0 END, "PLANET"."CODE" ASC
+     LIMIT :param_1
     '''
 
 
@@ -489,6 +495,7 @@ def test_paginate_given_values_two_keys(db_dialect: str, rc: RawConfig, mocker):
     FROM "PLANET"
     WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL OR "PLANET"."NAME" = :NAME_2
       AND ("PLANET"."CODE" > :CODE_1 OR "PLANET"."CODE" IS NULL) ORDER BY "PLANET"."NAME" ASC NULLS LAST, "PLANET"."CODE" ASC NULLS LAST
+     LIMIT :param_1
     '''
 
 
@@ -515,6 +522,7 @@ def test_paginate_given_values_two_keys(db_dialect: str, rc: RawConfig, mocker):
     FROM "PLANET"
     WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL OR "PLANET"."NAME" = :NAME_2
       AND ("PLANET"."CODE" > :CODE_1 OR "PLANET"."CODE" IS NULL) ORDER BY CASE WHEN ("PLANET"."NAME" IS NULL) THEN 1 ELSE 0 END, "PLANET"."NAME" ASC, CASE WHEN ("PLANET"."CODE" IS NULL) THEN 1 ELSE 0 END, "PLANET"."CODE" ASC
+     LIMIT :param_1
     '''
 
 
@@ -541,6 +549,7 @@ def test_paginate_given_values_two_keys_ref_not_given(db_dialect: str, rc: RawCo
     FROM "PLANET"
     WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL OR "PLANET"."NAME" = :NAME_2
       AND ("PLANET"."CODE" > :CODE_1 OR "PLANET"."CODE" IS NULL) ORDER BY "PLANET"."NAME" ASC NULLS LAST, "PLANET"."CODE" ASC NULLS LAST
+     LIMIT :param_1
     '''
 
 
@@ -567,6 +576,7 @@ def test_paginate_given_values_two_keys_ref_not_given(db_dialect: str, rc: RawCo
     FROM "PLANET"
     WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL OR "PLANET"."NAME" = :NAME_2
       AND ("PLANET"."CODE" > :CODE_1 OR "PLANET"."CODE" IS NULL) ORDER BY CASE WHEN ("PLANET"."NAME" IS NULL) THEN 1 ELSE 0 END, "PLANET"."NAME" ASC, CASE WHEN ("PLANET"."CODE" IS NULL) THEN 1 ELSE 0 END, "PLANET"."CODE" ASC
+     LIMIT :param_1
     '''
 
 
@@ -593,6 +603,7 @@ def test_paginate_desc(db_dialect: str, rc: RawConfig, mocker):
     FROM "PLANET"
     WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL OR "PLANET"."NAME" = :NAME_2
       AND "PLANET"."CODE" < :CODE_1 ORDER BY "PLANET"."NAME" ASC NULLS LAST, "PLANET"."CODE" DESC NULLS FIRST
+     LIMIT :param_1
     '''
 
 
@@ -619,6 +630,7 @@ def test_paginate_desc(db_dialect: str, rc: RawConfig, mocker):
     FROM "PLANET"
     WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL OR "PLANET"."NAME" = :NAME_2
       AND "PLANET"."CODE" < :CODE_1 ORDER BY CASE WHEN ("PLANET"."NAME" IS NULL) THEN 1 ELSE 0 END, "PLANET"."NAME" ASC, CASE WHEN ("PLANET"."CODE" IS NOT NULL) THEN 1 ELSE 0 END, "PLANET"."CODE" DESC
+     LIMIT :param_1
     '''
 
 
@@ -640,4 +652,33 @@ def test_paginate_disabled(rc: RawConfig):
       "PLANET"."ID",
       "PLANET"."CODE"
     FROM "PLANET"
+    '''
+
+
+def test_composite_non_pk_ref_with_literal(rc: RawConfig):
+    assert _build(rc, '''
+d | r | b | m | property | type    | ref                       | source       | prepare  | access
+example                  |         |                           |              |          |
+  |   |   | Translation  |         | id                        | TRANSLATION  |          | open
+  |   |   |   | id       | integer |                           | ID           |          |
+  |   |   |   | lang     | string  |                           | LANG         |          |
+  |   |   |   | name     | string  |                           | NAME         |          |
+  |   |   |   | city_id  | integer |                           | CITY_ID      |          |
+  |   |   |   |          |         |                           |              |          |
+  |   |   | City         |         | id                        | CITY         |          | open
+  |   |   |   | id       | integer |                           | ID           |          |
+  |   |   |   | en       | ref     | Translation[city_id,lang] |              | id, "en" |
+  |   |   |   | name_en  | string  |                           |              | en.name  |
+  |   |   |   | lt       | ref     | Translation[city_id,lang] |              | id, "lt" |
+  |   |   |   | name_lt  | string  |                           |              | lt.name  |
+        ''', 'example/City') == '''
+    SELECT
+      "CITY"."ID",
+      "TRANSLATION_1"."NAME",
+      "TRANSLATION_2"."NAME" AS "NAME_1"
+    FROM "CITY"
+    LEFT OUTER JOIN "TRANSLATION" AS "TRANSLATION_1" ON "CITY"."ID" = "TRANSLATION_1"."CITY_ID"
+      AND "TRANSLATION_1"."LANG" = :LANG_1
+    LEFT OUTER JOIN "TRANSLATION" AS "TRANSLATION_2" ON "CITY"."ID" = "TRANSLATION_2"."CITY_ID"
+      AND "TRANSLATION_2"."LANG" = :LANG_2
     '''

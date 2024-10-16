@@ -1,16 +1,259 @@
-.. default-role:: literal
-
 Changes
 #######
 
-0.1.67 (unreleased)
+0.1.77 (unreleased)
 ===================
+
+Backwards incompatible changes:
+
+- `wait` command no longer raises exceptions, when it fails to connect to backend (`PostgresSql` and `Sql`).
+  This means that you will only know if `backend` failed to connect, when you try to call `transaction` or `begin` methods,
+  which should be called on every request (`#730`_).
+
+New features:
+
+- Added support for literal values in `property` `prepare` expression (`#670`_).
+
+  .. _#670: https://github.com/atviriduomenys/spinta/issues/670
+
+- Added uuid data type (`#660`_).
+
+  .. _#660: https://github.com/atviriduomenys/spinta/issues/660
+
+Improvements:
+
+- Added `backend``transaction` and `begin` method validations (`PostgresSql` and `Sql` backends). When launching
+  `spinta` server, `wait` command no longer raises exceptions if it failed to connect to backend (`#730`_).
+
+  .. _#730: https://github.com/atviriduomenys/spinta/issues/730
+
+
+0.1.76 (2024-10-08)
+===================
+
+
+Backwards incompatible changes:
+
+- You can no longer directly set `Ref` foreign key values to `None`. Meaning you cannot set `"ref": {"_id": None}`.
+  Now, if you want to unassign `Ref` value, you have to set it to `None` (`"ref": None`), it will also now set all
+  nested values (`Denorm`) to `None` as well, this new feature now ensures, that there cannot be floating `Denorm` values
+  when trying to remove references (`#846`_).
+
+
+Improvements:
+
+- Added removal of duplicate models when converting `XSD` to `DSA` even when `source` is different (`#787`_).
+
+  .. _#787: https://github.com/atviriduomenys/spinta/issues/787
+
+- Improved invalid scope error messaging for token auth (`#537`_).
+
+  .. _#537: https://github.com/atviriduomenys/spinta/issues/537
+
+- Added ability to remove all nested property values for `Ref` type, when assigning `None` to the value itself (`#846`_).
+
+
+Bug fixes:
+
+- Fixed a bug in XSD->DSA conversion, where properties need to become arrays in a `choice` which has `maxOccurs="unbounded"` (`#837`_).
+
+  .. _#837: https://github.com/atviriduomenys/spinta/issues/837
+
+- Fixed `checksum()` function bug, where it tried to calculate checksums before converting data from `backend` specific to
+  python types (`#832`_).
+
+- Fixed an oversight where `geoalchemy2` values were propagated to `prepare_dtype_for_response` instead of being converted to
+  `backend` indifferent type (`shapely.geometry.base.BaseGeometry`) (`#832`_).
+
+  .. _#832: https://github.com/atviriduomenys/spinta/issues/832
+
+- Fixed errors when `Ref` changelog values were incorrect. Now, if changelog ref `_id`, or ref itself is `""`, it assumes
+  that it is supposed to be `None` (`#556`_).
+
+  .. _#556: https://github.com/atviriduomenys/spinta/issues/556
+
+- Fixed `Ref` value unassignment not updating the values in database (`#846`_).
+
+  .. _#846: https://github.com/atviriduomenys/spinta/issues/846
+
+
+0.1.75 (2024-09-24)
+===================
+
+Improvements:
+
+- Reverted github actions `postgresql` version to `11`, until production server is updated to `16`, so we don't get similar
+  issues again (`#827`_).
+
+
+Bug fixes:
+
+- Fixed `summary` for `Geometry` not working with older than 16 `postgresql` version (`#827`_).
+
+  .. _#827: https://github.com/atviriduomenys/spinta/issues/827
+
+
+0.1.74 (2024-09-24)
+===================
+
+Bug fixes:
+
+- Fixed `api` `inspect` `clean_up` function failing when there are exceptions while reading `manifest` files (`#813`_).
+
+  .. _#813: https://github.com/atviriduomenys/spinta/issues/813
+
+- Fixed `client add` not finding `config_path` when using `config.yml` instead of setting it with `-p` (`#818`_).
+
+  .. _#818: https://github.com/atviriduomenys/spinta/issues/818
+
+
+0.1.73 (2024-09-19)
+===================
+
+Backwards incompatible changes:
+
+- Changed `pymongo` version requirement from `"*"` to `"<=4.8.0"`. Version `4.9.0` changed import paths, that broke `spinta` (`#806`_).
+
+  .. _#806: https://github.com/atviriduomenys/spinta/issues/806
+
+0.1.72 (2024-09-18)
+===================
+
+Improvements:
+
+- Added support for negative float values in `starlette` float routing (use `spinta_float` instead of `float` type) (`#781`_).
+
+  .. _#781: https://github.com/atviriduomenys/spinta/issues/781
+
+- Changed `manifests.default.backend` config value from `''` to `'default'`. Now if nothing is set, default backend will be
+  `MemoryBackend` instead of nothing (`#798`_).
+
+  .. _#798: https://github.com/atviriduomenys/spinta/issues/798
+
+- Added removal of duplicate models when converting `XSD` to `DSA` (`#752`_).
+
+  .. _#752: https://github.com/atviriduomenys/spinta/issues/752
+
+Bug fixes:
+
+- Fixed `_srid` routing error, when using negative float values as coordinates (`#781`_).
+
+- Fixed `Geometry` boundary check not respecting `SRID` latitude and longitude order (used to always assume, that x = longitude,
+  y = latitude, now it will try to switch based on `SRID`) (`#737`_).
+
+  .. _#737: https://github.com/atviriduomenys/spinta/issues/737
+
+- Fixed some errors when trying to access api endpoints, while server is running with default config settings (`#798`_).
+
+- Fixed a problem in `PropertyReader` and `EnumReader` where enums were always added to the top level `property` (`#540`_).
+
+  .. _#540: https://github.com/atviriduomenys/spinta/issues/540
+
+0.1.71 (2024-09-12)
+===================
+
+Backwards incompatible:
+
+- Spinta no longer automatically migrates `clients` structure (`#122`_). Now you have to manually use
+  `spinta upgrade` command to migrate files. Meaning if there are issues with `clients` file structure you will going to
+  get errors, suggesting to fix the problem, or run `spinta upgrade` command (`#764`_).
+
+Improvements:
+
+- Changed `postgresql` github actions and docker compose version to `16-3.4` (`P#129`).
+
+- Changed report bug link to `atviriduomenys@vssa.lt` email (`#758`_).
+
+  .. _#758: https://github.com/atviriduomenys/spinta/issues/758
+
+New features:
+
+- Added `spinta upgrade` command, that will migrate backwards incompatible changes between versions (`#764`_).
+
+  - Use `spinta upgrade` to run all scripts.
+  - `spinta upgrade -m <script_name>` to run specific script.
+  - `spinta upgrade -f` to skip all checks and forcefully run scripts.
+  - `spinta upgrade -d` to run destructive mode, which, depending on script, will override existing changes.
+    Only use destructive mode, if you know what will be changed, and you have made backups.
+
+- Added `clients` migrate script to `spinta upgrade` command (`#764`_).
+  Main goal is to migrate client files from old structure to newly introduced one in `#122`_ task.
+
+  - You can specify it with `spinta upgrade -r clients` command.
+  - Use `spinta upgrade -r clients -f` if you want to make sure that all files are migrated correctly. It will skip
+    already migrated files and update `keymap.yml`.
+  - `spinta upgrade -r clients -f -d` will override any new files that match old ones. This is destructive and there are
+    no rollbacks for it, so only use it if you have backups and understand what will be changed.
+
+  .. _#764: https://github.com/atviriduomenys/spinta/issues/764
+
+Bug fixes:
+
+- Added missing cluster limit to `:summary` for `Geometry` type properties. Now it's set to 25 clusters (`P#130`).
+
+
+0.1.70 (2024-08-27)
+===================
+
+Improvements:
+
+- Improved performance of `PostgreSQL` and `SQL` `backend` `getall` functions (`#746`_).
+
+  .. _#746: https://github.com/atviriduomenys/spinta/issues/746
+
+0.1.69 (2024-08-23)
+===================
+
+Improvements:
+
+- Nested properties for XSD. (`#622`_).
+
+  .. _#622: https://github.com/atviriduomenys/spinta/issues/622
+
+Bug fixes:
+
+- Removed `from mypy.dmypy.client import request` import from `spinta/components.py`.
+
+0.1.68 (2024-08-23)
+===================
+
+Backwards incompatible:
+
+- Renamed `push_page_size` config field to `default_page_size` (`#735`_).
+
+Improvements:
+
+- Changed default config `sync_page_size` and `default_page_size` parameters to be `100000` instead of `1000` (`#735`_).
+
+New features:
+
+- Added `enable_pagination` config field, which will enable or disable default pagination behaviour. Request and schema
+  specifications take priority, meaning even if `enable_pagination` is set to `False`, you can still specify `page(disable:false)`
+  to enable it for specific requests (`#735`_).
+
+  .. _#735: https://github.com/atviriduomenys/spinta/issues/735
+
+0.1.67 (2024-08-02)
+===================
+
+Backwards incompatible:
+
+- Changed `spinta_sqlite` driver name to `spinta`. Old naming was unnecessary since you needed to use `sqlite+spinta_sqlite:///...`,
+  now you can just use `sqlite+spinta:///...` (`#723`_).
+- `spinta push` `state` database now will always going to append `sqlite+spinta:///` prefix, instead of `sqlite:///`. This
+  ensures, that `sqlite` version is now dependant on `sqlean` library, instead of taking default python `sqlite` version
+  (makes it easier to ensure, that users are using correct version of `sqlite`) (`#723`_).
+- Changed `sqlalchemy` default `sqlite` driver to `SQLiteDialect_spinta` (instead of `SQLiteDialect_pysqlite`). Meaning
+  every time you use `sqlite:///...` it will default to `spinta` driver, instead of `pysqlite` (default `sqlalchemy`) (`#723`_).
 
 Improvements:
 
 - Writing `InternalSQLManifest` now is done using `transaction`, meaning if there are errors, it will rollback any changes
   (This is useful when doing `copy` on already existing structure, since it clears all old data before writing new) (`#715`_).
 
+- Changed `state` db, to always use `spinta` `sqlite` driver (`#723`_).
+
+  .. _#723: https://github.com/atviriduomenys/spinta/issues/723
 
 Bug fixes:
 

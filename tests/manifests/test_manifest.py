@@ -111,6 +111,27 @@ def test_enum(manifest_type, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
+def test_enum_nested(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
+        d | r | b | m | property   | type    | ref    | source | prepare
+        example                    |         |        |        |
+                                   |         |        |        |
+          |   |   | Option         |         | id     |        |
+          |   |   |   | id         | integer |        |        |
+                                   |         |        |        |
+          |   |   | Answer         |         | id     |        |
+          |   |   |   | id         | integer |        |        |
+          |   |   |   | opinion    | ref     | Option |        |
+          |   |   |   | opinion.o1 | integer |        |        |
+                                   | enum    |        |        | 1
+                                   |         |        |        | 0
+          |   |   |   | opinion.o2 | integer |        |        |
+                                   | enum    |        |        | 1
+                                   |         |        |        | 0
+    ''', manifest_type)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_enum_ref(manifest_type, tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property     | type   | ref     | source | prepare | access  | title | description

@@ -4,6 +4,7 @@ import csv
 import pathlib
 import logging
 import textwrap
+import types
 import uuid
 from operator import itemgetter
 from itertools import zip_longest
@@ -30,7 +31,7 @@ from tabulate import tabulate
 from spinta import commands
 from spinta import spyna
 from spinta.backends import Backend
-from spinta.backends.components import BackendOrigin
+from spinta.backends.constants import BackendOrigin
 from spinta.components import Context, Base, PrepareGiven
 from spinta.datasets.components import Resource, Param
 from spinta.dimensions.comments.components import Comment
@@ -94,6 +95,7 @@ MAIN_DIMENSIONS = [
     'model',
     'property',
 ]
+
 EXTRA_DIMENSIONS = [
     '',
     'prefix',
@@ -104,6 +106,10 @@ EXTRA_DIMENSIONS = [
     'lang',
     'unique'
 ]
+
+ALLOWED_PARTIAL_TYPES = ['object', 'partial', 'ref']
+
+ALLOWED_ARRAY_TYPES = ['array', 'partial_array']
 
 
 class TabularManifestError(Exception):
@@ -595,6 +601,7 @@ class PropertyReader(TabularReader):
     enums: Set[str]
 
     def read(self, row: Dict[str, str]) -> None:
+        self.path_to_current_prop = self._path_to_current_prop(row['property'])
         full_prop, parent_prop, prop_name = _get_parent_data(self, row, row['property'])
         prop_data = _handle_datatype(self, row)
         if prop_data:
@@ -647,9 +654,14 @@ class PropertyReader(TabularReader):
             )
         )
 
-
-ALLOWED_PARTIAL_TYPES = ['object', 'partial', 'ref']
-ALLOWED_ARRAY_TYPES = ['array', 'partial_array']
+    def _path_to_current_prop(self, prop_given_name: str) -> str:
+        STR_PROPERTIES = 'properties'
+        parts = prop_given_name.split('.')[1:]
+        result = '.'.join(
+            part + ('.' + STR_PROPERTIES if i < len(parts) - 1 else '')
+            for i, part in enumerate(parts)
+        )
+        return STR_PROPERTIES + '.' + result if result else ''
 
 
 def _initial_normal_property_schema(given_name: str, dtype: dict, row: dict):
@@ -1347,22 +1359,15 @@ class EnumReader(TabularReader):
             'description': row[DESCRIPTION],
         }
 
-        node = (
-            self.state.prop or
-            self.state.model or
-            self.state.base or
-            self.state.resource or
-            self.state.dataset or
-            self.state.manifest
-        )
+        node_data: PropertyRow = self._get_node_data(row)
 
-        if 'enums' not in node.data:
-            node.data['enums'] = {}
+        if 'enums' not in node_data:
+            node_data['enums'] = {}
 
-        if self.name not in node.data['enums']:
-            node.data['enums'][self.name] = {}
+        if self.name not in node_data['enums']:
+            node_data['enums'][self.name] = {}
 
-        enum = node.data['enums'][self.name]
+        enum = node_data['enums'][self.name]
 
         if source in enum:
             self.error(
@@ -1382,6 +1387,25 @@ class EnumReader(TabularReader):
 
     def leave(self) -> None:
         pass
+
+    def _get_node_data(self, row: ManifestRow) -> PropertyRow:
+        node: TabularReader = (
+            self.state.prop
+            or self.state.model
+            or self.state.base
+            or self.state.resource
+            or self.state.dataset
+            or self.state.manifest
+        )
+
+        node_data: PropertyRow = node.data
+
+        if isinstance(node, PropertyReader):
+            if node.path_to_current_prop:
+                for key in node.path_to_current_prop.split('.'):
+                    node_data = node_data[key]
+
+        return node_data
 
 
 class LangReader(TabularReader):
@@ -1637,11 +1661,16 @@ def read_tabular_manifest(
     else:
         raise ValueError(f"Unknown tabular manifest format {format_!r}.")
 
-    yield from _read_tabular_manifest_rows(
-        path,
-        rows,
-        rename_duplicates=rename_duplicates,
-    )
+    try:
+        yield from _read_tabular_manifest_rows(
+            path,
+            rows,
+            rename_duplicates=rename_duplicates,
+        )
+    except Exception:
+        if isinstance(rows, types.GeneratorType):
+            rows.close()
+        raise
 
 
 def _read_txt_manifest(

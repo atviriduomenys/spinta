@@ -15,12 +15,15 @@ from itertools import count
 from starlette.requests import Request
 from starlette.templating import Jinja2Templates
 
+from shapely.geometry.base import BaseGeometry
+
 from spinta import commands
 from spinta.backends.components import SelectTree
 from spinta.backends.helpers import get_model_reserved_props, get_select_prop_names, select_props
 from spinta.backends.helpers import get_ns_reserved_props
 from spinta.backends.helpers import select_model_props
-from spinta.components import Action
+from spinta.backends.postgresql.types.geometry.helpers import get_display_value, get_osm_link
+from spinta.components import Action, pagination_enabled, page_in_data
 from spinta.components import Context
 from spinta.components import Model
 from spinta.components import Namespace
@@ -48,6 +51,8 @@ from spinta.types.datatype import Number
 from spinta.types.datatype import Binary
 from spinta.types.datatype import JSON
 from spinta.types.datatype import Inherit
+from spinta.types.datatype import UUID
+from spinta.types.geometry.components import Geometry
 from spinta.types.text.components import Text
 from spinta.utils.encoding import is_url_safe_base64, encode_page_values
 from spinta.utils.nestedstruct import flatten, sepgetter
@@ -56,14 +61,14 @@ from spinta.utils.schema import NotAvailable
 from spinta.utils.url import build_url_path
 
 
-def _get_model_reserved_props(action: Action, model: Model) -> List[str]:
+def _get_model_reserved_props(action: Action, include_page: bool) -> List[str]:
     if action == Action.GETALL:
         reserved = ['_id']
     elif action == action.SEARCH:
         reserved = ['_id', '_base']
     else:
-        return get_model_reserved_props(action, model)
-    if model.page.is_enabled:
+        return get_model_reserved_props(action, include_page)
+    if include_page:
         reserved.append('_page')
     return reserved
 
@@ -215,7 +220,7 @@ def _get_model_tabular_header(
     if model.name == '_ns':
         reserved = get_ns_reserved_props(action)
     else:
-        reserved = _get_model_reserved_props(action, model)
+        reserved = _get_model_reserved_props(action, pagination_enabled(model, params))
     return get_model_tabular_header(
         context,
         model,
@@ -325,7 +330,7 @@ def prepare_data_for_response(
         else:
             value['name'] = _ModelName(value['name'])
 
-    reserved = _get_model_reserved_props(action, model)
+    reserved = _get_model_reserved_props(action, page_in_data(value))
 
     data = {
         prop.name: commands.prepare_dtype_for_response(
@@ -405,6 +410,25 @@ def prepare_dtype_for_response(
     link = data.pop('_link', True)
     if dtype.prop.name == '_id' and link:
         return Cell(short_id(value), link=get_model_link(
+            dtype.prop.model,
+            pk=value,
+        ))
+    return Cell(value)
+
+@commands.prepare_dtype_for_response.register(Context, Html, UUID, object)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: UUID,
+    value: Any,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    link = data.pop('_link', True)
+    if dtype.prop.name == '_id' and link:
+        return Cell(short_id(str(value)), link=get_model_link(
             dtype.prop.model,
             pk=value,
         ))
@@ -553,7 +577,7 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    super_ = commands.prepare_dtype_for_response[Context, Format, Ref, dict]
+    super_ = commands.prepare_dtype_for_response[Context, Format, Ref, type(value)]
     value = super_(context, fmt, dtype, value, data=data, action=action, select=select)
     if value is None:
         return Cell('', color=Color.null)
@@ -821,6 +845,22 @@ def prepare_dtype_for_response(
         k: _value_or_null(v)
         for k, v in value.items()
     }
+
+
+@commands.prepare_dtype_for_response.register(Context, Html, Geometry, BaseGeometry)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: Geometry,
+    value: BaseGeometry,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    display_value = get_display_value(value)
+    osm_link = get_osm_link(value, dtype)
+    return Cell(display_value, link=osm_link)
 
 
 def _value_or_null(value):

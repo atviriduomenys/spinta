@@ -80,8 +80,7 @@ def test_get_property_type():
     schema = etree.fromstring(element_string)
     element = schema.xpath('*[local-name() = "element"]')[0]
     xsd = XSDReader("test.xsd", "dataset1")
-    model = XSDModel(xsd, schema)
-    result = model._get_property_type(element)
+    result = xsd.get_property_type(element)
 
     assert result == "string"
 
@@ -103,8 +102,7 @@ def test_get_property_type_ref():
     element = schema.xpath('//*[@ref="asmenys"]', )[0]
     print("ELEMENT:", element)
     xsd = XSDReader("test.xsd", "dataset1")
-    model = XSDModel(xsd, schema)
-    result = model._get_property_type(element)
+    result = xsd.get_property_type(element)
 
     assert result == "ref"
 
@@ -126,8 +124,7 @@ def test_get_property_type_simple_type():
     schema = etree.fromstring(element_string)
     element = schema.xpath('*[local-name() = "element"]')[0]
     xsd = XSDReader("test.xsd", "dataset1")
-    model = XSDModel(xsd, schema)
-    result = model._get_property_type(element)
+    result = xsd.get_property_type(element)
 
     assert result == "string"
 
@@ -144,8 +141,7 @@ def test_get_property_type_custom():
     element = schema.xpath('*[local-name() = "element"]')[0]
     xsd = XSDReader("test.xsd", "dataset1")
     xsd.custom_types = {"some_type": {"base": "string"}}
-    model = XSDModel(xsd, schema)
-    result = model._get_property_type(element)
+    result = xsd.get_property_type(element)
 
     assert result == "string"
 
@@ -161,8 +157,7 @@ def test_get_property_type_unknown():
     schema = etree.fromstring(element_string)
     element = schema.xpath('*[local-name() = "element"]')[0]
     xsd = XSDReader("test.xsd", "dataset1")
-    model = XSDModel(xsd, schema)
-    result = model._get_property_type(element)
+    result = xsd.get_property_type(element)
 
     assert result == "string"
 
@@ -671,7 +666,7 @@ def test_extract_custom_types():
     schema = etree.fromstring(element_string)
     xsd = XSDReader("test.xsd", "dataset1")
     xsd.root = schema
-    xsd._extract_custom_types(schema)
+    xsd._extract_custom_simple_types(schema)
     assert xsd.custom_types == {
         "data_laikas":
             {
@@ -734,8 +729,8 @@ def test_properties_from_references():
              },
              'required': True,
              'type': 'integer',
-           },
-         }
+           }
+        }
 
 
 def test_properties_from_references_complex_not_array():
@@ -780,28 +775,30 @@ def test_properties_from_references_complex_not_array():
     xsd = XSDReader("test.xsd", "dataset1")
     xsd.root = schema
     model = XSDModel(xsd, schema)
+    xsd.namespaces = []
     result = xsd._properties_from_references(sequence, model, source_path="tst")
 
     assert result == {
    'fiziniai_asmenys': {
-     'description': '',
+     'description': 'Pagrindiniai juridinio asmens duomenys.',
      'enums': {},
-     'external': {'name': ''},
+     'external': {'name': 'FIZINIAI_ASMENYS'},
      'model': 'test/FiziniaiAsmenys',
      'required': True,
      'type': 'ref',
    },
    'objektai': {
-     'description': '',
+     'description': 'Pagrindiniai juridinio asmens duomenys.',
      'enums': {},
-     'external': {'name': ''},
+     'external': {'name': 'OBJEKTAI'},
      'model': 'test/Objektai',
      'required': True,
      'type': 'ref',
    },
  }
 
-    assert xsd.models[0].get_data() == {
+
+    assert list(xsd.models.values())[0].get_data() == {
      'description': 'Pagrindiniai juridinio asmens duomenys.',
      'external': {
        'dataset': 'test',
@@ -832,7 +829,7 @@ def test_properties_from_references_complex_not_array():
      'type': 'model',
    }
 
-    assert xsd.models[1].get_data() == {
+    assert list(xsd.models.values())[1].get_data() == {
      'description': 'Pagrindiniai juridinio asmens duomenys.',
      'external': {
        'dataset': 'test',
@@ -908,28 +905,30 @@ def test_properties_from_references_complex_array():
     xsd.root = schema
     model = XSDModel(xsd, schema)
     model.set_name("test")
+    xsd.namespaces = []
     result = xsd._properties_from_references(sequence, model, source_path="tst")
 
     assert result == {
    'fiziniai_asmenys[]': {
-     'description': '',
+     'description': 'Pagrindiniai juridinio asmens duomenys.',
      'enums': {},
-     'external': {'name': ''},
+     'external': {'name': 'FIZINIAI_ASMENYS'},
      'model': 'test/FiziniaiAsmenys',
      'required': False,
      'type': 'backref',
    },
    'objektai[]': {
-     'description': '',
+     'description': 'Pagrindiniai juridinio asmens duomenys.',
      'enums': {},
-     'external': {'name': ''},
+     'external': {'name': 'OBJEKTAI'},
      'model': 'test/Objektai',
      'required': True,
      'type': 'backref',
-   },
- }
+   }
+    }
 
-    assert xsd.models[0].get_data() == {
+
+    assert list(xsd.models.values())[0].get_data() == {
      'description': 'Pagrindiniai juridinio asmens duomenys.',
      'external': {
        'dataset': 'test',
@@ -956,16 +955,12 @@ def test_properties_from_references_complex_array():
          'required': False,
          'type': 'string',
        },
-       'test': {
-         'model': 'test/test',
-         'type': 'ref',
-       },
      },
      'type': 'model',
    }
 
 
-    assert xsd.models[1].get_data() == {
+    assert list(xsd.models.values())[1].get_data() == {
 'description': 'Pagrindiniai juridinio asmens duomenys.',
 'external': {
     'dataset': 'test',
@@ -991,10 +986,6 @@ def test_properties_from_references_complex_array():
         },
         'required': False,
         'type': 'string',
-    },
-    'test': {
-        'model': 'test/test',
-        'type': 'ref',
     },
 },
 'type': 'model',
@@ -1161,6 +1152,7 @@ def test_properties_from_simple_elements():
     xsd = XSDReader("test.xsd", "dataset1")
     xsd.root = schema
     model = XSDModel(xsd, schema)
+    xsd.namespaces = []
     result = model.properties_from_simple_elements(schema)
     assert result == {
         'ct_e200_forma': {
@@ -1195,6 +1187,7 @@ def test_properties_from_simple_elements_mix():
     xsd = XSDReader("test.xsd", "dataset1")
     xsd.root = schema
     model = XSDModel(xsd, schema)
+    xsd.namespaces = []
     result = model.properties_from_simple_elements(schema)
     assert result == {
         'ct_e200_forma': {
@@ -1243,6 +1236,7 @@ def test_properties_from_simple_elements_not_from_sequence():
     xsd = XSDReader("test.xsd", "dataset1")
     xsd.root = schema
     model = XSDModel(xsd, schema)
+    xsd.namespaces = []
     result = model.properties_from_simple_elements(schema)
     assert result == {
         'ct_e200_forma': {

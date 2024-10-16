@@ -3,8 +3,7 @@ from sqlalchemy.dialects.postgresql import BIGINT, ARRAY
 
 import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
-from spinta.backends.components import BackendFeatures
-from spinta.backends.constants import TableType
+from spinta.backends.constants import TableType, BackendFeatures
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_pg_name, get_column_name
 from spinta.backends.postgresql.helpers.migrate.migrate import get_root_attr, MigratePostgresMeta

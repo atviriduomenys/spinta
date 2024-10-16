@@ -2,6 +2,7 @@ import logging
 from typing import Iterator
 
 from spinta import commands
+from spinta.backends.helpers import validate_and_return_begin
 from spinta.components import Context
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
@@ -18,8 +19,8 @@ from spinta.typing import ObjectData
 from spinta.ufuncs.basequerybuilder.components import QueryParams
 from spinta.ufuncs.basequerybuilder.helpers import get_page_values
 from spinta.ufuncs.helpers import merge_formulas
-from spinta.ufuncs.resultbuilder.helpers import get_row_value
-from spinta.utils.nestedstruct import flat_dicts_to_nested
+from spinta.ufuncs.resultbuilder.helpers import get_row_value, backend_result_builder_getter
+from spinta.utils.nestedstruct import flat_dicts_to_nested, extract_list_property_names
 
 log = logging.getLogger(__name__)
 
@@ -42,6 +43,9 @@ def getall(
     query = merge_formulas(query, get_enum_filters(context, model))
     query = merge_formulas(query, get_ref_filters(context, model))
     keymap: KeyMap = context.get(f'keymap.{model.keymap.name}')
+
+    result_builder_getter = backend_result_builder_getter(context, backend)
+
     for model_params in iterparams(context, model, model.manifest):
         table = model.external.name.format(**model_params)
         table = backend.get_table(model, table)
@@ -50,23 +54,27 @@ def getall(
         expr = env.resolve(query)
         where = env.execute(expr)
         qry = env.build(where)
+
+        env_selected = env.selected
+        list_keys = extract_list_property_names(model, env_selected.keys())
+        is_page_enabled = env.page.page_.is_enabled
+
         for row in conn.execute(qry):
             res = {}
 
-            for key, sel in env.selected.items():
-                val = get_row_value(context, backend, row, sel)
+            for key, sel in env_selected.items():
+                val = get_row_value(context, result_builder_getter, row, sel)
                 if sel.prop:
                     if isinstance(sel.prop.dtype, PrimaryKey):
                         val = generate_pk_for_row(sel.prop.model, row, keymap, val)
                     elif isinstance(sel.prop.dtype, Ref):
                         val = handle_ref_key_assignment(context, keymap, env, val, sel.prop.dtype)
                 res[key] = val
-
-            if model.page.is_enabled:
+            if is_page_enabled:
                 res['_page'] = get_page_values(env, row)
 
             res['_type'] = model.model_type()
-            res = flat_dicts_to_nested(res)
+            res = flat_dicts_to_nested(res, list_keys=list_keys)
             res = commands.cast_backend_to_python(context, model, backend, res)
             yield res
 
@@ -93,7 +101,7 @@ def getone(
         query[pk] = _id
 
     # building sqlalchemy query
-    context.attach(f'transaction.{backend.name}', backend.begin)
+    context.attach(f'transaction.{backend.name}', validate_and_return_begin, context, backend)
     conn = context.get(f'transaction.{backend.name}')
     table = model.external.name
     table = backend.get_table(model, table)

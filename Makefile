@@ -26,7 +26,7 @@ test: env
 
 .PHONY: run
 run: env
-	poetry run uvicorn spinta.asgi:app --debug
+	poetry run uvicorn spinta.asgi:app --reload --log-level debug
 
 .PHONY: psql
 psql:

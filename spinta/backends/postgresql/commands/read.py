@@ -12,8 +12,8 @@ from spinta.exceptions import NotFoundError
 from spinta.typing import ObjectData
 from spinta.ufuncs.basequerybuilder.components import QueryParams
 from spinta.ufuncs.basequerybuilder.helpers import get_page_values
-from spinta.ufuncs.resultbuilder.helpers import get_row_value
-from spinta.utils.nestedstruct import flat_dicts_to_nested
+from spinta.ufuncs.resultbuilder.helpers import get_row_value, backend_result_builder_getter
+from spinta.utils.nestedstruct import flat_dicts_to_nested, extract_list_property_names
 
 
 @overload
@@ -65,17 +65,18 @@ def getall(
 
     conn = connection.execution_options(stream_results=True)
     result = conn.execute(qry)
+
+    env_selected = env.selected
+    is_page_enabled = env.page.page_.is_enabled
+    result_builder_getter = backend_result_builder_getter(context, backend)
+    list_keys = extract_list_property_names(model, env_selected.keys())
+
     for row in result:
         res = {}
-        list_keys = []
-        for key, sel in env.selected.items():
-            if key in model.flatprops:
-                prop = model.flatprops[key]
-                if prop.list is not None and prop.list.place not in list_keys:
-                    list_keys.append(prop.list.place)
-            val = get_row_value(context, backend, row, sel, False)
-            res[key] = val
-        if model.page.is_enabled:
+        for key, sel in env_selected.items():
+            res[key] = get_row_value(context, result_builder_getter, row, sel, False)
+
+        if is_page_enabled:
             res['_page'] = get_page_values(env, row)
 
         res['_type'] = model.model_type()

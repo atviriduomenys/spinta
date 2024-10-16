@@ -2,8 +2,7 @@ from typing import Optional
 from typing import Union
 from urllib.parse import urlencode
 
-from geoalchemy2 import WKBElement
-from geoalchemy2.shape import to_shape
+from shapely.geometry.base import BaseGeometry
 
 from pyproj import CRS, Transformer
 from shapely.ops import transform
@@ -15,21 +14,25 @@ from spinta.types.geometry.components import Geometry
 from spinta.types.geometry.constants import WGS84
 
 
-def get_osm_link(value: WKBElement, srid: Optional[Union[int, Geometry]]) -> Optional[str]:
+def get_osm_link(value: BaseGeometry, srid: Optional[Union[int, Geometry]]) -> Optional[str]:
     if isinstance(srid, Geometry):
         if srid.srid is None:
             raise SRIDNotSetForGeometry(srid)
         srid = srid.srid
-
-    shape = to_shape(value)
 
     if srid and srid != WGS84:
         transformer = Transformer.from_crs(
             crs_from=CRS(f'EPSG:{srid}'),
             crs_to=CRS(f'EPSG:{WGS84}'),
         )
-        shape = transform(transformer.transform, shape)
-    centroid = shape.centroid
+        value = transform(transformer.transform, value)
+    centroid = value.centroid
+
+    # According to WGS84 (4326) `axis_info`
+    # Axis order is:
+    # x: Axis(name=Geodetic latitude, abbrev=Lat, direction=north, unit_auth_code=EPSG, unit_code=9122, unit_name=degree)
+    # y: Axis(name=Geodetic longitude, abbrev=Lon, direction=east, unit_auth_code=EPSG, unit_code=9122, unit_name=degree)
+    # Meaning x - lat, y - lon
     lat, lon = centroid.x, centroid.y
     params = urlencode({'mlat': lat, 'mlon': lon})
 

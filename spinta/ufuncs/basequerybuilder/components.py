@@ -1,6 +1,7 @@
 import dataclasses
 from typing import List, Any, Dict, Union
 
+from spinta.backends import Backend
 from spinta.components import Page, Property
 from spinta.core.ufuncs import Env, Expr
 from spinta.types.datatype import DataType, Object
@@ -13,11 +14,13 @@ class QueryPage:
     select: list
     sort: list
 
-    def __init__(self):
-        self.size = 0
-        self.select = []
-        self.sort = []
-        self.page_ = Page()
+    def __init__(self, size = None, select = None, sort = None, page = None):
+        self.size = size
+        self.select = [] if select is None else select
+        self.sort = [] if sort is None else sort
+        # By default, we set pagination to disabled
+        # It gets updated if there is pagination query, which should set to most up-to-date page
+        self.page_ = Page(is_enabled=False) if page is None else page
 
 
 class QueryParams:
@@ -87,6 +90,7 @@ class Selected:
 
 
 class BaseQueryBuilder(Env):
+    backend: Backend
     page: QueryPage
     expand: List[Property] = None
     query_params: QueryParams = None
@@ -146,3 +150,9 @@ class ResultProperty(Func):
     # Used when result is calculated at ResultBuilder level
     # for example: checksum()
     expr: Expr
+
+
+@dataclasses.dataclass
+class LiteralProperty(Func):
+    # Used when returning literal value
+    value: Any

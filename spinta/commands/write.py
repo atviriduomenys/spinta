@@ -18,8 +18,9 @@ from spinta import exceptions
 from spinta import spyna
 from spinta.accesslog import AccessLog
 from spinta.accesslog import log_async_response
-from spinta.auth import check_scope
-from spinta.backends.components import Backend, BackendFeatures
+from spinta.auth import check_scope, Scopes
+from spinta.backends.components import Backend
+from spinta.backends.constants import BackendFeatures
 from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
 from spinta.components import Context, Node, UrlParams, Action, DataItem, Namespace, Model, Property, DataStream, \
@@ -27,7 +28,7 @@ from spinta.components import Context, Node, UrlParams, Action, DataItem, Namesp
 from spinta.core.ufuncs import asttoexpr
 from spinta.formats.components import Format
 from spinta.renderer import render
-from spinta.types.datatype import DataType, Object, Array, File, Ref, Denorm, Inherit, BackRef
+from spinta.types.datatype import DataType, Object, Array, File, Ref, Denorm, Inherit, BackRef, ExternalRef
 from spinta.urlparams import get_model_by_name
 from spinta.utils.aiotools import agroupby
 from spinta.utils.aiotools import aslice, alist, aiter
@@ -612,7 +613,7 @@ async def validate_data(
     async for data in dstream:
         if data.error is None:
             if '_id' in data.given and data.prop is None:
-                check_scope(context, 'set_meta_fields')
+                check_scope(context, Scopes.SET_META_FIELDS)
             if data.action == Action.INSERT:
                 if '_revision' in data.given:
                     raise exceptions.ManagedProperty(data.model, property='_revision')
@@ -1064,6 +1065,18 @@ def before_write(
     data: DataSubItem,
 ) -> dict:
     patch = {}
+    # If patch is None, then just set every child to None
+    if data.patch is None:
+        for prop in dtype.properties.values():
+            value = commands.before_write(
+                context,
+                prop.dtype,
+                backend,
+                data=data,
+            )
+            patch.update(value)
+        return patch
+
     for prop in dtype.properties.values():
         value = commands.before_write(
             context,
@@ -1133,6 +1146,58 @@ def before_write(
     *,
     data: DataSubItem,
 ) -> dict:
+    # If patch is None, it means that parent was set to null, meaning all children should also be set to null
+    if data.patch is None:
+        patch = {}
+        if not dtype.inherited:
+            patch[f'{dtype.prop.place}._id'] = None
+
+        for prop in dtype.properties.values():
+            value = commands.before_write(
+                context,
+                prop.dtype,
+                backend,
+                data=data,
+            )
+            patch.update(value)
+
+        return patch
+
+    patch = flatten_value(data.patch, dtype.prop)
+    return {
+        f'{dtype.prop.place}.{k}': v for k, v in patch.items() if k
+    }
+
+
+@commands.before_write.register(Context, ExternalRef, Backend)
+def before_write(
+    context: Context,
+    dtype: ExternalRef,
+    backend: Backend,
+    *,
+    data: DataSubItem,
+) -> dict:
+    # If patch is None, it means that parent was set to null, meaning all children should also be set to null
+    if data.patch is None:
+        patch = {}
+        if not dtype.inherited:
+            if dtype.explicit or not dtype.model.external.unknown_primary_key:
+                for ref_prop in dtype.refprops:
+                    patch[f'{dtype.prop.place}.{ref_prop.name}'] = None
+            else:
+                patch[f'{dtype.prop.place}._id'] = None
+
+        for prop in dtype.properties.values():
+            value = commands.before_write(
+                context,
+                prop.dtype,
+                backend,
+                data=data,
+            )
+            patch.update(value)
+
+        return patch
+
     patch = flatten_value(data.patch, dtype.prop)
     return {
         f'{dtype.prop.place}.{k}': v for k, v in patch.items() if k
@@ -1147,6 +1212,14 @@ def before_write(
     *,
     data: DataSubItem,
 ) -> dict:
+    # If patch is None, it means that all children should be set to null
+    if data.patch is None:
+        patch = commands.before_write(context, dtype.rel_prop.dtype, backend, data=data)
+        return {
+            key.replace(dtype.rel_prop.place, dtype.prop.place): value
+            for key, value in patch.items() if key != dtype.rel_prop.place
+        }
+
     patch = flatten_value(data.patch, dtype.prop)
     key = dtype.prop.place.split('.', maxsplit=1)[-1]
     if patch.get(key):
