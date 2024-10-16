@@ -73,6 +73,9 @@ class Scopes(enum.Enum):
     # Grants access to change meta fields (like _id) through request
     SET_META_FIELDS = "set_meta_fields"
 
+    def __str__(self):
+        return self.value
+
 
 class AuthorizationServer(rfc6749.AuthorizationServer):
 

@@ -124,7 +124,7 @@ async def auth_clients_add(request: Request):
         })
 
     except InsufficientScopeError:
-        raise InsufficientPermission(scope=Scopes.AUTH_CLIENTS.value)
+        raise InsufficientPermission(scope=Scopes.AUTH_CLIENTS)
 
 
 async def auth_clients_get_all(request: Request):
@@ -146,7 +146,7 @@ async def auth_clients_get_all(request: Request):
         return JSONResponse(return_values)
 
     except InsufficientScopeError:
-        raise InsufficientPermission(scope=Scopes.AUTH_CLIENTS.value)
+        raise InsufficientPermission(scope=Scopes.AUTH_CLIENTS)
 
 
 async def auth_clients_get_specific(request: Request):
@@ -170,7 +170,7 @@ async def auth_clients_get_specific(request: Request):
         return JSONResponse(return_value)
 
     except InsufficientScopeError:
-        raise InsufficientPermission(scope=Scopes.AUTH_CLIENTS.value)
+        raise InsufficientPermission(scope=Scopes.AUTH_CLIENTS)
 
 
 async def auth_clients_delete_specific(request: Request):
@@ -186,7 +186,7 @@ async def auth_clients_delete_specific(request: Request):
         return Response(status_code=204)
 
     except InsufficientScopeError:
-        raise InsufficientPermission(scope=Scopes.AUTH_CLIENTS.value)
+        raise InsufficientPermission(scope=Scopes.AUTH_CLIENTS)
 
 
 async def auth_clients_patch_specific(request: Request):
@@ -236,7 +236,7 @@ async def auth_clients_patch_specific(request: Request):
         return JSONResponse(return_value)
 
     except InsufficientScopeError:
-        raise InsufficientPermission(scope=Scopes.AUTH_CLIENTS.value)
+        raise InsufficientPermission(scope=Scopes.AUTH_CLIENTS)
 
 
 async def homepage(request: Request):
