@@ -111,6 +111,35 @@ def before_write(
     return take(all, patch)
 
 
+@commands.before_write.register(Context, DataType, Mongo)
+def before_write(
+    context: Context,
+    dtype: DataType,
+    backend: Mongo,
+    *,
+    data: DataSubItem,
+) -> dict:
+    if inserting(data):
+        return {dtype.prop.name: data.patch}
+    else:
+        return {dtype.prop.place: data.patch}
+
+
+@commands.before_write.register(Context, Ref, Mongo)
+def before_write(
+    context: Context,
+    dtype: Ref,
+    backend: Mongo,
+    *,
+    data: DataSubItem,
+) -> dict:
+    patch = take(['_id'], data.patch) or None
+    if inserting(data):
+        return {dtype.prop.name: patch}
+    else:
+        return {dtype.prop.place: patch}
+
+
 @commands.after_write.register(Context, Model, Mongo)
 def after_write(
     context: Context,
