@@ -1410,7 +1410,6 @@ def test_backref_many_to_one_level_4_rdf(
     root = ET.fromstring(result.text)
     rdf_descriptions = root.findall('{http://www.w3.org/1999/02/22-rdf-syntax-ns#}Description')
     version_values = [desc.attrib['{http://purl.org/pav/}version'] for desc in rdf_descriptions]
-    print(version_values)
     assert result.text == f'<?xml version="1.0" encoding="UTF-8"?>\n' \
                         f'<rdf:RDF\n' \
                         f' xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"\n' \
