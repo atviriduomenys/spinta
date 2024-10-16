@@ -4,6 +4,12 @@ Changes
 0.1.77 (unreleased)
 ===================
 
+Backwards incompatible changes:
+
+- `wait` command no longer raises exceptions, when it fails to connect to backend (`PostgresSql` and `Sql`).
+  This means that you will only know if `backend` failed to connect, when you try to call `transaction` or `begin` methods,
+  which should be called on every request (`#730`_).
+
 New features:
 
 - Added support for literal values in `property` `prepare` expression (`#670`_).
@@ -13,6 +19,13 @@ New features:
 - Added uuid data type (`#660`_).
 
   .. _#660: https://github.com/atviriduomenys/spinta/issues/660
+
+Improvements:
+
+- Added `backend``transaction` and `begin` method validations (`PostgresSql` and `Sql` backends). When launching
+  `spinta` server, `wait` command no longer raises exceptions if it failed to connect to backend (`#730`_).
+
+  .. _#730: https://github.com/atviriduomenys/spinta/issues/730
 
 
 0.1.76 (2024-10-08)

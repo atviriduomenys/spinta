@@ -7,7 +7,7 @@ from starlette.datastructures import UploadFile
 from typing import Tuple
 
 from spinta import commands
-from spinta.auth import check_scope
+from spinta.auth import check_scope, Scopes
 from spinta.components import Context, UrlParams
 from spinta.datasets.inspect.helpers import create_manifest_from_inspect
 from spinta.exceptions import UnexpectedFormKeys, InvalidFormKeyCombination, RequiredFormKeyWithCondition, \
@@ -152,7 +152,7 @@ class InspectRequestForm:
 
 
 async def inspect_api(context: Context, request: Request, params: UrlParams):
-    check_scope(context, 'inspect')
+    check_scope(context, Scopes.INSPECT)
     if params.format:
         fmt = params.fmt
     else:

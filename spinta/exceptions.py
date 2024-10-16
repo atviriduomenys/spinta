@@ -583,6 +583,7 @@ class RemoteClientScopesNotGiven(RemoteClientError):
         "{credentials} file."
     )
 
+
 class DupicateProperty(UserError):
     template = "Duplicate property {name}."
 
@@ -986,4 +987,10 @@ class DirectRefValueUnassignment(UserError):
     template = '''
     Cannot directly set ref's _id value to None.
     You have to set ref to None, which will also remove all additional stored values related to that ref (child properties).
+    '''
+
+
+class BackendUnavailable(BaseError):
+    template = '''
+    Unable to access {name!r} backend, please try again later.
     '''

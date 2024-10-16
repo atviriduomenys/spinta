@@ -9,11 +9,10 @@ from sqlalchemy.dialects.postgresql import UUID
 
 from spinta import exceptions
 from spinta.auth import authorized
-from spinta.backends.constants import TableType
-from spinta.backends.postgresql.components import BackendFeatures
+from spinta.backends.constants import TableType, BackendFeatures
 from spinta.backends.postgresql.ufuncs.query.components import PgQueryBuilder, InheritForeignProperty, Lower, Recurse, \
     Negative, Positive
-from spinta.components import Model, Property, Action, Page
+from spinta.components import Property, Action, Page
 from spinta.core.ufuncs import Bind, Negative as Negative_
 from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import ufunc, GetAttr
@@ -38,7 +37,7 @@ from spinta.types.text.helpers import determine_language_property_for_text
 from spinta.ufuncs.basequerybuilder.components import ReservedProperty, \
     NestedProperty, ResultProperty
 from spinta.ufuncs.basequerybuilder.helpers import get_column_with_extra, get_language_column, \
-    is_expandable_not_expanded
+    expandable_not_expanded
 from spinta.ufuncs.basequerybuilder.ufuncs import Star
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.data import take
@@ -94,7 +93,7 @@ def select(env, arg: Star) -> None:
         #       writes.
 
         # Check if prop is expanded or not
-        if is_expandable_not_expanded(env, prop):
+        if expandable_not_expanded(env, prop):
             continue
         env.selected[prop.place] = env.call('select', prop)
 
@@ -106,7 +105,7 @@ def select(env, arg):
     if arg.name == '_page':
         return None
     prop = _get_property_for_select(env, arg.name)
-    if is_expandable_not_expanded(env, prop):
+    if expandable_not_expanded(env, prop):
         return Selected(None, prop, prep=[])
     return env.call('select', prop.dtype)
 

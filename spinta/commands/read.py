@@ -17,7 +17,7 @@ from spinta.backends.helpers import get_select_tree
 from spinta.backends.nobackend.components import NoBackend
 from spinta.compat import urlparams_to_expr
 from spinta.components import Context, Node, Action, UrlParams, Page, PageBy, get_page_size, Config, \
-    is_pagination_enabled, ParamsPage
+    pagination_enabled, ParamsPage
 from spinta.components import Model
 from spinta.components import Property
 from spinta.core.ufuncs import Expr
@@ -107,7 +107,7 @@ def prepare_data_for_response(
             reserved = ['_type', '_id', '_revision', '_base']
         else:
             reserved = ['_type', '_id', '_revision']
-        if is_pagination_enabled(model, params):
+        if pagination_enabled(model, params):
             reserved.append('_page')
     prop_names = get_select_prop_names(
         context,
@@ -149,7 +149,7 @@ def prepare_page_for_get_all(context: Context, model: Model, params: UrlParams):
     if model.page:
         copied = deepcopy(model.page)
         copied.clear()
-        copied.is_enabled = is_pagination_enabled(model, params)
+        copied.is_enabled = pagination_enabled(model, params)
 
         if copied.is_enabled:
             config: Config = context.get('config')

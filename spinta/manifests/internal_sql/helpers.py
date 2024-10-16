@@ -7,7 +7,7 @@ from sqlalchemy.sql.elements import Null
 
 from spinta import commands
 from spinta.backends import Backend
-from spinta.backends.components import BackendOrigin
+from spinta.backends.constants import BackendOrigin
 from spinta.components import Namespace, Base, Model, Property, Context, Config, EntryId, MetaData, Action
 from spinta.core.enums import Access
 from spinta.core.ufuncs import Expr
