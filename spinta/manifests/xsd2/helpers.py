@@ -497,7 +497,6 @@ class XSDReader:
         return props
 
         # todo there is a case in RC with a type name that doesn't exist (or exists externally)
-        # todo deal with `mixed`
         #  todo factor in minoccurs and maxoccurs everywhere
         # todo If it's top level, we need to know if we need to add it to the resource model or not.
         #  Maybe after we return from this, we need to check if the property is `ref`. If it's top level and not ref, we add it to the "resource" model
@@ -510,6 +509,12 @@ class XSDReader:
         name = node.attrib.get("name")
 
         properties = []
+
+        # if `mixed="true"` this means, that there can be text inside the element with this complexType, so this means
+        # that we have to add here a property `text` with a source `text()`
+        if node.attrib.get("mixed", False) == "true":
+            property_name = "text"
+            properties.append(XSDProperty(xsd_name=property_name, required=False, source="text()", is_array=False))
         choice_properties = []
         sequence_properties = []
 
