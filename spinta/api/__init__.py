@@ -130,7 +130,7 @@ async def auth_clients_add(request: Request):
 async def auth_clients_get_all(request: Request):
     try:
         context = _auth_client_context(request)
-        check_scope(context, Scopes.AUTH_CLIENTs)
+        check_scope(context, Scopes.AUTH_CLIENTS)
         config = context.get('config')
         commands.load(context, config)
 
