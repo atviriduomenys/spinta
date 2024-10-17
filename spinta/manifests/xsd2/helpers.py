@@ -621,7 +621,12 @@ class XSDReader:
         Those lists can also have other lists inside
         """
         if _is_array(node):
-            return self.process_sequence(node, state)
+            properties = self.process_sequence(node, state)
+            for properties_group in properties:
+                for prop in properties_group:
+                    prop.is_array = True
+                    if prop.type.name == "ref":
+                        prop.type.name = "backref"
 
         property_lists = []
         for child in node.getchildren():
