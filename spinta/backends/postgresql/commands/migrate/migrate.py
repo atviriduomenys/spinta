@@ -40,7 +40,7 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
     metadata.reflect()
 
     models = commands.get_models(context, manifest)
-    tables = _collect_filtered_tables(
+    models, tables = _filter_models_and_tables(
         models=models,
         existing_tables=inspector.get_table_names(),
         filtered_datasets=migrate_meta.datasets,
@@ -49,8 +49,8 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
 
     sorted_models = sort_models_by_ref_and_base(list(models.values()))
     sorted_model_names = list([model.name for model in sorted_models])
-    # Do reversed zip, to ensure that sorted models get selected first
-    models = zipitems(
+    # Do reverse zip, to ensure that sorted models get selected first
+    zipped_names = zipitems(
         sorted_model_names,
         tables,
         model_name_key
@@ -61,16 +61,21 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
         handler=handler,
         rename=migrate_meta.rename
     )
-    for items in models:
-        for new_model, old_model in items:
-            if old_model and any(value in old_model for value in (TableType.CHANGELOG.value, TableType.FILE.value)):
+    for zipped_name in zipped_names:
+        for new_model_name, old_table_name in zipped_name:
+            # Skip Changelog and File table migrations, because this is done in DataType migration section
+            if old_table_name and any(value in old_table_name for value in (TableType.CHANGELOG.value, TableType.FILE.value)):
                 continue
-            if old_model and old_model in EXCLUDED_MODELS:
+
+            # Skip excluded tables
+            if old_table_name and old_table_name in EXCLUDED_MODELS:
                 continue
+
             old = NA
-            if old_model:
-                old = metadata.tables[migrate_meta.rename.get_old_table_name(old_model)]
-            new = commands.get_model(context, manifest, new_model) if new_model else new_model
+            if old_table_name:
+                old = metadata.tables[migrate_meta.rename.get_old_table_name(old_table_name)]
+
+            new = commands.get_model(context, manifest, new_model_name) if new_model_name else new_model_name
             commands.migrate(context, backend, meta, old, new)
     _handle_foreign_key_constraints(inspector, sorted_models, handler, migrate_meta.rename)
     _clean_up_file_type(inspector, sorted_models, handler, migrate_meta.rename)
@@ -106,12 +111,12 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
         raise exception
 
 
-def _collect_filtered_tables(
+def _filter_models_and_tables(
     models: Dict[str, Model],
     existing_tables: List[str],
     filtered_datasets: List[str],
     rename: MigrateRename
-) -> List[str]:
+) -> [Dict[str, Model], List[str]]:
     tables = []
 
     # Filter if only specific dataset can be changed
@@ -137,7 +142,8 @@ def _collect_filtered_tables(
         if name not in models.keys():
             name = table
         tables.append(name)
-    return tables
+
+    return models, tables
 
 
 def _handle_foreign_key_constraints(inspector: Inspector, models: List[Model], handler: MigrationHandler,
