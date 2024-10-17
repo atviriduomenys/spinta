@@ -53,20 +53,20 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
 
     old_names = {}
     new_names = {}
-    for item in old:
+    for old_column in old:
         base_name = old_prop_name
-        name = rename.get_column_name(table.name, item.name)
+        name = rename.get_column_name(table.name, old_column.name)
         # Handle nested renaming from 2 tables
-        if item.name.startswith(old_prop_name):
-            leaf_name = item.name.removeprefix(old_prop_name)
+        if old_column.name.startswith(old_prop_name):
+            leaf_name = old_column.name.removeprefix(old_prop_name)
             if leaf_name.startswith('.'):
-                leaf_name = leaf_name[0:]
+                leaf_name = leaf_name[1:]
 
             base_renamed = nested_column_rename(base_name, table.name, rename)
             leaf_renamed = nested_column_rename(leaf_name, old_ref_table, rename)
             name = f"{base_renamed}.{leaf_renamed}"
 
-        old_names[name] = item
+        old_names[name] = old_column
 
     for item in new_columns:
         new_names[item.name] = item

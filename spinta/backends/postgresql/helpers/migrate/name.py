@@ -9,7 +9,7 @@ from spinta.utils.itertools import ensure_list
 
 
 @dispatch(str, str)
-def has_been_renamed(
+def name_changed(
     old_name: str,
     new_name: str
 ) -> bool:
@@ -17,7 +17,7 @@ def has_been_renamed(
 
 
 @dispatch(str, str, str, str)
-def has_been_renamed(
+def name_changed(
     old_table_name: str,
     new_table_name: str,
     old_property_name: str,
@@ -74,7 +74,7 @@ def is_removed(name: str) -> bool:
 
 def nested_column_rename(column_name: str, table_name: str, rename: MigrateRename) -> str:
     renamed = rename.get_column_name(table_name, column_name)
-    if has_been_renamed(column_name, renamed):
+    if name_changed(column_name, renamed):
         return renamed
 
     if '.' in column_name:

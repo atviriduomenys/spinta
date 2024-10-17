@@ -14,7 +14,7 @@ from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_pg_name, get_column_name
 from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
-from spinta.backends.postgresql.helpers.migrate.name import has_been_renamed, get_pg_constraint_name, get_pg_index_name
+from spinta.backends.postgresql.helpers.migrate.name import name_changed, get_pg_constraint_name, get_pg_index_name
 from spinta.cli.helpers.migrate import MigrateRename
 from spinta.components import Context, Model, Property
 from spinta.datasets.enums import Level
@@ -232,8 +232,8 @@ def property_and_column_name_key(item: Union[sa.Column, Property], rename, table
         new_name = rename.get_column_name(table.name, name, True)
         full_name = rename.get_column_name(table.name, name)
 
-        root_changed = has_been_renamed(name, new_name)
-        full_changed = has_been_renamed(name, full_name)
+        root_changed = name_changed(name, new_name)
+        full_changed = name_changed(name, full_name)
 
         # Check for edge case when you have old columns: column_one, column_two
         # new manifest only hase column_one, but
@@ -241,7 +241,7 @@ def property_and_column_name_key(item: Union[sa.Column, Property], rename, table
         # meaning, you need to remove old "column_one" and rename old "column_two" to "column_one"
         if not root_changed:
             old_name = rename.get_old_column_name(table.name, name)
-            if has_been_renamed(name, old_name):
+            if name_changed(name, old_name):
                 return get_root_attr(old_name)
 
         if full_changed:
@@ -265,7 +265,7 @@ def property_and_column_name_key(item: Union[sa.Column, Property], rename, table
         if is_name_or_property_complex(name, item):
             return get_root_attr(name)
 
-        if has_been_renamed(name, old_full_name):
+        if name_changed(name, old_full_name):
             if old_full_name in table.columns:
                 col = table.columns[old_full_name]
                 if is_name_or_column_complex(old_full_name, col):
@@ -302,7 +302,17 @@ class JSONColumnMigrateMeta:
 class MigrateModelMeta:
     json_columns: Dict[str, JSONColumnMigrateMeta] = dataclasses.field(default_factory=dict)
 
-    def add_json_column(self, backend: PostgreSQL, table: sa.Table, column: sa.Column):
+    def initialize(self, backend: PostgreSQL, table: sa.Table, columns: List[sa.Column]):
+        for column in columns:
+            # Add JSONB to meta (JSONB has different handle system)
+            if isinstance(column.type, JSONB):
+                self.__add_json_column(
+                    backend,
+                    table,
+                    column
+                )
+
+    def __add_json_column(self, backend: PostgreSQL, table: sa.Table, column: sa.Column):
         meta = JSONColumnMigrateMeta(
             column=column,
         )
@@ -418,6 +428,7 @@ def extract_literal_name_from_column(
 
     return type_
 
+
 def extract_using_from_columns(
     old_column: sa.Column,
     new_column: sa.Column,
@@ -439,6 +450,7 @@ def extract_using_from_columns(
         using = sa.func.cast(old_column, type_).compile(compile_kwargs={"literal_binds": True})
 
     return using
+
 
 # Match [
 #   (
@@ -547,7 +559,9 @@ def handle_index_migration(
 
     constraint_column = old.name if renamed else column_name
     indexes = inspector.get_indexes(table_name=table.name)
-    if (new.index or isinstance(new.type, geoalchemy2.types.Geometry)) and not renamed and not contains_index(inspector, table, constraint_column):
+    if (new.index or isinstance(new.type, geoalchemy2.types.Geometry)) and not renamed and not contains_index(inspector,
+                                                                                                              table,
+                                                                                                              constraint_column):
         handler.add_action(ma.CreateIndexMigrationAction(
             index_name=index_name,
             table_name=table_name,
@@ -567,7 +581,8 @@ def handle_index_migration(
                             index_name=index["name"],
                             table_name=table_name
                         ), foreign_key)
-                if (new.index or isinstance(new.type, geoalchemy2.types.Geometry)) and (dropped or not contains_index(inspector, table, constraint_column)):
+                if (new.index or isinstance(new.type, geoalchemy2.types.Geometry)) and (
+                    dropped or not contains_index(inspector, table, constraint_column)):
                     handler.add_action(ma.CreateIndexMigrationAction(
                         index_name=index_name,
                         table_name=table_name,

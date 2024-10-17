@@ -3,11 +3,10 @@ from sqlalchemy.dialects.postgresql import BIGINT, ARRAY
 
 import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
-from spinta.backends.constants import TableType, BackendFeatures
+from spinta.backends.constants import BackendFeatures
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers import get_pg_name, get_column_name
 from spinta.backends.postgresql.helpers.migrate.migrate import get_root_attr, MigratePostgresMeta
-from spinta.backends.postgresql.helpers.migrate.name import has_been_renamed, get_pg_file_name, get_pg_column_name
+from spinta.backends.postgresql.helpers.migrate.name import name_changed, get_pg_file_name, get_pg_column_name
 from spinta.components import Context
 from spinta.types.datatype import File
 from spinta.utils.schema import NotAvailable
@@ -84,7 +83,7 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
     old_table = get_pg_file_name(table.name, f'/{old_name}')
     new_table_old_prop = get_pg_file_name(table_name,f'/{old_name}')
     new_table_new_prop = get_pg_file_name(table_name, f'/{column_name}')
-    if has_been_renamed(old_name, column_name) and inspector.has_table(old_table):
+    if name_changed(old_name, column_name) and inspector.has_table(old_table):
         handler.add_action(
             ma.RenameTableMigrationAction(
                 old_table_name=new_table_old_prop,
