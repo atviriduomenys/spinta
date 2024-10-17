@@ -5,7 +5,7 @@ from uuid import UUID
 from spinta import commands
 from spinta.auth import check_scope, Scopes
 from spinta.cli.helpers.store import prepare_manifest
-from spinta.cli.migrate import MigrateMeta, MigrateRename
+from spinta.cli.helpers.migrate import MigrateRename, MigrateMeta
 from spinta.components import Context, UrlParams, Store, Model, Config, Property
 from starlette.requests import Request
 

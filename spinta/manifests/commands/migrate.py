@@ -1,7 +1,7 @@
 from spinta import commands
 from spinta.backends.helpers import validate_and_return_begin
 from spinta.cli.helpers.auth import require_auth
-from spinta.cli.migrate import MigrateMeta, MigrateRename
+from spinta.cli.helpers.migrate import MigrateRename, MigrateMeta
 from spinta.components import Context
 from spinta.exceptions import ModelNotFound, PropertyNotFound
 from spinta.manifests.components import Manifest

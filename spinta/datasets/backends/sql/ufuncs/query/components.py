@@ -12,12 +12,12 @@ from sqlalchemy.sql.functions import Function
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.sql.components import Sql
-from spinta.datasets.backends.sql.ufuncs.helpers import ensure_list
 from spinta.exceptions import UnknownMethod
 from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, QueryParams
 from spinta.ufuncs.basequerybuilder.helpers import merge_with_page_selected_list, \
     merge_with_page_sort, merge_with_page_limit
 from spinta.ufuncs.components import ForeignProperty
+from spinta.utils.itertools import ensure_list
 
 
 class SqlFrom:
