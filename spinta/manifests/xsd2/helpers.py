@@ -344,13 +344,6 @@ class XSDReader:
     def _add_expand_to_top_level_models(self):
         pass
 
-    def _apply_array_properties(self, properties: list[XSDProperty], node: _Element) -> None:
-        if self.is_array(node):
-            for prop in properties:
-                prop.is_array = True
-                if prop.type.name == "ref":
-                    prop.type.name = "backref"
-
     def start(self):
         # general part
         state = State()
@@ -688,7 +681,7 @@ class XSDReader:
     def process_choice(self, node: _Element, state: State) -> list[list[XSDProperty]]:
         choice_groups = []
 
-        for child in node:
+        for child in node.get_children():
             if isinstance(child, etree._Comment):
                 continue
 
