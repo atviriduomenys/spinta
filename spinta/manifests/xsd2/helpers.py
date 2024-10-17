@@ -286,6 +286,9 @@ class XSDDatasetResource:
         }
 
 
+def _is_array(node: _Element) -> bool:
+    return node.attrib.get("maxOccurs", 1) == "unbounded" or int(node.attrib.get("maxOccurs", 1)) > 1
+
 class XSDReader:
     dataset_resource: XSDDatasetResource
     models: list[XSDModel]
@@ -407,7 +410,7 @@ class XSDReader:
         property name is set after returning all properties, because we need to do a deduplication first.
         """
         # todo add more explanatory comments
-        is_array = is_array or node.attrib.get("maxOccurs", 1) == "unbounded" or int(node.attrib.get("maxOccurs", 1)) > 1
+        is_array = is_array or _is_array(node)
         is_required = int(node.attrib.get("minOccurs", 1)) > 0
         props = []
         property_type_to = None
@@ -660,49 +663,35 @@ class XSDReader:
                 raise RuntimeError(f"Unexpected element type inside sequence element: {QName(child).localname}")
         return properties
 
-    def process_choice(self, node: _Element, state: State) -> list[XSDProperty]:
-        # todo should return groups of properties, a group for each split. A group can have one property
-        properties = []
+    def process_choice(self, node: _Element, state: State) -> list[list[XSDProperty]]:
+        """
+        Returns a list of lists. Each list inside the main list is for the separate choice.
+        Those lists can also have other lists inside
+        """
+        if _is_array(node):
+            properties = self.process_sequence(node, state)
+            for properties_group in properties:
+                for prop in properties_group:
+                    prop.is_array = True
+                    if prop.type.name == "ref":
+                        prop.type.name = "backref"
+
+        property_lists = []
         for child in node.getchildren():
             # We don't care about comments
             if isinstance(child, etree._Comment):
                 continue
             if QName(child).localname == "element":
                 properties_result = self.process_element(child, state)
-                for prop in properties_result:
-                    properties.append(prop)
             elif QName(child).localname == "sequence":
-                # TODO: there might be a few different sequences inside choice. The splitting needs to be done
-                #  in a way that in the end it creates two (or more) models, one with properties from one sequence, one with
-                #  properties from another.
-                #  example:
-                #    <s:sequence>
-                #                  <s:element name="countryCode" minOccurs="0" maxOccurs="1">
-                #                 <s:annotation>
-                #                     <s:documentation>Valstybės kodas (ISO 3166-1, alpha-3)</s:documentation>
-                #                 </s:annotation>
-                #                 <s:simpleType>
-                #                     <s:restriction base="s:string">
-                #                         <s:pattern value="[a-zA-Z]{3}" />
-                #                     </s:restriction>
-                #                 </s:simpleType>
-                #             </s:element>
-                #             <s:choice>
-                #                 <s:sequence>
-                #                     <s:element minOccurs="0" maxOccurs="1" name="firstName" />
-                #                     <s:element minOccurs="0" maxOccurs="1" name="lastName" />
-                #                     <s:element minOccurs="0" maxOccurs="1" name="birthDate" />
-                #                 </s:sequence>
-                #                 <s:sequence>
-                #                     <s:element minOccurs="0" maxOccurs="1" name="businessName" />
-                #                 </s:sequence>
-                #             </s:choice>
-                #         </s:sequence>
-                pass
+                properties_result = self.process_sequence(child, state)
+            elif QName(child).localname == "choice":
+                properties_result = self.process_choice(child, state)
             else:
                 raise RuntimeError(f"Unexpected element type inside sequence element: {QName(child).localname}")
-        #     todo: think of how to make this work
-        return properties
+
+            property_lists.append(properties_result)
+        return property_lists
 
     def process_group(self, node: _Element, state: State) -> None:
         pass

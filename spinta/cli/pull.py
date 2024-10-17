@@ -10,6 +10,7 @@ from typer import echo
 
 from spinta import commands
 from spinta import exceptions
+from spinta.backends.helpers import validate_and_return_transaction
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.data import process_stream
 from spinta.cli.helpers.store import prepare_manifest
@@ -70,7 +71,7 @@ def pull(
         with context:
             require_auth(context)
             backend = store.backends['default']
-            context.attach('transaction', backend.transaction, write=push)
+            context.attach('transaction', validate_and_return_transaction, context, backend, write=push)
 
             path = None
             exporter = None

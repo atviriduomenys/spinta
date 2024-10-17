@@ -4,11 +4,11 @@ import sqlalchemy as sa
 from sqlalchemy.engine.base import Engine
 
 from spinta import commands
+from spinta.backends.constants import BackendFeatures
 from spinta.components import Model
 from spinta.components import Property
 from spinta.datasets.components import ExternalBackend
-from spinta.exceptions import NoExternalName
-from spinta.exceptions import PropertyNotFound
+from spinta.exceptions import BackendUnavailable
 
 
 class Sql(ExternalBackend):
@@ -16,7 +16,10 @@ class Sql(ExternalBackend):
     engine: Engine = None
     schema: sa.MetaData = None
     dbschema: str = None  # Database schema name
-    paginated: bool = True
+
+    features = {
+        BackendFeatures.PAGINATION
+    }
 
     @contextlib.contextmanager
     def transaction(self, write=False):
@@ -24,8 +27,12 @@ class Sql(ExternalBackend):
 
     @contextlib.contextmanager
     def begin(self):
-        with self.engine.begin() as conn:
-            yield conn
+        try:
+            with self.engine.begin() as conn:
+                yield conn
+        except sa.exc.OperationalError:
+            self.available = False
+            raise BackendUnavailable(self)
 
     def get_table(self, model: Model, name: str = None) -> sa.Table:
         name = name or model.external.name
@@ -50,7 +57,3 @@ class Sql(ExternalBackend):
     ) -> sa.Column:
         column = commands.get_column(self, prop, table=table, **kwargs)
         return column
-
-
-
-

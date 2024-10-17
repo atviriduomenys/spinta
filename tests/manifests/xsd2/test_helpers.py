@@ -1,8 +1,8 @@
-from unittest.mock import patch
+import pytest
 
+from spinta.manifests.xsd2.helpers import XSDReader, State, XSDProperty, XSDType, XSDModel, XSDDatasetResource, _is_array
+from unittest.mock import MagicMock, patch
 from lxml import etree
-
-from spinta.manifests.xsd2.helpers import XSDReader, State, XSDProperty, XSDType, XSDModel, XSDDatasetResource
 
 
 def test_process_element_inline_type():
@@ -433,3 +433,75 @@ def test_process_complex_type_attributes():
     assert len(reader.models) == 1
 
     assert len(models[0].properties) == 2
+
+
+# Test process_choice
+@pytest.fixture
+def setup_instance():
+    """Fixture to set up an instance of XSDReader and mock state."""
+    instance = XSDReader("test", "test")
+    state = MagicMock(spec=State)
+    return instance, state
+
+
+@pytest.fixture
+def sample_xsd():
+    """Fixture to provide an XML Schema (XSD) with complexType and choice."""
+    xsd_string = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+        <xs:element name="root">
+            <xs:complexType>
+                <xs:choice>
+                    <xs:element name="element1" type="xs:string"/>
+                    <xs:element name="element2" type="xs:string"/>
+                </xs:choice>
+            </xs:complexType>
+        </xs:element>
+    </xs:schema>
+    """
+    return etree.XML(xsd_string)
+
+
+def test_process_choice_with_choice_node(setup_instance, sample_xsd):
+    """Test when the node contains a choice element in a complexType."""
+    instance, state = setup_instance
+
+    # Parse the XML node for 'root' element and its children
+    root = sample_xsd.find(".//{http://www.w3.org/2001/XMLSchema}choice")
+
+    # Mock process_element for the child elements inside the choice
+    with patch.object(instance, 'process_element', return_value=['element_property']) as mock_process_element:
+        result = instance.process_choice(root, state)
+
+        # Ensure the process_element is called for each choice element
+        assert mock_process_element.call_count == 2
+        assert result == [['element_property'], ['element_property']]
+
+
+def test_process_choice_ignores_comments(setup_instance):
+    """Test that comment nodes are ignored."""
+    xsd_string = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+        <xs:element name="root">
+            <xs:complexType>
+                <!-- This is a comment -->
+                <xs:choice>
+                    <xs:element name="element1" type="xs:string"/>
+                </xs:choice>
+            </xs:complexType>
+        </xs:element>
+    </xs:schema>
+    """
+    schema = etree.XML(xsd_string)
+    instance, state = setup_instance
+
+    root = schema.find(".//{http://www.w3.org/2001/XMLSchema}choice")
+
+    # Mock process_element for the child element
+    with patch.object(instance, 'process_element', return_value=['element_property']) as mock_process_element:
+        result = instance.process_choice(root, state)
+
+        # Ensure comments are ignored and element is processed
+        mock_process_element.assert_called_once_with(root.find(".//{http://www.w3.org/2001/XMLSchema}element"), state)
+        assert result == [['element_property']]
+

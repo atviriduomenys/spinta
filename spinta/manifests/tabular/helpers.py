@@ -31,7 +31,7 @@ from tabulate import tabulate
 from spinta import commands
 from spinta import spyna
 from spinta.backends import Backend
-from spinta.backends.components import BackendOrigin
+from spinta.backends.constants import BackendOrigin
 from spinta.components import Context, Base, PrepareGiven
 from spinta.datasets.components import Resource, Param
 from spinta.dimensions.comments.components import Comment

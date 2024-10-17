@@ -606,9 +606,13 @@ def get_page_size(config: Config, model: Model, page: Page = None):
     return page_size or model.page.size or config.default_page_size
 
 
-def is_pagination_enabled(model: Model, params: UrlParams = None) -> bool:
+def pagination_enabled(model: Model, params: UrlParams = None) -> bool:
+    # Need to import there, because of circular import issues
+    # Once loaded python should store it in cache and not import it again
+    from spinta.backends.constants import BackendFeatures
+
     # If model backend does not support pagination, we ignore anything else
-    if not model.backend or not model.backend.paginated:
+    if not model.backend or not model.backend.supports(BackendFeatures.PAGINATION):
         return False
 
     # Prioritize UrlParams page (if is_enabled not None, it means that it was explicitly given in URL).

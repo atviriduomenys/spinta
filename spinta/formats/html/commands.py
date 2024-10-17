@@ -23,7 +23,7 @@ from spinta.backends.helpers import get_model_reserved_props, get_select_prop_na
 from spinta.backends.helpers import get_ns_reserved_props
 from spinta.backends.helpers import select_model_props
 from spinta.backends.postgresql.types.geometry.helpers import get_display_value, get_osm_link
-from spinta.components import Action, is_pagination_enabled, page_in_data
+from spinta.components import Action, pagination_enabled, page_in_data
 from spinta.components import Context
 from spinta.components import Model
 from spinta.components import Namespace
@@ -220,7 +220,7 @@ def _get_model_tabular_header(
     if model.name == '_ns':
         reserved = get_ns_reserved_props(action)
     else:
-        reserved = _get_model_reserved_props(action, is_pagination_enabled(model, params))
+        reserved = _get_model_reserved_props(action, pagination_enabled(model, params))
     return get_model_tabular_header(
         context,
         model,

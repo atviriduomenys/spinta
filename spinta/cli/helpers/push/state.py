@@ -9,6 +9,7 @@ from typing import Tuple
 import sqlalchemy as sa
 
 from spinta import spyna
+from spinta.backends.constants import BackendFeatures
 from spinta.cli.helpers.push import prepare_data_for_push_state
 from spinta.cli.helpers.push.components import PushRow, Saved
 from spinta.cli.helpers.push.utils import get_data_checksum
@@ -45,7 +46,7 @@ def init_push_state(
 
     for model in models:
         pagination_cols = []
-        if model.page and model.page.by and model.backend.paginated:
+        if model.backend.supports(BackendFeatures.PAGINATION) and model.page and model.page.by:
             for page_by in model.page.by.values():
                 _type = types.get(page_by.prop.dtype.name, sa.Text)
                 pagination_cols.append(
