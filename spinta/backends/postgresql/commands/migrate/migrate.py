@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Tuple
 
 import sqlalchemy as sa
 from alembic.migration import MigrationContext
@@ -39,6 +39,13 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
     metadata = sa.MetaData(bind=conn)
     metadata.reflect()
 
+    handler = MigrationHandler()
+    meta = MigratePostgresMeta(
+        inspector=inspector,
+        handler=handler,
+        rename=migrate_meta.rename
+    )
+
     models = commands.get_models(context, manifest)
     models, tables = _filter_models_and_tables(
         models=models,
@@ -55,12 +62,7 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
         tables,
         model_name_key
     )
-    handler = MigrationHandler()
-    meta = MigratePostgresMeta(
-        inspector=inspector,
-        handler=handler,
-        rename=migrate_meta.rename
-    )
+
     for zipped_name in zipped_names:
         for new_model_name, old_table_name in zipped_name:
             # Skip Changelog and File table migrations, because this is done in DataType migration section
@@ -79,7 +81,9 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
             commands.migrate(context, backend, meta, old, new)
     _handle_foreign_key_constraints(inspector, sorted_models, handler, migrate_meta.rename)
     _clean_up_file_type(inspector, sorted_models, handler, migrate_meta.rename)
+
     try:
+        # Handle autocommit migrations differently
         if migrate_meta.autocommit:
             # Recreate new connection, that auto commits
             with backend.engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
@@ -89,23 +93,34 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
                 })
                 op = Operations(ctx)
                 handler.run_migrations(op)
+            return
+
+        # If in plan mode, just run the migrations
+        # ctx is already setup so that it would not execute the code
+        if migrate_meta.plan:
+            with ctx.begin_transaction():
+                handler.run_migrations(op)
+            return
+
+        # Begin transaction or take one, if it has already been opened
+        if ctx._in_connection_transaction():
+            trx = ctx.connection._transaction
         else:
-            if migrate_meta.plan:
-                with ctx.begin_transaction():
-                    handler.run_migrations(op)
-            else:
-                if ctx._in_connection_transaction():
-                    trx = ctx.connection._transaction
-                else:
-                    trx = ctx.begin_transaction()
-                try:
-                    handler.run_migrations(op)
-                    if migrate_meta.migration_extension is not None:
-                        migrate_meta.migration_extension()
-                    trx.commit()
-                except Exception as e:
-                    trx.rollback()
-                    raise e
+            trx = ctx.begin_transaction()
+
+        try:
+            handler.run_migrations(op)
+
+            # You can add custom logic that you might want to execute after running migrations, but before commiting
+            # transaction, like `InternalSqlManifest` can update its own manifest schema, so you might want to try update
+            # it here, incase it fails, transaction will be reverted and no changes will be made.
+            if migrate_meta.migration_extension is not None:
+                migrate_meta.migration_extension()
+            trx.commit()
+        except Exception:
+            trx.rollback()
+            raise
+
     except sa.exc.OperationalError as error:
         exception = create_exception(manifest, error)
         raise exception
@@ -116,7 +131,7 @@ def _filter_models_and_tables(
     existing_tables: List[str],
     filtered_datasets: List[str],
     rename: MigrateRename
-) -> [Dict[str, Model], List[str]]:
+) -> Tuple[Dict[str, Model], List[str]]:
     tables = []
 
     # Filter if only specific dataset can be changed
