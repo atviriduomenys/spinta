@@ -11,7 +11,7 @@ from lxml.etree import _Element, QName
 
 from spinta.components import Context
 from spinta.core.ufuncs import Expr
-from spinta.utils.naming import Deduplicator, to_dataset_name, to_model_name
+from spinta.utils.naming import Deduplicator, to_dataset_name, to_model_name, to_property_name
 
 DATATYPES_MAPPING = {
     "string": "string",
@@ -389,7 +389,7 @@ class XSDReader:
                 properties = self.process_element(node, state, is_root=True)
                 for prop in properties:
                     if prop.type.name not in ("ref", "backref"):
-                        prop.name = self.resource_model.deduplicate_property_name(prop.xsd_name)
+                        prop.name = self.resource_model.deduplicate_property_name(to_property_name(prop.xsd_name))
                         self.resource_model.properties[prop.name] = prop
             elif QName(node).localname == "complexType":
                 models = self.process_complex_type(node, state)
@@ -567,7 +567,7 @@ class XSDReader:
             model = XSDModel(dataset_resource=self.dataset_resource)
             property_deduplicate = Deduplicator()
             for prop in group:
-                prop.name = property_deduplicate(prop.xsd_name)
+                prop.name = property_deduplicate(to_property_name(prop.xsd_name))
                 model.properties[prop.name] = prop
             if name:
                 model.xsd_name = name
