@@ -2,17 +2,16 @@ from __future__ import annotations
 
 import logging
 import os
-from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any
 from urllib.request import urlopen
 
 from lxml import etree, objectify
-from lxml.etree import _Element, _Comment, QName
+from lxml.etree import _Element, QName
 
 from spinta.components import Context
 from spinta.core.ufuncs import Expr
-from spinta.utils.naming import Deduplicator, to_dataset_name, to_property_name, to_model_name
+from spinta.utils.naming import Deduplicator, to_dataset_name, to_model_name
 
 DATATYPES_MAPPING = {
     "string": "string",
@@ -679,9 +678,22 @@ class XSDReader:
         return property_groups
     
     def process_choice(self, node: _Element, state: State) -> list[list[XSDProperty]]:
+        """
+        Returns a list of lists. Each list inside the main list is for the separate choice.
+        Those lists can also have other lists inside
+        """
         choice_groups = []
 
-        for child in node.get_children():
+        if _is_array(node):
+            choice_groups: list[list[XSDProperty]] = self.process_sequence(node, state)
+            for property_group in choice_groups:
+                for prop in property_group:
+                    prop.is_array = True
+                    if prop.type.name == "ref":
+                        prop.type.name = "backref"
+            return choice_groups
+
+        for child in node.getchildren():
             if isinstance(child, etree._Comment):
                 continue
 
@@ -698,13 +710,6 @@ class XSDReader:
                 choice_groups.extend(nested_choice_groups)
             else:
                 raise RuntimeError(f"Unexpected element type inside <choice>: {local_name}")
-            
-        if _is_array(node):
-            for group in choice_groups:
-                for prop in group:
-                    prop.is_array = True
-                    if prop.type.name == "ref":
-                        prop.type.name = "backref"
 
         return choice_groups
 

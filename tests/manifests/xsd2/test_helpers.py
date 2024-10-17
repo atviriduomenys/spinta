@@ -506,8 +506,41 @@ def test_process_choice_ignores_comments(setup_instance):
         assert result == [['element_property']]
 
 
+def test_process_choice_with_array(setup_instance):
+        xsd_schema = """
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            <xs:choice maxOccurs="unbounded">
+                <xs:element name="ItemA" type="xs:string"/>
+                <xs:element name="ItemB" type="xs:string"/>
+                <xs:element name="ItemRef" type="ref"/>
+            </xs:choice>
+        </xs:schema>
+        """
+        xsd_reader, state = setup_instance
 
-def test_process_sequence_only_elements():
+        xsd_root = etree.fromstring(xsd_schema)
+        choice = xsd_root.find('.//xs:choice', namespaces={"xs": "http://www.w3.org/2001/XMLSchema"})
+
+        property_groups = xsd_reader.process_choice(choice, state)
+
+        assert len(property_groups) == 1
+        assert len(property_groups[0]) == 3
+
+        expected_results = {
+            "ItemA": ("string", True),
+            "ItemB": ("string", True),
+            "ItemRef": ("backref", True),
+        }
+
+        for prop in property_groups[0]:
+            assert prop.xsd_name in expected_results, f"Unexpected property name: {prop.xsd_name}"
+
+            expected_type, expected_is_array = expected_results[prop.xsd_name]
+            assert prop.type.name == expected_type, f"Property '{prop.xsd_name}' has incorrect type."
+            assert prop.is_array == expected_is_array, f"Property '{prop.xsd_name}' array flag incorrect."
+
+
+def test_process_sequence_only_elements(setup_instance):
     xsd_schema = """
     <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
         <xs:sequence>
@@ -517,8 +550,7 @@ def test_process_sequence_only_elements():
         </xs:sequence>
     </xs:schema>
     """
-    state = State()
-    xsd_reader = XSDReader("test", "test")
+    xsd_reader, state = setup_instance
 
     xsd_root = etree.fromstring(xsd_schema)
 
@@ -536,7 +568,7 @@ def test_process_sequence_only_elements():
     assert property_names == expected_names
 
 
-def test_process_sequence_with_single_choice():
+def test_process_sequence_with_single_choice(setup_instance):
     xsd_schema = """
     <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
         <xs:sequence>
@@ -549,8 +581,7 @@ def test_process_sequence_with_single_choice():
         </xs:sequence>
     </xs:schema>
     """
-    state = State()
-    xsd_reader = XSDReader("test", "test")
+    xsd_reader, state = setup_instance
 
     xsd_root = etree.fromstring(xsd_schema)
     sequence = xsd_root.xpath('./*[local-name() = "sequence"]')[0]
@@ -572,7 +603,7 @@ def test_process_sequence_with_single_choice():
     assert group2_names == expected_group2
 
 
-def test_process_sequence_with_multiple_choices():
+def test_process_sequence_with_multiple_choices(setup_instance):
     xsd_schema = """
     <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
         <xs:sequence>
@@ -589,8 +620,7 @@ def test_process_sequence_with_multiple_choices():
         </xs:sequence>
     </xs:schema>
     """
-    state = State()
-    xsd_reader = XSDReader("test", "test")
+    xsd_reader, state = setup_instance
 
     xsd_root = etree.fromstring(xsd_schema)
     sequence = xsd_root.find('.//xs:sequence', namespaces={"xs": "http://www.w3.org/2001/XMLSchema"})
@@ -612,7 +642,7 @@ def test_process_sequence_with_multiple_choices():
         assert property_names == expected, "Property group does not match any expected group."
 
 
-def test_process_sequence_with_nested_sequence_in_choice():
+def test_process_sequence_with_nested_sequence_in_choice(setup_instance):
     xsd_schema = """
     <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
         <xs:sequence>
@@ -631,8 +661,7 @@ def test_process_sequence_with_nested_sequence_in_choice():
         </xs:sequence>
     </xs:schema>
     """
-    state = State()
-    xsd_reader = XSDReader("test", "test")
+    xsd_reader, state = setup_instance
 
     xsd_root = etree.fromstring(xsd_schema)
     sequence = xsd_root.find('.//xs:sequence', namespaces={"xs": "http://www.w3.org/2001/XMLSchema"})
@@ -656,7 +685,7 @@ def test_process_sequence_with_nested_sequence_in_choice():
     assert group2_names == expected_groups[1], "Second property group does not match expected names."
 
 
-def test_process_sequence_only_choices():
+def test_process_sequence_only_choices(setup_instance):
     xsd_schema = """
     <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
         <xs:sequence>
@@ -671,8 +700,7 @@ def test_process_sequence_only_choices():
         </xs:sequence>
     </xs:schema>
     """
-    state = State()
-    xsd_reader = XSDReader("test", "test")
+    xsd_reader, state = setup_instance
 
     xsd_root = etree.fromstring(xsd_schema)
     sequence = xsd_root.find('.//xs:sequence', namespaces={"xs": "http://www.w3.org/2001/XMLSchema"})
