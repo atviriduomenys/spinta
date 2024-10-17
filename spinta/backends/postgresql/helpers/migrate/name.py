@@ -4,7 +4,7 @@ from multipledispatch import dispatch
 
 from spinta.backends.constants import TableType
 from spinta.backends.postgresql.helpers import get_pg_name
-from spinta.cli.migrate import MigrateRename
+from spinta.cli.helpers.migrate import MigrateRename
 from spinta.utils.itertools import ensure_list
 
 

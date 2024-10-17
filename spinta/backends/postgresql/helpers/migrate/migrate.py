@@ -15,7 +15,7 @@ from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_pg_name, get_column_name
 from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
 from spinta.backends.postgresql.helpers.migrate.name import has_been_renamed, get_pg_constraint_name, get_pg_index_name
-from spinta.cli.migrate import MigrateRename
+from spinta.cli.helpers.migrate import MigrateRename
 from spinta.components import Context, Model, Property
 from spinta.datasets.enums import Level
 from spinta.exceptions import MigrateScalarToRefTooManyKeys
@@ -558,7 +558,7 @@ def handle_index_migration(
         for index in indexes:
             dropped = False
             if index["column_names"] == [constraint_column] and index["name"] not in removed:
-                index_name = get_pg_name(rename_index_name(index["name"], table.name, table_name, old.name, new.name))
+                index_name = get_pg_index_name(table_name, new.name)
                 removed.append(index["name"])
                 if renamed or (not new.index and not isinstance(new.type, geoalchemy2.types.Geometry)):
                     dropped = True

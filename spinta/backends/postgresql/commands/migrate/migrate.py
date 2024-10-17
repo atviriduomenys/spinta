@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict
 
 import sqlalchemy as sa
 from alembic.migration import MigrationContext
@@ -9,6 +9,7 @@ import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
 from spinta.backends.constants import TableType
 from spinta.backends.helpers import get_table_name
+from spinta.backends.postgresql.commands.migrate.constants import EXCLUDED_MODELS
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_pg_name, get_column_name
 from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
@@ -16,8 +17,7 @@ from spinta.backends.postgresql.helpers.migrate.migrate import drop_all_indexes_
     MigratePostgresMeta
 from spinta.backends.postgresql.helpers.migrate.name import get_pg_table_name, get_pg_column_name, \
     get_pg_foreign_key_name
-from spinta.cli.migrate import MigrateMeta
-from spinta.cli.migrate import MigrateRename
+from spinta.cli.helpers.migrate import MigrateRename, MigrateMeta
 from spinta.commands import create_exception
 from spinta.components import Context, Model
 from spinta.datasets.inspect.helpers import zipitems
@@ -25,10 +25,6 @@ from spinta.manifests.components import Manifest
 from spinta.types.datatype import Ref, File
 from spinta.types.namespace import sort_models_by_ref_and_base
 from spinta.utils.schema import NA
-
-EXCLUDED_MODELS = (
-    'spatial_ref_sys'
-)
 
 
 @commands.migrate.register(Context, Manifest, PostgreSQL, MigrateMeta)
@@ -40,36 +36,17 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
     })
     op = Operations(ctx)
     inspector = sa.inspect(conn)
-    table_names = inspector.get_table_names()
     metadata = sa.MetaData(bind=conn)
     metadata.reflect()
 
-    tables = []
     models = commands.get_models(context, manifest)
+    tables = _collect_filtered_tables(
+        models=models,
+        existing_tables=inspector.get_table_names(),
+        filtered_datasets=migrate_meta.datasets,
+        rename=migrate_meta.rename
+    )
 
-    # Filter if only specific dataset can be changed
-    if migrate_meta.datasets:
-        datasets = migrate_meta.datasets
-        filtered_models = {}
-        for key, model in models.items():
-            if model.external and model.external.dataset and model.external.dataset.name in datasets:
-                filtered_models[key] = model
-        models = filtered_models
-
-        filtered_names = []
-        for table_name in table_names:
-            for dataset_name in datasets:
-                if table_name.startswith(f'{dataset_name}/'):
-                    additional_check = table_name.replace(f'{dataset_name}/', '', 1)
-                    if '/' not in additional_check:
-                        filtered_names.append(table_name)
-        table_names = filtered_names
-
-    for table in table_names:
-        name = migrate_meta.rename.get_table_name(table)
-        if name not in models.keys():
-            name = table
-        tables.append(name)
     sorted_models = sort_models_by_ref_and_base(list(models.values()))
     sorted_model_names = list([model.name for model in sorted_models])
     # Do reversed zip, to ensure that sorted models get selected first
@@ -127,6 +104,40 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
     except sa.exc.OperationalError as error:
         exception = create_exception(manifest, error)
         raise exception
+
+
+def _collect_filtered_tables(
+    models: Dict[str, Model],
+    existing_tables: List[str],
+    filtered_datasets: List[str],
+    rename: MigrateRename
+) -> List[str]:
+    tables = []
+
+    # Filter if only specific dataset can be changed
+    if filtered_datasets:
+        filtered_models = {}
+        for key, model in models.items():
+            if model.external and model.external.dataset and model.external.dataset.name in filtered_datasets:
+                filtered_models[key] = model
+        models = filtered_models
+
+        filtered_names = []
+        for table_name in existing_tables:
+            for dataset_name in filtered_datasets:
+                if table_name.startswith(f'{dataset_name}/'):
+                    # Check if its model or another sub dataset
+                    additional_check = table_name.replace(f'{dataset_name}/', '', 1)
+                    if '/' not in additional_check:
+                        filtered_names.append(table_name)
+        existing_tables = filtered_names
+
+    for table in existing_tables:
+        name = rename.get_table_name(table)
+        if name not in models.keys():
+            name = table
+        tables.append(name)
+    return tables
 
 
 def _handle_foreign_key_constraints(inspector: Inspector, models: List[Model], handler: MigrationHandler,
