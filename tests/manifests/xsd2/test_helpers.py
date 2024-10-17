@@ -400,6 +400,40 @@ def test_process_element_ref_backref():
 
     assert result.type.name == 'backref'
 
+# tests for process_complex_type
+
+
+def test_process_complex_type_attributes():
+    xsd = """
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <!-- Define the root element 'country' -->
+  <xs:element name="country">
+    <xs:complexType>
+        <!-- Define the 'name' and 'code' attributes inside 'country' -->
+        <xs:attribute name="name" type="xs:string"/>
+        <xs:attribute name="code" type="xs:string"/>
+
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>
+
+    """
+    schema = etree.XML(xsd)
+
+    root = schema.find(".//{http://www.w3.org/2001/XMLSchema}complexType")
+    state = State()
+    # Create an instance of XSDReader
+    reader = XSDReader("test", "test")
+    models = reader.process_complex_type(root, state)
+
+    assert isinstance(models[0], XSDModel)
+
+    assert len(reader.models) == 1
+
+    assert len(models[0].properties) == 2
+
 
 # Test process_choice
 @pytest.fixture

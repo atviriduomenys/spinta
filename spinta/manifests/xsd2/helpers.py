@@ -12,7 +12,7 @@ from lxml.etree import _Element, _Comment, QName
 
 from spinta.components import Context
 from spinta.core.ufuncs import Expr
-from spinta.utils.naming import Deduplicator, to_dataset_name, to_property_name
+from spinta.utils.naming import Deduplicator, to_dataset_name, to_property_name, to_model_name
 
 DATATYPES_MAPPING = {
     "string": "string",
@@ -214,6 +214,7 @@ class XSDProperty:
 
 class XSDModel:
     dataset_resource: XSDDatasetResource
+    xsd_name: str | None = None
     name: str | None = None
     basename: str | None = None
     source: str  # converts to ["external"]["name"]
@@ -221,9 +222,10 @@ class XSDModel:
     uri: str | None = None
     description: str | None = None
     referred_from: list[tuple[XSDModel, str]] | None = None  # tuple - model, property id
-    is_root_model: bool | None = None
+    is_root_model: bool = False
     deduplicate_property_name: Deduplicator
     xsd_node_type: str | None = None  # from complexType or from element
+    models_by_ref: str | None = None
 
     def __init__(self, dataset_resource) -> None:
         self.properties = {}
@@ -294,8 +296,8 @@ class XSDReader:
     root: _Element
     deduplicate_model_name: Deduplicator
     custom_types: dict[str, XSDType] | None = None
-    top_level_element_models: dict[str, str]
-    top_level_complex_type_models: dict[str, str]
+    top_level_element_models: dict[str, XSDModel]
+    top_level_complex_type_models: dict[str, XSDModel]
 
     def __init__(self, path: str, dataset_name) -> None:
         self._path = path
@@ -303,6 +305,8 @@ class XSDReader:
         self.custom_types = {}
         self.models = []
         self.deduplicate_model_name = Deduplicator()
+        self.top_level_element_models = {}
+        self.top_level_complex_type_models = {}
 
     def register_simple_types(self, state: State) -> None:
         custom_types_nodes = self.root.xpath(f'./*[local-name() = "simpleType"]')
@@ -375,19 +379,24 @@ class XSDReader:
         self._post_process_resource_model()
 
     def process_root(self, state: State):
+        # todo add sources to models later, when we know that they are not referenced
+        #  by properties from other models.
         for node in self.root.getchildren():
             # We don't care about comments
             if isinstance(node, etree._Comment):
                 continue
             if QName(node).localname == "element":
                 # todo add task for this and finish this
-                properties = self.process_element(node, state)
+                properties = self.process_element(node, state, is_root=True)
                 for prop in properties:
                     if prop.type.name not in ("ref", "backref"):
                         prop.name = self.resource_model.deduplicate_property_name(prop.xsd_name)
                         self.resource_model.properties[prop.name] = prop
             elif QName(node).localname == "complexType":
-                return self.process_complex_type(node, state)
+                models = self.process_complex_type(node, state)
+                for model in models:
+                    model.is_root_model = True
+                    model.set_name(self.deduplicate_model_name(to_model_name(model.xsd_name)))
             elif QName(node).localname == "simpleType":
                 # simple types are processed in self.register_simple_types
                 pass
@@ -395,8 +404,7 @@ class XSDReader:
                 raise RuntimeError(f'This node type cannot be at the top level: {node.name}')
 
     #  XSD nodes processors
-
-    def process_element(self, node: _Element, state: State, is_array=False) -> list[XSDProperty]:
+    def process_element(self, node: _Element, state: State, is_array=False, is_root=False) -> list[XSDProperty]:
         """
         Element should return a property. It can return multiple properties if there is a choice somewhere down the way.
         property name is set after returning all properties, because we need to do a deduplication first.
@@ -464,6 +472,12 @@ class XSDReader:
                 models = self.process_complex_type(child, state)
                 # usually it's one model, but in case of choice, can be multiple models
                 for model in models:
+                    model.xsd_name = property_name
+                    model.source = property_name
+                    model.set_name(self.deduplicate_model_name(to_model_name(property_name)))
+                    if is_root:
+                        self.top_level_element_models[property_name] = model
+                        model.is_root_model = True
                     prop = XSDProperty(xsd_name=property_name, required=is_required, source=property_name, is_array=is_array)
                     prop.ref_model = model
                     if is_array:
@@ -481,12 +495,11 @@ class XSDReader:
                 props.append(prop)
 
             else:
-                raise RuntimeError(f"This node type cannot be in the complex type: {QName(node).localname}")
+                raise RuntimeError(f"This node type cannot be in the element: {QName(node).localname}")
 
         return props
 
         # todo there is a case in RC with a type name that doesn't exist (or exists externally)
-        # todo deal with `mixed`
         #  todo factor in minoccurs and maxoccurs everywhere
         # todo If it's top level, we need to know if we need to add it to the resource model or not.
         #  Maybe after we return from this, we need to check if the property is `ref`. If it's top level and not ref, we add it to the "resource" model
@@ -496,41 +509,76 @@ class XSDReader:
     def process_complex_type(self, node: _Element, state: State) -> list[XSDModel]:
 
         models = []
-
-        model = XSDModel(dataset_resource=self.dataset_resource)
         name = node.attrib.get("name")
-        if name:
-            model.name = self.deduplicate_model_name(name)
-        state.property_deduplicate = Deduplicator()
+
         properties = []
-        choice_props = None
+
+        # if `mixed="true"` this means, that there can be text inside the element with this complexType, so this means
+        # that we have to add here a property `text` with a source `text()`
+        if node.attrib.get("mixed", False) == "true":
+            property_name = "text"
+            properties.append(XSDProperty(xsd_name=property_name, required=False, source="text()", is_array=False))
+        choice_properties = []
+        sequence_properties = []
+
         for child in node.getchildren():
             # We don't care about comments
             if isinstance(child, etree._Comment):
                 continue
             if QName(child).localname == "attribute":
                 prop = self.process_attribute(child, state)
-                prop.name = state.property_deduplicate(prop.xsd_name)
                 properties.append(prop)
-
             elif QName(child).localname == "sequence":
-                sequence_props = self.process_sequence(child, state)
-                properties.extend(sequence_props)
+                sequence_properties.extend(self.process_sequence(child, state))
+                properties.extend(sequence_properties)
             elif QName(child).localname == "choice":
-                choice_props = self.process_choice(child, state)
+                # technically, there can be only one `choice` node inside `complexType` node.
+                # Two or more are not allowed. If there need to be two or more `choice` nodes,
+                # they need to be inside a `sequence` node
+                choice_properties.extend(self.process_choice(child, state))
             else:
-                raise RuntimeError("")
+                raise RuntimeError(f"This node type cannot be in the complex type: {QName(node).localname}")
 
-        for prop in properties:
-            prop.name = state.property_deduplicate(prop.xsd_name)
-        model.properties = properties
-        if choice_props:
-            for choice_prop in choice_props:
-                pass
-            # todo duplicate the model many times, each with each choice_prop and
+        # join direct properties with properties that come from choices
+        properties_groups = []
 
-        self.models.append(model)
-        return [model]
+        # if there are properties from `choice`, we
+        if choice_properties:
+            for choice_properties_group in choice_properties:
+
+                choice_properties_group.extend(properties)
+
+                properties_groups.append(choice_properties_group)
+
+        else:
+            properties_groups = [properties]
+
+        new_properties_groups = []
+
+        if sequence_properties:
+            for sequence_properties_group in sequence_properties:
+                for group in properties_groups:
+                    group.extend(sequence_properties_group)
+                    new_properties_groups.append(group)
+        else:
+            new_properties_groups = properties_groups
+
+        for group in new_properties_groups:
+            # we don't set model source here, we do it in the process_element or nowhere if it's top level
+            model = XSDModel(dataset_resource=self.dataset_resource)
+            property_deduplicate = Deduplicator()
+            for prop in group:
+                prop.name = property_deduplicate(prop.xsd_name)
+                model.properties[prop.name] = prop
+            if name:
+                model.xsd_name = name
+                model.name = self.deduplicate_model_name(to_model_name(name))
+                self.top_level_complex_type_models[model.xsd_name] = model
+            models.append(model)
+
+        self.models.extend(models)
+
+        return models
 
     def _map_type(self, xsd_type: str) -> XSDType:
         """Gets XSD Type, returns DSA type (XSDType class)"""
