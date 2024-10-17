@@ -1,6 +1,6 @@
 from spinta import commands
 from spinta.components import Context
-from spinta.types.datatype import Array, PartialArray
+from spinta.types.datatype import Array, PartialArray, ArrayBackRef
 from spinta.types.helpers import set_dtype_backend
 
 
@@ -14,6 +14,13 @@ def link(context: Context, dtype: Array) -> None:
 
 @commands.link.register(Context, PartialArray)
 def link(context: Context, dtype: PartialArray):
+    dtype.prop.given.name = ''
+    super_ = commands.link[Context, Array]
+    return super_(context, dtype)
+
+
+@commands.link.register(Context, ArrayBackRef)
+def link(context: Context, dtype: ArrayBackRef):
     dtype.prop.given.name = ''
     super_ = commands.link[Context, Array]
     return super_(context, dtype)

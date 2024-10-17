@@ -135,7 +135,7 @@ def select(env, prop):
 
 
 @ufunc.resolver(PgQueryBuilder, DataType)
-def select(env, dtype):
+def select(env: PgQueryBuilder, dtype: DataType):
     table = env.backend.get_table(env.model)
 
     if dtype.prop.list is None:
@@ -291,6 +291,16 @@ def select(env, dtype: Ref, prop: str):
 
 @ufunc.resolver(PgQueryBuilder, BackRef)
 def select(env, dtype):
+    return _select_backref(env, dtype)
+
+
+@ufunc.resolver(PgQueryBuilder, ArrayBackRef)
+def select(env: PgQueryBuilder, dtype: ArrayBackRef):
+    selected = _select_backref(env, dtype.items.dtype, is_array=True)
+    return Selected(prop=dtype.prop, prep=selected.prep)
+
+
+def _select_backref(env, dtype, is_array=False):
     fpr = ForeignProperty(
         None,
         left=dtype,
@@ -299,6 +309,7 @@ def select(env, dtype):
     refprop = dtype.refprop
     required_columns = []
     return_columns = {}
+
     if refprop.level is None or refprop.level > Level.open:
         id_ = fpr.right.prop.model.properties['_id']
         column_name = id_.name
@@ -306,41 +317,26 @@ def select(env, dtype):
         required_columns.append((column_name, label))
         return_columns[label] = id_
     else:
-        required_columns = []
         for prop in dtype.refprop.dtype.refprops:
             column_name = prop.name
             label = f'{dtype.prop.name}.{column_name}'
             required_columns.append((column_name, label))
             return_columns[label] = prop
-    selector = env.generate_backref_select(dtype.prop, dtype.refprop, required_columns, False)
+
+    selector = env.generate_backref_select(dtype.prop, dtype.refprop, required_columns, is_array)
     table = env.get_backref_joined_table(fpr, selector)
+
     prep = {}
+
+    if is_array:
+        key = dtype.prop.name
+        prop = dtype.prop
+        selected_column = env.add_column(table.c[key])
+        return Selected(prop=prop, prep=Selected(selected_column, prop))
+
     for key, prop in return_columns.items():
         prep[prop.place] = Selected(env.add_column(table.c[key]), prop)
     return Selected(prop=fpr.left.prop, prep=prep)
-
-
-@ufunc.resolver(PgQueryBuilder, ArrayBackRef)
-def select(env, dtype):
-    fpr = ForeignProperty(
-        None,
-        left=dtype,
-        right=dtype.refprop.dtype,
-    )
-    refprop = dtype.refprop
-    required_columns = []
-    if refprop.level is None or refprop.level > Level.open:
-        column_name = fpr.right.prop.model.properties['_id'].name
-        required_columns.append((column_name, column_name))
-    else:
-        required_columns = []
-        for prop in dtype.refprop.dtype.refprops:
-            column_name = prop.name
-            required_columns.append((column_name, column_name))
-    selector = env.generate_backref_select(dtype.prop, dtype.refprop, required_columns, True)
-    table = env.get_backref_joined_table(fpr, selector)
-    column = table.c[dtype.prop.name]
-    return Selected(env.add_column(column), fpr.left.prop)
 
 
 @ufunc.resolver(PgQueryBuilder, ForeignProperty)

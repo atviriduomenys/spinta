@@ -46,7 +46,7 @@ from spinta.dimensions.enum.components import Enums
 from spinta.dimensions.lang.components import LangData
 from spinta.dimensions.prefix.components import UriPrefix
 from spinta.exceptions import MultipleErrors, InvalidBackRefReferenceAmount, DataTypeCannotBeUsedForNesting, \
-    NestedDataTypeMissmatch
+    NestedDataTypeMismatch
 from spinta.exceptions import PropertyNotFound
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
@@ -75,6 +75,7 @@ from spinta.manifests.tabular.components import TITLE
 from spinta.manifests.tabular.components import LEVEL
 from spinta.manifests.tabular.components import TabularFormat
 from spinta.manifests.tabular.constants import DATASET
+from spinta.manifests.tabular.constants import DataTypeEnum
 from spinta.manifests.tabular.formats.gsheets import read_gsheets_manifest
 from spinta.spyna import SpynaAST
 from spinta.types.datatype import Ref, DataType, Denorm, Inherit, ExternalRef, BackRef, ArrayBackRef, Array, Object
@@ -104,12 +105,21 @@ EXTRA_DIMENSIONS = [
     'comment',
     'ns',
     'lang',
-    'unique'
+    'unique',
 ]
 
-ALLOWED_PARTIAL_TYPES = ['object', 'partial', 'ref']
+ALLOWED_PARTIAL_TYPES = [
+    DataTypeEnum._OBJECT.value,
+    DataTypeEnum._PARTIAL.value,
+    DataTypeEnum.REF.value,
+    DataTypeEnum.BACKREF.value,
+]
 
-ALLOWED_ARRAY_TYPES = ['array', 'partial_array']
+ALLOWED_ARRAY_TYPES = [
+    DataTypeEnum.ARRAY.value,
+    DataTypeEnum._PARTIAL_ARRAY.value,
+    DataTypeEnum._ARRAY_BACKREF.value,
+]
 
 
 class TabularManifestError(Exception):
@@ -536,7 +546,7 @@ def _parse_dtype_string(dtype: str) -> dict:
     }
 
 
-def _get_type_repr(dtype: [DataType, str]):
+def _get_type_repr(dtype: List[DataType, str]):
     if isinstance(dtype, DataType):
         args = ''
         required = ' required' if dtype.required else ''
@@ -695,13 +705,6 @@ def _initial_partial_property_schema(given_name: str, dtype: dict, row: dict):
     return result
 
 
-def _initial_backref_property_schema(given_name: str, dtype: dict, row: dict):
-    result = _initial_normal_property_schema(given_name, dtype, row)
-    if given_name.endswith('[]'):
-        result['type'] = 'array_backref'
-    return result
-
-
 def _initial_text_property_schema(given_name: str, dtype: dict, row: dict):
     result = _initial_normal_property_schema(given_name, dtype, row)
     result['langs'] = {}
@@ -742,24 +745,30 @@ def _datatype_handler(reader: PropertyReader, row: dict, initial_data_loader: Ca
                 prepare=row['prepare']
             )
         )
+
     if row['ref']:
-        if dtype['type'] in ('ref', 'backref', 'generic'):
+        if dtype['type'] in (DataTypeEnum.REF.value, DataTypeEnum.GENERIC.value, DataTypeEnum.BACKREF.value):
             ref_model, ref_props = _parse_property_ref(row['ref'])
             new_data['model'] = get_relative_model_name(dataset, ref_model)
-            if dtype['type'] == 'backref':
+
+            if dtype['type'] == DataTypeEnum.BACKREF.value:
                 if len(ref_props) > 1:
                     raise InvalidBackRefReferenceAmount(backref=reader.name)
-                if len(ref_props) == 1:
+                elif len(ref_props) == 1:
                     new_data['refprop'] = ref_props[0]
+
             else:
                 new_data['refprops'] = ref_props
+
         else:
             # TODO: Detect if ref is a unit or an enum.
             new_data['enum'] = row['ref']
+
     if dataset or row['source']:
         new_data['external'] = {
             'name': row['source'],
         }
+
     return new_data
 
 
@@ -774,7 +783,7 @@ def _string_datatype_handler(reader: PropertyReader, row: dict):
             f"Now it is defined in {context.name!r} {context.type} context."
         )
     existing_data = _check_if_property_already_set(reader, row, given_name)
-    if row['type'] == 'text' and existing_data:
+    if row['type'] == DataTypeEnum.TEXT.value and existing_data:
         reader.error(
             f"Property {reader.name!r} with the same name is already "
             f"defined for this {reader.state.model.name!r} model."
@@ -810,7 +819,7 @@ def _string_datatype_handler(reader: PropertyReader, row: dict):
         lang = given_name.split('@', 1)[-1]
     should_return = True
     if existing_data:
-        if existing_data['type'] == 'text':
+        if existing_data['type'] == DataTypeEnum.TEXT.value:
             should_return = False
             if lang and lang in existing_data['langs']:
                 reader.error(
@@ -822,7 +831,7 @@ def _string_datatype_handler(reader: PropertyReader, row: dict):
                 existing_data['langs'][lang] = new_data
         else:
             reader.error(
-                f"Language can only be added to Text type properties."
+                "Language can only be added to Text type properties."
             )
     elif lang and not existing_data:
         copy = new_data.copy()
@@ -830,7 +839,7 @@ def _string_datatype_handler(reader: PropertyReader, row: dict):
             'property': row['property'],
             'access': row['access']
         })
-        new_data['type'] = 'text'
+        new_data['type'] = DataTypeEnum.TEXT.value
         new_data['explicitly_given'] = False
         new_data['langs'] = {
             lang: copy
@@ -850,7 +859,7 @@ def _text_datatype_handler(reader: PropertyReader, row: dict):
             f"Now it is defined in {context.name!r} {context.type} context."
         )
     result = _check_if_property_already_set(reader, row, given_name)
-    if not (result and result['explicitly_given'] is False and result['type'] == 'text' or not result):
+    if not (result and result['explicitly_given'] is False and result['type'] == DataTypeEnum.TEXT.value or not result):
         reader.error(
             f"Property {reader.name!r} with the same name is already "
             f"defined for this {reader.state.model.name!r} model."
@@ -883,7 +892,7 @@ def _text_datatype_handler(reader: PropertyReader, row: dict):
         'property': row['property'],
         'access': row['access'],
     }))
-    temp_data['type'] = 'string'
+    temp_data['type'] = DataTypeEnum.STRING.value
     temp_data['external'] = new_data['external'] if 'external' in new_data else {}
     if result:
         new_data['langs'] = result['langs']
@@ -915,10 +924,6 @@ def _partial_datatype_handler(reader: PropertyReader, row: dict):
     return _datatype_handler(reader, row, _initial_partial_property_schema)
 
 
-def _backref_datatype_handler(reader: PropertyReader, row: dict):
-    return _datatype_handler(reader, row, _initial_backref_property_schema)
-
-
 def _handle_datatype(reader: PropertyReader, row: dict):
     if row['type'] in DATATYPE_HANDLERS:
         handler = DATATYPE_HANDLERS[row['type']]
@@ -929,14 +934,15 @@ def _handle_datatype(reader: PropertyReader, row: dict):
 
 DATATYPE_HANDLERS = {
     "_default": _default_datatype_handler,
-    "partial_array": _array_datatype_handler,
-    "array": _array_datatype_handler,
-    "object": _partial_datatype_handler,
-    "partial": _partial_datatype_handler,
-    "ref": _partial_datatype_handler,
-    "backref": _backref_datatype_handler,
-    "text": _text_datatype_handler,
-    "string": _string_datatype_handler
+    DataTypeEnum._PARTIAL_ARRAY.value: _array_datatype_handler,
+    DataTypeEnum.ARRAY.value: _array_datatype_handler,
+    DataTypeEnum._ARRAY_BACKREF.value: _array_datatype_handler,
+    DataTypeEnum._OBJECT.value: _partial_datatype_handler,
+    DataTypeEnum._PARTIAL.value: _partial_datatype_handler,
+    DataTypeEnum.REF.value: _partial_datatype_handler,
+    DataTypeEnum.BACKREF.value: _partial_datatype_handler,
+    DataTypeEnum.TEXT.value: _text_datatype_handler,
+    DataTypeEnum.STRING.value: _string_datatype_handler
 }
 
 
@@ -967,14 +973,9 @@ def _combine_parent_with_prop(prop_name: str, prop: dict, parent_prop: dict, ful
             parent_prop['properties'][prop_name] = prop
             return_name = _clean_up_prop_name(full_prop['given_name'].split('.')[0])
         elif parent_prop['type'] in ALLOWED_ARRAY_TYPES:
-            # Array backref edge to replace parent instead of update array.items
-            if prop['type'] == 'array_backref':
-                parent_prop.clear()
-                parent_prop.update(prop)
-            else:
-                if parent_prop['items']:
-                    prop = _combine_previous_data(prop, parent_prop['items'])
-                parent_prop['items'] = prop
+            if parent_prop['items']:
+                prop = _combine_previous_data(prop, parent_prop['items'])
+            parent_prop['items'] = prop
             return_name = _clean_up_prop_name(full_prop['given_name'].split('.')[0])
         else:
             full_prop.clear()
@@ -996,30 +997,56 @@ def _empty_property(data: dict):
 
 def _get_parent_data_array(reader: PropertyReader, given_row: dict, full_name: str, current_parent: dict):
     name = full_name.split('.')[-1]
-    count = name.count('[]')
+    array_depth = name.count('[]')
     root_name = name.replace('[]', '')
+    
     empty_array_row = torow(DATASET, {
         'property': full_name,
-        'type': 'partial_array',
+        'type': DataTypeEnum._PARTIAL_ARRAY.value,
         'access': given_row['access'],
     })
+    
     if not current_parent:
         current_parent.update(_empty_property(_array_datatype_handler(reader, empty_array_row)))
-    adjustment = 1 if current_parent['type'] in ALLOWED_ARRAY_TYPES else 0
-    for i in range(count - adjustment):
-        if current_parent['type'] in ALLOWED_ARRAY_TYPES:
-            if current_parent['items'] and current_parent['items']['type'] not in ALLOWED_ARRAY_TYPES:
-                raise NestedDataTypeMissmatch(initial=current_parent['type'], required='array')
-            elif not current_parent['items']:
-                current_parent['items'].update(_empty_property(_array_datatype_handler(reader, empty_array_row)))
-            current_parent = current_parent['items']
-        elif current_parent['type'] in ALLOWED_PARTIAL_TYPES:
-            if root_name in current_parent['properties'] and current_parent['properties'][root_name]['type'] not in ALLOWED_ARRAY_TYPES:
-                raise NestedDataTypeMissmatch(initial=current_parent['type'], required='array')
-            elif root_name not in current_parent['properties']:
-                current_parent['properties'][root_name] = _empty_property(_array_datatype_handler(reader, empty_array_row))
-            current_parent = current_parent['properties'][root_name]
+
+    if given_row.get('type') == DataTypeEnum.BACKREF.value:
+        current_parent['type'] = DataTypeEnum._ARRAY_BACKREF.value
+    
+    adjustment = 1 if current_parent.get('type') in ALLOWED_ARRAY_TYPES else 0
+    
+    for _ in range(array_depth - adjustment):
+        current_type = current_parent.get('type')
+        
+        if current_type in ALLOWED_ARRAY_TYPES:
+            current_parent = _process_allowed_array_type(reader, current_parent, empty_array_row)
+        elif current_type in ALLOWED_PARTIAL_TYPES:
+            current_parent = _process_allowed_partial_type(reader, current_parent, root_name, empty_array_row)
+        else:
+            raise NestedDataTypeMismatch(initial=current_type, required=DataTypeEnum.ARRAY.value)
+    
     return current_parent
+
+
+def _process_allowed_array_type(reader: PropertyReader, current_parent: dict, empty_array_row: dict) -> dict:
+    if current_parent.get('items') and current_parent['items'].get('type') not in ALLOWED_ARRAY_TYPES:
+        raise NestedDataTypeMismatch(initial=current_parent['type'], required=DataTypeEnum.ARRAY.value)
+    if not current_parent.get('items'):
+        current_parent['items'] = _empty_property(_array_datatype_handler(reader, empty_array_row))
+    
+    return current_parent['items']
+
+
+def _process_allowed_partial_type(reader: PropertyReader, current_parent: dict, root_name: str, empty_array_row: dict) -> dict:
+    properties = current_parent.setdefault('properties', {})
+    
+    if root_name in properties:
+        prop_type = properties[root_name].get('type')
+        if prop_type not in ALLOWED_ARRAY_TYPES:
+            raise NestedDataTypeMismatch(initial=current_parent['type'], required=DataTypeEnum.ARRAY.value)
+    else:
+        properties[root_name] = _empty_property(_array_datatype_handler(reader, empty_array_row))
+    
+    return properties[root_name]
 
 
 def _get_parent_data_partial(reader: PropertyReader, given_row: dict, full_name: str, current_parent: dict):
@@ -1034,13 +1061,13 @@ def _get_parent_data_partial(reader: PropertyReader, given_row: dict, full_name:
     else:
         if current_parent['type'] in ALLOWED_ARRAY_TYPES:
             if current_parent['items'] and current_parent['items']['type'] not in ALLOWED_PARTIAL_TYPES:
-                raise NestedDataTypeMissmatch(initial=current_parent['type'], required='partial')
+                raise NestedDataTypeMismatch(initial=current_parent['type'], required=DataTypeEnum._PARTIAL.value)
             elif not current_parent['items']:
                 current_parent['items'].update(_empty_property(_partial_datatype_handler(reader, empty_partial_row)))
             current_parent = current_parent['items']
         elif current_parent['type'] in ALLOWED_PARTIAL_TYPES:
             if name in current_parent['properties'] and current_parent['properties'][name]['type'] not in ALLOWED_PARTIAL_TYPES:
-                raise NestedDataTypeMissmatch(initial=current_parent['type'], required='partial')
+                raise NestedDataTypeMismatch(initial=current_parent['type'], required=DataTypeEnum._PARTIAL.value)
             elif name not in current_parent['properties']:
                 current_parent['properties'][name] = _empty_property(_partial_datatype_handler(reader, empty_partial_row))
             current_parent = current_parent['properties'][name]
@@ -1080,7 +1107,14 @@ def _check_if_property_already_set(reader: PropertyReader, given_row: dict, full
     base = {}
     if base_name in reader.state.model.data['properties']:
         base = reader.state.model.data['properties'][base_name]
-        if base_name == full_name and base['type'] != 'partial' and base['type'] != 'partial_array' and (base['type'] == 'text' and given_row['type'] != 'string') and base['explicitly_given']:
+        if (
+            base_name == full_name 
+            and base['type'] != DataTypeEnum._PARTIAL.value
+            and base['type'] != DataTypeEnum._PARTIAL_ARRAY.value
+            and (base['type'] == DataTypeEnum.TEXT.value
+            and given_row['type'] != DataTypeEnum.STRING.value)
+            and base['explicitly_given']
+        ):
             reader.error(
                 f"Property {reader.name!r} with the same name is already "
                 f"defined for this {reader.state.model.name!r} model."
@@ -2231,40 +2265,40 @@ def _property_to_tabular(
         elif prop.external:
             data['source'] = prop.external.name
             data['prepare'] = unparse(prop.external.prepare or NA)
+
     yield_rows = []
-    if isinstance(prop.dtype, Array):
+
+    if isinstance(prop.dtype, (Array, ArrayBackRef)):
         yield_array_row = prop.dtype.items
         yield_rows.append(yield_array_row)
-    elif isinstance(prop.dtype, Ref):
+
+    elif isinstance(prop.dtype, (Ref, BackRef)):
         model = prop.model
+
         if model.external and model.external.dataset:
             data['ref'] = to_relative_model_name(
                 prop.dtype.model,
                 model.external.dataset,
             )
-            pkeys = prop.dtype.model.external.pkeys
-            rkeys = prop.dtype.refprops
-            if rkeys and pkeys != rkeys:
-                rkeys = ', '.join([p.place for p in rkeys])
-                data['ref'] += f'[{rkeys}]'
+
+            if isinstance(prop.dtype, Ref):
+                pkeys = prop.dtype.model.external.pkeys
+                rkeys = prop.dtype.refprops
+
+                if rkeys and pkeys != rkeys:
+                    rkeys = ', '.join([p.place for p in rkeys])
+                    data['ref'] += f'[{rkeys}]'
+            else:
+                rkey = prop.dtype.refprop.place
+                if prop.dtype.explicit:
+                    data['ref'] += f'[{rkey}]'
+
         else:
             data['ref'] = prop.dtype.model.name
 
         if prop.dtype.properties:
             for obj_prop in prop.dtype.properties.values():
                 yield_rows.append(obj_prop)
-    elif isinstance(prop.dtype, BackRef):
-        model = prop.model
-        if model.external and model.external.dataset:
-            data['ref'] = to_relative_model_name(
-                prop.dtype.model,
-                model.external.dataset,
-            )
-            rkey = prop.dtype.refprop.place
-            if prop.dtype.explicit:
-                data['ref'] += f'[{rkey}]'
-        else:
-            data['ref'] = prop.dtype.model.name
 
     elif isinstance(prop.dtype, Object):
         for obj_prop in prop.dtype.properties.values():

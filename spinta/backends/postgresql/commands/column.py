@@ -7,7 +7,7 @@ from spinta.backends.postgresql.helpers import get_column_name as gcn
 from spinta.components import Property, Model
 from spinta.datasets.enums import Level
 from spinta.exceptions import PropertyNotFound
-from spinta.types.datatype import DataType, Ref, BackRef, String, ExternalRef, Array
+from spinta.types.datatype import ArrayBackRef, DataType, Ref, BackRef, String, ExternalRef, Array
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 
@@ -61,6 +61,11 @@ def get_column(backend: PostgreSQL, dtype: Array, table: sa.Table = None, **kwar
     column_name = gcn(dtype.prop)
     column = convert_str_to_column(table, prop, column_name)
     return column
+
+
+@commands.get_column.register(PostgreSQL, ArrayBackRef)
+def get_column(backend: PostgreSQL, dtype: ArrayBackRef, table: sa.Table = None, **kwargs):
+    return commands.get_column(backend, dtype.items.dtype, **kwargs)
 
 
 @commands.get_column.register(PostgreSQL, String)
@@ -120,6 +125,10 @@ def get_column(backend: PostgreSQL, dtype: Ref, table: sa.Table = None, **kwargs
 @commands.get_column.register(PostgreSQL, BackRef)
 def get_column(backend: PostgreSQL, dtype: BackRef, table: sa.Table = None, **kwargs):
     prop = dtype.prop
+
+    if prop.list is not None:
+        return None
+
     r_prop = dtype.refprop
     columns = []
     if table is None:

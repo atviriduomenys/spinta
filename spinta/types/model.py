@@ -449,6 +449,7 @@ def load(context: Context, model: Model, data: dict) -> dict:
 
 @load.register(Context, Property, object)
 def load(context: Context, prop: Property, value: object) -> object:
+    # This load function should be called only with /Model/prop (subresource)
     value = _prepare_prop_data(prop.name, value)
     value[prop.name] = load(context, prop.dtype, value[prop.name])
     return value
