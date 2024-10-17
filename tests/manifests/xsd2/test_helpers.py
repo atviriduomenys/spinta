@@ -505,3 +505,189 @@ def test_process_choice_ignores_comments(setup_instance):
         mock_process_element.assert_called_once_with(root.find(".//{http://www.w3.org/2001/XMLSchema}element"), state)
         assert result == [['element_property']]
 
+
+
+def test_process_sequence_only_elements():
+    xsd_schema = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+        <xs:sequence>
+            <xs:element name="Name" type="xs:string"/>
+            <xs:element name="Population" type="xs:integer"/>
+            <xs:element name="Area" type="xs:decimal" minOccurs="0"/>
+        </xs:sequence>
+    </xs:schema>
+    """
+    state = State()
+    xsd_reader = XSDReader("test", "test")
+
+    xsd_root = etree.fromstring(xsd_schema)
+
+    sequence = xsd_root.xpath('./*[local-name() = "sequence"]')[0]
+    property_groups = xsd_reader.process_sequence(sequence, state)
+
+    # Expected property groups: only one group since there are no choices
+    assert len(property_groups) == 1
+
+    # Extract property names from the group
+    group = property_groups[0]
+    property_names = [prop.xsd_name for prop in group]
+
+    expected_names = ["Name", "Population", "Area"]
+    assert property_names == expected_names
+
+
+def test_process_sequence_with_single_choice():
+    xsd_schema = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+        <xs:sequence>
+            <xs:element name="Name" type="xs:string"/>
+            <xs:choice>
+                <xs:element name="Capital" type="xs:string"/>
+                <xs:element name="Population" type="xs:integer"/>
+            </xs:choice>
+            <xs:element name="Area" type="xs:decimal"/>
+        </xs:sequence>
+    </xs:schema>
+    """
+    state = State()
+    xsd_reader = XSDReader("test", "test")
+
+    xsd_root = etree.fromstring(xsd_schema)
+    sequence = xsd_root.xpath('./*[local-name() = "sequence"]')[0]
+
+    property_groups = xsd_reader.process_sequence(sequence, state)
+
+    # Expected property groups: two groups due to the choice between Population and Area
+    assert len(property_groups) == 2
+
+    group1 = property_groups[0]
+    group1_names = [prop.xsd_name for prop in group1]
+    group2 = property_groups[1]
+    group2_names = [prop.xsd_name for prop in group2]
+
+    expected_group1 = ["Name", "Capital", "Area"]
+    expected_group2 = ["Name", "Population", "Area"]
+
+    assert group1_names == expected_group1
+    assert group2_names == expected_group2
+
+
+def test_process_sequence_with_multiple_choices():
+    xsd_schema = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+        <xs:sequence>
+            <xs:element name="Name" type="xs:string"/>
+            <xs:choice>
+                <xs:element name="Mayor" type="xs:string"/>
+                <xs:element name="CouncilSize" type="xs:integer"/>
+            </xs:choice>
+            <xs:choice>
+                <xs:element name="Founded" type="xs:date"/>
+                <xs:element name="Population" type="xs:integer"/>
+            </xs:choice>
+            <xs:element name="Area" type="xs:decimal"/>
+        </xs:sequence>
+    </xs:schema>
+    """
+    state = State()
+    xsd_reader = XSDReader("test", "test")
+
+    xsd_root = etree.fromstring(xsd_schema)
+    sequence = xsd_root.find('.//xs:sequence', namespaces={"xs": "http://www.w3.org/2001/XMLSchema"})
+
+    property_groups = xsd_reader.process_sequence(sequence, state)
+
+    # Expected property groups: four groups due to two choices with two options each
+    assert len(property_groups) == 4, "There should be exactly four property groups."
+
+    expected_groups = [
+        ["Name", "Mayor", "Founded", "Area"],
+        ["Name", "Mayor", "Population", "Area"],
+        ["Name", "CouncilSize", "Founded", "Area"],
+        ["Name", "CouncilSize", "Population", "Area"],
+    ]
+
+    for group, expected in zip(property_groups, expected_groups):
+        property_names = [prop.xsd_name for prop in group]
+        assert property_names == expected, "Property group does not match any expected group."
+
+
+def test_process_sequence_with_nested_sequence_in_choice():
+    xsd_schema = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+        <xs:sequence>
+            <xs:element name="RegionName" type="xs:string"/>
+            <xs:choice>
+                <xs:sequence>
+                    <xs:element name="Country" type="xs:string"/>
+                    <xs:element name="Population" type="xs:integer"/>
+                </xs:sequence>
+                <xs:sequence>
+                    <xs:element name="Province" type="xs:string"/>
+                    <xs:element name="Area" type="xs:decimal"/>
+                </xs:sequence>
+            </xs:choice>
+            <xs:element name="Climate" type="xs:string"/>
+        </xs:sequence>
+    </xs:schema>
+    """
+    state = State()
+    xsd_reader = XSDReader("test", "test")
+
+    xsd_root = etree.fromstring(xsd_schema)
+    sequence = xsd_root.find('.//xs:sequence', namespaces={"xs": "http://www.w3.org/2001/XMLSchema"})
+
+    property_groups = xsd_reader.process_sequence(sequence, state)
+
+    # Expected property groups: two groups due to the choice between two nested sequences
+    expected_groups = [
+        ["RegionName", "Country", "Population", "Climate"],
+        ["RegionName", "Province", "Area", "Climate"],
+    ]
+
+    assert len(property_groups) == 2, "There should be exactly two property groups."
+
+    group1 = property_groups[0]
+    group1_names = [prop.xsd_name for prop in group1]
+    group2 = property_groups[1]
+    group2_names = [prop.xsd_name for prop in group2]
+
+    assert group1_names == expected_groups[0], "First property group does not match expected names."
+    assert group2_names == expected_groups[1], "Second property group does not match expected names."
+
+
+def test_process_sequence_only_choices():
+    xsd_schema = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+        <xs:sequence>
+            <xs:choice>
+                <xs:element name="Online" type="xs:boolean"/>
+                <xs:element name="Onsite" type="xs:boolean"/>
+            </xs:choice>
+            <xs:choice>
+                <xs:element name="FullTime" type="xs:boolean"/>
+                <xs:element name="PartTime" type="xs:boolean"/>
+            </xs:choice>
+        </xs:sequence>
+    </xs:schema>
+    """
+    state = State()
+    xsd_reader = XSDReader("test", "test")
+
+    xsd_root = etree.fromstring(xsd_schema)
+    sequence = xsd_root.find('.//xs:sequence', namespaces={"xs": "http://www.w3.org/2001/XMLSchema"})
+
+    property_groups = xsd_reader.process_sequence(sequence, state)
+
+    expected_groups = [
+        ["Online", "FullTime"],
+        ["Online", "PartTime"],
+        ["Onsite", "FullTime"],
+        ["Onsite", "PartTime"],
+    ]
+
+    assert len(property_groups) == 4, "There should be exactly four property groups."
+
+    for group, expected in zip(property_groups, expected_groups):
+        property_names = [prop.xsd_name for prop in group]
+        assert property_names == expected, "Property group does not match any expected group."

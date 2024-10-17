@@ -344,6 +344,13 @@ class XSDReader:
     def _add_expand_to_top_level_models(self):
         pass
 
+    def _apply_array_properties(self, properties: list[XSDProperty], node: _Element) -> None:
+        if self.is_array(node):
+            for prop in properties:
+                prop.is_array = True
+                if prop.type.name == "ref":
+                    prop.type.name = "backref"
+
     def start(self):
         # general part
         state = State()
@@ -646,52 +653,67 @@ class XSDReader:
         property_type.description = description
         return property_type
 
-    def process_sequence(self, node: _Element, state: State) -> dict[str, XSDProperty]:
-        properties = {}
+    def process_sequence(self, node: _Element, state: State) -> list[list[XSDProperty]]:
+        """
+        Processes an XSD <sequence> element and returns a list of property groups.
+        Each group is a list of XSDProperty instances representing a possible combination.
+        """
+        property_groups = [[]]
+
         for child in node.getchildren():
-            # We don't care about comments
             if isinstance(child, etree._Comment):
                 continue
-            if QName(child).localname == "element":
-                properties_result = self.process_element(child, state)
-                for prop in properties_result:
-                    properties["prop.id"] = prop
-            if QName(child).localname == "choice":
-                # todo finish this part
-                properties_result = self.process_choice(child, state)
-            else:
-                raise RuntimeError(f"Unexpected element type inside sequence element: {QName(child).localname}")
-        return properties
 
+            local_name = QName(child).localname
+
+            if local_name == "element":
+                props: list[XSDProperty] = self.process_element(child, state)
+                for group in property_groups:
+                    group.extend(props)
+            elif local_name == "choice":
+                choice_groups: list[list[XSDProperty]] = self.process_choice(child, state)
+                new_property_groups = []
+                for group in property_groups:
+                    for choice_group in choice_groups:
+                        # Create a new group combining the current group with the choice group
+                        new_group = group.copy()
+                        new_group.extend(choice_group)
+                        new_property_groups.append(new_group)
+                property_groups = new_property_groups
+            else:
+                raise RuntimeError(f"Unexpected element type inside <sequence>: {local_name}")
+
+        return property_groups
+    
     def process_choice(self, node: _Element, state: State) -> list[list[XSDProperty]]:
-        """
-        Returns a list of lists. Each list inside the main list is for the separate choice.
-        Those lists can also have other lists inside
-        """
+        choice_groups = []
+
+        for child in node:
+            if isinstance(child, etree._Comment):
+                continue
+
+            local_name = etree.QName(child).localname
+
+            if local_name == "element":
+                properties: list[XSDProperty] = self.process_element(child, state)
+                choice_groups.append(properties)
+            elif QName(child).localname == "sequence":
+                nested_groups: list[list[XSDProperty]] = self.process_sequence(child, state)
+                choice_groups.extend(nested_groups)
+            elif local_name == "choice":
+                nested_choice_groups: list[list[XSDProperty]] = self.process_choice(child, state)
+                choice_groups.extend(nested_choice_groups)
+            else:
+                raise RuntimeError(f"Unexpected element type inside <choice>: {local_name}")
+            
         if _is_array(node):
-            properties = self.process_sequence(node, state)
-            for properties_group in properties:
-                for prop in properties_group:
+            for group in choice_groups:
+                for prop in group:
                     prop.is_array = True
                     if prop.type.name == "ref":
                         prop.type.name = "backref"
 
-        property_lists = []
-        for child in node.getchildren():
-            # We don't care about comments
-            if isinstance(child, etree._Comment):
-                continue
-            if QName(child).localname == "element":
-                properties_result = self.process_element(child, state)
-            elif QName(child).localname == "sequence":
-                properties_result = self.process_sequence(child, state)
-            elif QName(child).localname == "choice":
-                properties_result = self.process_choice(child, state)
-            else:
-                raise RuntimeError(f"Unexpected element type inside sequence element: {QName(child).localname}")
-
-            property_lists.append(properties_result)
-        return property_lists
+        return choice_groups
 
     def process_group(self, node: _Element, state: State) -> None:
         pass
