@@ -400,7 +400,7 @@ class XSDReader:
                 # simple types are processed in self.register_simple_types
                 pass
             else:
-                raise RuntimeError(f'This node type cannot be at the top level: {node.name}')
+                raise RuntimeError(f'This node type cannot be at the top level: {QName(node).localname}')
 
     #  XSD nodes processors
     def process_element(self, node: _Element, state: State, is_array=False, is_root=False) -> list[XSDProperty]:
@@ -413,6 +413,7 @@ class XSDReader:
         is_required = int(node.attrib.get("minOccurs", 1)) > 0
         props = []
         property_type_to = None
+        property_description = ""
 
         # ref - a reference to separately defined element
         if node.attrib.get("ref"):
@@ -460,9 +461,6 @@ class XSDReader:
             prop.type_to = property_type_to
             props.append(prop)
 
-            if node.getchildren():
-                raise RuntimeError("element node shouldn't have children because it has type or ref attribute")
-
         for child in node.getchildren():
             # We don't care about comments
             if isinstance(child, etree._Comment):
@@ -493,8 +491,13 @@ class XSDReader:
                 prop.type = self.process_simple_type(child, state)
                 props.append(prop)
 
+            elif QName(child).localname == "annotation":
+                description = self.process_annotation(child, state)
             else:
-                raise RuntimeError(f"This node type cannot be in the element: {QName(node).localname}")
+                raise RuntimeError(f"This node type cannot be in the element: {QName(child).localname}")
+
+            for prop in props:
+                prop.description = property_description
 
         return props
 
