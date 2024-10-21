@@ -27,6 +27,10 @@ Improvements:
 
   .. _#730: https://github.com/atviriduomenys/spinta/issues/730
 
+- Added the ability for 'Backref' to have nested properties; improved 'Backref' and 'ArrayBackref' handling (`#664`_).
+
+  .. _#664: https://github.com/atviriduomenys/spinta/issues/664
+
 
 0.1.76 (2024-10-08)
 ===================

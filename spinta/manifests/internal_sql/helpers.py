@@ -29,10 +29,9 @@ from sqlalchemy_utils import UUIDType
 
 from spinta.nodes import get_node
 from spinta.spyna import unparse
-from spinta.types.datatype import Ref, Array, BackRef, Object
+from spinta.types.datatype import ArrayBackRef, Ref, Array, BackRef, Object
 from spinta.types.text.components import Text
 from spinta.utils.data import take
-from spinta.utils.enums import get_enum_by_name
 from spinta.utils.schema import NotAvailable, NA
 from spinta.utils.types import is_str_uuid
 
@@ -1110,37 +1109,38 @@ def _property_to_sql(
         elif prop.external:
             data['source'] = prop.external.name
             data['prepare'] = _handle_prepare(prop.external.prepare)
+
     yield_rows = []
-    if isinstance(prop.dtype, Array):
+
+    if isinstance(prop.dtype, (Array, ArrayBackRef)):
         yield_array_row = prop.dtype.items
         yield_rows.append(yield_array_row)
-    if isinstance(prop.dtype, Ref):
+
+    elif isinstance(prop.dtype, (Ref, BackRef)):
         model = prop.model
+        data['ref'] = prop.dtype.model.name
+
         if model.external and model.external.dataset:
-            data['ref'] = prop.dtype.model.name
-            pkeys = prop.dtype.model.external.pkeys
-            rkeys = prop.dtype.refprops
-            if rkeys and pkeys != rkeys:
-                rkeys = ', '.join([p.place for p in rkeys])
-                data['ref'] += f'[{rkeys}]'
-        else:
-            data['ref'] = prop.dtype.model.name
+            if isinstance(prop.dtype, Ref):
+                pkeys = prop.dtype.model.external.pkeys
+                rkeys = prop.dtype.refprops
+
+                if rkeys and pkeys != rkeys:
+                    rkeys = ', '.join([p.place for p in rkeys])
+                    data['ref'] += f'[{rkeys}]'
+            else:
+                rkey = prop.dtype.refprop.place
+                if prop.dtype.explicit:
+                    data['ref'] += f'[{rkey}]'
 
         if prop.dtype.properties:
             for obj_prop in prop.dtype.properties.values():
                 yield_rows.append(obj_prop)
-    elif isinstance(prop.dtype, BackRef):
-        model = prop.model
-        if model.external and model.external.dataset:
-            data['ref'] = prop.dtype.model.name
-            rkey = prop.dtype.refprop.place
-            if prop.dtype.explicit:
-                data['ref'] += f'[{rkey}]'
-        else:
-            data['ref'] = prop.dtype.model.name
+
     elif isinstance(prop.dtype, Object):
         for obj_prop in prop.dtype.properties.values():
             yield_rows.append(obj_prop)
+
     elif isinstance(prop.dtype, Text):
         for lang_prop in prop.dtype.langs.values():
             yield_rows.append(lang_prop)
