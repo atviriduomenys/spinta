@@ -348,7 +348,7 @@ class XSDReader:
                     try:
                         prop.ref_model = self.top_level_element_models[prop.xsd_ref_to]
                     except KeyError:
-                        raise KeyError("Reference to a non-existing model")
+                        raise KeyError(f"Reference to a non-existing model: {prop.xsd_ref_to}")
                     
                 elif prop.xsd_type_to:
                     try:
