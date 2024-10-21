@@ -1,6 +1,9 @@
+from pyexpat import model
+from typing import Callable
 import pytest
 
-from spinta.manifests.xsd2.helpers import XSDReader, State, XSDProperty, XSDType, XSDModel, XSDDatasetResource, _is_array
+from spinta.cli import data
+from spinta.manifests.xsd2.helpers import XSDReader, State, XSDProperty, XSDType, XSDModel, XSDDatasetResource
 from unittest.mock import MagicMock, patch
 from lxml import etree
 
@@ -719,3 +722,78 @@ def test_process_sequence_only_choices(setup_instance):
     for group, expected in zip(property_groups, expected_groups):
         property_names = [prop.xsd_name for prop in group]
         assert property_names == expected, "Property group does not match any expected group."
+
+@pytest.fixture
+def xsd_reader():
+    return XSDReader("test", "test")
+
+@pytest.fixture
+def create_xsd_model() -> Callable[..., XSDModel]:
+    def _create(name: str) -> XSDModel:
+        dataset_resource = XSDDatasetResource(dataset_name="test")
+        model = XSDModel(dataset_resource=dataset_resource)
+        model.xsd_name = name
+        return model
+    return _create
+
+@pytest.fixture
+def create_ref_xsd_property() -> Callable[..., XSDProperty]:
+    def _create(name: str, type: str, ref_model: str) -> XSDProperty:
+        prop = XSDProperty(
+            xsd_name=name,
+            property_type=XSDType(name=type),
+            required=True,
+        )
+        if type == "ref":
+            prop.xsd_ref_to = ref_model
+        elif type == "type":
+            prop.xsd_type_to = ref_model
+        return prop
+    return _create
+
+@pytest.fixture
+def setup_models(xsd_reader, create_xsd_model, create_ref_xsd_property):
+    model_a = create_xsd_model("ModelA")
+    model_b = create_xsd_model("ModelB")
+
+    prop1 = create_ref_xsd_property("prop1", "ref", model_b.xsd_name)
+    prop2 = create_ref_xsd_property("prop2", "type", model_a.xsd_name)
+
+    model_a.properties["prop1"] = prop1
+    model_b.properties["prop2"] = prop2
+
+    xsd_reader.models.extend([model_a, model_b])
+
+    xsd_reader.top_level_element_models[model_b.xsd_name] = model_b
+    xsd_reader.top_level_complex_type_models[model_a.xsd_name] = model_a
+    
+    return {
+        "xsd_reader": xsd_reader,
+        "models": {
+            "ModelA": model_a,
+            "ModelB": model_b,
+        },
+        "properties": {
+            "prop1": prop1,
+            "prop2": prop2,
+        }
+    }
+
+
+def test_post_process_refs_links_existing_references(setup_models):
+    """
+    Test that _post_process_refs correctly links properties to existing models.
+    """
+    xsd_reader, models, properties = setup_models["xsd_reader"], setup_models["models"], setup_models["properties"]
+    model_a, model_b = models["ModelA"], models["ModelB"]
+    prop1, prop2 = properties["prop1"], properties["prop2"]
+    
+    xsd_reader._post_process_refs()
+        
+    # Property1 in ModelA should link to ModelB via ref_model
+    assert prop1.ref_model is not None
+    assert prop1.ref_model == model_b
+    
+    # Property2 in ModelB should link to ModelA via ref_model
+    assert prop2.ref_model is not None
+    assert prop2.ref_model == model_a
