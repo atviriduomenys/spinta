@@ -343,10 +343,13 @@ class XSDReader:
         """
         for model in self.models:
             for prop in model.properties.values():
+                
                 if prop.xsd_ref_to:
-                    target_model: XSDModel = self.top_level_element_models.get(prop.xsd_ref_to) or self.top_level_complex_type_models.get(prop.xsd_ref_to)
-                    if not target_model:
+                    try:
+                        target_model: XSDModel = self.top_level_element_models[prop.xsd_ref_to]
+                    except KeyError:
                         raise KeyError("Reference to a non-existing model")
+                    
                 elif prop.xsd_type_to:
                     try:
                         target_model: XSDModel = self.top_level_complex_type_models[prop.xsd_type_to]
