@@ -58,312 +58,315 @@ from spinta.testing.manifest import load_manifest
 #     assert manifest == table
 #
 #
-# def test_xsd_ref(rc: RawConfig, tmp_path: Path):
-#     xsd = """
-#
-# <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
-# <xs:element name="asmenys">
-#   <xs:complexType mixed="true">
-#     <xs:sequence>
-#       <xs:element ref="asmuo" minOccurs="0" maxOccurs="unbounded" />
-#     </xs:sequence>
-#     <xs:attribute name="puslapis" type="xs:long" use="required">
-#       <xs:annotation><xs:documentation>rezultatu puslapio numeris</xs:documentation></xs:annotation>
-#     </xs:attribute>
-#   </xs:complexType>
-# </xs:element>
-#
-# <xs:element name="asmuo">
-#   <xs:complexType mixed="true">
-#
-#       <xs:attribute name="id"     type="xs:string" use="required">
-#       </xs:attribute>
-#       <xs:attribute name="ak"  type="xs:string" use="required">
-#       </xs:attribute>
-#
-#   </xs:complexType>
-# </xs:element>
-# </xs:schema>
-#     """
-#
-#     table = """
-#  id | d | r | b | m | property     | type             | ref     | source         | prepare | level | access | uri | title | description
-#     | manifest                     |                  |         |                |         |       |        |     |       |
-#     |   | resource1                | xml              |         |                |         |       |        |     |       |
-#     |                              |                  |         |                |         |       |        |     |       |
-#     |   |   |   | Asmenys          |                  |         | /asmenys       |         |       |        |     |       |
-#     |   |   |   |   | asmuo[]      | backref          | Asmuo   | asmuo          |         |       |        |     |       |
-#     |   |   |   |   | asmuo[].ak   | string required  |         | @ak            |         |       |        |     |       |
-#     |   |   |   |   | asmuo[].id   | string required  |         | @id            |         |       |        |     |       |
-#     |   |   |   |   | asmuo[].text | string           |         | text()         |         |       |        |     |       |
-#     |   |   |   |   | puslapis     | integer required |         | @puslapis      |         |       |        |     |       | rezultatu puslapio numeris
-#     |   |   |   |   | text         | string           |         | text()         |         |       |        |     |       |
-#     |                              |                  |         |                |         |       |        |     |       |
-#     |   |   |   | Asmuo            |                  |         |                |         |       |        |     |       |
-#     |   |   |   |   | ak           | string required  |         | @ak            |         |       |        |     |       |
-#     |   |   |   |   | asmenys      | ref              | Asmenys |                |         |       |        |     |       |
-#     |   |   |   |   | id           | string required  |         | @id            |         |       |        |     |       |
-#     |   |   |   |   | text         | string           |         | text()         |         |       |        |     |       |
-#
-# """
-#
-#     path = tmp_path / 'manifest.xsd'
-#     with open(path, "w") as xsd_file:
-#         xsd_file.write(xsd)
-#     manifest = load_manifest(rc, path)
-#     print(manifest)
-#     assert manifest == table
-#
-#
-# def test_xsd_resource_model(rc: RawConfig, tmp_path: Path):
-#     xsd = """
-#
-# <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
-#
-# <xs:element name="klaida" type="xs:string">
-#   <xs:annotation><xs:documentation>Klaidos atveju - klaidos pranešimas</xs:documentation></xs:annotation>
-# </xs:element>
-#
-# <xs:element name="asmenys">
-#   <xs:complexType mixed="true">
-#
-#     <xs:attribute name="puslapis" type="xs:long" use="required">
-#       <xs:annotation><xs:documentation>rezultatu puslapio numeris</xs:documentation></xs:annotation>
-#     </xs:attribute>
-#
-#   </xs:complexType>
-# </xs:element>
-#
-# </xs:schema>
-#     """
-#
-#     table = """
-#  id | d | r | b | m | property | type             | ref | source        | prepare | level | access | uri                                           | title | description
-#     | manifest                 |                  |     |               |         |       |        |                                               |       |
-#     |   | resource1            | xml              |     |               |         |       |        |                                               |       |
-#     |                          |                  |     |               |         |       |        |                                               |       |
-#     |   |   |   | Asmenys      |                  |     | /asmenys      |         |       |        |                                               |       |
-#     |   |   |   |   | puslapis | integer required |     | @puslapis     |         |       |        |                                               |       | rezultatu puslapio numeris
-#     |   |   |   |   | text     | string           |     | text()        |         |       |        |                                               |       |
-#     |                          |                  |     |               |         |       |        |                                               |       |
-#     |   |   |   | Resource     |                  |     | /             |         |       |        | http://www.w3.org/2000/01/rdf-schema#Resource |       | Įvairūs duomenys
-#     |   |   |   |   | klaida   | string           |     | klaida/text() |         |       |        |                                               |       | Klaidos atveju - klaidos pranešimas
-#
-# """
-#
-#     path = tmp_path / 'manifest.xsd'
-#     with open(path, "w") as xsd_file:
-#         xsd_file.write(xsd)
-#     manifest = load_manifest(rc, path)
-#     print(manifest)
-#     assert manifest == table
-#
-#
-# def test_xsd_separate_type(rc: RawConfig, tmp_path: Path):
-#     xsd = """
-# <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-#
-# <xs:element name="SKIEPAS_EU">
-#   <xs:annotation><xs:documentation></xs:documentation></xs:annotation>
-#     <xs:complexType>
-#       <xs:sequence>
-#
-#       <xs:element minOccurs="0" maxOccurs="1" name="PACIENTO_AK">
-#         <xs:annotation><xs:documentation>Paciento asmens kodas (LTU)</xs:documentation></xs:annotation>
-#         <xs:simpleType>
-#           <xs:restriction base="xs:string"><xs:maxLength value="1024"/></xs:restriction>
-#         </xs:simpleType>
-#       </xs:element>
-#
-#       <xs:element minOccurs="1" maxOccurs="1" name="SKIEPIJIMO_DATA" type="t_data">
-#         <xs:annotation><xs:documentation>Skiepijimo data</xs:documentation></xs:annotation>
-#       </xs:element>
-#
-#     </xs:sequence>
-#   </xs:complexType>
-# </xs:element>
-#
-#
-# <xs:simpleType name="t_data">
-#   <xs:annotation><xs:documentation>Data</xs:documentation></xs:annotation>
-#   <xs:restriction base="xs:string">
-#     <xs:pattern value="\d{4}-\d{2}-\d{2}"/>
-#   </xs:restriction>
-# </xs:simpleType>
-#
-#
-# </xs:schema>
-#     """
-#
-#     table = """
-# id | d | r | b | m | property            | type            | ref              | source                         | prepare | level | access | uri | title | description
-#    | manifest                            |                 |                  |                                |         |       |        |     |       |
-#    |   | resource1                       | xml             |                  |                                |         |       |        |     |       |
-#    |                                     |                 |                  |                                |         |       |        |     |       |
-#    |   |   |   | SkiepasEu               |                 |                  | /SKIEPAS_EU                    |         |       |        |     |       |
-#    |   |   |   |   | paciento_ak         | string          |                  | PACIENTO_AK/text()             |         |       |        |     |       | Paciento asmens kodas (LTU)
-#    |   |   |   |   | skiepijimo_data     | string required |                  | SKIEPIJIMO_DATA/text()         |         |       |        |     |       | Skiepijimo data
-# """
-#
-#     path = tmp_path / 'manifest.xsd'
-#     with open(path, "w") as xsd_file:
-#         xsd_file.write(xsd)
-#     manifest = load_manifest(rc, path)
-#     print(manifest)
-#     assert manifest == table
-#
-#
-# def test_xsd_choice(rc: RawConfig, tmp_path: Path):
-#     xsd = """
-#     <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
-# 	<xs:element name="parcel">
-# 		<xs:annotation>
-# 			<xs:documentation>Žemės sklypo pasikeitimo informacija</xs:documentation>
-# 		</xs:annotation>
-# 		<xs:complexType mixed="true">
-# 			<xs:choice>
-# 				<xs:element name="parcel_unique_number" minOccurs="1" maxOccurs="1">
-# 					<xs:annotation>
-# 						<xs:documentation>Žemės sklypo unikalus numeris</xs:documentation>
-# 					</xs:annotation>
-# 					<xs:simpleType>
-# 						<xs:restriction base="xs:positiveInteger"> <!-- https://www.oreilly.com/library/view/xml-schema/0596002521/re90.html -->
-# 							<xs:totalDigits value="12"/>
-# 						</xs:restriction>
-# 					</xs:simpleType>
-# 				</xs:element>
-# 				<xs:element name="sign_of_change" minOccurs="1" maxOccurs="1">
-# 					<xs:annotation>
-# 						<xs:documentation>Žemės sklypo pasikeitimo požymis</xs:documentation>
-# 					</xs:annotation>
-# 					<xs:simpleType>
-# 						<xs:restriction base="xs:int">
-# 							<xs:enumeration value="1"/> <!-- nauji sklypai 	  -->
-# 							<xs:enumeration value="2"/> <!-- redaguoti sklypai -->
-# 						</xs:restriction>
-# 					</xs:simpleType>
-# 				</xs:element>
-# 			</xs:choice>
-# 		</xs:complexType>
-# 	</xs:element>
-# </xs:schema>
-#     """
-#
-#     table = """
-#  id | d | r | b | m | property             | type             | ref | source                      | prepare | level | access | uri | title | description
-#     | manifest                             |                  |     |                             |         |       |        |     |       |
-#     |   | resource1                        | xml              |     |                             |         |       |        |     |       |
-#     |                                      |                  |     |                             |         |       |        |     |       |
-#     |   |   |   | Parcel1                  |                  |     | /parcel                     |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
-#     |   |   |   |   | parcel_unique_number | integer required |     | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
-#     |   |   |   |   | text                 | string           |     | text()                      |         |       |        |     |       |
-#     |                                      |                  |     |                             |         |       |        |     |       |
-#     |   |   |   | Parcel2                  |                  |     | /parcel                     |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
-#     |   |   |   |   | sign_of_change       | integer required |     | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
-#     |                                      | enum             |     | 1                           |         |       |        |     |       |
-#     |                                      |                  |     | 2                           |         |       |        |     |       |
-#     |   |   |   |   | text                 | string           |     | text()                      |         |       |        |     |       |
-#
-# """
-#
-#     path = tmp_path / 'manifest.xsd'
-#     with open(path, "w") as xsd_file:
-#         xsd_file.write(xsd)
-#     manifest = load_manifest(rc, path)
-#     print(manifest)
-#     assert manifest == table
-#
-#
-# def test_xsd_choice_max_occurs_unbounded(rc: RawConfig, tmp_path: Path):
-#     xsd = """
-#     <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
-# 	<xs:element name="parcel">
-# 		<xs:annotation>
-# 			<xs:documentation>Žemės sklypo pasikeitimo informacija</xs:documentation>
-# 		</xs:annotation>
-# 		<xs:complexType mixed="true">
-# 			<xs:choice maxOccurs="unbounded">
-# 				<xs:element name="parcel_unique_number" minOccurs="1" maxOccurs="1">
-# 					<xs:annotation>
-# 						<xs:documentation>Žemės sklypo unikalus numeris</xs:documentation>
-# 					</xs:annotation>
-# 					<xs:simpleType>
-# 						<xs:restriction base="xs:positiveInteger"> <!-- https://www.oreilly.com/library/view/xml-schema/0596002521/re90.html -->
-# 							<xs:totalDigits value="12"/>
-# 						</xs:restriction>
-# 					</xs:simpleType>
-# 				</xs:element>
-# 				<xs:element name="sign_of_change" minOccurs="1" maxOccurs="1">
-# 					<xs:annotation>
-# 						<xs:documentation>Žemės sklypo pasikeitimo požymis</xs:documentation>
-# 					</xs:annotation>
-# 					<xs:simpleType>
-# 						<xs:restriction base="xs:int">
-# 							<xs:enumeration value="1"/> <!-- nauji sklypai 	  -->
-# 							<xs:enumeration value="2"/> <!-- redaguoti sklypai -->
-# 						</xs:restriction>
-# 					</xs:simpleType>
-# 				</xs:element>
-# 			</xs:choice>
-# 		</xs:complexType>
-# 	</xs:element>
-# </xs:schema>
-#     """
-#
-#     table = """
-#  id | d | r | b | m | property               | type    | ref | source                      | prepare | level | access | uri | title | description
-#     | manifest                               |         |     |                             |         |       |        |     |       |
-#     |   | resource1                          | xml     |     |                             |         |       |        |     |       |
-#     |                                        |         |     |                             |         |       |        |     |       |
-#     |   |   |   | Parcel                     |         |     | /parcel                     |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
-#     |   |   |   |   | parcel_unique_number[] | integer |     | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
-#     |   |   |   |   | sign_of_change[]       | integer |     | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
-#     |                                        | enum    |     | 1                           |         |       |        |     |       |
-#     |                                        |         |     | 2                           |         |       |        |     |       |
-#     |   |   |   |   | text                   | string  |     | text()                      |         |       |        |     |       |
-#
-# """
-#
-#     path = tmp_path / 'manifest.xsd'
-#     with open(path, "w") as xsd_file:
-#         xsd_file.write(xsd)
-#     manifest = load_manifest(rc, path)
-#     print(manifest)
-#     assert manifest == table
-#
-#
-# def test_xsd_attributes(rc: RawConfig, tmp_path: Path):
-#     xsd = """
-#
-# <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
-#
-# <xs:element name="SALYGA">
-#   <xs:complexType>
-#     <xs:attribute name="kodas"    type="xs:string"  use="optional" />
-#     <xs:attribute name="pavadinimas"    type="xs:string"  use="optional" />
-#   </xs:complexType>
-# </xs:element>
-#
-# </xs:schema>
-#     """
-#
-#     table = """
-#  id | d | r | b | m | property             | type            | ref     | source             | prepare | level | access | uri | title | description
-#     | manifest                             |                 |         |                    |         |       |        |     |       |
-#     |   | resource1                        | xml             |         |                    |         |       |        |     |       |
-#     |                                      |                 |         |                    |         |       |        |     |       |
-#     |   |   |   | Salyga                   |                 |         | /SALYGA            |         |       |        |     |       |
-#     |   |   |   |   | kodas                | string          |         | @kodas             |         |       |        |     |       |
-#     |   |   |   |   | pavadinimas          | string          |         | @pavadinimas       |         |       |        |     |       |
-# """
-#
-#     path = tmp_path / 'manifest.xsd'
-#     with open(path, "w") as xsd_file:
-#         xsd_file.write(xsd)
-#     manifest = load_manifest(rc, path)
-#     print(manifest)
-#     assert manifest == table
-#
+
+
+def test_xsd_ref(rc: RawConfig, tmp_path: Path):
+    xsd = """
+
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+<xs:element name="asmenys">
+  <xs:complexType mixed="true">
+    <xs:sequence>
+      <xs:element ref="asmuo" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+    <xs:attribute name="puslapis" type="xs:long" use="required">
+      <xs:annotation><xs:documentation>rezultatu puslapio numeris</xs:documentation></xs:annotation>
+    </xs:attribute>
+  </xs:complexType>
+</xs:element>
+
+<xs:element name="asmuo">
+  <xs:complexType mixed="true">
+
+      <xs:attribute name="id"     type="xs:string" use="required">
+      </xs:attribute>
+      <xs:attribute name="ak"  type="xs:string" use="required">
+      </xs:attribute>
+
+  </xs:complexType>
+</xs:element>
+</xs:schema>
+    """
+
+    table = """
+ id | d | r | b | m | property     | type             | ref     | source         | prepare | level | access | uri | title | description
+    | manifest                     |                  |         |                |         |       |        |     |       |
+    |   | resource1                | xml              |         |                |         |       |        |     |       |
+    |                              |                  |         |                |         |       |        |     |       |
+    |   |   |   | Asmenys          |                  |         | /asmenys       |         |       |        |     |       |
+    |   |   |   |   | asmuo[]      | backref          | Asmuo   | asmuo          |         |       |        |     |       |
+    |   |   |   |   | asmuo[].ak   | string required  |         | @ak            |         |       |        |     |       |
+    |   |   |   |   | asmuo[].id   | string required  |         | @id            |         |       |        |     |       |
+    |   |   |   |   | asmuo[].text | string           |         | text()         |         |       |        |     |       |
+    |   |   |   |   | puslapis     | integer required |         | @puslapis      |         |       |        |     |       | rezultatu puslapio numeris
+    |   |   |   |   | text         | string           |         | text()         |         |       |        |     |       |
+    |                              |                  |         |                |         |       |        |     |       |
+    |   |   |   | Asmuo            |                  |         |                |         |       |        |     |       |
+    |   |   |   |   | ak           | string required  |         | @ak            |         |       |        |     |       |
+    |   |   |   |   | asmenys      | ref              | Asmenys |                |         |       |        |     |       |
+    |   |   |   |   | id           | string required  |         | @id            |         |       |        |     |       |
+    |   |   |   |   | text         | string           |         | text()         |         |       |        |     |       |
+
+"""
+
+    path = tmp_path / 'manifest.xsd'
+    path_xsd2 = f"xsd2+file://{path}"
+    with open(path, "w") as xsd_file:
+        xsd_file.write(xsd)
+    manifest = load_manifest(rc, path_xsd2)
+    print(manifest)
+    assert manifest == table
+
+
+def test_xsd_resource_model(rc: RawConfig, tmp_path: Path):
+    xsd = """
+
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+
+<xs:element name="klaida" type="xs:string">
+  <xs:annotation><xs:documentation>Klaidos atveju - klaidos pranešimas</xs:documentation></xs:annotation>
+</xs:element>
+
+<xs:element name="asmenys">
+  <xs:complexType mixed="true">
+
+    <xs:attribute name="puslapis" type="xs:long" use="required">
+      <xs:annotation><xs:documentation>rezultatu puslapio numeris</xs:documentation></xs:annotation>
+    </xs:attribute>
+
+  </xs:complexType>
+</xs:element>
+
+</xs:schema>
+    """
+
+    table = """
+ id | d | r | b | m | property | type             | ref | source        | prepare | level | access | uri                                           | title | description
+    | manifest                 |                  |     |               |         |       |        |                                               |       |
+    |   | resource1            | xml              |     |               |         |       |        |                                               |       |
+    |                          |                  |     |               |         |       |        |                                               |       |
+    |   |   |   | Asmenys      |                  |     | /asmenys      |         |       |        |                                               |       |
+    |   |   |   |   | puslapis | integer required |     | @puslapis     |         |       |        |                                               |       | rezultatu puslapio numeris
+    |   |   |   |   | text     | string           |     | text()        |         |       |        |                                               |       |
+    |                          |                  |     |               |         |       |        |                                               |       |
+    |   |   |   | Resource     |                  |     | /             |         |       |        | http://www.w3.org/2000/01/rdf-schema#Resource |       | Įvairūs duomenys
+    |   |   |   |   | klaida   | string           |     | klaida/text() |         |       |        |                                               |       | Klaidos atveju - klaidos pranešimas
+
+"""
+
+    path = tmp_path / 'manifest.xsd'
+    with open(path, "w") as xsd_file:
+        xsd_file.write(xsd)
+    manifest = load_manifest(rc, path)
+    print(manifest)
+    assert manifest == table
+
+
+def test_xsd_separate_type(rc: RawConfig, tmp_path: Path):
+    xsd = """
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+<xs:element name="SKIEPAS_EU">
+  <xs:annotation><xs:documentation></xs:documentation></xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+
+      <xs:element minOccurs="0" maxOccurs="1" name="PACIENTO_AK">
+        <xs:annotation><xs:documentation>Paciento asmens kodas (LTU)</xs:documentation></xs:annotation>
+        <xs:simpleType>
+          <xs:restriction base="xs:string"><xs:maxLength value="1024"/></xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+
+      <xs:element minOccurs="1" maxOccurs="1" name="SKIEPIJIMO_DATA" type="t_data">
+        <xs:annotation><xs:documentation>Skiepijimo data</xs:documentation></xs:annotation>
+      </xs:element>
+
+    </xs:sequence>
+  </xs:complexType>
+</xs:element>
+
+
+<xs:simpleType name="t_data">
+  <xs:annotation><xs:documentation>Data</xs:documentation></xs:annotation>
+  <xs:restriction base="xs:string">
+    <xs:pattern value="\d{4}-\d{2}-\d{2}"/>
+  </xs:restriction>
+</xs:simpleType>
+
+
+</xs:schema>
+    """
+
+    table = """
+id | d | r | b | m | property            | type            | ref              | source                         | prepare | level | access | uri | title | description
+   | manifest                            |                 |                  |                                |         |       |        |     |       |
+   |   | resource1                       | xml             |                  |                                |         |       |        |     |       |
+   |                                     |                 |                  |                                |         |       |        |     |       |
+   |   |   |   | SkiepasEu               |                 |                  | /SKIEPAS_EU                    |         |       |        |     |       |
+   |   |   |   |   | paciento_ak         | string          |                  | PACIENTO_AK/text()             |         |       |        |     |       | Paciento asmens kodas (LTU)
+   |   |   |   |   | skiepijimo_data     | string required |                  | SKIEPIJIMO_DATA/text()         |         |       |        |     |       | Skiepijimo data
+"""
+
+    path = tmp_path / 'manifest.xsd'
+    with open(path, "w") as xsd_file:
+        xsd_file.write(xsd)
+    manifest = load_manifest(rc, path)
+    print(manifest)
+    assert manifest == table
+
+
+def test_xsd_choice(rc: RawConfig, tmp_path: Path):
+    xsd = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+	<xs:element name="parcel">
+		<xs:annotation>
+			<xs:documentation>Žemės sklypo pasikeitimo informacija</xs:documentation>
+		</xs:annotation>
+		<xs:complexType mixed="true">
+			<xs:choice>
+				<xs:element name="parcel_unique_number" minOccurs="1" maxOccurs="1">
+					<xs:annotation>
+						<xs:documentation>Žemės sklypo unikalus numeris</xs:documentation>
+					</xs:annotation>
+					<xs:simpleType>
+						<xs:restriction base="xs:positiveInteger"> <!-- https://www.oreilly.com/library/view/xml-schema/0596002521/re90.html -->
+							<xs:totalDigits value="12"/>
+						</xs:restriction>
+					</xs:simpleType>
+				</xs:element>
+				<xs:element name="sign_of_change" minOccurs="1" maxOccurs="1">
+					<xs:annotation>
+						<xs:documentation>Žemės sklypo pasikeitimo požymis</xs:documentation>
+					</xs:annotation>
+					<xs:simpleType>
+						<xs:restriction base="xs:int">
+							<xs:enumeration value="1"/> <!-- nauji sklypai 	  -->
+							<xs:enumeration value="2"/> <!-- redaguoti sklypai -->
+						</xs:restriction>
+					</xs:simpleType>
+				</xs:element>
+			</xs:choice>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>
+    """
+
+    table = """
+ id | d | r | b | m | property             | type             | ref | source                      | prepare | level | access | uri | title | description
+    | manifest                             |                  |     |                             |         |       |        |     |       |
+    |   | resource1                        | xml              |     |                             |         |       |        |     |       |
+    |                                      |                  |     |                             |         |       |        |     |       |
+    |   |   |   | Parcel1                  |                  |     | /parcel                     |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
+    |   |   |   |   | parcel_unique_number | integer required |     | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
+    |   |   |   |   | text                 | string           |     | text()                      |         |       |        |     |       |
+    |                                      |                  |     |                             |         |       |        |     |       |
+    |   |   |   | Parcel2                  |                  |     | /parcel                     |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
+    |   |   |   |   | sign_of_change       | integer required |     | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
+    |                                      | enum             |     | 1                           |         |       |        |     |       |
+    |                                      |                  |     | 2                           |         |       |        |     |       |
+    |   |   |   |   | text                 | string           |     | text()                      |         |       |        |     |       |
+
+"""
+
+    path = tmp_path / 'manifest.xsd'
+    with open(path, "w") as xsd_file:
+        xsd_file.write(xsd)
+    manifest = load_manifest(rc, path)
+    print(manifest)
+    assert manifest == table
+
+
+def test_xsd_choice_max_occurs_unbounded(rc: RawConfig, tmp_path: Path):
+    xsd = """
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+	<xs:element name="parcel">
+		<xs:annotation>
+			<xs:documentation>Žemės sklypo pasikeitimo informacija</xs:documentation>
+		</xs:annotation>
+		<xs:complexType mixed="true">
+			<xs:choice maxOccurs="unbounded">
+				<xs:element name="parcel_unique_number" minOccurs="1" maxOccurs="1">
+					<xs:annotation>
+						<xs:documentation>Žemės sklypo unikalus numeris</xs:documentation>
+					</xs:annotation>
+					<xs:simpleType>
+						<xs:restriction base="xs:positiveInteger"> <!-- https://www.oreilly.com/library/view/xml-schema/0596002521/re90.html -->
+							<xs:totalDigits value="12"/>
+						</xs:restriction>
+					</xs:simpleType>
+				</xs:element>
+				<xs:element name="sign_of_change" minOccurs="1" maxOccurs="1">
+					<xs:annotation>
+						<xs:documentation>Žemės sklypo pasikeitimo požymis</xs:documentation>
+					</xs:annotation>
+					<xs:simpleType>
+						<xs:restriction base="xs:int">
+							<xs:enumeration value="1"/> <!-- nauji sklypai 	  -->
+							<xs:enumeration value="2"/> <!-- redaguoti sklypai -->
+						</xs:restriction>
+					</xs:simpleType>
+				</xs:element>
+			</xs:choice>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>
+    """
+
+    table = """
+ id | d | r | b | m | property               | type    | ref | source                      | prepare | level | access | uri | title | description
+    | manifest                               |         |     |                             |         |       |        |     |       |
+    |   | resource1                          | xml     |     |                             |         |       |        |     |       |
+    |                                        |         |     |                             |         |       |        |     |       |
+    |   |   |   | Parcel                     |         |     | /parcel                     |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
+    |   |   |   |   | parcel_unique_number[] | integer |     | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
+    |   |   |   |   | sign_of_change[]       | integer |     | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
+    |                                        | enum    |     | 1                           |         |       |        |     |       |
+    |                                        |         |     | 2                           |         |       |        |     |       |
+    |   |   |   |   | text                   | string  |     | text()                      |         |       |        |     |       |
+
+"""
+
+    path = tmp_path / 'manifest.xsd'
+    with open(path, "w") as xsd_file:
+        xsd_file.write(xsd)
+    manifest = load_manifest(rc, path)
+    print(manifest)
+    assert manifest == table
+
+
+def test_xsd_attributes(rc: RawConfig, tmp_path: Path):
+    xsd = """
+
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+
+<xs:element name="SALYGA">
+  <xs:complexType>
+    <xs:attribute name="kodas"    type="xs:string"  use="optional" />
+    <xs:attribute name="pavadinimas"    type="xs:string"  use="optional" />
+  </xs:complexType>
+</xs:element>
+
+</xs:schema>
+    """
+
+    table = """
+ id | d | r | b | m | property             | type            | ref     | source             | prepare | level | access | uri | title | description
+    | manifest                             |                 |         |                    |         |       |        |     |       |
+    |   | resource1                        | xml             |         |                    |         |       |        |     |       |
+    |                                      |                 |         |                    |         |       |        |     |       |
+    |   |   |   | Salyga                   |                 |         | /SALYGA            |         |       |        |     |       |
+    |   |   |   |   | kodas                | string          |         | @kodas             |         |       |        |     |       |
+    |   |   |   |   | pavadinimas          | string          |         | @pavadinimas       |         |       |        |     |       |
+"""
+
+    path = tmp_path / 'manifest.xsd'
+    with open(path, "w") as xsd_file:
+        xsd_file.write(xsd)
+    manifest = load_manifest(rc, path)
+    print(manifest)
+    assert manifest == table
+
 #
 # def test_xsd_model_one_property(rc: RawConfig, tmp_path: Path):
 #     xsd = """
@@ -404,58 +407,58 @@ from spinta.testing.manifest import load_manifest
 #     assert manifest == table
 #
 #
-# def test_xsd_separate_simple_type(rc: RawConfig, tmp_path: Path):
-#     xsd = """
-# <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-#
-# <xs:element name="TYRIMAS">
-#   <xs:annotation><xs:documentation></xs:documentation></xs:annotation>
-#     <xs:complexType>
-#       <xs:sequence>
-#       <xs:element minOccurs="0" maxOccurs="1" ref="CT_E200ATS_DUOM_SUKURTI" />
-#       <xs:element minOccurs="0" maxOccurs="1" ref="CT_PACIENTO_SPI" />
-#     </xs:sequence>
-#   </xs:complexType>
-# </xs:element>
-#
-# <xs:element name="CT_E200ATS_DUOM_SUKURTI" type="data_laikas">
-#   <xs:annotation><xs:documentation>E200-ats duomenų sukūrimo data ir laikas</xs:documentation></xs:annotation>
-# </xs:element>
-#
-# <xs:element name="CT_PACIENTO_SPI">
-#   <xs:annotation><xs:documentation>Paciento prisirašymo įstaigos pavadinimas</xs:documentation></xs:annotation>
-#   <xs:simpleType>
-#     <xs:restriction base="xs:string">
-#       <xs:maxLength value="300"/>
-#     </xs:restriction>
-#   </xs:simpleType>
-# </xs:element>
-#
-# <xs:simpleType name="data_laikas">
-#   <xs:annotation><xs:documentation>Data ir laikas</xs:documentation></xs:annotation>
-#   <xs:restriction base="xs:string">
-#     <xs:pattern value="\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}"/>
-#   </xs:restriction>
-# </xs:simpleType>
-#
-# </xs:schema>
-# """
-#
-#     table = """
-#  id | d | r | b | m | property                | type   | ref | source                         | prepare | level | access | uri | title | description
-#     | manifest                                |        |     |                                |         |       |        |     |       |
-#     |   | resource1                           | xml    |     |                                |         |       |        |     |       |
-#     |                                         |        |     |                                |         |       |        |     |       |
-#     |   |   |   | Tyrimas                     |        |     | /TYRIMAS                       |         |       |        |     |       |
-#     |   |   |   |   | ct_e200ats_duom_sukurti | string |     | CT_E200ATS_DUOM_SUKURTI/text() |         |       |        |     |       | E200-ats duomenų sukūrimo data ir laikas
-#     |   |   |   |   | ct_paciento_spi         | string |     | CT_PACIENTO_SPI/text()         |         |       |        |     |       | Paciento prisirašymo įstaigos pavadinimas
-# """
-#     path = tmp_path / 'manifest.xsd'
-#     with open(path, "w") as xsd_file:
-#         xsd_file.write(xsd)
-#     manifest = load_manifest(rc, path)
-#     assert manifest == table
-#
+def test_xsd_separate_simple_type(rc: RawConfig, tmp_path: Path):
+    xsd = """
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+<xs:element name="TYRIMAS">
+  <xs:annotation><xs:documentation></xs:documentation></xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+      <xs:element minOccurs="0" maxOccurs="1" ref="CT_E200ATS_DUOM_SUKURTI" />
+      <xs:element minOccurs="0" maxOccurs="1" ref="CT_PACIENTO_SPI" />
+    </xs:sequence>
+  </xs:complexType>
+</xs:element>
+
+<xs:element name="CT_E200ATS_DUOM_SUKURTI" type="data_laikas">
+  <xs:annotation><xs:documentation>E200-ats duomenų sukūrimo data ir laikas</xs:documentation></xs:annotation>
+</xs:element>
+
+<xs:element name="CT_PACIENTO_SPI">
+  <xs:annotation><xs:documentation>Paciento prisirašymo įstaigos pavadinimas</xs:documentation></xs:annotation>
+  <xs:simpleType>
+    <xs:restriction base="xs:string">
+      <xs:maxLength value="300"/>
+    </xs:restriction>
+  </xs:simpleType>
+</xs:element>
+
+<xs:simpleType name="data_laikas">
+  <xs:annotation><xs:documentation>Data ir laikas</xs:documentation></xs:annotation>
+  <xs:restriction base="xs:string">
+    <xs:pattern value="\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}"/>
+  </xs:restriction>
+</xs:simpleType>
+
+</xs:schema>
+"""
+
+    table = """
+ id | d | r | b | m | property                | type   | ref | source                         | prepare | level | access | uri | title | description
+    | manifest                                |        |     |                                |         |       |        |     |       |
+    |   | resource1                           | xml    |     |                                |         |       |        |     |       |
+    |                                         |        |     |                                |         |       |        |     |       |
+    |   |   |   | Tyrimas                     |        |     | /TYRIMAS                       |         |       |        |     |       |
+    |   |   |   |   | ct_e200ats_duom_sukurti | string |     | CT_E200ATS_DUOM_SUKURTI/text() |         |       |        |     |       | E200-ats duomenų sukūrimo data ir laikas
+    |   |   |   |   | ct_paciento_spi         | string |     | CT_PACIENTO_SPI/text()         |         |       |        |     |       | Paciento prisirašymo įstaigos pavadinimas
+"""
+    path = tmp_path / 'manifest.xsd'
+    with open(path, "w") as xsd_file:
+        xsd_file.write(xsd)
+    manifest = load_manifest(rc, path)
+    assert manifest == table
+
 #
 # def test_xsd_sequence_choice_sequence(rc: RawConfig, tmp_path: Path):
 #     # choice in a sequence with a sequence inside

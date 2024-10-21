@@ -766,7 +766,7 @@ class XSDReader:
             if isinstance(child, etree._Comment):
                 continue
             if QName(child).localname == "documentation":
-                description += self.process_documentation(node, state)
+                description += self.process_documentation(child, state)
             else:
                 raise RuntimeError(f"Unexpected element type inside annotation element: {QName(child).localname}")
         return description
