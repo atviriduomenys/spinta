@@ -338,7 +338,25 @@ class XSDReader:
             self.models.append(self.resource_model)
 
     def _post_process_refs(self):
-        pass
+        """
+        Links properties in all models to their target models based on xsd_ref_to and xsd_type_to.
+        """
+        for model in self.models:
+            for prop in model.properties.values():
+                
+                if prop.xsd_ref_to:
+                    try:
+                        target_model: XSDModel = self.top_level_element_models[prop.xsd_ref_to]
+                    except KeyError:
+                        raise KeyError("Reference to a non-existing model")
+                    
+                elif prop.xsd_type_to:
+                    try:
+                        target_model: XSDModel = self.top_level_complex_type_models[prop.xsd_type_to]
+                    except KeyError:
+                        raise KeyError("Reference to a non-existing model")
+
+                prop.ref_model = target_model
 
     def _add_expand_to_top_level_models(self):
         pass
