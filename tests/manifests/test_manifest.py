@@ -1,6 +1,6 @@
 import pytest
 
-from spinta.exceptions import InvalidManifestFile, ReferencedPropertyNotFound, PartialTypeNotFound, DataTypeCannotBeUsedForNesting, NestedDataTypeMissmatch
+from spinta.exceptions import InvalidManifestFile, ReferencedPropertyNotFound, PartialTypeNotFound, DataTypeCannotBeUsedForNesting, NestedDataTypeMismatch
 from spinta.testing.manifest import load_manifest
 from spinta.manifests.tabular.helpers import TabularManifestError
 
@@ -732,7 +732,6 @@ def test_multiline_prepare_without_given_prepare(tmp_path, rc):
     ''')
 
 
-@pytest.mark.skip('backref not implemented yet #96')
 def test_prop_array_backref(tmp_path, rc):
     check(tmp_path, rc, '''
         d | r | b | m | property    | type    | ref      | access
@@ -746,6 +745,40 @@ def test_prop_array_backref(tmp_path, rc):
           |   |   |   | name        | string  |          | open
           |   |   |   | languages[] | ref     | Language | open
     ''')
+
+
+def test_prop_array_backref_explicit_array(tmp_path, rc):
+    check(tmp_path, rc, '''
+        d | r | b | m | property      | type    | ref      | access
+        example                       |         |          |
+                                      |         |          |
+          |   |   | Language          |         |          |
+          |   |   |   | name          | string  |          | open
+          |   |   |   | countries     | array   |          | open
+          |   |   |   | countries[]   | backref | Country  | open
+          |   |   |   | countries[].a | string  |          | open
+                                      |         |          |
+          |   |   | Country           |         |          |
+          |   |   |   | name          | string  |          | open
+          |   |   |   | languages[]   | ref     | Language | open
+    ''')
+
+
+def test_prop_array_backref_nested(tmp_path, rc):
+    check(tmp_path, rc, '''
+        d | r | b | m | property      | type    | ref      | access
+        example                       |         |          |
+                                      |         |          |
+          |   |   | Language          |         |          |
+          |   |   |   | name          | string  |          | open
+          |   |   |   | countries[]   | backref | Country  | open
+          |   |   |   | countries[].a | string  |          | open
+                                      |         |          |
+          |   |   | Country           |         |          |
+          |   |   |   | name          | string  |          | open
+          |   |   |   | languages[]   | ref     | Language | open
+    ''')
+
 
 
 @pytest.mark.skip('backref not implemented yet #96')
@@ -961,7 +994,7 @@ def test_prop_multi_nested(manifest_type, tmp_path, rc):
 
 @pytest.mark.manifests('internal_sql', 'csv')
 def test_multi_nested_incorrect(manifest_type, tmp_path, rc):
-    with pytest.raises(DataTypeCannotBeUsedForNesting) as e:
+    with pytest.raises(DataTypeCannotBeUsedForNesting):
         check(tmp_path, rc, '''
                 d | r | b | m | property                       | type    | ref      | access | title
                 example                                        |         |          |        |
@@ -975,7 +1008,7 @@ def test_multi_nested_incorrect(manifest_type, tmp_path, rc):
 
 @pytest.mark.manifests('internal_sql', 'csv')
 def test_multi_nested_incorrect_reversed_order(manifest_type, tmp_path, rc):
-    with pytest.raises(DataTypeCannotBeUsedForNesting) as e:
+    with pytest.raises(DataTypeCannotBeUsedForNesting):
         check(tmp_path, rc, '''
                 d | r | b | m | property                       | type    | ref      | access | title
                 example                                        |         |          |        |
@@ -989,7 +1022,7 @@ def test_multi_nested_incorrect_reversed_order(manifest_type, tmp_path, rc):
 
 @pytest.mark.manifests('internal_sql', 'csv')
 def test_multi_nested_incorrect_deep(manifest_type, tmp_path, rc):
-    with pytest.raises(DataTypeCannotBeUsedForNesting) as e:
+    with pytest.raises(DataTypeCannotBeUsedForNesting):
         check(tmp_path, rc, '''
                 d | r | b | m | property                       | type    | ref      | access | title
                 example                                        |         |          |        |
@@ -1004,7 +1037,7 @@ def test_multi_nested_incorrect_deep(manifest_type, tmp_path, rc):
 
 @pytest.mark.manifests('internal_sql', 'csv')
 def test_multi_nested_incorrect_with_array(manifest_type, tmp_path, rc):
-    with pytest.raises(DataTypeCannotBeUsedForNesting) as e:
+    with pytest.raises(DataTypeCannotBeUsedForNesting):
         check(tmp_path, rc, '''
                 d | r | b | m | property                       | type    | ref      | access | title
                 example                                        |         |          |        |
@@ -1019,7 +1052,7 @@ def test_multi_nested_incorrect_with_array(manifest_type, tmp_path, rc):
 
 @pytest.mark.manifests('internal_sql', 'csv')
 def test_multi_nested_type_missmatch_with_array(manifest_type, tmp_path, rc):
-    with pytest.raises(NestedDataTypeMissmatch) as e:
+    with pytest.raises(NestedDataTypeMismatch):
         check(tmp_path, rc, '''
                 d | r | b | m | property                       | type    | ref      | access | title
                 example                                        |         |          |        |
@@ -1034,7 +1067,7 @@ def test_multi_nested_type_missmatch_with_array(manifest_type, tmp_path, rc):
 
 @pytest.mark.manifests('internal_sql', 'csv')
 def test_multi_nested_type_missmatch_with_partial(manifest_type, tmp_path, rc):
-    with pytest.raises(NestedDataTypeMissmatch) as e:
+    with pytest.raises(NestedDataTypeMismatch):
         check(tmp_path, rc, '''
                 d | r | b | m | property                       | type    | ref      | access | title
                 example                                        |         |          |        |
