@@ -199,7 +199,7 @@ class XSDProperty:
                 data["enums"] = self.type.enums,
 
         if self.type.description is not None:
-            self.description += self.type.description
+            self.description += f" - {self.type.description}"
 
         data["description"] = self.description
 
@@ -673,7 +673,7 @@ class XSDReader:
                 # get everything from restriction, just add name if exists
                 property_type = self.process_restriction(child, state)
                 if node.attrib.get("name"):
-                    property_type.name = node.attrib.get("name")
+                    property_type.xsd_type = node.attrib.get("name")
             elif QName(child).localname == "annotation":
                 description = self.process_annotation(child, state)
             else:
