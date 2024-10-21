@@ -150,9 +150,9 @@ class XSDProperty:
     source: str  # converts to ["external"]["name"]
     type: XSDType
     required: bool | None = None
-    unique: bool |None = None
+    unique: bool | None = None
     is_array: bool | None = None
-    ref_model: XSDModel |None = None
+    ref_model: XSDModel | None = None
     description: str = ""
     uri: str | None = None
     xsd_ref_to: str | None = None  # if it is a ref to another model, here is it's xsd element name
@@ -184,7 +184,7 @@ class XSDProperty:
                 }
         }
 
-        if self.type == "ref" or self.type == "backref":
+        if self.type.name == "ref" or self.type.name == "backref":
             data["model"] = self.ref_model.name
 
         if self.required is not None:
@@ -346,17 +346,15 @@ class XSDReader:
                 
                 if prop.xsd_ref_to:
                     try:
-                        target_model: XSDModel = self.top_level_element_models[prop.xsd_ref_to]
+                        prop.ref_model = self.top_level_element_models[prop.xsd_ref_to]
                     except KeyError:
                         raise KeyError("Reference to a non-existing model")
                     
                 elif prop.xsd_type_to:
                     try:
-                        target_model: XSDModel = self.top_level_complex_type_models[prop.xsd_type_to]
+                        prop.ref_model = self.top_level_complex_type_models[prop.xsd_type_to]
                     except KeyError:
                         raise KeyError("Reference to a non-existing model")
-
-                prop.ref_model = target_model
 
     def _add_expand_to_top_level_models(self):
         pass
@@ -546,8 +544,7 @@ class XSDReader:
         # if `mixed="true"` this means, that there can be text inside the element with this complexType, so this means
         # that we have to add here a property `text` with a source `text()`
         if node.attrib.get("mixed", False) == "true":
-            property_name = "text"
-            properties.append(XSDProperty(xsd_name=property_name, required=False, source="text()", is_array=False))
+            properties.append(XSDProperty(xsd_name="text", required=False, source="text()", is_array=False, property_type=XSDType(name="string")))
         choice_properties = []
         sequence_properties = []
 
@@ -561,7 +558,6 @@ class XSDReader:
                 properties.append(prop)
             elif QName(child).localname == "sequence":
                 sequence_properties.extend(self.process_sequence(child, state))
-                properties.extend(sequence_properties)
             elif QName(child).localname == "choice":
                 # technically, there can be only one `choice` node inside `complexType` node.
                 # Two or more are not allowed. If there need to be two or more `choice` nodes,
@@ -618,14 +614,13 @@ class XSDReader:
         xsd_type = xsd_type.split(":")[-1]
         property_type = DATATYPES_MAPPING[xsd_type]
         dsa_type = XSDType()
-        dsa_type.name = xsd_type
         if ";" in property_type:
             property_type, target, value = property_type.split(";")
-            dsa_type.name = property_type
             if target == "enum":
                 dsa_type.enum = value
             if target == "prepare":
                 dsa_type.prepare = value
+        dsa_type.name = property_type
         return dsa_type
 
     def process_attribute(self, node: _Element, state: State) -> XSDProperty:
@@ -633,15 +628,15 @@ class XSDReader:
         prop.source = f"@{node.attrib.get('name')}"
         prop.xsd_name = node.attrib.get('name')
 
-        attribute_type = node.attrib.get("type")
+        attribute_type = node.attrib.get("type").split(":")[-1]
 
         if attribute_type:
             if attribute_type in DATATYPES_MAPPING:
                 prop.type = self._map_type(attribute_type)
             elif attribute_type in self.custom_types:
                 prop.type = self.custom_types[attribute_type]
-
-        prop.type = node.attrib.get("type")
+            else:
+                raise RuntimeError(f"Unknown attribute type: {attribute_type}")
 
         for child in node.getchildren():
             # We don't care about comments
