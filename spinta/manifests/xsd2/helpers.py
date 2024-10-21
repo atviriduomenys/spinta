@@ -11,7 +11,7 @@ from lxml.etree import _Element, QName
 
 from spinta.components import Context
 from spinta.core.ufuncs import Expr
-from spinta.utils.naming import Deduplicator, to_dataset_name, to_model_name
+from spinta.utils.naming import Deduplicator, to_dataset_name, to_model_name, to_property_name
 
 DATATYPES_MAPPING = {
     "string": "string",
@@ -407,7 +407,7 @@ class XSDReader:
                 properties = self.process_element(node, state, is_root=True)
                 for prop in properties:
                     if prop.type.name not in ("ref", "backref"):
-                        prop.name = self.resource_model.deduplicate_property_name(prop.xsd_name)
+                        prop.name = self.resource_model.deduplicate_property_name(to_property_name(prop.xsd_name))
                         self.resource_model.properties[prop.name] = prop
             elif QName(node).localname == "complexType":
                 models = self.process_complex_type(node, state)
@@ -418,7 +418,7 @@ class XSDReader:
                 # simple types are processed in self.register_simple_types
                 pass
             else:
-                raise RuntimeError(f'This node type cannot be at the top level: {node.name}')
+                raise RuntimeError(f'This node type cannot be at the top level: {QName(node).localname}')
 
     #  XSD nodes processors
     def process_element(self, node: _Element, state: State, is_array=False, is_root=False) -> list[XSDProperty]:
@@ -431,6 +431,7 @@ class XSDReader:
         is_required = int(node.attrib.get("minOccurs", 1)) > 0
         props = []
         property_type_to = None
+        property_description = ""
 
         # ref - a reference to separately defined element
         if node.attrib.get("ref"):
@@ -511,8 +512,14 @@ class XSDReader:
                 prop.type = self.process_simple_type(child, state)
                 props.append(prop)
 
+            elif QName(child).localname == "annotation":
+                description = self.process_annotation(child, state)
+
             else:
                 raise RuntimeError(f"This node type cannot be in the element: {QName(node).localname}")
+
+            for prop in props:
+                prop.description = property_description
 
         return props
 
@@ -525,6 +532,7 @@ class XSDReader:
         # todo handle unique (though it doesn't exist in RC)
     def process_complex_type(self, node: _Element, state: State) -> list[XSDModel]:
 
+        # preparation for building model
         models = []
         name = node.attrib.get("name")
 
@@ -538,6 +546,7 @@ class XSDReader:
         choice_properties = []
         sequence_properties = []
 
+        # collecting data from child elements
         for child in node.getchildren():
             # We don't care about comments
             if isinstance(child, etree._Comment):
@@ -556,6 +565,7 @@ class XSDReader:
             else:
                 raise RuntimeError(f"This node type cannot be in the complex type: {QName(node).localname}")
 
+        # forming properties groups (more than one group exists if we have choice inside)
         # join direct properties with properties that come from choices
         properties_groups = []
 
@@ -580,12 +590,13 @@ class XSDReader:
         else:
             new_properties_groups = properties_groups
 
+        # creating models
         for group in new_properties_groups:
             # we don't set model source here, we do it in the process_element or nowhere if it's top level
             model = XSDModel(dataset_resource=self.dataset_resource)
             property_deduplicate = Deduplicator()
             for prop in group:
-                prop.name = property_deduplicate(prop.xsd_name)
+                prop.name = property_deduplicate(to_property_name(prop.xsd_name))
                 model.properties[prop.name] = prop
             if name:
                 model.xsd_name = name
