@@ -367,7 +367,6 @@ class XSDReader:
         for model in self.models:
             model.properties = dict(sorted(model.properties.items()))
 
-
     def start(self):
         # general part
         state = State()
