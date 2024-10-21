@@ -361,6 +361,13 @@ class XSDReader:
     def _add_expand_to_top_level_models(self):
         pass
 
+    def _sort_alphabetically(self):
+        self.models.sort(key=lambda model: model.name)
+
+        for model in self.models:
+            model.properties = dict(sorted(model.properties.items()))
+
+
     def start(self):
         # general part
         state = State()
@@ -394,6 +401,8 @@ class XSDReader:
 
         # we need to add this here, because only now we will know if it has properties and if we need to create it
         self._post_process_resource_model()
+
+        self._sort_alphabetically()
 
     def process_root(self, state: State):
         # todo add sources to models later, when we know that they are not referenced
