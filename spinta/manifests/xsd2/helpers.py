@@ -196,9 +196,9 @@ class XSDProperty:
             data["external"]["prepare"] = self.type.prepare
 
         if self.type.enums is not None:
-                data["enums"] = self.type.enums,
+                data["enums"] = self.type.enums
 
-        if self.type.description is not None:
+        if self.type.description:
             self.description += f" - {self.type.description}"
 
         data["description"] = self.description
@@ -798,6 +798,8 @@ class XSDReader:
             elif QName(child).localname == "pattern":
                 logging.log(logging.INFO, f"met a tag {QName(child).localname}")
             elif QName(child).localname == "maxLength":
+                logging.log(logging.INFO, f"met a tag {QName(child).localname}")
+            elif QName(child).localname == "totalDigits":
                 logging.log(logging.INFO, f"met a tag {QName(child).localname}")
             else:
                 raise RuntimeError(f"Unexpected element type inside restriction element: {child}")

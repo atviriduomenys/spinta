@@ -256,11 +256,11 @@ def test_xsd_choice(rc: RawConfig, tmp_path: Path):
     | manifest                             |                  |     |                             |         |       |        |     |       |
     |   | resource1                        | xml              |     |                             |         |       |        |     |       |
     |                                      |                  |     |                             |         |       |        |     |       |
-    |   |   |   | Parcel1                  |                  |     | /parcel                     |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
+    |   |   |   | Parcel                   |                  |     | /parcel                     |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
     |   |   |   |   | parcel_unique_number | integer required |     | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
     |   |   |   |   | text                 | string           |     | text()                      |         |       |        |     |       |
     |                                      |                  |     |                             |         |       |        |     |       |
-    |   |   |   | Parcel2                  |                  |     | /parcel                     |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
+    |   |   |   | Parcel1                  |                  |     | /parcel                     |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
     |   |   |   |   | sign_of_change       | integer required |     | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
     |                                      | enum             |     | 1                           |         |       |        |     |       |
     |                                      |                  |     | 2                           |         |       |        |     |       |
@@ -269,9 +269,10 @@ def test_xsd_choice(rc: RawConfig, tmp_path: Path):
 """
 
     path = tmp_path / 'manifest.xsd'
+    path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
-    manifest = load_manifest(rc, path)
+    manifest = load_manifest(rc, path_xsd2)
     print(manifest)
     assert manifest == table
 
