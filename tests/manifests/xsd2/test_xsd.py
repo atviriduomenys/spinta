@@ -147,14 +147,15 @@ def test_xsd_resource_model(rc: RawConfig, tmp_path: Path):
     |   |   |   |   | text     | string           |     | text()        |         |       |        |                                               |       |
     |                          |                  |     |               |         |       |        |                                               |       |
     |   |   |   | Resource     |                  |     | /             |         |       |        | http://www.w3.org/2000/01/rdf-schema#Resource |       | Įvairūs duomenys
-    |   |   |   |   | klaida   | string           |     | klaida/text() |         |       |        |                                               |       | Klaidos atveju - klaidos pranešimas
+    |   |   |   |   | klaida   | string required  |     | klaida/text() |         |       |        |                                               |       | Klaidos atveju - klaidos pranešimas
 
 """
 
     path = tmp_path / 'manifest.xsd'
+    path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
-    manifest = load_manifest(rc, path)
+    manifest = load_manifest(rc, path_xsd2)
     print(manifest)
     assert manifest == table
 
@@ -206,9 +207,10 @@ id | d | r | b | m | property            | type            | ref              | 
 """
 
     path = tmp_path / 'manifest.xsd'
+    path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
-    manifest = load_manifest(rc, path)
+    manifest = load_manifest(rc, path_xsd2)
     print(manifest)
     assert manifest == table
 

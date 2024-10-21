@@ -438,6 +438,7 @@ class XSDReader:
         props = []
         property_type_to = None
         property_description = ""
+        models = []
 
         # ref - a reference to separately defined element
         if node.attrib.get("ref"):
@@ -494,11 +495,11 @@ class XSDReader:
                 # usually it's one model, but in case of choice, can be multiple models
                 for model in models:
                     model.xsd_name = property_name
-                    model.source = property_name
                     model.set_name(self.deduplicate_model_name(to_model_name(property_name)))
                     if is_root:
                         self.top_level_element_models[property_name] = model
                         model.is_root_model = True
+                        model.source = f"/{property_name}"
                     prop = XSDProperty(xsd_name=property_name, required=is_required, source=property_name, is_array=is_array)
                     prop.ref_model = model
                     if is_array:
@@ -516,13 +517,16 @@ class XSDReader:
                 props.append(prop)
 
             elif QName(child).localname == "annotation":
-                description = self.process_annotation(child, state)
+                property_description = self.process_annotation(child, state)
 
             else:
                 raise RuntimeError(f"This node type cannot be in the element: {QName(node).localname}")
 
             for prop in props:
                 prop.description = property_description
+
+            for model in models:
+                model.description = property_description
 
         return props
 
@@ -637,6 +641,9 @@ class XSDReader:
                 prop.type = self.custom_types[attribute_type]
             else:
                 raise RuntimeError(f"Unknown attribute type: {attribute_type}")
+
+        if node.attrib.get("use") == "required":
+            prop.required = True
 
         for child in node.getchildren():
             # We don't care about comments
@@ -767,7 +774,7 @@ class XSDReader:
         return description
 
     def process_documentation(self, node: _Element, state: State) -> str:
-        return node.text
+        return node.text or ""
 
     def process_extension(self, node: _Element, state: State) -> None:
         pass
@@ -787,6 +794,10 @@ class XSDReader:
             elif QName(child).localname == "minInclusive":
                 logging.log(logging.INFO, f"met a tag {QName(child).localname}")
             elif QName(child).localname == "maxInclusive":
+                logging.log(logging.INFO, f"met a tag {QName(child).localname}")
+            elif QName(child).localname == "pattern":
+                logging.log(logging.INFO, f"met a tag {QName(child).localname}")
+            elif QName(child).localname == "maxLength":
                 logging.log(logging.INFO, f"met a tag {QName(child).localname}")
             else:
                 raise RuntimeError(f"Unexpected element type inside restriction element: {child}")
