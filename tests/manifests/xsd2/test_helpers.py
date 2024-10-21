@@ -797,3 +797,69 @@ def test_post_process_refs_links_existing_references(setup_models):
     # Property2 in ModelB should link to ModelA via ref_model
     assert prop2.ref_model is not None
     assert prop2.ref_model == model_a
+
+
+@pytest.fixture
+def create_xsd_models():
+    """Fixture to create sample XSDModel instances."""
+    france = XSDModel("test")
+
+    france.name = "France"
+    france.properties = {
+        "lyon": XSDProperty(),
+        "paris": XSDProperty()
+    }
+    france.properties["lyon"].name = "lyon"
+    france.properties["paris"].name = "paris"
+
+    germany = XSDModel("test")
+
+    germany.name = "Germany"
+    germany.properties = {
+        "hamburg": XSDProperty(),
+        "berlin": XSDProperty()
+    }
+    germany.properties["hamburg"].name = "hamburg"
+    germany.properties["berlin"].name = "berlin"
+
+    italy = XSDModel("test")
+
+    italy.name = "Italy"
+    italy.properties = {
+        "rome": XSDProperty(),
+        "milan": XSDProperty()
+    }
+    italy.properties["rome"].name = "rome"
+    italy.properties["milan"].name = "milan"
+    return [italy, france, germany]
+
+
+def test_sort_models_by_name(create_xsd_models):
+    """Test that the XSDModel list is sorted by the 'name' attribute (country name)."""
+    models = create_xsd_models
+    sorted_models = sorted(models, key=lambda model: model.name)
+
+    # Extracting the sorted names to verify the order
+    sorted_names = [model.name for model in sorted_models]
+
+    assert sorted_names == ["France", "Germany", "Italy"]
+
+
+def test_sort_properties_by_key(create_xsd_models):
+    """Test that the properties dictionary in each XSDModel is sorted by key (city name)."""
+    models = create_xsd_models
+
+    for model in models:
+        sorted_properties = dict(sorted(model.properties.items()))
+
+        # Extract the sorted city names (keys) to verify the order
+        sorted_keys = list(sorted_properties.keys())
+
+        # Check that properties are sorted correctly for each model
+        if model.name == "France":
+            assert sorted_keys == ["lyon", "paris"]
+        elif model.name == "Germany":
+            assert sorted_keys == ["berlin", "hamburg"]
+        elif model.name == "Italy":
+            assert sorted_keys == ["milan", "rome"]
+

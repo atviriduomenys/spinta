@@ -986,7 +986,6 @@ from spinta.testing.manifest import load_manifest
 
 
 def test_xsd_resource_model_only(rc: RawConfig, tmp_path: Path):
-    # recursion in XSD
     xsd = """
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
 <xs:element name="name" type="xs:string"/>

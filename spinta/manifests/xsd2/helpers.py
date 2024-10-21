@@ -362,7 +362,7 @@ class XSDReader:
         pass
 
     def _sort_alphabetically(self):
-        self.models.sort(key=lambda model: model.name)
+        self.models = sorted(self.models, key=lambda model: model.name)
 
         for model in self.models:
             model.properties = dict(sorted(model.properties.items()))
@@ -486,9 +486,6 @@ class XSDReader:
             prop = XSDProperty(xsd_name=property_name, property_type=property_type, required=is_required, source=source, is_array=is_array)
             prop.type_to = property_type_to
             props.append(prop)
-
-            if node.getchildren():
-                raise RuntimeError("element node shouldn't have children because it has type or ref attribute")
 
         for child in node.getchildren():
             # We don't care about comments
