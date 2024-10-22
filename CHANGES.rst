@@ -10,6 +10,9 @@ Backwards incompatible changes:
   This means that you will only know if `backend` failed to connect, when you try to call `transaction` or `begin` methods,
   which should be called on every request (`#730`_).
 
+- Changed minimum `starlette` version requirement to `0.40>=` (fixes vulnerability issue).
+  More about it: https://github.com/encode/starlette/security/advisories/GHSA-f96h-pmfr-66vw
+
 New features:
 
 - Added support for literal values in `property` `prepare` expression (`#670`_).

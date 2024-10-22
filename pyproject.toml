@@ -51,7 +51,8 @@ requests = "*"
 #        setuptools>=58
 setuptools = "*"
 setuptools-scm = "*"
-starlette = ">=0.22"
+# https://github.com/encode/starlette/security/advisories/GHSA-f96h-pmfr-66vw
+starlette = ">=0.40"
 toposort = "*"
 tqdm = "*"
 ujson = "*"
