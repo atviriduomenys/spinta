@@ -15,9 +15,9 @@ git checkout $RELEASE_VERSION
 git pull
 git tag -l -n1 | sort -h | tail -n5
 
-export CURRENT_PATCH=76
-export NEW_PATCH=77
-export FUTURE_PATCH=78
+export CURRENT_PATCH=77
+export NEW_PATCH=78
+export FUTURE_PATCH=79
 
 export CURRENT_VERSION=$RELEASE_VERSION.$CURRENT_PATCH
 export NEW_VERSION=$RELEASE_VERSION.$NEW_PATCH
@@ -28,27 +28,12 @@ git branch $PREPARE_BRANCH
 git checkout $PREPARE_BRANCH
 git status
 
+# Removed `pymssql` library
 
 # notes/spinta/release/common.sh    Check outdated packages and upgrade them
-#| Package operations: 0 installs, 17 updates, 0 removals
+#| Package operations: 0 installs, 0 updates, 1 removal
 #|
-#|   • Updating charset-normalizer (3.3.2 -> 3.4.0)
-#|   • Updating anyio (4.5.0 -> 4.5.2)
-#|   • Updating cloudpickle (3.0.0 -> 3.1.0)
-#|   • Updating cryptography (43.0.1 -> 43.0.3)
-#|   • Updating fsspec (2024.9.0 -> 2024.10.0)
-#|   • Updating mako (1.3.5 -> 1.3.6)
-#|   • Updating mypy (1.11.2 -> 1.12.1)
-#|   • Updating psutil (6.0.0 -> 6.1.0)
-#|   • Updating setuptools (75.1.0 -> 75.2.0)
-#|   • Updating yarl (1.14.0 -> 1.15.2)
-#|   • Updating aiohttp (3.10.9 -> 3.10.10)
-#|   • Updating asyncpg (0.29.0 -> 0.30.0)
-#|   • Updating psycopg2-binary (2.9.9 -> 2.9.10)
-#|   • Updating sphinx-rtd-theme (3.0.0 -> 3.0.1)
-#|   • Updating starlette (0.39.2 -> 0.41.0)
-#|   • Updating uvicorn (0.31.0 -> 0.32.0)
-#|   • Updating xmltodict (0.13.0 -> 0.14.2)
+#|   • Removing pymssql (2.3.1)
 
 
 # Run Makefile
