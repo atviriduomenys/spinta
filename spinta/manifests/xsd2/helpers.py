@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, List
 from urllib.request import urlopen
 
 from lxml import etree, objectify
@@ -341,6 +341,8 @@ class XSDReader:
         """
         Links properties in all models to their target models based on xsd_ref_to and xsd_type_to.
         """
+        target_model = None
+
         for model in self.models:
             for prop in model.properties.values():
                 
@@ -553,6 +555,22 @@ class XSDReader:
                 # Two or more are not allowed. If there need to be two or more `choice` nodes,
                 # they need to be inside a `sequence` node
                 choice_properties.extend(self.process_choice(child, state))
+
+            elif QName(child).localname == "complexContent":
+                complex_content_properties: List[List[XSDModel]] = self.process_complex_content(child, state)
+                new_property_groups = []
+                for group in properties:
+                    for cc_group in complex_content_properties:
+                        combined_group = group.copy()
+                        combined_group.extend(cc_group)
+                        new_property_groups.append(combined_group)
+                properties = new_property_groups
+
+                if hasattr(state, 'prepare_statement'):
+                    prepare_statement: str = state.prepare_statement
+                    del state.prepare_statement
+                else:
+                    prepare_statement = None
             else:
                 raise RuntimeError(f"This node type cannot be in the complex type: {QName(node).localname}")
 
@@ -591,6 +609,9 @@ class XSDReader:
                 model.xsd_name = name
                 model.name = self.deduplicate_model_name(to_model_name(name))
                 self.top_level_complex_type_models[model.xsd_name] = model
+            if 'prepare_statement' in locals() and prepare_statement:
+                model.prepare = prepare_statement
+                
             models.append(model)
 
         self.models.extend(models)
@@ -740,8 +761,52 @@ class XSDReader:
     def process_simple_content(self, node: _Element, state: State) -> None:
         pass
 
-    def process_complex_content(self, node: _Element, state: State) -> None:
-        pass
+    def process_complex_content(self, node: _Element, state: State) -> list[list[XSDModel]]:
+        property_groups: list[list] = [[]]
+
+        if node.attrib.get("mixed", "false") == "true":
+            property_name = "text"
+            text_prop = XSDProperty(
+                xsd_name=property_name,
+                type=XSDType(name="string"),
+                required=False,
+                source="text()",
+                is_array=False
+            )
+            property_groups.append(text_prop)
+
+        for child in node:
+            if isinstance(child, etree._Comment):
+                continue
+
+            local_name = QName(child).localname
+
+            if local_name == "extension":
+                extension_property_groups: List[List[XSDProperty]] = self.process_extension(child, state)
+                new_property_groups = []
+                for group in property_groups:
+                    for ext_group in extension_property_groups:
+                        combined_group = group.copy()
+                        combined_group.extend(ext_group)
+                        new_property_groups.append(combined_group)
+                property_groups = new_property_groups
+
+            elif local_name == "restriction":
+                restriction_prop_type: XSDType = self.process_restriction(child, state)
+                prop_name = node.attrib.get("name", "value")
+                restriction_prop = XSDProperty(
+                    xsd_name=prop_name,
+                    type=restriction_prop_type,
+                    required=True,
+                    source="text()",
+                    is_array=False
+                )
+                for group in property_groups:
+                    group.append(restriction_prop)
+            else:
+                raise RuntimeError(f"Unexpected element '{local_name}' in complexContent")
+
+        return property_groups
 
     def process_annotation(self, node: _Element, state: State) -> str:
         description = ""
@@ -758,8 +823,56 @@ class XSDReader:
     def process_documentation(self, node: _Element, state: State) -> str:
         return node.text
 
-    def process_extension(self, node: _Element, state: State) -> None:
-        pass
+    def process_extension(self, node: _Element, state: State) -> List[List[XSDProperty]]:
+        base = node.attrib.get("base")
+        if not base:
+            raise RuntimeError("Extension must have a 'base' attribute.")
+
+        base_type_name = base.split(":")[-1]
+
+        base_model: XSDModel | None = self.top_level_complex_type_models.get(base_type_name)
+        if not base_model:
+            raise RuntimeError(f"Base type '{base}' not found.")
+
+        property_groups: list[list] = [[]]
+
+        for child in node.getchildren():
+            if isinstance(child, etree._Comment):
+                continue
+
+            local_name = QName(child).localname
+
+            if local_name == "element":
+                prop: List[XSDProperty] = self.process_element(child, state)
+                for group in property_groups:
+                    group.append(prop)
+
+            elif local_name == "sequence":
+                sequence_property_groups: List[List[XSDProperty]] = self.process_sequence(child, state)
+                new_property_groups = []
+                for group in property_groups:
+                    for seq_group in sequence_property_groups:
+                        combined_group = group.copy()
+                        combined_group.extend(seq_group)
+                        new_property_groups.append(combined_group)
+                property_groups = new_property_groups
+    
+            elif local_name == "choice":
+                choice_property_groups: List[List[XSDProperty]] = self.process_choice(child, state)
+                new_property_groups = []
+                for group in property_groups:
+                    for choice_group in choice_property_groups:
+                        combined_group = group.copy()
+                        combined_group.extend(choice_group)
+                        new_property_groups.append(combined_group)
+                property_groups = new_property_groups
+
+            else:
+                raise RuntimeError(f"Unexpected element '{local_name}' in extension")
+
+        state.prepare_statement = f'extend("{base_type_name}")'
+
+        return property_groups
 
     def process_restriction(self, node: _Element, state: State) -> XSDType:
 
