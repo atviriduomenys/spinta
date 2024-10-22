@@ -1,7 +1,11 @@
 Changes
 #######
 
-0.1.77 (unreleased)
+0.1.78 (unreleased)
+===================
+
+
+0.1.77 (2024-10-22)
 ===================
 
 Backwards incompatible changes:
@@ -9,6 +13,9 @@ Backwards incompatible changes:
 - `wait` command no longer raises exceptions, when it fails to connect to backend (`PostgresSql` and `Sql`).
   This means that you will only know if `backend` failed to connect, when you try to call `transaction` or `begin` methods,
   which should be called on every request (`#730`_).
+
+- Changed minimum `starlette` version requirement to `0.40>=` (fixes vulnerability issue).
+  More about it: https://github.com/encode/starlette/security/advisories/GHSA-f96h-pmfr-66vw
 
 New features:
 
