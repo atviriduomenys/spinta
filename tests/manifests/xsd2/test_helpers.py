@@ -797,3 +797,122 @@ def test_post_process_refs_links_existing_references(setup_models):
     # Property2 in ModelB should link to ModelA via ref_model
     assert prop2.ref_model is not None
     assert prop2.ref_model == model_a
+
+# def test_process_extension_simple_type(xsd_reader):
+#     extension_xml = """
+#     <extension base="xs:string">
+#         <!-- No child elements -->
+#     </extension>
+#     """
+#     extension_node = etree.fromstring(extension_xml)
+
+#     state = State()
+
+#     type_name = xsd_reader.process_extension(extension_node, state)
+
+#     assert type_name == "string", "Should return the type name 'string'"
+
+def test_process_extension_complex_type_no_children(xsd_reader, create_xsd_model):
+    extension_xml = """
+    <extension base="BaseType">
+        <!-- No child elements -->
+    </extension>
+    """
+    extension_node = etree.fromstring(extension_xml)
+
+    state = State()
+    base_model = create_xsd_model("BaseType")
+    xsd_reader.top_level_complex_type_models["BaseType"] = base_model
+
+    property_groups = xsd_reader.process_extension(extension_node, state)
+
+    assert isinstance(property_groups, list)
+    assert len(property_groups) == 1
+    assert property_groups[0] == []
+    assert state.prepare_statement == 'extend("BaseType")'
+
+def test_process_extension_complex_type_with_sequence(xsd_reader, create_xsd_model):
+    extension_xml = """
+    <extension base="BaseType">
+        <sequence>
+            <element name="newProp1" type="xs:string"/>
+            <element name="newProp2" type="xs:int"/>
+        </sequence>
+    </extension>
+    """
+    extension_node = etree.fromstring(extension_xml)
+
+    xsd_reader.process_sequence = MagicMock(return_value=[
+        [XSDProperty(xsd_name="newProp1", property_type=XSDType(name="string")),
+         XSDProperty(xsd_name="newProp2", property_type=XSDType(name="int"))]
+    ])
+
+    state = State()
+    base_model = create_xsd_model("BaseType")
+    xsd_reader.top_level_complex_type_models["BaseType"] = base_model
+
+    property_groups = xsd_reader.process_extension(extension_node, state)
+
+    assert len(property_groups) == 1
+    prop_names = [prop.xsd_name for prop in property_groups[0]]
+    assert "newProp1" in prop_names
+    assert "newProp2" in prop_names
+    assert state.prepare_statement == 'extend("BaseType")'
+
+def test_process_extension_complex_type_with_choice(xsd_reader, create_xsd_model):
+    extension_xml = """
+    <extension base="BaseType">
+        <choice>
+            <element name="choiceProp1" type="xs:string"/>
+            <element name="choiceProp2" type="xs:int"/>
+        </choice>
+    </extension>
+    """
+    extension_node = etree.fromstring(extension_xml)
+
+    xsd_reader.process_choice = MagicMock(return_value=[
+        [XSDProperty(xsd_name="choiceProp1", property_type=XSDType(name="string"))],
+        [XSDProperty(xsd_name="choiceProp2", property_type=XSDType(name="int"))],
+    ])
+
+    state = State()
+    base_model = create_xsd_model("BaseType")
+    xsd_reader.top_level_complex_type_models["BaseType"] = base_model
+
+    property_groups = xsd_reader.process_extension(extension_node, state)
+
+    assert len(property_groups) == 2
+    prop_names_group1 = [prop.xsd_name for prop in property_groups[0]]
+    prop_names_group2 = [prop.xsd_name for prop in property_groups[1]]
+    assert "choiceProp1" in prop_names_group1
+    assert "choiceProp2" not in prop_names_group1
+    assert "choiceProp2" in prop_names_group2
+    assert "choiceProp1" not in prop_names_group2
+    assert state.prepare_statement == 'extend("BaseType")'
+
+def test_process_extension_complex_type_with_elements(xsd_reader, create_xsd_model):
+    extension_xml = """
+    <extension base="BaseType">
+        <element name="attr1" type="xs:string"/>
+        <element name="attr2" type="xs:int"/>
+    </extension>
+    """
+    extension_node = etree.fromstring(extension_xml)
+
+    def mock_process_element(node, state):
+        name = node.attrib.get("name")
+        type_name = node.attrib.get("type").split(":")[-1]
+        return XSDProperty(xsd_name=name, property_type=XSDType(name=type_name))
+    xsd_reader.process_element = mock_process_element
+
+    state = State()
+    base_model = create_xsd_model("BaseType")
+    xsd_reader.top_level_complex_type_models["BaseType"] = base_model
+
+    property_groups = xsd_reader.process_extension(extension_node, state)
+
+    assert len(property_groups) == 1
+    prop_names = [prop.xsd_name for prop in property_groups[0]]
+    assert "attr1" in prop_names
+    assert "attr2" in prop_names
+    assert state.prepare_statement == 'extend("BaseType")'

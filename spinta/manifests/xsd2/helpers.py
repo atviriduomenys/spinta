@@ -830,6 +830,26 @@ class XSDReader:
 
         base_type_name = base.split(":")[-1]
 
+        # # Check if the base type is a simple type
+        # if base_type_name in DATATYPES_MAPPING:
+        #     type_name = DATATYPES_MAPPING[base_type_name]
+        #     attributes = []
+
+        #     for child in node:
+        #         if isinstance(child, etree._Comment):
+        #             continue
+        #         local_name = QName(child).localname
+        #         if local_name == "attribute":
+        #             prop = self.process_attribute(child, state)
+        #             attributes.append(prop)
+        #         elif local_name == "annotation":
+        #             prop = self.process_annotation(child, state)
+        #             attributes.append(prop)
+        #         else:
+        #             raise RuntimeError(f"Unexpected element '{local_name}' in simpleType extension")
+
+        #     return type_name, attributes
+
         base_model: XSDModel | None = self.top_level_complex_type_models.get(base_type_name)
         if not base_model:
             raise RuntimeError(f"Base type '{base}' not found.")
