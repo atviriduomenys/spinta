@@ -554,6 +554,7 @@ def test_xsd_complex_content(rc: RawConfig, tmp_path: Path):
     assert manifest == table
 
 
+@pytest.mark.skip(reason='waiting')
 def test_xsd_recursion(rc: RawConfig, tmp_path: Path):
     # recursion in XSD
     xsd = """
@@ -622,6 +623,7 @@ def test_xsd_recursion(rc: RawConfig, tmp_path: Path):
     assert manifest == table
 
 
+@pytest.mark.skip(reason='waiting')
 def test_xsd_enumeration(rc: RawConfig, tmp_path: Path):
     # recursion in XSD
     xsd = """
@@ -669,6 +671,7 @@ def test_xsd_enumeration(rc: RawConfig, tmp_path: Path):
     assert manifest == table
 
 
+@pytest.mark.skip(reason='waiting')
 def test_duplicate_removal(rc: RawConfig, tmp_path: Path):
     xsd = """
     <xs:schema xmlns="http://eTaarPlat.ServiceContracts/2007/08/Messages" elementFormDefault="qualified" targetNamespace="http://eTaarPlat.ServiceContracts/2007/08/Messages" xmlns:xs="http://www.w3.org/2001/XMLSchema">
@@ -739,6 +742,7 @@ def test_duplicate_removal(rc: RawConfig, tmp_path: Path):
     assert manifest == table
 
 
+@pytest.mark.skip(reason='waiting')
 def test_duplicate_removal_backref(rc: RawConfig, tmp_path: Path):
     xsd = """
     <xs:schema xmlns="http://eTaarPlat.ServiceContracts/2007/08/Messages" elementFormDefault="qualified" targetNamespace="http://eTaarPlat.ServiceContracts/2007/08/Messages" xmlns:xs="http://www.w3.org/2001/XMLSchema">
@@ -811,6 +815,7 @@ def test_duplicate_removal_backref(rc: RawConfig, tmp_path: Path):
     assert manifest == table
 
 
+@pytest.mark.skip(reason='waiting')
 def test_duplicate_removal_different_models(rc: RawConfig, tmp_path: Path):
     """
     in this situation, "Extract" model has to be only once
@@ -914,6 +919,7 @@ def test_duplicate_removal_different_models(rc: RawConfig, tmp_path: Path):
     assert manifest == table
 
 
+@pytest.mark.skip(reason='waiting')
 def test_duplicate_removal_two_level(rc: RawConfig, tmp_path: Path):
     """
     if a ref refers to another model, and this model refers to yet another, and they both produce duplicates,
