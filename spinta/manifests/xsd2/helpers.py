@@ -601,8 +601,8 @@ class XSDReader:
         if sequence_properties:
             for sequence_properties_group in sequence_properties:
                 for group in properties_groups:
-                    group.extend(sequence_properties_group)
-                    new_properties_groups.append(group)
+                    sequence_properties_group.extend(group)
+                    new_properties_groups.append(sequence_properties_group)
         else:
             new_properties_groups = properties_groups
 

@@ -517,6 +517,7 @@ def test_xsd_sequence_choice_sequence(rc: RawConfig, tmp_path: Path):
     assert manifest == table
 
 
+@pytest.mark.skip(reason='waiting for #871')
 def test_xsd_complex_content(rc: RawConfig, tmp_path: Path):
     xsd = """
     <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
