@@ -458,9 +458,12 @@ class XSDReader:
         else:
             raise RuntimeError(f'Element has to have either name or ref')
 
-        if node.attrib.get("type"):
-
-            element_type = node.attrib["type"].split(":")[-1]
+        if not (node.xpath('./*[local-name()="complexType"]') or node.xpath('./*[local-name()="simpleType"]')):
+            # XSD rules are that element should have type, but life's not always what we want it to be
+            if node.attrib.get("type"):
+                element_type = node.attrib["type"].split(":")[-1]
+            else:
+                element_type = "string"
 
             # separately defined simpleType
             if element_type in self.custom_types:
@@ -485,6 +488,11 @@ class XSDReader:
             prop = XSDProperty(xsd_name=property_name, property_type=property_type, required=is_required, source=source, is_array=is_array)
             prop.type_to = property_type_to
             props.append(prop)
+
+
+        # else:
+        #     if not node.attrib.get("type") and not node.xpath('./*[local-name() = ""]'):
+        #         raise RuntimeError(f'Element has to have either ref or type')
 
         for child in node.getchildren():
             # We don't care about comments
@@ -527,6 +535,9 @@ class XSDReader:
 
             for model in models:
                 model.description = property_description
+
+        if not props:
+            raise RuntimeError(f"Element couldn't be turned into a property: {node.get('name') or node.get('ref')}")
 
         return props
 
