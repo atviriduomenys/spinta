@@ -1,9 +1,16 @@
 Changes
 #######
 
-0.1.78 (unreleased)
+0.1.79 (unreleased)
 ===================
 
+
+0.1.78 (2024-10-22)
+===================
+
+Bug fix:
+
+- Removed `pymssql` library from requirements (was added in previous version by accident).
 
 0.1.77 (2024-10-22)
 ===================
