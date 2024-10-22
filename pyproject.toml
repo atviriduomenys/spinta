@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "spinta"
-version = "0.1.77.dev0"
+version = "0.1.78.dev0"
 description = "A platform for describing, extracting, transforming, loading and serving open data."
 authors = ["Mantas Zimnickas <sirexas@gmail.com>"]
 license = "MIT"
@@ -51,7 +51,8 @@ requests = "*"
 #        setuptools>=58
 setuptools = "*"
 setuptools-scm = "*"
-starlette = ">=0.22"
+# https://github.com/encode/starlette/security/advisories/GHSA-f96h-pmfr-66vw
+starlette = ">=0.40"
 toposort = "*"
 tqdm = "*"
 ujson = "*"
@@ -105,6 +106,7 @@ tabulate = "*"
 pyproj = "*"
 xmltodict = "*"
 sqlean-py = "*"
+pymssql = "^2.3.1"
 
 
 [tool.poetry.group.dev.dependencies]
