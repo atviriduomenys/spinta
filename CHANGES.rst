@@ -1,7 +1,7 @@
 Changes
 #######
 
-0.1.77 (unreleased)
+0.1.77 (2024-10-22)
 ===================
 
 Backwards incompatible changes:
