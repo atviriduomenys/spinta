@@ -504,8 +504,7 @@ class XSDReader:
 
             # inline type
             elif element_type in DATATYPES_MAPPING:
-                property_type = XSDType()
-                property_type.name = DATATYPES_MAPPING[element_type]
+                property_type = self._map_type(element_type)
 
             # separately defined complexType
             else:
@@ -893,7 +892,7 @@ class XSDReader:
     def process_documentation(self, node: _Element, state: State) -> str:
         return node.text or ""
 
-    def process_simple_type_extension(self, node: _Element, state: State) -> tuple[str, list] | None:
+    def process_simple_type_extension(self, node: _Element, state: State) -> tuple[XSDType, list] | None:
         # this is an initial implementation, this method needs to be finished together with process_simple_type
         base = node.attrib.get("base")
         if not base:
@@ -902,7 +901,7 @@ class XSDReader:
         base_type_name = base.split(":")[-1]
 
         if base_type_name in DATATYPES_MAPPING:
-            type_name = DATATYPES_MAPPING[base_type_name]
+            type = self._map_type(base_type_name)
             attributes = []
 
             for child in node:
@@ -918,7 +917,7 @@ class XSDReader:
                 else:
                     raise RuntimeError(f"Unexpected element '{local_name}' in simpleType extension")
 
-            return type_name, attributes
+            return type, attributes
 
     def process_complex_type_extension(self, node: _Element, state: State) -> List[List[XSDProperty]]:
         base = node.attrib.get("base")
