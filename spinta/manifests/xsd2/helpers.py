@@ -373,6 +373,8 @@ class XSDReader:
 
                 if extends_model.properties or extends_model.extends_model:
                     model.extends_model = extends_model
+                else:
+                    model.extends_model = None
 
     def _add_refs_for_backrefs(self):
         for model in self.models:
@@ -587,6 +589,9 @@ class XSDReader:
         # preparation for building model
         models = []
         name = node.attrib.get("name")
+
+        if name == "Response":
+            print("HERE")
 
         property_groups = [[]]
 
@@ -921,10 +926,6 @@ class XSDReader:
             raise RuntimeError("Extension must have a 'base' attribute.")
 
         base_type_name = base.split(":")[-1]
-
-        base_model: XSDModel | None = self.top_level_complex_type_models.get(base_type_name)
-        if not base_model:
-            raise RuntimeError(f"Base type '{base}' not found.")
 
         property_groups: list[list] = [[]]
 
