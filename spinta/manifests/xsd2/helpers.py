@@ -379,6 +379,8 @@ class XSDReader:
     def _add_refs_for_backrefs(self):
         for model in self.models:
             for property_id, prop in model.properties.items():
+                if prop.type is None:
+                    print("HERE")
                 if prop.type.name == "backref":
                     referenced_model = prop.ref_model
                     # checking if the ref already exists.
@@ -596,8 +598,9 @@ class XSDReader:
                 xsd_name="text",
                 required=False,
                 source="text()",
-                is_array=False
+                is_array=False,
             )
+            text_prop.type = XSDType(name="string")
             for group in property_groups:
                 group.append(text_prop)
 
