@@ -15,9 +15,9 @@ git checkout $RELEASE_VERSION
 git pull
 git tag -l -n1 | sort -h | tail -n5
 
-export CURRENT_PATCH=75
-export NEW_PATCH=76
-export FUTURE_PATCH=77
+export CURRENT_PATCH=77
+export NEW_PATCH=78
+export FUTURE_PATCH=79
 
 export CURRENT_VERSION=$RELEASE_VERSION.$CURRENT_PATCH
 export NEW_VERSION=$RELEASE_VERSION.$NEW_PATCH
@@ -28,25 +28,12 @@ git branch $PREPARE_BRANCH
 git checkout $PREPARE_BRANCH
 git status
 
+# Removed `pymssql` library
 
 # notes/spinta/release/common.sh    Check outdated packages and upgrade them
-#| Package operations: 1 install, 14 updates, 0 removals
+#| Package operations: 0 installs, 0 updates, 1 removal
 #|
-#|   • Updating prompt-toolkit (3.0.47 -> 3.0.48)
-#|   • Installing propcache (0.2.0)
-#|   • Updating tomli (2.0.1 -> 2.0.2)
-#|   • Updating toolz (0.12.1 -> 1.0.0)
-#|   • Updating aiohappyeyeballs (2.4.0 -> 2.4.3)
-#|   • Updating httpcore (1.0.5 -> 1.0.6)
-#|   • Updating rich (13.8.1 -> 13.9.2)
-#|   • Updating yarl (1.12.1 -> 1.14.0)
-#|   • Updating aiohttp (3.10.5 -> 3.10.9)
-#|   • Updating phonenumbers (8.13.45 -> 8.13.47)
-#|   • Updating python-multipart (0.0.10 -> 0.0.12)
-#|   • Updating snoop (0.4.3 -> 0.6.0)
-#|   • Updating sphinx-rtd-theme (2.0.0 -> 3.0.0)
-#|   • Updating starlette (0.39.0 -> 0.39.2)
-#|   • Updating uvicorn (0.30.6 -> 0.31.0)
+#|   • Removing pymssql (2.3.1)
 
 
 # Run Makefile
@@ -64,7 +51,7 @@ head CHANGES.rst
 # notes/spinta/release/common.sh    Reset test database
 
 poetry run pytest -vvx --tb=short tests
-#| 2118 passed, 42 skipped, 423 warnings in 322.33s (0:05:22)
+#| 2165 passed, 41 skipped, 460 warnings in 331.08s (0:05:31)
 
 # If possible run same tests using test and prod env library versions
 # Test env
@@ -89,7 +76,7 @@ BASEDIR=$PWD/var/instances/$INSTANCE
 
 # notes/spinta/release/common.sh    Run server in EXTERNAL mode
 # notes/spinta/release/common.sh    Run migrations
-#| (3044 rows)
+#| (3114 rows)
 
 # notes/spinta/release/common.sh    Run server in INTERNAL mode
 # Don't forget to add client to server and credentials;
