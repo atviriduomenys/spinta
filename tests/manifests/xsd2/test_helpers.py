@@ -369,7 +369,7 @@ def test_process_complex_type_with_extension(xsd_reader, create_xsd_model):
     model = models[0]
     prop_names = list(model.properties.keys())
 
-    assert "extendedProp" in prop_names
+    assert "extended_prop" in prop_names
     assert "attr1" in prop_names
     assert model.prepare == 'extend("BaseType")'
 
