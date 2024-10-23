@@ -1,7 +1,5 @@
 import asyncio
-import json
-import os
-from typing import List, TypedDict, Dict, Union, Callable
+from typing import List
 from typing import Optional
 from typer import Option
 
@@ -12,11 +10,10 @@ from typer import Context as TyperContext
 from spinta import commands
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.manifest import convert_str_to_manifest_path
+from spinta.cli.helpers.migrate import MigrateRename, MigrateMeta
 from spinta.cli.helpers.store import load_store
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.core.context import configure_context
-from spinta.exceptions import FileNotFound
-from spinta.utils.nestedstruct import get_root_attr
 
 
 def bootstrap(
@@ -97,105 +94,6 @@ def freeze(ctx: TyperContext):
         require_auth(context)
         commands.freeze(context, store.manifest)
     click.echo("Done.")
-
-
-class MigrateTableRename(TypedDict):
-    name: str
-    new_name: str
-    columns: Dict[str, str]
-
-
-class MigrateRename:
-    tables: Dict[str, MigrateTableRename]
-
-    def __init__(self, rename_src: Union[str, dict]):
-        self.tables = {}
-        self.parse_rename_src(rename_src)
-
-    def insert_table(self, table_name: str):
-        self.tables[table_name] = MigrateTableRename(
-            name=table_name,
-            new_name=table_name,
-            columns={}
-        )
-
-    def insert_column(self, table_name: str, column_name: str, new_column_name: str):
-        if table_name not in self.tables.keys():
-            self.insert_table(table_name)
-        if column_name == "":
-            self.tables[table_name]["new_name"] = new_column_name
-        else:
-            self.tables[table_name]["columns"][column_name] = new_column_name
-
-    def get_column_name(self, table_name: str, column_name: str, root_only: bool = False):
-        given_name = get_root_attr(column_name) if root_only else column_name
-        if table_name in self.tables.keys():
-            table = self.tables[table_name]
-            if column_name in table["columns"].keys():
-                return table["columns"][column_name]
-
-            for old_column_name, new_column_name in table["columns"].items():
-                target_name = get_root_attr(old_column_name) if root_only else old_column_name
-                if target_name == given_name:
-                    new_name = get_root_attr(new_column_name) if root_only else new_column_name
-                    return new_name
-        return column_name
-
-    def get_old_column_name(self, table_name: str, column_name: str, root_only: bool = False):
-        given_name = get_root_attr(column_name) if root_only else column_name
-        if table_name in self.tables.keys():
-            table = self.tables[table_name]
-            for old_column_column, new_column_name in table["columns"].items():
-                target_name = get_root_attr(new_column_name) if root_only else new_column_name
-
-                if target_name == given_name:
-                    old_name = get_root_attr(old_column_column) if root_only else old_column_column
-                    return old_name
-        return column_name
-
-    def get_table_name(self, table_name: str):
-        if table_name in self.tables.keys():
-            return self.tables[table_name]["new_name"]
-        return table_name
-
-    def get_old_table_name(self, table_name: str):
-        for key, data in self.tables.items():
-            if data["new_name"] == table_name:
-                return key
-        return table_name
-
-    def parse_rename_src(self, rename_src: Union[str, dict]):
-        if rename_src:
-            if isinstance(rename_src, str):
-                if os.path.exists(rename_src):
-                    with open(rename_src, 'r') as f:
-                        data = json.loads(f.read())
-                        for table, table_data in data.items():
-                            self.insert_table(table)
-                            for column, column_data in table_data.items():
-                                self.insert_column(table, column, column_data)
-                else:
-                    raise FileNotFound(file=rename_src)
-            else:
-                for table, table_data in rename_src.items():
-                    self.insert_table(table)
-                    for column, column_data in table_data.items():
-                        self.insert_column(table, column, column_data)
-
-
-class MigrateMeta:
-    plan: bool
-    autocommit: bool
-    rename: MigrateRename
-    datasets: List[str]
-    migration_extension: Callable
-
-    def __init__(self, plan: bool, autocommit: bool, rename: MigrateRename, datasets: List[str] = None, migration_extension: Callable = None):
-        self.plan = plan
-        self.rename = rename
-        self.autocommit = autocommit
-        self.datasets = datasets
-        self.migration_extension = migration_extension
 
 
 
