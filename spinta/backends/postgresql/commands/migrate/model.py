@@ -78,21 +78,18 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ol
 
         if new_properties:
             for new_property in new_properties:
-                if not new_property:
+                handled = handle_internal_ref_to_scalar_conversion(
+                    context,
+                    backend,
+                    meta,
+                    old,
+                    old_columns,
+                    new_property
+                )
+
+                if not handled:
                     commands.migrate(context, backend, meta, old, old_columns, new_property, model_meta=model_meta,
-                                     foreign_key=False, **kwargs)
-                else:
-                    handled = handle_internal_ref_to_scalar_conversion(
-                        context,
-                        backend,
-                        meta,
-                        old,
-                        old_columns,
-                        new_property
-                    )
-                    if not handled:
-                        commands.migrate(context, backend, meta, old, old_columns, new_property, model_meta=model_meta,
-                                         **kwargs)
+                                     **kwargs)
         else:
             # Remove from JSONB clean up
             if isinstance(old_columns, sa.Column) and isinstance(old_columns.type, JSONB):

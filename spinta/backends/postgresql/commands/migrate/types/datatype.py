@@ -189,3 +189,10 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
                     table_name=table_name,
                     constraint_name=constraint["name"],
                 ), foreign_key)
+
+
+@commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, sa.Table, NotAvailable, list)
+def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, table: sa.Table, old: NotAvailable,
+            new: List[sa.Column], foreign_key: bool = False, **kwargs):
+    for column in new:
+        commands.migrate(context, backend, meta, table, old, column, foreign_key=foreign_key, **kwargs)

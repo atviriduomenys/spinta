@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from sqlalchemy.dialects.postgresql import UUID
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 
 import sqlalchemy as sa
 from alembic.operations import Operations
@@ -129,33 +129,63 @@ class CreateIndexMigrationAction(MigrationAction):
 
 
 class DowngradeTransferDataMigrationAction(MigrationAction):
+    """Migration Action used to convert columns into external ref columns.
+
+    Args:
+        table_name: Name of currently migrating table
+        referenced_table_name: Name of referenced table (ref.model)
+        source_column: Original column which is being converted to external ref (currently system only allows conversion from one column)
+        columns: Mapping of new ref column names and referenced table's columns.
+        target: Name of foreign table's mapping column
+
+    Example:
+        Let's say you have two tables called "Country" and "City", where the "Country" table references the "City" table.
+        In the current scenario, the reference level is 4, meaning there is foreign key constraint, and it's mapped through "_id" column.
+
+        The "City" table is referenced using these columns: "city._id".
+        It's primary key consist of "id" and "code" columns.
+
+        To convert this reference to level 3 or lower, you can use:
+
+            DowngradeTransferDataMigrationAction(
+                table_name="Country",
+                referenced_table_name="City",
+                ref_column=Column("city._id", "Country"),
+                columns={
+                    "city.id": Column("id", "City"),
+                    "city.code": Column("code", "City")
+                },
+                target="_id"
+            )
+    """
+
     def __init__(
         self,
         table_name: str,
-        foreign_table_name: str,
-        source: sa.Column,
-        columns: dict,
-        target: str = '_id'
+        referenced_table_name: str,
+        source_column: sa.Column,
+        columns: Dict[str, sa.Column],
+        target: str
     ):
-        target_table = sa.Table(
+        original_table = sa.Table(
             table_name,
             sa.MetaData(),
-            source._copy(),
+            source_column._copy(),
             *[sa.Column(key, column.type) for key, column in columns.items()]
         )
         foreign_table = sa.Table(
-            foreign_table_name,
+            referenced_table_name,
             sa.MetaData(),
             sa.Column('_id', UUID),
             *[column._copy() for column in columns.values()]
         )
-        self.query = target_table.update().values(
+        self.query = original_table.update().values(
             **{
                 key: foreign_table.columns[column.name]
                 for key, column in columns.items()
             }
         ).where(
-            target_table.columns[source.name] == foreign_table.columns[target]
+            original_table.columns[source_column.name] == foreign_table.columns[target]
         )
 
     def execute(self, op: Operations):
@@ -163,32 +193,60 @@ class DowngradeTransferDataMigrationAction(MigrationAction):
 
 
 class UpgradeTransferDataMigrationAction(MigrationAction):
+    """Migration Action used to convert multiple columns into one internal ref column ("column._id").
+
+    Args:
+        table_name: Name of currently migrating table
+        referenced_table_name: Name of referenced table (ref.model)
+        ref_column: Newly created ref column, ending with "_id", ex: "column._id"
+        columns: Dictionary of columns used to migrate, key is "referenced_table" column name. Value is migration table's column
+
+    Example:
+        Let's say you have two tables called "Country" and "City", where the "Country" table references the "City" table.
+        In the current scenario, the reference level is 3, meaning there are no foreign keys and the reference is done using normal columns.
+
+        The "City" table is referenced using these columns: "city.id", "city.code".
+
+        To convert this reference to level 4 or higher, you can use:
+
+            UpgradeTransferDataMigrationAction(
+                table_name="Country",
+                referenced_table_name="City",
+                ref_column=Column("city._id"),
+                columns={
+                    "id": Column("city.id"),
+                    "code": Column("city.code")
+                }
+            )
+    """
+
     def __init__(
         self,
         table_name: str,
-        foreign_table_name: str,
-        target: sa.Column,
-        columns: dict
+        referenced_table_name: str,
+        ref_column: sa.Column,
+        columns: Dict[str, sa.Column]
     ):
-        target_table = sa.Table(
+        original_table = sa.Table(
             table_name,
             sa.MetaData(),
-            target._copy(),
+            ref_column._copy(),
             *[column._copy() for column in columns.values()]
         )
-        foreign_table = sa.Table(
-            foreign_table_name,
+        referenced_table = sa.Table(
+            referenced_table_name,
             sa.MetaData(),
             sa.Column('_id', UUID),
             *[sa.Column(key, column.type) for key, column in columns.items()]
         )
-        self.query = target_table.update().values(
+        self.query = original_table.update().values(
             **{
-                target.name: foreign_table.columns['_id']
+                ref_column.name: referenced_table.columns['_id']
             }
         ).where(
             sa.and_(
-                *[target_table.columns[column.name] == foreign_table.columns[key] for key, column in columns.items()]
+                *[original_table.columns[column.name] == referenced_table.columns[key] for key, column in
+                  columns.items()]
             )
         )
 
@@ -305,7 +363,8 @@ class RenameJSONAttributeMigrationAction(MigrationAction):
         copied_source = temp_table.columns[source.name]
         self.query = temp_table.update().values(
             **{
-                copied_source.name: copied_source - old_key + sa.func.jsonb_build_object(new_key, copied_source[old_key])
+                copied_source.name: copied_source - old_key + sa.func.jsonb_build_object(new_key,
+                                                                                         copied_source[old_key])
             }
         ).where(copied_source.has_key(old_key))
 

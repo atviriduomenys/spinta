@@ -1874,7 +1874,7 @@ def test_migrate_do_nothing_ref_4_denorm(
             tables.keys())
         city = tables["migrate/example/City"]
         country = tables["migrate/example/Country"]
-        assert {'id', 'country._id'}.issubset(city.columns.keys())
+        assert {'id', 'country._id', 'country.name'}.issubset(city.columns.keys())
         assert {'id'}.issubset(country.columns.keys())
         conn.execute(country.insert().values({
             "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7a",
@@ -1883,7 +1883,8 @@ def test_migrate_do_nothing_ref_4_denorm(
         conn.execute(city.insert().values({
             "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7e",
             "id": 0,
-            "country._id": "197109d9-add8-49a5-ab19-3ddc7589ce7a"
+            "country._id": "197109d9-add8-49a5-ab19-3ddc7589ce7a",
+            "country.name": "Lithuania"
         }))
 
     override_manifest(context, tmp_path, '''
@@ -1919,16 +1920,16 @@ def test_migrate_do_nothing_ref_4_denorm(
 
         table = tables["migrate/example/City"]
         columns = table.columns
-        assert {'id', '__country._id', 'country'}.issubset(
+        assert {'id', 'country._id', 'country.name'}.issubset(
             columns.keys())
-        assert not {'country._id'}.issubset(
+        assert not {'__country._id'}.issubset(
             columns.keys())
 
         result = conn.execute(table.select())
         for row in result:
-            assert row['__country._id'] == '197109d9-add8-49a5-ab19-3ddc7589ce7a'
             assert row['id'] == 0
-            assert row['country'] == 0
+            assert row['country._id'] == "197109d9-add8-49a5-ab19-3ddc7589ce7a"
+            assert row['country.name'] == "Lithuania"
         cleanup_table_list(meta, [
             'migrate/example/City',
             'migrate/example/City/:changelog',
