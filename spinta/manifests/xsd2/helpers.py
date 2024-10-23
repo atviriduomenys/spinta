@@ -537,8 +537,9 @@ class XSDReader:
                 models = self.process_complex_type(child, state)
                 # usually it's one model, but in case of choice, can be multiple models
                 for model in models:
-                    model.xsd_name = property_name
-                    model.set_name(self.deduplicate_model_name(to_model_name(property_name)))
+                    if property_name != model.xsd_name:
+                        model.xsd_name = property_name
+                        model.set_name(self.deduplicate_model_name(to_model_name(property_name)))
                     if is_root:
                         self.top_level_element_models[property_name] = model
                         model.is_root_model = True
