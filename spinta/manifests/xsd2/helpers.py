@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass
+import re
 from typing import Any, List
 from urllib.request import urlopen
 
@@ -225,6 +226,7 @@ class XSDModel:
     deduplicate_property_name: Deduplicator
     xsd_node_type: str | None = None  # from complexType or from element
     models_by_ref: str | None = None
+    extends_model: XSDModel | None = None
 
     def __init__(self, dataset_resource) -> None:
         self.properties = {}
@@ -340,25 +342,44 @@ class XSDReader:
     def _post_process_refs(self):
         """
         Links properties in all models to their target models based on xsd_ref_to and xsd_type_to.
+        Also links models to their base models based on the 'prepare' attribute (extend statements).
         """
-        target_model = None
-
         for model in self.models:
             for prop in model.properties.values():
-                
                 if prop.xsd_ref_to:
                     try:
                         target_model: XSDModel = self.top_level_element_models[prop.xsd_ref_to]
+                        prop.ref_model = target_model
                     except KeyError:
-                        raise KeyError("Reference to a non-existing model")
-                    
+                        raise KeyError(f"Reference to a non-existing model: {prop.xsd_ref_to}")
                 elif prop.xsd_type_to:
                     try:
                         target_model: XSDModel = self.top_level_complex_type_models[prop.xsd_type_to]
+                        prop.ref_model = target_model
                     except KeyError:
-                        raise KeyError("Reference to a non-existing model")
+                        raise KeyError(f"Reference to a non-existing model: {prop.xsd_type_to}")
 
-                prop.ref_model = target_model
+            if hasattr(model, "prepare") and model.prepare:
+                # Assume the prepare statement is in the format 'extend("BaseType")'
+                prepare_str = model.prepare.strip()
+                model_match: re.Match[str] | None = re.match(r'extend\("(.+)"\)', prepare_str)
+                if model_match:
+                    extends_model_name: str = model_match.group(1)
+                    try:
+                        extends_model: XSDModel | None = self.top_level_complex_type_models[extends_model_name]
+                    except KeyError:
+                        raise KeyError(f"Parent model '{extends_model}' not found for model '{model.name}'")
+                    
+                    extends_props: dict[str, XSDProperty] = extends_model.properties
+
+                    if extends_props:
+                        model.extends_model = extends_model
+                    else:
+                        model.prepare = None
+
+                else:
+                    raise RuntimeError(f"Invalid prepare statement: {prepare_str}")
+                    
 
     def _add_expand_to_top_level_models(self):
         pass

@@ -831,6 +831,44 @@ def test_post_process_refs_links_existing_references(setup_models):
     assert prop2.ref_model is not None
     assert prop2.ref_model == model_a
 
+def test_post_process_refs_valid_prepare_with_properties(xsd_reader, create_xsd_model):
+
+    extends_model = create_xsd_model("BaseType")
+    extends_model.properties = {
+        "baseProp": XSDProperty(xsd_name="baseProp", property_type=XSDType(name="string"))
+    }
+    
+    derived_model = create_xsd_model("DerivedType")
+    derived_model.prepare = 'extend("BaseType")'
+    derived_model.properties = {
+        "derivedProp": XSDProperty(xsd_name="derivedProp", property_type=XSDType(name="int"))
+    }
+    
+    xsd_reader.models = [derived_model]
+    xsd_reader.top_level_complex_type_models = {"BaseType": extends_model}
+    
+    xsd_reader._post_process_refs()
+    
+    assert derived_model.prepare == 'extend("BaseType")'
+    assert derived_model.extends_model is extends_model
+
+def test_post_process_refs_valid_prepare_with_empty_properties(xsd_reader, create_xsd_model):
+    extends_model = create_xsd_model("BaseType")
+    
+    derived_model = create_xsd_model("DerivedType")
+    derived_model.prepare = 'extend("BaseType")'
+    derived_model.properties = {
+        "derivedProp": XSDProperty(xsd_name="derivedProp", property_type=XSDType(name="int"))
+    }
+
+    xsd_reader.models = [derived_model]
+    xsd_reader.top_level_complex_type_models = {"BaseType": extends_model}
+    
+    xsd_reader._post_process_refs()
+    
+    assert derived_model.prepare is None
+    assert derived_model.extends_model is None
+
 # def test_process_extension_simple_type(xsd_reader):
 #     extension_xml = """
 #     <extension base="xs:string">
