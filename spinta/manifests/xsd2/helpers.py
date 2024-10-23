@@ -504,8 +504,7 @@ class XSDReader:
 
             # inline type
             elif element_type in DATATYPES_MAPPING:
-                property_type = XSDType()
-                property_type.name = DATATYPES_MAPPING[element_type]
+                property_type = self._map_type(element_type)
 
             # separately defined complexType
             else:
