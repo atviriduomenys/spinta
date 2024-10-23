@@ -473,7 +473,6 @@ class XSDReader:
         is_required = int(node.attrib.get("minOccurs", 1)) > 0
         props = []
         property_type_to = None
-        property_description = ""
         models = []
 
         # ref - a reference to separately defined element
@@ -561,16 +560,18 @@ class XSDReader:
                 props.append(prop)
 
             elif QName(child).localname == "annotation":
-                property_description = self.process_annotation(child, state)
+                description = self.process_annotation(child, state)
 
             else:
                 raise RuntimeError(f"This node type cannot be in the element: {QName(node).localname}")
 
-            for prop in props:
-                prop.description = property_description
+            if "description" in locals() and description:
+                for prop in props:
+                    prop.description = description
 
-            for model in models:
-                model.description = property_description
+            if "description" in locals() and description:
+                for model in models:
+                    model.description = f"{model.description}{description}"
 
         if not props:
             raise RuntimeError(f"Element couldn't be turned into a property: {node.get('name') or node.get('ref')}")
@@ -661,11 +662,16 @@ class XSDReader:
                 for group in property_groups:
                     group.extend(simple_content_properties)
 
+            elif local_name == "annotation":
+                description = self.process_annotation(child, state)
+
             else:
                 raise RuntimeError(f"This node type cannot be in the complex type: {local_name}")
 
         for group in property_groups:
             model = XSDModel(dataset_resource=self.dataset_resource)
+            if "description" in locals() and description:
+                model.description = description
             property_deduplicate = Deduplicator()
             for prop in group:
                 prop.name = property_deduplicate(to_property_name(prop.xsd_name))
@@ -909,6 +915,11 @@ class XSDReader:
                 for group in property_groups:
                     group.append(restriction_prop)
 
+            elif local_name == "attribute":
+                prop = self.process_attribute(child, state)
+                for group in property_groups:
+                    group.append(prop)
+
             else:
                 raise RuntimeError(f"Unexpected element '{local_name}' in complexContent")
 
@@ -992,6 +1003,11 @@ class XSDReader:
 
             if local_name == "element":
                 prop: List[XSDProperty] = self.process_element(child, state)
+                for group in property_groups:
+                    group.append(prop)
+
+            elif local_name == "attribute":
+                prop: XSDProperty = self.process_attribute(child, state)
                 for group in property_groups:
                     group.append(prop)
 
