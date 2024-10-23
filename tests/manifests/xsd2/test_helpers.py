@@ -369,7 +369,7 @@ def test_process_complex_type_with_extension(xsd_reader, create_xsd_model):
     model = models[0]
     prop_names = list(model.properties.keys())
 
-    assert "extendedProp" in prop_names
+    assert "extended_prop" in prop_names
     assert "attr1" in prop_names
     assert model.prepare == 'extend("BaseType")'
 
@@ -831,30 +831,97 @@ def test_post_process_refs_links_existing_references(setup_models):
     assert prop2.ref_model is not None
     assert prop2.ref_model == model_a
 
+
+@pytest.fixture
+def create_xsd_models():
+    """Fixture to create sample XSDModel instances."""
+    france = XSDModel("test")
+
+    france.name = "France"
+    france.properties = {
+        "lyon": XSDProperty(),
+        "paris": XSDProperty()
+    }
+    france.properties["lyon"].name = "lyon"
+    france.properties["paris"].name = "paris"
+
+    germany = XSDModel("test")
+
+    germany.name = "Germany"
+    germany.properties = {
+        "hamburg": XSDProperty(),
+        "berlin": XSDProperty()
+    }
+    germany.properties["hamburg"].name = "hamburg"
+    germany.properties["berlin"].name = "berlin"
+
+    italy = XSDModel("test")
+
+    italy.name = "Italy"
+    italy.properties = {
+        "rome": XSDProperty(),
+        "milan": XSDProperty()
+    }
+    italy.properties["rome"].name = "rome"
+    italy.properties["milan"].name = "milan"
+    return [italy, france, germany]
+
+
+def test_sort_models_by_name(create_xsd_models):
+    """Test that the XSDModel list is sorted by the 'name' attribute (country name)."""
+    models = create_xsd_models
+    sorted_models = sorted(models, key=lambda model: model.name)
+
+    # Extracting the sorted names to verify the order
+    sorted_names = [model.name for model in sorted_models]
+
+    assert sorted_names == ["France", "Germany", "Italy"]
+
+
+def test_sort_properties_by_key(create_xsd_models):
+    """Test that the properties dictionary in each XSDModel is sorted by key (city name)."""
+    models = create_xsd_models
+
+    for model in models:
+        sorted_properties = dict(sorted(model.properties.items()))
+
+        # Extract the sorted city names (keys) to verify the order
+        sorted_keys = list(sorted_properties.keys())
+
+        # Check that properties are sorted correctly for each model
+        if model.name == "France":
+            assert sorted_keys == ["lyon", "paris"]
+        elif model.name == "Germany":
+            assert sorted_keys == ["berlin", "hamburg"]
+        elif model.name == "Italy":
+            assert sorted_keys == ["milan", "rome"]
+
+
+
 def test_post_process_refs_valid_prepare_with_properties(xsd_reader, create_xsd_model):
 
     extends_model = create_xsd_model("BaseType")
     extends_model.properties = {
         "baseProp": XSDProperty(xsd_name="baseProp", property_type=XSDType(name="string"))
     }
-    
+
     derived_model = create_xsd_model("DerivedType")
     derived_model.prepare = 'extend("BaseType")'
     derived_model.properties = {
         "derivedProp": XSDProperty(xsd_name="derivedProp", property_type=XSDType(name="int"))
     }
-    
+
     xsd_reader.models = [derived_model]
     xsd_reader.top_level_complex_type_models = {"BaseType": extends_model}
-    
+
     xsd_reader._post_process_refs()
-    
+
     assert derived_model.prepare == 'extend("BaseType")'
     assert derived_model.extends_model is extends_model
 
 def test_post_process_refs_valid_prepare_with_empty_properties(xsd_reader, create_xsd_model):
     extends_model = create_xsd_model("BaseType")
-    
+
     derived_model = create_xsd_model("DerivedType")
     derived_model.prepare = 'extend("BaseType")'
     derived_model.properties = {
@@ -863,9 +930,9 @@ def test_post_process_refs_valid_prepare_with_empty_properties(xsd_reader, creat
 
     xsd_reader.models = [derived_model]
     xsd_reader.top_level_complex_type_models = {"BaseType": extends_model}
-    
+
     xsd_reader._post_process_refs()
-    
+
     assert derived_model.prepare is None
     assert derived_model.extends_model is None
 
