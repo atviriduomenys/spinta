@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from spinta.core.config import RawConfig
 from spinta.testing.manifest import load_manifest
 #
@@ -58,62 +60,64 @@ from spinta.testing.manifest import load_manifest
 #     assert manifest == table
 #
 #
-# def test_xsd_ref(rc: RawConfig, tmp_path: Path):
-#     xsd = """
-#
-# <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
-# <xs:element name="asmenys">
-#   <xs:complexType mixed="true">
-#     <xs:sequence>
-#       <xs:element ref="asmuo" minOccurs="0" maxOccurs="unbounded" />
-#     </xs:sequence>
-#     <xs:attribute name="puslapis" type="xs:long" use="required">
-#       <xs:annotation><xs:documentation>rezultatu puslapio numeris</xs:documentation></xs:annotation>
-#     </xs:attribute>
-#   </xs:complexType>
-# </xs:element>
-#
-# <xs:element name="asmuo">
-#   <xs:complexType mixed="true">
-#
-#       <xs:attribute name="id"     type="xs:string" use="required">
-#       </xs:attribute>
-#       <xs:attribute name="ak"  type="xs:string" use="required">
-#       </xs:attribute>
-#
-#   </xs:complexType>
-# </xs:element>
-# </xs:schema>
-#     """
-#
-#     table = """
-#  id | d | r | b | m | property     | type             | ref     | source         | prepare | level | access | uri | title | description
-#     | manifest                     |                  |         |                |         |       |        |     |       |
-#     |   | resource1                | xml              |         |                |         |       |        |     |       |
-#     |                              |                  |         |                |         |       |        |     |       |
-#     |   |   |   | Asmenys          |                  |         | /asmenys       |         |       |        |     |       |
-#     |   |   |   |   | asmuo[]      | backref          | Asmuo   | asmuo          |         |       |        |     |       |
-#     |   |   |   |   | asmuo[].ak   | string required  |         | @ak            |         |       |        |     |       |
-#     |   |   |   |   | asmuo[].id   | string required  |         | @id            |         |       |        |     |       |
-#     |   |   |   |   | asmuo[].text | string           |         | text()         |         |       |        |     |       |
-#     |   |   |   |   | puslapis     | integer required |         | @puslapis      |         |       |        |     |       | rezultatu puslapio numeris
-#     |   |   |   |   | text         | string           |         | text()         |         |       |        |     |       |
-#     |                              |                  |         |                |         |       |        |     |       |
-#     |   |   |   | Asmuo            |                  |         |                |         |       |        |     |       |
-#     |   |   |   |   | ak           | string required  |         | @ak            |         |       |        |     |       |
-#     |   |   |   |   | asmenys      | ref              | Asmenys |                |         |       |        |     |       |
-#     |   |   |   |   | id           | string required  |         | @id            |         |       |        |     |       |
-#     |   |   |   |   | text         | string           |         | text()         |         |       |        |     |       |
-#
-# """
-#
-#     path = tmp_path / 'manifest.xsd'
-#     with open(path, "w") as xsd_file:
-#         xsd_file.write(xsd)
-#     manifest = load_manifest(rc, path)
-#     print(manifest)
-#     assert manifest == table
-#
+
+@pytest.mark.skip(reason='might be fixed by other PRs')
+def test_xsd_ref(rc: RawConfig, tmp_path: Path):
+    xsd = """
+
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+<xs:element name="asmenys">
+  <xs:complexType mixed="true">
+    <xs:sequence>
+      <xs:element ref="asmuo" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+    <xs:attribute name="puslapis" type="xs:long" use="required">
+    </xs:attribute>
+  </xs:complexType>
+</xs:element>
+
+<xs:element name="asmuo">
+  <xs:complexType mixed="true">
+
+      <xs:attribute name="id"     type="xs:string" use="required">
+      </xs:attribute>
+      <xs:attribute name="ak"  type="xs:string" use="required">
+      </xs:attribute>
+
+  </xs:complexType>
+</xs:element>
+</xs:schema>
+    """
+
+    table = """
+ id | d | r | b | m | property     | type             | ref     | source         | prepare | level | access | uri | title | description
+    | manifest                     |                  |         |                |         |       |        |     |       |
+    |   | resource1                | xml              |         |                |         |       |        |     |       |
+    |                              |                  |         |                |         |       |        |     |       |
+    |   |   |   | Asmenys          |                  |         | /asmenys       |         |       |        |     |       |
+    |   |   |   |   | asmuo[]      | backref          | Asmuo   | asmuo          |         |       |        |     |       |
+    |   |   |   |   | asmuo[].ak   | string required  |         | @ak            |         |       |        |     |       |
+    |   |   |   |   | asmuo[].id   | string required  |         | @id            |         |       |        |     |       |
+    |   |   |   |   | asmuo[].text | string           |         | text()         |         |       |        |     |       |
+    |   |   |   |   | puslapis     | integer required |         | @puslapis      |         |       |        |     |       | rezultatu puslapio numeris
+    |   |   |   |   | text         | string           |         | text()         |         |       |        |     |       |
+    |                              |                  |         |                |         |       |        |     |       |
+    |   |   |   | Asmuo            |                  |         |                |         |       |        |     |       |
+    |   |   |   |   | ak           | string required  |         | @ak            |         |       |        |     |       |
+    |   |   |   |   | asmenys      | ref              | Asmenys |                |         |       |        |     |       |
+    |   |   |   |   | id           | string required  |         | @id            |         |       |        |     |       |
+    |   |   |   |   | text         | string           |         | text()         |         |       |        |     |       |
+
+"""
+
+    path = tmp_path / 'manifest.xsd'
+    path_xsd2 = f"xsd2+file://{path}"
+    with open(path, "w") as xsd_file:
+        xsd_file.write(xsd)
+    manifest = load_manifest(rc, path_xsd2)
+    print(manifest)
+    assert manifest == table
+
 #
 # def test_xsd_resource_model(rc: RawConfig, tmp_path: Path):
 #     xsd = """

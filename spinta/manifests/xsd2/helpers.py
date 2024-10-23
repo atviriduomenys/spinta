@@ -11,7 +11,7 @@ from lxml.etree import _Element, QName
 
 from spinta.components import Context
 from spinta.core.ufuncs import Expr
-from spinta.utils.naming import Deduplicator, to_dataset_name, to_model_name
+from spinta.utils.naming import Deduplicator, to_dataset_name, to_model_name, to_property_name
 
 DATATYPES_MAPPING = {
     "string": "string",
@@ -358,8 +358,23 @@ class XSDReader:
 
                 prop.ref_model = target_model
 
-    def _add_expand_to_top_level_models(self):
-        pass
+    def _add_refs_for_backrefs(self):
+        for model in self.models:
+            for property_id, prop in model.properties.items():
+                if prop.type.name == "backref":
+                    referenced_model = prop.ref_model
+                    # checking if the ref already exists.
+                    # They can exist multiple times, but refs should be added only once
+                    prop_added = False
+                    for prop in referenced_model.properties.values():
+                        if prop.ref_model and prop.ref_model == model:
+                            prop_added = True
+                    if not prop_added:
+                        prop = XSDProperty()
+                        prop.name = to_property_name(model.name)
+                        prop.type = XSDType(name="ref")
+                        prop.ref_model = model
+                        referenced_model.properties[prop.name] = prop
 
     def start(self):
         # general part
@@ -390,7 +405,7 @@ class XSDReader:
 
         self._post_process_refs()
 
-        self._add_expand_to_top_level_models()
+        self._add_refs_for_backrefs()
 
         # we need to add this here, because only now we will know if it has properties and if we need to create it
         self._post_process_resource_model()
