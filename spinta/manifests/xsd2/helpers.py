@@ -372,9 +372,7 @@ class XSDReader:
                 except KeyError:
                     raise KeyError(f"Parent model '{extends_model}' not found for model '{model.name}'")
 
-                extends_props: dict[str, XSDProperty] = extends_model.properties
-
-                if extends_props:
+                if extends_model.properties or extends_model.extends_model:
                     model.extends_model = extends_model
 
     def _add_refs_for_backrefs(self):
@@ -672,8 +670,8 @@ class XSDReader:
                 model.set_name(self.deduplicate_model_name(to_model_name(name)))
                 self.top_level_complex_type_models[model.xsd_name] = model
 
-            if 'prepare_statement' in locals() and prepare_statement:
-                model.prepare = prepare_statement
+            if 'extends_model' in locals() and extends_model:
+                model.extends_model = extends_model
 
             models.append(model)
 
