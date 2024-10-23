@@ -455,7 +455,6 @@ class XSDReader:
                 models = self.process_complex_type(node, state)
                 for model in models:
                     model.is_root_model = True
-                    model.set_name(self.deduplicate_model_name(to_model_name(model.xsd_name)))
             elif QName(node).localname == "simpleType":
                 # simple types are processed in self.register_simple_types
                 pass
@@ -680,7 +679,7 @@ class XSDReader:
 
             if name:
                 model.xsd_name = name
-                model.name = self.deduplicate_model_name(to_model_name(name))
+                model.set_name(self.deduplicate_model_name(to_model_name(name)))
                 self.top_level_complex_type_models[model.xsd_name] = model
 
             if 'prepare_statement' in locals() and prepare_statement:
