@@ -339,7 +339,7 @@ def test_process_element_complex_type_separate():
     # Assert that 'required' is True
     assert result.required is True
 
-def test_process_complex_type_with_mixed_content_and_extension(xsd_reader, create_xsd_model):
+def test_process_complex_type_with_extension(xsd_reader, create_xsd_model):
     complex_type_xml = """
     <complexType name="DerivedType">
         <complexContent>
