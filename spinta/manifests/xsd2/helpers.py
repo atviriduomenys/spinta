@@ -590,9 +590,6 @@ class XSDReader:
         models = []
         name = node.attrib.get("name")
 
-        if name == "Response":
-            print("HERE")
-
         property_groups = [[]]
 
         if node.attrib.get("mixed", "false") == "true":
@@ -883,6 +880,9 @@ class XSDReader:
         for child in node.getchildren():
             # We don't care about comments
             if isinstance(child, etree._Comment):
+                continue
+            # appinfo is very app-specific tag, which we don't have possibility to process
+            if QName(child).localname == "appinfo":
                 continue
             if QName(child).localname == "documentation":
                 description += self.process_documentation(child, state)
