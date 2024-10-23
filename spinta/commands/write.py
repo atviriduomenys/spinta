@@ -18,8 +18,9 @@ from spinta import exceptions
 from spinta import spyna
 from spinta.accesslog import AccessLog
 from spinta.accesslog import log_async_response
-from spinta.auth import check_scope
-from spinta.backends.components import Backend, BackendFeatures
+from spinta.auth import check_scope, Scopes
+from spinta.backends.components import Backend
+from spinta.backends.constants import BackendFeatures
 from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
 from spinta.backends.mongo.components import Mongo
@@ -614,7 +615,7 @@ async def validate_data(
     async for data in dstream:
         if data.error is None:
             if '_id' in data.given and data.prop is None:
-                check_scope(context, 'set_meta_fields')
+                check_scope(context, Scopes.SET_META_FIELDS)
             if data.action == Action.INSERT:
                 if '_revision' in data.given:
                     raise exceptions.ManagedProperty(data.model, property='_revision')

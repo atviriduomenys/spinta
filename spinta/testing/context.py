@@ -10,6 +10,7 @@ import contextlib
 from pytest import FixtureRequest
 
 from spinta import commands
+from spinta.backends.helpers import validate_and_return_transaction
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.components import Node
 from spinta.components import Context
@@ -56,7 +57,7 @@ class ContextForTests:
                 store = self.get('store')
                 self.set('auth.token', AdminToken())
                 backend = store.manifest.backend
-                self.attach('transaction', backend.transaction, write=write)
+                self.attach('transaction', validate_and_return_transaction, self, backend, write=write)
                 yield self
 
     def wipe(self: TestContext, model: Union[str, Node]):

@@ -9,7 +9,7 @@ from typing import Type
 import jsonpatch
 
 from spinta import commands
-from spinta.backends.components import BackendOrigin
+from spinta.backends.constants import BackendOrigin
 from spinta.components import Mode
 from spinta.backends.helpers import load_backend
 from spinta.components import Model

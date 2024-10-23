@@ -1,6 +1,7 @@
 import dataclasses
 from typing import List, Any, Dict, Union
 
+from spinta.backends import Backend
 from spinta.components import Page, Property
 from spinta.core.ufuncs import Env, Expr
 from spinta.types.datatype import DataType, Object
@@ -89,6 +90,7 @@ class Selected:
 
 
 class BaseQueryBuilder(Env):
+    backend: Backend
     page: QueryPage
     expand: List[Property] = None
     query_params: QueryParams = None
@@ -148,3 +150,9 @@ class ResultProperty(Func):
     # Used when result is calculated at ResultBuilder level
     # for example: checksum()
     expr: Expr
+
+
+@dataclasses.dataclass
+class LiteralProperty(Func):
+    # Used when returning literal value
+    value: Any

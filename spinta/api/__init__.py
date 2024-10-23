@@ -18,7 +18,7 @@ from starlette.middleware import Middleware
 
 from spinta import components, commands
 from spinta.auth import AuthorizationServer, check_scope, query_client, get_clients_list, \
-    client_exists, create_client_file, delete_client_file, update_client_file, get_clients_path
+    client_exists, create_client_file, delete_client_file, update_client_file, get_clients_path, Scopes
 from spinta.auth import ResourceProtector
 from spinta.auth import BearerTokenValidator
 from spinta.auth import get_auth_request
@@ -91,7 +91,7 @@ def _auth_client_context(request: Request) -> Context:
 async def auth_clients_add(request: Request):
     try:
         context = _auth_client_context(request)
-        check_scope(context, 'auth_clients')
+        check_scope(context, Scopes.AUTH_CLIENTS)
         config = context.get('config')
         commands.load(context, config)
 
@@ -124,13 +124,13 @@ async def auth_clients_add(request: Request):
         })
 
     except InsufficientScopeError:
-        raise InsufficientPermission(scope='auth_clients')
+        raise InsufficientPermission(scope=Scopes.AUTH_CLIENTS)
 
 
 async def auth_clients_get_all(request: Request):
     try:
         context = _auth_client_context(request)
-        check_scope(context, 'auth_clients')
+        check_scope(context, Scopes.AUTH_CLIENTS)
         config = context.get('config')
         commands.load(context, config)
 
@@ -146,7 +146,7 @@ async def auth_clients_get_all(request: Request):
         return JSONResponse(return_values)
 
     except InsufficientScopeError:
-        raise InsufficientPermission(scope='auth_clients')
+        raise InsufficientPermission(scope=Scopes.AUTH_CLIENTS)
 
 
 async def auth_clients_get_specific(request: Request):
@@ -158,7 +158,7 @@ async def auth_clients_get_specific(request: Request):
 
         client_id = request.path_params["client"]
         if client_id != token.get_client_id():
-            check_scope(context, 'auth_clients')
+            check_scope(context, Scopes.AUTH_CLIENTS)
 
         path = get_clients_path(config)
         client = query_client(path, client_id)
@@ -170,14 +170,14 @@ async def auth_clients_get_specific(request: Request):
         return JSONResponse(return_value)
 
     except InsufficientScopeError:
-        raise InsufficientPermission(scope='auth_clients')
+        raise InsufficientPermission(scope=Scopes.AUTH_CLIENTS)
 
 
 async def auth_clients_delete_specific(request: Request):
     try:
         context = _auth_client_context(request)
         client_id = request.path_params["client"]
-        check_scope(context, 'auth_clients')
+        check_scope(context, Scopes.AUTH_CLIENTS)
         config = context.get('config')
         commands.load(context, config)
 
@@ -186,7 +186,7 @@ async def auth_clients_delete_specific(request: Request):
         return Response(status_code=204)
 
     except InsufficientScopeError:
-        raise InsufficientPermission(scope='auth_clients')
+        raise InsufficientPermission(scope=Scopes.AUTH_CLIENTS)
 
 
 async def auth_clients_patch_specific(request: Request):
@@ -201,7 +201,7 @@ async def auth_clients_patch_specific(request: Request):
 
         has_permission = True
         try:
-            check_scope(context, 'auth_clients')
+            check_scope(context, Scopes.AUTH_CLIENTS)
         except InsufficientScopeError:
             has_permission = False
         if client_id != token.get_client_id() and not has_permission:
@@ -236,7 +236,7 @@ async def auth_clients_patch_specific(request: Request):
         return JSONResponse(return_value)
 
     except InsufficientScopeError:
-        raise InsufficientPermission(scope='auth_clients')
+        raise InsufficientPermission(scope=Scopes.AUTH_CLIENTS)
 
 
 async def homepage(request: Request):

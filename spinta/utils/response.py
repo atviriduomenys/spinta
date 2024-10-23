@@ -12,6 +12,7 @@ from starlette.requests import Request
 from spinta import commands
 from spinta import exceptions
 from spinta.api.schema import schema_api
+from spinta.backends.helpers import validate_and_return_transaction, validate_and_return_begin
 from spinta.cli.helpers.errors import ErrorCounter
 from spinta.formats.components import Format
 from spinta.components import Action, Model
@@ -122,7 +123,7 @@ async def create_http_response(
         return await schema_api(context, request, params)
 
     if request.method in ('GET', 'HEAD'):
-        context.attach('transaction', manifest.backend.transaction)
+        context.attach('transaction', validate_and_return_transaction, context, manifest.backend)
 
         if params.changes:
             _enforce_limit(context, params)
@@ -171,7 +172,7 @@ async def create_http_response(
 
             if backend is not None:
                 # Namespace nodes do not have backend.
-                context.attach(f'transaction.{backend.name}', backend.begin)
+                context.attach(f'transaction.{backend.name}', validate_and_return_begin, context, backend)
 
             if model.keymap:
                 context.attach(
@@ -193,7 +194,9 @@ async def create_http_response(
         else:
             context.attach(
                 'transaction',
-                manifest.backend.transaction,
+                validate_and_return_transaction,
+                context,
+                manifest.backend,
                 write=True,
             )
             return await commands.wipe(
@@ -206,7 +209,7 @@ async def create_http_response(
             )
 
     else:
-        context.attach('transaction', manifest.backend.transaction, write=True)
+        context.attach('transaction', validate_and_return_transaction, context, manifest.backend, write=True)
         action = params.action
         if params.prop and params.propref:
             return await commands.push(

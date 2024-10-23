@@ -1,32 +1,10 @@
-import enum
 import contextlib
 from typing import Any
 from typing import Dict
 from typing import Optional
 from typing import Set
 
-from spinta.typing import ObjectData
-
-
-class BackendOrigin(enum.Enum):
-    """Origin where backend was defined.
-
-    Backend can be defined in multiple places, for example backend can be
-    defined in a configuration file or inline in manifest.
-    """
-
-    config = 'config'
-    manifest = 'manifest'
-    resource = 'resource'
-
-
-class BackendFeatures(enum.Enum):
-    # Files are stored in blocks and file metadata must include _bsize and
-    # _blocks properties.
-    FILE_BLOCKS = 'FILE_BLOCKS'
-
-    # Backend supports write operations.
-    WRITE = 'WRITE'
+from spinta.backends.constants import BackendOrigin, BackendFeatures
 
 
 class Backend:
@@ -43,8 +21,7 @@ class Backend:
     # manifest back to its original form.
     config: Dict[str, Any]
 
-    paginated: bool = False
-    support_expand: bool = False
+    available: bool = True
 
     def __repr__(self):
         return (
@@ -56,8 +33,16 @@ class Backend:
     def transaction(self):
         raise NotImplementedError
 
+    @contextlib.contextmanager
+    def begin(self):
+        raise NotImplementedError
+
     def bootstrapped(self):
         raise NotImplementedError
+
+    # Checks if backend supports specific feature
+    def supports(self, feature: BackendFeatures) -> bool:
+        return feature in self.features
 
 
 SelectTree = Optional[Dict[str, 'SelectTree']]

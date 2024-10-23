@@ -13,6 +13,7 @@ from typing import overload
 from spinta import commands
 from spinta import exceptions
 from spinta.auth import authorized
+from spinta.backends.constants import BackendFeatures
 from spinta.backends.nobackend.components import NoBackend
 from spinta.commands import authorize
 from spinta.commands import check
@@ -25,7 +26,6 @@ from spinta.components import Model
 from spinta.components import Property
 from spinta.core.access import link_access_param
 from spinta.core.access import load_access_param
-from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.components import ExternalBackend
 from spinta.datasets.enums import Level
 from spinta.dimensions.comments.helpers import load_comments
@@ -219,7 +219,7 @@ def _disable_page_in_model(model: Model):
 
 
 def _link_model_page(model: Model):
-    if not model.backend or not model.backend.paginated:
+    if not model.backend or not model.backend.supports(BackendFeatures.PAGINATION):
         _disable_page_in_model(model)
         return
     # Disable page if external backend and model.ref not given
@@ -449,6 +449,7 @@ def load(context: Context, model: Model, data: dict) -> dict:
 
 @load.register(Context, Property, object)
 def load(context: Context, prop: Property, value: object) -> object:
+    # This load function should be called only with /Model/prop (subresource)
     value = _prepare_prop_data(prop.name, value)
     value[prop.name] = load(context, prop.dtype, value[prop.name])
     return value
