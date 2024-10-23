@@ -339,6 +339,39 @@ def test_process_element_complex_type_separate():
     # Assert that 'required' is True
     assert result.required is True
 
+def test_process_complex_type_with_extension(xsd_reader, create_xsd_model):
+    complex_type_xml = """
+    <complexType name="DerivedType">
+        <complexContent>
+            <extension base="BaseType">
+                <sequence>
+                    <element name="extendedProp" type="xs:string"/>
+                </sequence>
+                <element name="attr1" type="xs:int"/>
+            </extension>
+        </complexContent>
+    </complexType>
+    """
+    complex_type_node = etree.fromstring(complex_type_xml)
+
+    xsd_reader.process_complex_content = MagicMock(return_value=[[
+        XSDProperty(xsd_name="extendedProp", property_type=XSDType(name="string")),
+        XSDProperty(xsd_name="attr1", property_type=XSDType(name="int")),
+    ]])
+    state = State()
+    state.prepare_statement = 'extend("BaseType")'
+    base_model = create_xsd_model("BaseType")
+    xsd_reader.top_level_complex_type_models["BaseType"] = base_model
+
+    models = xsd_reader.process_complex_type(complex_type_node, state)
+
+    assert len(models) == 1, "Should return one model"
+    model = models[0]
+    prop_names = list(model.properties.keys())
+
+    assert "extendedProp" in prop_names
+    assert "attr1" in prop_names
+    assert model.prepare == 'extend("BaseType")'
 
 def test_process_element_ref():
     xsd_schema = """
@@ -863,3 +896,259 @@ def test_sort_properties_by_key(create_xsd_models):
         elif model.name == "Italy":
             assert sorted_keys == ["milan", "rome"]
 
+
+
+def test_post_process_refs_valid_prepare_with_properties(xsd_reader, create_xsd_model):
+
+    extends_model = create_xsd_model("BaseType")
+    extends_model.properties = {
+        "baseProp": XSDProperty(xsd_name="baseProp", property_type=XSDType(name="string"))
+    }
+
+    derived_model = create_xsd_model("DerivedType")
+    derived_model.prepare = 'extend("BaseType")'
+    derived_model.properties = {
+        "derivedProp": XSDProperty(xsd_name="derivedProp", property_type=XSDType(name="int"))
+    }
+
+    xsd_reader.models = [derived_model]
+    xsd_reader.top_level_complex_type_models = {"BaseType": extends_model}
+
+    xsd_reader._post_process_refs()
+
+    assert derived_model.prepare == 'extend("BaseType")'
+    assert derived_model.extends_model is extends_model
+
+def test_post_process_refs_valid_prepare_with_empty_properties(xsd_reader, create_xsd_model):
+    extends_model = create_xsd_model("BaseType")
+
+    derived_model = create_xsd_model("DerivedType")
+    derived_model.prepare = 'extend("BaseType")'
+    derived_model.properties = {
+        "derivedProp": XSDProperty(xsd_name="derivedProp", property_type=XSDType(name="int"))
+    }
+
+    xsd_reader.models = [derived_model]
+    xsd_reader.top_level_complex_type_models = {"BaseType": extends_model}
+
+    xsd_reader._post_process_refs()
+
+    assert derived_model.prepare is None
+    assert derived_model.extends_model is None
+
+# def test_process_extension_simple_type(xsd_reader):
+#     extension_xml = """
+#     <extension base="xs:string">
+#         <!-- No child elements -->
+#     </extension>
+#     """
+#     extension_node = etree.fromstring(extension_xml)
+
+#     state = State()
+
+#     type_name = xsd_reader.process_extension(extension_node, state)
+
+#     assert type_name == "string", "Should return the type name 'string'"
+
+def test_process_extension_complex_type_no_children(xsd_reader, create_xsd_model):
+    extension_xml = """
+    <extension base="BaseType">
+        <!-- No child elements -->
+    </extension>
+    """
+    extension_node = etree.fromstring(extension_xml)
+
+    state = State()
+    base_model = create_xsd_model("BaseType")
+    xsd_reader.top_level_complex_type_models["BaseType"] = base_model
+
+    property_groups = xsd_reader.process_complex_type_extension(extension_node, state)
+
+    assert isinstance(property_groups, list)
+    assert len(property_groups) == 1
+    assert property_groups[0] == []
+    assert state.prepare_statement == 'extend("BaseType")'
+
+def test_process_extension_complex_type_with_sequence(xsd_reader, create_xsd_model):
+    extension_xml = """
+    <extension base="BaseType">
+        <sequence>
+            <element name="newProp1" type="xs:string"/>
+            <element name="newProp2" type="xs:int"/>
+        </sequence>
+    </extension>
+    """
+    extension_node = etree.fromstring(extension_xml)
+
+    xsd_reader.process_sequence = MagicMock(return_value=[
+        [XSDProperty(xsd_name="newProp1", property_type=XSDType(name="string")),
+         XSDProperty(xsd_name="newProp2", property_type=XSDType(name="int"))]
+    ])
+
+    state = State()
+    base_model = create_xsd_model("BaseType")
+    xsd_reader.top_level_complex_type_models["BaseType"] = base_model
+
+    property_groups = xsd_reader.process_complex_type_extension(extension_node, state)
+
+    assert len(property_groups) == 1
+    prop_names = [prop.xsd_name for prop in property_groups[0]]
+    assert "newProp1" in prop_names
+    assert "newProp2" in prop_names
+    assert state.prepare_statement == 'extend("BaseType")'
+
+def test_process_extension_complex_type_with_choice(xsd_reader, create_xsd_model):
+    extension_xml = """
+    <extension base="BaseType">
+        <choice>
+            <element name="choiceProp1" type="xs:string"/>
+            <element name="choiceProp2" type="xs:int"/>
+        </choice>
+    </extension>
+    """
+    extension_node = etree.fromstring(extension_xml)
+
+    xsd_reader.process_choice = MagicMock(return_value=[
+        [XSDProperty(xsd_name="choiceProp1", property_type=XSDType(name="string"))],
+        [XSDProperty(xsd_name="choiceProp2", property_type=XSDType(name="int"))],
+    ])
+
+    state = State()
+    base_model = create_xsd_model("BaseType")
+    xsd_reader.top_level_complex_type_models["BaseType"] = base_model
+
+    property_groups = xsd_reader.process_complex_type_extension(extension_node, state)
+
+    assert len(property_groups) == 2
+    prop_names_group1 = [prop.xsd_name for prop in property_groups[0]]
+    prop_names_group2 = [prop.xsd_name for prop in property_groups[1]]
+    assert "choiceProp1" in prop_names_group1
+    assert "choiceProp2" not in prop_names_group1
+    assert "choiceProp2" in prop_names_group2
+    assert "choiceProp1" not in prop_names_group2
+    assert state.prepare_statement == 'extend("BaseType")'
+
+def test_process_extension_complex_type_with_elements(xsd_reader, create_xsd_model):
+    extension_xml = """
+    <extension base="BaseType">
+        <element name="attr1" type="xs:string"/>
+        <element name="attr2" type="xs:int"/>
+    </extension>
+    """
+    extension_node = etree.fromstring(extension_xml)
+
+    def mock_process_element(node, state):
+        name = node.attrib.get("name")
+        type_name = node.attrib.get("type").split(":")[-1]
+        return XSDProperty(xsd_name=name, property_type=XSDType(name=type_name))
+    xsd_reader.process_element = mock_process_element
+
+    state = State()
+    base_model = create_xsd_model("BaseType")
+    xsd_reader.top_level_complex_type_models["BaseType"] = base_model
+
+    property_groups = xsd_reader.process_complex_type_extension(extension_node, state)
+
+    assert len(property_groups) == 1
+    prop_names = [prop.xsd_name for prop in property_groups[0]]
+    assert "attr1" in prop_names
+    assert "attr2" in prop_names
+    assert state.prepare_statement == 'extend("BaseType")'
+
+def test_process_complex_content_with_extension(xsd_reader, create_xsd_model):
+    complex_content_xml = """
+    <complexContent>
+        <extension base="BaseType">
+            <sequence>
+                <element name="seqProp1" type="xs:string"/>
+            </sequence>
+            <choice>
+                <element name="choiceProp1" type="xs:int"/>
+                <element name="choiceProp2" type="xs:float"/>
+            </choice>
+            <element name="attr1" type="xs:boolean"/>
+        </extension>
+    </complexContent>
+    """
+    complex_content_node = etree.fromstring(complex_content_xml)
+
+    state = State()
+    base_model = create_xsd_model("BaseType")
+    xsd_reader.top_level_complex_type_models["BaseType"] = base_model
+
+    def mock_process_complex_type_extension(node, state) -> list[list[XSDProperty]]:
+        state.prepare_statement = 'extend("BaseType")'
+        return [
+            [
+                XSDProperty(xsd_name="seqProp1", property_type=XSDType(name="string")),
+                XSDProperty(xsd_name="choiceProp1", property_type=XSDType(name="int")),
+                XSDProperty(xsd_name="attr1", property_type=XSDType(name="boolean")),
+            ],
+            [
+                XSDProperty(xsd_name="seqProp1", property_type=XSDType(name="string")),
+                XSDProperty(xsd_name="choiceProp2", property_type=XSDType(name="float")),
+                XSDProperty(xsd_name="attr1", property_type=XSDType(name="boolean")),
+            ],
+        ]
+    xsd_reader.process_complex_type_extension = mock_process_complex_type_extension
+
+    property_groups = xsd_reader.process_complex_content(complex_content_node, state)
+
+    assert len(property_groups) == 2
+    prop_names_group1 = [prop.xsd_name for prop in property_groups[0]]
+    prop_names_group2 = [prop.xsd_name for prop in property_groups[1]]
+    assert "seqProp1" in prop_names_group1 and "seqProp1" in prop_names_group2
+    assert "choiceProp1" in prop_names_group1 and "choiceProp1" not in prop_names_group2
+    assert "choiceProp2" in prop_names_group2 and "choiceProp2" not in prop_names_group1
+    assert "attr1" in prop_names_group1 and "attr1" in prop_names_group2
+    assert state.prepare_statement == 'extend("BaseType")'
+
+def test_process_complex_content_with_restriction(xsd_reader):
+    complex_content_xml = """
+    <complexContent>
+        <restriction base="xs:string">
+            <enumeration value="Option1"/>
+            <enumeration value="Option2"/>
+        </restriction>
+    </complexContent>
+    """
+    complex_content_node = etree.fromstring(complex_content_xml)
+
+    def mock_process_restriction(node, state):
+        prop_type = XSDType(name="string")
+        prop_type.enums = {"Option1": None, "Option2": None}
+        return prop_type
+    xsd_reader.process_restriction = mock_process_restriction
+
+    state = State()
+
+    property_groups = xsd_reader.process_complex_content(complex_content_node, state)
+
+    assert len(property_groups) == 1
+    prop_group = property_groups[0]
+    assert len(prop_group) == 1
+    prop = prop_group[0]
+    assert prop.xsd_name == "value"
+    assert prop.type.name == "string"
+    assert prop.type.enums == {"Option1": None, "Option2": None}
+
+def test_process_complex_content_with_mixed_content(xsd_reader):
+    complex_content_xml = """
+    <complexContent mixed="true">
+        <extension base="BaseType">
+            <!-- No child elements -->
+        </extension>
+    </complexContent>
+    """
+    complex_content_node = etree.fromstring(complex_content_xml)
+
+    xsd_reader.process_complex_type_extension = MagicMock(return_value=[[]])
+
+    state = State()
+
+    property_groups = xsd_reader.process_complex_content(complex_content_node, state)
+
+    assert len(property_groups) == 1
+    prop_group = property_groups[0]
+    prop_names = [prop.xsd_name for prop in prop_group]
+    assert "text" in prop_names
