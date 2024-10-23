@@ -187,7 +187,7 @@ class XSDProperty:
 
         if self.type.name == "ref" or self.type.name == "backref":
             data["model"] = self.ref_model.name
-            data["external"]["prepare"] = f'expand("{self.ref_model.name}")'
+            data["external"]["prepare"] = f'expand()'
 
         if self.required is not None:
             data["required"] = self.required
@@ -195,7 +195,10 @@ class XSDProperty:
             data["unique"] = True
 
         if self.type.prepare is not None:
-            data["external"]["prepare"] = self.type.prepare
+            if "prepare" in data["external"]:
+                data["external"]["prepare"] += f";{self.type.prepare}"
+            else:
+                data["external"]["prepare"] = self.type.prepare
 
         if self.type.enums is not None:
                 data["enums"] = self.type.enums
@@ -260,6 +263,9 @@ class XSDModel:
             model_data["properties"] = properties
         if self.uri is not None:
             model_data["uri"] = self.uri
+
+        if self.extends_model:
+            model_data["external"]["prepare"] = f'extends("{self.extends_model.basename}")'
 
         return model_data
 
@@ -359,23 +365,17 @@ class XSDReader:
                     except KeyError:
                         raise KeyError(f"Reference to a non-existing model: {prop.xsd_type_to}")
 
-            if hasattr(model, "prepare") and model.prepare:
+            if model.extends_model:
                 # Assume the prepare statement is in the format 'extend("BaseType")'
-                prepare_str = model.prepare.strip()
-                model_match: re.Match[str] | None = re.match(r'extend\("(.+)"\)', prepare_str)
-                if model_match:
-                    extends_model_name: str = model_match.group(1)
-                    try:
-                        extends_model: XSDModel | None = self.top_level_complex_type_models[extends_model_name]
-                    except KeyError:
-                        raise KeyError(f"Parent model '{extends_model}' not found for model '{model.name}'")
+                try:
+                    extends_model: XSDModel = self.top_level_complex_type_models[model.extends_model]
+                except KeyError:
+                    raise KeyError(f"Parent model '{extends_model}' not found for model '{model.name}'")
 
-                    extends_props: dict[str, XSDProperty] = extends_model.properties
+                extends_props: dict[str, XSDProperty] = extends_model.properties
 
-                    if extends_props:
-                        model.extends_model = extends_model
-                    else:
-                        model.prepare = None
+                if extends_props:
+                    model.extends_model = extends_model
 
     def _add_refs_for_backrefs(self):
         for model in self.models:
@@ -646,9 +646,9 @@ class XSDReader:
                         new_property_groups.append(combined_group)
                 property_groups = new_property_groups
 
-                if hasattr(state, 'prepare_statement'):
-                    prepare_statement: str = state.prepare_statement
-                    del state.prepare_statement
+                if hasattr(state, 'extends_model'):
+                    extends_model: str = state.extends_model
+                    del state.extends_model
                 else:
                     prepare_statement = None
 
@@ -1034,7 +1034,7 @@ class XSDReader:
             else:
                 raise RuntimeError(f"Unexpected element '{local_name}' in extension")
 
-        state.prepare_statement = f'extend("{base_type_name}")'
+        state.extends_model = base_type_name
 
         return property_groups
 
