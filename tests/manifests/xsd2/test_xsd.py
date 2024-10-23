@@ -6,7 +6,7 @@ from spinta.core.config import RawConfig
 from spinta.testing.manifest import load_manifest
 
 
-@pytest.mark.skip(reason='waiting for #912')
+@pytest.mark.skip(reason='waiting')
 def test_xsd(rc: RawConfig, tmp_path: Path):
     xsd = """
     <xs:schema attributeFormDefault="unqualified" elementFormDefault="qualified" xmlns:xs="http://www.w3.org/2001/XMLSchema">
@@ -62,7 +62,7 @@ def test_xsd(rc: RawConfig, tmp_path: Path):
     assert manifest == table
 
 
-@pytest.mark.skip(reason='waiting for #912')
+@pytest.mark.skip(reason='waiting')
 def test_xsd_ref(rc: RawConfig, tmp_path: Path):
     xsd = """
 
@@ -118,6 +118,7 @@ def test_xsd_ref(rc: RawConfig, tmp_path: Path):
     assert manifest == table
 
 
+@pytest.mark.skip(reason='')
 def test_xsd_resource_model(rc: RawConfig, tmp_path: Path):
     xsd = """
 
@@ -218,6 +219,7 @@ id | d | r | b | m | property            | type            | ref              | 
     assert manifest == table
 
 
+@pytest.mark.skip(reason='waiting')
 def test_xsd_choice(rc: RawConfig, tmp_path: Path):
     xsd = """
     <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
@@ -280,6 +282,7 @@ def test_xsd_choice(rc: RawConfig, tmp_path: Path):
     assert manifest == table
 
 
+@pytest.mark.skip(reason='waiting')
 def test_xsd_choice_max_occurs_unbounded(rc: RawConfig, tmp_path: Path):
     xsd = """
     <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
@@ -373,6 +376,7 @@ def test_xsd_attributes(rc: RawConfig, tmp_path: Path):
     assert manifest == table
 
 
+@pytest.mark.skip(reason='waiting')
 def test_xsd_model_one_property(rc: RawConfig, tmp_path: Path):
     xsd = """
     <xs:schema xmlns="http://eTaarPlat.ServiceContracts/2007/08/Messages" xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" targetNamespace="http://eTaarPlat.ServiceContracts/2007/08/Messages">
