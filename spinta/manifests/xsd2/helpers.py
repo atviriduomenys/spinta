@@ -377,10 +377,6 @@ class XSDReader:
                     else:
                         model.prepare = None
 
-                else:
-                    raise RuntimeError(f"Invalid prepare statement: {prepare_str}")
-                    
-
     def _add_expand_to_top_level_models(self):
         pass
 
