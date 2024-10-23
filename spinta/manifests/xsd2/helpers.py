@@ -186,6 +186,7 @@ class XSDProperty:
 
         if self.type == "ref" or self.type == "backref":
             data["model"] = self.ref_model.name
+            data["external"]["prepare"] = f'expand("{self.ref_model.name}")'
 
         if self.required is not None:
             data["required"] = self.required
