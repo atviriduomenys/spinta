@@ -521,7 +521,7 @@ class XSDReader:
                 source = f"{property_name}/text()"
 
             prop = XSDProperty(xsd_name=property_name, property_type=property_type, required=is_required, source=source, is_array=is_array)
-            prop.type_to = property_type_to
+            prop.xsd_type_to = property_type_to
             props.append(prop)
 
 
