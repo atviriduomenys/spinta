@@ -575,7 +575,7 @@ class XSDReader:
 
             if "description" in locals() and description:
                 for model in models:
-                    model.description = f"{model.description}{description}"
+                    model.description = f'{model.description or ""}{description}'
 
         if not props:
             raise RuntimeError(f"Element couldn't be turned into a property: {node.get('name') or node.get('ref')}")
