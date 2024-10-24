@@ -339,6 +339,7 @@ def test_process_element_complex_type_separate():
     # Assert that 'required' is True
     assert result.required is True
 
+
 def test_process_complex_type_with_extension(xsd_reader, create_xsd_model):
     complex_type_xml = """
     <complexType name="DerivedType">
@@ -359,7 +360,7 @@ def test_process_complex_type_with_extension(xsd_reader, create_xsd_model):
         XSDProperty(xsd_name="attr1", property_type=XSDType(name="int")),
     ]])
     state = State()
-    state.prepare_statement = 'extend("BaseType")'
+    state.extends_model = 'BaseType'
     base_model = create_xsd_model("BaseType")
     xsd_reader.top_level_complex_type_models["BaseType"] = base_model
 
@@ -371,7 +372,7 @@ def test_process_complex_type_with_extension(xsd_reader, create_xsd_model):
 
     assert "extended_prop" in prop_names
     assert "attr1" in prop_names
-    assert model.prepare == 'extend("BaseType")'
+    assert model.extends_model == 'BaseType'
 
 def test_process_element_ref():
     xsd_schema = """
@@ -897,7 +898,6 @@ def test_sort_properties_by_key(create_xsd_models):
             assert sorted_keys == ["milan", "rome"]
 
 
-
 def test_post_process_refs_valid_prepare_with_properties(xsd_reader, create_xsd_model):
 
     extends_model = create_xsd_model("BaseType")
@@ -906,7 +906,7 @@ def test_post_process_refs_valid_prepare_with_properties(xsd_reader, create_xsd_
     }
 
     derived_model = create_xsd_model("DerivedType")
-    derived_model.prepare = 'extend("BaseType")'
+    derived_model.extends_model = "BaseType"
     derived_model.properties = {
         "derivedProp": XSDProperty(xsd_name="derivedProp", property_type=XSDType(name="int"))
     }
@@ -916,14 +916,14 @@ def test_post_process_refs_valid_prepare_with_properties(xsd_reader, create_xsd_
 
     xsd_reader._post_process_refs()
 
-    assert derived_model.prepare == 'extend("BaseType")'
     assert derived_model.extends_model is extends_model
+
 
 def test_post_process_refs_valid_prepare_with_empty_properties(xsd_reader, create_xsd_model):
     extends_model = create_xsd_model("BaseType")
 
     derived_model = create_xsd_model("DerivedType")
-    derived_model.prepare = 'extend("BaseType")'
+    derived_model.extends_model = "BaseType"
     derived_model.properties = {
         "derivedProp": XSDProperty(xsd_name="derivedProp", property_type=XSDType(name="int"))
     }
@@ -933,7 +933,6 @@ def test_post_process_refs_valid_prepare_with_empty_properties(xsd_reader, creat
 
     xsd_reader._post_process_refs()
 
-    assert derived_model.prepare is None
     assert derived_model.extends_model is None
 
 # def test_process_extension_simple_type(xsd_reader):
@@ -967,7 +966,7 @@ def test_process_extension_complex_type_no_children(xsd_reader, create_xsd_model
     assert isinstance(property_groups, list)
     assert len(property_groups) == 1
     assert property_groups[0] == []
-    assert state.prepare_statement == 'extend("BaseType")'
+    assert state.extends_model == "BaseType"
 
 def test_process_extension_complex_type_with_sequence(xsd_reader, create_xsd_model):
     extension_xml = """
@@ -995,7 +994,8 @@ def test_process_extension_complex_type_with_sequence(xsd_reader, create_xsd_mod
     prop_names = [prop.xsd_name for prop in property_groups[0]]
     assert "newProp1" in prop_names
     assert "newProp2" in prop_names
-    assert state.prepare_statement == 'extend("BaseType")'
+    assert state.extends_model == "BaseType"
+
 
 def test_process_extension_complex_type_with_choice(xsd_reader, create_xsd_model):
     extension_xml = """
@@ -1026,7 +1026,8 @@ def test_process_extension_complex_type_with_choice(xsd_reader, create_xsd_model
     assert "choiceProp2" not in prop_names_group1
     assert "choiceProp2" in prop_names_group2
     assert "choiceProp1" not in prop_names_group2
-    assert state.prepare_statement == 'extend("BaseType")'
+    assert state.extends_model == "BaseType"
+
 
 def test_process_extension_complex_type_with_elements(xsd_reader, create_xsd_model):
     extension_xml = """
@@ -1053,7 +1054,8 @@ def test_process_extension_complex_type_with_elements(xsd_reader, create_xsd_mod
     prop_names = [prop.xsd_name for prop in property_groups[0]]
     assert "attr1" in prop_names
     assert "attr2" in prop_names
-    assert state.prepare_statement == 'extend("BaseType")'
+    assert state.extends_model == "BaseType"
+
 
 def test_process_complex_content_with_extension(xsd_reader, create_xsd_model):
     complex_content_xml = """

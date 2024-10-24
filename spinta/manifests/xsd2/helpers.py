@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass
-import re
 from typing import Any, List
 from urllib.request import urlopen
 
@@ -13,6 +12,10 @@ from lxml.etree import _Element, QName
 from spinta.components import Context
 from spinta.core.ufuncs import Expr
 from spinta.utils.naming import Deduplicator, to_dataset_name, to_model_name, to_property_name
+
+
+logger = logging.getLogger(__name__)
+
 
 DATATYPES_MAPPING = {
     "string": "string",
@@ -187,7 +190,7 @@ class XSDProperty:
 
         if self.type.name == "ref" or self.type.name == "backref":
             data["model"] = self.ref_model.name
-            data["external"]["prepare"] = f'expand("{self.ref_model.name}")'
+            data["external"]["prepare"] = Expr(f'expand')
 
         if self.required is not None:
             data["required"] = self.required
@@ -195,7 +198,8 @@ class XSDProperty:
             data["unique"] = True
 
         if self.type.prepare is not None:
-            data["external"]["prepare"] = self.type.prepare
+            if "prepare" in data["external"]:
+                data["external"]["prepare"] = Expr(self.type.prepare)
 
         if self.type.enums is not None:
                 data["enums"] = self.type.enums
@@ -224,6 +228,18 @@ class XSDModel:
     description: str | None = None
     referred_from: list[tuple[XSDModel, str]] | None = None  # tuple - model, property id
     is_root_model: bool = False
+    # todo
+    #  galvojau dėl to \:part , tai dabar su source is_root_model truputį netinkamai darom.
+    #  Dabar jei modelis yra XSD faile top levely, t.y. tiesiogiai schema viduje, jis žymimas, kaip is_root.
+    #  Bet dėl source mums reikia žinoti ne tik ar jis yra `is_root, bet ir ar nėra kitų modelių, kurie į jį referuoja.
+    #  Bet tai galioja ne kiekvienam modeliui, kuris yra is_root_model. Dar reikia tikrinti ref'us
+    #  (arba XSD, arba DSA - kuriuos paprasčiau ir tiksliau) - jei nėra ref'ų, tai reiškia,
+    #  kad tas modelis yra entry modelis - gal taip ir rekėtų žymėti, kad is_entry_model.
+    #  Ir dar yra problema su top lygio elementais, kurie turi tik po vieną savybę -
+    #  juos prideda kaip savybes prie Resource modelio, o ne kaip atskirus modelius.
+    #  Tai čia gal irgi reikėtų tikrinti ar į tą elementą referuojama, ir pagal tai spręsti,
+    #  ar jį dėti prie Resource, ar formuoti atskirą modelį.
+    is_entry_model: bool = False
     deduplicate_property_name: Deduplicator
     xsd_node_type: str | None = None  # from complexType or from element
     models_by_ref: str | None = None
@@ -260,6 +276,9 @@ class XSDModel:
             model_data["properties"] = properties
         if self.uri is not None:
             model_data["uri"] = self.uri
+
+        if self.extends_model:
+            model_data["external"]["prepare"] = Expr(f'extends', self.extends_model.basename)
 
         return model_data
 
@@ -357,25 +376,19 @@ class XSDReader:
                     try:
                         prop.ref_model = self.top_level_complex_type_models[prop.xsd_type_to]
                     except KeyError:
-                        raise KeyError(f"Reference to a non-existing model: {prop.xsd_type_to}")
+                        prop.type = XSDType(name="string")
+                        logger.warning(f"Referenced type is not defined: {prop.xsd_type_to}. Setting type to string")
 
-            if hasattr(model, "prepare") and model.prepare:
-                # Assume the prepare statement is in the format 'extend("BaseType")'
-                prepare_str = model.prepare.strip()
-                model_match: re.Match[str] | None = re.match(r'extend\("(.+)"\)', prepare_str)
-                if model_match:
-                    extends_model_name: str = model_match.group(1)
-                    try:
-                        extends_model: XSDModel | None = self.top_level_complex_type_models[extends_model_name]
-                    except KeyError:
-                        raise KeyError(f"Parent model '{extends_model}' not found for model '{model.name}'")
+            if model.extends_model:
+                try:
+                    extends_model: XSDModel = self.top_level_complex_type_models[model.extends_model]
+                except KeyError:
+                    raise KeyError(f"Parent model '{extends_model}' not found for model '{model.name}'")
 
-                    extends_props: dict[str, XSDProperty] = extends_model.properties
-
-                    if extends_props:
-                        model.extends_model = extends_model
-                    else:
-                        model.prepare = None
+                if extends_model.properties or extends_model.extends_model:
+                    model.extends_model = extends_model
+                else:
+                    model.extends_model = None
 
     def _add_refs_for_backrefs(self):
         for model in self.models:
@@ -455,10 +468,13 @@ class XSDReader:
                 models = self.process_complex_type(node, state)
                 for model in models:
                     model.is_root_model = True
-                    model.set_name(self.deduplicate_model_name(to_model_name(model.xsd_name)))
             elif QName(node).localname == "simpleType":
                 # simple types are processed in self.register_simple_types
                 pass
+            elif QName(node).localname == "include":
+                logger.warning(f"tag {QName(node).localname} not supported yet")
+            elif QName(node).localname == "import":
+                logger.warning(f"tag {QName(node).localname} not supported yet")
             else:
                 raise RuntimeError(f'This node type cannot be at the top level: {QName(node).localname}')
 
@@ -473,12 +489,11 @@ class XSDReader:
         is_required = int(node.attrib.get("minOccurs", 1)) > 0
         props = []
         property_type_to = None
-        property_description = ""
         models = []
 
         # ref - a reference to separately defined element
         if node.attrib.get("ref"):
-            property_name = node.attrib["ref"]
+            property_name = node.attrib["ref"].split(":")[-1]
             property_ref_to = property_name
             if is_array:
                 property_type = XSDType(name="backref")
@@ -507,8 +522,7 @@ class XSDReader:
 
             # inline type
             elif element_type in DATATYPES_MAPPING:
-                property_type = XSDType()
-                property_type.name = DATATYPES_MAPPING[element_type]
+                property_type = self._map_type(element_type)
 
             # separately defined complexType
             else:
@@ -522,7 +536,7 @@ class XSDReader:
                 source = f"{property_name}/text()"
 
             prop = XSDProperty(xsd_name=property_name, property_type=property_type, required=is_required, source=source, is_array=is_array)
-            prop.type_to = property_type_to
+            prop.xsd_type_to = property_type_to
             props.append(prop)
 
 
@@ -538,8 +552,9 @@ class XSDReader:
                 models = self.process_complex_type(child, state)
                 # usually it's one model, but in case of choice, can be multiple models
                 for model in models:
-                    model.xsd_name = property_name
-                    model.set_name(self.deduplicate_model_name(to_model_name(property_name)))
+                    if property_name != model.xsd_name:
+                        model.xsd_name = property_name
+                        model.set_name(self.deduplicate_model_name(to_model_name(property_name)))
                     if is_root:
                         self.top_level_element_models[property_name] = model
                         model.is_root_model = True
@@ -561,16 +576,18 @@ class XSDReader:
                 props.append(prop)
 
             elif QName(child).localname == "annotation":
-                property_description = self.process_annotation(child, state)
+                description = self.process_annotation(child, state)
 
             else:
                 raise RuntimeError(f"This node type cannot be in the element: {QName(node).localname}")
 
-            for prop in props:
-                prop.description = property_description
+            if "description" in locals() and description:
+                for prop in props:
+                    prop.description = description
 
-            for model in models:
-                model.description = property_description
+            if "description" in locals() and description:
+                for model in models:
+                    model.description = f'{model.description or ""}{description}'
 
         if not props:
             raise RuntimeError(f"Element couldn't be turned into a property: {node.get('name') or node.get('ref')}")
@@ -597,8 +614,9 @@ class XSDReader:
                 xsd_name="text",
                 required=False,
                 source="text()",
-                is_array=False
+                is_array=False,
             )
+            text_prop.type = XSDType(name="string")
             for group in property_groups:
                 group.append(text_prop)
 
@@ -645,17 +663,22 @@ class XSDReader:
                         new_property_groups.append(combined_group)
                 property_groups = new_property_groups
 
-                if hasattr(state, 'prepare_statement'):
-                    prepare_statement: str = state.prepare_statement
-                    del state.prepare_statement
+                if hasattr(state, 'extends_model'):
+                    extends_model: str = state.extends_model
+                    del state.extends_model
                 else:
-                    prepare_statement = None
+                    extends_model = None
+
+            elif local_name == "annotation":
+                description = self.process_annotation(child, state)
 
             else:
                 raise RuntimeError(f"This node type cannot be in the complex type: {local_name}")
 
         for group in property_groups:
             model = XSDModel(dataset_resource=self.dataset_resource)
+            if "description" in locals() and description:
+                model.description = description
             property_deduplicate = Deduplicator()
             for prop in group:
                 prop.name = property_deduplicate(to_property_name(prop.xsd_name))
@@ -663,11 +686,11 @@ class XSDReader:
 
             if name:
                 model.xsd_name = name
-                model.name = self.deduplicate_model_name(to_model_name(name))
+                model.set_name(self.deduplicate_model_name(to_model_name(name)))
                 self.top_level_complex_type_models[model.xsd_name] = model
 
-            if 'prepare_statement' in locals() and prepare_statement:
-                model.prepare = prepare_statement
+            if 'extends_model' in locals() and extends_model:
+                model.extends_model = extends_model
 
             models.append(model)
 
@@ -687,6 +710,10 @@ class XSDReader:
                 dsa_type.prepare = value
         dsa_type.name = property_type
         return dsa_type
+    
+    def _process_ref_name(self, ref_attrib: str) -> str:
+        # process prefix
+        pass
 
     def process_attribute(self, node: _Element, state: State) -> XSDProperty:
         prop = XSDProperty()
@@ -848,6 +875,11 @@ class XSDReader:
                 for group in property_groups:
                     group.append(restriction_prop)
 
+            elif local_name == "attribute":
+                prop = self.process_attribute(child, state)
+                for group in property_groups:
+                    group.append(prop)
+
             else:
                 raise RuntimeError(f"Unexpected element '{local_name}' in complexContent")
 
@@ -871,6 +903,9 @@ class XSDReader:
             # We don't care about comments
             if isinstance(child, etree._Comment):
                 continue
+            # appinfo is very app-specific tag, which we don't have possibility to process
+            if QName(child).localname == "appinfo":
+                continue
             if QName(child).localname == "documentation":
                 description += self.process_documentation(child, state)
             else:
@@ -880,7 +915,7 @@ class XSDReader:
     def process_documentation(self, node: _Element, state: State) -> str:
         return node.text or ""
 
-    def process_simple_type_extension(self, node: _Element, state: State) -> tuple[str, list] | None:
+    def process_simple_type_extension(self, node: _Element, state: State) -> tuple[XSDType, list] | None:
         # this is an initial implementation, this method needs to be finished together with process_simple_type
         base = node.attrib.get("base")
         if not base:
@@ -889,7 +924,7 @@ class XSDReader:
         base_type_name = base.split(":")[-1]
 
         if base_type_name in DATATYPES_MAPPING:
-            type_name = DATATYPES_MAPPING[base_type_name]
+            type = self._map_type(base_type_name)
             attributes = []
 
             for child in node:
@@ -905,7 +940,7 @@ class XSDReader:
                 else:
                     raise RuntimeError(f"Unexpected element '{local_name}' in simpleType extension")
 
-            return type_name, attributes
+            return type, attributes
 
     def process_complex_type_extension(self, node: _Element, state: State) -> List[List[XSDProperty]]:
         base = node.attrib.get("base")
@@ -913,10 +948,6 @@ class XSDReader:
             raise RuntimeError("Extension must have a 'base' attribute.")
 
         base_type_name = base.split(":")[-1]
-
-        base_model: XSDModel | None = self.top_level_complex_type_models.get(base_type_name)
-        if not base_model:
-            raise RuntimeError(f"Base type '{base}' not found.")
 
         property_groups: list[list] = [[]]
 
@@ -928,6 +959,11 @@ class XSDReader:
 
             if local_name == "element":
                 prop: List[XSDProperty] = self.process_element(child, state)
+                for group in property_groups:
+                    group.append(prop)
+
+            elif local_name == "attribute":
+                prop: XSDProperty = self.process_attribute(child, state)
                 for group in property_groups:
                     group.append(prop)
 
@@ -954,7 +990,7 @@ class XSDReader:
             else:
                 raise RuntimeError(f"Unexpected element '{local_name}' in extension")
 
-        state.prepare_statement = f'extend("{base_type_name}")'
+        state.extends_model = base_type_name
 
         return property_groups
 
@@ -967,19 +1003,28 @@ class XSDReader:
             # We don't care about comments
             if isinstance(child, etree._Comment):
                 continue
-            if QName(child).localname == "enumeration":
+
+            local_name = QName(child).localname
+
+            if local_name == "enumeration":
                 enum = self.process_enumeration(child, state)
                 enumerations.update(enum)
-            elif QName(child).localname == "minInclusive":
-                logging.log(logging.INFO, f"met a tag {QName(child).localname}")
-            elif QName(child).localname == "maxInclusive":
-                logging.log(logging.INFO, f"met a tag {QName(child).localname}")
-            elif QName(child).localname == "pattern":
-                logging.log(logging.INFO, f"met a tag {QName(child).localname}")
-            elif QName(child).localname == "maxLength":
-                logging.log(logging.INFO, f"met a tag {QName(child).localname}")
-            elif QName(child).localname == "totalDigits":
-                logging.log(logging.INFO, f"met a tag {QName(child).localname}")
+            elif local_name == "minInclusive":
+                logger.info(f"met a tag {local_name}")
+            elif local_name == "maxInclusive":
+                logger.info(f"met a tag {local_name}")
+            elif local_name == "pattern":
+                logger.info(f"met a tag {local_name}")
+            elif local_name == "maxLength":
+                logger.info(f"met a tag {local_name}")
+            elif local_name == "totalDigits":
+                logger.info(f"met a tag {local_name}")
+            elif local_name == "length":
+                logger.info(f"met a tag {local_name}")
+            elif local_name == "whiteSpace":
+                logger.info(f"met a tag {local_name}")
+            elif local_name == "minLength":
+                logger.info(f"met a tag {local_name}")
             else:
                 raise RuntimeError(f"Unexpected element type inside restriction element: {child}")
         if enumerations:
