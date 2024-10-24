@@ -381,8 +381,6 @@ class XSDReader:
     def _add_refs_for_backrefs(self):
         for model in self.models:
             for property_id, prop in model.properties.items():
-                if prop.type is None:
-                    print("HERE")
                 if prop.type.name == "backref":
                     referenced_model = prop.ref_model
                     # checking if the ref already exists.
@@ -462,6 +460,8 @@ class XSDReader:
                 # simple types are processed in self.register_simple_types
                 pass
             elif QName(node).localname == "include":
+                logger.warning(f"tag {QName(node).localname} not supported yet")
+            elif QName(node).localname == "import":
                 logger.warning(f"tag {QName(node).localname} not supported yet")
             else:
                 raise RuntimeError(f'This node type cannot be at the top level: {QName(node).localname}')
