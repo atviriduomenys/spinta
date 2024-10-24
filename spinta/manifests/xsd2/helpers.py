@@ -481,7 +481,7 @@ class XSDReader:
 
         # ref - a reference to separately defined element
         if node.attrib.get("ref"):
-            property_name = node.attrib["ref"]
+            property_name = node.attrib["ref"].removeprefix("tns:")
             property_ref_to = property_name
             if is_array:
                 property_type = XSDType(name="backref")
