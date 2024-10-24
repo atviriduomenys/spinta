@@ -1,3 +1,4 @@
+import base64
 import datetime
 
 from decimal import Decimal
@@ -913,7 +914,7 @@ def prepare_dtype_for_response(
 ):
     return _create_element(
         name=data['_elem_name'],
-        text=str(value)
+        text=base64.b64encode(value).decode('ascii')
     )
 
 
