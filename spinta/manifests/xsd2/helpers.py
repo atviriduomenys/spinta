@@ -481,7 +481,7 @@ class XSDReader:
 
         # ref - a reference to separately defined element
         if node.attrib.get("ref"):
-            property_name = node.attrib["ref"].removeprefix("tns:")
+            property_name = node.attrib["ref"].split(":")[-1]
             property_ref_to = property_name
             if is_array:
                 property_type = XSDType(name="backref")
@@ -698,6 +698,10 @@ class XSDReader:
                 dsa_type.prepare = value
         dsa_type.name = property_type
         return dsa_type
+    
+    def _process_ref_name(self, ref_attrib: str) -> str:
+        # process prefix
+        pass
 
     def process_attribute(self, node: _Element, state: State) -> XSDProperty:
         prop = XSDProperty()
