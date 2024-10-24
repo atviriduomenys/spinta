@@ -190,7 +190,7 @@ class XSDProperty:
 
         if self.type.name == "ref" or self.type.name == "backref":
             data["model"] = self.ref_model.name
-            data["external"]["prepare"] = f'expand()'
+            data["external"]["prepare"] = Expr(f'expand')
 
         if self.required is not None:
             data["required"] = self.required
@@ -199,9 +199,7 @@ class XSDProperty:
 
         if self.type.prepare is not None:
             if "prepare" in data["external"]:
-                data["external"]["prepare"] += f";{self.type.prepare}"
-            else:
-                data["external"]["prepare"] = self.type.prepare
+                data["external"]["prepare"] = Expr(self.type.prepare)
 
         if self.type.enums is not None:
                 data["enums"] = self.type.enums
@@ -268,7 +266,7 @@ class XSDModel:
             model_data["uri"] = self.uri
 
         if self.extends_model:
-            model_data["external"]["prepare"] = f'extends("{self.extends_model.basename}")'
+            model_data["external"]["prepare"] = Expr(f'extends', self.extends_model.basename)
 
         return model_data
 
