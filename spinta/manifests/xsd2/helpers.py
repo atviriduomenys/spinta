@@ -228,6 +228,18 @@ class XSDModel:
     description: str | None = None
     referred_from: list[tuple[XSDModel, str]] | None = None  # tuple - model, property id
     is_root_model: bool = False
+    # todo
+    #  galvojau dėl to \:part , tai dabar su source is_root_model truputį netinkamai darom.
+    #  Dabar jei modelis yra XSD faile top levely, t.y. tiesiogiai schema viduje, jis žymimas, kaip is_root.
+    #  Bet dėl source mums reikia žinoti ne tik ar jis yra `is_root, bet ir ar nėra kitų modelių, kurie į jį referuoja.
+    #  Bet tai galioja ne kiekvienam modeliui, kuris yra is_root_model. Dar reikia tikrinti ref'us
+    #  (arba XSD, arba DSA - kuriuos paprasčiau ir tiksliau) - jei nėra ref'ų, tai reiškia,
+    #  kad tas modelis yra entry modelis - gal taip ir rekėtų žymėti, kad is_entry_model.
+    #  Ir dar yra problema su top lygio elementais, kurie turi tik po vieną savybę -
+    #  juos prideda kaip savybes prie Resource modelio, o ne kaip atskirus modelius.
+    #  Tai čia gal irgi reikėtų tikrinti ar į tą elementą referuojama, ir pagal tai spręsti,
+    #  ar jį dėti prie Resource, ar formuoti atskirą modelį.
+    is_entry_model: bool = False
     deduplicate_property_name: Deduplicator
     xsd_node_type: str | None = None  # from complexType or from element
     models_by_ref: str | None = None
