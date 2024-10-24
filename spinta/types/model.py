@@ -52,6 +52,8 @@ from spinta.ufuncs.loadbuilder.helpers import page_contains_unsupported_keys
 from spinta.units.helpers import is_unit
 from spinta.utils.enums import enum_by_value
 from spinta.utils.schema import NA
+from spinta.types.money.components import Money
+
 
 if TYPE_CHECKING:
     from spinta.datasets.components import Attribute
@@ -361,6 +363,8 @@ def _link_prop_enum(
         for enums_ in enums:
             if enums_ and prop.given.enum in enums_:
                 return enums_[prop.given.enum]
+        if isinstance(prop.dtype, Money):
+            return
         if not is_unit(prop.dtype, prop.given.enum):
             raise UndefinedEnum(prop, name=prop.given.enum)
     elif prop.enums:

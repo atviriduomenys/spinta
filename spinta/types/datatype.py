@@ -177,6 +177,10 @@ class URI(String):
     pass
 
 
+class Money(DataType):
+    pass
+
+
 class Ref(DataType):
     # Referenced model
     model: Model
