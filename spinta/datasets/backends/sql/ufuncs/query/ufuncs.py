@@ -794,6 +794,12 @@ def swap(env: SqlQueryBuilder, expr: Expr):
     args, kwargs = expr.resolve(env)
     return Expr('swap', *args, **kwargs)
 
+
+@ufunc.resolver(SqlQueryBuilder, LiteralProperty)
+def select(env: SqlQueryBuilder, value: LiteralProperty) -> Selected:
+    return Selected(prep=value.value)
+
+
 @ufunc.resolver(SqlQueryBuilder, ResultProperty)
 def select(env: SqlQueryBuilder, prop: ResultProperty):
     return Selected(
