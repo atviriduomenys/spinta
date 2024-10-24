@@ -13,6 +13,10 @@ from spinta.components import Context
 from spinta.core.ufuncs import Expr
 from spinta.utils.naming import Deduplicator, to_dataset_name, to_model_name, to_property_name
 
+
+logger = logging.getLogger(__name__)
+
+
 DATATYPES_MAPPING = {
     "string": "string",
     "boolean": "boolean",
@@ -362,10 +366,10 @@ class XSDReader:
                     try:
                         prop.ref_model = self.top_level_complex_type_models[prop.xsd_type_to]
                     except KeyError:
-                        raise KeyError(f"Reference to a non-existing model: {prop.xsd_type_to}")
+                        prop.type = XSDType(name="string")
+                        logger.warning(f"Referenced type is not defined: {prop.xsd_type_to}. Setting type to string")
 
             if model.extends_model:
-                # Assume the prepare statement is in the format 'extend("BaseType")'
                 try:
                     extends_model: XSDModel = self.top_level_complex_type_models[model.extends_model]
                 except KeyError:
@@ -459,6 +463,8 @@ class XSDReader:
             elif QName(node).localname == "simpleType":
                 # simple types are processed in self.register_simple_types
                 pass
+            elif QName(node).localname == "include":
+                logger.warning(f"tag {QName(node).localname} not supported yet")
             else:
                 raise RuntimeError(f'This node type cannot be at the top level: {QName(node).localname}')
 
@@ -651,7 +657,7 @@ class XSDReader:
                     extends_model: str = state.extends_model
                     del state.extends_model
                 else:
-                    prepare_statement = None
+                    extends_model = None
 
             elif local_name == "all":
                 all_properties: list[XSDProperty] = self.process_all(child, state)
@@ -1047,19 +1053,28 @@ class XSDReader:
             # We don't care about comments
             if isinstance(child, etree._Comment):
                 continue
-            if QName(child).localname == "enumeration":
+
+            local_name = QName(child).localname
+
+            if local_name == "enumeration":
                 enum = self.process_enumeration(child, state)
                 enumerations.update(enum)
-            elif QName(child).localname == "minInclusive":
-                logging.log(logging.INFO, f"met a tag {QName(child).localname}")
-            elif QName(child).localname == "maxInclusive":
-                logging.log(logging.INFO, f"met a tag {QName(child).localname}")
-            elif QName(child).localname == "pattern":
-                logging.log(logging.INFO, f"met a tag {QName(child).localname}")
-            elif QName(child).localname == "maxLength":
-                logging.log(logging.INFO, f"met a tag {QName(child).localname}")
-            elif QName(child).localname == "totalDigits":
-                logging.log(logging.INFO, f"met a tag {QName(child).localname}")
+            elif local_name == "minInclusive":
+                logger.info(f"met a tag {local_name}")
+            elif local_name == "maxInclusive":
+                logger.info(f"met a tag {local_name}")
+            elif local_name == "pattern":
+                logger.info(f"met a tag {local_name}")
+            elif local_name == "maxLength":
+                logger.info(f"met a tag {local_name}")
+            elif local_name == "totalDigits":
+                logger.info(f"met a tag {local_name}")
+            elif local_name == "length":
+                logger.info(f"met a tag {local_name}")
+            elif local_name == "whiteSpace":
+                logger.info(f"met a tag {local_name}")
+            elif local_name == "minLength":
+                logger.info(f"met a tag {local_name}")
             else:
                 raise RuntimeError(f"Unexpected element type inside restriction element: {child}")
         if enumerations:
