@@ -767,6 +767,7 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None
 ):
+    # TODO: implement appropriate prepare support to handle Geometry dtype with BaseGeometry value
     return _create_element(
         name=data['_elem_name'],
         text=str(value)
@@ -784,6 +785,7 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None
 ):
+    # TODO: implement appropriate prepare support to handle Geometry dtype with WKBElement value
     return _create_element(
         name=data['_elem_name'],
         text=str(value)
@@ -804,6 +806,7 @@ def prepare_dtype_for_response(
     if value is None:
         return None
 
+    # TODO: implement appropriate prepare support to handle BackRef dtype with dict value
     return _create_element(
         name=data['_elem_name'],
         text=str(value)
@@ -821,6 +824,7 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None
 ):
+    # TODO: implement appropriate prepare support to handle BackRef dtype with str value
     return _create_element(
         name=data['_elem_name'],
         text=str(value)
@@ -841,6 +845,7 @@ def prepare_dtype_for_response(
     if value is None:
         return None
 
+    # TODO: implement appropriate prepare support to handle ArrayBackRef dtype with tuple value
     return _create_element(
         name=data['_elem_name'],
         text=str(value)
@@ -858,6 +863,7 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None
 ):
+    # TODO: implement appropriate prepare support to handle ArrayBackRef dtype with list value
     return _create_element(
         name=data['_elem_name'],
         text=str(value)
@@ -878,6 +884,7 @@ def prepare_dtype_for_response(
     if value is None or isinstance(value, NotAvailable):
         return None
 
+    # TODO: implement appropriate prepare support to handle JSON dtype with object value
     return _create_element(
         name=data['_elem_name'],
         text=str(value)
@@ -895,6 +902,7 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None
 ):
+    # TODO: implement appropriate prepare support to handle Object dtype with dict value
     return _create_element(
         name=data['_elem_name'],
         text=str(value)
@@ -932,6 +940,7 @@ def prepare_dtype_for_response(
     if value is None:
         return None
 
+    # TODO: implement appropriate prepare support to handle Array dtype with list value
     return _create_element(
         name=data['_elem_name'],
         text=str(value)
@@ -949,6 +958,7 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None
 ):
+    # TODO: implement appropriate prepare support to handle Array dtype with tuple value
     return _create_element(
         name=data['_elem_name'],
         text=str(value)
@@ -969,6 +979,7 @@ def prepare_dtype_for_response(
     if value is None or isinstance(value, NotAvailable):
         return None
 
+    # TODO: implement appropriate prepare support to handle Inherit dtype with object value
     return _create_element(
         name=data['_elem_name'],
         text=str(value)
@@ -986,6 +997,7 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None
 ):
+    # TODO: implement appropriate prepare support to handle Inherit dtype with dict value
     return _create_element(
         name=data['_elem_name'],
         text=str(value)
