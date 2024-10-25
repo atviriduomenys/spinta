@@ -412,6 +412,28 @@ def test_process_complex_type_with_simple_content(xsd_reader):
 
     xsd_reader.process_simple_content.assert_called_once_with(complex_type_node[0], state)
 
+def test_process_complex_type_with_all(xsd_reader):
+    xml = """
+    <complexType name="TestType">
+        <all>
+            <element name="elementOne" type="xs:string" />
+            <element name="elementTwo" type="xs:int" />
+        </all>
+    </complexType>
+    """
+    node = etree.fromstring(xml)
+    state = State()
+    models = xsd_reader.process_complex_type(node, state)
+
+    assert len(models) == 1
+    model = models[0]
+
+    assert len(model.properties) == 2
+    assert model.properties["element_one"].type.name == "string"
+    assert model.properties["element_one"].xsd_name == "elementOne"
+    assert model.properties["element_two"].type.name == "integer"
+    assert model.properties["element_two"].xsd_name == "elementTwo"
+
 def test_process_element_ref():
     xsd_schema = """
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
@@ -1260,3 +1282,39 @@ def test_process_simple_content_with_restriction(xsd_reader):
     assert len(properties) == 1
     assert properties[0].xsd_name == "value"
     assert properties[0].type.name == "integer"
+
+def test_process_all(xsd_reader):
+    xml = """
+    <all>
+        <element name="elementOne" type="xs:int" />
+        <element name="elementTwo" type="xs:float" />
+        <element name="elementThree" type="xs:boolean" />
+    </all>
+    """
+    node = etree.fromstring(xml)
+    state = State()
+    properties = xsd_reader.process_all(node, state)
+
+    assert len(properties) == 3
+    assert properties[0].xsd_name == "elementOne"
+    assert properties[0].type.name == "integer"
+    assert properties[1].xsd_name == "elementTwo"
+    assert properties[1].type.name == "number"
+    assert properties[2].xsd_name == "elementThree"
+    assert properties[2].type.name == "boolean"
+
+def test_process_all_with_attributes(xsd_reader):
+    xml = """
+    <all>
+        <element name="requiredElement" type="xs:string" minOccurs="1" maxOccurs="1" />
+    </all>
+    """
+    node = etree.fromstring(xml)
+    state = State()
+    properties = xsd_reader.process_all(node, state)
+
+    assert len(properties) == 1
+    assert properties[0].xsd_name == "requiredElement"
+    assert properties[0].type.name == "string"
+    assert properties[0].required is True
+    assert properties[0].is_array is False
