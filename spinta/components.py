@@ -684,6 +684,7 @@ class Model(MetaData):
         'comments': {},
         'uri': {'type': 'string'},
         'given_name': {'type': 'string', 'default': None},
+        'features': {},
     }
 
     def __init__(self):
