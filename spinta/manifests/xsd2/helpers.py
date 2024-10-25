@@ -590,7 +590,7 @@ class XSDReader:
                     if is_root:
                         self.top_level_element_models[property_name] = model
                         model.is_root_model = True
-                    if is_referenced:
+                    if is_referenced or not is_root:
                         model.is_partial = True
                     else:
                         model.is_partial = False
