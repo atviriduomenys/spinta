@@ -2373,7 +2373,7 @@ def _model_to_tabular(
             model.external.dataset,
         )
     if model.features:
-        data['model'] = f"{data['model']}/:features"
+        data['model'] = f"{data['model']}/:{model.features}"
     if external and model.external:
         data.update({
             'source': model.external.name,
