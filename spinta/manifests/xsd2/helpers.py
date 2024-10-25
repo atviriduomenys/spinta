@@ -268,12 +268,16 @@ class XSDModel:
                 }
 
         }
-        if self.is_partial:
-            model_data["name"] = f"{self.name}/:part"
-        else:
-            model_data["name"] = self.name
 
-        # model_data["name"] = self.name
+        if self.is_partial:
+            model_data["features"] = "/:part"
+
+        # if self.is_partial:
+        #     model_data["name"] = f"{self.name}/:part"
+        # else:
+        #     model_data["name"] = self.name
+
+        model_data["name"] = self.name
 
         if self.description is not None:
             model_data["description"] = self.description
