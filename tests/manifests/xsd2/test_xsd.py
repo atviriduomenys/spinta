@@ -6,7 +6,6 @@ from spinta.core.config import RawConfig
 from spinta.testing.manifest import load_manifest
 
 
-@pytest.mark.skip(reason='waiting')
 def test_xsd(rc: RawConfig, tmp_path: Path):
     xsd = """
     <xs:schema attributeFormDefault="unqualified" elementFormDefault="qualified" xmlns:xs="http://www.w3.org/2001/XMLSchema">
@@ -42,17 +41,26 @@ def test_xsd(rc: RawConfig, tmp_path: Path):
     """
 
     table = """
- id | d | r | b | m | property        | type             | ref | source                            | prepare | level | access | uri | title | description
-    | manifest                        |                  |     |                                   |         |       |        |     |       |
-    |   | resource1                   | xml              |     |                                   |         |       |        |     |       |
-    |                                 |                  |     |                                   |         |       |        |     |       |
-    |   |   |   | Administracinis     |                  |     | /ADMINISTRACINIAI/ADMINISTRACINIS |         |       |        |     |       |
-    |   |   |   |   | adm_id          | integer required |     | ADM_ID/text()                     |         |       |        |     |       |
-    |   |   |   |   | adm_kodas       | integer required |     | ADM_KODAS/text()                  |         |       |        |     |       |
-    |                                 |                  |     |                                   |         |       |        |     |       |
-    |   |   |   | Gyvenviete          |                  |     | /GYVENVIETES/GYVENVIETE           |         |       |        |     |       |
-    |   |   |   |   | gyv_id          | integer required |     | GYV_ID/text()                     |         |       |        |     |       |
-    |   |   |   |   | gyv_kodas       | integer required |     | GYV_KODAS/text()                  |         |       |        |     |       |
+ id | d | r | b | m | property          | type             | ref              | source            | prepare  | level | access | uri | title | description
+    | manifest                          |                  |                  |                   |          |       |        |     |       |
+    |   | resource1                     | xml              |                  |                   |          |       |        |     |       |
+    |                                   |                  |                  |                   |          |       |        |     |       |
+    |   |   |   | Administraciniai      |                  |                  | /ADMINISTRACINIAI |          |       |        |     |       |
+    |   |   |   |   | administracinis[] | backref          | Administracinis  | ADMINISTRACINIS   | expand() |       |        |     |       |
+    |                                   |                  |                  |                   |          |       |        |     |       |
+    |   |   |   | Administracinis/:part |                  |                  |                   |          |       |        |     |       |
+    |   |   |   |   | adm_id            | integer required |                  | ADM_ID/text()     |          |       |        |     |       |
+    |   |   |   |   | adm_kodas         | integer required |                  | ADM_KODAS/text()  |          |       |        |     |       |
+    |   |   |   |   | administraciniai  | ref              | Administraciniai |                   | expand() |       |        |     |       |
+    |                                   |                  |                  |                   |          |       |        |     |       |
+    |   |   |   | Gyvenviete/:part      |                  |                  |                   |          |       |        |     |       |
+    |   |   |   |   | gyv_id            | integer required |                  | GYV_ID/text()     |          |       |        |     |       |
+    |   |   |   |   | gyv_kodas         | integer required |                  | GYV_KODAS/text()  |          |       |        |     |       |
+    |   |   |   |   | gyvenvietes       | ref              | Gyvenvietes      |                   | expand() |       |        |     |       |
+    |                                   |                  |                  |                   |          |       |        |     |       |
+    |   |   |   | Gyvenvietes           |                  |                  | /GYVENVIETES      |          |       |        |     |       |
+    |   |   |   |   | gyvenviete[]      | backref          | Gyvenviete       | GYVENVIETE        | expand() |       |        |     |       |
+
 """
     path = tmp_path / 'manifest.xsd'
     path_xsd2 = f"xsd2+file://{path}"
