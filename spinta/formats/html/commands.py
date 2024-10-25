@@ -451,7 +451,7 @@ def prepare_dtype_for_response(
     if value is None:
         return Cell('', color=Color.null)
 
-    super_ = commands.prepare_dtype_for_response[Context, Format, File, NotAvailable]
+    super_ = commands.prepare_dtype_for_response[Context, Format, UUID, NotAvailable]
     return super_(context, fmt, dtype, value, data=data, action=action, select=select)
 
 

@@ -424,23 +424,8 @@ def select(
     fpr: ForeignProperty,
     dtype: PrimaryKey,
 ) -> Selected:
-    model = dtype.prop.model
-    pkeys = model.external.pkeys
-
-    if not pkeys:
-        raise RuntimeError(
-            f"Can't join {dtype.prop} on right table without primary key."
-        )
-
-    if len(pkeys) == 1:
-        prop = pkeys[0]
-        result = env.call('select', fpr, prop)
-    else:
-        result = [
-            env.call('select', fpr, prop)
-            for prop in pkeys
-        ]
-    return Selected(prop=dtype.prop, prep=result)
+    super_ = ufunc.resolver[env, fpr, dtype]
+    return super_(env, fpr, dtype)
 
 
 @ufunc.resolver(PgQueryBuilder, int)

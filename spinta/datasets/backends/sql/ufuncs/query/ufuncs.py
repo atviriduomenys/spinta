@@ -319,11 +319,9 @@ def select(env: SqlQueryBuilder, expr: Expr):
             )
 
 
-@ufunc.resolver(SqlQueryBuilder, object)
-def select(env: SqlQueryBuilder, value: Any) -> Selected:
-    """For things like select(1, count())."""
-    return Selected(item=env.add_column(value))
-
+@ufunc.resolver(SqlQueryBuilder, sa.sql.expression.ColumnElement)
+def select(env, column):
+    return Selected(env.add_column(column))
 
 @ufunc.resolver(SqlQueryBuilder, Bind)
 def select(env: SqlQueryBuilder, item: Bind, *, nested: bool = False):
@@ -795,88 +793,11 @@ def swap(env: SqlQueryBuilder, expr: Expr):
     return Expr('swap', *args, **kwargs)
 
 
-@ufunc.resolver(SqlQueryBuilder, LiteralProperty)
-def select(env: SqlQueryBuilder, value: LiteralProperty) -> Selected:
-    return Selected(prep=value.value)
-
-
-@ufunc.resolver(SqlQueryBuilder, ResultProperty)
-def select(env: SqlQueryBuilder, prop: ResultProperty):
-    return Selected(
-        prep=prop.expr
-    )
-
-@ufunc.resolver(SqlQueryBuilder, dict)
-def select(
-    env: SqlQueryBuilder,
-    prep: Dict[str, Any],
-) -> Dict[str, Any]:
-    return {k: Selected(item=env.add_column(v)) for k, v in prep.items()}
-
-
-@ufunc.resolver(SqlQueryBuilder, NestedProperty)
-def select(env: SqlQueryBuilder, nested: NestedProperty) -> Selected:
-    return Selected(
-    item=env.add_column(nested.right),
-    prop=nested.left.prop,
-)
-
-
-@ufunc.resolver(SqlQueryBuilder, list)
-def select(
-    env: SqlQueryBuilder,
-    prep: List[Any],
-) -> List[Any]:
-    return [Selected(item=env.add_column(v)) for v in prep]
-
-
-@ufunc.resolver(SqlQueryBuilder, ReservedProperty)
-def select(env, prop):
-    table = env.backend.get_table(prop.dtype.prop.model)
-    column = table.c[prop.dtype.prop.place + '.' + prop.param]
-    return Selected(item=env.add_column(column))
-
-
-@ufunc.resolver(SqlQueryBuilder, GetAttr)
-def select(env: SqlQueryBuilder, attr: GetAttr) -> Selected:
-    resolved = env.call('_resolve_getattr', attr)
-    return env.call('select', resolved)
-
-
-@ufunc.resolver(SqlQueryBuilder, GetAttr)
-def sort(env, field):
-    dtype = env.call('_resolve_getattr', field)
-    return env.call('sort', dtype)
-
-
 @ufunc.resolver(SqlQueryBuilder, ForeignProperty, PrimaryKey)
 def select(
     env: SqlQueryBuilder,
     fpr: ForeignProperty,
     dtype: PrimaryKey,
 ) -> Selected:
-    model = dtype.prop.model
-    pkeys = model.external.pkeys
-
-    if not pkeys:
-        raise RuntimeError(
-            f"Can't join {dtype.prop} on right table without primary key."
-        )
-
-    if len(pkeys) == 1:
-        prop = pkeys[0]
-        result = env.call('select', fpr, prop)
-    else:
-        result = [
-            env.call('select', fpr, prop)
-            for prop in pkeys
-        ]
-    return Selected(prop=dtype.prop, prep=result)
-
-@ufunc.resolver(SqlQueryBuilder, tuple)
-def select(
-    env: SqlQueryBuilder,
-    prep: Tuple[Any],
-) -> Tuple[Any, ...]:
-    return tuple(env.call('select', v) for v in prep)
-
+    super_ = ufunc.resolver[env, fpr, dtype]
+    return super_(env, fpr, dtype)
