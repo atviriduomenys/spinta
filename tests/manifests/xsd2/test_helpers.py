@@ -373,6 +373,45 @@ def test_process_complex_type_with_extension(xsd_reader, create_xsd_model):
     assert "attr1" in prop_names
     assert model.prepare == 'extend("BaseType")'
 
+def test_process_complex_type_with_simple_content(xsd_reader):
+    complex_type_xml = """
+    <complexType name="CityType">
+        <simpleContent>
+            <extension base="xs:string">
+                <attribute name="name" type="xs:string" use="required"/>
+                <attribute name="code" type="xs:string" use="optional"/>
+            </extension>
+        </simpleContent>
+    </complexType>
+    """
+    complex_type_node = etree.fromstring(complex_type_xml)
+
+    xsd_reader.process_simple_content = MagicMock(return_value=[
+        XSDProperty(xsd_name="text", property_type=XSDType(name="string")),
+        XSDProperty(xsd_name="name", property_type=XSDType(name="string"), required=True),
+        XSDProperty(xsd_name="code", property_type=XSDType(name="string"), required=False),
+    ])
+
+    state = State()
+    models = xsd_reader.process_complex_type(complex_type_node, state)
+
+    assert len(models) == 1
+    model = models[0]
+    assert model.name == "CityType"
+    assert "text" in model.properties
+    assert "name" in model.properties
+    assert "code" in model.properties
+
+    text_prop = model.properties["text"]
+    name_prop = model.properties["name"]
+    code_prop = model.properties["code"]
+
+    assert text_prop.type.name == "string"
+    assert name_prop.required is True
+    assert code_prop.required is False
+
+    xsd_reader.process_simple_content.assert_called_once_with(complex_type_node[0], state)
+
 def test_process_element_ref():
     xsd_schema = """
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
@@ -1152,3 +1191,72 @@ def test_process_complex_content_with_mixed_content(xsd_reader):
     prop_group = property_groups[0]
     prop_names = [prop.xsd_name for prop in prop_group]
     assert "text" in prop_names
+
+def test_process_simple_type_extension_with_attributes_and_annotation(xsd_reader):
+    extension_xml = """
+    <extension base="xs:string">
+        <attribute name="code" type="xs:string" use="optional"/>
+        <annotation>
+            <documentation>Text property description</documentation>
+        </annotation>
+    </extension>
+    """
+    extension_node = etree.fromstring(extension_xml)
+    state = State()
+
+    xsd_reader.process_attribute = MagicMock(return_value=XSDProperty(xsd_name="code", property_type=XSDType(name="string")))
+    xsd_reader.process_annotation = MagicMock(return_value="Text property description")
+
+    properties = xsd_reader.process_simple_type_extension(extension_node, state)
+
+    assert properties[0].xsd_name == "text"
+    assert properties[0].type.name == "string"
+    assert properties[0].description == "Text property description"
+
+    assert properties[1].xsd_name == "code"
+    assert properties[1].type.name == "string"
+
+def test_process_simple_content_with_extension(xsd_reader):
+    simple_content_xml = """
+    <simpleContent>
+        <extension base="xs:string">
+            <attribute name="code" type="xs:string" use="optional"/>
+            <annotation>
+                <documentation>Text property description</documentation>
+            </annotation>
+        </extension>
+    </simpleContent>
+    """
+    simple_content_node = etree.fromstring(simple_content_xml)
+    state = State()
+
+    xsd_reader.process_simple_type_extension = MagicMock(return_value=[
+            XSDProperty(xsd_name="text", property_type=XSDType(name="string")),
+            XSDProperty(xsd_name="code", property_type=XSDType(name="string"), source="@code")
+        ]
+    )
+
+    properties = xsd_reader.process_simple_content(simple_content_node, state)
+
+    assert len(properties) == 2
+    assert properties[0].xsd_name == "text"
+    assert properties[0].type.name == "string"
+    assert properties[1].xsd_name == "code"
+    assert properties[1].type.name == "string"
+
+def test_process_simple_content_with_restriction(xsd_reader):
+    simple_content_xml = """
+    <simpleContent>
+        <restriction base="xs:integer"/>
+    </simpleContent>
+    """
+    simple_content_node = etree.fromstring(simple_content_xml)
+    state = State()
+
+    xsd_reader.process_restriction = MagicMock(return_value=XSDType(name="integer"))
+
+    properties = xsd_reader.process_simple_content(simple_content_node, state)
+
+    assert len(properties) == 1
+    assert properties[0].xsd_name == "value"
+    assert properties[0].type.name == "integer"
