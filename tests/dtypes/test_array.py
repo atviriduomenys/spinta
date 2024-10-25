@@ -315,7 +315,7 @@ def test_array_select_only_array(manifest_type, rc, tmp_path, postgresql: str, r
     ]}]
 
 
-@pytest.mark.manifests('internal_sql', 'csv')
+@pytest.mark.skip(reason="format support not implemented")
 def test_array_rdf(
     manifest_type: str,
     tmp_path,

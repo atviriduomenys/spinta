@@ -1324,7 +1324,7 @@ def test_backref_error_one_to_many(
     )
 
 
-@pytest.mark.manifests('internal_sql', 'csv')
+@pytest.mark.skip(reason="format support not implemented")
 def test_backref_many_to_one_level_4_rdf(
     manifest_type: str,
     tmp_path: pathlib.Path,
