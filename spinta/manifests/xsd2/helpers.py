@@ -837,7 +837,14 @@ class XSDReader:
                         new_property_groups.append(new_group)
                 property_groups = new_property_groups
             else:
-                raise RuntimeError(f"Unexpected element type inside <sequence>: {local_name}")
+                raise RuntimeError(f"Unexpected element type inside <{QName(child).localname}>: {local_name}")
+
+        if _is_array(node):
+            for property_group in property_groups:
+                for prop in property_group:
+                    prop.is_array = True
+                    if prop.type.name == "ref":
+                        prop.type.name = "backref"
 
         return property_groups
     
@@ -850,11 +857,6 @@ class XSDReader:
 
         if _is_array(node):
             choice_groups: list[list[XSDProperty]] = self.process_sequence(node, state)
-            for property_group in choice_groups:
-                for prop in property_group:
-                    prop.is_array = True
-                    if prop.type.name == "ref":
-                        prop.type.name = "backref"
             return choice_groups
 
         for child in node.getchildren():
