@@ -651,6 +651,11 @@ class XSDReader:
                 else:
                     prepare_statement = None
 
+            elif local_name == "simpleContent":
+                simple_content_properties: List[XSDProperty] = self.process_simple_content(child, state)
+                for group in property_groups:
+                    group.extend(simple_content_properties)
+
             else:
                 raise RuntimeError(f"This node type cannot be in the complex type: {local_name}")
 
@@ -816,8 +821,32 @@ class XSDReader:
     def process_all(self, node: _Element, state: State) -> None:
         pass
 
-    def process_simple_content(self, node: _Element, state: State) -> None:
-        pass
+    def process_simple_content(self, node: _Element, state: State) -> list[XSDProperty]:
+        properties: list = []
+
+        for child in node:
+            if isinstance(child, etree._Comment):
+                continue
+
+            local_name = QName(child).localname
+
+            if local_name == "extension":
+                extension_properties: list[XSDProperty] = self.process_simple_type_extension(child, state)
+                properties.extend(extension_properties)
+
+            elif local_name == "restriction":
+                restriction_prop_type: XSDType = self.process_restriction(child, state)
+                prop_name = node.attrib.get("name", "value")
+                restriction_prop = XSDProperty(
+                    xsd_name=prop_name,
+                    property_type=restriction_prop_type,
+                )
+                properties.append(restriction_prop)
+
+            else:
+                raise RuntimeError(f"Unexpected element '{local_name}' in simpleContent")
+
+        return properties
 
     def process_complex_content(self, node: _Element, state: State) -> list[list[XSDModel]]:
         property_groups: list[list] = [[]]
@@ -829,7 +858,7 @@ class XSDReader:
             local_name = QName(child).localname
 
             if local_name == "extension":
-                extension_property_groups: List[List[XSDProperty]] = self.process_complex_type_extension(child, state)
+                extension_property_groups: list[list[XSDProperty]] = self.process_complex_type_extension(child, state)
                 new_property_groups = []
                 for group in property_groups:
                     for ext_group in extension_property_groups:
@@ -880,32 +909,35 @@ class XSDReader:
     def process_documentation(self, node: _Element, state: State) -> str:
         return node.text or ""
 
-    def process_simple_type_extension(self, node: _Element, state: State) -> tuple[str, list] | None:
-        # this is an initial implementation, this method needs to be finished together with process_simple_type
+    def process_simple_type_extension(self, node: _Element, state: State) -> list[XSDProperty]:
         base = node.attrib.get("base")
         if not base:
             raise RuntimeError("Extension must have a 'base' attribute.")
 
+        properties = []
+
         base_type_name = base.split(":")[-1]
+        base_type: XSDType = self._map_type(base_type_name)
+        text_prop = XSDProperty(
+            xsd_name="text",
+            property_type=base_type,
+        )
+        properties.append(text_prop)
 
-        if base_type_name in DATATYPES_MAPPING:
-            type_name = DATATYPES_MAPPING[base_type_name]
-            attributes = []
+        for child in node:
+            if isinstance(child, etree._Comment):
+                continue
+            local_name = QName(child).localname
+            if local_name == "attribute":
+                prop: XSDProperty = self.process_attribute(child, state)
+                properties.append(prop)
+            elif local_name == "annotation":
+                # Add annotation description to text_prop
+                text_prop.description = self.process_annotation(child, state)
+            else:
+                raise RuntimeError(f"Unexpected element '{local_name}' in simpleType extension")
 
-            for child in node:
-                if isinstance(child, etree._Comment):
-                    continue
-                local_name = QName(child).localname
-                if local_name == "attribute":
-                    prop = self.process_attribute(child, state)
-                    attributes.append(prop)
-                elif local_name == "annotation":
-                    prop = self.process_annotation(child, state)
-                    attributes.append(prop)
-                else:
-                    raise RuntimeError(f"Unexpected element '{local_name}' in simpleType extension")
-
-            return type_name, attributes
+        return properties
 
     def process_complex_type_extension(self, node: _Element, state: State) -> List[List[XSDProperty]]:
         base = node.attrib.get("base")
