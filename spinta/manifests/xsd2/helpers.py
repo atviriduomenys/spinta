@@ -188,9 +188,12 @@ class XSDProperty:
                 }
         }
 
-        if self.type.name == "ref" or self.type.name == "backref":
+        if self.type.name in ("ref", "backref", "ref_backref"):
             data["model"] = self.ref_model.name
-            data["external"]["prepare"] = Expr(f'expand')
+            if self.type.name == "ref_backref":
+                data["type"] = "ref"
+            else:
+                data["external"]["prepare"] = Expr(f'expand')
 
         if self.required is not None:
             data["required"] = self.required
@@ -434,7 +437,7 @@ class XSDReader:
                     if not prop_added:
                         prop = XSDProperty()
                         prop.name = to_property_name(model.basename)
-                        prop.type = XSDType(name="ref")
+                        prop.type = XSDType(name="ref_backref")
                         prop.ref_model = model
                         referenced_model.properties[prop.name] = prop
 
