@@ -244,6 +244,7 @@ class XSDModel:
     xsd_node_type: str | None = None  # from complexType or from element
     models_by_ref: str | None = None
     extends_model: XSDModel | None = None
+    is_partial: bool = False
 
     def __init__(self, dataset_resource) -> None:
         self.properties = {}
@@ -256,9 +257,9 @@ class XSDModel:
         self.name = f"{self.dataset_resource.dataset_name}/{name}"
 
     def get_data(self):
+
         model_data: dict = {
             "type": "model",
-            "name": self.name,
             "external":
                 {
                     "name": self.source,
@@ -267,13 +268,20 @@ class XSDModel:
                 }
 
         }
+        if self.is_partial:
+            model_data["name"] = f"{self.name}/:part"
+        else:
+            model_data["name"] = self.name
+
         if self.description is not None:
             model_data["description"] = self.description
+
         if self.properties is not None:
             properties = {}
             for prop_name, prop in self.properties.items():
                 properties.update(prop.get_data())
             model_data["properties"] = properties
+
         if self.uri is not None:
             model_data["uri"] = self.uri
 
@@ -319,6 +327,7 @@ class XSDReader:
     custom_types: dict[str, XSDType] | None = None
     top_level_element_models: dict[str, XSDModel]
     top_level_complex_type_models: dict[str, XSDModel]
+    namespaces: dict[str, str] | None = None
 
     def __init__(self, path: str, dataset_name) -> None:
         self._path = path
@@ -354,6 +363,25 @@ class XSDReader:
         self.resource_model.uri = "http://www.w3.org/2000/01/rdf-schema#Resource"
     #     resource model will be added to models at the end, if it has any peoperties
 
+    def _is_referenced(self, node):
+        # if this node is referenced by some other node
+        node_name = node.get('name')
+        xpath_search_string = f'//*[@ref="{node_name}"]'
+        references = self.root.xpath(xpath_search_string)
+
+        # also check with namespace prefixes.
+        # Though, it is possible that this isn't correct XSD behaviour, but it seems common in RC
+        if not references:
+            for prefix in self.namespaces:
+                prefixed_node_name = f"{prefix}:{node_name}"
+                xpath_search_string = f'//*[@ref="{prefixed_node_name}"]'
+                references = self.root.xpath(xpath_search_string)
+                if references:
+                    return True
+        if references:
+            return True
+        return False
+
     def _post_process_resource_model(self):
         if self.resource_model.properties:
             self.resource_model.set_name(self.deduplicate_model_name(f"Resource"))
@@ -382,12 +410,12 @@ class XSDReader:
             if model.extends_model:
                 try:
                     extends_model: XSDModel = self.top_level_complex_type_models[model.extends_model]
+                    if extends_model.properties or extends_model.extends_model:
+                        model.extends_model = extends_model
+                    else:
+                        model.extends_model = None
                 except KeyError:
-                    raise KeyError(f"Parent model '{extends_model}' not found for model '{model.name}'")
-
-                if extends_model.properties or extends_model.extends_model:
-                    model.extends_model = extends_model
-                else:
+                    logger.warning(f"Parent model '{model.extends_model}' not found for model '{model.name}'")
                     model.extends_model = None
 
     def _add_refs_for_backrefs(self):
@@ -418,6 +446,7 @@ class XSDReader:
         # general part
         state = State()
         self._extract_root()
+        self.namespaces = self.root.nsmap
         dataset_name = to_dataset_name(os.path.splitext(os.path.basename(self._path))[0])
         self.dataset_resource.dataset_name = dataset_name
 
@@ -490,6 +519,7 @@ class XSDReader:
         props = []
         property_type_to = None
         models = []
+        is_referenced = self._is_referenced(node)
 
         # ref - a reference to separately defined element
         if node.attrib.get("ref"):
@@ -558,6 +588,10 @@ class XSDReader:
                     if is_root:
                         self.top_level_element_models[property_name] = model
                         model.is_root_model = True
+                    if is_referenced:
+                        model.is_partial = True
+                    else:
+                        model.is_entry_model = True
                         model.source = f"/{property_name}"
                     prop = XSDProperty(xsd_name=property_name, required=is_required, source=property_name, is_array=is_array)
                     prop.ref_model = model
