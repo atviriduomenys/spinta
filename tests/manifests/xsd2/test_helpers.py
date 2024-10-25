@@ -17,6 +17,9 @@ def test_process_element_inline_type():
     xsd_reader = XSDReader("test", "test")
 
     xsd_root = etree.fromstring(xsd_schema)
+    xsd_reader.root = xsd_root
+    xsd_reader.namespaces = xsd_root.nsmap
+
     element = xsd_root.xpath('./*[local-name() = "element"]')[0]
     # Call the method to process the schema (assuming process_element parses XSD and returns an XSDProperty instance)
     result = xsd_reader.process_element(element, state)[0]
@@ -49,6 +52,8 @@ def test_process_element_inline_type_array():
     xsd_reader = XSDReader("test", "test")
 
     xsd_root = etree.fromstring(xsd_schema)
+    xsd_reader.root = xsd_root
+    xsd_reader.namespaces = xsd_root.nsmap
     element = xsd_root.xpath('./*[local-name() = "element"]')[0]
     # Call the method to process the schema (assuming process_element parses XSD and returns an XSDProperty instance)
     result = xsd_reader.process_element(element, state)[0]
@@ -86,11 +91,14 @@ def test_process_element_simple_type():
     </xs:schema>"""
     state = State()
     xsd_reader = XSDReader("test", "test")
+
     xsd_type = XSDType()
     xsd_type.xsd_type = "cityPopulation"
     xsd_type.name = "integer"
     xsd_reader.custom_types = {"populationType": xsd_type}
     xsd_root = etree.fromstring(xsd_schema)
+    xsd_reader.root = xsd_root
+    xsd_reader.namespaces = xsd_root.nsmap
     element = xsd_root.xpath('./*[local-name() = "element"]')[0]
     # Call the method to process the schema (assuming process_element parses XSD and returns an XSDProperty instance)
     result = xsd_reader.process_element(element, state)[0]
@@ -132,6 +140,8 @@ def test_process_element_simple_type_array():
     xsd_type.name = "integer"
     xsd_reader.custom_types = {"populationType": xsd_type}
     xsd_root = etree.fromstring(xsd_schema)
+    xsd_reader.root = xsd_root
+    xsd_reader.namespaces = xsd_root.nsmap
     element = xsd_root.xpath('./*[local-name() = "element"]')[0]
     # Call the method to process the schema (assuming process_element parses XSD and returns an XSDProperty instance)
     result = xsd_reader.process_element(element, state)[0]
@@ -172,6 +182,8 @@ def test_process_element_separate_simple_type():
     xsd_type.name = "integer"
     xsd_reader.custom_types = {"populationType": xsd_type}
     xsd_root = etree.fromstring(xsd_schema)
+    xsd_reader.root = xsd_root
+    xsd_reader.namespaces = xsd_root.nsmap
     element = xsd_root.xpath('./*[local-name() = "element"]')[0]
     # Call the method to process the schema (assuming process_element parses XSD and returns an XSDProperty instance)
     result = xsd_reader.process_element(element, state)[0]
@@ -212,6 +224,8 @@ def test_process_element_separate_simple_type_array():
     xsd_type.name = "integer"
     xsd_reader.custom_types = {"populationType": xsd_type}
     xsd_root = etree.fromstring(xsd_schema)
+    xsd_reader.root = xsd_root
+    xsd_reader.namespaces = xsd_root.nsmap
     element = xsd_root.xpath('./*[local-name() = "element"]')[0]
     # Call the method to process the schema (assuming process_element parses XSD and returns an XSDProperty instance)
     result = xsd_reader.process_element(element, state)[0]
@@ -254,6 +268,7 @@ def test_process_element_complex_type(mock_process_complex_type):
 </xs:schema>
     """
     xsd_root = etree.fromstring(xsd_schema)
+
     element = xsd_root.xpath('./*[local-name() = "element"]')[0]
     dataset_resource = XSDDatasetResource(dataset_name="test")
     mock_model_1 = XSDModel(dataset_resource=dataset_resource)
@@ -280,11 +295,12 @@ def test_process_element_complex_type(mock_process_complex_type):
     mock_process_complex_type.return_value = [mock_model_1, ]
 
     # Create an instance of XSDReader
-    reader = XSDReader("test", "test")
-
+    xsd_reader = XSDReader("test", "test")
+    xsd_reader.root = xsd_root
+    xsd_reader.namespaces = xsd_root.nsmap
     # Call the method you want to test (which uses process_complex_type internally)
     state = State()
-    result = reader.process_element(element, state)[0]
+    result = xsd_reader.process_element(element, state)[0]
 
     assert isinstance(result, XSDProperty)
 
@@ -322,7 +338,8 @@ def test_process_element_complex_type_separate():
 
     # Create an instance of XSDReader
     reader = XSDReader("test", "test")
-
+    reader.root = xsd_root
+    reader.namespaces = xsd_root.nsmap
     # Call the method you want to test (which uses process_complex_type internally)
     state = State()
     result = reader.process_element(element, state)[0]
@@ -386,7 +403,8 @@ def test_process_element_ref():
 
     # Create an instance of XSDReader
     reader = XSDReader("test", "test")
-
+    reader.root = xsd_root
+    reader.namespaces = xsd_root.nsmap
     # Call the method you want to test (which uses process_complex_type internally)
     state = State()
     result = reader.process_element(element, state)[0]
@@ -418,7 +436,8 @@ def test_process_element_ref_backref():
 
     # Create an instance of XSDReader
     reader = XSDReader("test", "test")
-
+    reader.root = xsd_root
+    reader.namespaces = xsd_root.nsmap
     # Call the method you want to test (which uses process_complex_type internally)
     state = State()
     result = reader.process_element(element, state)[0]
@@ -556,6 +575,8 @@ def test_process_choice_with_array(setup_instance):
         xsd_reader, state = setup_instance
 
         xsd_root = etree.fromstring(xsd_schema)
+        xsd_reader.root = xsd_root
+        xsd_reader.namespaces = xsd_root.nsmap
         choice = xsd_root.find('.//xs:choice', namespaces={"xs": "http://www.w3.org/2001/XMLSchema"})
 
         property_groups = xsd_reader.process_choice(choice, state)
@@ -590,6 +611,8 @@ def test_process_sequence_only_elements(setup_instance):
     xsd_reader, state = setup_instance
 
     xsd_root = etree.fromstring(xsd_schema)
+    xsd_reader.root = xsd_root
+    xsd_reader.namespaces = xsd_root.nsmap
 
     sequence = xsd_root.xpath('./*[local-name() = "sequence"]')[0]
     property_groups = xsd_reader.process_sequence(sequence, state)
@@ -621,6 +644,8 @@ def test_process_sequence_with_single_choice(setup_instance):
     xsd_reader, state = setup_instance
 
     xsd_root = etree.fromstring(xsd_schema)
+    xsd_reader.root = xsd_root
+    xsd_reader.namespaces = xsd_root.nsmap
     sequence = xsd_root.xpath('./*[local-name() = "sequence"]')[0]
 
     property_groups = xsd_reader.process_sequence(sequence, state)
@@ -660,6 +685,8 @@ def test_process_sequence_with_multiple_choices(setup_instance):
     xsd_reader, state = setup_instance
 
     xsd_root = etree.fromstring(xsd_schema)
+    xsd_reader.root = xsd_root
+    xsd_reader.namespaces = xsd_root.nsmap
     sequence = xsd_root.find('.//xs:sequence', namespaces={"xs": "http://www.w3.org/2001/XMLSchema"})
 
     property_groups = xsd_reader.process_sequence(sequence, state)
@@ -701,6 +728,8 @@ def test_process_sequence_with_nested_sequence_in_choice(setup_instance):
     xsd_reader, state = setup_instance
 
     xsd_root = etree.fromstring(xsd_schema)
+    xsd_reader.root = xsd_root
+    xsd_reader.namespaces = xsd_root.nsmap
     sequence = xsd_root.find('.//xs:sequence', namespaces={"xs": "http://www.w3.org/2001/XMLSchema"})
 
     property_groups = xsd_reader.process_sequence(sequence, state)
@@ -740,6 +769,8 @@ def test_process_sequence_only_choices(setup_instance):
     xsd_reader, state = setup_instance
 
     xsd_root = etree.fromstring(xsd_schema)
+    xsd_reader.root = xsd_root
+    xsd_reader.namespaces = xsd_root.nsmap
     sequence = xsd_root.find('.//xs:sequence', namespaces={"xs": "http://www.w3.org/2001/XMLSchema"})
 
     property_groups = xsd_reader.process_sequence(sequence, state)
