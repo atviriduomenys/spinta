@@ -840,15 +840,13 @@ def select(env, prop):
 @ufunc.resolver(SqlQueryBuilder, GetAttr)
 def select(env: SqlQueryBuilder, attr: GetAttr) -> Selected:
     resolved = env.call('_resolve_getattr', attr)
-    column = env.backend.get_column(env.table, resolved.prop)
-    return Selected(item=env.add_column(column))
+    return env.call('select', resolved)
 
 
 @ufunc.resolver(SqlQueryBuilder, GetAttr)
 def sort(env, field):
-    resolved = env.call('_resolve_getattr', field)
-    column = env.backend.get_column(env.table, resolved.prop)
-    return env.call('asc', column)
+    dtype = env.call('_resolve_getattr', field)
+    return env.call('sort', dtype)
 
 
 @ufunc.resolver(SqlQueryBuilder, ForeignProperty, PrimaryKey)
@@ -875,11 +873,10 @@ def select(
         ]
     return Selected(prop=dtype.prop, prep=result)
 
-
 @ufunc.resolver(SqlQueryBuilder, tuple)
 def select(
     env: SqlQueryBuilder,
     prep: Tuple[Any],
-) -> tuple[Selected, ...]:
-    return tuple(Selected(item=env.add_column(v)) for v in prep)
+) -> Tuple[Any, ...]:
+    return tuple(env.call('select', v) for v in prep)
 
