@@ -125,7 +125,6 @@ def test_xsd_backref(rc: RawConfig, tmp_path: Path):
     assert manifest == table
 
 
-@pytest.mark.skip("to fix the test")
 def test_xsd_ref(rc: RawConfig, tmp_path: Path):
     xsd = """
 
@@ -155,20 +154,19 @@ def test_xsd_ref(rc: RawConfig, tmp_path: Path):
     """
 
     table = """
- id | d | r | b | m | property     | type             | ref     | source         | prepare | level | access | uri | title | description
-    | manifest                     |                  |         |                |         |       |        |     |       |
-    |   | resource1                | xml              |         |                |         |       |        |     |       |
-    |                              |                  |         |                |         |       |        |     |       |
-    |   |   |   | Asmenys          |                  |         | /asmenys       |         |       |        |     |       |
-    |   |   |   |   | asmuo[]      | backref          | Asmuo   | asmuo          |         |       |        |     |       |
-    |   |   |   |   | puslapis     | integer required |         | @puslapis      |         |       |        |     |       | rezultatu puslapio numeris
-    |   |   |   |   | text         | string           |         | text()         |         |       |        |     |       |
-    |                              |                  |         |                |         |       |        |     |       |
-    |   |   |   | Asmuo            |                  |         |                |         |       |        |     |       |
-    |   |   |   |   | ak           | string required  |         | @ak            |         |       |        |     |       |
-    |   |   |   |   | asmenys      | ref              | Asmenys |                |         |       |        |     |       |
-    |   |   |   |   | id           | string required  |         | @id            |         |       |        |     |       |
-    |   |   |   |   | text         | string           |         | text()         |         |       |        |     |       |
+ id | d | r | b | m | property    | type             | ref   | source    | prepare  | level | access | uri | title | description
+    | manifest                    |                  |       |           |          |       |        |     |       |
+    |   | resource1               | xml              |       |           |          |       |        |     |       |
+    |                             |                  |       |           |          |       |        |     |       |
+    |   |   |   | Asmenys         |                  |       | /asmenys  |          |       |        |     |       |
+    |   |   |   |   | asmuo       | ref              | Asmuo | asmuo     | expand() |       |        |     |       |
+    |   |   |   |   | puslapis    | integer required |       | @puslapis |          |       |        |     |       | rezultatu puslapio numeris
+    |   |   |   |   | text        | string           |       | text()    |          |       |        |     |       |
+    |                             |                  |       |           |          |       |        |     |       |
+    |   |   |   | Asmuo/:part     |                  |       |           |          |       |        |     |       |
+    |   |   |   |   | ak          | string required  |       | @ak       |          |       |        |     |       |
+    |   |   |   |   | id          | string required  |       | @id       |          |       |        |     |       |
+    |   |   |   |   | text        | string           |       | text()    |          |       |        |     |       |
 
 """
 
@@ -181,7 +179,6 @@ def test_xsd_ref(rc: RawConfig, tmp_path: Path):
     assert manifest == table
 
 
-@pytest.mark.skip(reason='')
 def test_xsd_resource_model(rc: RawConfig, tmp_path: Path):
     xsd = """
 
@@ -205,16 +202,16 @@ def test_xsd_resource_model(rc: RawConfig, tmp_path: Path):
     """
 
     table = """
- id | d | r | b | m | property | type             | ref | source        | prepare | level | access | uri                                           | title | description
-    | manifest                 |                  |     |               |         |       |        |                                               |       |
-    |   | resource1            | xml              |     |               |         |       |        |                                               |       |
-    |                          |                  |     |               |         |       |        |                                               |       |
-    |   |   |   | Asmenys      |                  |     | /asmenys      |         |       |        |                                               |       |
-    |   |   |   |   | puslapis | integer required |     | @puslapis     |         |       |        |                                               |       | rezultatu puslapio numeris
-    |   |   |   |   | text     | string           |     | text()        |         |       |        |                                               |       |
-    |                          |                  |     |               |         |       |        |                                               |       |
-    |   |   |   | Resource     |                  |     | /             |         |       |        | http://www.w3.org/2000/01/rdf-schema#Resource |       | Įvairūs duomenys
-    |   |   |   |   | klaida   | string required  |     | klaida/text() |         |       |        |                                               |       | Klaidos atveju - klaidos pranešimas
+ id | d | r | b | m | property   | type             | ref | source        | prepare | level | access | uri                                           | title | description
+    | manifest                   |                  |     |               |         |       |        |                                               |       |
+    |   | resource1              | xml              |     |               |         |       |        |                                               |       |
+    |                            |                  |     |               |         |       |        |                                               |       |
+    |   |   |   | Asmenys        |                  |     | /asmenys      |         |       |        |                                               |       |
+    |   |   |   |   | puslapis   | integer required |     | @puslapis     |         |       |        |                                               |       | rezultatu puslapio numeris
+    |   |   |   |   | text       | string           |     | text()        |         |       |        |                                               |       |
+    |                            |                  |     |               |         |       |        |                                               |       |
+    |   |   |   | Resource/:part |                  |     | /             |         |       |        | http://www.w3.org/2000/01/rdf-schema#Resource |       | Įvairūs duomenys
+    |   |   |   |   | klaida     | string required  |     | klaida/text() |         |       |        |                                               |       | Klaidos atveju - klaidos pranešimas
 
 """
 
@@ -282,7 +279,6 @@ id | d | r | b | m | property            | type            | ref              | 
     assert manifest == table
 
 
-@pytest.mark.skip(reason='waiting')
 def test_xsd_choice(rc: RawConfig, tmp_path: Path):
     xsd = """
     <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
@@ -345,7 +341,6 @@ def test_xsd_choice(rc: RawConfig, tmp_path: Path):
     assert manifest == table
 
 
-@pytest.mark.skip(reason='waiting')
 def test_xsd_choice_max_occurs_unbounded(rc: RawConfig, tmp_path: Path):
     xsd = """
     <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
@@ -439,7 +434,6 @@ def test_xsd_attributes(rc: RawConfig, tmp_path: Path):
     assert manifest == table
 
 
-@pytest.mark.skip(reason='waiting')
 def test_xsd_model_one_property(rc: RawConfig, tmp_path: Path):
     xsd = """
     <xs:schema xmlns="http://eTaarPlat.ServiceContracts/2007/08/Messages" xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" targetNamespace="http://eTaarPlat.ServiceContracts/2007/08/Messages">
@@ -463,16 +457,16 @@ def test_xsd_model_one_property(rc: RawConfig, tmp_path: Path):
     """
 
     table = """
- id | d | r | b | m | property          | type   | ref    | source                  | prepare | level | access | uri | title | description
-    | manifest                          |        |        |                         |         |       |        |     |       |
-    |   | resource1                     | xml    |        |                         |         |       |        |     |       |
-    |                                   |        |        |                         |         |       |        |     |       |
-    |   |   |   | Klaida                |        |        |                         |         |       |        |     |       |
-    |   |   |   |   | aprasymas         | string |        | Aprasymas/text()        |         |       |        |     |       |
-    |                                   |        |        |                         |         |       |        |     |       |
-    |   |   |   | Response              |        |        | /Response               |         |       |        |     |       |
-    |   |   |   |   | klaida            | ref    | Klaida | klaida                  |         |       |        |     |       |
-    |   |   |   |   | search_parameters | string |        | searchParameters/text() |         |       |        |     |       |
+ id | d | r | b | m | property          | type   | ref    | source                  | prepare  | level | access | uri | title | description
+    | manifest                          |        |        |                         |          |       |        |     |       |
+    |   | resource1                     | xml    |        |                         |          |       |        |     |       |
+    |                                   |        |        |                         |          |       |        |     |       |
+    |   |   |   | Klaida/:part          |        |        |                         |          |       |        |     |       |
+    |   |   |   |   | aprasymas         | string |        | Aprasymas/text()        |          |       |        |     |       |
+    |                                   |        |        |                         |          |       |        |     |       |
+    |   |   |   | Response              |        |        | /Response               |          |       |        |     |       |
+    |   |   |   |   | klaida            | ref    | Klaida | klaida                  | expand() |       |        |     |       |
+    |   |   |   |   | search_parameters | string |        | searchParameters/text() |          |       |        |     |       |
 """
     path = tmp_path / 'manifest.xsd'
     path_xsd2 = f"xsd2+file://{path}"
