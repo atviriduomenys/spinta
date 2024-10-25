@@ -245,6 +245,7 @@ class XSDModel:
     models_by_ref: str | None = None
     extends_model: XSDModel | None = None
     is_partial: bool = True
+    features: str | None = None
 
     def __init__(self, dataset_resource) -> None:
         self.properties = {}
