@@ -375,7 +375,9 @@ class Node(Component):
 
     @property
     def basename(self):
-        return self.name and self.name.split('/')[-1]
+        # todo workaround, maybe remove after dealing with /: properly
+        #  https://github.com/atviriduomenys/spinta/issues/927
+        return self.name and self.name.split("/:")[0].split('/')[-1]
 
 
 # MetaData entry ID can be file path, uuid, table row id of a Model, Dataset,
