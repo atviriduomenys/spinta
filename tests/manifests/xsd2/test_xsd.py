@@ -62,8 +62,8 @@ def test_xsd(rc: RawConfig, tmp_path: Path):
     assert manifest == table
 
 
-@pytest.mark.skip(reason='waiting')
-def test_xsd_ref(rc: RawConfig, tmp_path: Path):
+@pytest.mark.skip
+def test_xsd_backref(rc: RawConfig, tmp_path: Path):
     xsd = """
 
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">

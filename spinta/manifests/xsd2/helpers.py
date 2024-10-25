@@ -244,7 +244,7 @@ class XSDModel:
     xsd_node_type: str | None = None  # from complexType or from element
     models_by_ref: str | None = None
     extends_model: XSDModel | None = None
-    is_partial: bool = False
+    is_partial: bool = True
 
     def __init__(self, dataset_resource) -> None:
         self.properties = {}
@@ -272,6 +272,8 @@ class XSDModel:
             model_data["name"] = f"{self.name}/:part"
         else:
             model_data["name"] = self.name
+
+        # model_data["name"] = self.name
 
         if self.description is not None:
             model_data["description"] = self.description
@@ -591,6 +593,7 @@ class XSDReader:
                     if is_referenced:
                         model.is_partial = True
                     else:
+                        model.is_partial = False
                         model.is_entry_model = True
                         model.source = f"/{property_name}"
                     prop = XSDProperty(xsd_name=property_name, required=is_required, source=property_name, is_array=is_array)
