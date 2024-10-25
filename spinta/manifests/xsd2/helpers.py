@@ -438,7 +438,7 @@ class XSDReader:
                             prop_added = True
                     if not prop_added:
                         prop = XSDProperty()
-                        prop.name = to_property_name(model.name)
+                        prop.name = to_property_name(model.basename)
                         prop.type = XSDType(name="ref")
                         prop.ref_model = model
                         referenced_model.properties[prop.name] = prop
