@@ -476,7 +476,7 @@ def test_xsd_model_one_property(rc: RawConfig, tmp_path: Path):
     assert manifest == table
 
 
-@pytest.mark.skip("not clear how to behave in this situation")
+@pytest.mark.skip("fix this behaviour")
 def test_xsd_separate_simple_type(rc: RawConfig, tmp_path: Path):
     xsd = """
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
@@ -684,7 +684,6 @@ def test_xsd_recursion(rc: RawConfig, tmp_path: Path):
     assert manifest == table
 
 
-@pytest.mark.skip(reason='waiting')
 def test_xsd_enumeration(rc: RawConfig, tmp_path: Path):
     # recursion in XSD
     xsd = """
@@ -700,7 +699,7 @@ def test_xsd_enumeration(rc: RawConfig, tmp_path: Path):
 
         <s:complexType name="action">
             <s:sequence>
-                <s:element name="who_may_consitute" minOccurs="1" maxOccurs="1">
+                <s:element name="who_may_constitute" minOccurs="1" maxOccurs="1">
                     <s:simpleType>
                         <s:restriction base="s:string">
                             <s:enumeration value="fiz"/>
@@ -715,14 +714,18 @@ def test_xsd_enumeration(rc: RawConfig, tmp_path: Path):
 """
 
     table = """
- id | d | r | b | m | property          | type            | ref | source                                | prepare | level | access | uri | title | description
-    | manifest                          |                 |     |                                       |         |       |        |     |       |
-    |   | resource1                     | xml             |     |                                       |         |       |        |     |       |
-    |                                   |                 |     |                                       |         |       |        |     |       |
-    |   |   |   | Data                  |                 |     | /data                                 |         |       |        |     |       |
-    |   |   |   |   | response_message  | string          |     | responseMessage/text()                |         |       |        |     |       |
-    |   |   |   |   | who_may_consitute | string required |     | responseData/who_may_consitute/text() |         |       |        |     |       |
-
+ id | d | r | b | m | property           | type            | ref    | source                    | prepare  | level | access | uri | title | description
+    | manifest                           |                 |        |                           |          |       |        |     |       |
+    |   | resource1                      | xml             |        |                           |          |       |        |     |       |
+    |                                    |                 |        |                           |          |       |        |     |       |
+    |   |   |   | Action/:part           |                 |        |                           |          |       |        |     |       |
+    |   |   |   |   | who_may_constitute | string required |        | who_may_constitute/text() |          |       |        |     |       |
+    |                                    | enum            |        | fiz                       |          |       |        |     |       |
+    |                                    |                 |        | fiz-notarial              |          |       |        |     |       |
+    |                                    |                 |        |                           |          |       |        |     |       |
+    |   |   |   | Data                   |                 |        | /data                     |          |       |        |     |       |
+    |   |   |   |   | response_data      | ref             | Action | responseData              | expand() |       |        |     |       |
+    |   |   |   |   | response_message   | string          |        | responseMessage/text()    |          |       |        |     |       |
 """
     path = tmp_path / 'manifest.xsd'
     path_xsd2 = f"xsd2+file://{path}"
