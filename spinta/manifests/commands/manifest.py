@@ -72,23 +72,13 @@ def set_node(context: Context, manifest: Manifest, obj_type: str, obj_name, obj:
 
 @commands.has_model.register(Context, Manifest, str)
 def has_model(context: Context, manifest: Manifest, model: str, **kwargs):
-    # todo workaround, maybe remove after dealing with /: properly
-    for manifest_model in manifest.get_objects()['model']:
-        if manifest_model.split("/:")[0] == model:
-            return True
-    return False
-    # return model in manifest.get_objects()['model']
+    return model in manifest.get_objects()['model']
 
 
 @commands.get_model.register(Context, Manifest, str)
 def get_model(context: Context, manifest: Manifest, model: str, **kwargs):
     if has_model(context, manifest, model):
-        # todo workaround, maybe remove after dealing with /: properly
-        #  https://github.com/atviriduomenys/spinta/issues/927
-        for manifest_model_name, manifest_model in manifest.get_objects()['model'].items():
-            if manifest_model_name.split("/:")[0] == model:
-                return manifest_model
-        # return manifest.get_objects()['model'][model]
+        return manifest.get_objects()['model'][model]
     raise ModelNotFound(model=model)
 
 
