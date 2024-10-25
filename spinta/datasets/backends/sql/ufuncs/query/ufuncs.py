@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Tuple
 from typing import List
 from typing import Tuple
 from typing import TypeVar
@@ -33,7 +33,7 @@ from spinta.types.datatype import String
 from spinta.types.datatype import UUID
 from spinta.types.text.components import Text
 from spinta.types.text.helpers import determine_language_property_for_text
-from spinta.ufuncs.basequerybuilder.components import LiteralProperty
+from spinta.ufuncs.basequerybuilder.components import LiteralProperty, Selected
 from spinta.ufuncs.basequerybuilder.helpers import get_language_column, process_literal_value
 from spinta.ufuncs.basequerybuilder.ufuncs import Star
 from spinta.ufuncs.basequerybuilder.ufuncs import ResultProperty, NestedProperty, ReservedProperty
@@ -811,36 +811,45 @@ def select(
     env: SqlQueryBuilder,
     prep: Dict[str, Any],
 ) -> Dict[str, Any]:
-    return {k: env.call('select', v) for k, v in prep.items()}
+    return {k: Selected(item=env.add_column(v)) for k, v in prep.items()}
+
 
 @ufunc.resolver(SqlQueryBuilder, NestedProperty)
 def select(env: SqlQueryBuilder, nested: NestedProperty) -> Selected:
     return Selected(
-        prop=nested.left.prop,
-        prep=env.call('select', nested.right),
-    )
+    item=env.add_column(nested.right),
+    prop=nested.left.prop,
+)
+
 
 @ufunc.resolver(SqlQueryBuilder, list)
 def select(
     env: SqlQueryBuilder,
     prep: List[Any],
 ) -> List[Any]:
-    return [env.call('select', v) for v in prep]
+    return [Selected(item=env.add_column(v)) for v in prep]
+
 
 @ufunc.resolver(SqlQueryBuilder, ReservedProperty)
 def select(env, prop):
-    return env.call('select', prop.dtype, prop.param)
+    table = env.backend.get_table(prop.dtype.prop.model)
+    column = table.c[prop.dtype.prop.place + '.' + prop.param]
+    return Selected(item=env.add_column(column))
+
 
 @ufunc.resolver(SqlQueryBuilder, GetAttr)
 def select(env: SqlQueryBuilder, attr: GetAttr) -> Selected:
     resolved = env.call('_resolve_getattr', attr)
-    return env.call('select', resolved)
+    column = env.backend.get_column(env.table, resolved.prop)
+    return Selected(item=env.add_column(column))
 
 
 @ufunc.resolver(SqlQueryBuilder, GetAttr)
 def sort(env, field):
-    dtype = env.call('_resolve_getattr', field)
-    return env.call('sort', dtype)
+    resolved = env.call('_resolve_getattr', field)
+    column = env.backend.get_column(env.table, resolved.prop)
+    return env.call('asc', column)
+
 
 @ufunc.resolver(SqlQueryBuilder, ForeignProperty, PrimaryKey)
 def select(
@@ -866,10 +875,11 @@ def select(
         ]
     return Selected(prop=dtype.prop, prep=result)
 
+
 @ufunc.resolver(SqlQueryBuilder, tuple)
 def select(
     env: SqlQueryBuilder,
     prep: Tuple[Any],
-) -> Tuple[Any]:
-    return tuple(env.call('select', v) for v in prep)
+) -> tuple[Selected, ...]:
+    return tuple(Selected(item=env.add_column(v)) for v in prep)
 
