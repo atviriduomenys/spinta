@@ -210,7 +210,7 @@ class XSDProperty:
         if self.type.description:
             self.description += f" - {self.type.description}"
 
-        data["description"] = self.description
+        data["description"] = self.description.strip()
 
         property_name = self.name
 
@@ -279,7 +279,7 @@ class XSDModel:
         model_data["name"] = self.name
 
         if self.description is not None:
-            model_data["description"] = self.description
+            model_data["description"] = self.description.strip()
 
         if self.properties is not None:
             properties = {}
