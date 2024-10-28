@@ -3,10 +3,20 @@ Changes
 
 0.1.79 (unreleased)
 ===================
+
+Improvements:
+
+- Added better support for migrations with nested data types (`#722`_).
+
 Bug fix:
 
-- Resolved ambiguity warning messages. (`#895`_).
-.. _#895: https://github.com/atviriduomenys/spinta/issues/895
+- Resolved ambiguity warning messages (`#895`_).
+
+  .. _#895: https://github.com/atviriduomenys/spinta/issues/895
+
+- Fixed `Denorm` properties being mapped to `Ref` foreign key migrations (`#722`_).
+
+  .. _#722: https://github.com/atviriduomenys/spinta/issues/722
 
 0.1.78 (2024-10-22)
 ===================
