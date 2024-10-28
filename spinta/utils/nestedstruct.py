@@ -213,8 +213,22 @@ def flatten_value(value, parent: Property, sep=".", key=""):
     return value
 
 
-def get_root_attr(value: str):
-    return value.split('@')[0].split('.')[0]
+def get_root_attr(value: str, initial_root: str = "") -> str:
+    value = value.split('@')[0]
+    if not initial_root:
+        return value.split('.')[0]
+
+    contains_prefix = False
+    value = value.replace(initial_root, '', 1)
+
+    if value.startswith('.'):
+        contains_prefix = True
+        value = value.removeprefix('.')
+
+    value = value.split('.')[0]
+    root = f'{initial_root}.' if contains_prefix else initial_root
+
+    return root + value
 
 
 def get_last_attr(value: str):

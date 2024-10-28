@@ -12,17 +12,21 @@ def connect(env: SqlResource, **kwargs) -> Engine:
         parsed_kwargs[key] = result
     return Engine(env.dsn, **parsed_kwargs)
 
+
 @ufunc.resolver(SqlResource, Bind)
 def schema(env: SqlResource, bind: Bind, **kwargs):
     return bind.name
+
 
 @ufunc.resolver(SqlResource, Bind)
 def encoding(env: SqlResource, bind: Bind, **kwargs):
     return bind.name
 
+
 @ufunc.resolver(SqlResource, str)
 def encoding(env: SqlResource, bind: str, **kwargs):
     return bind
+
 
 @ufunc.resolver(SqlResource, Bind)
 def connect(env: SqlResource, bind: Bind, **kwargs) -> Engine:

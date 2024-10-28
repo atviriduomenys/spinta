@@ -303,25 +303,25 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
             for column in column_mapping.values():
                 commands.migrate(context, backend, meta, table, column, NA, **adjusted_kwargs)
 
-    # mapped_new_columns = {
-    #     column.name: column for column in new_children_columns
-    # }
-    # mapped_old_columns = remap_and_rename_columns(
-    #     base_name=old_prop_name,
-    #     columns=old_children_columns,
-    #     table_name=table.name,
-    #     ref_table_name=old_ref_table,
-    #     rename=rename
-    # )
+    # TODO add child property migration
     # zipped_items = zipitems(
-    #     mapped_old_columns,
-    #     mapped_new_columns,
-    #     name_key
+    #     old_children_columns,
+    #     new.properties.values(),
+    #     lambda x: property_and_column_name_key(x, rename, table, new.prop.model)
     # )
     # for zipped_item in zipped_items:
     #     for old_column, new_column in zipped_item:
-    #         print(old_column, new_column)
-    # TODO add child property migration
+    #         commands.migrate(
+    #             context,
+    #             backend,
+    #             meta,
+    #             table,
+    #             old_column,
+    #             new_column,
+    #             **adjusted_kwargs
+    #         )
+
+
 
 
 @commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, sa.Table, list, ExternalRef)

@@ -34,30 +34,41 @@ class MigrateRename:
         else:
             self.tables[table_name]["columns"][column_name] = new_column_name
 
-    def get_column_name(self, table_name: str, column_name: str, root_only: bool = False):
-        given_name = get_root_attr(column_name) if root_only else column_name
-        if table_name in self.tables.keys():
-            table = self.tables[table_name]
-            if column_name in table["columns"].keys():
-                return table["columns"][column_name]
+    def get_column_name(self, table_name: str, column_name: str, root_only: bool = False, root_value: str = ""):
+        # If table does not have renamed, return given column
+        if table_name not in self.tables:
+            return column_name
 
-            for old_column_name, new_column_name in table["columns"].items():
-                target_name = get_root_attr(old_column_name) if root_only else old_column_name
-                if target_name == given_name:
-                    new_name = get_root_attr(new_column_name) if root_only else new_column_name
-                    return new_name
+        table = self.tables[table_name]
+        columns = table["columns"]
+
+        if column_name in columns:
+            return columns[column_name]
+
+        # If column was not directly set, and it cannot be mapped through root node, return it
+        if not root_only:
+            return column_name
+
+        root_attr = get_root_attr(column_name, initial_root=root_value)
+        for old_column_name, new_column_name in columns.items():
+            target_root_attr = get_root_attr(old_column_name, initial_root=root_value)
+            if root_attr == target_root_attr:
+                new_name = get_root_attr(new_column_name, initial_root=root_value)
+                return new_name
         return column_name
 
-    def get_old_column_name(self, table_name: str, column_name: str, root_only: bool = False):
-        given_name = get_root_attr(column_name) if root_only else column_name
-        if table_name in self.tables.keys():
-            table = self.tables[table_name]
-            for old_column_column, new_column_name in table["columns"].items():
-                target_name = get_root_attr(new_column_name) if root_only else new_column_name
+    def get_old_column_name(self, table_name: str, column_name: str, root_only: bool = False, root_value: str = ""):
+        if table_name not in self.tables:
+            return column_name
 
-                if target_name == given_name:
-                    old_name = get_root_attr(old_column_column) if root_only else old_column_column
-                    return old_name
+        table = self.tables[table_name]
+        given_name = get_root_attr(column_name, initial_root=root_value) if root_only else column_name
+        for old_column_column, new_column_name in table["columns"].items():
+            target_name = get_root_attr(new_column_name, initial_root=root_value) if root_only else new_column_name
+
+            if target_name == given_name:
+                old_name = get_root_attr(old_column_column, initial_root=root_value) if root_only else old_column_column
+                return old_name
         return column_name
 
     def get_table_name(self, table_name: str):
@@ -97,7 +108,8 @@ class MigrateMeta:
     datasets: List[str]
     migration_extension: Callable
 
-    def __init__(self, plan: bool, autocommit: bool, rename: MigrateRename, datasets: List[str] = None, migration_extension: Callable = None):
+    def __init__(self, plan: bool, autocommit: bool, rename: MigrateRename, datasets: List[str] = None,
+                 migration_extension: Callable = None):
         self.plan = plan
         self.rename = rename
         self.autocommit = autocommit

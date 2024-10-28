@@ -223,57 +223,67 @@ def is_column_complex(col: sa.Column):
     return isinstance(col.type, (JSONB, JSON))
 
 
-def property_and_column_name_key(item: Union[sa.Column, Property], rename, table: sa.Table, model: Model) -> str:
+def property_and_column_name_key(
+    item: Union[sa.Column, Property],
+    rename,
+    table: sa.Table,
+    model: Model,
+    root_name: str = ""
+) -> str:
     # Mapping concept is to prioritize complex types over simple
     # new types take priority over old
     # Column is always old, Property is always new
 
     if isinstance(item, sa.Column):
+        # Mapping order
+        # Replace existing edge case -> Indirect renaming / removal edge case -> New name -> Old name
+
         name = item.name
-        is_complex = is_name_or_column_complex(name, item)
-        new_name = rename.get_column_name(table.name, name, True)
+        new_name = rename.get_column_name(table.name, name, True, root_value=root_name)
         full_name = rename.get_column_name(table.name, name)
 
-        root_changed = name_changed(name, new_name)
-        full_changed = name_changed(name, full_name)
+        column_renamed = name_changed(name, new_name)
+        column_directly_renamed = name_changed(name, full_name)
 
         # Check for edge case when you have old columns: column_one, column_two
         # new manifest only hase column_one, but
         # rename provides "column_two": "column_one"
         # meaning, you need to remove old "column_one" and rename old "column_two" to "column_one"
-        if not root_changed:
+        if not column_renamed:
             old_name = rename.get_old_column_name(table.name, name)
             if name_changed(name, old_name):
-                return get_root_attr(old_name)
-
-        if full_changed:
-            new_prop = model.flatprops[full_name]
-            if is_name_or_property_complex(full_name, new_prop) or is_complex:
-                return get_root_attr(full_name)
-
-        if root_changed:
-            new_prop = model.flatprops[new_name]
-            if is_name_or_property_complex(new_name, new_prop):
-                return get_root_attr(new_name)
-            elif not full_changed:
                 return name
 
-        return get_root_attr(name)
+        if column_renamed and not column_directly_renamed:
+            new_prop = model.flatprops[new_name]
+            if not is_name_or_property_complex(new_name, new_prop):
+                return name
+
+        return get_root_attr(new_name, initial_root=root_name)
     elif isinstance(item, Property):
+        # Mapping order
+        # New Property (complex) -> Old column (complex) -> New Property
+
         name = get_column_name(item)
-        old_name = rename.get_old_column_name(table.name, name, True)
+        old_name = rename.get_old_column_name(table.name, name, True, root_value=root_name)
         old_full_name = rename.get_old_column_name(table.name, name)
 
-        if is_name_or_property_complex(name, item):
-            return get_root_attr(name)
+        property_directly_renamed = name_changed(name, old_full_name)
 
-        if name_changed(name, old_full_name):
+        if is_name_or_property_complex(name, item):
+            return get_root_attr(name, initial_root=root_name)
+
+        if property_directly_renamed:
             if old_full_name in table.columns:
                 col = table.columns[old_full_name]
-                if is_name_or_column_complex(old_full_name, col):
-                    return get_root_attr(name)
+                if is_column_complex(col):
+                    return get_root_attr(old_full_name, initial_root=root_name)
+            elif old_name in table.columns:
+                col = table.columns[old_name]
+                if is_column_complex(col):
+                    return get_root_attr(old_name, initial_root=root_name)
 
-        return get_root_attr(old_name)
+        return get_root_attr(name, initial_root=root_name)
 
 
 @dataclasses.dataclass

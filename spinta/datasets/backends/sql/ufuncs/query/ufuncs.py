@@ -145,6 +145,7 @@ def compare(env: SqlQueryBuilder, op: str, dtype: DataType, value: Any):
     column = env.backend.get_column(env.table, dtype.prop)
     return _sa_compare(op, column, value)
 
+
 @ufunc.resolver(SqlQueryBuilder, UUID, str, names=COMPARE)
 def compare(env: SqlQueryBuilder, op: str, dtype: DataType, value: Any):
     column = env.backend.get_column(env.table, dtype.prop).cast(sa.String)
