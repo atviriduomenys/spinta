@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import xml.etree.ElementTree as ET
+
 from _pytest.fixtures import FixtureRequest
 
 from spinta.core.config import RawConfig
@@ -357,3 +359,77 @@ def test_external_ref_unassign_invalid_no_pk(
     })
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["DirectRefValueUnassignment"]
+
+
+@pytest.mark.skip(reason="format support not implemented")
+def test_external_ref_format_rdf(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property | type   | ref                           | source       | level | access
+    datasets/externalref     |        |                               |              |       |
+      | external             | sql    |                               | sqlite://    |       |
+      |   |   | Country      |        | code                          |              |       |
+      |   |   |   | code     | string |                               |              |       | open
+      |   |   |   | name     | string |                               |              |       | open
+    datasets/internal        |        |                               |              |       |
+      |   |   | City         |        |                               |              |       |
+      |   |   |   | name     | string |                               |              |       | open
+      |   |   |   | country  | ref    | /datasets/externalref/Country |              | 3     | open
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+
+    app = create_test_client(context)
+    app.authmodel('datasets/internal/City', [
+        'insert',
+        'getall',
+        'search'
+    ])
+
+    resp = app.post('/datasets/internal/City', json={
+        'country': {'code': "lt"},
+        'name': 'Vilnius',
+    })
+    assert resp.status_code == 201
+
+    resp = app.get('/datasets/internal/City/:format/rdf')
+    assert resp.status_code == 200
+
+    namespaces = {
+        'rdf': 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
+        'pav': 'http://purl.org/pav/',
+        '': 'https://testserver/'
+    }
+    root = ET.fromstring(resp.text)
+    rdf_description = root.find('{http://www.w3.org/1999/02/22-rdf-syntax-ns#}Description')
+    id_value = rdf_description.attrib['{http://www.w3.org/1999/02/22-rdf-syntax-ns#}about'].split('/')[-1]
+    version_value = rdf_description.attrib['{http://purl.org/pav/}version']
+    page_value = rdf_description.find('_page', namespaces).text
+
+    assert resp.text == f'<?xml version="1.0" encoding="UTF-8"?>\n' \
+                        f'<rdf:RDF\n' \
+                        f' xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"\n' \
+                        f' xmlns:pav="http://purl.org/pav/"\n' \
+                        f' xmlns:xml="http://www.w3.org/XML/1998/namespace"\n' \
+                        f' xmlns="https://testserver/">\n' \
+                        f'<rdf:Description rdf:about="/datasets/internal/City/{id_value}" rdf:type="datasets/internal/City" pav:version="{version_value}">\n ' \
+                        f' <_page>{page_value}</_page>\n ' \
+                        f' <name>Vilnius</name>\n ' \
+                        f' <country>\n' \
+                        f'    <rdf:Description rdf:type="datasets/externalref/Country">\n' \
+                        f'      <country>lt</country>\n' \
+                        f'    </rdf:Description>\n' \
+                        f"  </country>\n" \
+                        f'</rdf:Description>\n' \
+                        f'</rdf:RDF>\n'
+
