@@ -12,8 +12,6 @@ from typing import TypeVar
 
 from itertools import chain
 from itertools import count
-
-from pygments.lexer import inherit
 from starlette.requests import Request
 from starlette.templating import Jinja2Templates
 
