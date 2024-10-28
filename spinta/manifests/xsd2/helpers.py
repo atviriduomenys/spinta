@@ -636,7 +636,7 @@ class XSDReader:
                 property_groups = new_property_groups
 
             elif local_name == "complexContent":
-                complex_content_property_groups: list[list[XSDModel]] = self.process_complex_content(child, state)
+                complex_content_property_groups: List[List[XSDModel]] = self.process_complex_content(child, state)
                 new_property_groups = []
                 for group in property_groups:
                     for cc_group in complex_content_property_groups:
@@ -645,16 +645,16 @@ class XSDReader:
                         new_property_groups.append(combined_group)
                 property_groups = new_property_groups
 
-            elif local_name == "all":
-                all_properties: list[XSDProperty] = self.process_all(child, state)
-                for group in property_groups:
-                    group.extend(all_properties)
-
                 if hasattr(state, 'prepare_statement'):
                     prepare_statement: str = state.prepare_statement
                     del state.prepare_statement
                 else:
                     prepare_statement = None
+
+            elif local_name == "all":
+                all_properties: list[XSDProperty] = self.process_all(child, state)
+                for group in property_groups:
+                    group.extend(all_properties)
 
             elif local_name == "simpleContent":
                 simple_content_properties: List[XSDProperty] = self.process_simple_content(child, state)
