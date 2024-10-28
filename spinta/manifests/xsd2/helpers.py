@@ -616,7 +616,7 @@ class XSDReader:
                     group.append(prop)
 
             elif local_name == "sequence":
-                sequence_property_groups: List[List[XSDProperty]] = self.process_sequence(child, state)
+                sequence_property_groups: list[list[XSDProperty]] = self.process_sequence(child, state)
                 new_property_groups = []
                 for group in property_groups:
                     for seq_group in sequence_property_groups:
@@ -626,7 +626,7 @@ class XSDReader:
                 property_groups = new_property_groups
 
             elif local_name == "choice":
-                choice_property_groups: List[List[XSDProperty]] = self.process_choice(child, state)
+                choice_property_groups: list[list[XSDProperty]] = self.process_choice(child, state)
                 new_property_groups = []
                 for group in property_groups:
                     for choice_group in choice_property_groups:
@@ -650,6 +650,11 @@ class XSDReader:
                     del state.prepare_statement
                 else:
                     prepare_statement = None
+
+            elif local_name == "all":
+                all_properties: list[XSDProperty] = self.process_all(child, state)
+                for group in property_groups:
+                    group.extend(all_properties)
 
             elif local_name == "simpleContent":
                 simple_content_properties: List[XSDProperty] = self.process_simple_content(child, state)
@@ -818,8 +823,35 @@ class XSDReader:
     def process_group(self, node: _Element, state: State) -> None:
         pass
 
-    def process_all(self, node: _Element, state: State) -> None:
-        pass
+    def process_all(self, node: _Element, state: State) -> list[XSDProperty]:
+        """
+        Processes an XSD <all> element, ensuring each child element has minOccurs=0|1 and maxOccurs=1,
+        and returns a list of property groups. Since <all> allows any order, this method does not produce combinations.
+        """
+        properties: list = []
+
+        for child in node.getchildren():
+            if isinstance(child, etree._Comment):
+                continue
+
+            local_name = QName(child).localname
+
+            if local_name == "element":
+                min_occurs = child.attrib.get("minOccurs", "1")
+                max_occurs = child.attrib.get("maxOccurs", "1")
+                
+                if min_occurs not in {"0", "1"} or max_occurs != "1":
+                    raise ValueError(
+                        f"Invalid occurrence in <all> element: minOccurs='{min_occurs}', maxOccurs='{max_occurs}'"
+                    )
+                
+                props: list[XSDProperty] = self.process_element(child, state)
+                properties.extend(props)
+
+            else:
+                raise RuntimeError(f"Unexpected element type inside <all>: {local_name}")
+
+        return properties
 
     def process_simple_content(self, node: _Element, state: State) -> list[XSDProperty]:
         properties: list = []
