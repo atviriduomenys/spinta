@@ -3,7 +3,10 @@ Changes
 
 0.1.79 (unreleased)
 ===================
+Bug fix:
 
+- Resolved ambiguity warning messages. (`#895`_).
+.. _#895: https://github.com/atviriduomenys/spinta/issues/895
 
 0.1.78 (2024-10-22)
 ===================

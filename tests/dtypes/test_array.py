@@ -1,6 +1,7 @@
 from spinta.testing.client import create_test_client
 from spinta.testing.manifest import bootstrap_manifest
 from _pytest.fixtures import FixtureRequest
+import xml.etree.ElementTree as ET
 import pytest
 
 
@@ -312,3 +313,74 @@ def test_array_select_only_array(manifest_type, rc, tmp_path, postgresql: str, r
             '_id': LIT
         }
     ]}]
+
+
+@pytest.mark.skip(reason="format support not implemented")
+def test_array_rdf(
+    manifest_type: str,
+    tmp_path,
+    rc,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property    | type    | ref      | access | level
+    example/dtypes/array/rdf    |         |          |        |
+                                |         |          |        |
+      |   |   | Item            |         | id, name |        |
+      |   |   |   | id          | integer |          | open   |
+      |   |   |   | name        | string  |          | open   |
+      |   |   |   | tags[]      | string  |          | open   |
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+
+    app = create_test_client(context)
+    app.authorize(['spinta_set_meta_fields'])
+    app.authmodel('example/dtypes/array/rdf', ['insert', 'getone', 'getall'])
+
+    item1_id = "c8e4cd60-0b15-4b23-a691-09cdf2ebd9c0"
+    item2_id = "1cccf6f6-9fe2-4055-b003-915a7c1abee8"
+    app.post('example/dtypes/array/rdf/Item', json={
+        '_id': item1_id,
+        'id': 0,
+        'name': 'Item1',
+        'tags': ['tag1', 'tag2']
+    })
+    app.post('example/dtypes/array/rdf/Item', json={
+        '_id': item2_id,
+        'id': 1,
+        'name': 'Item2',
+        'tags': ['tag3']
+    })
+
+    resp = app.get('example/dtypes/array/rdf/Item/:format/rdf?expand()')
+    assert resp.status_code == 200
+
+    root = ET.fromstring(resp.text)
+    rdf_descriptions = root.findall('{http://www.w3.org/1999/02/22-rdf-syntax-ns#}Description')
+    version_values = [desc.attrib['{http://purl.org/pav/}version'] for desc in rdf_descriptions]
+    assert resp.text == f'<?xml version="1.0" encoding="UTF-8"?>\n' \
+                        f'<rdf:RDF\n' \
+                        f' xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"\n' \
+                        f' xmlns:pav="http://purl.org/pav/"\n' \
+                        f' xmlns:xml="http://www.w3.org/XML/1998/namespace"\n' \
+                        f' xmlns="https://testserver/">\n' \
+                        f'<rdf:Description rdf:about="/example/dtypes/array/rdf/Item/c8e4cd60-0b15-4b23-a691-09cdf2ebd9c0" rdf:type="example/dtypes/array/rdf/Item" pav:version="{version_values[0]}">\n' \
+                        f'  <_page>WzAsICJJdGVtMSIsICJjOGU0Y2Q2MC0wYjE1LTRiMjMtYTY5MS0wOWNkZjJlYmQ5YzAiXQ==</_page>\n' \
+                        f'  <id>0</id>\n' \
+                        f'  <name>Item1</name>\n' \
+                        f"  <tags>['tag1', 'tag2']</tags>\n" \
+                        f'</rdf:Description>\n' \
+                        f'<rdf:Description rdf:about="/example/dtypes/array/rdf/Item/1cccf6f6-9fe2-4055-b003-915a7c1abee8" rdf:type="example/dtypes/array/rdf/Item" pav:version="{version_values[1]}">\n' \
+                        f'  <_page>WzEsICJJdGVtMiIsICIxY2NjZjZmNi05ZmUyLTQwNTUtYjAwMy05MTVhN2MxYWJlZTgiXQ==</_page>\n' \
+                        f'  <id>1</id>\n' \
+                        f'  <name>Item2</name>\n' \
+                        f"  <tags>['tag3']</tags>\n" \
+                        f'</rdf:Description>\n' \
+                        f'</rdf:RDF>\n'

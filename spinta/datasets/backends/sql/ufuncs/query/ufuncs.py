@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Tuple
 from typing import List
 from typing import Tuple
 from typing import TypeVar
 from typing import Union
 from typing import overload
+from typing import Dict
 
 import sqlalchemy as sa
 from sqlalchemy.sql.functions import Function
@@ -32,9 +33,10 @@ from spinta.types.datatype import String
 from spinta.types.datatype import UUID
 from spinta.types.text.components import Text
 from spinta.types.text.helpers import determine_language_property_for_text
-from spinta.ufuncs.basequerybuilder.components import LiteralProperty
+from spinta.ufuncs.basequerybuilder.components import LiteralProperty, Selected
 from spinta.ufuncs.basequerybuilder.helpers import get_language_column, process_literal_value
 from spinta.ufuncs.basequerybuilder.ufuncs import Star
+from spinta.ufuncs.basequerybuilder.ufuncs import ResultProperty, NestedProperty, ReservedProperty
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.data import take
 from spinta.utils.itertools import flatten
@@ -318,11 +320,9 @@ def select(env: SqlQueryBuilder, expr: Expr):
             )
 
 
-@ufunc.resolver(SqlQueryBuilder, object)
-def select(env: SqlQueryBuilder, value: Any) -> Selected:
-    """For things like select(1, count())."""
-    return Selected(item=env.add_column(value))
-
+@ufunc.resolver(SqlQueryBuilder, sa.sql.expression.ColumnElement)
+def select(env, column):
+    return Selected(env.add_column(column))
 
 @ufunc.resolver(SqlQueryBuilder, Bind)
 def select(env: SqlQueryBuilder, item: Bind, *, nested: bool = False):
@@ -792,3 +792,13 @@ def distinct(env: SqlQueryBuilder):
 def swap(env: SqlQueryBuilder, expr: Expr):
     args, kwargs = expr.resolve(env)
     return Expr('swap', *args, **kwargs)
+
+
+@ufunc.resolver(SqlQueryBuilder, ForeignProperty, PrimaryKey)
+def select(
+    env: SqlQueryBuilder,
+    fpr: ForeignProperty,
+    dtype: PrimaryKey,
+) -> Selected:
+    super_ = ufunc.resolver[env, fpr, dtype]
+    return super_(env, fpr, dtype)
