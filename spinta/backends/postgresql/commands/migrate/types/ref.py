@@ -7,12 +7,18 @@ from spinta import commands
 from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_column_name
-from spinta.backends.postgresql.helpers.migrate.migrate import name_key, MigratePostgresMeta, is_internal_ref, \
-    adjust_kwargs, is_name_complex, extract_literal_name_from_column, generate_type_missmatch_exception_details
+from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
+from spinta.backends.postgresql.helpers.migrate.migrate import name_key, MigratePostgresMeta, adjust_kwargs, \
+    is_name_complex, extract_literal_name_from_column, generate_type_missmatch_exception_details, \
+    extract_sqlalchemy_columns, is_internal, split_columns, get_spinta_primary_keys, remap_and_rename_columns, \
+    remove_property_prefix_from_column_name
+from spinta.backends.postgresql.helpers.migrate.name import get_pg_column_name
+from spinta.cli.helpers.migrate import MigrateRename
 from spinta.components import Context
 from spinta.datasets.inspect.helpers import zipitems
 from spinta.exceptions import MigrateScalarToRefTooManyKeys, MigrateScalarToRefTypeMissmatch
-from spinta.types.datatype import Ref
+from spinta.types.datatype import Ref, ExternalRef
+from spinta.utils.itertools import ensure_list
 from spinta.utils.schema import NotAvailable, NA
 
 
@@ -33,158 +39,404 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
     commands.migrate(context, backend, meta, table, [old], new, **kwargs)
 
 
+def _migrate_scalar_to_ref_4(
+    context: Context,
+    backend: PostgreSQL,
+    table: sa.Table,
+    columns: List[sa.Column],
+    ref: Ref,
+    ref_column: sa.Column,
+    meta: MigratePostgresMeta,
+    handler: MigrationHandler,
+    rename: MigrateRename,
+    **kwargs
+) -> bool:
+    """Checks and converts scalar to internal ref
+
+    Args:
+        table: old table
+        columns: list of old columns
+        ref: new Ref property
+        ref_column: new Ref converted to column
+
+    Returns:
+        bool: Applied scalar to ref conversion or not
+
+    In order to do scalar to ref conversion, there are strict requirements
+    otherwise it would be nearly impossible to guess primary key and foreign key mapping
+        1. refprops size has to be 1 (since you try to map single column, cannot map to more than that)
+        2. column type has to match ref tables primary key type
+    This triggers only if column name (after rename) matches ref property name_key
+    """
+
+    # Check if there is only 1 primary key to match
+    if not len(columns) == 1:
+        return False
+
+    table_name = rename.get_table_name(table.name)
+
+    column = columns[0]
+    new_name = rename.get_column_name(table.name, column.name)
+
+    # Check if after rename column becomes ref itself, or only part of it (can check if name contains special characters)
+    if is_name_complex(new_name):
+        return False
+
+    # Check if refprops is size of 1
+    if len(ref.refprops) > 1:
+        raise MigrateScalarToRefTooManyKeys(ref, primary_keys=[pkey.name for pkey in ref.refprops])
+
+    target = ref.refprops[0]
+    target_column = commands.prepare(context, backend, target)
+    key = target.name
+    old_type = extract_literal_name_from_column(column)
+    new_type = extract_literal_name_from_column(target_column)
+
+    # Check if types match
+    if old_type != new_type:
+        raise MigrateScalarToRefTypeMissmatch(
+            ref,
+            details=generate_type_missmatch_exception_details(
+                [
+                    (
+                        (column.name, old_type),
+                        (key, new_type)
+                    )
+                ]
+            ))
+    # Create new empty ref column
+    commands.migrate(context, backend, meta, table, NA, ref_column, **kwargs)
+
+    # Apply conversion from scalar to ref column
+    handler.add_action(ma.UpgradeTransferDataMigrationAction(
+        table_name=table_name,
+        referenced_table_name=get_table_name(ref.model),
+        ref_column=ref_column,
+        columns={
+            key: column
+        }
+    ), True)
+
+    # Drop old column after migration
+    commands.migrate(context, backend, meta, table, column, NA, **kwargs)
+    return True
+
+
+def _migrate_scalar_to_ref_3(
+    context: Context,
+    backend: PostgreSQL,
+    table: sa.Table,
+    columns: List[sa.Column],
+    ref: ExternalRef,
+    ref_columns: List[sa.Column],
+    meta: MigratePostgresMeta,
+    handler: MigrationHandler,
+    rename: MigrateRename,
+    **kwargs
+) -> bool:
+    """Checks and converts scalar to external ref
+
+    Args:
+        table: old table
+        columns: list of old columns
+        ref: new ExternalRef property
+        ref_columns: new ExternalRef converted to column
+
+    Returns:
+        bool: Applied scalar to ref conversion or not
+
+    In order to do scalar to ref conversion, there are strict requirements
+    otherwise it would be nearly impossible to guess primary key and foreign key mapping
+        1. refprops size has to be 1 (since you try to map single column, cannot map to more than that)
+        2. column type has to match ref tables primary key type
+    This triggers only if column name (after rename) matches ref property name_key
+    """
+
+    # Check if there is only 1 primary key to match
+    if not len(columns) == 1:
+        return False
+
+    table_name = rename.get_table_name(table.name)
+
+    column = columns[0]
+    new_name = rename.get_column_name(table.name, column.name)
+
+    # Check if after rename column becomes ref itself, or only part of it (can check if name contains special characters)
+    if is_name_complex(new_name):
+        return False
+
+    # Check if refprops is size of 1
+    if len(ref.refprops) > 1 or len(ref_columns) > 1:
+        raise MigrateScalarToRefTooManyKeys(ref, primary_keys=[pkey.name for pkey in ref.refprops])
+
+    ref_column = ref_columns[0]
+    old_type = extract_literal_name_from_column(column)
+    new_type = extract_literal_name_from_column(ref_column)
+
+    # Check if types match
+    if old_type != new_type:
+        raise MigrateScalarToRefTypeMissmatch(
+            ref,
+            details=generate_type_missmatch_exception_details(
+                [
+                    (
+                        (column.name, old_type),
+                        (ref_column.name, new_type)
+                    )
+                ]
+            ))
+    # Create new empty ref column
+    commands.migrate(context, backend, meta, table, NA, ref_column, **kwargs)
+
+    # Apply conversion from scalar to ref column
+    target = remove_property_prefix_from_column_name(
+        ref_column.name,
+        ref.prop
+    )
+    handler.add_action(
+        ma.DowngradeTransferDataMigrationAction(
+            table_name=table_name,
+            referenced_table_name=get_table_name(ref.model),
+            source_column=column,
+            columns={
+                ref_column.name: sa.Column(target, type_=ref_column.type)
+            },
+            target=target
+        ), True
+    )
+
+    # Drop old column after migration
+    commands.migrate(context, backend, meta, table, column, NA, **kwargs)
+    return True
+
+
 @commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, sa.Table, list, Ref)
 def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, table: sa.Table,
             old: List[sa.Column], new: Ref, **kwargs):
     rename = meta.rename
     inspector = meta.inspector
     handler = meta.handler
-
     adjusted_kwargs = adjust_kwargs(kwargs, 'foreign_key', True)
 
-    new_columns = commands.prepare(context, backend, new.prop)
-    if not isinstance(new_columns, list):
-        new_columns = [new_columns]
+    new_primary_columns = commands.prepare(context, backend, new.prop, propagate=False)
+    new_primary_columns = ensure_list(new_primary_columns)
+    new_primary_columns = extract_sqlalchemy_columns(new_primary_columns)
+    new_primary_column_names = [column.name for column in new_primary_columns]
+
+    # Since its `Ref` type, it should only generate 1 columns 'column._id'
+    primary_column = new_primary_columns[0]
+
+    new_all_columns = commands.prepare(context, backend, new.prop)
+    new_all_columns = ensure_list(new_all_columns)
+    new_all_columns = extract_sqlalchemy_columns(new_all_columns)
+
+    new_children_columns = [column for column in new_all_columns if column.name not in new_primary_column_names]
+    new_children_column_names = [column.name for column in new_children_columns]
+
     table_name = rename.get_table_name(table.name)
     old_ref_table = rename.get_old_table_name(get_table_name(new.model))
     old_prop_name = rename.get_old_column_name(table.name, get_column_name(new.prop))
 
-    old_names = {}
-    new_names = {}
-    for item in old:
-        base_name = item.name.split(".")
-        name = rename.get_column_name(table.name, item.name)
-        if len(base_name) > 1:
-            name = f'{rename.get_column_name(table.name, base_name[0])}.{rename.get_column_name(old_ref_table, base_name[1])}'
-        old_names[name] = item
+    new_name = get_pg_column_name(new.prop.place)
+    ref_model_primary_keys = get_spinta_primary_keys(
+        table_name=old_ref_table,
+        model=new.model,
+        inspector=inspector
+    )
+    old_columns_internal = is_internal(old, old_prop_name)
+    old_primary_columns, old_children_columns = split_columns(
+        columns=old,
+        base_name=old_prop_name,
+        target_base_name=new_name,
+        ref_table_primary_key_names=ref_model_primary_keys,
+        target_primary_column_names=new_primary_column_names,
+        target_children_column_names=new_children_column_names,
+        internal=old_columns_internal
+    )
 
-    for item in new_columns:
-        new_names[item.name] = item
-
-    if is_internal_ref(new):
-        column = new_columns[0]
-        if len(old) == 1 and old[0].name == f'{old_prop_name}._id':
-            old_column = old[0]
-            commands.migrate(context, backend, meta, table, old_column, column, **adjusted_kwargs)
-        else:
-            column_list = dict()
-            drop_list = []
-            for old_column in old:
-                new_name = rename.get_column_name(table.name, old_column.name)
-                key = new_name.split('.')[-1]
-
-                # Check for scalar -> ref 4, can only accept 1 primary key
-                if key == new_name:
-                    model_external = new.model.external
-                    key = '_id'
-                    if model_external and not model_external.unknown_primary_key and model_external.pkeys:
-                        if len(model_external.pkeys) > 1:
-                            raise MigrateScalarToRefTooManyKeys(new, primary_keys=[pkey.name for pkey in model_external.pkeys])
-                        target = model_external.pkeys[0]
-                        target_column = commands.prepare(context, backend, target)
-                        key = target.name
-                        old_type = extract_literal_name_from_column(old_column)
-                        new_type = extract_literal_name_from_column(target_column)
-                        if old_type != new_type:
-                            raise MigrateScalarToRefTypeMissmatch(new,
-                                  details=generate_type_missmatch_exception_details(
-                                      [
-                                          (
-                                              (old_column.name, old_type),
-                                              (key, new_type)
-                                          )
-                                      ]
-                                  ))
-
-                column_list[key] = sa.Column(new_name, old_column.type)
-                if old_column.name != f'{old_prop_name}._id':
-                    drop_list.append(old_column)
-
-            inspector_columns = inspector.get_columns(table.name)
-            old_col = NA
-            if any(f'{old_prop_name}._id' == col["name"] for col in inspector_columns):
-                old_col = table.c.get(f'{old_prop_name}._id')
-            commands.migrate(context, backend, meta, table, old_col, column, **adjusted_kwargs)
-            if old_names.keys() != new_names.keys():
-                handler.add_action(ma.UpgradeTransferDataMigrationAction(
-                    table_name=table_name,
-                    foreign_table_name=get_table_name(new.refprops[0]),
-                    target=column,
-                    columns=column_list
-                ), True)
-            for col in drop_list:
-                commands.migrate(context, backend, meta, table, col, NA, **adjusted_kwargs)
+    if old_columns_internal:
+        # Handle internal ref migration
+        commands.migrate(
+            context,
+            backend,
+            meta,
+            table,
+            old_primary_columns[0],
+            primary_column,
+            **adjusted_kwargs
+        )
     else:
-        old_name_with_id = f'{old_prop_name}._id'
-        # Might going to need to add better check to see if its transform or rename
-        # This will prob not work with nested structure
-        if len(old) == 1 and (
-            old[0].name == old_name_with_id or
-            not is_name_complex(old[0].name)
-        ):
-            column = old[0]
-            requires_drop = True
-            if len(new_columns) > 1 and column.name != old_name_with_id:
-                raise MigrateScalarToRefTooManyKeys(new, primary_keys=[col.name.split('.')[-1] for col in new_columns])
+        # Try to do scalar to ref migration
+        migrated = _migrate_scalar_to_ref_4(
+            context=context,
+            backend=backend,
+            table=table,
+            columns=old_primary_columns,
+            ref=new,
+            ref_column=primary_column,
+            meta=meta,
+            handler=handler,
+            rename=rename,
+            **adjusted_kwargs
+        )
 
-            target = '_id'
+        # Scalar did not pass
+        if not migrated:
+            column_mapping = dict()
+            for column in old_primary_columns:
+                new_name = rename.get_column_name(table.name, column.name)
+                key = new_name.split('.')[-1]
+                column_mapping[key] = column
 
-            # Scalar to ref checks and adjustments
-            if not column.name.endswith('._id') and len(new_columns) == 1 and isinstance(new_columns[0], sa.Column):
-                target_column = new_columns[0]
-                target = target_column.name.split('.')[-1]
-                old_type = extract_literal_name_from_column(column)
-                new_type = extract_literal_name_from_column(target_column)
-                if old_type != new_type:
-                    raise MigrateScalarToRefTypeMissmatch(new, details=generate_type_missmatch_exception_details(
-                        [
-                            (
-                                (column.name, old_type),
-                                (target_column.name, new_type)
-                            )
-                        ]
-                    ))
+            # Create empty ref column
+            commands.migrate(context, backend, meta, table, NA, primary_column, **adjusted_kwargs)
 
-            for new_column in new_columns:
-                if isinstance(new_column, sa.Column):
-                    if new_column.name == old_name_with_id:
-                        requires_drop = False
-                        commands.migrate(context, backend, meta, table, old[0], new_column, **adjusted_kwargs)
-                    else:
-                        commands.migrate(context, backend, meta, table, NA, new_column, **adjusted_kwargs)
-            column_list = dict()
+            # Migrate from level 3 to level 4 ref
+            handler.add_action(ma.UpgradeTransferDataMigrationAction(
+                table_name=table_name,
+                referenced_table_name=get_table_name(new.model),
+                ref_column=primary_column,
+                columns=column_mapping
+            ), True)
 
-            for item in new_columns:
-                name = item.name
-                column_list[name] = sa.Column(name.split('.')[-1], item.type)
-            if old_names.keys() != new_names.keys():
-                handler.add_action(
-                    ma.DowngradeTransferDataMigrationAction(
-                        table_name=table_name,
-                        foreign_table_name=get_table_name(new.refprops[0]),
-                        source=column,
-                        columns=column_list,
-                        target=target
-                    ), True
+            # Drop old columns
+            for column in column_mapping.values():
+                commands.migrate(context, backend, meta, table, column, NA, **adjusted_kwargs)
+
+    # TODO add child property migration
+    # zipped_items = zipitems(
+    #     old_children_columns,
+    #     new.properties.values(),
+    #     lambda x: property_and_column_name_key(x, rename, table, new.prop.model)
+    # )
+    # for zipped_item in zipped_items:
+    #     for old_column, new_column in zipped_item:
+    #         commands.migrate(
+    #             context,
+    #             backend,
+    #             meta,
+    #             table,
+    #             old_column,
+    #             new_column,
+    #             **adjusted_kwargs
+    #         )
+
+
+
+
+@commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, sa.Table, list, ExternalRef)
+def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, table: sa.Table,
+            old: List[sa.Column], new: ExternalRef, **kwargs):
+    rename = meta.rename
+    inspector = meta.inspector
+    handler = meta.handler
+
+    adjusted_kwargs = adjust_kwargs(kwargs, 'foreign_key', True)
+
+    table_name = rename.get_table_name(table.name)
+    old_ref_table = rename.get_old_table_name(get_table_name(new.model))
+    old_prop_name = rename.get_old_column_name(table.name, get_column_name(new.prop))
+
+    new_primary_columns = commands.prepare(context, backend, new.prop, propagate=False)
+    new_primary_columns = ensure_list(new_primary_columns)
+    new_primary_columns = extract_sqlalchemy_columns(new_primary_columns)
+    new_primary_column_name_mapping = {column.name: column for column in new_primary_columns}
+
+    new_all_columns = commands.prepare(context, backend, new.prop)
+    new_all_columns = ensure_list(new_all_columns)
+    new_all_columns = extract_sqlalchemy_columns(new_all_columns)
+
+    new_children_columns = [column for column in new_all_columns if
+                               column.name not in new_primary_column_name_mapping]
+    new_children_column_names = [column.name for column in new_children_columns]
+
+    new_name = get_pg_column_name(new.prop.place)
+    ref_model_primary_keys = get_spinta_primary_keys(
+        table_name=old_ref_table,
+        model=new.model,
+        inspector=inspector
+    )
+    old_columns_internal = is_internal(old, old_prop_name)
+    old_primary_columns, old_children_columns = split_columns(
+        columns=old,
+        base_name=old_prop_name,
+        target_base_name=new_name,
+        ref_table_primary_key_names=ref_model_primary_keys,
+        target_primary_column_names=list(new_primary_column_name_mapping.keys()),
+        target_children_column_names=new_children_column_names,
+        internal=old_columns_internal
+    )
+
+    # Check to see if migration has already been achieved
+    migrated = False
+    if len(old_primary_columns) == 1:
+        old_primary_column = old_primary_columns[0]
+
+        if old_columns_internal:
+            # Handle Internal ref mapping
+            # Ensure columns exist
+            column_mapping = {}
+            for column in new_primary_columns:
+                column_mapping[column.name] = sa.Column(
+                    remove_property_prefix_from_column_name(
+                        column.name,
+                        new.prop
+                    ),
+                    type_=column.type
                 )
-            if requires_drop:
-                commands.migrate(context, backend, meta, table, old[0], NA, **adjusted_kwargs)
-        else:
-            props = zipitems(
-                old_names.keys(),
-                new_names.keys(),
-                name_key
+                commands.migrate(context, backend, meta, table, NA, column, **adjusted_kwargs)
+
+            # Downgrade ref column
+            handler.add_action(
+                ma.DowngradeTransferDataMigrationAction(
+                    table_name=table_name,
+                    referenced_table_name=get_table_name(new.model),
+                    source_column=old_primary_column,
+                    columns=column_mapping,
+                    target='_id'
+                ), True
             )
-            drop_list = []
-            for prop in props:
-                for old_prop, new_prop in prop:
-                    if old_prop is not NA:
-                        old_prop = old_names[old_prop]
-                    if new_prop is not NA:
-                        new_prop = new_names[new_prop]
-                    if old_prop is not None and new_prop is None:
-                        drop_list.append(old_prop)
-                    else:
-                        commands.migrate(context, backend, meta, table, old_prop, new_prop, **adjusted_kwargs)
-            for drop in drop_list:
-                commands.migrate(context, backend, meta, table, drop, NA, **adjusted_kwargs)
+
+            # Drop old column
+            commands.migrate(context, backend, meta, table, old_primary_column, NA, **adjusted_kwargs)
+            migrated = True
+        else:
+            migrated = _migrate_scalar_to_ref_3(
+                context=context,
+                backend=backend,
+                table=table,
+                columns=old_primary_columns,
+                ref=new,
+                ref_columns=new_primary_columns,
+                meta=meta,
+                handler=handler,
+                rename=rename,
+                **adjusted_kwargs
+            )
+
+    # If no ref migrations were done, try to zip the primary columns and migrate them
+    if not migrated:
+        renamed_old_primary_columns = remap_and_rename_columns(
+            base_name=old_prop_name,
+            columns=old_primary_columns,
+            table_name=table.name,
+            ref_table_name=old_ref_table,
+            rename=rename
+        )
+
+        zipped_items = zipitems(
+            renamed_old_primary_columns.keys(),
+            new_primary_column_name_mapping.keys(),
+            name_key
+        )
+        for zipped_item in zipped_items:
+            for old_column, new_column in zipped_item:
+                if old_column is not NA:
+                    old_column = renamed_old_primary_columns[old_column]
+                if new_column is not NA:
+                    new_column = new_primary_column_name_mapping[new_column]
+
+                if old_column is not None and new_column is None:
+                    commands.migrate(context, backend, meta, table, old_column, NA, **adjusted_kwargs)
+                else:
+                    commands.migrate(context, backend, meta, table, old_column, new_column, **adjusted_kwargs)

@@ -1835,3 +1835,5 @@ def test_migrate_ref_to_scalar_level_4_error(
             'migrate/example/Country',
             'migrate/example/Country/:changelog'
         ])
+
+
