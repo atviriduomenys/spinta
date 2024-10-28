@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+from copy import copy
 from dataclasses import dataclass
 from typing import Any, List
 from urllib.request import urlopen
@@ -323,6 +324,7 @@ class XSDDatasetResource:
 def _is_array(node: _Element) -> bool:
     return node.attrib.get("maxOccurs", 1) == "unbounded" or int(node.attrib.get("maxOccurs", 1)) > 1
 
+
 class XSDReader:
     dataset_resource: XSDDatasetResource
     models: list[XSDModel]
@@ -330,8 +332,11 @@ class XSDReader:
     root: _Element
     deduplicate_model_name: Deduplicator
     custom_types: dict[str, XSDType] | None = None
-    top_level_element_models: dict[str, XSDModel]
-    top_level_complex_type_models: dict[str, XSDModel]
+    # those hav to be dicts of lists, because if there is `choice` inside a complexType, multiple models can be created
+    # with the same element name
+    top_level_element_models: dict[str, list[XSDModel]]
+    top_level_complex_type_models: dict[str, list[XSDModel]]
+    separate_complex_type_root_elements: list[XSDProperty]
     namespaces: dict[str, str] | None = None
 
     def __init__(self, path: str, dataset_name) -> None:
@@ -342,6 +347,7 @@ class XSDReader:
         self.deduplicate_model_name = Deduplicator()
         self.top_level_element_models = {}
         self.top_level_complex_type_models = {}
+        self.separate_complex_type_root_elements = []
 
     def register_simple_types(self, state: State) -> None:
         custom_types_nodes = self.root.xpath(f'./*[local-name() = "simpleType"]')
@@ -398,23 +404,34 @@ class XSDReader:
         Also links models to their base models based on the 'prepare' attribute (extend statements).
         """
         for model in self.models:
+            deduplicate_property_name = Deduplicator()
+            for prop in model.properties.values():
+                deduplicate_property_name(prop.name)
             for prop in model.properties.values():
                 if prop.xsd_ref_to:
                     try:
-                        prop.ref_model = self.top_level_element_models[prop.xsd_ref_to]
+                        # TODO: do the same as with prop_type
+                        prop.ref_model = self.top_level_element_models[prop.xsd_ref_to][0]
                     except KeyError:
                         raise KeyError(f"Reference to a non-existing model: {prop.xsd_ref_to}")
                     
                 elif prop.xsd_type_to:
                     try:
-                        prop.ref_model = self.top_level_complex_type_models[prop.xsd_type_to]
+                        prop.ref_model = self.top_level_complex_type_models[prop.xsd_type_to][0]
+                        if len(self.top_level_complex_type_models[prop.xsd_type_to]) > 1:
+                            for prop_model in self.top_level_complex_type_models[prop.xsd_type_to][1:]:
+                                new_prop = copy(prop)
+                                new_prop.ref_model = prop_model
+                                new_prop.name = deduplicate_property_name(prop.name)
+                                model.properties[new_prop.name] = new_prop
                     except KeyError:
                         prop.type = XSDType(name="string")
                         logger.warning(f"Referenced type is not defined: {prop.xsd_type_to}. Setting type to string")
 
+            # TODO: what if the extended model has `choice`?
             if model.extends_model:
                 try:
-                    extends_model: XSDModel = self.top_level_complex_type_models[model.extends_model]
+                    extends_model: XSDModel = self.top_level_complex_type_models[model.extends_model][0]
                     if extends_model.properties or extends_model.extends_model:
                         model.extends_model = extends_model
                     else:
@@ -422,6 +439,13 @@ class XSDReader:
                 except KeyError:
                     logger.warning(f"Parent model '{model.extends_model}' not found for model '{model.name}'")
                     model.extends_model = None
+
+    def post_process_separate_complex_type_root_elements(self) -> None:
+        for prop in self.separate_complex_type_root_elements:
+            for model in self.top_level_complex_type_models[prop.xsd_type_to]:
+                model.is_partial = False
+                model.is_entry_model = True
+                model.source = f"/{prop.xsd_name}"
 
     def _add_refs_for_backrefs(self):
         for model in self.models:
@@ -482,6 +506,8 @@ class XSDReader:
         # we need to add this here, because only now we will know if it has properties and if we need to create it
         self._post_process_resource_model()
 
+        self.post_process_separate_complex_type_root_elements()
+
         self._sort_alphabetically()
 
     def process_root(self, state: State):
@@ -498,6 +524,10 @@ class XSDReader:
                     if prop.type.name not in ("ref", "backref"):
                         prop.name = self.resource_model.deduplicate_property_name(to_property_name(prop.xsd_name))
                         self.resource_model.properties[prop.name] = prop
+                    elif prop.xsd_type_to:
+                        # we will only need property's name and type_to, but let's add it all here
+                        self.separate_complex_type_root_elements.append(prop)
+
             elif QName(node).localname == "complexType":
                 models = self.process_complex_type(node, state)
                 for model in models:
@@ -573,11 +603,6 @@ class XSDReader:
             prop = XSDProperty(xsd_name=property_name, property_type=property_type, required=is_required, source=source, is_array=is_array)
             prop.xsd_type_to = property_type_to
             props.append(prop)
-
-
-        # else:
-        #     if not node.attrib.get("type") and not node.xpath('./*[local-name() = ""]'):
-        #         raise RuntimeError(f'Element has to have either ref or type')
 
         for child in node.getchildren():
             # We don't care about comments
@@ -737,7 +762,10 @@ class XSDReader:
             if name:
                 model.xsd_name = name
                 model.set_name(self.deduplicate_model_name(to_model_name(name)))
-                self.top_level_complex_type_models[model.xsd_name] = model
+                if self.top_level_complex_type_models.get(model.xsd_name):
+                    self.top_level_complex_type_models[model.xsd_name].append(model)
+                else:
+                    self.top_level_complex_type_models[model.xsd_name] = [model]
 
             if 'extends_model' in locals() and extends_model:
                 model.extends_model = extends_model
@@ -1174,6 +1202,7 @@ class XSDReader:
 
     def process_appinfo(self, node: _Element, state: State) -> None:
         pass
+
 
 class State:
     path = list[str]
