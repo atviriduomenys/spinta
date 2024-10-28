@@ -761,68 +761,60 @@ def zipitems(
         ,
     ] = {}
 
-    for v in a:
-        k_list = key(v)
-        if isinstance(k_list, Generator):
-            k_list = list(k_list)
-        else:
-            k_list = [k_list]
-        for k in k_list:
-            if isinstance(k, Tuple):
-                for keys in res.keys():
-                    if set(k) == set(keys):
-                        res[keys].append([v, NA])
-                        break
+    # Map first values
+    for value in a:
+        value_key = key(value)
+        new_value = [value, NA]
+
+        if isinstance(value_key, Tuple):
+            for existing_key in res.keys():
+                if set(value_key) == set(existing_key):
+                    value_key = existing_key
+                    break
+        elif isinstance(value_key, PriorityKey):
+            for existing_key in res.keys():
+                if value_key == existing_key:
+                    value_key = existing_key
+                    break
+
+        # Ensure empty list exists for the key
+        if value_key not in res.keys():
+            res[value_key] = []
+
+        res[value_key].append(new_value)
+
+    # Map second value
+    for value in b:
+        value_key = key(value)
+        new_value = [NA, value]
+
+        mapped_keys = []
+        if isinstance(value_key, Tuple):
+            for existing_key in res.keys():
+                if set(value_key).issubset(set(existing_key)):
+                    mapped_keys.append(existing_key)
+        elif isinstance(value_key, PriorityKey):
+            for existing_key in res.keys():
+                if value_key == existing_key:
+                    mapped_keys.append(existing_key)
+                    break
+
+        if not mapped_keys:
+            mapped_keys = [value_key]
+
+        for mapped_key in mapped_keys:
+            if mapped_key not in res or not res[mapped_key]:
+                res[mapped_key] = [new_value]
+                continue
+
+            extension_list = []
+            for existing_value in res[mapped_key]:
+                if existing_value[1] is NA:
+                    existing_value[1] = value
                 else:
-                    res[k] = [[v, NA]]
-            else:
-                index = k
-                if isinstance(k, PriorityKey):
-                    for item in res.keys():
-                        if k == item:
-                            index = item
-                            break
-                if index not in list(res.keys()):
-                    res[index] = []
-                res[index].append([v, NA])
-    for v in b:
-        k_list = key(v)
-        if isinstance(k_list, Generator):
-            k_list = list(k_list)
-        else:
-            k_list = [k_list]
-        for k in k_list:
-            if isinstance(k, Tuple):
-                found = False
-                for keys in res.keys():
-                    if set(k).issubset(set(keys)):
-                        found = True
-                        additional = []
-                        for item in res[keys]:
-                            if item[1] is NA:
-                                item[1] = v
-                            else:
-                                additional.append([item[0], v])
-                        res[keys] += additional
-                if not found:
-                    res[k] = [[NA, v]]
-            else:
-                if k in list(res.keys()):
-                    index = k
-                    if isinstance(k, PriorityKey):
-                        for item in res.keys():
-                            if k == item:
-                                index = item
-                                break
-                    additional = []
-                    for item in res[index]:
-                        if item[1] is NA:
-                            item[1] = v
-                        else:
-                            additional.append([item[0], v])
-                    res[index] += additional
-                else:
-                    res[k] = [[NA, v]]
+                    extension_list.append([existing_value[0], value])
+            res[mapped_key] += extension_list
+
     yield from res.values()
 
 
