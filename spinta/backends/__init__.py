@@ -849,12 +849,13 @@ def prepare_dtype_for_response(
 ):
     return dtype.default
 
-@commands.prepare_dtype_for_response.register(Context, Format, UUID, uuid.UUID)
+
+@commands.prepare_dtype_for_response.register(Context, Format, UUID, object)
 def prepare_dtype_for_response(
     context: Context,
     fmt: Format,
     dtype: UUID,
-    value: uuid.UUID,
+    value: object,
     *,
     data: Dict[str, Any],
     action: Action,
@@ -1386,6 +1387,20 @@ def prepare_dtype_for_response(
                 })
         return data
     return {}
+
+
+@commands.prepare_dtype_for_response.register(Context, Format, Inherit, NotAvailable)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: Inherit,
+    value: NotAvailable,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    return None
 
 
 @commands.prepare_dtype_for_response.register(Context, Format, ArrayBackRef, (list, tuple))

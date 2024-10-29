@@ -996,7 +996,7 @@ def test_migrate_rename_model(
         'ALTER SEQUENCE "migrate/example/Test/:changelog__id_seq" RENAME TO '
         '"migrate/example/New/:changelog__id_seq";\n'
         '\n'
-        'ALTER TABLE "migrate/example/Test/:file" RENAME TO '
+        'ALTER TABLE "migrate/example/Test/:file/someFile" RENAME TO '
         '"migrate/example/New/:file/someFile";\n'
         '\n'
         'DROP INDEX "ix_migrate/example/Test_someRef._id";\n'

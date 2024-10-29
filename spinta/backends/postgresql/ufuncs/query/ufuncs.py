@@ -418,6 +418,16 @@ def select(env, column):
     return Selected(env.add_column(column))
 
 
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, PrimaryKey)
+def select(
+    env: PgQueryBuilder,
+    fpr: ForeignProperty,
+    dtype: PrimaryKey,
+) -> Selected:
+    super_ = ufunc.resolver[env, fpr, dtype]
+    return super_(env, fpr, dtype)
+
+
 @ufunc.resolver(PgQueryBuilder, int)
 def limit(env, n):
     env.limit = n

@@ -412,7 +412,7 @@ class XSDReader:
                 if prop.xsd_ref_to:
                     try:
                         # TODO: do the same as with prop_type
-                        prop.ref_model = self.top_level_element_models[prop.xsd_ref_to]
+                        prop.ref_model = self.top_level_element_models[prop.xsd_ref_to][0]
                     except KeyError:
                         raise KeyError(f"Reference to a non-existing model: {prop.xsd_ref_to}")
                     
@@ -703,7 +703,7 @@ class XSDReader:
                     group.append(prop)
 
             elif local_name == "sequence":
-                sequence_property_groups: List[List[XSDProperty]] = self.process_sequence(child, state)
+                sequence_property_groups: list[list[XSDProperty]] = self.process_sequence(child, state)
                 new_property_groups = []
                 for group in property_groups:
                     for seq_group in sequence_property_groups:
@@ -713,7 +713,7 @@ class XSDReader:
                 property_groups = new_property_groups
 
             elif local_name == "choice":
-                choice_property_groups: List[List[XSDProperty]] = self.process_choice(child, state)
+                choice_property_groups: list[list[XSDProperty]] = self.process_choice(child, state)
                 new_property_groups = []
                 for group in property_groups:
                     for choice_group in choice_property_groups:
@@ -737,6 +737,16 @@ class XSDReader:
                     del state.extends_model
                 else:
                     extends_model = None
+
+            elif local_name == "all":
+                all_properties: list[XSDProperty] = self.process_all(child, state)
+                for group in property_groups:
+                    group.extend(all_properties)
+
+            elif local_name == "simpleContent":
+                simple_content_properties: List[XSDProperty] = self.process_simple_content(child, state)
+                for group in property_groups:
+                    group.extend(simple_content_properties)
 
             elif local_name == "annotation":
                 description = self.process_annotation(child, state)
@@ -782,7 +792,7 @@ class XSDReader:
                 dsa_type.prepare = value
         dsa_type.name = property_type
         return dsa_type
-    
+
     def _process_ref_name(self, ref_attrib: str) -> str:
         # process prefix
         pass
@@ -914,11 +924,62 @@ class XSDReader:
     def process_group(self, node: _Element, state: State) -> None:
         pass
 
-    def process_all(self, node: _Element, state: State) -> None:
-        pass
+    def process_all(self, node: _Element, state: State) -> list[XSDProperty]:
+        """
+        Processes an XSD <all> element, ensuring each child element has minOccurs=0|1 and maxOccurs=1,
+        and returns a list of property groups. Since <all> allows any order, this method does not produce combinations.
+        """
+        properties: list = []
 
-    def process_simple_content(self, node: _Element, state: State) -> None:
-        pass
+        for child in node.getchildren():
+            if isinstance(child, etree._Comment):
+                continue
+
+            local_name = QName(child).localname
+
+            if local_name == "element":
+                min_occurs = child.attrib.get("minOccurs", "1")
+                max_occurs = child.attrib.get("maxOccurs", "1")
+
+                if min_occurs not in {"0", "1"} or max_occurs != "1":
+                    raise ValueError(
+                        f"Invalid occurrence in <all> element: minOccurs='{min_occurs}', maxOccurs='{max_occurs}'"
+                    )
+
+                props: list[XSDProperty] = self.process_element(child, state)
+                properties.extend(props)
+
+            else:
+                raise RuntimeError(f"Unexpected element type inside <all>: {local_name}")
+
+        return properties
+
+    def process_simple_content(self, node: _Element, state: State) -> list[XSDProperty]:
+        properties: list = []
+
+        for child in node:
+            if isinstance(child, etree._Comment):
+                continue
+
+            local_name = QName(child).localname
+
+            if local_name == "extension":
+                extension_properties: list[XSDProperty] = self.process_simple_type_extension(child, state)
+                properties.extend(extension_properties)
+
+            elif local_name == "restriction":
+                restriction_prop_type: XSDType = self.process_restriction(child, state)
+                prop_name = node.attrib.get("name", "value")
+                restriction_prop = XSDProperty(
+                    xsd_name=prop_name,
+                    property_type=restriction_prop_type,
+                )
+                properties.append(restriction_prop)
+
+            else:
+                raise RuntimeError(f"Unexpected element '{local_name}' in simpleContent")
+
+        return properties
 
     def process_complex_content(self, node: _Element, state: State) -> list[list[XSDModel]]:
         property_groups: list[list] = [[]]
@@ -930,7 +991,7 @@ class XSDReader:
             local_name = QName(child).localname
 
             if local_name == "extension":
-                extension_property_groups: List[List[XSDProperty]] = self.process_complex_type_extension(child, state)
+                extension_property_groups: list[list[XSDProperty]] = self.process_complex_type_extension(child, state)
                 new_property_groups = []
                 for group in property_groups:
                     for ext_group in extension_property_groups:
@@ -989,32 +1050,35 @@ class XSDReader:
     def process_documentation(self, node: _Element, state: State) -> str:
         return node.text or ""
 
-    def process_simple_type_extension(self, node: _Element, state: State) -> tuple[XSDType, list] | None:
-        # this is an initial implementation, this method needs to be finished together with process_simple_type
+    def process_simple_type_extension(self, node: _Element, state: State) -> list[XSDProperty]:
         base = node.attrib.get("base")
         if not base:
             raise RuntimeError("Extension must have a 'base' attribute.")
 
+        properties = []
+
         base_type_name = base.split(":")[-1]
+        base_type: XSDType = self._map_type(base_type_name)
+        text_prop = XSDProperty(
+            xsd_name="text",
+            property_type=base_type,
+        )
+        properties.append(text_prop)
 
-        if base_type_name in DATATYPES_MAPPING:
-            type = self._map_type(base_type_name)
-            attributes = []
+        for child in node:
+            if isinstance(child, etree._Comment):
+                continue
+            local_name = QName(child).localname
+            if local_name == "attribute":
+                prop: XSDProperty = self.process_attribute(child, state)
+                properties.append(prop)
+            elif local_name == "annotation":
+                # Add annotation description to text_prop
+                text_prop.description = self.process_annotation(child, state)
+            else:
+                raise RuntimeError(f"Unexpected element '{local_name}' in simpleType extension")
 
-            for child in node:
-                if isinstance(child, etree._Comment):
-                    continue
-                local_name = QName(child).localname
-                if local_name == "attribute":
-                    prop = self.process_attribute(child, state)
-                    attributes.append(prop)
-                elif local_name == "annotation":
-                    prop = self.process_annotation(child, state)
-                    attributes.append(prop)
-                else:
-                    raise RuntimeError(f"Unexpected element '{local_name}' in simpleType extension")
-
-            return type, attributes
+        return properties
 
     def process_complex_type_extension(self, node: _Element, state: State) -> List[List[XSDProperty]]:
         base = node.attrib.get("base")
