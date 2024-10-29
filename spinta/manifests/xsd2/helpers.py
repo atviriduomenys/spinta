@@ -413,6 +413,12 @@ class XSDReader:
                     try:
                         # TODO: do the same as with prop_type
                         prop.ref_model = self.top_level_element_models[prop.xsd_ref_to][0]
+                        if len(self.top_level_element_models[prop.xsd_ref_to]) > 1:
+                            for prop_model in self.top_level_element_models[prop.xsd_ref_to][1:]:
+                                new_prop = copy(prop)
+                                new_prop.ref_model = prop_model
+                                new_prop.name = deduplicate_property_name(prop.name)
+                                new_properties[new_prop.name] = new_prop
                     except KeyError:
                         raise KeyError(f"Reference to a non-existing model: {prop.xsd_ref_to}")
                     
@@ -620,7 +626,10 @@ class XSDReader:
                         model.xsd_name = property_name
                         model.set_name(self.deduplicate_model_name(to_model_name(property_name)))
                     if is_root:
-                        self.top_level_element_models[property_name] = model
+                        if self.top_level_element_models.get(model.xsd_name):
+                            self.top_level_element_models[model.xsd_name].append(model)
+                        else:
+                            self.top_level_element_models[model.xsd_name] = [model]
                         model.is_root_model = True
                     if is_referenced or not is_root:
                         model.is_partial = True
