@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
-from copy import copy
+from copy import copy, deepcopy
 from dataclasses import dataclass
 from typing import Any, List
 from urllib.request import urlopen
@@ -337,6 +337,7 @@ class XSDReader:
     top_level_element_models: dict[str, list[XSDModel]]
     top_level_complex_type_models: dict[str, list[XSDModel]]
     separate_complex_type_root_elements: list[XSDProperty]
+    properties_xsd_type_to_set: set[str]
     namespaces: dict[str, str] | None = None
 
     def __init__(self, path: str, dataset_name) -> None:
@@ -348,6 +349,7 @@ class XSDReader:
         self.top_level_element_models = {}
         self.top_level_complex_type_models = {}
         self.separate_complex_type_root_elements = []
+        self.properties_xsd_type_to_set = set()
 
     def register_simple_types(self, state: State) -> None:
         custom_types_nodes = self.root.xpath(f'./*[local-name() = "simpleType"]')
@@ -451,11 +453,19 @@ class XSDReader:
                     model.extends_model = None
 
     def post_process_separate_complex_type_root_elements(self) -> None:
+        processed_models = []
         for prop in self.separate_complex_type_root_elements:
             for model in self.top_level_complex_type_models[prop.xsd_type_to]:
+                # this complexType is aldo used by non-top level elements, we need to leave it and work on it's copy
+                # or more than one top level element uses it
+                if prop.xsd_type_to in self.properties_xsd_type_to_set or model in processed_models:
+                    model = deepcopy(model)
+                    self.models.append(model)
                 model.is_partial = False
                 model.is_entry_model = True
                 model.source = f"/{prop.xsd_name}"
+                model.set_name(self.deduplicate_model_name(to_model_name(prop.xsd_name)))
+                processed_models.append(model)
 
     def _add_refs_for_backrefs(self):
         for model in self.models:
@@ -771,6 +781,8 @@ class XSDReader:
             for prop in group:
                 prop.name = property_deduplicate(to_property_name(prop.xsd_name))
                 model.properties[prop.name] = prop
+                if prop.xsd_type_to:
+                    self.properties_xsd_type_to_set.add(prop.xsd_type_to)
 
             if name:
                 model.xsd_name = name
