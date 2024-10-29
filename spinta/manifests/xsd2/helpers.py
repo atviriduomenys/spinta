@@ -114,14 +114,14 @@ IGNORED_NODE_ATTRIBUTE_TYPES = ["maxLength", "minLength"]
 
 
 class XSDType:
-    xsd_type: str | None = None
+    xsd_type: str = ""
     name: str
     enum: str | None = None
     enums: dict[str, dict[str, dict[str, str]]] | None = None
     prepare: Expr | None = None
     description: str = ""
 
-    def __init__(self, name: str = None):
+    def __init__(self, name: str = ""):
         self.name = name
 
 """
@@ -223,7 +223,7 @@ class XSDProperty:
 
 class XSDModel:
     dataset_resource: XSDDatasetResource
-    xsd_name: str | None = None
+    xsd_name: str = ""
     name: str | None = None
     basename: str | None = None
     source: str  # converts to ["external"]["name"]
@@ -404,6 +404,7 @@ class XSDReader:
         Also links models to their base models based on the 'prepare' attribute (extend statements).
         """
         for model in self.models:
+            new_properties = {}
             deduplicate_property_name = Deduplicator()
             for prop in model.properties.values():
                 deduplicate_property_name(prop.name)
@@ -411,22 +412,25 @@ class XSDReader:
                 if prop.xsd_ref_to:
                     try:
                         # TODO: do the same as with prop_type
-                        prop.ref_model = self.top_level_element_models[prop.xsd_ref_to][0]
+                        prop.ref_model = self.top_level_element_models[prop.xsd_ref_to]
                     except KeyError:
                         raise KeyError(f"Reference to a non-existing model: {prop.xsd_ref_to}")
                     
                 elif prop.xsd_type_to:
                     try:
+                        # if we had choice inside an element, more than one model was created out of it
                         prop.ref_model = self.top_level_complex_type_models[prop.xsd_type_to][0]
                         if len(self.top_level_complex_type_models[prop.xsd_type_to]) > 1:
                             for prop_model in self.top_level_complex_type_models[prop.xsd_type_to][1:]:
                                 new_prop = copy(prop)
                                 new_prop.ref_model = prop_model
                                 new_prop.name = deduplicate_property_name(prop.name)
-                                model.properties[new_prop.name] = new_prop
+                                new_properties[new_prop.name] = new_prop
                     except KeyError:
                         prop.type = XSDType(name="string")
                         logger.warning(f"Referenced type is not defined: {prop.xsd_type_to}. Setting type to string")
+
+            model.properties.update(new_properties)
 
             # TODO: what if the extended model has `choice`?
             if model.extends_model:
