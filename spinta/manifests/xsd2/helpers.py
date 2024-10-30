@@ -422,7 +422,13 @@ class XSDReader:
                                 new_prop.name = deduplicate_property_name(prop.name)
                                 new_properties[new_prop.name] = new_prop
                     except KeyError:
-                        raise KeyError(f"Reference to a non-existing model: {prop.xsd_ref_to}")
+                        prop_found = False
+                        for resource_prop in self.resource_model.properties.values():
+                            if resource_prop.xsd_name == prop.xsd_ref_to:
+                                prop.__dict__.update(resource_prop.__dict__)
+                                prop_found = True
+                        if not prop_found:
+                            raise KeyError(f"Reference to a non-existing model: {prop.xsd_ref_to}")
                     
                 elif prop.xsd_type_to:
                     try:
