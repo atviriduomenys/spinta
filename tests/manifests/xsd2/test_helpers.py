@@ -1318,3 +1318,21 @@ def test_process_all_with_attributes(xsd_reader):
     assert properties[0].type.name == "string"
     assert properties[0].required is True
     assert properties[0].is_array is False
+
+def test_process_union(xsd_reader):
+    union_xml = """
+    <xs:union xmlns:xs="http://www.w3.org/2001/XMLSchema">
+        <xs:simpleType>
+            <xs:restriction base="xs:double"/>
+        </xs:simpleType>
+        <xs:simpleType>
+            <xs:restriction base="xs:long"/>
+        </xs:simpleType>
+    </xs:union>
+    """
+    union_node = etree.fromstring(union_xml)
+    state = State()
+
+    xsd_type = xsd_reader.process_union(union_node, state)
+
+    assert xsd_type.name == 'number'

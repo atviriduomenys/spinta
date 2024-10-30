@@ -734,8 +734,9 @@ class XSDReader:
         return enum_item
 
     def process_simple_type(self, node: _Element, state: State) -> XSDType:
-        property_type = None
-        description = None
+        property_type: XSDType = None
+        description: str = None
+
         for child in node.getchildren():
             # We don't care about comments
             if isinstance(child, etree._Comment):
@@ -747,6 +748,8 @@ class XSDReader:
                     property_type.xsd_type = node.attrib.get("name")
             elif QName(child).localname == "annotation":
                 description = self.process_annotation(child, state)
+            elif QName(child).localname == 'union':
+                property_type = self.process_union(child, state)
             else:
                 raise RuntimeError(f"Unexpected element type inside simpleType element: {QName(child).localname}")
         property_type.description = description
@@ -1051,8 +1054,48 @@ class XSDReader:
             property_type.enums = enums
         return property_type
 
-    def process_union(self, node: _Element, state: State) -> None:
-        pass
+    def process_union(self, node: _Element, state: State) -> XSDType:
+        """
+        Processes an <xs:union> element and returns an XSDType
+        representing the most generic type among its member types.
+        """
+        member_types: list = []
+
+        # Handle memberTypes attribute if present
+        if 'memberTypes' in node.attrib:
+            types = node.attrib['memberTypes'].split()
+            for type_name in types:
+                base_type_name = type_name.split(":")[-1]
+                base_type = self._map_type(base_type_name)
+                member_types.append(base_type)
+
+        for child in node:
+            if isinstance(child, etree._Comment):
+                continue
+            local_name = QName(child).localname
+            if local_name == 'simpleType':
+                base_type: XSDType = self.process_simple_type(child, state)
+                member_types.append(base_type)
+            else:
+                raise RuntimeError(f"Unexpected element '{local_name}' inside union")
+
+        generic_type: XSDType = self._get_most_generic_type(member_types)
+        return generic_type
+    
+    def _get_most_generic_type(self, types: List[XSDType]) -> XSDType:
+        """
+        Determines the most generic type from a list of XSDType instances,
+        using the types from DATATYPES_MAPPING.
+        """
+        # Define a type hierarchy from most specific to most generic
+        type_hierarchy: list[str] = ['boolean', 'integer', 'number', 'string']
+        
+        for generic_type_name in reversed(type_hierarchy):
+            mapped_types: List[str] = [t.name.split(';')[0] for t in types]
+            if generic_type_name in mapped_types:
+                return XSDType(name=generic_type_name)
+        
+        return XSDType(name='string')
 
     def process_length(self, node: _Element, state: State) -> None:
         pass
