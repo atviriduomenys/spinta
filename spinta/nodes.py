@@ -229,3 +229,9 @@ def load_model_properties(
         prop = commands.load(context, prop, params, model.manifest)
         model.properties[name] = prop
         model.flatprops[name] = prop
+
+
+@commands.identifiable.register()
+def identifiable(node: Node):
+    return False
+

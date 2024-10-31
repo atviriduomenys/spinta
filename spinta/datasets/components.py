@@ -15,9 +15,8 @@ from spinta.dimensions.lang.components import LangData
 from spinta.components import MetaData
 from spinta.components import Model
 from spinta.components import Property
-from spinta.core.enums import Access
+from spinta.core.enums import Access, Level
 from spinta.core.ufuncs import Expr
-from spinta.datasets.enums import Level
 from spinta.dimensions.prefix.components import UriPrefix
 from spinta.manifests.components import Manifest
 from spinta.utils.schema import NA

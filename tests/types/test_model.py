@@ -2,7 +2,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from spinta.datasets.enums import Level
+from spinta.core.enums import Level
 from spinta.types.model import load_level
 
 

@@ -335,6 +335,7 @@ class PartialArray(Array):
 class PageType(DataType):
     pass
 
+
 class UUID(DataType):
     def load(self, value: Any):
         if value is None or value is NA:
@@ -350,6 +351,7 @@ class UUID(DataType):
                 raise exceptions.InvalidValue(self, value=value)
 
         raise exceptions.InvalidValue(self, value=value)
+
 
 @commands.check.register(Context, DataType)
 def check(context: Context, dtype: DataType):
@@ -413,14 +415,14 @@ def load(context: Context, dtype: Partial, data: dict, manifest: Manifest) -> Da
 
 @load.register(Context, Ref, dict, Manifest)
 def load(context: Context, dtype: Ref, data: dict, manifest: Manifest) -> DataType:
-    dtype  = _load_properties(context, dtype, manifest)
+    dtype = _load_properties(context, dtype, manifest)
     _add_leaf_props(dtype.prop)
     return dtype
 
 
 @load.register(Context, BackRef, dict, Manifest)
 def load(context: Context, dtype: BackRef, data: dict, manifest: Manifest) -> DataType:
-    dtype  = _load_properties(context, dtype, manifest)
+    dtype = _load_properties(context, dtype, manifest)
     _add_leaf_props(dtype.prop)
     return dtype
 
@@ -430,7 +432,7 @@ def load(context: Context, dtype: Object, data: dict, manifest: Manifest) -> Dat
     return _load_properties(context, dtype, manifest)
 
 
-def _load_properties(context: Context, dtype: DataType, manifest: Manifest) -> None:
+def _load_properties(context: Context, dtype: DataType, manifest: Manifest) -> DataType:
     props = {}
     for name, params in (dtype.properties or {}).items():
         place = f"{dtype.prop.place}.{name}"
@@ -530,6 +532,7 @@ def _load_array_to_list(context: Context, dtype: Array | ArrayBackRef, value: ob
         commands.load(context, dtype.items.dtype, item)
         for item in value
     ]
+
 
 @load.register(Context, Object, object)
 def load(context: Context, dtype: Object, value: object) -> dict:

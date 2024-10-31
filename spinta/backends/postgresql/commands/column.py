@@ -5,7 +5,6 @@ from spinta.backends.constants import TableType
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_column_name as gcn
 from spinta.components import Property, Model
-from spinta.datasets.enums import Level
 from spinta.exceptions import PropertyNotFound
 from spinta.types.datatype import ArrayBackRef, DataType, Ref, BackRef, String, ExternalRef, Array
 import sqlalchemy as sa
@@ -133,7 +132,7 @@ def get_column(backend: PostgreSQL, dtype: BackRef, table: sa.Table = None, **kw
     columns = []
     if table is None:
         table = get_table(backend, dtype.prop)
-    if r_prop.level is None or r_prop.level > Level.open:
+    if commands.identifiable(r_prop):
         column = '_id'
         return convert_str_to_column(table, prop, column)
     else:

@@ -10,12 +10,11 @@ from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_pg_name, get_pg_sequence_name
 from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
 from spinta.backends.postgresql.helpers.migrate.migrate import drop_all_indexes_and_constraints, handle_new_file_type, \
-    get_prop_names, create_changelog_table, property_and_column_name_key, MigratePostgresMeta, \
-    MigrateModelMeta, handle_internal_ref_to_scalar_conversion
+    get_prop_names, create_changelog_table, MigratePostgresMeta, \
+    MigrateModelMeta, zip_and_migrate_properties
 from spinta.backends.postgresql.helpers.migrate.name import name_changed, get_pg_changelog_name, get_pg_file_name, \
     get_pg_column_name, get_pg_constraint_name, get_pg_removed_name, is_removed
 from spinta.components import Context, Model
-from spinta.datasets.inspect.helpers import zipitems
 from spinta.types.datatype import File
 from spinta.utils.itertools import ensure_list
 from spinta.utils.schema import NotAvailable, NA
@@ -50,52 +49,18 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ol
     )
 
     # Handle property migrations
-    zipped_items = zipitems(
-        columns,
-        properties,
-        lambda x: property_and_column_name_key(x, rename, old, new)
+    zip_and_migrate_properties(
+        context=context,
+        backend=backend,
+        old_table=old,
+        new_model=new,
+        old_columns=columns,
+        new_properties=properties,
+        meta=meta,
+        rename=rename,
+        model_meta=model_meta,
+        **kwargs
     )
-    for zipped_item in zipped_items:
-        old_columns = []
-        new_properties = []
-        for old_column, new_property in zipped_item:
-            # Ignore deleted / reserved properties
-            if new_property and new_property.name.startswith('_'):
-                continue
-
-            if old_column not in old_columns:
-                old_columns.append(old_column)
-            if new_property and new_property not in new_properties:
-                new_properties.append(new_property)
-
-        if len(old_columns) == 1:
-            old_columns = old_columns[0]
-        elif not old_columns:
-            old_columns = NA
-            # If neither column nor property is matched skip it
-            if not new_properties:
-                continue
-
-        if new_properties:
-            for new_property in new_properties:
-                handled = handle_internal_ref_to_scalar_conversion(
-                    context,
-                    backend,
-                    meta,
-                    old,
-                    old_columns,
-                    new_property
-                )
-
-                if not handled:
-                    commands.migrate(context, backend, meta, old, old_columns, new_property, model_meta=model_meta,
-                                     **kwargs)
-        else:
-            # Remove from JSONB clean up
-            if isinstance(old_columns, sa.Column) and isinstance(old_columns.type, JSONB):
-                columns.remove(old_columns)
-            commands.migrate(context, backend, meta, old, old_columns, NA, model_meta=model_meta, foreign_key=False,
-                             **kwargs)
 
     # Handle model unique constraint
     required_unique_constraints = _handle_model_unique_constraints(
@@ -334,7 +299,7 @@ def _handle_property_unique_constraints(
     new_model: Model
 ) -> list:
     required_unique_constraints = []
-    for prop in new_model.properties.values():
+    for prop in new_model.flatprops.values():
         if not prop.dtype.unique:
             continue
 

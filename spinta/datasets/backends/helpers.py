@@ -3,7 +3,6 @@ from typing import Any
 from spinta import commands, spyna
 from spinta.components import Property, Model, Context, Mode
 from spinta.core.ufuncs import Env, asttoexpr
-from spinta.datasets.enums import Level
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.exceptions import GivenValueCountMissmatch, MultiplePrimaryKeyCandidatesFound, NoPrimaryKeyCandidatesFound
 from spinta.types.datatype import Ref, Array
@@ -32,7 +31,7 @@ def handle_ref_key_assignment(context: Context, keymap: KeyMap, env: Env, value:
     if len(value) != expected_count:
         raise GivenValueCountMissmatch(given_count=len(value), expected_count=expected_count)
 
-    if not ref.prop.level or ref.prop.level.value > 3:
+    if commands.identifiable(ref.prop):
         target_value = value
         if len(value) == 1:
             target_value = value[0]
@@ -88,7 +87,7 @@ def handle_ref_key_assignment(context: Context, keymap: KeyMap, env: Env, value:
 
 def generate_pk_for_row(model: Model, row: Any, keymap, pk_val: Any):
     pk = None
-    if model.base and ((model.base.level and model.base.level >= Level.identifiable) or not model.base.level):
+    if model.base and commands.identifiable(model.base):
         pk_val_base = extract_values_from_row(row, model.base.parent, model.base.pk or model.base.parent.external.pkeys)
         key = model.base.parent.model_type()
         if model.base.pk and model.base.pk != model.base.parent.external.pkeys:
