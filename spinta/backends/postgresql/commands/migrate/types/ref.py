@@ -11,7 +11,7 @@ from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
 from spinta.backends.postgresql.helpers.migrate.migrate import name_key, MigratePostgresMeta, adjust_kwargs, \
     is_name_complex, extract_literal_name_from_column, generate_type_missmatch_exception_details, \
     extract_sqlalchemy_columns, is_internal, split_columns, get_spinta_primary_keys, remap_and_rename_columns, \
-    remove_property_prefix_from_column_name
+    remove_property_prefix_from_column_name, zip_and_migrate_properties
 from spinta.backends.postgresql.helpers.migrate.name import get_pg_column_name
 from spinta.cli.helpers.migrate import MigrateRename
 from spinta.components import Context
@@ -303,25 +303,18 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
             for column in column_mapping.values():
                 commands.migrate(context, backend, meta, table, column, NA, **adjusted_kwargs)
 
-    # TODO add child property migration
-    # zipped_items = zipitems(
-    #     old_children_columns,
-    #     new.properties.values(),
-    #     lambda x: property_and_column_name_key(x, rename, table, new.prop.model)
-    # )
-    # for zipped_item in zipped_items:
-    #     for old_column, new_column in zipped_item:
-    #         commands.migrate(
-    #             context,
-    #             backend,
-    #             meta,
-    #             table,
-    #             old_column,
-    #             new_column,
-    #             **adjusted_kwargs
-    #         )
-
-
+    zip_and_migrate_properties(
+        context=context,
+        backend=backend,
+        old_table=table,
+        new_model=new.prop.model,
+        old_columns=old_children_columns,
+        new_properties=list(new.properties.values()),
+        meta=meta,
+        rename=rename,
+        root_name=new.prop.place,
+        **kwargs
+    )
 
 
 @commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, sa.Table, list, ExternalRef)
@@ -440,3 +433,16 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
                     commands.migrate(context, backend, meta, table, old_column, NA, **adjusted_kwargs)
                 else:
                     commands.migrate(context, backend, meta, table, old_column, new_column, **adjusted_kwargs)
+
+    zip_and_migrate_properties(
+        context=context,
+        backend=backend,
+        old_table=table,
+        new_model=new.prop.model,
+        old_columns=old_children_columns,
+        new_properties=list(new.properties.values()),
+        meta=meta,
+        rename=rename,
+        root_name=new.prop.place,
+        **kwargs
+    )

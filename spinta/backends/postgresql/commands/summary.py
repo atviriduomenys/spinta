@@ -364,7 +364,7 @@ def summary(
     try:
         prop = dtype.prop.name
         key = "_id"
-        if dtype.prop.level and dtype.prop.level < 4:
+        if not commands.identifiable(dtype.prop):
             if len(dtype.refprops) > 1:
                 raise NotImplementedFeature(dtype.prop,
                                             feature="Ability to get summary for Ref type Property, when level is 3 and below and there are multiple refprops")
