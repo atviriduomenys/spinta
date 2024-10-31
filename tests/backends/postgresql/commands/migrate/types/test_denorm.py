@@ -1193,7 +1193,6 @@ def test_migrate_ref_nested_text(
     result = cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv', '-p'
     ])
-    pprint(result.output)
     assert result.output.endswith(
         'BEGIN;\n'
         '\n'
@@ -1337,6 +1336,220 @@ def test_migrate_ref_3_add_denorm(
             assert row['id'] == 0
             assert row['country.id'] == 0
             assert row['country.name'] is None
+        cleanup_table_list(meta, [
+            'migrate/example/City',
+            'migrate/example/City/:changelog',
+            'migrate/example/Country',
+            'migrate/example/Country/:changelog'
+        ])
+
+
+def test_migrate_ref_3_remove_denorm(
+    postgresql_migration: URL,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    cleanup_tables(postgresql_migration)
+    initial_manifest = '''
+     d               | r | b    | m       | property       | type     | ref      | level
+     migrate/example |   |      |         |                |          |          |
+                     |   |      | City    |                |          | id       |
+                     |   |      |         | id             | integer  |          |
+                     |   |      |         | country        | ref      | Country  | 3
+                     |   |      |         | country.name   | string   |          |
+                     |   |      | Country |                |          | id       |
+                     |   |      |         | id             | integer  |          |
+                     |   |      |         | name           | string   |          |
+    '''
+    context, rc = configure_migrate(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {
+            'migrate/example/City',
+            'migrate/example/City/:changelog',
+            'migrate/example/Country',
+            'migrate/example/Country/:changelog'
+        }.issubset(
+            tables.keys())
+        city = tables["migrate/example/City"]
+        country = tables["migrate/example/Country"]
+        assert {'id', 'country.id', 'country.name'}.issubset(city.columns.keys())
+        assert {'id'}.issubset(country.columns.keys())
+        conn.execute(country.insert().values({
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7a",
+            "id": 0,
+        }))
+        conn.execute(city.insert().values({
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7e",
+            "id": 0,
+            "country.id": 0,
+            "country.name": "test"
+        }))
+
+    override_manifest(context, tmp_path, '''
+     d               | r | b    | m       | property       | type     | ref      | level
+     migrate/example |   |      |         |                |          |          |
+                     |   |      | City    |                |          | id       |
+                     |   |      |         | id             | integer  |          |
+                     |   |      |         | country        | ref      | Country  | 3
+                     |   |      | Country |                |          | id       |
+                     |   |      |         | id             | integer  |          |
+                     |   |      |         | name           | string   |          |
+    ''')
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p'
+    ])
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/City" RENAME "country.name" TO '
+        '"__country.name";\n'
+        '\n'
+        'COMMIT;\n'
+        '\n')
+
+    cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv',
+    ])
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {'migrate/example/City', 'migrate/example/City/:changelog',
+                'migrate/example/Country', 'migrate/example/Country/:changelog'}.issubset(tables.keys())
+
+        table = tables["migrate/example/City"]
+        columns = table.columns
+        assert {'id', 'country.id', '__country.name'}.issubset(
+            columns.keys())
+        assert not {'__country.id', 'country.name'}.issubset(
+            columns.keys())
+
+        result = conn.execute(table.select())
+        for row in result:
+            assert row['id'] == 0
+            assert row['country.id'] == 0
+            assert row['__country.name'] == "test"
+        cleanup_table_list(meta, [
+            'migrate/example/City',
+            'migrate/example/City/:changelog',
+            'migrate/example/Country',
+            'migrate/example/Country/:changelog'
+        ])
+
+
+def test_migrate_ref_3_rename_denorm(
+    postgresql_migration: URL,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    cleanup_tables(postgresql_migration)
+    initial_manifest = '''
+     d               | r | b    | m       | property       | type     | ref      | level
+     migrate/example |   |      |         |                |          |          |
+                     |   |      | City    |                |          | id       |
+                     |   |      |         | id             | integer  |          |
+                     |   |      |         | country        | ref      | Country  | 3
+                     |   |      |         | country.name   | string   |          |
+                     |   |      | Country |                |          | id       |
+                     |   |      |         | id             | integer  |          |
+                     |   |      |         | name           | string   |          |
+    '''
+    context, rc = configure_migrate(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {
+            'migrate/example/City',
+            'migrate/example/City/:changelog',
+            'migrate/example/Country',
+            'migrate/example/Country/:changelog'
+        }.issubset(
+            tables.keys())
+        city = tables["migrate/example/City"]
+        country = tables["migrate/example/Country"]
+        assert {'id', 'country.id', 'country.name'}.issubset(city.columns.keys())
+        assert {'id'}.issubset(country.columns.keys())
+        conn.execute(country.insert().values({
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7a",
+            "id": 0,
+        }))
+        conn.execute(city.insert().values({
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7e",
+            "id": 0,
+            "country.id": 0,
+            "country.name": "test"
+        }))
+
+    override_manifest(context, tmp_path, '''
+     d               | r | b    | m       | property       | type     | ref      | level
+     migrate/example |   |      |         |                |          |          |
+                     |   |      | City    |                |          | id       |
+                     |   |      |         | id             | integer  |          |
+                     |   |      |         | country        | ref      | Country  | 3
+                     |   |      |         | country.test   | string   |          |
+                     |   |      | Country |                |          | id       |
+                     |   |      |         | id             | integer  |          |
+                     |   |      |         | name           | string   |          |
+    ''')
+
+    rename_file = {
+        "migrate/example/City": {
+            "country.name": "country.test",
+        },
+    }
+    path = tmp_path / 'rename.json'
+    path.write_text(json.dumps(rename_file))
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p', '-r', path
+    ])
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/City" RENAME "country.name" TO "country.test";\n'
+        '\n'
+        'COMMIT;\n'
+        '\n')
+
+    cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-r', path
+    ])
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {'migrate/example/City', 'migrate/example/City/:changelog',
+                'migrate/example/Country', 'migrate/example/Country/:changelog'}.issubset(tables.keys())
+
+        table = tables["migrate/example/City"]
+        columns = table.columns
+        assert {'id', 'country.id', 'country.test'}.issubset(
+            columns.keys())
+        assert not {'__country.id', 'country.name'}.issubset(
+            columns.keys())
+
+        result = conn.execute(table.select())
+        for row in result:
+            assert row['id'] == 0
+            assert row['country.id'] == 0
+            assert row['country.test'] == "test"
         cleanup_table_list(meta, [
             'migrate/example/City',
             'migrate/example/City/:changelog',
