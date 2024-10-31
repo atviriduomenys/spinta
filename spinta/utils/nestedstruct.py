@@ -7,8 +7,8 @@ from typing import Set
 
 import itertools
 
+from spinta import commands
 from spinta.components import Model, Property
-from spinta.datasets.enums import Level
 from spinta.types.datatype import DataType, Ref, Partial, Object
 from spinta.types.text.components import Text
 
@@ -66,7 +66,7 @@ def _get_child(parent: Ref, name: str):
     if name in parent.properties:
         return parent.properties[name]
 
-    if parent.prop.level is None or parent.prop.level > Level.open and name == '_id':
+    if commands.identifiable(parent.prop) and name == '_id':
         return parent.model.properties['_id']
 
     if parent.model.external and parent.model.external.unknown_primary_key:

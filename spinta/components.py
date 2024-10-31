@@ -23,8 +23,7 @@ from spinta.dimensions.lang.components import LangData
 from spinta.units.components import Unit
 from spinta.utils.encoding import encode_page_values
 from spinta.utils.schema import NA
-from spinta.core.enums import Access
-from spinta.datasets.enums import Level
+from spinta.core.enums import Access, Level
 
 if TYPE_CHECKING:
     from spinta.backends.components import Backend

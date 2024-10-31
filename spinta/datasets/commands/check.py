@@ -3,6 +3,7 @@ import re
 from spinta import commands
 from spinta.components import Context
 from spinta.components import Config
+from spinta.core.enums import Level
 from spinta.datasets.components import Dataset, Resource
 from spinta.exceptions import InvalidName
 
@@ -30,3 +31,12 @@ def check(context: Context, dataset: Dataset):
 def check(context: Context, resource: Resource):
     pass
 
+
+@commands.identifiable.register()
+def identifiable(dataset: Dataset):
+    return dataset.level is None or dataset.level >= Level.identifiable
+
+
+@commands.identifiable.register()
+def identifiable(resource: Resource):
+    return resource.level is None or resource.level >= Level.identifiable

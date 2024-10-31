@@ -163,59 +163,56 @@ def _filter_models_and_tables(
 
 def _handle_foreign_key_constraints(inspector: Inspector, models: List[Model], handler: MigrationHandler,
                                     rename: MigrateRename):
+    existing_table_names = set(inspector.get_table_names())
+
     for model in models:
         source_table = get_pg_name(get_table_name(model))
         old_name = get_pg_name(rename.get_old_table_name(source_table))
-        foreign_keys = []
-        if old_name in inspector.get_table_names():
-            foreign_keys = inspector.get_foreign_keys(old_name)
-        if model.base:
+        foreign_keys = inspector.get_foreign_keys(old_name) if old_name in existing_table_names else []
+
+        # Handle Base _id foreign key constraints
+        id_constraint = next(
+            (constraint for constraint in foreign_keys if constraint.get("constrained_columns") == ["_id"]), None
+        )
+        if id_constraint is not None:
+            foreign_keys.remove(id_constraint)
+
+        if model.base and commands.identifiable(model.base):
+            add_constraint = True
             referent_table = get_pg_table_name(get_table_name(model.base.parent))
-            if not model.base.level or model.base.level > 3:
-                check = False
-                fk_name = get_pg_foreign_key_name(referent_table, "_id")
-                for key in foreign_keys:
-                    if key["constrained_columns"] == ["_id"]:
-                        if key["name"] == fk_name and key["referred_table"] == referent_table:
-                            check = True
-                        else:
-                            handler.add_action(ma.DropConstraintMigrationAction(
-                                table_name=source_table,
-                                constraint_name=key["name"]
-                            ), True)
-                        break
-                if not check:
-                    handler.add_action(
-                        ma.CreateForeignKeyMigrationAction(
-                            source_table=source_table,
-                            referent_table=referent_table,
-                            constraint_name=fk_name,
-                            local_cols=["_id"],
-                            remote_cols=["_id"]
-                        ), True
-                    )
-            else:
-                for key in foreign_keys:
-                    if key["constrained_columns"] == ["_id"]:
-                        handler.add_action(ma.DropConstraintMigrationAction(
-                            table_name=source_table,
-                            constraint_name=key["name"]
-                        ), True)
-                        break
-        else:
-            for key in foreign_keys:
-                if key["constrained_columns"] == ["_id"]:
+            fk_name = get_pg_foreign_key_name(referent_table, "_id")
+            if id_constraint is not None:
+                if id_constraint["name"] == fk_name and id_constraint["referred_table"] == referent_table:
+                    add_constraint = False
+                else:
                     handler.add_action(ma.DropConstraintMigrationAction(
                         table_name=source_table,
-                        constraint_name=key["name"]
+                        constraint_name=id_constraint["name"]
                     ), True)
-                    break
 
+            if add_constraint:
+                handler.add_action(
+                    ma.CreateForeignKeyMigrationAction(
+                        source_table=source_table,
+                        referent_table=referent_table,
+                        constraint_name=fk_name,
+                        local_cols=["_id"],
+                        remote_cols=["_id"]
+                    ), True
+                )
+        else:
+            if id_constraint is not None:
+                handler.add_action(ma.DropConstraintMigrationAction(
+                    table_name=source_table,
+                    constraint_name=id_constraint["name"]
+                ), True)
+
+        # Handle Ref foreign key constraints
         required_ref_props = {}
-        for prop in model.properties.values():
+        for prop in model.flatprops.values():
             if isinstance(prop.dtype, Ref):
                 if not prop.level or prop.level > 3:
-                    column_name = get_pg_column_name(f"{prop.name}._id")
+                    column_name = get_pg_column_name(f"{prop.place}._id")
                     name = get_pg_foreign_key_name(source_table, column_name)
                     required_ref_props[name] = {
                         "name": name,
@@ -224,23 +221,26 @@ def _handle_foreign_key_constraints(inspector: Inspector, models: List[Model], h
                         "referred_columns": ["_id"]
                     }
 
-        for key in foreign_keys:
-            if key["constrained_columns"] != ["_id"]:
-                if key["name"] not in required_ref_props.keys():
-                    handler.add_action(ma.DropConstraintMigrationAction(
-                        table_name=source_table,
-                        constraint_name=key["name"]
-                    ), True)
-                else:
-                    constraint = required_ref_props[key["name"]]
-                    if key["constrained_columns"] == constraint["constrained_columns"] and key["referred_table"] == \
-                        constraint["referred_table"] and key["referred_columns"] == constraint["referred_columns"]:
-                        del required_ref_props[key["name"]]
-                    else:
-                        handler.add_action(ma.DropConstraintMigrationAction(
-                            table_name=source_table,
-                            constraint_name=key["name"]
-                        ), True)
+        for foreign_key in foreign_keys:
+            if foreign_key["name"] not in required_ref_props.keys():
+                handler.add_action(ma.DropConstraintMigrationAction(
+                    table_name=source_table,
+                    constraint_name=foreign_key["name"]
+                ), True)
+                continue
+
+            constraint = required_ref_props[foreign_key["name"]]
+            if (
+                foreign_key["constrained_columns"] == constraint["constrained_columns"] and
+                foreign_key["referred_table"] == constraint["referred_table"] and
+                foreign_key["referred_columns"] == constraint["referred_columns"]
+            ):
+                del required_ref_props[foreign_key["name"]]
+            else:
+                handler.add_action(ma.DropConstraintMigrationAction(
+                    table_name=source_table,
+                    constraint_name=foreign_key["name"]
+                ), True)
 
         for prop in required_ref_props.values():
             handler.add_action(ma.CreateForeignKeyMigrationAction(

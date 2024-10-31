@@ -3,6 +3,7 @@ from typing import Any, List, Union, Dict, Tuple
 
 import sqlalchemy as sa
 import geoalchemy2.types
+from spinta.datasets.inspect.helpers import zipitems
 from spinta.utils.itertools import ensure_list
 from sqlalchemy.dialects.postgresql import JSONB, BIGINT, ARRAY, JSON
 from sqlalchemy.engine.reflection import Inspector
@@ -19,7 +20,6 @@ from spinta.backends.postgresql.helpers.migrate.name import name_changed, get_pg
     nested_column_rename
 from spinta.cli.helpers.migrate import MigrateRename
 from spinta.components import Context, Model, Property
-from spinta.datasets.enums import Level
 from spinta.exceptions import MigrateScalarToRefTooManyKeys
 from spinta.types.datatype import Ref, File, Array, Object
 from spinta.types.text.components import Text
@@ -164,7 +164,7 @@ def handle_new_object_type(context: Context, backend: PostgreSQL, inspector: Ins
 def get_prop_names(prop: Property):
     name = prop.name
     if isinstance(prop.dtype, Ref):
-        if not prop.level or prop.level > Level.open:
+        if commands.identifiable(prop):
             name = f'{name}._id'
         else:
             for refprop in prop.dtype.refprops:
@@ -334,7 +334,7 @@ class MigrateModelMeta:
 
 def is_internal_ref(dtype: Ref):
     prop = dtype.prop
-    return prop.level is None or prop.level > Level.open
+    return commands.identifiable(prop)
 
 
 def handle_internal_ref_to_scalar_conversion(
@@ -793,3 +793,60 @@ def remove_property_prefix_from_column_name(
     prop: Property,
 ) -> str:
     return column_name.replace(f'{prop.place}.', '', 1)
+
+
+def zip_and_migrate_properties(
+    context: Context,
+    backend: PostgreSQL,
+    old_table: sa.Table,
+    new_model: Model,
+    old_columns: List[sa.Column],
+    new_properties: List[Property],
+    meta: MigratePostgresMeta,
+    rename: MigrateRename,
+    root_name: str = "",
+    **kwargs
+):
+    zipped_items = zipitems(
+        old_columns,
+        new_properties,
+        lambda x: property_and_column_name_key(x, rename, old_table, new_model, root_name=root_name)
+    )
+    for zipped_item in zipped_items:
+        old_columns = []
+        new_properties = []
+        for old_column, new_property in zipped_item:
+            # Ignore deleted / reserved properties
+            if new_property and new_property.name.startswith('_'):
+                continue
+
+            if old_column not in old_columns:
+                old_columns.append(old_column)
+            if new_property and new_property not in new_properties:
+                new_properties.append(new_property)
+
+        if len(old_columns) == 1:
+            old_columns = old_columns[0]
+        elif not old_columns:
+            old_columns = NA
+            # If neither column nor property is matched skip it
+            if not new_properties:
+                continue
+
+        if new_properties:
+            for new_property in new_properties:
+                handled = handle_internal_ref_to_scalar_conversion(
+                    context,
+                    backend,
+                    meta,
+                    old_table,
+                    old_columns,
+                    new_property
+                )
+
+                if not handled:
+                    commands.migrate(context, backend, meta, old_table, old_columns, new_property,
+                                     **kwargs)
+        else:
+            commands.migrate(context, backend, meta, old_table, old_columns, NA, foreign_key=False,
+                             **kwargs)

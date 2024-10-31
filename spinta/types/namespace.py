@@ -26,7 +26,6 @@ from spinta.components import Model
 from spinta.components import Namespace
 from spinta.components import Node
 from spinta.components import UrlParams
-from spinta.datasets.enums import Level
 from spinta.exceptions import InvalidName
 from spinta.manifests.components import Manifest
 from spinta.nodes import load_node
@@ -333,11 +332,11 @@ def _topological_sort(model: Model, visited: dict, stack: list, dependencies: di
 def sort_models_by_ref_and_base(models: List[Model]):
     dependencies = collections.defaultdict(list)
     for model in models:
-        if model.base and (model.base.level and model.base.level > Level.open or not model.base.level):
+        if model.base and commands.identifiable(model.base):
             if model.base.parent in models:
                 dependencies[model.model_type()].append(model.base.parent)
         for ref in iter_model_refs(model):
-            if ref.prop.level and ref.prop.level > Level.open or not ref.prop.level:
+            if commands.identifiable(ref.prop):
                 if ref.model in models:
                     dependencies[model.model_type()].append(ref.model)
 

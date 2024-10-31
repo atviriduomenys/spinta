@@ -777,11 +777,7 @@ def zipitems(
                     value_key = existing_key
                     break
 
-        # Ensure empty list exists for the key
-        if value_key not in res.keys():
-            res[value_key] = []
-
-        res[value_key].append(new_value)
+        res.setdefault(value_key, []).append(new_value)
 
     # Map second value
     for value in b:
@@ -790,13 +786,13 @@ def zipitems(
 
         mapped_keys = []
         if isinstance(value_key, Tuple):
-            for existing_key in res.keys():
-                if set(value_key).issubset(set(existing_key)):
-                    mapped_keys.append(existing_key)
+            value_key_set = set(value_key)
+            mapped_keys = [existing_key for existing_key in res if value_key_set.issubset(set(existing_key))]
         elif isinstance(value_key, PriorityKey):
-            for existing_key in res.keys():
-                if value_key == existing_key:
-                    mapped_keys.append(existing_key)
+            # Only get the first match
+            for existing_key in res:
+                if existing_key == value_key:
+                    mapped_keys = [existing_key]
                     break
 
         if not mapped_keys:
