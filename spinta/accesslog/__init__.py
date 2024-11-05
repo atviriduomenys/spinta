@@ -31,6 +31,7 @@ class AccessLog:
     txn: str = None             # request transaction id
     start: float = None         # request start time in secodns
     memory: int = None          # memory used in bytes at the start of request
+    scopes: List[str] = None    # list of scopes
 
     def __enter__(self):
         return self
@@ -53,6 +54,7 @@ class AccessLog:
         reason: str = None,
         id_: str = None,
         rev: str = None,
+        scopes: List[str] = None,
     ):
         self.txn = txn
         self.start = self._get_time()
@@ -73,6 +75,7 @@ class AccessLog:
             'format': self.format,
             'url': self.url,
             'client': self.client,
+            'scope': scopes,
             'reason': reason or self.reason,
             'agent': self.agent,
         }
