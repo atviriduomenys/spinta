@@ -38,6 +38,7 @@ from spinta.utils.data import take
 from spinta.utils.errors import report_error
 from spinta.utils.nestedstruct import flatten_value
 from spinta.utils.schema import NotAvailable, NA
+from spinta.utils.scopes import get_scopes_from_context
 from spinta.utils.streams import splitlines
 
 if typing.TYPE_CHECKING:
@@ -321,6 +322,7 @@ def _log_write(
         'id_': id_,
         'rev': payload.get('_revision'),
         'txn': transaction.id,
+        'scopes' : get_scopes_from_context(context, model, action),
     }
 
     if prop:
