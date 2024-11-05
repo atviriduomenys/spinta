@@ -43,6 +43,7 @@ def test_post_accesslog(model, app, context):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
+            'scope': accesslog[-2]['scope'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'client': 'test-client',
@@ -85,6 +86,7 @@ def test_post_array_accesslog(model, app, context):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
+            'scope': accesslog[-2]['scope'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'method': 'POST',
@@ -132,6 +134,7 @@ def test_put_accesslog(model, app, context):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
+            'scope': accesslog[-2]['scope'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'method': 'PUT',
@@ -170,6 +173,7 @@ def test_pdf_put_accesslog(model, app, context):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
+            'scope': accesslog[-2]['scope'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'action': 'update',
@@ -219,6 +223,7 @@ def test_patch_accesslog(model, app, context):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
+            'scope': accesslog[-2]['scope'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'agent': 'testclient',
@@ -263,6 +268,7 @@ def test_get_accesslog(app, model, context):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
+            'scope': accesslog[-2]['scope'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'agent': 'testclient',
@@ -308,6 +314,7 @@ def test_get_array_accesslog(model, app, context):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
+            'scope': accesslog[-2]['scope'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'agent': 'testclient',
@@ -345,6 +352,7 @@ def test_pdf_get_accesslog(model, app, context):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
+            'scope': accesslog[-2]['scope'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'format': 'json',
@@ -388,6 +396,7 @@ def test_get_prop_accesslog(app, model, context):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
+            'scope': accesslog[-2]['scope'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'agent': 'testclient',
@@ -430,6 +439,7 @@ def test_get_w_select_accesslog(app, model, context):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
+            'scope': accesslog[-2]['scope'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'agent': 'testclient',
@@ -471,6 +481,7 @@ def test_getall_accesslog(app, model, context):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
+            'scope': accesslog[-2]['scope'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'agent': 'testclient',
@@ -510,6 +521,7 @@ def test_getall_w_select_accesslog(app, model, context):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
+            'scope': accesslog[-2]['scope'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'agent': 'testclient',
@@ -558,6 +570,7 @@ def test_accesslog_file(model, postgresql, rc, request, tmp_path):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
+            'scope': accesslog[-2]['scope'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'agent': 'testclient',
@@ -668,6 +681,7 @@ def test_accesslog_file_stdin(
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
+            'scope': accesslog[-2]['scope'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'action': 'insert',
@@ -730,6 +744,7 @@ def test_accesslog_file_stderr(
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
+            'scope': accesslog[-2]['scope'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'action': 'insert',
@@ -773,6 +788,7 @@ def test_delete_accesslog(model, app, context):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
+            'scope': accesslog[-2]['scope'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'agent': 'testclient',
@@ -813,6 +829,7 @@ def test_pdf_delete_accesslog(model, app, context):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
+            'scope': accesslog[-2]['scope'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'agent': 'testclient',
@@ -881,6 +898,7 @@ def test_pdf_ref_update_accesslog(model, app, context, tmp_path):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
+            'scope': accesslog[-2]['scope'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'agent': 'testclient',
@@ -932,6 +950,7 @@ def test_batch_write(model, app, context, tmp_path):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
+            'scope': accesslog[-2]['scope'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'agent': 'testclient',
@@ -977,6 +996,7 @@ def test_stream_write(model, app, context, tmp_path):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
+            'scope': accesslog[-2]['scope'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'agent': 'testclient',
@@ -1022,6 +1042,7 @@ def test_ns_read(model, app, context, tmp_path):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
+            'scope': accesslog[-2]['scope'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'agent': 'testclient',
@@ -1066,6 +1087,7 @@ def test_ns_read_csv(model, app, context, tmp_path):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
+            'scope': accesslog[-2]['scope'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'agent': 'testclient',
