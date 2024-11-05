@@ -33,6 +33,7 @@ from spinta.ufuncs.basequerybuilder.components import QueryParams, QueryPage
 from spinta.ufuncs.basequerybuilder.helpers import update_query_with_url_params, add_page_expr
 from spinta.ufuncs.loadbuilder.helpers import get_allowed_page_property_types
 from spinta.utils.data import take
+from spinta.utils.scopes import get_scopes_from_context
 
 
 @commands.getall.register(Context, Model, Request)
@@ -62,6 +63,7 @@ async def getall(
         txn=str(uuid.uuid4()),
         model=model.model_type(),
         action=action.value,
+        scopes=get_scopes_from_context(context, model, action),
     )
 
     if params.head:
@@ -432,6 +434,7 @@ async def getone(
         model=model.model_type(),
         action=action.value,
         id_=params.pk,
+        scopes=get_scopes_from_context(context, model, action),
     )
 
     data = commands.getone(context, model, backend, id_=params.pk)
@@ -462,6 +465,7 @@ async def getone(
         prop=prop.place,
         action=action.value,
         id_=params.pk,
+        scopes=get_scopes_from_context(context, prop, action),
     )
 
     data = commands.getone(
@@ -505,6 +509,7 @@ async def getone(
         prop=prop.place,
         action=action.value,
         id_=params.pk,
+        scopes=get_scopes_from_context(context, prop, action),
     )
 
     # Get metadata from model backend
@@ -586,6 +591,7 @@ async def changes(
             txn=str(uuid.uuid4()),
             model=model.model_type(),
             action=action.value,
+            scopes=get_scopes_from_context(context, model, action),
         )
 
         rows = commands.changes(
@@ -628,6 +634,7 @@ async def summary(
         txn=str(uuid.uuid4()),
         model=model.model_type(),
         action=action.value,
+        scopes=get_scopes_from_context(context, model, action),
     )
     if params.head:
         rows = []
