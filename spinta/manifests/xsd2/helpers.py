@@ -829,9 +829,10 @@ class XSDReader:
         prop.source = f"@{node.attrib.get('name')}"
         prop.xsd_name = node.attrib.get('name')
 
-        attribute_type = node.attrib.get("type").split(":")[-1]
+        attribute_type = node.attrib.get("type")
 
         if attribute_type:
+            attribute_type = attribute_type.split(":")[-1]
             if attribute_type in DATATYPES_MAPPING:
                 prop.type = self._map_type(attribute_type)
             elif attribute_type in self.custom_types:

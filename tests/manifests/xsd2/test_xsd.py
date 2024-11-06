@@ -476,7 +476,7 @@ def test_xsd_model_one_property(rc: RawConfig, tmp_path: Path):
     assert manifest == table
 
 
-@pytest.mark.skip("fix this behaviour")
+@pytest.mark.skip("waiting for #941")
 def test_xsd_separate_simple_type(rc: RawConfig, tmp_path: Path):
     xsd = """
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
@@ -578,7 +578,7 @@ def test_xsd_sequence_choice_sequence(rc: RawConfig, tmp_path: Path):
     assert manifest == table
 
 
-@pytest.mark.skip(reason='waiting for #871')
+@pytest.mark.skip(reason='waiting for #942')
 def test_xsd_complex_content(rc: RawConfig, tmp_path: Path):
     xsd = """
     <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
@@ -615,25 +615,19 @@ def test_xsd_complex_content(rc: RawConfig, tmp_path: Path):
     assert manifest == table
 
 
-@pytest.mark.skip(reason='waiting')
+# @pytest.mark.skip(reason='waiting')
 def test_xsd_recursion(rc: RawConfig, tmp_path: Path):
     # recursion in XSD
     xsd = """
 <s:schema xmlns:s="http://www.w3.org/2001/XMLSchema" xmlns:tns="http://rc/ireg/1.0/" targetNamespace="http://rc/ireg/1.0/" elementFormDefault="qualified" attributeFormDefault="unqualified">
-        <s:element name="data">
+
+        <s:element name="responseData">
             <s:complexType>
                 <s:sequence>
-                    <s:element minOccurs="0" maxOccurs="1" name="responseData" type="tns:responseData"/>
-                    <s:element minOccurs="0" maxOccurs="1" name="responseMessage" type="s:string"/>
+                    <s:element minOccurs="0" maxOccurs="unbounded" name="action" type="tns:action" />
                 </s:sequence>
             </s:complexType>
         </s:element>
-
-        <s:complexType name="responseData">
-            <s:sequence>
-                <s:element minOccurs="0" maxOccurs="unbounded" name="actions" type="tns:actions"/>
-            </s:sequence>
-        </s:complexType>
 
         <s:complexType name="children">
             <s:sequence>
@@ -641,20 +635,9 @@ def test_xsd_recursion(rc: RawConfig, tmp_path: Path):
             </s:sequence>
         </s:complexType>
 
-        <s:complexType name="actions">
-            <s:sequence>
-                <s:element minOccurs="0" maxOccurs="unbounded" name="action" type="tns:action"/>
-            </s:sequence>
-        </s:complexType>
-
         <s:complexType name="action">
             <s:sequence>
-                <s:element minOccurs="1" maxOccurs="1" name="code" type="s:string">
-                    <s:annotation>
-                        <s:documentation>Paslaugos kodas (RC kodas)</s:documentation>
-                    </s:annotation>
-                </s:element>
-
+                <s:element minOccurs="1" maxOccurs="1" name="code" type="s:string" />
                 <s:element minOccurs="1" maxOccurs="unbounded" name="children" type="tns:children" />
             </s:sequence>
         </s:complexType>
@@ -666,7 +649,7 @@ def test_xsd_recursion(rc: RawConfig, tmp_path: Path):
     | manifest                               |                 |         |                            |         |       |        |     |       |
     |   | resource1                          | xml             |         |                            |         |       |        |     |       |
     |                                        |                 |         |                            |         |       |        |     |       |
-    |   |   |   | Actions                    |                 |         |                            |         |       |        |     |       |
+    |   |   |   | Action/:part               |                 |         |                            |         |       |        |     |       |
     |   |   |   |   | code[]                 | string required |         | action/code/text()         |         |       |        |     |       | Paslaugos kodas (RC kodas)
     |   |   |   |   | data                   | ref             | Data    |                            |         |       |        |     |       |
     |                                        |                 |         |                            |         |       |        |     |       |
@@ -682,6 +665,7 @@ def test_xsd_recursion(rc: RawConfig, tmp_path: Path):
         xsd_file.write(xsd)
     manifest = load_manifest(rc, path_xsd2)
     assert manifest == table
+
 
 
 def test_xsd_enumeration(rc: RawConfig, tmp_path: Path):
@@ -774,7 +758,7 @@ def test_duplicate_removal(rc: RawConfig, tmp_path: Path):
     | manifest                                         |                   |                  |                                               |         |       |        |     |       |
     |   | resource1                                    | xml               |                  |                                               |         |       |        |     |       |
     |                                                  |                   |                  |                                               |         |       |        |     |       |
-    |   |   |   | Extract                              |                   |                  |                                               |         |       |        |     |       |
+    |   |   |   | Extract/:part                              |                   |                  |                                               |         |       |        |     |       |
     |   |   |   |   | extract_preparation_time         | datetime required |                  | extractPreparationTime/text()                 |         |       |        |     |       |
     |   |   |   |   | last_update_time                 | datetime required |                  | lastUpdateTime/text()                         |         |       |        |     |       |
     |                                                  |                   |                  |                                               |         |       |        |     |       |
