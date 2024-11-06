@@ -615,7 +615,6 @@ def test_xsd_complex_content(rc: RawConfig, tmp_path: Path):
     assert manifest == table
 
 
-# @pytest.mark.skip(reason='waiting')
 def test_xsd_recursion(rc: RawConfig, tmp_path: Path):
     # recursion in XSD
     xsd = """
@@ -645,19 +644,22 @@ def test_xsd_recursion(rc: RawConfig, tmp_path: Path):
 """
 
     table = """
- id | d | r | b | m | property               | type            | ref     | source                     | prepare | level | access | uri | title | description
-    | manifest                               |                 |         |                            |         |       |        |     |       |
-    |   | resource1                          | xml             |         |                            |         |       |        |     |       |
-    |                                        |                 |         |                            |         |       |        |     |       |
-    |   |   |   | Action/:part               |                 |         |                            |         |       |        |     |       |
-    |   |   |   |   | code[]                 | string required |         | action/code/text()         |         |       |        |     |       | Paslaugos kodas (RC kodas)
-    |   |   |   |   | data                   | ref             | Data    |                            |         |       |        |     |       |
-    |                                        |                 |         |                            |         |       |        |     |       |
-    |   |   |   | Data                       |                 |         | /data                      |         |       |        |     |       |
-    |   |   |   |   | response_data[]        | backref         | Actions | responseData/actions       |         |       |        |     |       |
-    |   |   |   |   | response_data[].code[] | string required |         | action/code/text()         |         |       |        |     |       | Paslaugos kodas (RC kodas)
-    |   |   |   |   | response_message       | string          |         | responseMessage/text()     |         |       |        |     |       |
-
+ id | d | r | b | m | property       | type             | ref          | source        | prepare  | level | access | uri | title | description
+    | manifest                       |                  |              |               |          |       |        |     |       |
+    |   | resource1                  | xml              |              |               |          |       |        |     |       |
+    |                                |                  |              |               |          |       |        |     |       |
+    |   |   |   | Action/:part       |                  |              |               |          |       |        |     |       |
+    |   |   |   |   | children[]     | backref required | Children     | children      | expand() |       |        |     |       |
+    |   |   |   |   | children1      | ref              | Children     |               |          |       |        |     |       |
+    |   |   |   |   | code           | string required  |              | code/text()   |          |       |        |     |       |
+    |   |   |   |   | response_data  | ref              | ResponseData |               |          |       |        |     |       |
+    |                                |                  |              |               |          |       |        |     |       |
+    |   |   |   | Children/:part     |                  |              |               |          |       |        |     |       |
+    |   |   |   |   | action[]       | backref          | Action       | action        | expand() |       |        |     |       |
+    |   |   |   |   | action1        | ref              | Action       |               |          |       |        |     |       |
+    |                                |                  |              |               |          |       |        |     |       |
+    |   |   |   | ResponseData       |                  |              | /responseData |          |       |        |     |       |
+    |   |   |   |   | action[]       | backref          | Action       | action        | expand() |       |        |     |       |
 """
     path = tmp_path / 'manifest.xsd'
     path_xsd2 = f"xsd2+file://{path}"
@@ -665,7 +667,6 @@ def test_xsd_recursion(rc: RawConfig, tmp_path: Path):
         xsd_file.write(xsd)
     manifest = load_manifest(rc, path_xsd2)
     assert manifest == table
-
 
 
 def test_xsd_enumeration(rc: RawConfig, tmp_path: Path):
@@ -719,7 +720,7 @@ def test_xsd_enumeration(rc: RawConfig, tmp_path: Path):
     assert manifest == table
 
 
-@pytest.mark.skip(reason='waiting')
+@pytest.mark.skip(reason='waiting for 942')
 def test_duplicate_removal(rc: RawConfig, tmp_path: Path):
     xsd = """
     <xs:schema xmlns="http://eTaarPlat.ServiceContracts/2007/08/Messages" elementFormDefault="qualified" targetNamespace="http://eTaarPlat.ServiceContracts/2007/08/Messages" xmlns:xs="http://www.w3.org/2001/XMLSchema">
@@ -790,7 +791,7 @@ def test_duplicate_removal(rc: RawConfig, tmp_path: Path):
     assert manifest == table
 
 
-@pytest.mark.skip(reason='waiting')
+@pytest.mark.skip(reason='waiting for #942')
 def test_duplicate_removal_backref(rc: RawConfig, tmp_path: Path):
     xsd = """
     <xs:schema xmlns="http://eTaarPlat.ServiceContracts/2007/08/Messages" elementFormDefault="qualified" targetNamespace="http://eTaarPlat.ServiceContracts/2007/08/Messages" xmlns:xs="http://www.w3.org/2001/XMLSchema">
@@ -863,7 +864,7 @@ def test_duplicate_removal_backref(rc: RawConfig, tmp_path: Path):
     assert manifest == table
 
 
-@pytest.mark.skip(reason='waiting')
+@pytest.mark.skip(reason='waiting for 942')
 def test_duplicate_removal_different_models(rc: RawConfig, tmp_path: Path):
     """
     in this situation, "Extract" model has to be only once
@@ -967,7 +968,7 @@ def test_duplicate_removal_different_models(rc: RawConfig, tmp_path: Path):
     assert manifest == table
 
 
-@pytest.mark.skip(reason='waiting')
+# @pytest.mark.skip(reason='waiting')
 def test_duplicate_removal_two_level(rc: RawConfig, tmp_path: Path):
     """
     if a ref refers to another model, and this model refers to yet another, and they both produce duplicates,
@@ -1034,7 +1035,7 @@ def test_duplicate_removal_two_level(rc: RawConfig, tmp_path: Path):
     |   |   |   |   | country                  | string required |               | country/text()                      |         |       |        |     |       |
     |   |   |   |   | maker                    | ref required    | Maker         | Maker                               |         |       |        |     |       |
     |                                          |                 |               |                                     |         |       |        |     |       |
-    |   |   |   | Maker                        |                 |               |                                     |         |       |        |     |       |
+    |   |   |   | Maker/:part                        |                 |               |                                     |         |       |        |     |       |
     |   |   |   |   | code                     | string required |               | code/text()                         |         |       |        |     |       |
     |   |   |   |   | name                     | string required |               | name/text()                         |         |       |        |     |       |
     |                                          |                 |               |                                     |         |       |        |     |       |

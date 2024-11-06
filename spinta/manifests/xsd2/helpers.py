@@ -478,15 +478,18 @@ class XSDReader:
             for property_id, prop in model.properties.items():
                 if prop.type.name == "backref":
                     referenced_model = prop.ref_model
+                    deduplicate_property_name = Deduplicator()
+                    for deduplication_prop in referenced_model.properties.values():
+                        deduplicate_property_name(deduplication_prop.name)
                     # checking if the ref already exists.
                     # They can exist multiple times, but refs should be added only once
                     prop_added = False
                     for prop in referenced_model.properties.values():
-                        if prop.ref_model and prop.ref_model == model:
+                        if prop.ref_model and prop.ref_model == model and prop.type.name == "ref":
                             prop_added = True
                     if not prop_added:
                         prop = XSDProperty()
-                        prop.name = to_property_name(model.basename)
+                        prop.name = deduplicate_property_name(to_property_name(model.basename))
                         prop.type = XSDType(name="ref_backref")
                         prop.ref_model = model
                         referenced_model.properties[prop.name] = prop
