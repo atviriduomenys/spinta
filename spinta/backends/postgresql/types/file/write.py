@@ -9,7 +9,6 @@ from spinta.backends.mongo.components import WriteTransaction
 from spinta.types.file.helpers import prepare_patch_data
 from spinta.utils.aiotools import aiter
 from spinta.utils.data import take
-from spinta.utils.scopes import get_scopes_from_context
 from spinta.renderer import render
 from spinta.components import Action, UrlParams, DataItem
 from spinta.types.datatype import DataType, File
@@ -54,7 +53,6 @@ async def push(
         id_=params.pk,
         rev=request.headers.get('revision'),
         txn=transaction.id,
-        scopes=get_scopes_from_context(context, prop, action),
     )
 
     data = DataItem(

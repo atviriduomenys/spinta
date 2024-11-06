@@ -11,7 +11,6 @@ from spinta.accesslog import log_async_response
 
 from spinta.renderer import render
 from spinta.utils.aiotools import aiter
-from spinta.utils.scopes import get_scopes_from_context
 from spinta.components import Context, Action, UrlParams, DataItem
 from spinta.commands.write import prepare_patch, simple_response, validate_data
 from spinta.types.datatype import File
@@ -44,7 +43,6 @@ async def push(
         id_=params.pk,
         rev=request.headers.get('revision'),
         txn=transaction.id,
-        scopes=get_scopes_from_context(context, prop, action),
     )
 
     data = DataItem(

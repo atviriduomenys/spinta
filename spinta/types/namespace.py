@@ -30,7 +30,6 @@ from spinta.exceptions import InvalidName
 from spinta.manifests.components import Manifest
 from spinta.nodes import load_node
 from spinta.types.datatype import Ref
-from spinta.utils.scopes import get_scopes_from_context
 
 namespace_is_lowercase = re.compile(r'^([a-z][a-z0-9]*)+(/[a-z][a-z0-9]*)+|([a-z][a-z0-9]*)$')
 
@@ -153,7 +152,6 @@ async def getall(
         txn=str(uuid.uuid4()),
         ns=ns.name,
         action=action.value,
-        scopes = get_scopes_from_context(context, ns, action),
     )
     return commands.getall(context, ns, request, ns.manifest, action=action, params=params)
 

@@ -14,7 +14,7 @@ import psutil
 from starlette.requests import Request
 
 from spinta import commands
-from spinta.auth import Token
+from spinta.auth import Token, get_default_auth_client_id
 from spinta.components import Context, Config
 from spinta.components import UrlParams
 
@@ -75,7 +75,7 @@ class AccessLog:
             'format': self.format,
             'url': self.url,
             'client': self.client,
-            'scope': scopes,
+            'scope': self.scopes,
             'reason': reason or self.reason,
             'agent': self.agent,
         }
@@ -121,6 +121,10 @@ def load(context: Context, accesslog: AccessLog, config: Config):
 @commands.load.register(Context, AccessLog, Token)
 def load(context: Context, accesslog: AccessLog, token: Token):  # noqa
     accesslog.client = token.get_sub()
+
+    client_id = token.get_client_id()
+    if client_id != get_default_auth_client_id(context):
+        accesslog.scopes = token.get_scope()
 
 
 @overload
