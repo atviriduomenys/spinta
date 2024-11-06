@@ -1,14 +1,18 @@
 import json
 import pathlib
+import datetime
 
 import pytest
 from _pytest.capture import CaptureFixture
+from _pytest.fixtures import FixtureRequest
 
 from spinta.accesslog.file import FileAccessLog
+from spinta.auth import get_default_auth_client_id, load_key, KeyType, create_access_token
 from spinta.components import Store
 from spinta.core.config import RawConfig
 from spinta.testing.client import create_test_client
 from spinta.testing.context import create_test_context
+from spinta.testing.manifest import bootstrap_manifest
 
 
 def _upload_pdf(model, app):
@@ -1107,3 +1111,125 @@ def test_ns_read_csv(model, app, context, tmp_path):
             'objects': objects[model],
         },
     ]
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_get_accesslog_default_user(manifest_type: str, tmp_path: pathlib.Path, rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(
+        rc, '''
+        d | r | b | m | property      | type    | access
+        backends/postgres/dtypes/test |         | open
+          |   |   | Entity            |         |
+          |   |   |   | id            | integer |
+        ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    context.set('accesslog.stream', [])
+    default_client_id = get_default_auth_client_id(context)
+    token = create_access_token(
+        context,
+        load_key(context, KeyType.private),
+        default_client_id,
+        int(datetime.timedelta(days=10).total_seconds()),
+        { 'spinta_getall', 'spinta_search'}
+    )
+
+    model = 'backends/postgres/dtypes/test/Entity'
+    app = create_test_client(context)
+    app.authmodel(model, ['insert'])
+
+    resp = app.post('/backends/postgres/dtypes/test/Entity', json={'id': 1})
+    assert resp.status_code == 201, resp.json()
+
+    # Get with default client auth
+    resp = app.get('/backends/postgres/dtypes/test/Entity?select(id)',  headers={'authorization': f'Bearer {token}'})
+    assert resp.status_code == 200, resp.json()
+
+    accesslog = context.get('accesslog.stream')
+    assert len(accesslog) == 4
+    assert accesslog[-2:] == [
+        {
+            'txn': accesslog[-2]['txn'],
+            'pid': accesslog[-2]['pid'],
+            'type': 'request',
+            'time': accesslog[-2]['time'],
+            'client': default_client_id,
+            'method': 'GET',
+            'url': f'https://testserver/{model}?select(id)',
+            'agent': 'testclient',
+            'format': 'json',
+            'action': 'search',
+            'model': model,
+        },
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'response',
+            'time': accesslog[-1]['time'],
+            'delta': accesslog[-1]['delta'],
+            'memory': accesslog[-1]['memory'],
+            'objects': 1,
+        },
+    ]
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_get_accesslog_not_default_user(manifest_type: str, tmp_path: pathlib.Path, rc: RawConfig, postgresql: str,
+                                     request: FixtureRequest):
+    context = bootstrap_manifest(
+        rc, '''
+        d | r | b | m | property      | type    | access
+        backends/postgres/dtypes/test |         | open
+          |   |   | Entity            |         |
+          |   |   |   | id            | integer |
+        ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    context.set('accesslog.stream', [])
+
+
+    model = 'backends/postgres/dtypes/test/Entity'
+    app = create_test_client(context)
+    app.authmodel(model, ['insert', 'getall', 'search'])
+
+    resp = app.post('/backends/postgres/dtypes/test/Entity', json={'id': 1})
+    assert resp.status_code == 201, resp.json()
+
+    # Get with test client
+    resp = app.get('/backends/postgres/dtypes/test/Entity?select(id)')
+    assert resp.status_code == 200, resp.json()
+
+    accesslog = context.get('accesslog.stream')
+    assert len(accesslog) == 4
+    assert accesslog[-2:] == [
+        {
+            'txn': accesslog[-2]['txn'],
+            'pid': accesslog[-2]['pid'],
+            'scope': accesslog[-2]['scope'],
+            'type': 'request',
+            'time': accesslog[-2]['time'],
+            'client': 'test-client',
+            'method': 'GET',
+            'url': f'https://testserver/{model}?select(id)',
+            'agent': 'testclient',
+            'format': 'json',
+            'action': 'search',
+            'model': model,
+        },
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'response',
+            'time': accesslog[-1]['time'],
+            'delta': accesslog[-1]['delta'],
+            'memory': accesslog[-1]['memory'],
+            'objects': 1,
+        },
+    ]
+
