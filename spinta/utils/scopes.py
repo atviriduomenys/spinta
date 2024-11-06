@@ -30,6 +30,7 @@ def name_to_scope(
         scope = template.format(name=name, **params)
     return _sanitize(scope)
 
+
 def get_scopes_from_context(context: Context, node: Any, action: Action) -> Union[List[str], None]:
     """Return list of scopes for given context, node (Namespace, Model, Property) and action.
     """
