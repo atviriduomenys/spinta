@@ -211,7 +211,7 @@ def prepare_for_write(
 
     # Third Step: if Content-Language and default language does not exist, check for C language (unknown)
     if not preferred_lang:
-        if dtype.prop.level and dtype.prop.level <= 3 and 'C' in dtype.langs:
+        if not commands.identifiable(dtype.prop) and 'C' in dtype.langs:
             preferred_lang = dtype.langs['C']
 
     # Fourth Step: if nothing works raise Exception that language was not determined

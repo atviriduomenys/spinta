@@ -1644,7 +1644,7 @@ def test_migrate_ref_to_scalar_advanced_level_3_rename_with_delete(
             assert row['id'] == 0
             assert row['country_id'] == 0
             assert row['country_name'] == "Lithuania"
-            assert row['country_code'] == None
+            assert row['country_code'] is None
             assert row['__country.code'] == "LT"
         cleanup_table_list(meta, [
             'migrate/example/City',

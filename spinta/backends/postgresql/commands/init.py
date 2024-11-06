@@ -12,7 +12,6 @@ from spinta.backends.postgresql.helpers import get_column_name
 from spinta.backends.postgresql.helpers import get_pg_name
 from spinta.backends.postgresql.helpers.changes import get_changes_table
 from spinta.components import Context, Model
-from spinta.datasets.enums import Level
 from spinta.manifests.components import Manifest
 from spinta.types.datatype import DataType, PrimaryKey, Ref
 
@@ -54,7 +53,7 @@ def prepare(context: Context, backend: PostgreSQL, model: Model, ignore_duplicat
             for prop in constraint:
                 name = prop.name
                 if isinstance(prop.dtype, Ref):
-                    if prop.level is None or prop.level > Level.open:
+                    if commands.identifiable(prop):
                         name = f'{name}._id'
                     elif prop.dtype:
                         name = f'{name}.{prop.dtype.refprops[0].name}'
@@ -124,7 +123,7 @@ def get_primary_key_type(context: Context, backend: PostgreSQL):
 def prepare(context: Context, backend: PostgreSQL, dtype: PrimaryKey, **kwargs):
     pkey_type = commands.get_primary_key_type(context, backend)
     base = dtype.prop.model.base
-    if base and (base.level and base.level >= Level.identifiable or not base.level):
+    if base and commands.identifiable(base):
         return [
             sa.Column('_id', pkey_type, primary_key=True),
             sa.ForeignKeyConstraint(

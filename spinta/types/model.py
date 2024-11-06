@@ -26,8 +26,8 @@ from spinta.components import Model
 from spinta.components import Property
 from spinta.core.access import link_access_param
 from spinta.core.access import load_access_param
+from spinta.core.enums import Level
 from spinta.datasets.components import ExternalBackend
-from spinta.datasets.enums import Level
 from spinta.dimensions.comments.helpers import load_comments
 from spinta.dimensions.enum.components import EnumValue
 from spinta.dimensions.enum.components import Enums
@@ -249,9 +249,6 @@ def _link_model_page(model: Model):
         _disable_page_in_model(model)
 
 
-
-
-
 @overload
 @commands.link.register(Context, Base)
 def link(context: Context, base: Base):
@@ -260,7 +257,7 @@ def link(context: Context, base: Base):
         base.parent.properties[pk]
         for pk in base.pk
     ] if base.pk else []
-    if (base.level and base.level >= Level.identifiable) or not base.level:
+    if commands.identifiable(base):
         if base.pk and base.pk != base.parent.external.pkeys:
             base.parent.add_keymap_property_combination(base.pk)
 
@@ -291,7 +288,7 @@ def load(
 
     if data['type'] is None:
         raise UnknownPropertyType(prop, type=data['type'])
-    if data['type'] == 'ref' and prop.level is not None and prop.level < 4:
+    if data['type'] == 'ref' and not commands.identifiable(prop):
         data['type'] = '_external_ref'
     prop.dtype = get_node(
         context,
@@ -531,3 +528,19 @@ def get_error_context(prop: Page, *, prefix='this') -> Dict[str, str]:
     context = commands.get_error_context(prop.model, prefix=f'{prefix}.model')
     context['page'] = f'{prefix}.get_repr_for_error()'
     return context
+
+
+@commands.identifiable.register(Model)
+def identifiable(model: Model):
+    return model.level is None or model.level >= Level.identifiable
+
+
+@commands.identifiable.register(Base)
+def identifiable(base: Base):
+    return base.level is None or base.level >= Level.identifiable
+
+
+@commands.identifiable.register(Property)
+def identifiable(prop: Property):
+    return prop.level is None or prop.level >= Level.identifiable
+

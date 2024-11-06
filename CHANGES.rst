@@ -4,6 +4,12 @@ Changes
 0.1.79 (unreleased)
 ===================
 
+New features:
+
+- Added support for `Denorm` type migrations (`#932`_).
+
+  .. _#932: https://github.com/atviriduomenys/spinta/issues/932
+
 Improvements:
 
 - Added better support for migrations with nested data types (`#722`_).

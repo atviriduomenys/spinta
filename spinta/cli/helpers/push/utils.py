@@ -6,6 +6,7 @@ from typing import Union
 
 import msgpack
 import sqlalchemy as sa
+from spinta import commands
 
 from sqlalchemy.engine.row import Row
 from spinta.auth import authorized
@@ -13,7 +14,6 @@ from spinta.cli.helpers.push.components import PushRow
 from spinta.components import Action, Page
 from spinta.components import Context
 from spinta.components import Model
-from spinta.datasets.enums import Level
 from spinta.types.datatype import Ref
 from spinta.utils.data import take
 from spinta.utils.json import fix_data_for_json
@@ -70,7 +70,7 @@ def extract_dependant_nodes(context: Context, models: List[Model], filter_pushed
     extracted_models = [] if filter_pushed else models.copy()
     for model in models:
         if model.base:
-            if not model.base.level or model.base.level > Level.open:
+            if commands.identifiable(model.base):
                 if model.base.parent not in extracted_models:
                     if filter_pushed and not (model.base.parent in models):
                         extracted_models.append(model.base.parent)
@@ -80,7 +80,7 @@ def extract_dependant_nodes(context: Context, models: List[Model], filter_pushed
         for prop in model.properties.values():
             if isinstance(prop.dtype, Ref):
                 if authorized(context, prop, action=Action.SEARCH):
-                    if not prop.level or prop.level > Level.open:
+                    if commands.identifiable(prop):
                         if prop.dtype.model not in extracted_models:
                             if filter_pushed and not (prop.dtype.model in models):
                                 extracted_models.append(prop.dtype.model)

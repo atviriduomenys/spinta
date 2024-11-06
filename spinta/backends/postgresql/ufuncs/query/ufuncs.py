@@ -7,7 +7,7 @@ from typing import Union, Any
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
 
-from spinta import exceptions
+from spinta import exceptions, commands
 from spinta.auth import authorized
 from spinta.backends.constants import TableType, BackendFeatures
 from spinta.backends.postgresql.ufuncs.query.components import PgQueryBuilder, InheritForeignProperty, Lower, Recurse, \
@@ -17,7 +17,6 @@ from spinta.core.ufuncs import Bind, Negative as Negative_
 from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import ufunc, GetAttr
 from spinta.datasets.backends.sql.ufuncs.components import Selected
-from spinta.datasets.enums import Level
 from spinta.exceptions import EmptyStringSearch, NoneValueComparison
 from spinta.exceptions import FieldNotInResource
 from spinta.types.datatype import Array
@@ -310,7 +309,7 @@ def _select_backref(env, dtype, is_array=False):
     required_columns = []
     return_columns = {}
 
-    if refprop.level is None or refprop.level > Level.open:
+    if commands.identifiable(refprop):
         id_ = fpr.right.prop.model.properties['_id']
         column_name = id_.name
         label = f'{dtype.prop.name}.{column_name}'

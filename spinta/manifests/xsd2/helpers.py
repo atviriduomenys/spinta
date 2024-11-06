@@ -1164,6 +1164,19 @@ class XSDReader:
         return property_groups
 
     def process_restriction(self, node: _Element, state: State) -> XSDType:
+        simple_facets: tuple[str] = (
+            "pattern",
+            "length",
+            "minLength",
+            "maxLength",
+            "minInclusive",
+            "maxInclusive",
+            "minExclusive",
+            "maxExclusive",
+            "totalDigits",
+            "fractionDigits",
+            "whiteSpace",
+        )
 
         base = node.attrib.get("base")
         property_type = self._map_type(base)
@@ -1178,27 +1191,18 @@ class XSDReader:
             if local_name == "enumeration":
                 enum = self.process_enumeration(child, state)
                 enumerations.update(enum)
-            elif local_name == "minInclusive":
-                logger.info(f"met a tag {local_name}")
-            elif local_name == "maxInclusive":
-                logger.info(f"met a tag {local_name}")
-            elif local_name == "pattern":
-                logger.info(f"met a tag {local_name}")
-            elif local_name == "maxLength":
-                logger.info(f"met a tag {local_name}")
-            elif local_name == "totalDigits":
-                logger.info(f"met a tag {local_name}")
-            elif local_name == "length":
-                logger.info(f"met a tag {local_name}")
-            elif local_name == "whiteSpace":
-                logger.info(f"met a tag {local_name}")
-            elif local_name == "minLength":
-                logger.info(f"met a tag {local_name}")
+            elif QName(child).localname in simple_facets:
+                # Skipping simple facets (e.g., pattern, length, etc.) because
+                # DSA does not support data validation.
+                # Also skipping the 'whiteSpace' facet to ensure that whitespace is preserved as-is.
+                continue
             else:
                 raise RuntimeError(f"Unexpected element type inside restriction element: {child}")
+
         if enumerations:
             enums = {"": enumerations}
             property_type.enums = enums
+
         return property_type
 
     def process_union(self, node: _Element, state: State) -> XSDType:
