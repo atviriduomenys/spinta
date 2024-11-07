@@ -994,3 +994,7 @@ class BackendUnavailable(BaseError):
     template = '''
     Unable to access {name!r} backend, please try again later.
     '''
+
+
+class InvalidClientFileFormat(UserError):
+    template = "File {client_file} data must be a dictionary, not a {client_file_type}."
