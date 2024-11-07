@@ -75,24 +75,18 @@ def test_xsd_backref(rc: RawConfig, tmp_path: Path):
 
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
 <xs:element name="asmenys">
-  <xs:complexType mixed="true">
+  <xs:complexType>
     <xs:sequence>
-      <xs:element ref="asmuo" minOccurs="0" maxOccurs="unbounded" />
+      <xs:element ref="asmuo" maxOccurs="unbounded" />
     </xs:sequence>
-    <xs:attribute name="puslapis" type="xs:long" use="required">
-      <xs:annotation><xs:documentation>rezultatu puslapio numeris</xs:documentation></xs:annotation>
-    </xs:attribute>
+    <xs:attribute name="puslapis" type="xs:long" />
   </xs:complexType>
 </xs:element>
 
 <xs:element name="asmuo">
-  <xs:complexType mixed="true">
-
-      <xs:attribute name="id"     type="xs:string" use="required">
-      </xs:attribute>
-      <xs:attribute name="ak"  type="xs:string" use="required">
-      </xs:attribute>
-
+  <xs:complexType>
+      <xs:attribute name="id" type="xs:string" />
+      <xs:attribute name="ak" type="xs:string" />
   </xs:complexType>
 </xs:element>
 </xs:schema>
@@ -104,15 +98,13 @@ def test_xsd_backref(rc: RawConfig, tmp_path: Path):
     |   | resource1               | xml              |         |           |          |       |        |     |       |
     |                             |                  |         |           |          |       |        |     |       |
     |   |   |   | Asmenys         |                  |         | /asmenys  |          |       |        |     |       |
-    |   |   |   |   | asmuo[]     | backref          | Asmuo   | asmuo     | expand() |       |        |     |       |
-    |   |   |   |   | puslapis    | integer required |         | @puslapis |          |       |        |     |       | rezultatu puslapio numeris
-    |   |   |   |   | text        | string           |         | text()    |          |       |        |     |       |
+    |   |   |   |   | asmuo[]     | backref required | Asmuo   | asmuo     | expand() |       |        |     |       |
+    |   |   |   |   | puslapis    | integer          |         | @puslapis |          |       |        |     |       |
     |                             |                  |         |           |          |       |        |     |       |
     |   |   |   | Asmuo/:part     |                  |         |           |          |       |        |     |       |
-    |   |   |   |   | ak          | string required  |         | @ak       |          |       |        |     |       |
+    |   |   |   |   | ak          | string           |         | @ak       |          |       |        |     |       |
     |   |   |   |   | asmenys     | ref              | Asmenys |           |          |       |        |     |       |
-    |   |   |   |   | id          | string required  |         | @id       |          |       |        |     |       |
-    |   |   |   |   | text        | string           |         | text()    |          |       |        |     |       |
+    |   |   |   |   | id          | string           |         | @id       |          |       |        |     |       |
 
 """
 
@@ -862,47 +854,35 @@ def test_duplicate_removal_different_models(rc: RawConfig, tmp_path: Path):
     """
     xsd = """
     <xs:schema xmlns="http://eTaarPlat.ServiceContracts/2007/08/Messages" elementFormDefault="qualified" targetNamespace="http://eTaarPlat.ServiceContracts/2007/08/Messages" xmlns:xs="http://www.w3.org/2001/XMLSchema">
-        <xs:element name="getDocumentsByWagonResponse" nillable="true" type="getDocumentsByWagonResponse" />
-        <xs:complexType name="getDocumentsByWagonResponse">
+        <xs:element name="Wagon" type="Wagon" />
+        <xs:complexType name="Wagon">
             <xs:sequence>
-                <xs:element minOccurs="0" maxOccurs="1" name="searchParameters" type="getDocumentsByWagonSearchParams" />
-                <xs:choice minOccurs="1" maxOccurs="1">
-                    <xs:element minOccurs="0" maxOccurs="1" name="klaida" type="Klaida" />
-                    <xs:element minOccurs="0" maxOccurs="1" name="extract" type="Extract" />
+                <xs:element name="searchParameters" type="xs:string" />
+                <xs:choice>
+                    <xs:element minOccurs="0" name="klaida" type="Klaida" />
+                    <xs:element minOccurs="0" name="extract" type="Extract" />
                 </xs:choice>
             </xs:sequence>
         </xs:complexType>
-        <xs:complexType name="getDocumentsByWagonSearchParams">
+        <xs:element name="AirCraft" type="AirCraft" />
+        <xs:complexType name="AirCraft">
             <xs:sequence>
-                <xs:element minOccurs="0" maxOccurs="1" name="searchType" type="xs:string" />
-                <xs:element minOccurs="0" maxOccurs="1" name="code" type="xs:string" />
-            </xs:sequence>
-        </xs:complexType>
-        <xs:element name="getDocumentsByAirCraftResponse" nillable="true" type="getDocumentsByAirCraftResponse" />
-        <xs:complexType name="getDocumentsByAirCraftResponse">
-            <xs:sequence>
-                <xs:element minOccurs="0" maxOccurs="1" name="searchParameters" type="getDocumentsByAirCraftSearchParams" />
-                <xs:choice minOccurs="1" maxOccurs="1">
-                    <xs:element minOccurs="0" maxOccurs="1" name="klaida" type="Klaida" />
-                    <xs:element minOccurs="0" maxOccurs="1" name="extract" type="Extract" />
+                <xs:element name="searchParameters" type="xs:string" />
+                <xs:choice>
+                    <xs:element minOccurs="0" name="klaida" type="Klaida" />
+                    <xs:element minOccurs="0" name="extract" type="Extract" />
                 </xs:choice>
-            </xs:sequence>
-        </xs:complexType>
-        <xs:complexType name="getDocumentsByAirCraftSearchParams">
-            <xs:sequence>
-                <xs:element minOccurs="0" maxOccurs="1" name="searchType" type="xs:string" />
-                <xs:element minOccurs="0" maxOccurs="1" name="code" type="xs:string" />
             </xs:sequence>
         </xs:complexType>
         <xs:complexType name="Klaida">
                     <xs:sequence>
-                        <xs:element minOccurs="0" maxOccurs="1" name="Aprasymas" type="xs:string" />
+                        <xs:element name="Aprasymas" type="xs:string" />
                     </xs:sequence>
         </xs:complexType>
         <xs:complexType name="Extract">
                     <xs:sequence>
-                        <xs:element minOccurs="1" maxOccurs="1" name="extractPreparationTime" type="xs:dateTime" />
-                        <xs:element minOccurs="1" maxOccurs="1" name="lastUpdateTime" type="xs:dateTime" />
+                        <xs:element name="extractPreparationTime" type="xs:dateTime" />
+                        <xs:element name="lastUpdateTime" type="xs:dateTime" />
                     </xs:sequence>
         </xs:complexType>
     </xs:schema>
