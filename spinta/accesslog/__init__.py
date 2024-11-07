@@ -124,7 +124,7 @@ def load(context: Context, accesslog: AccessLog, token: Token):  # noqa
 
     client_id = token.get_client_id()
     config = context.get('config')
-    if client_id != get_default_auth_client_id(context) and config.scope_log:
+    if config.scope_log and client_id != get_default_auth_client_id(context):
         accesslog.scopes = token.get_scope()
 
 
