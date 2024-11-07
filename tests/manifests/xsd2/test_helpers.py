@@ -7,6 +7,8 @@ from spinta.manifests.xsd2.helpers import XSDReader, State, XSDProperty, XSDType
 from unittest.mock import MagicMock, patch
 from lxml import etree
 
+from spinta.utils.naming import to_property_name
+
 
 def test_process_element_inline_type():
     xsd_schema = """
@@ -391,6 +393,7 @@ def test_process_complex_type_with_extension(xsd_reader, create_xsd_model):
     assert "attr1" in prop_names
     assert model.extends_model == 'BaseType'
 
+
 def test_process_complex_type_with_simple_content(xsd_reader):
     complex_type_xml = """
     <complexType name="CityType">
@@ -409,13 +412,15 @@ def test_process_complex_type_with_simple_content(xsd_reader):
         XSDProperty(xsd_name="name", property_type=XSDType(name="string"), required=True),
         XSDProperty(xsd_name="code", property_type=XSDType(name="string"), required=False),
     ])
+    xsd_reader.dataset_resource.dataset_name = "dataset_name"
 
     state = State()
     models = xsd_reader.process_complex_type(complex_type_node, state)
 
     assert len(models) == 1
     model = models[0]
-    assert model.name == "CityType"
+    assert model.basename == "CityType"
+    assert model.name == "dataset_name/CityType"
     assert "text" in model.properties
     assert "name" in model.properties
     assert "code" in model.properties
@@ -425,10 +430,13 @@ def test_process_complex_type_with_simple_content(xsd_reader):
     code_prop = model.properties["code"]
 
     assert text_prop.type.name == "string"
+    assert name_prop.type.name == "string"
+    assert code_prop.type.name == "string"
     assert name_prop.required is True
     assert code_prop.required is False
 
     xsd_reader.process_simple_content.assert_called_once_with(complex_type_node[0], state)
+
 
 def test_process_complex_type_with_all(xsd_reader):
     xml = """
@@ -440,9 +448,10 @@ def test_process_complex_type_with_all(xsd_reader):
     </complexType>
     """
     node = etree.fromstring(xml)
+    xsd_reader.root = node
+    xsd_reader.namespaces = []
     state = State()
     models = xsd_reader.process_complex_type(node, state)
-
     assert len(models) == 1
     model = models[0]
 
@@ -869,7 +878,9 @@ def create_ref_xsd_property() -> Callable[..., XSDProperty]:
             xsd_name=name,
             property_type=XSDType(name=type),
             required=True,
+
         )
+        prop.name = to_property_name(name)
         if type == "ref":
             prop.xsd_ref_to = ref_model
         elif type == "type":
@@ -890,8 +901,8 @@ def setup_models(xsd_reader, create_xsd_model, create_ref_xsd_property):
 
     xsd_reader.models.extend([model_a, model_b])
 
-    xsd_reader.top_level_element_models[model_b.xsd_name] = model_b
-    xsd_reader.top_level_complex_type_models[model_a.xsd_name] = model_a
+    xsd_reader.top_level_element_models[model_b.xsd_name] = [model_b]
+    xsd_reader.top_level_complex_type_models[model_a.xsd_name] = [model_a]
     
     return {
         "xsd_reader": xsd_reader,
@@ -993,18 +1004,22 @@ def test_sort_properties_by_key(create_xsd_models):
 def test_post_process_refs_valid_prepare_with_properties(xsd_reader, create_xsd_model):
 
     extends_model = create_xsd_model("BaseType")
+    base_prop = XSDProperty(xsd_name="baseProp", property_type=XSDType(name="string"))
+    base_prop.name = "base_prop"
     extends_model.properties = {
-        "baseProp": XSDProperty(xsd_name="baseProp", property_type=XSDType(name="string"))
+        "base_prop": base_prop
     }
 
     derived_model = create_xsd_model("DerivedType")
     derived_model.extends_model = "BaseType"
+    derived_prop = XSDProperty(xsd_name="derivedProp", property_type=XSDType(name="int"))
+    derived_prop.name = "derived_prop"
     derived_model.properties = {
-        "derivedProp": XSDProperty(xsd_name="derivedProp", property_type=XSDType(name="int"))
+        "derived_prop": derived_prop
     }
 
     xsd_reader.models = [derived_model]
-    xsd_reader.top_level_complex_type_models = {"BaseType": extends_model}
+    xsd_reader.top_level_complex_type_models = {"BaseType": [extends_model]}
 
     xsd_reader._post_process_refs()
 
@@ -1016,12 +1031,14 @@ def test_post_process_refs_valid_prepare_with_empty_properties(xsd_reader, creat
 
     derived_model = create_xsd_model("DerivedType")
     derived_model.extends_model = "BaseType"
+    derived_prop = XSDProperty(xsd_name="derivedProp", property_type=XSDType(name="int"))
+    derived_prop.name = "derived_prop"
     derived_model.properties = {
-        "derivedProp": XSDProperty(xsd_name="derivedProp", property_type=XSDType(name="int"))
+        "derived_prop": derived_prop
     }
 
     xsd_reader.models = [derived_model]
-    xsd_reader.top_level_complex_type_models = {"BaseType": extends_model}
+    xsd_reader.top_level_complex_type_models = {"BaseType": [extends_model]}
 
     xsd_reader._post_process_refs()
 
@@ -1316,6 +1333,7 @@ def test_process_simple_content_with_restriction(xsd_reader):
     assert properties[0].xsd_name == "value"
     assert properties[0].type.name == "integer"
 
+
 def test_process_all(xsd_reader):
     xml = """
     <all>
@@ -1325,6 +1343,8 @@ def test_process_all(xsd_reader):
     </all>
     """
     node = etree.fromstring(xml)
+    xsd_reader.root = node
+    xsd_reader.namespaces = []
     state = State()
     properties = xsd_reader.process_all(node, state)
 
@@ -1336,6 +1356,7 @@ def test_process_all(xsd_reader):
     assert properties[2].xsd_name == "elementThree"
     assert properties[2].type.name == "boolean"
 
+
 def test_process_all_with_attributes(xsd_reader):
     xml = """
     <all>
@@ -1343,6 +1364,8 @@ def test_process_all_with_attributes(xsd_reader):
     </all>
     """
     node = etree.fromstring(xml)
+    xsd_reader.root = node
+    xsd_reader.namespaces = []
     state = State()
     properties = xsd_reader.process_all(node, state)
 
