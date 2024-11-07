@@ -1233,3 +1233,57 @@ def test_get_accesslog_not_default_user(manifest_type: str, tmp_path: pathlib.Pa
         },
     ]
 
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_get_accesslog_scope_log_false(manifest_type: str, tmp_path: pathlib.Path, rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(
+        rc, '''
+        d | r | b | m | property      | type    | access
+        backends/postgres/dtypes/test |         | open
+          |   |   | Entity            |         |
+          |   |   |   | id            | integer |
+        ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    context.set('accesslog.stream', [])
+
+    # set config to not log scope
+    context.get('config').scope_log = False
+
+    model = 'backends/postgres/dtypes/test/Entity'
+    app = create_test_client(context)
+    app.authmodel(model, ['insert'])
+
+    resp = app.post('/backends/postgres/dtypes/test/Entity', json={'id': 1})
+    assert resp.status_code == 201, resp.json()
+
+    accesslog = context.get('accesslog.stream')
+    assert len(accesslog) == 2
+    assert accesslog[-2:] == [
+        {
+            'txn': accesslog[-2]['txn'],
+            'pid': accesslog[-2]['pid'],
+            'type': 'request',
+            'time': accesslog[-2]['time'],
+            'client': 'test-client',
+            'method': 'POST',
+            'url': f'https://testserver/{model}',
+            'agent': 'testclient',
+            'format': 'json',
+            'action': 'insert',
+            'model': model,
+            'rctype': 'application/json',
+        },
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'response',
+            'time': accesslog[-1]['time'],
+            'delta': accesslog[-1]['delta'],
+            'memory': accesslog[-1]['memory'],
+            'objects': 1,
+        },
+    ]
