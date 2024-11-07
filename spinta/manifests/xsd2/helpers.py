@@ -403,7 +403,6 @@ class XSDReader:
             for prop in model.properties.values():
                 if prop.xsd_ref_to:
                     try:
-                        # TODO: do the same as with prop_type
                         prop.ref_model = self.top_level_element_models[prop.xsd_ref_to][0]
                         if len(self.top_level_element_models[prop.xsd_ref_to]) > 1:
                             for prop_model in self.top_level_element_models[prop.xsd_ref_to][1:]:
@@ -512,8 +511,6 @@ class XSDReader:
 
         self.register_simple_types(state)
 
-        # todo maybe add a function to check attributes of xml nodes
-
         self.process_root(state)
 
         # post processing
@@ -530,14 +527,11 @@ class XSDReader:
         self._sort_alphabetically()
 
     def process_root(self, state: State):
-        # todo add sources to models later, when we know that they are not referenced
-        #  by properties from other models.
         for node in self.root.getchildren():
             # We don't care about comments
             if isinstance(node, etree._Comment):
                 continue
             if QName(node).localname == "element":
-                # todo add task for this and finish this
                 properties = self.process_element(node, state, is_root=True)
                 for prop in properties:
                     if prop.type.name not in ("ref", "backref"):
@@ -567,7 +561,6 @@ class XSDReader:
         Element should return a property. It can return multiple properties if there is a choice somewhere down the way.
         property name is set after returning all properties, because we need to do a deduplication first.
         """
-        # todo add more explanatory comments
         is_array = is_array or _is_array(node)
         is_required = int(node.attrib.get("minOccurs", 1)) > 0
         props = []
@@ -671,8 +664,6 @@ class XSDReader:
             if "description" in locals() and description:
                 for prop in props:
                     prop.description = description
-
-            if "description" in locals() and description:
                 for model in models:
                     model.description = f'{model.description or ""}{description}'
 
@@ -681,13 +672,6 @@ class XSDReader:
 
         return props
 
-        # todo there is a case in RC with a type name that doesn't exist (or exists externally)
-        #  todo factor in minoccurs and maxoccurs everywhere
-        # todo If it's top level, we need to know if we need to add it to the resource model or not.
-        #  Maybe after we return from this, we need to check if the property is `ref`. If it's top level and not ref, we add it to the "resource" model
-        # todo decide where to deal with placeholder elements, which are not turned into a model
-        #  talk to Mantas if a model is considered a placeholder model if it has only one ref or even if it has more refs but nothing else
-        # todo handle unique (though it doesn't exist in RC)
     def process_complex_type(self, node: _Element, state: State) -> list[XSDModel]:
 
         # preparation for building model
@@ -812,10 +796,6 @@ class XSDReader:
                 dsa_type.prepare = value
         dsa_type.name = property_type
         return dsa_type
-
-    def _process_ref_name(self, ref_attrib: str) -> str:
-        # process prefix
-        pass
 
     def process_attribute(self, node: _Element, state: State) -> XSDProperty:
         prop = XSDProperty()
@@ -1257,13 +1237,9 @@ class XSDReader:
         pass
 
     def process_total_digits(self, node: _Element, state: State) -> None:
-        # raise Exception("Unsupported element")
-        # TODO: create specific error
         pass
 
     def process_fraction_digits(self, node: _Element, state: State) -> None:
-        # logging.log(logging.INFO, "met an unsupported type fractionDigits")
-        # TODO: configure logger
         pass
 
     def process_min_inclusive(self, node: _Element, state: State) -> None:
