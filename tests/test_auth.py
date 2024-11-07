@@ -13,6 +13,7 @@ from authlib.jose import jwt
 from spinta import auth, commands
 from spinta.auth import get_client_file_path, query_client, get_clients_path, ensure_client_folders_exist
 from spinta.components import Action, Context
+from spinta.exceptions import InvalidClientFileFormat
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.utils import get_error_codes
 from spinta.testing.client import create_test_client, get_yaml_data
@@ -340,6 +341,7 @@ def test_get_client_file_path_uuid(tmp_path):
     file_name = "a6c06c3a-3aa4-4704-b144-4fc23e2152f7"
     assert str(get_client_file_path(get_clients_path(tmp_path), file_name)) == str(tmp_path / 'clients' / 'id' / 'a6' / 'c0' / '6c3a-3aa4-4704-b144-4fc23e2152f7.yml')
 
+
 def test_invalid_scope(context, app):
     client_id = '3388ea36-4a4f-4821-900a-b574c8829d52'
     client_secret = 'b5DVbOaEY1BGnfbfv82oA0-4XEBgLQuJ'
@@ -351,3 +353,37 @@ def test_invalid_scope(context, app):
     })
     assert resp.status_code == 400, resp.text
     assert get_error_codes(resp.json()) == ['InvalidScopes']
+
+
+def test_invalid_client_file_data_type_list(tmp_path, context, cli, rc):
+    cli.invoke(rc, ['client', 'add', '-p', tmp_path, '-n', 'test'])
+
+    for child in tmp_path.glob('**/*'):
+        if not str(child).endswith("keymap.yml"):
+            client_file = child
+    yaml = ruamel.yaml.YAML(typ='safe')
+    scopes = [
+        'spinta_getone',
+        'spinta_getall',
+        'spinta_search',
+    ]
+    yaml.dump(scopes, client_file)
+    with pytest.raises(InvalidClientFileFormat, match="File .* data must be a dictionary, not a <class 'list'>."):
+        query_client(get_clients_path(tmp_path), "test", is_name=True)
+
+
+def test_invalid_client_file_data_type_str(tmp_path, context, cli, rc):
+    cli.invoke(rc, ['client', 'add', '-p', tmp_path, '-n', 'test'])
+
+    for child in tmp_path.glob('**/*'):
+        if not str(child).endswith("keymap.yml"):
+            client_file = child
+    yaml = ruamel.yaml.YAML(typ='safe')
+    scopes = [
+        'spinta_getone',
+        'spinta_getall',
+        'spinta_search',
+    ]
+    yaml.dump(str(scopes), client_file)
+    with pytest.raises(InvalidClientFileFormat, match="File .* data must be a dictionary, not a <class 'str'>."):
+        query_client(get_clients_path(tmp_path), "test", is_name=True)

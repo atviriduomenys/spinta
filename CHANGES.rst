@@ -14,6 +14,10 @@ Improvements:
 
 - Added better support for migrations with nested data types (`#722`_).
 
+- Added a check for reading client data files, to provide better error messages (`#933`_).
+
+  .. _#933: https://github.com/atviriduomenys/spinta/issues/933
+
 - Added scope information to access logs (`#903`_).
 
   .. _#903: https://github.com/atviriduomenys/spinta/issues/903

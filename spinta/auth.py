@@ -39,7 +39,8 @@ from spinta.components import ScopeFormatterFunc
 from spinta.core.enums import Access
 from spinta.components import Context, Action, Namespace, Model, Property
 from spinta.exceptions import InvalidToken, NoTokenValidationKey, ClientWithNameAlreadyExists, ClientAlreadyExists, \
-    ClientsKeymapNotFound, ClientsIdFolderNotFound, InvalidClientsKeymapStructure, InvalidScopes
+    ClientsKeymapNotFound, ClientsIdFolderNotFound, InvalidClientsKeymapStructure, InvalidScopes, \
+    InvalidClientFileFormat
 from spinta.exceptions import AuthorizedClientsOnly
 from spinta.exceptions import BasicAuthRequired
 from spinta.utils import passwords
@@ -425,6 +426,8 @@ def query_client(path: pathlib.Path, client: str, is_name: bool = False) -> Clie
         data = yaml.load(client_file)
     except FileNotFoundError:
         raise (InvalidClientError(description='Invalid client id or secret'))
+    if not isinstance(data, dict):
+        raise InvalidClientFileFormat(client_file=client_file.name, client_file_type=type(data))
     if not isinstance(data['scopes'], list):
         raise Exception(f'Client {client_file} scopes must be list of scopes.')
     client_id = data["client_id"]
