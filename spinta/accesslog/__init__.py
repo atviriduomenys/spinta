@@ -14,7 +14,7 @@ import psutil
 from starlette.requests import Request
 
 from spinta import commands
-from spinta.auth import Token
+from spinta.auth import Token, get_default_auth_client_id
 from spinta.components import Context, Config
 from spinta.components import UrlParams
 
@@ -31,6 +31,7 @@ class AccessLog:
     txn: str = None             # request transaction id
     start: float = None         # request start time in secodns
     memory: int = None          # memory used in bytes at the start of request
+    scopes: List[str] = None    # list of scopes
 
     def __enter__(self):
         return self
@@ -53,6 +54,7 @@ class AccessLog:
         reason: str = None,
         id_: str = None,
         rev: str = None,
+        scopes: List[str] = None,
     ):
         self.txn = txn
         self.start = self._get_time()
@@ -73,6 +75,7 @@ class AccessLog:
             'format': self.format,
             'url': self.url,
             'client': self.client,
+            'scope': self.scopes,
             'reason': reason or self.reason,
             'agent': self.agent,
         }
@@ -118,6 +121,11 @@ def load(context: Context, accesslog: AccessLog, config: Config):
 @commands.load.register(Context, AccessLog, Token)
 def load(context: Context, accesslog: AccessLog, token: Token):  # noqa
     accesslog.client = token.get_sub()
+
+    client_id = token.get_client_id()
+    config = context.get('config')
+    if config.scope_log and client_id != get_default_auth_client_id(context):
+        accesslog.scopes = token.get_scope()
 
 
 @overload
