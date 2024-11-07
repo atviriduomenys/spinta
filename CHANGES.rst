@@ -18,6 +18,10 @@ Improvements:
 
   .. _#933: https://github.com/atviriduomenys/spinta/issues/933
 
+- Added scope information to access logs (`#903`_).
+
+  .. _#903: https://github.com/atviriduomenys/spinta/issues/903
+
 Bug fix:
 
 - Resolved ambiguity warning messages (`#895`_).

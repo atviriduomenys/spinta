@@ -1093,6 +1093,7 @@ class Config:
     scope_prefix: str
     scope_formatter: ScopeFormatterFunc
     scope_max_length: int
+    scope_log: bool
     default_auth_client: str
     http_basic_auth: bool
     token_validation_key: dict = None
