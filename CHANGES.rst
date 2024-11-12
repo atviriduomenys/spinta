@@ -32,6 +32,10 @@ Bug fix:
 
   .. _#722: https://github.com/atviriduomenys/spinta/issues/722
 
+- Fixed memory leak caused by `resource_filename` function (`#954`_).
+
+  .. _#954: https://github.com/atviriduomenys/spinta/issues/954
+
 0.1.78 (2024-10-22)
 ===================
 

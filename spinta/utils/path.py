@@ -29,7 +29,5 @@ def is_ignored(rules, base, path):
 
 
 def resource_filename(package: str, target: str) -> Path:
-    file_manager = ExitStack()
-    atexit.register(file_manager.close)
-    ref = importlib.resources.files(package) / target
-    return file_manager.enter_context(importlib.resources.as_file(ref))
+    with importlib.resources.files(package) / target as ref:
+        return ref
