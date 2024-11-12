@@ -61,7 +61,7 @@ def _handle_numeric_summary(connection, model_prop: Property):
     try:
         prop = model_prop.name
         model = get_table_name(model_prop)
-        min_value, max_value = connection.execute(f'SELECT MIN("{prop}") , MAX("{prop}") FROM "{model}"').fetchone() or (0, 0)
+        min_value, max_value = connection.execute(f'SELECT MIN("{prop}") , MAX("{prop}") FROM "{model}"').fetchone()
         if min_value is None and max_value is None:
             return []
 
@@ -290,7 +290,7 @@ def _handle_time_summary(connection, model_prop: Property):
         prop = model_prop.name
         model = get_table_name(model_prop)
         if isinstance(model_prop.dtype, (Date, DateTime)):
-            min_value, max_value = connection.execute(f'SELECT MIN("{prop}"::TIMESTAMP) , MAX("{prop}"::TIMESTAMP) FROM "{model}"').fetchone() or (0, 0)
+            min_value, max_value = connection.execute(f'SELECT MIN("{prop}"::TIMESTAMP) , MAX("{prop}"::TIMESTAMP) FROM "{model}"').fetchone()
         else:
             min_value, max_value = connection.execute(f'SELECT MIN("{prop}") , MAX("{prop}") FROM "{model}"').fetchone()
             if min_value and max_value:
@@ -324,7 +324,7 @@ def _handle_time_summary(connection, model_prop: Property):
 
         base_bucket_bin = min_value + half_bin_size
         is_time_type = isinstance(model_prop.dtype, Time)
-        model_type = model_prop.model.model_type
+        model_type = model_prop.model.model_type()
         buckets = [
             {
                 "bin": str((base_bucket_bin + i * bin_size).time() if is_time_type else base_bucket_bin + i * bin_size),
