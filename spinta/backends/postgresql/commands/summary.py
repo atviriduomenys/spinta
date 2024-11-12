@@ -290,9 +290,9 @@ def _handle_time_summary(connection, model_prop: Property):
         prop = model_prop.name
         model = get_table_name(model_prop)
         if isinstance(model_prop.dtype, (Date, DateTime)):
-            min_value, max_value = connection.execute(f'SELECT MIN("{prop}"::TIMESTAMP) , MAX("{prop}"::TIMESTAMP) FROM "{model}"').fetchone()
+            min_value, max_value = connection.execute(f'SELECT MIN("{prop}"::TIMESTAMP) , MAX("{prop}"::TIMESTAMP) FROM "{model}"').fetchone() or (0, 0)
         else:
-            min_value, max_value = connection.execute(f'SELECT MIN("{prop}") , MAX("{prop}") FROM "{model}"')
+            min_value, max_value = connection.execute(f'SELECT MIN("{prop}") , MAX("{prop}") FROM "{model}"').fetchone()
             if min_value and max_value:
                 min_value = datetime.datetime.combine(datetime.datetime(1970, 1, 1), min_value)
                 max_value = datetime.datetime.combine(datetime.datetime(1970, 1, 1), max_value)
