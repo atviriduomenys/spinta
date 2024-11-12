@@ -15,9 +15,9 @@ git checkout $RELEASE_VERSION
 git pull
 git tag -l -n1 | sort -h | tail -n5
 
-export CURRENT_PATCH=77
-export NEW_PATCH=78
-export FUTURE_PATCH=79
+export CURRENT_PATCH=78
+export NEW_PATCH=79
+export FUTURE_PATCH=80
 
 export CURRENT_VERSION=$RELEASE_VERSION.$CURRENT_PATCH
 export NEW_VERSION=$RELEASE_VERSION.$NEW_PATCH
@@ -31,9 +31,22 @@ git status
 # Removed `pymssql` library
 
 # notes/spinta/release/common.sh    Check outdated packages and upgrade them
-#| Package operations: 0 installs, 0 updates, 1 removal
+#| Package operations: 0 installs, 14 updates, 0 removals
 #|
-#|   • Removing pymssql (2.3.1)
+#|   • Updating packaging (24.1 -> 24.2)
+#|   • Updating frozenlist (1.4.1 -> 1.5.0)
+#|   • Updating jedi (0.19.1 -> 0.19.2)
+#|   • Updating tomli (2.0.2 -> 2.1.0)
+#|   • Updating et-xmlfile (1.1.0 -> 2.0.0)
+#|   • Updating mypy (1.12.1 -> 1.13.0)
+#|   • Updating rich (13.9.2 -> 13.9.4)
+#|   • Updating setuptools (75.2.0 -> 75.3.0)
+#|   • Updating phonenumbers (8.13.47 -> 8.13.49)
+#|   • Updating python-multipart (0.0.12 -> 0.0.17)
+#|   • Updating sqlean-py (3.45.1 -> 3.47.0)
+#|   • Updating starlette (0.41.0 -> 0.41.2)
+#|   • Updating tqdm (4.66.5 -> 4.67.0)
+#|   • Updating typer (0.12.5 -> 0.13.0)
 
 
 # Run Makefile
@@ -51,7 +64,7 @@ head CHANGES.rst
 # notes/spinta/release/common.sh    Reset test database
 
 poetry run pytest -vvx --tb=short tests
-#| 2165 passed, 41 skipped, 460 warnings in 331.08s (0:05:31)
+#| 2190 passed, 45 skipped, 55 warnings in 343.57s (0:05:43)
 
 # If possible run same tests using test and prod env library versions
 # Test env
@@ -76,7 +89,7 @@ BASEDIR=$PWD/var/instances/$INSTANCE
 
 # notes/spinta/release/common.sh    Run server in EXTERNAL mode
 # notes/spinta/release/common.sh    Run migrations
-#| (3114 rows)
+#| (3166 rows)
 
 # notes/spinta/release/common.sh    Run server in INTERNAL mode
 # Don't forget to add client to server and credentials;
