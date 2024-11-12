@@ -22,6 +22,10 @@ Improvements:
 
   .. _#903: https://github.com/atviriduomenys/spinta/issues/903
 
+- Improved `summary` `query` memory usage (`#955`_).
+
+  .. _#955: https://github.com/atviriduomenys/spinta/issues/955
+
 Bug fix:
 
 - Resolved ambiguity warning messages (`#895`_).
