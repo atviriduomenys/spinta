@@ -32,8 +32,7 @@ def summary(
     kwargs = {}
     if env.bbox:
         kwargs['bbox'] = env.bbox
-    result = commands.summary(context, env.prop.dtype, backend, **kwargs)
-    return result
+    yield from commands.summary(context, env.prop.dtype, backend, **kwargs)
 
 
 @commands.summary.register(Context, Integer, PostgreSQL)
@@ -62,49 +61,47 @@ def _handle_numeric_summary(connection, model_prop: Property):
     try:
         prop = model_prop.name
         model = get_table_name(model_prop)
-        min_max = connection.execute(f'SELECT MIN("{prop}") , MAX("{prop}") FROM "{model}"')
-        min_value = 0
-        max_value = 0
-        for item in min_max:
-            min_value = item[0]
-            max_value = item[1]
+        min_value, max_value = connection.execute(f'SELECT MIN("{prop}") , MAX("{prop}") FROM "{model}"').fetchone()
         if min_value is None and max_value is None:
             return []
-        else:
-            if min_value == max_value:
-                max_value += 100
-            bin_size = (max_value - min_value) / 100
-            half_bin_size = bin_size / 2
 
-            # reason for 'max_value + min(0.01, bin_size*0.01)', is that WIDTH_BUCKET max is not inclusive, so you need to increase it by small amount
-            result = connection.execute(f'''
-                SELECT 
-                    WIDTH_BUCKET("{prop}", {min_value}, {max_value + min(0.01, bin_size * 0.01)}, 100) AS bucket, 
-                    COUNT(*) AS count,
-                    (ARRAY_AGG(_id))[1] AS _id
-                FROM "{model}" 
-                GROUP BY 
-                    bucket 
-                ORDER BY 
-                    bucket;
-            ''')
-            buckets = []
-            for i in range(100):
-                buckets.append(
-                    {
-                        "bin": i * bin_size + half_bin_size + min_value,
-                        "count": 0,
-                        "_type": model_prop.model.model_type()
-                    }
-                )
-            for item in result:
-                data = flat_dicts_to_nested(dict(item))
-                if data["bucket"]:
-                    bucket = buckets[data["bucket"] - 1]
-                    bucket["count"] = data["count"]
-                    if data['count'] == 1:
-                        bucket["_id"] = data["_id"]
-            yield from buckets
+        if min_value == max_value:
+            max_value += 100
+
+        bin_size = (max_value - min_value) / 100
+        half_bin_size = bin_size / 2
+
+        # reason for 'max_value + min(0.01, bin_size*0.01)', is that WIDTH_BUCKET max is not inclusive, so you need to increase it by small amount
+        result = connection.execute(f'''
+            SELECT 
+                WIDTH_BUCKET("{prop}", {min_value}, {max_value + min(0.01, bin_size * 0.01)}, 100) AS bucket, 
+                COUNT(*) AS count,
+                MIN(_id::text) AS _id
+            FROM "{model}" 
+            GROUP BY 
+                bucket 
+            ORDER BY 
+                bucket;
+        ''')
+        model_type = model_prop.model.model_type()
+        base_bucket_bin = min_value + half_bin_size
+        buckets = [
+            {
+                "bin": base_bucket_bin + i * bin_size,
+                "count": 0,
+                "_type": model_type
+            }
+            for i in range(100)
+        ]
+
+        for item in result:
+            data = flat_dicts_to_nested(dict(item))
+            bucket_index = data["bucket"] - 1
+            if 0 <= bucket_index < 100:
+                buckets[bucket_index]["count"] = data["count"]
+                if data['count'] == 1:
+                    buckets[bucket_index]["_id"] = data["_id"]
+        yield from buckets
     except NotFoundError:
         raise ItemDoesNotExist(model_prop.model, id=model_prop.name)
 
@@ -125,7 +122,7 @@ def summary(
                 SELECT 
                     bin, 
                     COUNT(model.*) AS count, 
-                    (ARRAY_AGG(model._id))[1] AS _id
+                    MIN(model._id::text) AS _id
                 FROM UNNEST(ARRAY[TRUE, FALSE]) AS bin
                     LEFT OUTER JOIN 
                         "{model}" AS model 
@@ -136,11 +133,12 @@ def summary(
                     ORDER BY
                         bin;
         ''')
+        model_type = dtype.prop.model.model_type()
         for item in result:
             data = flat_dicts_to_nested(dict(item))
             if data["count"] != 1:
                 del data["_id"]
-            data['_type'] = dtype.prop.model.model_type()
+            data['_type'] = model_type
             yield data
     except NotFoundError:
         raise ItemDoesNotExist(dtype.prop.model, id=dtype.prop.name)
@@ -169,7 +167,7 @@ def summary(
                 SELECT 
                     bin, 
                     COUNT(model.*) AS count, 
-                    (ARRAY_AGG(model._id))[1] AS _id
+                    MIN(model._id::text) AS _id
                 FROM UNNEST(ARRAY{enum_list}) AS bin
                     LEFT OUTER JOIN 
                         "{model}" AS model 
@@ -180,11 +178,12 @@ def summary(
                     ORDER BY
                         bin;
                 ''')
+        model_type = dtype.prop.model.model_type()
         for item in result:
             data = flat_dicts_to_nested(dict(item))
             if data["count"] != 1:
                 del data["_id"]
-            data['_type'] = dtype.prop.model.model_type()
+            data['_type'] = model_type
             yield data
     except NotFoundError:
         raise ItemDoesNotExist(dtype.prop.model, id=dtype.prop.name)
@@ -290,64 +289,59 @@ def _handle_time_summary(connection, model_prop: Property):
     try:
         prop = model_prop.name
         model = get_table_name(model_prop)
-        min_value = None
-        max_value = None
         if isinstance(model_prop.dtype, (Date, DateTime)):
-            min_max = connection.execute(f'SELECT MIN("{prop}"::TIMESTAMP) , MAX("{prop}"::TIMESTAMP) FROM "{model}"')
-            for item in min_max:
-                min_value = item[0]
-                max_value = item[1]
+            min_value, max_value = connection.execute(f'SELECT MIN("{prop}"::TIMESTAMP) , MAX("{prop}"::TIMESTAMP) FROM "{model}"').fetchone()
         else:
-            min_max = connection.execute(f'SELECT MIN("{prop}") , MAX("{prop}") FROM "{model}"')
-            for item in min_max:
-                # 1970-01-01 is when postgresql start counting EPOCH
-                if item[0] and item[1]:
-                    min_value = datetime.datetime.combine(datetime.datetime(1970, 1, 1), item[0])
-                    max_value = datetime.datetime.combine(datetime.datetime(1970, 1, 1), item[1])
+            min_value, max_value = connection.execute(f'SELECT MIN("{prop}") , MAX("{prop}") FROM "{model}"').fetchone()
+            if min_value and max_value:
+                min_value = datetime.datetime.combine(datetime.datetime(1970, 1, 1), min_value)
+                max_value = datetime.datetime.combine(datetime.datetime(1970, 1, 1), max_value)
+
         if min_value is None and max_value is None:
             return []
-        else:
-            if min_value == max_value:
-                max_value = _handle_time_units(model_prop, min_value)
 
-            bin_size = (max_value - min_value) / 100
-            half_bin_size = bin_size / 2
-            seq_start = calendar.timegm(min_value.timetuple())
-            seq_end = calendar.timegm(max_value.timetuple())
-            seq_step = bin_size.total_seconds()
+        if min_value == max_value:
+            max_value = _handle_time_units(model_prop, min_value)
 
-            # reason for 'max_value + min(0.01, bin_size*0.01)', is that WIDTH_BUCKET max is not inclusive, so you need to increase it by small amount
-            result = connection.execute(f'''
-                SELECT 
-                        WIDTH_BUCKET(EXTRACT(EPOCH FROM "{prop}"), {seq_start}, {seq_end + min(0.01, seq_step * 0.01)}, 100) AS bucket, 
-                        COUNT(*) AS count,
-                        (ARRAY_AGG(_id))[1] AS _id
-                    FROM "{model}" 
-                    GROUP BY 
-                        bucket 
-                    ORDER BY 
-                        bucket;
-                        ''')
-            buckets = []
-            for i in range(100):
-                bucket_bin = i * bin_size + half_bin_size + min_value
-                if isinstance(model_prop.dtype, Time):
-                    bucket_bin = bucket_bin.time()
-                buckets.append(
-                    {
-                        "bin": str(bucket_bin),
-                        "count": 0,
-                        "_type": model_prop.model.model_type()
-                    }
-                )
-            for item in result:
-                data = flat_dicts_to_nested(dict(item))
-                if data["bucket"]:
-                    bucket = buckets[data["bucket"] - 1]
-                    bucket["count"] = data["count"]
-                    if data['count'] == 1:
-                        bucket["_id"] = data["_id"]
-            yield from buckets
+        bin_size = (max_value - min_value) / 100
+        half_bin_size = bin_size / 2
+        seq_start = calendar.timegm(min_value.timetuple())
+        seq_end = calendar.timegm(max_value.timetuple())
+        seq_step = bin_size.total_seconds()
+
+        # reason for 'max_value + min(0.01, bin_size*0.01)', is that WIDTH_BUCKET max is not inclusive, so you need to increase it by small amount
+        result = connection.execute(f'''
+            SELECT 
+                    WIDTH_BUCKET(EXTRACT(EPOCH FROM "{prop}"), {seq_start}, {seq_end + min(0.01, seq_step * 0.01)}, 100) AS bucket, 
+                    COUNT(*) AS count,
+                    MIN(_id::text) AS _id
+                FROM "{model}" 
+                GROUP BY 
+                    bucket 
+                ORDER BY 
+                    bucket;
+                    ''')
+
+        base_bucket_bin = min_value + half_bin_size
+        is_time_type = isinstance(model_prop.dtype, Time)
+        model_type = model_prop.model.model_type()
+        buckets = [
+            {
+                "bin": str((base_bucket_bin + i * bin_size).time() if is_time_type else base_bucket_bin + i * bin_size),
+                "count": 0,
+                "_type": model_type
+            }
+            for i in range(100)
+        ]
+        for item in result:
+            data = flat_dicts_to_nested(dict(item))
+            bucket_index = data["bucket"] - 1
+            if 0 <= bucket_index < 100:
+                buckets[bucket_index]["count"] = data["count"]
+                if data['count'] == 1:
+                    buckets[bucket_index]["_id"] = data["_id"]
+
+        yield from buckets
     except NotFoundError:
         raise ItemDoesNotExist(model_prop.model, id=model_prop.name)
 
@@ -383,10 +377,10 @@ def summary(
 
         result = connection.execute(f'''
                 SELECT 
-                    "{prop}.{key}" as bin, 
+                    "{prop}.{key}" AS bin, 
                     COUNT(model.*) AS count, 
-                    (ARRAY_AGG(model._id))[1] AS _id,
-                    MIN(model._created) as created_at
+                    MIN(model._id::text) AS _id,
+                    MIN(model._created) AS created_at
                 FROM
                     "{model}" AS model 
                     GROUP BY 
@@ -396,6 +390,7 @@ def summary(
                         created_at ASC
                     LIMIT 10;
                 ''')
+        model_type = dtype.prop.model.model_type()
         for item in result:
             data = flat_dicts_to_nested(dict(item))
 
@@ -406,7 +401,7 @@ def summary(
                 data["label"] = label
             if data["count"] != 1:
                 del data["_id"]
-            data['_type'] = dtype.prop.model.model_type()
+            data['_type'] = model_type
             yield data
     except NotFoundError:
         raise ItemDoesNotExist(dtype.prop.model, id=dtype.prop.name)
@@ -478,26 +473,27 @@ def summary(
                     ) OVER() AS cluster_id,
                     model."{prop}" AS geom,
                     model._id AS _id,
-                    model._created as created_at
+                    model._created AS created_at
                     FROM "{model}" AS model
                     {bounding_box}
                 )
                 SELECT 
-                    ST_NumGeometries(ST_Collect(geom)) as cluster,
+                    ST_NumGeometries(ST_Collect(geom)) AS cluster,
                     ST_AsText(ST_Centroid(ST_Collect(geom))) AS centroid,
-                    (ARRAY_AGG(clusters._id))[1] AS _id
+                    MIN(clusters._id::text) AS _id
                 FROM clusters
                 GROUP BY cluster_id
                 ORDER BY MIN(clusters.created_at);
                 '''),
             params
         )
+        model_type = dtype.prop.model.model_type()
         for item in result:
             data = flat_dicts_to_nested(dict(item))
             if data["cluster"]:
                 if data["cluster"] != 1:
                     del data["_id"]
-                data['_type'] = dtype.prop.model.model_type()
+                data['_type'] = model_type
                 yield data
     except NotFoundError:
         raise ItemDoesNotExist(dtype.prop.model, id=dtype.prop.name)
