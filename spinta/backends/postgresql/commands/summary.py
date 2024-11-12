@@ -480,7 +480,7 @@ def summary(
                 SELECT 
                     ST_NumGeometries(ST_Collect(geom)) AS cluster,
                     ST_AsText(ST_Centroid(ST_Collect(geom))) AS centroid,
-                    (MIN(clusters._id::text)) AS _id
+                    MIN(clusters._id::text) AS _id
                 FROM clusters
                 GROUP BY cluster_id
                 ORDER BY MIN(clusters.created_at);
