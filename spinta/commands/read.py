@@ -17,7 +17,7 @@ from spinta.backends.helpers import get_select_tree
 from spinta.backends.nobackend.components import NoBackend
 from spinta.compat import urlparams_to_expr
 from spinta.components import Context, Node, Action, UrlParams, Page, PageBy, get_page_size, Config, \
-    pagination_enabled, ParamsPage
+    pagination_enabled
 from spinta.components import Model
 from spinta.components import Property
 from spinta.core.ufuncs import Expr
@@ -31,7 +31,6 @@ from spinta.types.datatype import Object
 from spinta.typing import ObjectData
 from spinta.ufuncs.basequerybuilder.components import QueryParams, QueryPage
 from spinta.ufuncs.basequerybuilder.helpers import update_query_with_url_params, add_page_expr
-from spinta.ufuncs.loadbuilder.helpers import get_allowed_page_property_types
 from spinta.utils.data import take
 
 
@@ -49,9 +48,9 @@ async def getall(
     if isinstance(backend, NoBackend):
         raise BackendNotGiven(model)
 
-    copy_page = prepare_page_for_get_all(context, model, params)
+    copy_page = commands.create_page(model.page, params)
 
-    is_page_enabled = copy_page and copy_page and copy_page.is_enabled
+    is_page_enabled = copy_page and copy_page and copy_page.enabled
     expr = urlparams_to_expr(params)
     query_params = QueryParams()
     update_query_with_url_params(query_params, params)
@@ -141,62 +140,6 @@ def prepare_data_for_response(
                     select=func_select_tree
                 )
         yield result
-
-
-# XXX: params.sort handle should be moved to BaseQueryBuilder, AST should be handled by Env, this only supports basic sort arguments, that ar Positive, Negative or Bind.
-# Issue: in order to create correct WHERE, we need to have finalized Page, currently we combine sort properties with page here.
-def prepare_page_for_get_all(context: Context, model: Model, params: UrlParams):
-    if model.page:
-        copied = deepcopy(model.page)
-        copied.clear()
-        copied.is_enabled = pagination_enabled(model, params)
-
-        if copied.is_enabled:
-            config: Config = context.get('config')
-            page_size = config.default_page_size
-            size = params.page and params.page.size or copied.size or page_size
-            copied.size = size
-
-            if params.sort:
-                new_order = {}
-                for sort_ast in params.sort:
-                    negative = False
-                    if sort_ast['name'] == 'negative':
-                        negative = True
-                        sort_ast = sort_ast['args'][0]
-                    elif sort_ast['name'] == 'positive':
-                        sort_ast = sort_ast['args'][0]
-                    for sort in sort_ast['args']:
-                        if isinstance(sort, str):
-                            if sort in model.properties.keys():
-                                by = sort if not negative else f'-{sort}'
-                                prop = model.properties[sort]
-                                if isinstance(prop.dtype, get_allowed_page_property_types()):
-                                    new_order[by] = PageBy(prop)
-                                else:
-                                    copied.is_enabled = False
-                                    break
-                        else:
-                            copied.is_enabled = False
-                            break
-
-                for key, page_by in copied.by.items():
-                    reversed_key = key[1:] if key.startswith("-") else f'-{key}'
-                    if key not in new_order and reversed_key not in new_order:
-                        new_order[key] = page_by
-
-                copied.by = new_order
-
-            if params.page is not None:
-                if params.page.values:
-                    copied.update_values_from_list(params.page.values)
-
-                params.page.is_enabled = copied.is_enabled
-            else:
-                params.page = ParamsPage(
-                    is_enabled= copied.is_enabled
-                )
-        return copied
 
 
 def _is_iter_last_real_value(it: int, total: int, added_size: int = 1):

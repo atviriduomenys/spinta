@@ -57,7 +57,7 @@ def getall(
 
         env_selected = env.selected
         list_keys = extract_list_property_names(model, env_selected.keys())
-        is_page_enabled = env.page.page_.is_enabled
+        is_page_enabled = env.page.page_.enabled
 
         for row in conn.execute(qry):
             res = {}

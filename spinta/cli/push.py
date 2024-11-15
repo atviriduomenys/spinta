@@ -19,7 +19,7 @@ from spinta.cli.helpers.errors import ErrorCounter
 from spinta.cli.helpers.manifest import convert_str_to_manifest_path
 from spinta.cli.helpers.push.components import State
 from spinta.cli.helpers.push.write import push as push_
-from spinta.cli.helpers.push.utils import extract_dependant_nodes, update_page_values_for_models
+from spinta.cli.helpers.push.utils import extract_dependant_nodes, load_initial_page_data
 from spinta.cli.helpers.push.read import read_rows
 from spinta.cli.helpers.push.state import init_push_state
 from spinta.cli.helpers.push.sync import sync_push_state
@@ -151,6 +151,10 @@ def push(
     client.headers['Content-Type'] = 'application/json'
     client.headers['Authorization'] = f'Bearer {token}'
 
+    override_page = {}
+    if page_model and page:
+        override_page = {page_model: page}
+
     with context:
         auth_client = auth or config.default_auth_client
         auth_client = get_client_id_from_name(get_clients_path(config), auth_client)
@@ -196,7 +200,13 @@ def push(
                 metadata=state.metadata
             )
 
-        update_page_values_for_models(context, state.metadata, models, incremental, page_model, page)
+        initial_page_data = load_initial_page_data(
+            context,
+            state.metadata,
+            models,
+            incremental,
+            override_page
+        )
 
         rows = read_rows(
             context,
@@ -209,6 +219,7 @@ def push(
             retry_count=retry_count,
             no_progress_bar=no_progress_bar,
             error_counter=error_counter,
+            initial_page_data=initial_page_data
         )
 
         push_(

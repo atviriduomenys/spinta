@@ -16,7 +16,7 @@ from spinta import commands
 from spinta import components
 from spinta.cli.helpers.errors import ErrorCounter
 from spinta.formats.components import Format
-from spinta.components import Context
+from spinta.components import Context, pagination_enabled
 from spinta.components import DataStream
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
@@ -34,10 +34,11 @@ log = logging.getLogger(__name__)
 def _get_row_count(
     context: components.Context,
     model: components.Model,
+    page_data: Any
 ) -> int:
     query = Expr('select', Expr('count'))
-    if model.page.is_enabled:
-        copied = deepcopy(model.page)
+    if pagination_enabled(model):
+        copied = commands.create_page(model.page, page_data)
         copied.filter_only = True
         query = add_page_expr(query, copied)
     stream = commands.getall(context, model, model.backend, query=query)
@@ -50,13 +51,14 @@ def count_rows(
     models: List[Model],
     limit: int = None,
     *,
+    initial_page_data: dict,
     stop_on_error: bool = False,
     error_counter: ErrorCounter = None
 ) -> Dict[str, int]:
     counts = {}
     for model in tqdm.tqdm(models, 'Count rows', ascii=True, leave=False):
         try:
-            count = _get_row_count(context, model)
+            count = _get_row_count(context, model, initial_page_data.get(model.model_type(), None))
         except Exception:
             if error_counter:
                 error_counter.increase()

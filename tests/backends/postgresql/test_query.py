@@ -37,12 +37,12 @@ def _build(rc: RawConfig, manifest: str, model_name: str, query: str, page_mappi
     query = asttoexpr(spyna.parse(query))
     if page_mapping:
         page = model.page
-        if page.is_enabled:
+        if page.enabled:
             for key, value in page_mapping.items():
                 cleaned = key[1:] if key.startswith('-') else key
                 page.update_value(key, model.properties.get(cleaned), value)
             if page_contains_unsupported_keys(page):
-                page.is_enabled = False
+                page.enabled = False
         query = add_page_expr(query, page)
     builder = PgQueryBuilder(context)
     builder.update(model=model)

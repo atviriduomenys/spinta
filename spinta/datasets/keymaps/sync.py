@@ -55,12 +55,12 @@ def sync_keymap(
                 if not cid:
                     sync_cid = 0
                     break
+
+                if initial:
+                    sync_cid = cid
+                    initial = False
                 else:
-                    if initial:
-                        sync_cid = cid
-                        initial = False
-                    else:
-                        sync_cid = min(sync_cid, cid)
+                    sync_cid = min(sync_cid, cid)
 
         url = f'{server}/{model.model_type()}/:changes'
         if sync_cid:

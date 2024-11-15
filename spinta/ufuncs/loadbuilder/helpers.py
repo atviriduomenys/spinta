@@ -1,10 +1,10 @@
-from spinta.components import Page
+from spinta.components import PageInfo
 
 
-def page_contains_unsupported_keys(page: Page):
+def page_contains_unsupported_keys(page: PageInfo):
     allowed_types = get_allowed_page_property_types()
-    for page_by in page.by.values():
-        if not isinstance(page_by.prop.dtype, allowed_types):
+    for prop in page.keys.values():
+        if not isinstance(prop.dtype, allowed_types):
             return True
     return False
 

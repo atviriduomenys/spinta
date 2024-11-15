@@ -15,7 +15,7 @@ from starlette.responses import Response
 
 from spinta.exceptions import BaseError
 from spinta.typing import ObjectData
-from spinta.components import Node, DataItem
+from spinta.components import Node, DataItem, PageInfo, Page
 from spinta.components import UrlParams
 from spinta.components import Version
 from spinta.dispatcher import command
@@ -1321,3 +1321,23 @@ def get_result_builder(context: Context, backend: Backend):
 @command()
 def identifiable(node: Node) -> bool:
     """Check if node is identifiable"""
+
+
+@overload
+def create_page(page_info: PageInfo, data: Any) -> Page:
+    """Creates Page from PageInfo and given preset data"""
+
+
+@overload
+def create_page(page_info: PageInfo, params: UrlParams) -> Page:
+    """Creates Page from PageInfo and UrlParams"""
+
+
+@overload
+def create_page(page_info: PageInfo) -> Page:
+    """Creates Page from PageInfo"""
+
+
+@command()
+def create_page(**kwargs) -> Page:
+    """Creates Page from given data"""
