@@ -614,7 +614,7 @@ def create_page(page_info: PageInfo, data: dict) -> Page:
     return page
 
 
-@commands.create_page.register(PageInfo, [list, set, tuple])
+@commands.create_page.register(PageInfo, (list, set, tuple))
 def create_page(page_info: PageInfo, data: Union[list, set, tuple]) -> Page:
     page = commands.create_page(page_info)
     page.update_values_from_list(data)

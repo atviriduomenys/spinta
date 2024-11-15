@@ -50,18 +50,37 @@ def get_rows_with_errors_counts(
     models: List[Model],
     context: Context,
     metadata: sa.MetaData,
+    initial_page_data: dict
 ) -> dict:
     counts = {}
     conn = context.get('push.state.conn')
     for model in models:
         table = metadata.tables[model.name]
 
+        page = commands.create_page(model.page, initial_page_data.get(model.model_type(), None))
+
+        required_condition = sa.and_(
+            table.c.error.is_(True)
+        )
+        if pagination_enabled(model):
+            where_cond = construct_where_condition_from_page(page, table)
+        else:
+            where_cond = None
+        if where_cond is not None:
+            where_cond = sa.and_(
+                where_cond,
+                required_condition
+            )
+        else:
+            where_cond = required_condition
+
         row_count = conn.execute(
             sa.select(sa.func.count(table.c.id)).
             where(
-                table.c.error.is_(True)
+                where_cond
             )
         )
+
         counts[model.name] = row_count.scalar()
     return counts
 
