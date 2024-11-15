@@ -35,11 +35,14 @@ def _iter_model_rows(
     metadata: sa.MetaData,
     limit: int = None,
     *,
-    initial_page_data: dict,
+    initial_page_data: dict = None,
     stop_on_error: bool = False,
     no_progress_bar: bool = False,
     push_counter: tqdm.tqdm = None,
 ) -> Iterator[ModelRow]:
+    if initial_page_data is None:
+        initial_page_data = {}
+
     params = QueryParams()
     params.push = True
     for model in models:

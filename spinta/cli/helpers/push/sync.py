@@ -54,7 +54,7 @@ def _fetch_all_model_data(
     client,
     server: str,
     error_counter: ErrorCounter,
-    initial_page_data: Any
+    initial_page_data: Any = None
 ):
     limit = config.sync_page_size
     page_hash = ''
