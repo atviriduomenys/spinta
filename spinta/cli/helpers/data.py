@@ -51,11 +51,14 @@ def count_rows(
     models: List[Model],
     limit: int = None,
     *,
-    initial_page_data: dict,
+    initial_page_data: dict = None,
     stop_on_error: bool = False,
     error_counter: ErrorCounter = None
 ) -> Dict[str, int]:
     counts = {}
+    if initial_page_data is None:
+        initial_page_data = {}
+
     for model in tqdm.tqdm(models, 'Count rows', ascii=True, leave=False):
         try:
             count = _get_row_count(context, model, initial_page_data.get(model.model_type(), None))

@@ -161,7 +161,6 @@ def read_rows(
         context,
         state.metadata,
         no_progress_bar=no_progress_bar,
-        initial_page_data=initial_page_data
     )
 
     for i in range(1, retry_count + 1):
@@ -186,7 +185,6 @@ def read_rows(
                 retry=i,
                 no_progress_bar=no_progress_bar,
                 error_counter=error_counter,
-                initial_page_data=initial_page_data
             )
         else:
             break

@@ -19,7 +19,6 @@ def get_deleted_rows(
     models: List[Model],
     context: Context,
     metadata: sa.MetaData,
-    initial_page_data: dict,
     no_progress_bar: bool = False,
 ):
     counts = (
@@ -36,7 +35,6 @@ def get_deleted_rows(
             context,
             metadata,
             counts,
-            initial_page_data,
             no_progress_bar,
         )
         if not no_progress_bar:
@@ -49,35 +47,19 @@ def _get_deleted_row_counts(
     models: List[Model],
     context: Context,
     metadata: sa.MetaData,
-    initial_page_data: dict
 ) -> dict:
     counts = {}
     conn = context.get('push.state.conn')
     for model in models:
         table = metadata.tables[model.name]
-        page = commands.create_page(model.page, initial_page_data.get(model.model_type(), None))
-
-        required_condition = sa.and_(
-            table.c.pushed.is_(None),
-            table.c.error.is_(False)
-        )
-
-        if pagination_enabled(model):
-            where_cond = construct_where_condition_from_page(page, table)
-        else:
-            where_cond = None
-        if where_cond is not None:
-            where_cond = sa.and_(
-                where_cond,
-                required_condition
-            )
-        else:
-            where_cond = required_condition
 
         row_count = conn.execute(
             sa.select(sa.func.count(table.c.id)).
             where(
-                where_cond
+                sa.and_(
+                    table.c.pushed.is_(None),
+                    table.c.error.is_(False)
+                )
             )
         )
         counts[model.name] = row_count.scalar()
@@ -89,7 +71,6 @@ def _iter_deleted_rows(
     context: Context,
     metadata: sa.MetaData,
     counts: Dict[str, int],
-    initial_page_data: dict,
     no_progress_bar: bool = False,
 ) -> Iterable[PushRow]:
     models = reversed(models)
@@ -106,7 +87,6 @@ def _iter_deleted_rows(
                 model,
                 table,
                 size,
-                initial_page_data=initial_page_data.get(model.model_type(), None)
             )
         else:
             rows = conn.execute(
@@ -134,12 +114,11 @@ def _get_deleted_rows_with_page(
     model: Model,
     table: sa.Table,
     size: int,
-    initial_page_data: Any
 ) -> sa.engine.LegacyCursorResult:
     conn = context.get('push.state.conn')
 
     order_by = []
-    page = commands.create_page(model.page, initial_page_data)
+    page = commands.create_page(model.page)
     page.size += 1
 
     for page_by in page.by.values():
