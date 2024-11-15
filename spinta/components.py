@@ -512,7 +512,7 @@ class PageInfo:
     def __init__(
         self,
         model: Model,
-        enabled: bool = None,
+        enabled: bool = True,
         size: int = None,
         keys: Dict[str, Property] = None
     ):

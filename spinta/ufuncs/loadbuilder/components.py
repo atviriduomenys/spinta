@@ -37,10 +37,12 @@ class LoadBuilder(Env):
                 pass
 
     def load_page(self):
-        page = PageInfo(self.model)
-        page_given = False
         config: Config = self.context.get('config')
-        page.enabled = config.enable_pagination
+        page = PageInfo(
+            self.model,
+            enabled=config.enable_pagination
+        )
+        page_given = False
 
         if self.model.external and self.model.external.prepare:
             resolved = self.resolve(self.model.external.prepare)

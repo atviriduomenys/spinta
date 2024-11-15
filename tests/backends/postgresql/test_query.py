@@ -36,7 +36,7 @@ def _build(rc: RawConfig, manifest: str, model_name: str, query: str, page_mappi
     model = commands.get_model(context, manifest, model_name)
     query = asttoexpr(spyna.parse(query))
     if page_mapping:
-        page = model.page
+        page = commands.create_page(model.page)
         if page.enabled:
             for key, value in page_mapping.items():
                 cleaned = key[1:] if key.startswith('-') else key

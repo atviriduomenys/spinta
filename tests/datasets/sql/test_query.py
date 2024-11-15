@@ -83,7 +83,7 @@ def _build(rc: RawConfig, manifest: str, model_name: str, page_mapping: dict = N
     backend.schema = meta
     query = model.external.prepare
     if page_mapping:
-        page = model.page
+        page = commands.create_page(model.page)
         if page.enabled:
             for key, value in page_mapping.items():
                 cleaned = key[1:] if key.startswith('-') else key
