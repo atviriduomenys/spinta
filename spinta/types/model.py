@@ -556,8 +556,6 @@ def create_page(page_info: PageInfo) -> Page:
 @commands.create_page.register(PageInfo, UrlParams)
 def create_page(page_info: PageInfo, params: UrlParams) -> Page:
     params_page = params.page
-    if not params_page:
-        return commands.create_page(page_info)
 
     enabled = pagination_enabled(page_info.model, params)
     sort_values = extract_params_sort_values(
@@ -587,20 +585,15 @@ def create_page(page_info: PageInfo, params: UrlParams) -> Page:
 
     page = Page(
         model=page_info.model,
-        size=params_page.size or page_info.size,
+        size=params_page and params_page.size or page_info.size,
         enabled=enabled,
         by=page_by
     )
 
-    if enabled and params_page.values:
+    if enabled and params_page and params_page.values:
         page.update_values_from_list(params_page.values)
 
-    return Page(
-        model=page_info.model,
-        size=params_page.size or page_info.size,
-        enabled=enabled,
-        by=page_by
-    )
+    return page
 
 
 @commands.create_page.register(PageInfo, dict)
