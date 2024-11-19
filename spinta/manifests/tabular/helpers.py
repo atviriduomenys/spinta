@@ -436,6 +436,11 @@ class ModelReader(TabularReader):
             row['model'],
         )
 
+        if "/:" in name:
+            name, features = name.rsplit("/:", 1)
+        else:
+            features = None
+
         if self.state.rename_duplicates:
             dup = 1
             _name = name
@@ -477,6 +482,7 @@ class ModelReader(TabularReader):
                 'prepare': _parse_spyna(self, row[PREPARE]),
             },
             'given_name': name,
+            'features': features
         }
         if resource and not dataset:
             self.data['backend'] = resource.name
@@ -2366,6 +2372,8 @@ def _model_to_tabular(
             model,
             model.external.dataset,
         )
+    if model.features:
+        data['model'] = f"{data['model']}{model.features}"
     if external and model.external:
         data.update({
             'source': model.external.name,
