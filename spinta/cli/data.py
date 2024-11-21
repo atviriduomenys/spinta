@@ -13,11 +13,12 @@ from spinta import commands
 from spinta.backends import Backend
 from spinta.backends.helpers import validate_and_return_transaction
 from spinta.cli.helpers.auth import require_auth
-from spinta.cli.helpers.export.helpers import validate_and_return_shallow_backend, validate_and_return_formatter
+from spinta.cli.helpers.export.helpers import validate_and_return_shallow_backend, validate_and_return_formatter, \
+    get_data
 from spinta.cli.helpers.manifest import convert_str_to_manifest_path
 from spinta.cli.helpers.store import prepare_manifest
-from spinta.cli.helpers.data import process_stream
-from spinta.cli.push import _attach_keymaps
+from spinta.cli.helpers.data import process_stream, count_rows
+from spinta.cli.push import _attach_keymaps, _attach_backends
 from spinta.commands.write import write
 from spinta.components import Mode, Config, Action, Model, Context, pagination_enabled
 from spinta.core.context import configure_context
@@ -102,12 +103,27 @@ def export_(
     with context:
         require_auth(context)
 
+        _attach_backends(context, store, manifest)
         _attach_keymaps(context, store)
         ns = commands.get_namespace(context, manifest, '')
         models = commands.traverse_ns_models(context, ns, manifest, Action.SEARCH, dataset_=dataset, source_check=True)
         models = sort_models_by_ref_and_base(list(models))
+
+        counts = count_rows(
+            context,
+            models
+        )
         for model in models:
-            print(model)
+
+            data = get_data(context, model)
+            asyncio.run(commands.export_data(
+                context,
+                model,
+                fmt or backend,
+                data=data,
+                path=output,
+                count=counts[model.name]
+            ))
 
         # Synchronize keymaps
         # with manifest.keymap as km:
@@ -125,17 +141,3 @@ def export_(
         #         no_progress_bar=no_progress_bar,
         #         reset_cid=synchronize_keymap
         #     )
-
-
-def read_rows(
-    context: Context,
-    model: Model
-) -> Iterator[dict]:
-    if pagination_enabled(model):
-        rows = read_with_page()
-
-def read_with_page(
-    context: Context,
-    model: Model
-):
-    pass

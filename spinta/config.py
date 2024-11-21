@@ -5,6 +5,7 @@ CONFIG = {
     'config': [],
     'commands': {
         'modules': [
+            'spinta.cli',
             'spinta.backends',
             'spinta.formats',
             'spinta.commands',

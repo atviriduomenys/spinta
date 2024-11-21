@@ -1341,3 +1341,41 @@ def create_page(page_info: PageInfo) -> Page:
 @command()
 def create_page(**kwargs) -> Page:
     """Creates Page from given data"""
+
+
+@overload
+def export_data(
+    context: Context,
+    model: Model,
+    backend: Backend,
+    *,
+    data: Iterator,
+    **kwargs
+):
+    """Exports data into given backend format"""
+
+
+@overload
+def export_data(
+    context: Context,
+    model: Model,
+    fmt: Format,
+    *,
+    data: Iterator,
+    **kwargs
+):
+    """Exports data into given output format"""
+
+
+@command()
+def export_data(**kwargs):
+    """Exports data"""
+
+
+@command()
+def before_export():
+    """Prepare patch for backend before exporting data
+
+    This command converts Python-native data types to backend-native data types
+    and prepares patch that can be exported to a file, which then later on can be used to import data to specific database.
+    """
