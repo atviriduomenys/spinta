@@ -10,14 +10,10 @@ from spinta import commands, exceptions
 from spinta.auth import get_client_id_from_name, get_clients_path
 from spinta.backends.helpers import validate_and_return_transaction, validate_and_return_begin
 from spinta.cli.helpers.auth import require_auth
-from spinta.cli.helpers.data import ensure_data_dir
 
 from spinta.cli.helpers.errors import ErrorCounter
 from spinta.cli.helpers.manifest import convert_str_to_manifest_path
-from spinta.cli.helpers.push.components import State
-from spinta.cli.helpers.push.state import init_push_state
-from spinta.cli.helpers.push.sync import sync_push_state
-from spinta.cli.helpers.push.utils import extract_dependant_nodes, update_page_values_for_models
+from spinta.cli.helpers.push.utils import extract_dependant_nodes
 
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.client import get_access_token, get_client_credentials
