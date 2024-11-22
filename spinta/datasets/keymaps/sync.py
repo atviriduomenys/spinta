@@ -21,7 +21,8 @@ def sync_keymap(
     models: List[Model],
     error_counter: ErrorCounter,
     no_progress_bar: bool,
-    reset_cid: bool
+    reset_cid: bool,
+    dry_run: bool = False,
 ):
     counters = {}
     if not no_progress_bar:
@@ -81,14 +82,15 @@ def sync_keymap(
                 counters[model.model_type()] = model_counters
 
             for row in data:
-                if row['_op'] == 'insert':
+                if row['_op'] == 'insert' and not dry_run:
                     sync_model_insert(keymap, model, row, primary_keys, counters)
                 elif row['_op'] == 'patch' or row['_op'] == 'update':
-                    sync_model_update(keymap, model, row, counters)
+                    if not dry_run:
+                        sync_model_update(keymap, model, row, counters)
                 sync_cid = row['_cid']
-
-            for keymap_name in model_keymaps:
-                keymap.update_sync_data(keymap_name, sync_cid, datetime.datetime.now())
+            if not dry_run:
+                for keymap_name in model_keymaps:
+                    keymap.update_sync_data(keymap_name, sync_cid, datetime.datetime.now())
 
             if model.model_type() in counters:
                 for counter in counters[model.model_type()].values():

@@ -48,14 +48,17 @@ def keymap_sync(
         "Sync only specified dataset"
     )),
     dry_run: bool = Option(False, '--dry-run', help=(
-        "Do not write data to keymap, but do everything else, that does not change anything."
+        "Run keymap sync in dry-run mode, no changes will be made."
     )),
     max_error_count: int = Option(50, '--max-errors', help=(
-            "If errors exceed given number, push command will be stopped."
+            "If errors exceed given number, keymap command will be stopped."
         )),
     mode: Mode = Option('external', help=(
         "Mode of backend operation, default: external"
     )),
+    no_progress_bar: bool = Option(False, '--no-progress-bar', help=(
+            "Skip counting total rows to improve performance."
+        )),
 ):
     """Sync keymap from external data source"""
     if not input_source:
@@ -112,9 +115,9 @@ def keymap_sync(
                 server=creds.server,
                 models=dependant_models,
                 error_counter=error_counter,
-                no_progress_bar=False,
+                no_progress_bar=no_progress_bar,
                 reset_cid=True,
-#               dry_run=dry_run
+                dry_run=dry_run
             )
 
         if error_counter.has_errors():
