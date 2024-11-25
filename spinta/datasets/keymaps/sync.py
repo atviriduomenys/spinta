@@ -21,7 +21,8 @@ def sync_keymap(
     models: List[Model],
     error_counter: ErrorCounter,
     no_progress_bar: bool,
-    reset_cid: bool
+    reset_cid: bool,
+    dry_run: bool = False,
 ):
     counters = {}
     if not no_progress_bar:
@@ -71,7 +72,7 @@ def sync_keymap(
             ignore_errors=[404],
             error_counter=error_counter,
         )
-        if status_code == 200:
+        if status_code == 200 and not dry_run:
             data = resp['_data']
 
             if not no_progress_bar:
