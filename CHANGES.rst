@@ -14,6 +14,10 @@ New features:
 
   .. _#932: https://github.com/atviriduomenys/spinta/issues/932
 
+- Add `keymap sync` command (`#666`_).
+
+  .. _#666: https://github.com/atviriduomenys/spinta/issues/666
+
 Improvements:
 
 - Added better support for migrations with nested data types (`#722`_).
