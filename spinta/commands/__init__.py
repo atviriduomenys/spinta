@@ -1321,7 +1321,3 @@ def get_result_builder(context: Context, backend: Backend):
 @command()
 def identifiable(node: Node) -> bool:
     """Check if node is identifiable"""
-
-@command()
-def keymap():
-    """Manage keymap database"""

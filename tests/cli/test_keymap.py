@@ -1,9 +1,7 @@
 import re
-from urllib.request import Request
 
 import pytest
 import sqlalchemy as sa
-from dns.name import empty
 
 from spinta.components import Context
 from spinta.testing.datasets import create_sqlite_db
@@ -110,7 +108,7 @@ def test_keymap_sync_dry_run(
     assert result.exit_code == 0
     responses.remove('POST', re.compile(r'https://example\.com/.*'))
 
-    # Check keymap state before sync for Country
+    # Check keymap state after sync for Country
     keymap_after_sync = check_keymap_state(context, 'syncdataset/countries/Country')
     assert len(keymap_after_sync) == 0
 
@@ -166,7 +164,7 @@ def test_keymap_sync(
     ])
     assert result.exit_code == 0
 
-    # Check keymap state before sync for Country
+    # Check keymap state after sync for Country
     keymap_after_sync = check_keymap_state(context, 'syncdataset/countries/Country')
     assert len(keymap_after_sync) == 1
     assert keymap_after_sync[0][0] == country_id
