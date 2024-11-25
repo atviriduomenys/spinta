@@ -21,6 +21,7 @@ from spinta.cli import pii
 from spinta.cli import pull
 from spinta.cli import push
 from spinta.cli import server
+from spinta.cli.keymap import keymap
 from spinta.cli.init import init
 from spinta.cli.show import show
 from spinta.cli.helpers.typer import add
@@ -62,6 +63,8 @@ add(app, 'run', server.run, short_help="Run development server")
 add(app, 'wait', server.wait, short_help="Wait while all backends are up")
 
 add(app, 'upgrade', upgrade, short_help="Run upgrade scripts")
+
+add(app, 'keymap', keymap, short_help="Manage keymap database")
 
 
 @app.callback(invoke_without_command=True)

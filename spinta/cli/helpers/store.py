@@ -7,12 +7,14 @@ from spinta import commands
 from spinta.auth import auth_server_keys_exists, client_name_exists, get_clients_path, ensure_client_folders_exist
 from spinta.auth import create_client_file
 from spinta.auth import gen_auth_server_keys
+from spinta.backends.helpers import validate_and_return_transaction, validate_and_return_begin
 from spinta.cli.helpers.upgrade.clients import requires_client_migration
 from spinta.components import Config
 from spinta.components import Context
 from spinta.components import Store
 from spinta.core.config import DEFAULT_CONFIG_PATH
 from spinta.exceptions import ClientsMigrationRequired
+from spinta.manifests.components import Manifest
 
 
 def _ensure_config_dir(
@@ -151,3 +153,24 @@ def prepare_manifest(
     commands.wait(context, store)
     commands.prepare(context, store.manifest)
     return store
+
+
+def attach_backends(context: Context, store: Store, manifest: Manifest) -> None:
+    context.attach('transaction', validate_and_return_transaction, context, manifest.backend)
+    backends = set()
+    for backend in store.backends.values():
+        backends.add(backend.name)
+        context.attach(f'transaction.{backend.name}', validate_and_return_begin, context, backend)
+    for backend in manifest.backends.values():
+        backends.add(backend.name)
+        context.attach(f'transaction.{backend.name}', validate_and_return_begin, context, backend)
+    for dataset_ in commands.get_datasets(context, manifest).values():
+        for resource in dataset_.resources.values():
+            if resource.backend and resource.backend.name not in backends:
+                backends.add(resource.backend.name)
+                context.attach(f'transaction.{resource.backend.name}', validate_and_return_begin, context, resource.backend)
+
+
+def attach_keymaps(context: Context, store: Store) -> None:
+    for keymap in store.keymaps.values():
+        context.attach(f'keymap.{keymap.name}', lambda: keymap)
