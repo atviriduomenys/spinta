@@ -22,6 +22,7 @@ def sync_keymap(
     error_counter: ErrorCounter,
     no_progress_bar: bool,
     reset_cid: bool,
+    timeout: tuple[float, float],
     dry_run: bool = False,
 ):
     counters = {}
@@ -71,6 +72,7 @@ def sync_keymap(
             url,
             ignore_errors=[404],
             error_counter=error_counter,
+            timeout=timeout,
         )
         if status_code == 200 and not dry_run:
             data = resp['_data']

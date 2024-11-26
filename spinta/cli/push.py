@@ -103,6 +103,9 @@ def push(
     synchronize: bool = Option(False, '--sync', help=(
         "Synchronize push state and keymap, in {data_path}/push/{remote}.db and {data_path}/keymap.db"
     )),
+    read_timeout: float = Option(300, '--read-timeout', help=(
+            "Timeout for reading a response, default: 5 minutes (300s). The value is in seconds."
+        )),
 ):
     """Push data to external data store"""
     synchronize_keymap = synchronize
@@ -179,7 +182,8 @@ def push(
                 models=dependant_models,
                 error_counter=error_counter,
                 no_progress_bar=no_progress_bar,
-                reset_cid=synchronize_keymap
+                reset_cid=synchronize_keymap,
+                timeout = (5, read_timeout), # connect, read
             )
 
         # Synchronize push state
@@ -191,7 +195,8 @@ def push(
                 server=creds.server,
                 error_counter=error_counter,
                 no_progress_bar=no_progress_bar,
-                metadata=state.metadata
+                metadata=state.metadata,
+                timeout=(5, read_timeout), # connect, read
             )
 
         update_page_values_for_models(context, state.metadata, models, incremental, page_model, page)
@@ -203,6 +208,7 @@ def push(
             models,
             state,
             limit,
+            timeout=(5, read_timeout), # connect, read
             stop_on_error=stop_on_error,
             retry_count=retry_count,
             no_progress_bar=no_progress_bar,
@@ -222,6 +228,7 @@ def push(
             dry_run=dry_run,
             stop_on_error=stop_on_error,
             error_counter=error_counter,
+            timeout=(5, read_timeout), # connect, read
         )
 
         if error_counter.has_errors():
