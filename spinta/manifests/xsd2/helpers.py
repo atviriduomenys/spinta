@@ -786,6 +786,8 @@ class XSDReader:
     def _map_type(self, xsd_type: str) -> XSDType:
         """Gets XSD Type, returns DSA type (XSDType class)"""
         xsd_type = xsd_type.split(":")[-1]
+        if xsd_type in self.custom_types:
+            return self.custom_types[xsd_type]
         property_type = DATATYPES_MAPPING[xsd_type]
         dsa_type = XSDType()
         if ";" in property_type:
