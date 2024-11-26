@@ -18,6 +18,10 @@ New features:
 
   .. _#666: https://github.com/atviriduomenys/spinta/issues/666
 
+- Add `--read-timeout` option to `spinta push` command (`#662`_).
+
+  .. _#662: https://github.com/atviriduomenys/spinta/issues/662
+
 Improvements:
 
 - Added better support for migrations with nested data types (`#722`_).
