@@ -4,6 +4,15 @@ Changes
 0.1.80 (unreleased)
 ===================
 
+New features:
+
+- Add `keymap sync` command (`#666`_).
+
+  .. _#666: https://github.com/atviriduomenys/spinta/issues/666
+
+- Add `--read-timeout` option to `spinta push` command (`#662`_).
+
+  .. _#662: https://github.com/atviriduomenys/spinta/issues/662
 
 0.1.79 (2024-11-12)
 ===================
@@ -13,14 +22,6 @@ New features:
 - Added support for `Denorm` type migrations (`#932`_).
 
   .. _#932: https://github.com/atviriduomenys/spinta/issues/932
-
-- Add `keymap sync` command (`#666`_).
-
-  .. _#666: https://github.com/atviriduomenys/spinta/issues/666
-
-- Add `--read-timeout` option to `spinta push` command (`#662`_).
-
-  .. _#662: https://github.com/atviriduomenys/spinta/issues/662
 
 Improvements:
 
