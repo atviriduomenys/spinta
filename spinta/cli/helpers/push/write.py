@@ -265,7 +265,8 @@ def _push_to_remote_spinta(
                     chunk + suffix,
                     dry_run=dry_run,
                     stop_on_error=stop_on_error,
-                    error_counter=error_counter
+                    error_counter=error_counter,
+                    timeout=timeout
                 )
         else:
             yield from _send_and_receive(
@@ -275,7 +276,8 @@ def _push_to_remote_spinta(
                 chunk + suffix,
                 dry_run=dry_run,
                 stop_on_error=stop_on_error,
-                error_counter=error_counter
+                error_counter=error_counter,
+                timeout=timeout
             )
 
 
