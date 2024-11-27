@@ -401,7 +401,16 @@ def send_request(
         if error_counter:
             error_counter.increase()
         cli_push.log.error(
-                f"Read timeout occurred. Consider using a smaller --chunk-size to avoid timeouts.\n {e}"
+                f"Read timeout occurred. Consider using a smaller --chunk-size to avoid timeouts. Current timeout settings are (connect: {timeout[0]}s, read: {timeout[1]}s)."
+        )
+        if stop_on_error:
+            raise
+        return None, None
+    except requests.exceptions.ConnectTimeout as e:
+        if error_counter:
+            error_counter.increase()
+        cli_push.log.error(
+                f"Connect timeout occurred. Current timeout settings are (connect: {timeout[0]}s, read: {timeout[1]}s)."
         )
         if stop_on_error:
             raise
