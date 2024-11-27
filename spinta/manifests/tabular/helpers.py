@@ -470,13 +470,18 @@ class ModelReader(TabularReader):
             'description': row['description'],
             'properties': {},
             'uri': row['uri'],
-            'unique': [([x.strip() for x in row['ref'].split(',')])] if row['ref'] else [],
+            'unique': [
+                ([x.strip().split('@')[0] for x in row['ref'].split(',') if x.strip()])
+            ] if row['ref'] else [],
             'external': {
                 'dataset': dataset.name if dataset else '',
                 'resource': resource.name if dataset and resource else '',
                 'pk': (
-                    [x.strip() for x in row['ref'].split(',')]
-                    if row['ref'] else []
+                    [
+                        x.strip().split('@')[0]
+                        for x in row.get('ref', '').split(',')
+                        if x.strip()
+                    ]
                 ),
                 'name': row['source'],
                 'prepare': _parse_spyna(self, row[PREPARE]),
@@ -2386,7 +2391,7 @@ def _model_to_tabular(
             # Add `ref` only if all properties are available in the
             # resulting manifest.
             data['ref'] = ', '.join([
-                p.name for p in model.external.pkeys
+                p.given_name for p in model.external.pkeys
             ])
 
     hide_list = []
