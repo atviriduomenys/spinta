@@ -1,7 +1,10 @@
 import asyncio
 from typing import List
 from typing import Optional
+
+from click.exceptions import Exit
 from typer import Option
+import logging
 
 import click
 from typer import Argument
@@ -14,7 +17,9 @@ from spinta.cli.helpers.migrate import MigrateRename, MigrateMeta
 from spinta.cli.helpers.store import load_store
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.core.context import configure_context
+from spinta.manifests.commands.manifest import has_dataset
 
+log = logging.getLogger(__name__)
 
 def bootstrap(
     ctx: TyperContext,
@@ -63,19 +68,28 @@ def migrate(
     )),
     autocommit: bool = Option(False, '-a', '--autocommit', help=(
         "If added, migrate will do atomic transactions, meaning it will automatically commit after each action (use it at your own risk)"
-    ))
+    )),
+    datasets: List[str] = Option(None, '-d', '--datasets', help=(
+        "List of datasets to migrate"
+    )),
 ):
     """Migrate schema change to backends"""
     manifests = convert_str_to_manifest_path(manifests)
     context = configure_context(ctx.obj, manifests)
     store = prepare_manifest(context, ensure_config_dir=True)
     manifest = store.manifest
+
+    if datasets and any(not has_dataset(context, manifest, dataset) for dataset in datasets):
+        log.error(f"Invalid dataset(s) provided: {', '.join(datasets)}")
+        raise Exit(code=1)
+
     migrate_meta = MigrateMeta(
         plan=plan,
         autocommit=autocommit,
         rename=MigrateRename(
             rename_src=rename
-        )
+        ),
+        datasets = datasets
     )
     commands.migrate(context, manifest, migrate_meta)
 
