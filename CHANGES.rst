@@ -4,13 +4,20 @@ Changes
 0.1.80 (unreleased)
 ===================
 
+Backwards incompatible changes:
+
+- `push` command now has explicit timeouts set for requests.
+  Previously, there were no timeouts set for requests, which meant that execution time was unlimited.
+  After the changes the default values are `300` seconds  (5min) for `read` and `5` seconds for `connect` timeouts.
+  The timeout values can be adjusted using `--read-timeout` and `--connect-timeout` push command options (`#662`_).
+
 New features:
 
 - Add `keymap sync` command (`#666`_).
 
   .. _#666: https://github.com/atviriduomenys/spinta/issues/666
 
-- Add `--read-timeout` option to `spinta push` command (`#662`_).
+- Add `--read-timeout`, `--connect-timeout` options to `spinta push` command (`#662`_).
 
   .. _#662: https://github.com/atviriduomenys/spinta/issues/662
 
