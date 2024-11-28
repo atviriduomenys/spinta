@@ -56,7 +56,7 @@ add(app, 'freeze', migrate.freeze, short_help=(
 ))
 
 add(app, 'import', data.import_, short_help="Import data from a file")
-add(app, 'export', data.export_, short_help="Push data into an external data store")
+add(app, 'export', data.export_, short_help="Export data to specific format")
 add(app, 'pull', pull.pull, short_help="Pull data from an external data source")
 add(app, 'push', push.push, short_help="Push data into an external data store")
 

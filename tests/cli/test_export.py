@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
-from spinta.testing.client import create_rc
+from spinta.testing.client import create_rc, configure_remote_server
 from spinta.testing.datasets import create_sqlite_db, Sqlite
 from spinta.testing.tabular import create_tabular_manifest
 
@@ -296,7 +296,7 @@ def test_export_no_output(
     assert "Output argument is required" in result.stderr
 
 
-def test_export_postgresql(
+def test_export_no_input_source(
     context,
     rc,
     cli: SpintaCliRunner,
@@ -322,11 +322,50 @@ def test_export_postgresql(
 
     # Configure local server with SQL backend
     localrc = create_rc(rc, tmp_path, export_db)
-    dir_path = tmp_path / 'data'
     result = cli.invoke(localrc, [
         'export',
         '-b', 'postgresql',
-        '-o', dir_path
+        '-o', tmp_path
+    ], fail=False)
+    assert result.exit_code == 1
+    assert "Input source is required." in result.stderr
+
+
+def test_export_postgresql(
+    context,
+    rc,
+    cli: SpintaCliRunner,
+    tmp_path: pathlib.Path,
+    export_db: Sqlite,
+    responses,
+):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    d | r | b | m | property| type     | ref     | source       | access
+    datasets/gov/example    |          |         |              |
+      | data                | sql      |         |              |
+      |   |                 |          |         |              |
+      |   |   | Country     |          | id      | COUNTRY      |
+      |   |   |   | id      | integer  |         | ID           | open
+      |   |   |   | code    | string   |         | CODE         | open
+      |   |   |   | name    | string   |         | NAME         | open
+      |   |   |   | created | datetime |         | CREATED      | open
+      |   |   | City        |          | id      | CITY         |
+      |   |   |   | id      | integer  |         | ID           | open
+      |   |   |   | code    | string   |         | CODE         | open
+      |   |   |   | name    | string   |         | NAME_LT      | open
+      |   |   |   | country | ref      | Country | COUNTRY      | open
+    '''))
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, export_db)
+    dir_path = tmp_path / 'data'
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    result = cli.invoke(localrc, [
+        'export',
+        '-b', 'postgresql',
+        '-o', dir_path,
+        '--credentials', remote.credsfile,
+        '-i', remote.url,
     ])
     _assert_files_exist(
         dir_path, [
@@ -516,7 +555,8 @@ def test_export_postgresql_empty_ref(
     rc,
     cli: SpintaCliRunner,
     tmp_path: pathlib.Path,
-    export_db: Sqlite
+    export_db: Sqlite,
+    responses
 ):
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property| type     | ref     | source       | access
@@ -534,10 +574,13 @@ def test_export_postgresql_empty_ref(
     # Configure local server with SQL backend
     localrc = create_rc(rc, tmp_path, export_db)
     dir_path = tmp_path / 'data'
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
     result = cli.invoke(localrc, [
         'export',
         '-b', 'postgresql',
-        '-o', dir_path
+        '-o', dir_path,
+        '--credentials', remote.credsfile,
+        '-i', remote.url,
     ])
     _assert_files_exist(
         dir_path, [
@@ -715,7 +758,8 @@ def test_export_postgresql_denorm(
     rc,
     cli: SpintaCliRunner,
     tmp_path: pathlib.Path,
-    export_db: Sqlite
+    export_db: Sqlite,
+    responses
 ):
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property     | type     | ref     | source       | access
@@ -733,10 +777,13 @@ def test_export_postgresql_denorm(
     # Configure local server with SQL backend
     localrc = create_rc(rc, tmp_path, export_db)
     dir_path = tmp_path / 'data'
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
     result = cli.invoke(localrc, [
         'export',
         '-b', 'postgresql',
-        '-o', dir_path
+        '-o', dir_path,
+        '--credentials', remote.credsfile,
+        '-i', remote.url,
     ])
     _assert_files_exist(
         dir_path, [
@@ -844,7 +891,8 @@ def test_export_postgresql_text(
     rc,
     cli: SpintaCliRunner,
     tmp_path: pathlib.Path,
-    export_db: Sqlite
+    export_db: Sqlite,
+    responses
 ):
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property     | type     | ref     | source       | access | level
@@ -861,10 +909,13 @@ def test_export_postgresql_text(
     # Configure local server with SQL backend
     localrc = create_rc(rc, tmp_path, export_db)
     dir_path = tmp_path / 'data'
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
     result = cli.invoke(localrc, [
         'export',
         '-b', 'postgresql',
-        '-o', dir_path
+        '-o', dir_path,
+        '--credentials', remote.credsfile,
+        '-i', remote.url,
     ])
     _assert_files_exist(
         dir_path, [
@@ -961,7 +1012,8 @@ def test_export_postgresql_without_progress_bar(
     rc,
     cli: SpintaCliRunner,
     tmp_path: pathlib.Path,
-    export_db: Sqlite
+    export_db: Sqlite,
+    responses
 ):
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
         d | r | b | m | property     | type     | ref     | source       | access | level
@@ -978,11 +1030,152 @@ def test_export_postgresql_without_progress_bar(
     # Configure local server with SQL backend
     localrc = create_rc(rc, tmp_path, export_db)
     dir_path = tmp_path / 'data'
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
     result = cli.invoke(localrc, [
         'export',
         '-b', 'postgresql',
         '-o', dir_path,
+        '--credentials', remote.credsfile,
+        '-i', remote.url,
         '--no-progress-bar'
     ])
     assert result.exit_code == 0
     assert result.stderr == ""
+
+
+def test_export_postgresql_sync_data(
+    context,
+    rc,
+    cli: SpintaCliRunner,
+    tmp_path: pathlib.Path,
+    export_db: Sqlite,
+    responses,
+    request
+):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    d | r | b | m | property     | type     | ref     | source       | access
+    datasets/gov/export          |          |         |              |
+      | data                     | sql      |         |              |
+      |   |                      |          |         |              |
+      |   |   | Country          |          | id      |              |
+      |   |   |   | id           | integer  |         |              | open
+      |   |   | City             |          | id      | CITY         |
+      |   |   |   | id           | integer  |         | ID           | open
+      |   |   |   | country      | ref      | Country | COUNTRY      | open
+    '''))
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, export_db)
+    dir_path = tmp_path / 'data'
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    remote.app.authmodel('datasets/gov/export/Country', ['insert', 'wipe'])
+    resp = remote.app.post('datasets/gov/export/Country', json={
+        'id': 0,
+    })
+    lt_id = resp.json()['_id']
+    resp = remote.app.post('datasets/gov/export/Country', json={
+        'id': 1,
+    })
+    lv_id = resp.json()['_id']
+    resp = remote.app.post('datasets/gov/export/Country', json={
+        'id': 2,
+    })
+    pl_id = resp.json()['_id']
+
+    result = cli.invoke(localrc, [
+        'export',
+        '-b', 'postgresql',
+        '-o', dir_path,
+        '--credentials', remote.credsfile,
+        '-i', remote.url,
+    ])
+    _assert_files_exist(
+        dir_path, [
+            "datasets/gov/export/City.csv",
+            "datasets/gov/export/City.changes.csv",
+        ]
+    )
+    data_meta_keys = ['_id', '_revision', '_txn', '_created', '_updated']
+    nullable_keys = ['_updated']
+    changes_meta_keys = ['_id', '_revision', '_txn', '_rid', 'datetime', 'action']
+
+    city_data = _extract_postgresql_data_from_file(dir_path, "datasets/gov/export/City.csv")
+    assert len(city_data) == 3
+    vln_data = city_data[0]
+    ryg_data = city_data[1]
+    war_data = city_data[2]
+
+    city_changes_data = _extract_postgresql_data_from_file(dir_path, "datasets/gov/export/City.changes.csv")
+    assert len(city_changes_data) == 3
+    vln_change_data = city_changes_data[0]
+    ryg_change_data = city_changes_data[1]
+    war_change_data = city_changes_data[2]
+
+    txn_city = vln_data['_txn']
+    # Check `City` data
+    _assert_meta_keys_exists(city_data, data_meta_keys, nullable_keys)
+    _assert_data(
+        vln_data, {
+            '_txn': txn_city,
+            '_updated': '',
+            'id': '0',
+            'country._id': lt_id
+        },
+        skip_columns=['_id', '_revision', '_created']
+    )
+    _assert_data(
+        ryg_data, {
+            '_txn': txn_city,
+            '_updated': '',
+            'id': '1',
+            'country._id': lv_id
+        },
+        skip_columns=['_id', '_revision', '_created']
+    )
+    _assert_data(
+        war_data, {
+            '_txn': txn_city,
+            '_updated': '',
+            'id': '2',
+            'country._id': pl_id
+        },
+        skip_columns=['_id', '_revision', '_created']
+    )
+
+    # Check `Country` changelog data
+    _assert_meta_keys_exists(city_changes_data, changes_meta_keys)
+    _assert_data(
+        vln_change_data, {
+            '_id': '1',
+            '_revision': vln_data['_revision'],
+            '_txn': txn_city,
+            '_rid': vln_data['_id'],
+            'action': 'insert',
+            'data': f'{{"id": 0, "country": {{"_id": "{lt_id}"}}}}'
+        },
+        skip_columns=['datetime']
+    )
+    _assert_data(
+        ryg_change_data, {
+            '_id': '2',
+            '_revision': ryg_data['_revision'],
+            '_txn': txn_city,
+            '_rid': ryg_data['_id'],
+            'action': 'insert',
+            'data': f'{{"id": 1, "country": {{"_id": "{lv_id}"}}}}'
+        },
+        skip_columns=['datetime']
+    )
+    _assert_data(
+        war_change_data, {
+            '_id': '3',
+            '_revision': war_data['_revision'],
+            '_txn': txn_city,
+            '_rid': war_data['_id'],
+            'action': 'insert',
+            'data': f'{{"id": 2, "country": {{"_id": "{pl_id}"}}}}'
+        },
+        skip_columns=['datetime']
+    )

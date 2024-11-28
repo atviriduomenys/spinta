@@ -321,7 +321,7 @@ def test_keymap_sync_no_changes(
     country_id = resp.json()['_id']
 
     # Check keymap state before sync for Country
-    keymap_before_sync =  check_keymap_state(context, 'syncdataset/countries/Country')
+    keymap_before_sync = check_keymap_state(context, 'syncdataset/countries/Country')
     assert len(keymap_before_sync) == 0
 
     manifest = tmp_path / 'manifest.csv'
