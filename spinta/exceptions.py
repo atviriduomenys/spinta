@@ -424,7 +424,7 @@ class UnknownAction(UserError):
 
 
 class UnknownOutputFormat(UserError):
-    template = "Unknown output format {name}."
+    template = "Unknown output format {name!r}."
 
 
 class UnknownRequestParameter(UserError):
@@ -998,3 +998,4 @@ class BackendUnavailable(BaseError):
 
 class InvalidClientFileFormat(UserError):
     template = "File {client_file} data must be a dictionary, not a {client_file_type}."
+

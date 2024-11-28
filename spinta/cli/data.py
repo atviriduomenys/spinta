@@ -1,26 +1,26 @@
 import asyncio
 import itertools
 import json
-from typing import Optional, List, Iterator
+from typing import Optional, List
 
+from typer import Argument
 from typer import Context as TyperContext
+from typer import Exit
 from typer import Option
 from typer import echo
-from typer import Exit
-from typer import Argument
 
 from spinta import commands
 from spinta.backends import Backend
 from spinta.backends.helpers import validate_and_return_transaction
 from spinta.cli.helpers.auth import require_auth
-from spinta.cli.helpers.export.helpers import validate_and_return_shallow_backend, validate_and_return_formatter, \
-    get_data
-from spinta.cli.helpers.manifest import convert_str_to_manifest_path
-from spinta.cli.helpers.store import prepare_manifest
 from spinta.cli.helpers.data import process_stream, count_rows
-from spinta.cli.push import _attach_keymaps, _attach_backends
+from spinta.cli.helpers.export.components import CounterManager
+from spinta.cli.helpers.export.helpers import validate_and_return_shallow_backend, validate_and_return_formatter, \
+    export_data
+from spinta.cli.helpers.manifest import convert_str_to_manifest_path
+from spinta.cli.helpers.store import prepare_manifest, attach_backends, attach_keymaps
 from spinta.commands.write import write
-from spinta.components import Mode, Config, Action, Model, Context, pagination_enabled
+from spinta.components import Mode, Config, Action
 from spinta.core.context import configure_context
 from spinta.exceptions import NodeNotFound
 from spinta.formats.components import Format
@@ -60,13 +60,13 @@ def export_(
         "Source manifest files to copy from"
     )),
     backend: Optional[str] = Option(None, '-b', '--backend', help=(
-        "Authorize as a client"
+        "Backend format that will import the exported data ('postgresql', 'sql', ...)"
     )),
     fmt: Optional[str] = Option(None, '-f', '--format', help=(
-        "Authorize as a client"
+        "Output format ('csv', 'html, 'json', ...)"
     )),
     output: Optional[str] = Option(None, '-o', '--output', help=(
-        "Authorize as a client"
+        "Output path"
     )),
     mode: Mode = Option('external', help=(
         "Mode of backend operation, default: external"
@@ -77,6 +77,9 @@ def export_(
     dataset: str = Option(None, '-d', '--dataset', help=(
         "Extract only specified dataset"
     )),
+    no_progress_bar: bool = Option(False, '--no-progress-bar', help=(
+        "Skip counting total rows to improve performance."
+    )),
 ):
     manifests = convert_str_to_manifest_path(manifests)
     context = configure_context(ctx.obj, manifests, mode=mode)
@@ -84,10 +87,12 @@ def export_(
     config: Config = context.get('config')
 
     if backend and fmt:
-        raise Exception("CAN ONLY HAVE ONE")
+        echo("Export can only output to one type (either `--backend` or `--format`), but not both.")
+        raise Exit(code=1)
 
     if not backend and not fmt:
-        raise Exception("NEED TO GIVE EITHER BACKEND OR FMT")
+        echo("Export must be given an output format (either `--backend` or `--format`).")
+        raise Exit(code=1)
 
     if backend:
         backend: Backend = validate_and_return_shallow_backend(context, backend)
@@ -100,30 +105,39 @@ def export_(
         echo(str(NodeNotFound(manifest, type='dataset', name=dataset)))
         raise Exit(code=1)
 
+    if not output:
+        echo("Output argument is required (`--output`).")
+        raise Exit(code=1)
+
     with context:
         require_auth(context)
 
-        _attach_backends(context, store, manifest)
-        _attach_keymaps(context, store)
+        attach_backends(context, store, manifest)
+        attach_keymaps(context, store)
         ns = commands.get_namespace(context, manifest, '')
         models = commands.traverse_ns_models(context, ns, manifest, Action.SEARCH, dataset_=dataset, source_check=True)
         models = sort_models_by_ref_and_base(list(models))
 
         counts = count_rows(
             context,
-            models
+            models,
+            no_progress_bar=no_progress_bar
         )
-        for model in models:
 
-            data = get_data(context, model)
-            asyncio.run(commands.export_data(
-                context,
-                model,
-                fmt or backend,
-                data=data,
-                path=output,
-                count=counts[model.name]
-            ))
+        with CounterManager(
+            enabled=not no_progress_bar,
+            totals=counts
+        ) as counter:
+            asyncio.get_event_loop().run_until_complete(
+                export_data(
+                    context,
+                    models,
+                    fmt or backend,
+                    output,
+                    counter,
+                )
+            )
+
 
         # Synchronize keymaps
         # with manifest.keymap as km:

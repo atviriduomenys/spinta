@@ -21,6 +21,7 @@ from spinta.manifests.commands.manifest import has_dataset
 
 log = logging.getLogger(__name__)
 
+
 def bootstrap(
     ctx: TyperContext,
     manifests: Optional[List[str]] = Argument(None, help=(
@@ -89,7 +90,7 @@ def migrate(
         rename=MigrateRename(
             rename_src=rename
         ),
-        datasets = datasets
+        datasets=datasets
     )
     commands.migrate(context, manifest, migrate_meta)
 

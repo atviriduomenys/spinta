@@ -1,8 +1,11 @@
-from typing import Iterable, AsyncIterator
+from typer import Exit
+from typer import echo
+from typing import Iterable, AsyncIterator, List, Any
 
 from spinta import commands
 from spinta.backends import Backend
 from spinta.cli.helpers.data import read_model_data
+from spinta.cli.helpers.export.components import CounterManager
 from spinta.commands.read import get_page
 from spinta.components import Context, Model, pagination_enabled, DataItem, Action, DataSubItem
 from spinta.formats.components import Format
@@ -17,7 +20,8 @@ def validate_and_return_shallow_backend(context: Context, type_: str) -> Backend
     config = context.get("config")
     backends = config.components['backends']
     if type_ not in backends:
-        raise Exception(f"Unavailable backend, only available: {backends.keys()}")
+        echo(f"Unknown output backend {type_!r}, from available: {list(backends.keys())}")
+        raise Exit(code=1)
 
     backend = config.components['backends'][type_]()
     backend.type = type_
@@ -29,7 +33,8 @@ def validate_and_return_formatter(context: Context, type_: str) -> Format:
     exporters = config.exporters
 
     if type_ not in exporters:
-        raise Exception(f"Unavailable formater, only available: {exporters.keys()}")
+        echo(f"Unknown output format {type_!r}, from available: {list(exporters.keys())}")
+        raise Exit(code=1)
 
     fmt = config.exporters[type_]
     return fmt
@@ -68,23 +73,6 @@ def create_data_items(model: Model, backend: Backend, data: Iterable):
         )
 
 
-async def prepare_for_export(
-    context: Context,
-    model: Model,
-    backend: Backend,
-    dstream: AsyncIterator[DataItem],
-    **kwargs
-):
-    async for item in dstream:
-        yield commands.before_export(
-            context,
-            model,
-            backend,
-            data=item,
-            **kwargs
-        )
-
-
 async def prepare_data_without_checks(
     context: Context,
     dstream: AsyncIterator[DataItem],
@@ -94,3 +82,22 @@ async def prepare_data_without_checks(
         data.given = commands.load(context, data.model, data.payload)
         yield data
 
+
+async def export_data(
+    context: Context,
+    models: List[Model],
+    fmt: Any,
+    output: str,
+    counter: CounterManager,
+):
+    for model in models:
+        data = get_data(context, model)
+        await commands.export_data(
+            context,
+            model,
+            fmt,
+            data=data,
+            path=output,
+            counter=counter
+        )
+        counter.close_model(model)

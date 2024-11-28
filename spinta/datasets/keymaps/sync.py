@@ -30,7 +30,6 @@ def sync_keymap(
             '_total': tqdm.tqdm(desc='SYNCHRONIZING KEYMAP', ascii=True)
         }
         echo()
-
     for model in models:
         model_keymaps = [model.model_type()]
         primary_keys = model.external.pkeys
@@ -63,9 +62,10 @@ def sync_keymap(
                 else:
                     sync_cid = min(sync_cid, cid)
 
-        url = f'{server}/{model.model_type()}/:changes'
+        url = f'http://{server}/{model.model_type()}/:changes'
         if sync_cid:
             url = f'{url}/{sync_cid+1}'
+
         status_code, resp = get_request(
             client,
             url,
