@@ -69,7 +69,7 @@ def migrate(
     autocommit: bool = Option(False, '-a', '--autocommit', help=(
         "If added, migrate will do atomic transactions, meaning it will automatically commit after each action (use it at your own risk)"
     )),
-    datasets: List[str] = Option(None, '-d', '--datasets', help=(
+    datasets: Optional[List[str]] = Option(None, '-d', '--datasets', help=(
         "List of datasets to migrate"
     )),
 ):
