@@ -1,5 +1,6 @@
 import itertools
 import json
+import logging
 from pathlib import Path
 
 import sqlalchemy as sa
@@ -1505,3 +1506,309 @@ def test_migrate_change_basic_type(
             assert row['someInt'] == "1"
             assert row['someFloat'] == "1.5"
         cleanup_table_list(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog'])
+
+
+def test_migrate_datasets(
+    postgresql_migration: URL,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    cleanup_tables(postgresql_migration)
+    initial_manifest = '''
+     d               | r | b | m    | property     | type
+     migrate/example |   |   |      |              |
+                     |   |   | Test |              |
+                     |   |   |      | someText     | string unique
+    '''
+    context, rc = configure_migrate(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    override_manifest(context, tmp_path, '''
+     d               | r | b | m    | property     | type
+     migrate/example |   |   |      |              |
+                     |   |   | Test |              |
+                     |   |   |      | someText     | string
+                     |   |   |      | newColumn    | integer
+    ''')
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p', '-d', 'migrate/example'
+    ])
+    assert result.exit_code == 0
+    assert 'ALTER TABLE "migrate/example/Test" ADD COLUMN "newColumn" INTEGER;' in result.output
+    assert 'ALTER TABLE "migrate/example/Test" DROP CONSTRAINT "migrate/example/Test_someText_key";' in result.output
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-d', 'migrate/example'
+    ])
+    assert result.exit_code == 0
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert 'migrate/example/Test' in tables
+
+        table = tables["migrate/example/Test"]
+        columns = table.columns
+        assert 'newColumn' in columns
+        assert 'someText' in columns
+
+        cleanup_table_list(meta, ['migrate/example/Test'])
+
+
+def test_migrate_datasets_multiple_models(
+    postgresql_migration: URL,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    cleanup_tables(postgresql_migration)
+    initial_manifest = '''
+     d               | r | b | m    | property     | type
+     migrate/example |   |   |      |              |
+                     |   |   | Test |              |
+                     |   |   |      | someText     | string unique
+                     |   |   | Test2|              |
+                     |   |   |      | anotherText  | string unique
+    '''
+    context, rc = configure_migrate(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    override_manifest(context, tmp_path, '''
+     d               | r | b | m    | property     | type
+     migrate/example |   |   |      |              |
+                     |   |   | Test |              |
+                     |   |   |      | someText     | string
+                     |   |   |      | newColumn    | integer
+                     |   |   | Test2|              |
+                     |   |   |      | anotherText  | string
+                     |   |   |      | newColumn2   | integer
+    ''')
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p', '-d', 'migrate/example'
+    ])
+    assert result.exit_code == 0
+    assert 'ALTER TABLE "migrate/example/Test" ADD COLUMN "newColumn" INTEGER;' in result.output
+    assert 'ALTER TABLE "migrate/example/Test" DROP CONSTRAINT "migrate/example/Test_someText_key";' in result.output
+    assert 'ALTER TABLE "migrate/example/Test2" ADD COLUMN "newColumn2" INTEGER;' in result.output
+    assert 'ALTER TABLE "migrate/example/Test2" DROP CONSTRAINT "migrate/example/Test2_anotherText_key";' in result.output
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-d', 'migrate/example'
+    ])
+    assert result.exit_code == 0
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert 'migrate/example/Test' in tables
+        assert 'migrate/example/Test2' in tables
+
+        table1 = tables["migrate/example/Test"]
+        columns1 = table1.columns
+        assert 'newColumn' in columns1
+        assert 'someText' in columns1
+
+        table2 = tables["migrate/example/Test2"]
+        columns2 = table2.columns
+        assert 'newColumn2' in columns2
+        assert 'anotherText' in columns2
+
+        cleanup_table_list(meta, ['migrate/example/Test', 'migrate/example/Test2'])
+
+
+def test_migrate_datasets_invalid(
+    postgresql_migration: URL,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path,
+    caplog
+):
+    cleanup_tables(postgresql_migration)
+    initial_manifest = '''
+     d               | r | b | m    | property     | type
+     migrate/example |   |   |      |              |
+                     |   |   | Test |              |
+                     |   |   |      | someText     | string unique
+    '''
+    context, rc = configure_migrate(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    override_manifest(context, tmp_path, '''
+     d               | r | b | m    | property     | type
+     migrate/example |   |   |      |              |
+                     |   |   | Test |              |
+                     |   |   |      | someText     | string
+                     |   |   |      | newColumn    | integer
+    ''')
+
+
+    with caplog.at_level(logging.ERROR):
+        result = cli.invoke(rc, [
+            'migrate', f'{tmp_path}/manifest.csv', '-d', 'invalid/dataset'
+        ], fail=False)
+
+    assert result.exit_code == 1
+    assert any(
+        "Invalid dataset(s) provided: invalid/dataset" in message
+        for message in caplog.messages
+    )
+
+
+def test_migrate_datasets_single(
+    postgresql_migration: URL,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    cleanup_tables(postgresql_migration)
+    initial_manifest = '''
+     d               | r | b | m    | property     | type
+     dataset1        |   |   |      |              |
+                     |   |   | Test |              |
+                     |   |   |      | someText     | string unique
+     dataset2        |   |   |      |              |
+                     |   |   | Test |              |
+                     |   |   |      | anotherText  | string unique
+    '''
+    context, rc = configure_migrate(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    override_manifest(context, tmp_path, '''
+     d               | r | b | m    | property     | type
+     dataset1        |   |   |      |              |
+                     |   |   | Test |              |
+                     |   |   |      | someText     | string
+                     |   |   |      | newColumn    | integer
+     dataset2        |   |   |      |              |
+                     |   |   | Test |              |
+                     |   |   |      | anotherText  | string
+                     |   |   |      | newColumn2   | integer
+    ''')
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p', '-d', 'dataset1'
+    ])
+    assert result.exit_code == 0
+    assert 'ALTER TABLE "dataset1/Test" ADD COLUMN "newColumn" INTEGER;' in result.output
+    assert 'ALTER TABLE "dataset1/Test" DROP CONSTRAINT "dataset1/Test_someText_key";' in result.output
+    assert 'ALTER TABLE "dataset2/Test" ADD COLUMN "newColumn2" INTEGER;' not in result.output
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-d', 'dataset1'
+    ])
+    assert result.exit_code == 0
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert 'dataset1/Test' in tables
+        assert 'dataset2/Test' in tables
+
+        table1 = tables["dataset1/Test"]
+        columns1 = table1.columns
+        assert 'newColumn' in columns1
+        assert 'someText' in columns1
+
+        table2 = tables["dataset2/Test"]
+        columns2 = table2.columns
+        assert 'newColumn2' not in columns2
+        assert 'anotherText' in columns2
+
+        cleanup_table_list(meta, ['dataset1/Test', 'dataset2/Test'])
+
+
+def test_migrate_datasets_list(
+    postgresql_migration: URL,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    cleanup_tables(postgresql_migration)
+    initial_manifest = '''
+     d               | r | b | m    | property     | type
+     dataset1        |   |   |      |              |
+                     |   |   | Test |              |
+                     |   |   |      | someText     | string unique
+     dataset2        |   |   |      |              |
+                     |   |   | Test2|              |
+                     |   |   |      | anotherText  | string unique
+     dataset3        |   |   |      |              |
+                     |   |   | Test3|              |
+                     |   |   |      | thirdText    | string unique
+    '''
+    context, rc = configure_migrate(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    override_manifest(context, tmp_path, '''
+     d               | r | b | m    | property     | type
+     dataset1        |   |   |      |              |
+                     |   |   | Test |              |
+                     |   |   |      | someText     | string
+                     |   |   |      | newColumn    | integer
+     dataset2        |   |   |      |              |
+                     |   |   | Test2|              |
+                     |   |   |      | anotherText  | string
+                     |   |   |      | newColumn2   | integer
+     dataset3        |   |   |      |              |
+                     |   |   | Test3|              |
+                     |   |   |      | thirdText    | string
+                     |   |   |      | newColumn3   | integer
+    ''')
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p', '-d', 'dataset1', '-d', 'dataset2'
+    ])
+    assert result.exit_code == 0
+    assert 'ALTER TABLE "dataset1/Test" ADD COLUMN "newColumn" INTEGER;' in result.output
+    assert 'ALTER TABLE "dataset1/Test" DROP CONSTRAINT "dataset1/Test_someText_key";' in result.output
+    assert 'ALTER TABLE "dataset2/Test2" ADD COLUMN "newColumn2" INTEGER;' in result.output
+    assert 'ALTER TABLE "dataset2/Test2" DROP CONSTRAINT "dataset2/Test2_anotherText_key";' in result.output
+    assert 'ALTER TABLE "dataset3/Test3" ADD COLUMN "newColumn3" INTEGER;' not in result.output
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-d', 'dataset1', '-d', 'dataset2'
+    ])
+    assert result.exit_code == 0
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert 'dataset1/Test' in tables
+        assert 'dataset2/Test2' in tables
+        assert 'dataset3/Test3' in tables
+
+        table1 = tables["dataset1/Test"]
+        columns1 = table1.columns
+        assert 'newColumn' in columns1
+        assert 'someText' in columns1
+
+        table2 = tables["dataset2/Test2"]
+        columns2 = table2.columns
+        assert 'newColumn2' in columns2
+        assert 'anotherText' in columns2
+
+        table3 = tables["dataset3/Test3"]
+        columns3 = table3.columns
+        assert 'newColumn3' not in columns3
+        assert 'thirdText' in columns3
+
+        cleanup_table_list(meta, ['dataset1/Test', 'dataset2/Test2', 'dataset3/Test3'])
+
