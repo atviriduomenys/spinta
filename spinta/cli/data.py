@@ -5,15 +5,14 @@ from typing import Optional, List
 
 from typer import Argument
 from typer import Context as TyperContext
-from typer import Exit
 from typer import Option
-from typer import echo
 
 from spinta import commands
 from spinta.backends import Backend
 from spinta.backends.helpers import validate_and_return_transaction
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.data import process_stream, count_rows
+from spinta.cli.helpers.errors import cli_error
 from spinta.cli.helpers.export.components import CounterManager
 from spinta.cli.helpers.export.helpers import validate_and_return_shallow_backend, validate_and_return_formatter, \
     export_data
@@ -87,12 +86,14 @@ def export_(
     config: Config = context.get('config')
 
     if backend and fmt:
-        echo("Export can only output to one type (either `--backend` or `--format`), but not both.")
-        raise Exit(code=1)
+        cli_error(
+            "Export can only output to one type (either `--backend` or `--format`), but not both."
+        )
 
     if not backend and not fmt:
-        echo("Export must be given an output format (either `--backend` or `--format`).")
-        raise Exit(code=1)
+        cli_error(
+            "Export must be given an output format (either `--backend` or `--format`)."
+        )
 
     if backend:
         backend: Backend = validate_and_return_shallow_backend(context, backend)
@@ -102,12 +103,14 @@ def export_(
 
     manifest = store.manifest
     if dataset and not commands.has_dataset(context, manifest, dataset):
-        echo(str(NodeNotFound(manifest, type='dataset', name=dataset)))
-        raise Exit(code=1)
+        cli_error(
+            str(NodeNotFound(manifest, type='dataset', name=dataset))
+        )
 
     if not output:
-        echo("Output argument is required (`--output`).")
-        raise Exit(code=1)
+        cli_error(
+            "Output argument is required (`--output`)."
+        )
 
     with context:
         require_auth(context)

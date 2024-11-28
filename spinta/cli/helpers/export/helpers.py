@@ -1,13 +1,12 @@
-from typer import Exit
-from typer import echo
 from typing import Iterable, AsyncIterator, List, Any
 
 from spinta import commands
 from spinta.backends import Backend
 from spinta.cli.helpers.data import read_model_data
+from spinta.cli.helpers.errors import cli_error
 from spinta.cli.helpers.export.components import CounterManager
 from spinta.commands.read import get_page
-from spinta.components import Context, Model, pagination_enabled, DataItem, Action, DataSubItem
+from spinta.components import Context, Model, pagination_enabled, DataItem, Action
 from spinta.formats.components import Format
 from spinta.ufuncs.basequerybuilder.components import QueryParams
 
@@ -20,8 +19,9 @@ def validate_and_return_shallow_backend(context: Context, type_: str) -> Backend
     config = context.get("config")
     backends = config.components['backends']
     if type_ not in backends:
-        echo(f"Unknown output backend {type_!r}, from available: {list(backends.keys())}")
-        raise Exit(code=1)
+        cli_error(
+            f"Unknown output backend {type_!r}, from available: {list(backends.keys())}"
+        )
 
     backend = config.components['backends'][type_]()
     backend.type = type_
@@ -33,8 +33,9 @@ def validate_and_return_formatter(context: Context, type_: str) -> Format:
     exporters = config.exporters
 
     if type_ not in exporters:
-        echo(f"Unknown output format {type_!r}, from available: {list(exporters.keys())}")
-        raise Exit(code=1)
+        cli_error(
+            f"Unknown output format {type_!r}, from available: {list(exporters.keys())}"
+        )
 
     fmt = config.exporters[type_]
     return fmt

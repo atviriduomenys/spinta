@@ -4,15 +4,14 @@ from typing import List
 from typing import Optional
 
 from typer import Context as TyperContext
-from typer import Exit
 from typer import Option
-from typer import echo
 
 from spinta import commands
 from spinta import exceptions
 from spinta.backends.helpers import validate_and_return_transaction
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.data import process_stream
+from spinta.cli.helpers.errors import cli_error
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.commands.write import write
 from spinta.components import Context
@@ -54,15 +53,17 @@ def pull(
     if commands.has_namespace(context, manifest, dataset):
         dataset = commands.get_dataset(context, manifest, dataset)
     else:
-        echo(str(exceptions.NodeNotFound(manifest, type='dataset', name=dataset)))
-        raise Exit(code=1)
+        cli_error(
+            str(exceptions.NodeNotFound(manifest, type='dataset', name=dataset))
+        )
 
     if model:
         models = []
         for model in model:
             if not commands.has_model(context, manifest, model):
-                echo(str(exceptions.NodeNotFound(manifest, type='model', name=model)))
-                raise Exit(code=1)
+                cli_error(
+                    str(exceptions.NodeNotFound(manifest, type='model', name=model))
+                )
             models.append(commands.get_model(context, manifest, model))
     else:
         models = _get_dataset_models(context, manifest, dataset)
@@ -96,8 +97,9 @@ def pull(
                 config = context.get('config')
 
                 if fmt not in config.exporters:
-                    echo(f"unknown export file type {fmt!r}")
-                    raise Exit(code=1)
+                    cli_error(
+                        f"unknown export file type {fmt!r}"
+                    )
 
                 exporter = config.exporters[fmt]
 
@@ -106,5 +108,6 @@ def pull(
             )
 
     except exceptions.BaseError as e:
-        echo(str(e))
-        raise Exit(code=1)
+        cli_error(
+            str(e)
+        )

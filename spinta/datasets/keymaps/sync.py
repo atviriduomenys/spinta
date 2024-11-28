@@ -1,15 +1,14 @@
 import datetime
-from typer import echo
 from typing import List
+
+import tqdm
+from typer import echo
 
 from spinta.auth import authorized
 from spinta.cli.helpers.errors import ErrorCounter
 from spinta.components import Context, Model, Action, Property
 from spinta.datasets.backends.helpers import extract_values_from_row
 from spinta.datasets.keymaps.components import KeyMap
-import tqdm
-
-from spinta.exceptions import UnauthorizedKeymapSync
 from spinta.utils.response import get_request
 
 
@@ -62,7 +61,7 @@ def sync_keymap(
                 else:
                     sync_cid = min(sync_cid, cid)
 
-        url = f'http://{server}/{model.model_type()}/:changes'
+        url = f'{server}/{model.model_type()}/:changes'
         if sync_cid:
             url = f'{url}/{sync_cid+1}'
 

@@ -14,7 +14,7 @@ from spinta import exceptions, commands
 from spinta.auth import get_client_id_from_name, get_clients_path
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.data import ensure_data_dir
-from spinta.cli.helpers.errors import ErrorCounter
+from spinta.cli.helpers.errors import ErrorCounter, cli_error
 from spinta.cli.helpers.manifest import convert_str_to_manifest_path
 from spinta.cli.helpers.push.components import State
 from spinta.cli.helpers.push.write import push as push_
@@ -122,8 +122,9 @@ def push(
     if credentials:
         credsfile = pathlib.Path(credentials)
         if not credsfile.exists():
-            echo(f"Credentials file {credsfile} does not exit.")
-            raise Exit(code=1)
+            cli_error(
+                f"Credentials file {credsfile} does not exit."
+            )
     else:
         credsfile = config.credentials_file
     # TODO: Read client credentials only if a Spinta URL is given.
@@ -137,8 +138,9 @@ def push(
 
     manifest = store.manifest
     if dataset and not commands.has_dataset(context, manifest, dataset):
-        echo(str(exceptions.NodeNotFound(manifest, type='dataset', name=dataset)))
-        raise Exit(code=1)
+        cli_error(
+            str(exceptions.NodeNotFound(manifest, type='dataset', name=dataset))
+        )
 
     ns = commands.get_namespace(context, manifest, '')
 

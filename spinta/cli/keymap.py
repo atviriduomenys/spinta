@@ -10,7 +10,7 @@ from spinta import commands, exceptions
 from spinta.auth import get_client_id_from_name, get_clients_path
 from spinta.cli.helpers.auth import require_auth
 
-from spinta.cli.helpers.errors import ErrorCounter
+from spinta.cli.helpers.errors import ErrorCounter, cli_error
 from spinta.cli.helpers.manifest import convert_str_to_manifest_path
 from spinta.cli.helpers.push.utils import extract_dependant_nodes
 
@@ -25,6 +25,7 @@ from spinta.types.namespace import sort_models_by_ref_and_base
 log = logging.getLogger(__name__)
 
 keymap = Typer()
+
 
 @keymap.command('sync', short_help="Sync keymap from external data source")
 def keymap_sync(
@@ -56,8 +57,9 @@ def keymap_sync(
 ):
     """Sync keymap from external data source"""
     if not input_source:
-        echo("Input source is required.")
-        raise Exit(code=1)
+        cli_error(
+            "Input source is required."
+        )
 
     manifests = convert_str_to_manifest_path(manifests)
     context = configure_context(ctx.obj, manifests, mode=mode)
@@ -67,8 +69,9 @@ def keymap_sync(
     if credentials:
         credsfile = pathlib.Path(credentials)
         if not credsfile.exists():
-            echo(f"Credentials file {credsfile} does not exist.")
-            raise Exit(code=1)
+            cli_error(
+                f"Credentials file {credsfile} does not exist."
+            )
     else:
         credsfile = config.credentials_file
 
@@ -76,8 +79,9 @@ def keymap_sync(
 
     manifest = store.manifest
     if dataset and not commands.has_dataset(context, manifest, dataset):
-        echo(str(exceptions.NodeNotFound(manifest, type='dataset', name=dataset)))
-        raise Exit(code=1)
+        cli_error(
+            str(exceptions.NodeNotFound(manifest, type='dataset', name=dataset))
+        )
 
     ns = commands.get_namespace(context, manifest, '')
 

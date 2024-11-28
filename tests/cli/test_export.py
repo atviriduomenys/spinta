@@ -121,7 +121,7 @@ def test_export_no_format(
         'export',
     ], fail=False)
     assert result.exit_code == 1
-    assert "Export must be given an output format" in result.stdout
+    assert "Export must be given an output format" in result.stderr
 
 
 def test_export_both_formats(
@@ -156,7 +156,7 @@ def test_export_both_formats(
         '-b', 'postgresql'
     ], fail=False)
     assert result.exit_code == 1
-    assert "Export can only output to one type" in result.stdout
+    assert "Export can only output to one type" in result.stderr
 
 
 def test_export_unsupported_format(
@@ -190,7 +190,7 @@ def test_export_unsupported_format(
         '-f', 'not supported format',
     ], fail=False)
     assert result.exit_code == 1
-    assert "Unknown output format 'not supported format'" in result.stdout
+    assert "Unknown output format 'not supported format'" in result.stderr
 
 
 def test_export_unsupported_backend(
@@ -224,7 +224,7 @@ def test_export_unsupported_backend(
         '-b', 'not supported format',
     ], fail=False)
     assert result.exit_code == 1
-    assert "Unknown output backend 'not supported format'" in result.stdout
+    assert "Unknown output backend 'not supported format'" in result.stderr
 
 
 def test_export_unknown_dataset(
@@ -259,7 +259,7 @@ def test_export_unknown_dataset(
         '-d', 'unknown'
     ], fail=False)
     assert result.exit_code == 1
-    assert "Node 'unknown' of type 'dataset' not found." in result.stdout
+    assert "Node 'unknown' of type 'dataset' not found." in result.stderr
 
 
 def test_export_no_output(
@@ -293,7 +293,7 @@ def test_export_no_output(
         '-b', 'postgresql',
     ], fail=False)
     assert result.exit_code == 1
-    assert "Output argument is required" in result.stdout
+    assert "Output argument is required" in result.stderr
 
 
 def test_export_postgresql(
