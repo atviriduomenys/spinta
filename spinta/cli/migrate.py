@@ -2,24 +2,20 @@ import asyncio
 from typing import List
 from typing import Optional
 
-from click.exceptions import Exit
-from typer import Option
-import logging
-
 import click
 from typer import Argument
 from typer import Context as TyperContext
+from typer import Option
 
 from spinta import commands
 from spinta.cli.helpers.auth import require_auth
+from spinta.cli.helpers.errors import cli_error
 from spinta.cli.helpers.manifest import convert_str_to_manifest_path
 from spinta.cli.helpers.migrate import MigrateRename, MigrateMeta
 from spinta.cli.helpers.store import load_store
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.core.context import configure_context
 from spinta.manifests.commands.manifest import has_dataset
-
-log = logging.getLogger(__name__)
 
 
 def bootstrap(
@@ -80,9 +76,10 @@ def migrate(
     store = prepare_manifest(context, ensure_config_dir=True)
     manifest = store.manifest
 
-    if datasets and any(not has_dataset(context, manifest, dataset) for dataset in datasets):
-        log.error(f"Invalid dataset(s) provided: {', '.join(datasets)}")
-        raise Exit(code=1)
+    if datasets:
+        invalid_datasets = [dataset for dataset in datasets if not has_dataset(context, manifest, dataset)]
+        if invalid_datasets:
+            cli_error(f"Invalid dataset(s) provided: {', '.join(invalid_datasets)}")
 
     migrate_meta = MigrateMeta(
         plan=plan,
