@@ -4,6 +4,11 @@ Changes
 0.1.80 (unreleased)
 ===================
 
+New features:
+
+- Add `-d --datasets` option to migrate command (`#935`_).
+
+  .. _#935: https://github.com/atviriduomenys/spinta/issues/935
 
 0.1.79 (2024-11-12)
 ===================
