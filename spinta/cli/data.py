@@ -76,9 +76,6 @@ def export_(
     mode: Mode = Option('external', help=(
         "Mode of backend operation, default: external"
     )),
-    synchronize: bool = Option(False, '--sync', help=(
-        "Fully synchronize keymap, in {data_path}/keymap.db, other wise it will only synchronize `internal` dependant models"
-    )),
     dataset: str = Option(None, '-d', '--dataset', help=(
         "Extract only specified dataset"
     )),
@@ -89,13 +86,15 @@ def export_(
         "Credentials file, defaults to {config_path}/credentials.cfg."
     )),
     input_source: str = Option(None, '-i', '--input', help=(
-        "Input source used for synchronizing keymap (credentials entry)."
+        "Input source used for synchronizing keymap (credentials entry), if not given, it will skip synchronization step."
+    )),
+    ignore_sync_cid: bool = Option(False, '--sync-full', help=(
+        "Ignores sync keymap optimization and fully synchronizes data (does not start from last synchronized row)."
     )),
     max_error_count: int = Option(50, '--max-errors', help=(
         "If errors exceed given number, export command will be stopped."
     )),
 ):
-    synchronize_keymap = synchronize
     manifests = convert_str_to_manifest_path(manifests)
     context = configure_context(ctx.obj, manifests, mode=mode)
     store = prepare_manifest(context, full_load=True)
@@ -128,28 +127,6 @@ def export_(
             "Output argument is required (`--output`)."
         )
 
-    if credentials:
-        credsfile = pathlib.Path(credentials)
-        if not credsfile.exists():
-            cli_error(
-                f"Credentials file {credsfile} does not exit."
-            )
-    else:
-        credsfile = config.credentials_file
-
-    if not input_source:
-        cli_error(
-            "Input source is required."
-        )
-
-    creds = get_client_credentials(credsfile, input_source)
-    echo(f"Get access token from {creds.server}")
-    token = get_access_token(creds)
-
-    client = requests.Session()
-    client.headers['Content-Type'] = 'application/json'
-    client.headers['Authorization'] = f'Bearer {token}'
-
     with context:
         require_auth(context)
         error_counter = ErrorCounter(max_count=max_error_count)
@@ -160,23 +137,42 @@ def export_(
         models = commands.traverse_ns_models(context, ns, manifest, Action.SEARCH, dataset_=dataset, source_check=True)
         models = sort_models_by_ref_and_base(list(models))
 
-        # Synchronize keymaps
-        with manifest.keymap as km:
-            first_time = km.first_time_sync()
-            if first_time and not synchronize_keymap:
-                echo("Keymap was never synchronized, first time will always force synchronization.")
-                synchronize_keymap = True
-            dependant_models = extract_dependant_nodes(context, models, not synchronize_keymap)
-            sync_keymap(
-                context=context,
-                keymap=km,
-                client=client,
-                server=creds.server,
-                models=dependant_models,
-                error_counter=error_counter,
-                no_progress_bar=no_progress_bar,
-                reset_cid=synchronize_keymap
-            )
+        # Synchronize only if input_source is given
+        if input_source:
+            if credentials:
+                credsfile = pathlib.Path(credentials)
+                if not credsfile.exists():
+                    cli_error(
+                        f"Credentials file {credsfile} does not exit."
+                    )
+            else:
+                credsfile = config.credentials_file
+            creds = get_client_credentials(credsfile, input_source)
+            echo(f"Get access token from {creds.server}")
+            token = get_access_token(creds)
+
+            client = requests.Session()
+            client.headers['Content-Type'] = 'application/json'
+            client.headers['Authorization'] = f'Bearer {token}'
+
+            # Synchronize keymaps
+            with manifest.keymap as km:
+                dependant_models = extract_dependant_nodes(context, models, True)
+                sync_keymap(
+                    context=context,
+                    keymap=km,
+                    client=client,
+                    server=creds.server,
+                    models=dependant_models,
+                    error_counter=error_counter,
+                    no_progress_bar=no_progress_bar,
+                    reset_cid=ignore_sync_cid
+                )
+        else:
+            dependant_models = extract_dependant_nodes(context, models, True)
+            if dependant_models:
+                echo(f"Detected some models, that might require synchronization step: {', '.join([model.model_type() for model in dependant_models])}")
+            echo("Input source not given, skipping synchronization step.")
 
         counts = count_rows(
             context,
