@@ -6,9 +6,14 @@ Changes
 
 New features:
 
-- Add `-d --datasets` option to migrate command (`#935`_).
+- Added `-d --datasets` option to migrate command (`#935`_).
 
   .. _#935: https://github.com/atviriduomenys/spinta/issues/935
+
+- Added `export` cli command, that will export data to specified format (`#960`_).
+
+  .. _#960: https://github.com/atviriduomenys/spinta/issues/960
+
 
 0.1.79 (2024-11-12)
 ===================
