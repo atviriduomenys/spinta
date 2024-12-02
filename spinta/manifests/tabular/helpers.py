@@ -679,7 +679,7 @@ class PropertyReader(TabularReader):
         STR_PROPERTIES = 'properties'
         parts = prop_given_name.split('.')[1:]
         result = '.'.join(
-            part + ('.' + STR_PROPERTIES if i < len(parts) - 1 else '')
+            part.split('@')[0] + ('.' + STR_PROPERTIES if i < len(parts) - 1 else '')
             for i, part in enumerate(parts)
         )
         return STR_PROPERTIES + '.' + result if result else ''
