@@ -55,9 +55,14 @@ def _fetch_changelog_data(
             break
 
         cid = offset
-        for row in data:
+        i = 0
+        for i, row in enumerate(data, start=1):
             cid = row['_cid']
             yield row
+
+        # Do not iterate further if limit was not reached
+        if i < limit:
+            break
 
         offset = cid
 
