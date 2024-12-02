@@ -21,10 +21,10 @@ from spinta.core.context import configure_context
 from spinta.datasets.keymaps.sync import sync_keymap
 from spinta.types.namespace import sort_models_by_ref_and_base
 
-
 log = logging.getLogger(__name__)
 
 keymap = Typer()
+
 
 @keymap.command('sync', short_help="Sync keymap from external data source")
 def keymap_sync(
@@ -45,14 +45,14 @@ def keymap_sync(
         "Run keymap sync in dry-run mode, no changes will be made."
     )),
     max_error_count: int = Option(50, '--max-errors', help=(
-            "If errors exceed given number, keymap command will be stopped."
-        )),
+        "If errors exceed given number, keymap command will be stopped."
+    )),
     mode: Mode = Option('external', help=(
         "Mode of backend operation, default: external"
     )),
     no_progress_bar: bool = Option(False, '--no-progress-bar', help=(
-            "Skip counting total rows to improve performance."
-        )),
+        "Skip counting total rows to improve performance."
+    )),
 ):
     """Sync keymap from external data source"""
     if not input_source:
@@ -96,7 +96,7 @@ def keymap_sync(
         attach_keymaps(context, store)
         error_counter = ErrorCounter(max_count=max_error_count)
 
-        models = commands.traverse_ns_models(context, ns, manifest, Action.SEARCH, dataset_=dataset, source_check=True)
+        models = commands.traverse_ns_models(context, ns, manifest, Action.SEARCH, dataset_=dataset)
         models = sort_models_by_ref_and_base(list(models))
 
         # Synchronize keymaps

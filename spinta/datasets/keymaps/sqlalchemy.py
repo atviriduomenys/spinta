@@ -8,7 +8,6 @@ from uuid import UUID
 
 import msgpack
 import sqlalchemy as sa
-from sqlalchemy.dialects.sqlite import insert
 
 from spinta import commands
 from spinta.cli.helpers.data import ensure_data_dir
