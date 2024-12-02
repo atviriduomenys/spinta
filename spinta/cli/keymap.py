@@ -96,7 +96,7 @@ def keymap_sync(
         attach_keymaps(context, store)
         error_counter = ErrorCounter(max_count=max_error_count)
 
-        models = commands.traverse_ns_models(context, ns, manifest, Action.SEARCH, dataset_=dataset)
+        models = commands.traverse_ns_models(context, ns, manifest, Action.SEARCH, dataset_=dataset, source_check=True)
         models = sort_models_by_ref_and_base(list(models))
 
         # Synchronize keymaps
