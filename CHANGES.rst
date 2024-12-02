@@ -4,6 +4,13 @@ Changes
 0.1.80 (unreleased)
 ===================
 
+Backwards incompatible:
+
+- Keymap synchronization now uses `sync_page_size` config argument to limit amount of data being fetched with a single
+  request. This will result in more actions being called to remote server. If `keymap` synchronization takes too long
+  to start the process, reduce `sync_page_size` value. Keep in mind, that lower values reduce performance and increase
+  server load (`985`_).
+
 New features:
 
 - Added `-d --datasets` option to migrate command (`#935`_).
@@ -14,6 +21,11 @@ New features:
 
   .. _#960: https://github.com/atviriduomenys/spinta/issues/960
 
+Improvements:
+
+- Keymap synchronization now uses pagination to fetch data (`985`_).
+
+  .. _985: https://github.com/atviriduomenys/spinta/issues/985
 
 0.1.79 (2024-11-12)
 ===================
