@@ -179,7 +179,8 @@ def push(
                 models=dependant_models,
                 error_counter=error_counter,
                 no_progress_bar=no_progress_bar,
-                reset_cid=synchronize_keymap
+                reset_cid=synchronize_keymap,
+                dry_run=dry_run
             )
 
         # Synchronize push state
