@@ -29,6 +29,7 @@ async def export_data(
     data: Iterator,
     path: str,
     counter: CounterManager,
+    txn: str,
     **kwargs
 ):
     params = UrlParams()
@@ -38,7 +39,6 @@ async def export_data(
     dstream = prepare_patch(context, dstream)
     dstream = prepare_data_for_write(context, dstream, params)
 
-    txn = commands.gen_object_id(context, backend, model)
     data_headers, dstream = await extract_headers(context, model, backend, dstream, txn=txn)
 
     file_mapping, property_mapping = generate_file_paths(model, pathlib.Path(path))

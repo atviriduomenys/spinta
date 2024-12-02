@@ -768,9 +768,13 @@ def get_primary_key_type():
 
 @command()
 def gen_object_id():
-    """Genearet unique id.
+    """Generate unique id.
 
-    gen_object_id(Context, Backend, Model) -> str
+    gen_object_id(Context, Backend, Node) -> str
+    gen_object_id(Context, Backend) -> str
+
+    gen_object_id(Context, Format, Node) -> str
+    gen_object_id(Context, Format) -> str
 
     """
 
@@ -1350,6 +1354,7 @@ def export_data(
     backend: Backend,
     *,
     data: Iterator,
+    txn: str,
     **kwargs
 ):
     """Exports data into given backend format"""
@@ -1362,6 +1367,7 @@ def export_data(
     fmt: Format,
     *,
     data: Iterator,
+    txn: str,
     **kwargs
 ):
     """Exports data into given output format"""

@@ -366,12 +366,12 @@ def test_export_postgresql(
     ryg_change_data = city_changes_data[1]
     war_change_data = city_changes_data[2]
 
-    txn_country = lt_data['_txn']
+    txn = lt_data['_txn']
     # Check `Country` data
     _assert_meta_keys_exists(country_data, data_meta_keys, nullable_keys)
     _assert_data(
         lt_data, {
-            '_txn': txn_country,
+            '_txn': txn,
             '_updated': '',
             'id': '0',
             'code': 'LT',
@@ -382,7 +382,7 @@ def test_export_postgresql(
     )
     _assert_data(
         lv_data, {
-            '_txn': txn_country,
+            '_txn': txn,
             '_updated': '',
             'id': '1',
             'code': 'LV',
@@ -393,7 +393,7 @@ def test_export_postgresql(
     )
     _assert_data(
         pl_data, {
-            '_txn': txn_country,
+            '_txn': txn,
             '_updated': '',
             'id': '2',
             'code': 'PL',
@@ -409,7 +409,7 @@ def test_export_postgresql(
         lt_change_data, {
             '_id': '1',
             '_revision': lt_data['_revision'],
-            '_txn': txn_country,
+            '_txn': txn,
             '_rid': lt_data['_id'],
             'action': 'insert',
             'data': '{"id": 0, "code": "LT", "name": "LITHUANIA", "created": "2020-01-01T00:00:00"}'
@@ -420,7 +420,7 @@ def test_export_postgresql(
         lv_change_data, {
             '_id': '2',
             '_revision': lv_data['_revision'],
-            '_txn': txn_country,
+            '_txn': txn,
             '_rid': lv_data['_id'],
             'action': 'insert',
             'data': '{"id": 1, "code": "LV", "name": "LATVIA", "created": "2020-01-01T00:00:00"}'
@@ -431,7 +431,7 @@ def test_export_postgresql(
         pl_change_data, {
             '_id': '3',
             '_revision': pl_data['_revision'],
-            '_txn': txn_country,
+            '_txn': txn,
             '_rid': pl_data['_id'],
             'action': 'insert',
             'data': '{"id": 2, "code": "PL", "name": "POLAND", "created": "2020-01-01T00:00:00"}'
@@ -439,12 +439,11 @@ def test_export_postgresql(
         skip_columns=['datetime']
     )
 
-    txn_city = vln_data['_txn']
     # Check `City` data
     _assert_meta_keys_exists(city_data, data_meta_keys, nullable_keys)
     _assert_data(
         vln_data, {
-            '_txn': txn_city,
+            '_txn': txn,
             '_updated': '',
             'id': '0',
             'code': 'VLN',
@@ -455,7 +454,7 @@ def test_export_postgresql(
     )
     _assert_data(
         ryg_data, {
-            '_txn': txn_city,
+            '_txn': txn,
             '_updated': '',
             'id': '1',
             'code': 'RYG',
@@ -466,7 +465,7 @@ def test_export_postgresql(
     )
     _assert_data(
         war_data, {
-            '_txn': txn_city,
+            '_txn': txn,
             '_updated': '',
             'id': '2',
             'code': 'WAR',
@@ -482,7 +481,7 @@ def test_export_postgresql(
         vln_change_data, {
             '_id': '1',
             '_revision': vln_data['_revision'],
-            '_txn': txn_city,
+            '_txn': txn,
             '_rid': vln_data['_id'],
             'action': 'insert',
             'data': f'{{"id": 0, "code": "VLN", "name": "VILNIUS", "country": {{"_id": "{lt_data["_id"]}"}}}}'
@@ -493,7 +492,7 @@ def test_export_postgresql(
         ryg_change_data, {
             '_id': '2',
             '_revision': ryg_data['_revision'],
-            '_txn': txn_city,
+            '_txn': txn,
             '_rid': ryg_data['_id'],
             'action': 'insert',
             'data': f'{{"id": 1, "code": "RYG", "name": "RYGA", "country": {{"_id": "{lv_data["_id"]}"}}}}'
@@ -504,7 +503,7 @@ def test_export_postgresql(
         war_change_data, {
             '_id': '3',
             '_revision': war_data['_revision'],
-            '_txn': txn_city,
+            '_txn': txn,
             '_rid': war_data['_id'],
             'action': 'insert',
             'data': f'{{"id": 2, "code": "WAR", "name": "VARSUVA", "country": {{"_id": "{pl_data["_id"]}"}}}}'

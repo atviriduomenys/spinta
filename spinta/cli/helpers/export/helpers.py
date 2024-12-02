@@ -91,6 +91,7 @@ async def export_data(
     output: str,
     counter: CounterManager,
 ):
+    txn = commands.gen_object_id(context, fmt)
     for model in models:
         data = get_data(context, model)
         await commands.export_data(
@@ -99,6 +100,7 @@ async def export_data(
             fmt,
             data=data,
             path=output,
-            counter=counter
+            counter=counter,
+            txn=txn
         )
         counter.close_model(model)
