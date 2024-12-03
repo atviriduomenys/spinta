@@ -448,7 +448,7 @@ def test_keymap_sync_missing_input(
     localrc = create_rc(rc, tmp_path, geodb)
     result = cli.invoke(localrc, ['keymap', 'sync', str(tmp_path / 'manifest.csv')], fail=False)
     assert result.exit_code == 1
-    assert "Input source is required." in result.output
+    assert "Input source is required." in result.stderr
 
 
 def test_keymap_sync_invalid_credentials(
@@ -577,7 +577,7 @@ def test_keymap_sync_non_existent_dataset(
     ], fail=False)
 
     assert result.exit_code == 1
-    assert "'dataset' not found" in result.output
+    assert "'dataset' not found" in result.stderr
 
 
 def test_keymap_sync_with_pages(

@@ -22,6 +22,10 @@ New features:
 
   .. _#935: https://github.com/atviriduomenys/spinta/issues/935
 
+- Add `export` cli command, that will export data to specified format (`#960`_).
+
+  .. _#960: https://github.com/atviriduomenys/spinta/issues/960
+
 - Add `keymap sync` command (`#666`_).
 
   .. _#666: https://github.com/atviriduomenys/spinta/issues/666
@@ -44,10 +48,6 @@ New features:
 - Added support for `Denorm` type migrations (`#932`_).
 
   .. _#932: https://github.com/atviriduomenys/spinta/issues/932
-
-- Add `keymap sync` command (`#666`_).
-
-  .. _#666: https://github.com/atviriduomenys/spinta/issues/666
 
 Improvements:
 

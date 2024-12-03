@@ -615,6 +615,11 @@ def gen_object_id(context: Context, backend: Backend, model: Node):
     return str(uuid.uuid4())
 
 
+@gen_object_id.register(Context, Backend)
+def gen_object_id(context: Context, backend: Backend):
+    return str(uuid.uuid4())
+
+
 @is_object_id.register(Context, str)
 def is_object_id(context: Context, value: str):
     # Collect all available backend/model combinations.

@@ -68,3 +68,23 @@ async def aslice(it: AsyncIterator[T], *args: int) -> AsyncIterator[T]:
 async def adrain(it: AsyncIterator[T]) -> None:
     async for _ in it:
         pass
+
+
+async def aenumerate(it: AsyncIterator[T]) -> (int, AsyncIterator[T]):
+    i = 0
+    async for x in it:
+        yield i, x
+        i += 1
+
+
+async def anext(it: AsyncIterator[T]) -> T:
+    async for x in it:
+        return x
+
+
+async def achain(iterables: list, it: AsyncIterator[T]) -> AsyncIterator[T]:
+    for x in iterables:
+        yield x
+
+    async for x in it:
+        yield x

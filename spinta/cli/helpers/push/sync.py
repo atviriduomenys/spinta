@@ -1,10 +1,11 @@
 import datetime
-from typing import List
+from typing import List, Any
 
 import sqlalchemy as sa
 import tqdm
 from typer import echo
 
+from spinta import commands
 from spinta.auth import authorized
 from spinta.backends.constants import BackendFeatures
 from spinta.cli.helpers.errors import ErrorCounter
@@ -53,19 +54,21 @@ def _fetch_all_model_data(
     client,
     server: str,
     error_counter: ErrorCounter,
-    timeout: tuple[float, float]
+    timeout: tuple[float, float],
+    initial_page_data: Any = None
 ):
     limit = config.sync_page_size
-    page = ''
+    page_hash = ''
     page_columns = []
-    if model.backend.supports(BackendFeatures.PAGINATION) and model.page and model.page.by and model.page.is_enabled:
-        for page_by in model.page.by.values():
+    page = commands.create_page(model.page, initial_page_data)
+    if model.backend.supports(BackendFeatures.PAGINATION) and page.by and page.enabled:
+        for page_by in page.by.values():
             page_columns.append(page_by.prop.name)
     while True:
         url = _build_push_state_sync_url(
             server=server,
             model=model.model_type(),
-            page=page,
+            page=page_hash,
             page_columns=page_columns,
             limit=limit
         )
@@ -81,7 +84,7 @@ def _fetch_all_model_data(
                 break
 
             if '_page' in resp:
-                page = resp['_page']['next']
+                page_hash = resp['_page']['next']
 
             for row in data:
                 yield row

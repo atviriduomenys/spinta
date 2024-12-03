@@ -506,13 +506,7 @@ def push(
     if state and not dry_run:
         rows = save_push_state(context, rows, state.metadata)
 
-    try:
-        _push_rows(rows, stop_on_error, error_counter)
-    except:
-        raise
-    finally:
-        if state and not dry_run:
-            save_page_values(context, models, state.metadata)
+    _push_rows(rows, stop_on_error, error_counter)
 
 
 def _add_stop_time(

@@ -67,7 +67,7 @@ def getall(
     result = conn.execute(qry)
 
     env_selected = env.selected
-    is_page_enabled = env.page.page_.is_enabled
+    is_page_enabled = env.page.page_.enabled
     result_builder_getter = backend_result_builder_getter(context, backend)
     list_keys = extract_list_property_names(model, env_selected.keys())
 

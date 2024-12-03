@@ -19,6 +19,8 @@ from sqlalchemy.dialects.sqlite import insert
 
 from spinta.exceptions import KeyMapGivenKeyMissmatch
 
+from multipledispatch import dispatch
+
 
 class SqlAlchemyKeyMap(KeyMap):
     dsn: str = None
@@ -60,11 +62,12 @@ class SqlAlchemyKeyMap(KeyMap):
 
     def encode(self, name: str, value: object, primary_key=None) -> Optional[str]:
         # Make value msgpack serializable.
+
         hash_return = _hash_value(value)
         if hash_return is None:
             return None
-        else:
-            value, hashed = hash_return
+
+        value, hashed = hash_return
 
         table = self.get_table(name)
         current_key = self.conn.execute(
@@ -171,27 +174,41 @@ class SqlAlchemyKeyMap(KeyMap):
 
 
 def _hash_value(value):
+    if value is None:
+        return None
+
     if isinstance(value, (list, tuple)):
         value = [_encode_value(k) for k in value if k is not None]
         if len(value) == 0:
             return None
     else:
-        if value is None:
-            return None
         value = _encode_value(value)
     value = msgpack.dumps(value, strict_types=True)
     return value, hashlib.sha1(value).hexdigest()
 
 
-def _encode_value(value):
-    if isinstance(value, (datetime.datetime, datetime.date, datetime.time)):
-        return value.isoformat()
-    if isinstance(value, decimal.Decimal):
-        return float(value)
-    if isinstance(value, tuple):
-        return list(value)
-    if isinstance(value, UUID):
-        return str(value)
+@dispatch((datetime.datetime, datetime.date, datetime.time))
+def _encode_value(value: (datetime.datetime, datetime.date, datetime.time)):
+    return value.isoformat()
+
+
+@dispatch(decimal.Decimal)
+def _encode_value(value: decimal.Decimal):
+    return float(value)
+
+
+@dispatch(tuple)
+def _encode_value(value: tuple):
+    return list(value)
+
+
+@dispatch(UUID)
+def _encode_value(value: UUID):
+    return str(value)
+
+
+@dispatch(object)
+def _encode_value(value: object):
     return value
 
 

@@ -1,17 +1,20 @@
+import uuid
 from typing import Iterator
 from typing import List
 from typing import Optional
 
+from spinta import commands
 from spinta.backends import SelectTree, get_property_base_model
 from spinta.backends import get_model_reserved_props
 from spinta.backends.helpers import get_ns_reserved_props
 from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
 from spinta.backends.helpers import select_only_props
-from spinta.components import Action, pagination_enabled
+from spinta.components import Action, pagination_enabled, Node
 from spinta.components import Context
 from spinta.components import Model
 from spinta.components import UrlParams
+from spinta.formats.components import Format
 from spinta.types.datatype import Array, ArrayBackRef, BackRef
 from spinta.types.datatype import DataType
 from spinta.types.datatype import ExternalRef
@@ -223,3 +226,13 @@ def get_model_tabular_header(
 def rename_page_col(rows):
     for row in rows:
         yield {'_page.next' if k == '_page' else k: v for k, v in row.items()}
+
+
+@commands.gen_object_id.register(Context, Format, Node)
+def gen_object_id(context: Context, fmt: Format, node: Node):
+    return str(uuid.uuid4())
+
+
+@commands.gen_object_id.register(Context, Format)
+def gen_object_id(context: Context, fmt: Format):
+    return str(uuid.uuid4())

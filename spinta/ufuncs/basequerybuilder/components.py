@@ -20,7 +20,7 @@ class QueryPage:
         self.sort = [] if sort is None else sort
         # By default, we set pagination to disabled
         # It gets updated if there is pagination query, which should set to most up-to-date page
-        self.page_ = Page(is_enabled=False) if page is None else page
+        self.page_ = Page(enabled=False) if page is None else page
 
 
 class QueryParams:

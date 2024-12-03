@@ -5,6 +5,7 @@ CONFIG = {
     'config': [],
     'commands': {
         'modules': [
+            'spinta.cli',
             'spinta.backends',
             'spinta.formats',
             'spinta.commands',
@@ -203,7 +204,7 @@ CONFIG = {
     'scope_max_length': 60,
 
     # If True, then scopes are added to access logs.
-    'scope_log' : True,
+    'scope_log': True,
 
     # If True, then 'id' property is always included into Action.SEARCH result,
     # even if not explicitly asked.

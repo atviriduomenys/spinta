@@ -10,7 +10,7 @@ from spinta import commands, exceptions
 from spinta.auth import get_client_id_from_name, get_clients_path
 from spinta.cli.helpers.auth import require_auth
 
-from spinta.cli.helpers.errors import ErrorCounter
+from spinta.cli.helpers.errors import ErrorCounter, cli_error
 from spinta.cli.helpers.manifest import convert_str_to_manifest_path
 from spinta.cli.helpers.push.utils import extract_dependant_nodes
 
@@ -54,13 +54,17 @@ def keymap_sync(
         "Skip counting total rows to improve performance."
     )),
     read_timeout: float = Option(300, '--read-timeout', help=(
-                    "Timeout for reading a response, default: 5 minutes (300s). The value is in seconds."
-     )),
+        "Timeout for reading a response, default: 5 minutes (300s). The value is in seconds."
+    )),
+    connect_timeout: float = Option(5, '--connect-timeout', help=(
+        "Timeout for connecting, default: 5 seconds."
+    )),
 ):
     """Sync keymap from external data source"""
     if not input_source:
-        echo("Input source is required.")
-        raise Exit(code=1)
+        cli_error(
+            "Input source is required."
+        )
 
     manifests = convert_str_to_manifest_path(manifests)
     context = configure_context(ctx.obj, manifests, mode=mode)
@@ -70,8 +74,9 @@ def keymap_sync(
     if credentials:
         credsfile = pathlib.Path(credentials)
         if not credsfile.exists():
-            echo(f"Credentials file {credsfile} does not exist.")
-            raise Exit(code=1)
+            cli_error(
+                f"Credentials file {credsfile} does not exist."
+            )
     else:
         credsfile = config.credentials_file
 
@@ -79,8 +84,9 @@ def keymap_sync(
 
     manifest = store.manifest
     if dataset and not commands.has_dataset(context, manifest, dataset):
-        echo(str(exceptions.NodeNotFound(manifest, type='dataset', name=dataset)))
-        raise Exit(code=1)
+        cli_error(
+            str(exceptions.NodeNotFound(manifest, type='dataset', name=dataset))
+        )
 
     ns = commands.get_namespace(context, manifest, '')
 
@@ -115,7 +121,7 @@ def keymap_sync(
                 no_progress_bar=no_progress_bar,
                 reset_cid=True,
                 dry_run=dry_run,
-                timeout=(5, read_timeout)
+                timeout=(connect_timeout, read_timeout)
             )
 
         if error_counter.has_errors():

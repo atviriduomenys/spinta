@@ -83,13 +83,13 @@ def _build(rc: RawConfig, manifest: str, model_name: str, page_mapping: dict = N
     backend.schema = meta
     query = model.external.prepare
     if page_mapping:
-        page = model.page
-        if page.is_enabled:
+        page = commands.create_page(model.page)
+        if page.enabled:
             for key, value in page_mapping.items():
                 cleaned = key[1:] if key.startswith('-') else key
                 page.update_value(key, model.properties.get(cleaned), value)
             if page_contains_unsupported_keys(page):
-                page.is_enabled = False
+                page.enabled = False
         query = add_page_expr(query, page)
     builder = SqlQueryBuilder(context)
     builder.update(model=model)

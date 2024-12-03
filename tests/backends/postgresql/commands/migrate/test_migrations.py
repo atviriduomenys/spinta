@@ -1,6 +1,5 @@
 import itertools
 import json
-import logging
 from pathlib import Path
 
 import sqlalchemy as sa
@@ -1653,17 +1652,11 @@ def test_migrate_datasets_invalid(
                      |   |   |      | newColumn    | integer
     ''')
 
-
-    with caplog.at_level(logging.ERROR):
-        result = cli.invoke(rc, [
-            'migrate', f'{tmp_path}/manifest.csv', '-d', 'invalid/dataset'
-        ], fail=False)
-
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-d', 'invalid/dataset'
+    ], fail=False)
     assert result.exit_code == 1
-    assert any(
-        "Invalid dataset(s) provided: invalid/dataset" in message
-        for message in caplog.messages
-    )
+    assert "Invalid dataset(s) provided: invalid/dataset" in result.stderr
 
 
 def test_migrate_datasets_single(

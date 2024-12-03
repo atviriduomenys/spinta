@@ -291,7 +291,7 @@ def _render_model(
     templates = Jinja2Templates(
         directory=str(resource_filename('spinta', 'templates'))
     )
-    return templates.TemplateResponse( 'data.html', ctx, headers=http_headers)
+    return templates.TemplateResponse('data.html', ctx, headers=http_headers)
 
 
 @dataclasses.dataclass
