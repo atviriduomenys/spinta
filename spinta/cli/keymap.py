@@ -53,6 +53,9 @@ def keymap_sync(
     no_progress_bar: bool = Option(False, '--no-progress-bar', help=(
         "Skip counting total rows to improve performance."
     )),
+    read_timeout: float = Option(300, '--read-timeout', help=(
+                    "Timeout for reading a response, default: 5 minutes (300s). The value is in seconds."
+     )),
 ):
     """Sync keymap from external data source"""
     if not input_source:
@@ -111,7 +114,8 @@ def keymap_sync(
                 error_counter=error_counter,
                 no_progress_bar=no_progress_bar,
                 reset_cid=True,
-                dry_run=dry_run
+                dry_run=dry_run,
+                timeout=(5, read_timeout)
             )
 
         if error_counter.has_errors():

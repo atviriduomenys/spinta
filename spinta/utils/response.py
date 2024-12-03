@@ -285,6 +285,7 @@ async def get_request_data(node: Node, request: Request):
 def get_request(
     client: requests.Session,
     server: str,
+    timeout: Tuple[float, float],
     *,
     stop_on_error: bool = False,
     ignore_errors: Optional[List[int]] = None,
@@ -294,7 +295,7 @@ def get_request(
         ignore_errors = []
 
     try:
-        resp = client.request("GET", server)
+        resp = client.request("GET", server, timeout=timeout)
     except IOError as e:
         if error_counter:
             error_counter.increase()

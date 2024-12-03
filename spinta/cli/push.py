@@ -103,6 +103,12 @@ def push(
     synchronize: bool = Option(False, '--sync', help=(
         "Synchronize push state and keymap, in {data_path}/push/{remote}.db and {data_path}/keymap.db"
     )),
+    read_timeout: float = Option(300, '--read-timeout', help=(
+            "Timeout for reading a response, default: 5 minutes (300s). The value is in seconds."
+        )),
+    connect_timeout: float = Option(5, '--connect-timeout', help=(
+            "Timeout for connecting, default: 5 seconds."
+            )),
 ):
     """Push data to external data store"""
     synchronize_keymap = synchronize
@@ -180,7 +186,8 @@ def push(
                 error_counter=error_counter,
                 no_progress_bar=no_progress_bar,
                 reset_cid=synchronize_keymap,
-                dry_run=dry_run
+                dry_run=dry_run,
+                timeout=(connect_timeout, read_timeout),
             )
 
         # Synchronize push state
@@ -192,7 +199,8 @@ def push(
                 server=creds.server,
                 error_counter=error_counter,
                 no_progress_bar=no_progress_bar,
-                metadata=state.metadata
+                metadata=state.metadata,
+                timeout=(connect_timeout, read_timeout),
             )
 
         update_page_values_for_models(context, state.metadata, models, incremental, page_model, page)
@@ -204,6 +212,7 @@ def push(
             models,
             state,
             limit,
+            timeout=(connect_timeout, read_timeout),
             stop_on_error=stop_on_error,
             retry_count=retry_count,
             no_progress_bar=no_progress_bar,
@@ -223,6 +232,7 @@ def push(
             dry_run=dry_run,
             stop_on_error=stop_on_error,
             error_counter=error_counter,
+            timeout=(connect_timeout, read_timeout),
         )
 
         if error_counter.has_errors():

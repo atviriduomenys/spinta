@@ -197,7 +197,7 @@ def test__send_data__json_error(rc: RawConfig, responses: RequestsMock):
     ]
     data = '{"name": "Vilnius"}'
     session = requests.Session()
-    _, resp = send_request(session, url, "POST", rows, data)
+    _, resp = send_request(session, url, "POST", rows, data, timeout=(5, 300))
     assert resp is None
 
 
@@ -286,6 +286,7 @@ def test_push_state__create(rc: RawConfig, responses: RequestsMock):
         server,
         models,
         rows,
+        timeout=(5, 300),
         state=state,
     )
 
@@ -330,6 +331,7 @@ def test_push_state__create_error(rc: RawConfig, responses: RequestsMock):
         server,
         models,
         rows,
+        timeout=(5, 300),
         state=state,
     )
 
@@ -401,6 +403,7 @@ def test_push_state__update(rc: RawConfig, responses: RequestsMock):
         server,
         models,
         rows,
+        timeout=(5, 300),
         state=state,
     )
 
@@ -470,6 +473,7 @@ def test_push_state__update_without_sync(rc: RawConfig, responses: RequestsMock)
         server,
         models,
         rows,
+        timeout=(5, 300),
         state=state,
         syncronize=False
     )
@@ -536,6 +540,7 @@ def test_push_state__update_sync_first_time(rc: RawConfig, responses: RequestsMo
         models,
         rows,
         state=state,
+        timeout=(5, 300),
         syncronize=False
     )
 
@@ -603,6 +608,7 @@ def test_push_state__update_sync(rc: RawConfig, responses: RequestsMock):
         models,
         rows,
         state=state,
+        timeout=(5, 300),
         syncronize=True
     )
 
@@ -656,6 +662,7 @@ def test_push_state__update_error(rc: RawConfig, responses: RequestsMock):
         server,
         models,
         rows,
+        timeout=(5, 300),
         state=state,
     )
 
@@ -806,6 +813,7 @@ def test_push_state__delete(rc: RawConfig, responses: RequestsMock):
         server,
         models,
         rows,
+        timeout=(5, 300),
         state=state,
     )
 
@@ -873,6 +881,7 @@ def test_push_state__retry(rc: RawConfig, responses: RequestsMock):
         server,
         models,
         rows,
+        timeout=(5, 300),
         state=state,
     )
 
@@ -933,6 +942,7 @@ def test_push_state__max_errors(rc: RawConfig, responses: RequestsMock):
         server,
         models,
         rows,
+        timeout=(5, 300),
         state=state,
         chunk_size=1,
         error_counter=error_counter
@@ -948,6 +958,7 @@ def test_push_state__max_errors(rc: RawConfig, responses: RequestsMock):
         server,
         models,
         rows,
+        timeout=(5, 300),
         state=state,
         chunk_size=1,
         error_counter=error_counter
@@ -1065,6 +1076,7 @@ def test_push_state__paginate(rc: RawConfig, responses: RequestsMock):
         server,
         models,
         rows,
+        timeout=(5, 300),
         state=state,
     )
 

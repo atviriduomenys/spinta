@@ -11,11 +11,24 @@ Backwards incompatible:
   to start the process, reduce `sync_page_size` value. Keep in mind, that lower values reduce performance and increase
   server load (`985`_).
 
+- `push` command now has explicit timeouts set for requests.
+  Previously, there were no timeouts set for requests, which meant that execution time was unlimited.
+  After the changes the default values are `300` seconds  (5min) for `read` and `5` seconds for `connect` timeouts.
+  The timeout values can be adjusted using `--read-timeout` and `--connect-timeout` push command options (`#662`_).
+
 New features:
 
 - Add `-d --datasets` option to migrate command (`#935`_).
 
   .. _#935: https://github.com/atviriduomenys/spinta/issues/935
+
+- Add `keymap sync` command (`#666`_).
+
+  .. _#666: https://github.com/atviriduomenys/spinta/issues/666
+
+- Add `--read-timeout`, `--connect-timeout` options to `spinta push` command (`#662`_).
+
+  .. _#662: https://github.com/atviriduomenys/spinta/issues/662
 
 Improvements:
 
