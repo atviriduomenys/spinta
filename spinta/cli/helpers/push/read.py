@@ -138,6 +138,7 @@ def read_rows(
     state: State,
     limit: int = None,
     *,
+    timeout: tuple[float, float],
     stop_on_error: bool = False,
     retry_count: int = 5,
     no_progress_bar: bool = False,
@@ -186,6 +187,7 @@ def read_rows(
                 state.metadata,
                 counts,
                 retry=i,
+                timeout=timeout,
                 no_progress_bar=no_progress_bar,
                 error_counter=error_counter,
             )

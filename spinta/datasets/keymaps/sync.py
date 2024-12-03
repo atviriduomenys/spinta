@@ -32,6 +32,7 @@ def _fetch_changelog_data(
     server: str,
     offset_cid: int,
     error_counter: ErrorCounter,
+    timeout: tuple[float, float]
 ):
     limit = config.sync_page_size
     offset = offset_cid
@@ -46,6 +47,7 @@ def _fetch_changelog_data(
             client,
             url,
             error_counter=error_counter,
+            timeout=timeout
         )
         if status_code != 200:
             break
@@ -76,6 +78,7 @@ def sync_keymap(
     error_counter: ErrorCounter,
     no_progress_bar: bool,
     reset_cid: bool,
+    timeout: tuple[float, float],
     dry_run: bool = False,
 ):
     config = context.get('config')
@@ -123,7 +126,8 @@ def sync_keymap(
             client=client,
             server=server,
             offset_cid=sync_cid,
-            error_counter=error_counter
+            error_counter=error_counter,
+            timeout = timeout
         )
 
         if not no_progress_bar:

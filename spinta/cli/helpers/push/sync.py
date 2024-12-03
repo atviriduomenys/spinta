@@ -54,6 +54,7 @@ def _fetch_all_model_data(
     client,
     server: str,
     error_counter: ErrorCounter,
+    timeout: tuple[float, float],
     initial_page_data: Any = None
 ):
     limit = config.sync_page_size
@@ -75,6 +76,7 @@ def _fetch_all_model_data(
             client,
             url,
             error_counter=error_counter,
+            timeout=timeout
         )
         if status_code == 200:
             data = resp['_data']
@@ -257,7 +259,8 @@ def sync_push_state(
     models: List[Model],
     error_counter: ErrorCounter,
     no_progress_bar: bool,
-    metadata: sa.MetaData
+    metadata: sa.MetaData,
+    timeout: tuple[float, float]
 ):
     config = context.get('config')
     conn = context.get('push.state.conn')
@@ -293,7 +296,8 @@ def sync_push_state(
             model=model,
             client=client,
             server=server,
-            error_counter=error_counter
+            error_counter=error_counter,
+            timeout=timeout
         )
         state_data = _get_state_rows_with_id(
             context=context,
