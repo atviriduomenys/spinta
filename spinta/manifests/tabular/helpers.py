@@ -471,16 +471,15 @@ class ModelReader(TabularReader):
             'properties': {},
             'uri': row['uri'],
             'unique': [
-                x.strip().split('@')[0] for x in row.get('ref', '').split(',') if x.strip()
-            ],
+                ([x.strip().split('@')[0] for x in row['ref'].split(',')])
+            ] if row['ref'] else [],
             'external': {
                 'dataset': dataset.name if dataset else '',
                 'resource': resource.name if dataset and resource else '',
-                'pk': [
-                        x.strip().split('@')[0]
-                        for x in row.get('ref', '').split(',')
-                        if x.strip()
-                ],
+                'pk': (
+                    [x.strip().split('@')[0] for x in row['ref'].split(',')]
+                    if row['ref'] else []
+                ),
                 'name': row['source'],
                 'prepare': _parse_spyna(self, row[PREPARE]),
             },
