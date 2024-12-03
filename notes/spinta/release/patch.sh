@@ -15,9 +15,9 @@ git checkout $RELEASE_VERSION
 git pull
 git tag -l -n1 | sort -h | tail -n5
 
-export CURRENT_PATCH=78
-export NEW_PATCH=79
-export FUTURE_PATCH=80
+export CURRENT_PATCH=79
+export NEW_PATCH=80
+export FUTURE_PATCH=81
 
 export CURRENT_VERSION=$RELEASE_VERSION.$CURRENT_PATCH
 export NEW_VERSION=$RELEASE_VERSION.$NEW_PATCH
@@ -28,25 +28,26 @@ git branch $PREPARE_BRANCH
 git checkout $PREPARE_BRANCH
 git status
 
-# Removed `pymssql` library
-
 # notes/spinta/release/common.sh    Check outdated packages and upgrade them
-#| Package operations: 0 installs, 14 updates, 0 removals
+#| Package operations: 0 installs, 17 updates, 0 removals
 #|
-#|   • Updating packaging (24.1 -> 24.2)
-#|   • Updating frozenlist (1.4.1 -> 1.5.0)
-#|   • Updating jedi (0.19.1 -> 0.19.2)
-#|   • Updating tomli (2.0.2 -> 2.1.0)
-#|   • Updating et-xmlfile (1.1.0 -> 2.0.0)
-#|   • Updating mypy (1.12.1 -> 1.13.0)
-#|   • Updating rich (13.9.2 -> 13.9.4)
-#|   • Updating setuptools (75.2.0 -> 75.3.0)
-#|   • Updating phonenumbers (8.13.47 -> 8.13.49)
-#|   • Updating python-multipart (0.0.12 -> 0.0.17)
-#|   • Updating sqlean-py (3.45.1 -> 3.47.0)
-#|   • Updating starlette (0.41.0 -> 0.41.2)
-#|   • Updating tqdm (4.66.5 -> 4.67.0)
-#|   • Updating typer (0.12.5 -> 0.13.0)
+#|   • Updating asttokens (2.4.1 -> 3.0.0)
+#|   • Updating tomli (2.1.0 -> 2.2.1)
+#|   • Updating tornado (6.4.1 -> 6.4.2)
+#|   • Updating aiohappyeyeballs (2.4.3 -> 2.4.4)
+#|   • Updating async-timeout (4.0.3 -> 5.0.1)
+#|   • Updating httpcore (1.0.6 -> 1.0.7)
+#|   • Updating aiohttp (3.10.10 -> 3.10.11)
+#|   • Updating geoalchemy2 (0.15.2 -> 0.16.0)
+#|   • Updating httpx (0.27.2 -> 0.28.0)
+#|   • Updating phonenumbers (8.13.49 -> 8.13.51)
+#|   • Updating python-multipart (0.0.17 -> 0.0.19)
+#|   • Updating sphinx-rtd-theme (3.0.1 -> 3.0.2)
+#|   • Updating sqlparse (0.5.1 -> 0.5.2)
+#|   • Updating starlette (0.41.2 -> 0.41.3)
+#|   • Updating tqdm (4.67.0 -> 4.67.1)
+#|   • Updating typer (0.13.0 -> 0.14.0)
+#|   • Updating uvicorn (0.32.0 -> 0.32.1)
 
 
 # Run Makefile
@@ -64,7 +65,7 @@ head CHANGES.rst
 # notes/spinta/release/common.sh    Reset test database
 
 poetry run pytest -vvx --tb=short tests
-#| 2190 passed, 45 skipped, 55 warnings in 343.57s (0:05:43)
+#| 2224 passed, 45 skipped, 55 warnings in 354.33s (0:05:54)
 
 # If possible run same tests using test and prod env library versions
 # Test env
@@ -89,7 +90,7 @@ BASEDIR=$PWD/var/instances/$INSTANCE
 
 # notes/spinta/release/common.sh    Run server in EXTERNAL mode
 # notes/spinta/release/common.sh    Run migrations
-#| (3166 rows)
+#| (3248 rows)
 
 # notes/spinta/release/common.sh    Run server in INTERNAL mode
 # Don't forget to add client to server and credentials;
