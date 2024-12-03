@@ -25,6 +25,7 @@ def get_rows_with_errors(
     metadata: sa.MetaData,
     counts: Dict[str, int],
     retry: int,
+    timeout: tuple[float, float],
     no_progress_bar: bool = False,
     error_counter: ErrorCounter = None
 ):
@@ -35,6 +36,7 @@ def get_rows_with_errors(
         context,
         metadata,
         counts,
+        timeout,
         no_progress_bar,
         error_counter,
     )
@@ -85,6 +87,7 @@ def _iter_rows_with_errors(
     context: Context,
     metadata: sa.MetaData,
     counts: Dict[str, int],
+    timeout: tuple[float, float],
     no_progress_bar: bool = False,
     error_counter: ErrorCounter = None,
 ) -> Iterable[ModelRow]:
@@ -120,6 +123,7 @@ def _iter_rows_with_errors(
             rows,
             model,
             table,
+            timeout,
             error_counter
         )
 

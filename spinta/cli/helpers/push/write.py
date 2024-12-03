@@ -62,6 +62,7 @@ def prepare_rows_with_errors(
     rows,
     model: Model,
     table: sa.Table,
+    timeout: Tuple[float, float],
     error_counter: ErrorCounter = None
 ) -> Iterable[ModelRow]:
     conn = context.get('push.state.conn')
@@ -79,6 +80,7 @@ def prepare_rows_with_errors(
             data="",
             ignore_errors=[404],
             error_counter=error_counter,
+            timeout=timeout
         )
 
         if status_code == 200:
@@ -209,6 +211,7 @@ def _push_to_remote_spinta(
     server: str,
     rows: Iterable[PushRow],
     chunk_size: int,
+    timeout: Tuple[float, float],
     *,
     dry_run: bool = False,
     stop_on_error: bool = False,
@@ -244,6 +247,7 @@ def _push_to_remote_spinta(
                 dry_run=dry_run,
                 stop_on_error=stop_on_error,
                 error_counter=error_counter,
+                timeout=timeout
             )
             chunk = prefix
             ready = []
@@ -261,7 +265,8 @@ def _push_to_remote_spinta(
                     chunk + suffix,
                     dry_run=dry_run,
                     stop_on_error=stop_on_error,
-                    error_counter=error_counter
+                    error_counter=error_counter,
+                    timeout=timeout
                 )
         else:
             yield from _send_and_receive(
@@ -271,7 +276,8 @@ def _push_to_remote_spinta(
                 chunk + suffix,
                 dry_run=dry_run,
                 stop_on_error=stop_on_error,
-                error_counter=error_counter
+                error_counter=error_counter,
+                timeout=timeout
             )
 
 
@@ -280,6 +286,7 @@ def _send_and_receive(
     server: str,
     rows: List[PushRow],
     data: str,
+    timeout: Tuple[float, float],
     *,
     dry_run: bool = False,
     stop_on_error: bool = False,
@@ -296,6 +303,7 @@ def _send_and_receive(
             data,
             stop_on_error=stop_on_error,
             error_counter=error_counter,
+            timeout = timeout
         )
         if recv:
             recv = recv['_data']
@@ -377,6 +385,7 @@ def send_request(
     method: str,
     rows: List[PushRow],
     data: str,
+    timeout: Tuple[float, float],
     *,
     stop_on_error: bool = False,
     ignore_errors: Optional[List[int]] = None,
@@ -387,7 +396,25 @@ def send_request(
         ignore_errors = []
 
     try:
-        resp = client.request(method, server, data=data)
+        resp = client.request(method, server, data=data, timeout=timeout)
+    except requests.exceptions.ReadTimeout as e:
+        if error_counter:
+            error_counter.increase()
+        cli_push.log.error(
+                f"Read timeout occurred. Consider using a smaller --chunk-size to avoid timeouts. Current timeout settings are (connect: {timeout[0]}s, read: {timeout[1]}s)."
+        )
+        if stop_on_error:
+            raise
+        return None, None
+    except requests.exceptions.ConnectTimeout as e:
+        if error_counter:
+            error_counter.increase()
+        cli_push.log.error(
+                f"Connect timeout occurred. Current timeout settings are (connect: {timeout[0]}s, read: {timeout[1]}s)."
+        )
+        if stop_on_error:
+            raise
+        return None, None
     except IOError as e:
         if error_counter:
             error_counter.increase()
@@ -446,6 +473,7 @@ def push(
     server: str,  # https://example.com/
     models: List[Model],
     rows: Iterable[PushRow],
+    timeout: Tuple[float, float],
     *,
     state: Optional[State] = None,
     stop_time: Optional[int] = None,    # seconds
@@ -473,6 +501,7 @@ def push(
         chunk_size,
         dry_run=dry_run,
         error_counter=error_counter,
+        timeout=timeout
     )
     if state and not dry_run:
         rows = save_push_state(context, rows, state.metadata)

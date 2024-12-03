@@ -1,9 +1,12 @@
 import datetime
+import logging
 import os
+import re
 
 import pytest
 import sqlalchemy as sa
 import sqlalchemy_utils as su
+from requests.exceptions import ReadTimeout, ConnectTimeout
 
 from spinta.core.config import RawConfig
 from spinta.exceptions import UnauthorizedKeymapSync
@@ -2800,3 +2803,226 @@ def test_push_with_geometry(
         (2, 'POINT (-10 -10)')
     ]
     remote.app.delete('https://example.com/datasets/push/geo/Test/:wipe')
+
+
+def test_push_default_timeout(
+    context,
+    postgresql,
+    rc,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    geodb,
+    request,
+    caplog
+):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+     d | r | b | m | property| type   | ref     | source       | access
+     datasets/gov/example    |        |         |              |
+       | data                | sql    |         |              |
+       |   |                 |        |         |              |
+       |   |   | Country     |        | code    | salis        |
+       |   |   |   | code    | string |         | kodas        | open
+       |   |   |   | name    | string |         | pavadinimas  | open
+     '''))
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, geodb)
+
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses)
+    request.addfinalizer(remote.app.context.wipe_all)
+    assert remote.url == 'https://example.com/'
+
+
+    responses.add(
+        responses.POST,
+        remote.url,
+        body=ReadTimeout(),
+    )
+    responses.add(
+        responses.GET,
+        re.compile(r'https://example.com/datasets/gov/example/Country/.*'),
+        body=ReadTimeout(),
+    )
+    with caplog.at_level(logging.ERROR):
+        result = cli.invoke(localrc, [
+            'push',
+            '-d', 'datasets/gov/example',
+            '-o', remote.url,
+            '--credentials', remote.credsfile,
+            '--sync',
+            '--no-progress-bar',
+        ], fail=False)
+
+    assert result.exit_code == 1
+    assert any(
+        "Read timeout occurred. Consider using a smaller --chunk-size to avoid timeouts. Current timeout settings are (connect: 5.0s, read: 300.0s)." in message
+        for message in caplog.messages)
+
+
+def test_push_read_timeout(
+    context,
+    postgresql,
+    rc,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    geodb,
+    request,
+    caplog
+):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+     d | r | b | m | property| type   | ref     | source       | access
+     datasets/gov/example    |        |         |              |
+       | data                | sql    |         |              |
+       |   |                 |        |         |              |
+       |   |   | Country     |        | code    | salis        |
+       |   |   |   | code    | string |         | kodas        | open
+       |   |   |   | name    | string |         | pavadinimas  | open
+     '''))
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, geodb)
+
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses)
+    request.addfinalizer(remote.app.context.wipe_all)
+    assert remote.url == 'https://example.com/'
+
+
+    responses.add(
+        responses.POST,
+        remote.url,
+        body=ReadTimeout(),
+    )
+    responses.add(
+        responses.GET,
+        re.compile(r'https://example.com/datasets/gov/example/Country/.*'),
+        body=ReadTimeout(),
+    )
+    with caplog.at_level(logging.ERROR):
+        result = cli.invoke(localrc, [
+            'push',
+            '-d', 'datasets/gov/example',
+            '-o', remote.url,
+            '--credentials', remote.credsfile,
+            '--sync',
+            '--read-timeout', '0.1',
+            '--no-progress-bar',
+        ], fail=False)
+
+    assert result.exit_code == 1
+    assert any(
+        "Read timeout occurred. Consider using a smaller --chunk-size to avoid timeouts. Current timeout settings are (connect: 5.0s, read: 0.1s)." in message
+        for message in caplog.messages)
+
+
+def test_push_connect_timeout(
+    context,
+    postgresql,
+    rc,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    geodb,
+    request,
+    caplog
+):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+     d | r | b | m | property| type   | ref     | source       | access
+     datasets/gov/example    |        |         |              |
+       | data                | sql    |         |              |
+       |   |                 |        |         |              |
+       |   |   | Country     |        | code    | salis        |
+       |   |   |   | code    | string |         | kodas        | open
+       |   |   |   | name    | string |         | pavadinimas  | open
+     '''))
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, geodb)
+
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses)
+    request.addfinalizer(remote.app.context.wipe_all)
+    assert remote.url == 'https://example.com/'
+
+    responses.add(
+        responses.POST,
+        remote.url,
+        body=ConnectTimeout(),
+    )
+    responses.add(
+        responses.GET,
+        re.compile(r'https://example.com/datasets/gov/example/Country/.*'),
+        body=ConnectTimeout(),
+    )
+    with caplog.at_level(logging.ERROR):
+        result = cli.invoke(localrc, [
+            'push',
+            '-d', 'datasets/gov/example',
+            '-o', remote.url,
+            '--credentials', remote.credsfile,
+            '--sync',
+            '--connect-timeout', '0.1',
+            '--no-progress-bar',
+        ], fail=False)
+
+    assert result.exit_code == 1
+    assert any(
+        "Connect timeout occurred. Current timeout settings are (connect: 0.1s, read: 300.0s)." in message
+        for message in caplog.messages)
+
+
+def test_push_connect_and_read_timeout(
+    context,
+    postgresql,
+    rc,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    geodb,
+    request,
+    caplog
+):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+     d | r | b | m | property| type   | ref     | source       | access
+     datasets/gov/example    |        |         |              |
+       | data                | sql    |         |              |
+       |   |                 |        |         |              |
+       |   |   | Country     |        | code    | salis        |
+       |   |   |   | code    | string |         | kodas        | open
+       |   |   |   | name    | string |         | pavadinimas  | open
+     '''))
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, geodb)
+
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses)
+    request.addfinalizer(remote.app.context.wipe_all)
+    assert remote.url == 'https://example.com/'
+
+    responses.add(
+        responses.POST,
+        remote.url,
+        body=ReadTimeout(),
+    )
+    responses.add(
+        responses.GET,
+        re.compile(r'https://example.com/datasets/gov/example/Country/.*'),
+        body=ReadTimeout(),
+    )
+
+    with caplog.at_level(logging.ERROR):
+        result = cli.invoke(localrc, [
+            'push',
+            '-d', 'datasets/gov/example',
+            '-o', remote.url,
+            '--credentials', remote.credsfile,
+            '--sync',
+            '--connect-timeout', '0.1',
+            '--read-timeout', '0.1',
+            '--no-progress-bar',
+        ], fail=False)
+
+    assert result.exit_code == 1
+    assert any(
+        "Read timeout occurred. Consider using a smaller --chunk-size to avoid timeouts. Current timeout settings are (connect: 0.1s, read: 0.1s)." in message
+        for message in caplog.messages)
