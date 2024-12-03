@@ -1,7 +1,7 @@
 Changes
 #######
 
-0.1.80 (unreleased)
+0.1.80 (2024-12-03)
 ===================
 
 Backwards incompatible:
@@ -9,7 +9,7 @@ Backwards incompatible:
 - Keymap synchronization now uses `sync_page_size` config argument to limit amount of data being fetched with a single
   request. This will result in more actions being called to remote server. If `keymap` synchronization takes too long
   to start the process, reduce `sync_page_size` value. Keep in mind, that lower values reduce performance and increase
-  server load (`985`_).
+  server load (`#985`_).
 
 - `push` command now has explicit timeouts set for requests.
   Previously, there were no timeouts set for requests, which meant that execution time was unlimited.
@@ -36,9 +36,9 @@ New features:
 
 Improvements:
 
-- Keymap synchronization now uses pagination to fetch data (`985`_).
+- Keymap synchronization now uses pagination to fetch data (`#985`_).
 
-  .. _985: https://github.com/atviriduomenys/spinta/issues/985
+  .. _#985: https://github.com/atviriduomenys/spinta/issues/985
 
 0.1.79 (2024-11-12)
 ===================
