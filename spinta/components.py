@@ -675,6 +675,7 @@ class Model(MetaData):
     uri: str = None
     uri_prop: Property = None
     page: PageInfo = None
+    features: str = None
 
     required_keymap_properties = None
 
