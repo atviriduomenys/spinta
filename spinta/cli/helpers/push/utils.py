@@ -11,7 +11,7 @@ from spinta import commands
 from sqlalchemy.engine.row import Row
 from spinta.auth import authorized
 from spinta.cli.helpers.push.components import PushRow
-from spinta.components import Action, Page
+from spinta.components import Action, Page, pagination_enabled
 from spinta.components import Context
 from spinta.components import Model
 from spinta.types.datatype import Ref
@@ -31,14 +31,6 @@ def get_data_checksum(data: dict, model: Model = None):
     data = msgpack.dumps(data, strict_types=True)
     checksum = hashlib.sha1(data).hexdigest()
     return checksum
-
-
-def _load_page_from_dict(model: Model, values: dict):
-    model.page.clear()
-    for key, item in values.items():
-        prop = model.properties.get(key)
-        if prop:
-            model.page.add_prop(key, prop, item)
 
 
 def extract_state_page_keys(row: Union[dict, Row]):
@@ -90,28 +82,37 @@ def extract_dependant_nodes(context: Context, models: List[Model], filter_pushed
     return extracted_models
 
 
-def update_page_values_for_models(context: Context, metadata: sa.MetaData, models: List[Model], incremental: bool,
-                                   page_model: str, page: list):
+def load_initial_page_data(
+    context: Context,
+    metadata: sa.MetaData,
+    models: List[Model],
+    incremental: bool,
+    override_page: dict
+) -> dict:
+    if not incremental:
+        return {}
+
     conn = context.get('push.state.conn')
     table = metadata.tables['_page']
+    result = {}
+
     for model in models:
-        if model.page.is_enabled:
-            if incremental:
-                if (
-                    page and
-                    page_model and
-                    page_model == model.name
-                ):
-                    model.page.update_values_from_list(page)
-                else:
-                    page = conn.execute(
-                        sa.select([table.c.value]).
-                        where(
-                            table.c.model == model.name
-                        )
-                    ).scalar()
-                    values = json.loads(page) if page else {}
-                    _load_page_from_dict(model, values)
+        model_name = model.model_type()
+        if pagination_enabled(model):
+            if model_name in override_page:
+                result[model_name] = override_page[model_name]
+                continue
+
+            page = conn.execute(
+                sa.select([table.c.value]).
+                where(
+                    table.c.model == model.name
+                )
+            ).scalar()
+            values = json.loads(page) if page else {}
+            result[model_name] = values
+
+    return result
 
 
 def update_model_page_with_new(
@@ -128,9 +129,10 @@ def update_model_page_with_new(
         model_page.update_values_from_list(data_row['_page'])
 
 
-def construct_where_condition_to_page(
+def construct_where_condition_from_page(
     page: Page,
-    table: sa.Table
+    table: sa.Table,
+    prefix: str = 'page.'
 ):
     item_count = len(page.by.keys())
     where_list = []
@@ -138,77 +140,6 @@ def construct_where_condition_to_page(
         where_list.append([])
     if not page.all_none():
         for i, (by, page_by) in enumerate(page.by.items()):
-            for n in range(item_count):
-                if n >= i:
-                    if n == i:
-                        if page_by.value is not None:
-                            if n == item_count - 1:
-                                if by.startswith('-'):
-                                    where_list[n].append(table.c[f"page.{page_by.prop.name}"] >= page_by.value)
-                                else:
-                                    where_list[n].append(
-                                        sa.or_(
-                                            table.c[f"page.{page_by.prop.name}"] <= page_by.value,
-                                            table.c[f"page.{page_by.prop.name}"] == None
-                                        )
-                                    )
-                            else:
-                                if by.startswith('-'):
-                                    where_list[n].append(table.c[f"page.{page_by.prop.name}"] > page_by.value)
-                                else:
-                                    where_list[n].append(sa.or_(
-                                        table.c[f"page.{page_by.prop.name}"] < page_by.value,
-                                        table.c[f"page.{page_by.prop.name}"] == None
-                                    )
-                                    )
-                        else:
-                            if by.startswith('-'):
-                                where_list[n].append(table.c[f"page.{page_by.prop.name}"] != page_by.value)
-                    else:
-                        where_list[n].append(table.c[f"page.{page_by.prop.name}"] == page_by.value)
-
-    where_condition = None
-
-    remove_list = []
-    for i, (by, value) in enumerate(page.by.items()):
-        if value.value is None and not by.startswith('-'):
-            remove_list.append(where_list[i])
-    for item in remove_list:
-        where_list.remove(item)
-
-    for where in where_list:
-        condition = None
-        for item in where:
-            if condition is not None:
-                condition = sa.and_(
-                    condition,
-                    item
-                )
-            else:
-                condition = item
-        if where_condition is not None:
-            where_condition = sa.or_(
-                where_condition,
-                condition
-            )
-        else:
-            where_condition = condition
-
-    return where_condition
-
-
-def construct_where_condition_from_page(
-    page: Page,
-    table: sa.Table,
-    prefix: str = 'page.'
-):
-    filtered = page
-    item_count = len(filtered.by.keys())
-    where_list = []
-    for i in range(item_count):
-        where_list.append([])
-    if not page.all_none():
-        for i, (by, page_by) in enumerate(filtered.by.items()):
             for n in range(item_count):
                 if n >= i:
                     if n == i:
@@ -256,6 +187,3 @@ def construct_where_condition_from_page(
             where_condition = condition
 
     return where_condition
-
-
-

@@ -1,6 +1,17 @@
-from spinta.components import Page
+from spinta.components import PageInfo, Page
+from multipledispatch import dispatch
 
 
+@dispatch(PageInfo)
+def page_contains_unsupported_keys(page: PageInfo):
+    allowed_types = get_allowed_page_property_types()
+    for prop in page.keys.values():
+        if not isinstance(prop.dtype, allowed_types):
+            return True
+    return False
+
+
+@dispatch(Page)
 def page_contains_unsupported_keys(page: Page):
     allowed_types = get_allowed_page_property_types()
     for page_by in page.by.values():

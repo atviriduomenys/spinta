@@ -19,6 +19,7 @@ from spinta.auth import create_client_file
 from spinta.auth import gen_auth_server_keys
 from spinta.auth import load_key
 from spinta.cli.helpers.auth import require_auth
+from spinta.cli.helpers.errors import cli_error
 from spinta.cli.helpers.store import load_config
 from spinta.client import get_access_token
 from spinta.client import get_client_credentials
@@ -48,8 +49,9 @@ def genkeys(
         try:
             prv, pub = gen_auth_server_keys(path)
         except KeyFileExists as e:
-            echo(str(e))
-            raise Exit(code=1)
+            cli_error(
+                str(e)
+            )
 
         click.echo(f"Private key saved to {prv}.")
         click.echo(f"Public key saved to {pub}.")
@@ -96,8 +98,9 @@ def token_get(
     if credentials:
         credsfile = pathlib.Path(credentials)
         if not credsfile.exists():
-            echo(f"Credentials file {credsfile} does not exit.")
-            raise Exit(code=1)
+            cli_error(
+                f"Credentials file {credsfile} does not exit."
+            )
     else:
         credsfile = config.credentials_file
     # TODO: Read client credentials only if a Spinta URL is given.

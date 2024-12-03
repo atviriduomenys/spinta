@@ -1,4 +1,4 @@
-from spinta.components import Page, Property, PageBy
+from spinta.components import Property, PageInfo
 from spinta.core.ufuncs import ufunc, Expr, Pair, Bind, Positive, Negative
 from spinta.exceptions import InvalidArgumentInExpression, FieldNotInResource
 from spinta.ufuncs.loadbuilder.components import LoadBuilder
@@ -7,20 +7,20 @@ from spinta.ufuncs.loadbuilder.components import LoadBuilder
 @ufunc.resolver(LoadBuilder, Expr, name='page')
 def page_(env, expr):
     args = env.resolve(expr.args)
-    page = Page()
+    page = PageInfo(env.model)
     if len(args) > 0:
         for item in args:
             res = env.resolve(item)
             res = env.call('page_item', res)
             if isinstance(res[1], Property):
-                page.by[res[0]] = PageBy(res[1])
+                page.keys[res[0]] = res[1]
             else:
                 if res[0] == 'size' and isinstance(res[1], int):
                     page.size = res[1]
                 else:
                     raise InvalidArgumentInExpression(arguments=res[0], expr='page')
     else:
-        page.is_enabled = False
+        page.enabled = False
     return page
 
 

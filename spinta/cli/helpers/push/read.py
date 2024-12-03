@@ -9,6 +9,7 @@ import requests
 import sqlalchemy as sa
 import tqdm
 
+from spinta import commands
 from spinta.cli.helpers.data import ModelRow, count_rows, read_model_data, filter_allowed_props_for_model, \
     filter_dict_by_keys
 from spinta.cli.helpers.errors import ErrorCounter
@@ -19,7 +20,7 @@ from spinta.cli.helpers.push.utils import get_data_checksum, extract_state_page_
     construct_where_condition_from_page
 import spinta.cli.push as cli_push
 from spinta.commands.read import get_page, PaginationMetaData, get_paginated_values
-from spinta.components import Context
+from spinta.components import Context, pagination_enabled
 from spinta.components import Model
 from spinta.components import Page, get_page_size
 from spinta.core.ufuncs import Expr
@@ -34,10 +35,14 @@ def _iter_model_rows(
     metadata: sa.MetaData,
     limit: int = None,
     *,
+    initial_page_data: dict = None,
     stop_on_error: bool = False,
     no_progress_bar: bool = False,
     push_counter: tqdm.tqdm = None,
 ) -> Iterator[ModelRow]:
+    if initial_page_data is None:
+        initial_page_data = {}
+
     params = QueryParams()
     params.push = True
     for model in models:
@@ -47,10 +52,12 @@ def _iter_model_rows(
             count = counts.get(model.name)
             model_push_counter = tqdm.tqdm(desc=model.name, ascii=True, total=count, leave=False)
 
-        if model.page and model.page.is_enabled and model.page.by:
+        if pagination_enabled(model):
+            page = commands.create_page(model.page, initial_page_data.get(model.model_type(), None))
             rows = _read_rows_by_pages(
                 context,
                 model,
+                page,
                 metadata,
                 limit,
                 stop_on_error,
@@ -85,9 +92,10 @@ def _get_model_rows(
     metadata: sa.MetaData,
     limit: int = None,
     *,
+    initial_page_data: dict,
     stop_on_error: bool = False,
     no_progress_bar: bool = False,
-    error_counter: ErrorCounter = None
+    error_counter: ErrorCounter = None,
 ) -> Iterator[PushRow]:
     counts = (
         count_rows(
@@ -96,6 +104,7 @@ def _get_model_rows(
             limit,
             stop_on_error=stop_on_error,
             error_counter=error_counter,
+            initial_page_data=initial_page_data
         )
         if not no_progress_bar
         else {}
@@ -109,6 +118,7 @@ def _get_model_rows(
         counts,
         metadata,
         limit,
+        initial_page_data=initial_page_data,
         stop_on_error=stop_on_error,
         no_progress_bar=no_progress_bar,
         push_counter=push_counter,
@@ -133,7 +143,11 @@ def read_rows(
     retry_count: int = 5,
     no_progress_bar: bool = False,
     error_counter: ErrorCounter = None,
+    initial_page_data: dict = None
 ) -> Iterator[PushRow]:
+    if initial_page_data is None:
+        initial_page_data = {}
+
     yield from _get_model_rows(
         context,
         models,
@@ -142,6 +156,7 @@ def read_rows(
         stop_on_error=stop_on_error,
         no_progress_bar=no_progress_bar,
         error_counter=error_counter,
+        initial_page_data=initial_page_data
     )
 
     yield PUSH_NOW
@@ -223,6 +238,7 @@ def _read_model_data_with_page(
 def _read_rows_by_pages(
     context: Context,
     model: Model,
+    page: Page,
     metadata: sa.MetaData,
     limit: int = None,
     stop_on_error: bool = False,
@@ -237,14 +253,14 @@ def _read_rows_by_pages(
     model_table = metadata.tables[model.name]
     state_rows = _get_state_rows_with_page(
         context,
-        deepcopy(model.page),
+        deepcopy(page),
         model_table,
         size
     )
     rows = _read_model_data_with_page(
         context,
         model,
-        deepcopy(model.page),
+        deepcopy(page),
         limit,
         stop_on_error,
         params
@@ -266,14 +282,14 @@ def _read_rows_by_pages(
         if data_push_count >= size or state_push_count >= size:
             state_rows = _get_state_rows_with_page(
                 context,
-                deepcopy(model.page),
+                deepcopy(page),
                 model_table,
                 size
             )
             rows = _read_model_data_with_page(
                 context,
                 model,
-                deepcopy(model.page),
+                deepcopy(page),
                 limit,
                 stop_on_error
             )
@@ -296,31 +312,31 @@ def _read_rows_by_pages(
                 row.op = 'patch'
                 row.saved = True
                 row.data['_revision'] = state_row[model_table.c.revision]
-                if state_row[model_table.c.checksum] != row.checksum or not _compare_data_with_state_row_keys(data_row, state_row, model_table, model.page):
+                if state_row[model_table.c.checksum] != row.checksum or not _compare_data_with_state_row_keys(data_row, state_row, model_table, page):
                     yield row
 
                 data_push_count += 1
                 state_push_count += 1
-                update_model_page_with_new(model.page, model_table, data_row=data_row)
+                update_model_page_with_new(page, model_table, data_row=data_row)
                 data_row = next(rows, None)
                 state_row = next(state_rows, None)
 
             else:
-                delete_cond = _compare_for_delete_row(state_row, data_row, model_table, model.page)
+                delete_cond = _compare_for_delete_row(state_row, data_row, model_table, page)
                 if delete_cond:
                     conn.execute(
                         sa.update(model_table).where(model_table.c.id == state_row["id"]).values(pushed=None)
                     )
 
                     state_push_count += 1
-                    update_model_page_with_new(model.page, model_table, state_row=state_row)
+                    update_model_page_with_new(page, model_table, state_row=state_row)
                     state_row = next(state_rows, None)
                     update_counter = False
                 else:
                     yield row
 
                     data_push_count += 1
-                    update_model_page_with_new(model.page, model_table, data_row=data_row)
+                    update_model_page_with_new(page, model_table, data_row=data_row)
                     data_row = next(rows, None)
         else:
             if data_row is not None:
@@ -330,7 +346,7 @@ def _read_rows_by_pages(
                 yield row
 
                 data_push_count += 1
-                update_model_page_with_new(model.page, model_table, data_row=data_row)
+                update_model_page_with_new(page, model_table, data_row=data_row)
                 data_row = next(rows, None)
             elif state_row is not None:
                 conn.execute(
@@ -338,7 +354,7 @@ def _read_rows_by_pages(
                 )
 
                 state_push_count += 1
-                update_model_page_with_new(model.page, model_table, state_row=state_row)
+                update_model_page_with_new(page, model_table, state_row=state_row)
                 state_row = next(state_rows, None)
                 update_counter = False
 

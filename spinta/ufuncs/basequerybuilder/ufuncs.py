@@ -411,7 +411,7 @@ def paginate(env, expr):
         raise InvalidArgumentInExpression(arguments=expr.args, expr='paginate')
     page = expr.args[0]
     if isinstance(page, Page):
-        if page.is_enabled:
+        if page.enabled:
             if not page.filter_only:
                 env.page.select = env.call('select', page)
                 for by, page_by in page.by.items():

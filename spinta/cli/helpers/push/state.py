@@ -9,11 +9,10 @@ from typing import Tuple
 import sqlalchemy as sa
 
 from spinta import spyna
-from spinta.backends.constants import BackendFeatures
 from spinta.cli.helpers.push import prepare_data_for_push_state
 from spinta.cli.helpers.push.components import PushRow, Saved
 from spinta.cli.helpers.push.utils import get_data_checksum
-from spinta.components import Context
+from spinta.components import Context, pagination_enabled
 from spinta.components import Model
 from spinta.utils.json import fix_data_for_json
 from spinta.utils.sqlite import migrate_table
@@ -46,11 +45,11 @@ def init_push_state(
 
     for model in models:
         pagination_cols = []
-        if model.backend.supports(BackendFeatures.PAGINATION) and model.page and model.page.by:
-            for page_by in model.page.by.values():
-                _type = types.get(page_by.prop.dtype.name, sa.Text)
+        if pagination_enabled(model):
+            for prop in model.page.keys.values():
+                _type = types.get(prop.dtype.name, sa.Text)
                 pagination_cols.append(
-                    sa.Column(f"page.{page_by.prop.name}", _type, index=True)
+                    sa.Column(f"page.{prop.name}", _type, index=True)
                 )
 
         table = sa.Table(
@@ -140,16 +139,27 @@ def save_push_state(
     metadata: sa.MetaData,
 ) -> Iterator[PushRow]:
     conn = context.get('push.state.conn')
+    page_table = metadata.tables['_page']
+    model_pagination_check = {}
     for row in rows:
         table = metadata.tables[row.data['_type']]
+        model_name = row.model.model_type()
+        if model_name not in model_pagination_check:
+            model_pagination_check[model_name] = pagination_enabled(row.model)
 
-        if row.model.page and row.model.page.by and '_page' in row.data:
+        if model_pagination_check[model_name] and '_page' in row.data:
             loaded = row.data['_page']
             page = {
-                page_by.prop.name: loaded[i]
-                for i, page_by in enumerate(row.model.page.by.values())
+                prop.name: loaded[i]
+                for i, prop in enumerate(row.model.page.keys.values())
             }
             page = prepare_data_for_push_state(context, row.model, page)
+            save_page_values(
+                conn=conn,
+                table=page_table,
+                model=row.model,
+                page_data=page
+            )
             page = {f'page.{key}': value for key, value in page.items()}
             row.data.pop('_page')
         else:
@@ -202,55 +212,45 @@ def save_push_state(
 
 
 def save_page_values(
-    context: Context,
-    models: List[Model],
-    metadata: sa.MetaData,
+    conn: sa.engine.Connection,
+    table: sa.Table,
+    model: Model,
+    page_data: dict
 ):
-    conn = context.get('push.state.conn')
-    page_table = metadata.tables['_page']
+    model_name = model.model_type()
+    page_row = conn.execute(
+        sa.select(table.c.model)
+        .where(table.c.model == model_name)
+    ).scalar()
 
-    for model in models:
-        pagination_props = []
-        saved = False
-        if model.page and model.page.is_enabled and model.page.by:
-            pagination_props = model.page.by.values()
-            page_row = conn.execute(
-                sa.select(page_table.c.model)
-                .where(page_table.c.model == model.name)
-            ).scalar()
+    exists = page_row is not None
+    page_values = {key: value for key, value in page_data.items() if value is not None}
 
-            if page_row is not None:
-                saved = True
+    if not page_values:
+        return
 
-        if pagination_props:
-            value = {}
-            for page_by in pagination_props:
-                if page_by.value is not None:
-                    value.update({
-                        page_by.prop.name: page_by.value
-                    })
-            if value:
-                value = fix_data_for_json(value)
-                value = json.dumps(value)
-                if saved:
-                    conn.execute(
-                        page_table.update().
-                        where(
-                            (page_table.c.model == model.name)
-                        ).
-                        values(
-                            value=value
-                        )
-                    )
-                else:
-                    conn.execute(
-                        page_table.insert().
-                        values(
-                            model=model.name,
-                            property=','.join([page_by.prop.name for page_by in pagination_props]),
-                            value=value
-                        )
-                    )
+    page_values = fix_data_for_json(page_values)
+    page_values = json.dumps(page_values)
+
+    if exists:
+        conn.execute(
+            table.update().
+            where(
+                (table.c.model == model_name)
+            ).
+            values(
+                value=page_values
+            )
+        )
+    else:
+        conn.execute(
+            table.insert().
+            values(
+                model=model.name,
+                property=','.join([prop.name for prop in model.page.keys.values()]),
+                value=page_values
+            )
+        )
 
 
 def _get_model_type(row: PushRow) -> str:

@@ -6,15 +6,17 @@ from spinta.manifests.components import ManifestPath
 
 
 def convert_str_to_manifest_path(manifests: Union[List[str], str]) -> Union[ManifestPath, List[ManifestPath]]:
-    if manifests:
-        new_manifest = []
-        rc = RawConfig()
-        rc.read([Path('spinta', 'spinta.config:CONFIG')])
-        if isinstance(manifests, list):
-            for manifest in manifests:
-                new_manifest.append(_parse_cli_manifest_path(rc, manifest))
-            return new_manifest
-        return _parse_cli_manifest_path(rc, manifests)
+    if not manifests:
+        return []
+
+    new_manifest = []
+    rc = RawConfig()
+    rc.read([Path('spinta', 'spinta.config:CONFIG')])
+    if isinstance(manifests, list):
+        for manifest in manifests:
+            new_manifest.append(_parse_cli_manifest_path(rc, manifest))
+        return new_manifest
+    return _parse_cli_manifest_path(rc, manifests)
 
 
 def _parse_cli_manifest_path(

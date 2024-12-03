@@ -18,7 +18,7 @@ from spinta.backends.nobackend.components import NoBackend
 from spinta.commands import authorize
 from spinta.commands import check
 from spinta.commands import load
-from spinta.components import Action, Component, PageBy, Page
+from spinta.components import Action, Component, PageBy, Page, PageInfo, UrlParams, pagination_enabled
 from spinta.components import Base
 from spinta.components import Context
 from spinta.components import Mode
@@ -39,6 +39,7 @@ from spinta.exceptions import KeymapNotSet, InvalidLevel
 from spinta.exceptions import PropertyNotFound
 from spinta.exceptions import UndefinedEnum
 from spinta.exceptions import UnknownPropertyType
+from spinta.hacks.urlparams import extract_params_sort_values
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.components import PropertyRow
 from spinta.nodes import get_node
@@ -48,7 +49,7 @@ from spinta.types.helpers import check_model_name
 from spinta.types.helpers import check_property_name
 from spinta.types.namespace import load_namespace_from_name
 from spinta.ufuncs.loadbuilder.components import LoadBuilder
-from spinta.ufuncs.loadbuilder.helpers import page_contains_unsupported_keys
+from spinta.ufuncs.loadbuilder.helpers import page_contains_unsupported_keys, get_allowed_page_property_types
 from spinta.units.helpers import is_unit
 from spinta.utils.enums import enum_by_value
 from spinta.utils.schema import NA
@@ -218,7 +219,7 @@ def link(context: Context, model: Model):
 
 
 def _disable_page_in_model(model: Model):
-    model.page.is_enabled = False
+    model.page.enabled = False
 
 
 def _link_model_page(model: Model):
@@ -231,21 +232,21 @@ def _link_model_page(model: Model):
             _disable_page_in_model(model)
             return
 
-        if '_id' in model.page.by:
-            model.page.by.pop('_id')
-        if '-_id' in model.page.by:
-            model.page.by.pop('-_id')
+        if '_id' in model.page.keys:
+            model.page.keys.pop('_id')
+        if '-_id' in model.page.keys:
+            model.page.keys.pop('-_id')
     else:
         # Force '_id' to be page key if other keys failed the checks
-        if not model.page.is_enabled and page_contains_unsupported_keys(model.page):
-            model.page.by = {'_id': PageBy(model.properties['_id'])}
-            model.page.is_enabled = True
+        if not model.page.enabled and page_contains_unsupported_keys(model.page):
+            model.page.keys = {'_id': model.properties['_id']}
+            model.page.enabled = True
 
         # Add _id to internal, if it's not added
-        if '_id' not in model.page.by and '-_id' not in model.page.by:
-            model.page.by['_id'] = PageBy(model.properties["_id"])
+        if '_id' not in model.page.keys and '-_id' not in model.page.keys:
+            model.page.keys['_id'] = model.properties["_id"]
 
-    if len(model.page.by) == 0:
+    if len(model.page.keys) == 0:
         _disable_page_in_model(model)
 
 
@@ -544,3 +545,78 @@ def identifiable(base: Base):
 def identifiable(prop: Property):
     return prop.level is None or prop.level >= Level.identifiable
 
+
+@commands.create_page.register(PageInfo)
+def create_page(page_info: PageInfo) -> Page:
+    return Page(
+        model=page_info.model,
+        size=page_info.size,
+        enabled=page_info.enabled,
+        by={key: PageBy(prop) for key, prop in page_info.keys.items()}
+    )
+
+
+@commands.create_page.register(PageInfo, UrlParams)
+def create_page(page_info: PageInfo, params: UrlParams) -> Page:
+    params_page = params.page
+
+    enabled = pagination_enabled(page_info.model, params)
+    sort_values = extract_params_sort_values(
+        page_info.model,
+        params
+    )
+    if sort_values is None:
+        enabled = False
+
+    page_by = {key: PageBy(prop) for key, prop in page_info.keys.items()}
+    if enabled and sort_values:
+        new_order = {}
+        allowed_types = get_allowed_page_property_types()
+        for key, value in sort_values.items():
+            if not isinstance(value.dtype, allowed_types):
+                enabled = False
+                break
+
+            new_order[key] = PageBy(value)
+
+        for key, value in page_by.items():
+            reversed_key = key[1:] if key.startswith("-") else f'-{key}'
+            if key not in new_order and reversed_key not in new_order:
+                new_order[key] = value
+
+        page_by = new_order
+
+    page = Page(
+        model=page_info.model,
+        size=params_page and params_page.size or page_info.size,
+        enabled=enabled,
+        by=page_by
+    )
+
+    if enabled and params_page and params_page.values:
+        page.update_values_from_list(params_page.values)
+
+    return page
+
+
+@commands.create_page.register(PageInfo, dict)
+def create_page(page_info: PageInfo, data: dict) -> Page:
+    page = commands.create_page(page_info)
+    model = page_info.model
+    for key, value in data.items():
+        prop = model.properties.get(key)
+        if prop:
+            page.add_prop(key, prop, value)
+    return page
+
+
+@commands.create_page.register(PageInfo, (list, set, tuple))
+def create_page(page_info: PageInfo, data: Union[list, set, tuple]) -> Page:
+    page = commands.create_page(page_info)
+    page.update_values_from_list(data)
+    return page
+
+
+@commands.create_page.register(PageInfo, object)
+def create_page(page_info: PageInfo, data: Any) -> Page:
+    return commands.create_page(page_info)

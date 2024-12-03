@@ -1,6 +1,6 @@
 from typing import Any
 
-from spinta.components import Model, Page, PageBy, Config
+from spinta.components import Model, Config, PageInfo
 from spinta.core.ufuncs import Env, Expr
 from spinta.exceptions import FieldNotInResource
 from spinta.ufuncs.loadbuilder.helpers import page_contains_unsupported_keys
@@ -37,17 +37,19 @@ class LoadBuilder(Env):
                 pass
 
     def load_page(self):
-        page = Page()
-        page_given = False
         config: Config = self.context.get('config')
-        page.is_enabled = config.enable_pagination
+        page = PageInfo(
+            self.model,
+            enabled=config.enable_pagination
+        )
+        page_given = False
 
         if self.model.external and self.model.external.prepare:
             resolved = self.resolve(self.model.external.prepare)
             if not isinstance(resolved, list):
                 resolved = [resolved]
             for item in resolved:
-                if isinstance(item, Page):
+                if isinstance(item, PageInfo):
                     page = item
                     page_given = True
                     break
@@ -64,21 +66,20 @@ class LoadBuilder(Env):
                 key = arg
                 if arg in self.model.properties:
                     prop = self.model.properties[arg]
-                    page.by.update({
-                        key: PageBy(prop)
+                    page.keys.update({
+                        key: prop
                     })
                 else:
                     raise FieldNotInResource(self.model, property=arg)
 
         # Disable page if given properties are not possible to access
         if page_contains_unsupported_keys(page):
-            page.is_enabled = False
+            page.enabled = False
 
         # Set default page size if nothing was given
         if page.size is None:
             page.size = config.default_page_size
 
         self.model.page = page
-        page.model = self.model
 
 

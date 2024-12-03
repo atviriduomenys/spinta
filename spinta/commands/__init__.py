@@ -15,7 +15,7 @@ from starlette.responses import Response
 
 from spinta.exceptions import BaseError
 from spinta.typing import ObjectData
-from spinta.components import Node, DataItem
+from spinta.components import Node, DataItem, PageInfo, Page
 from spinta.components import UrlParams
 from spinta.components import Version
 from spinta.dispatcher import command
@@ -768,9 +768,13 @@ def get_primary_key_type():
 
 @command()
 def gen_object_id():
-    """Genearet unique id.
+    """Generate unique id.
 
-    gen_object_id(Context, Backend, Model) -> str
+    gen_object_id(Context, Backend, Node) -> str
+    gen_object_id(Context, Backend) -> str
+
+    gen_object_id(Context, Format, Node) -> str
+    gen_object_id(Context, Format) -> str
 
     """
 
@@ -1321,3 +1325,88 @@ def get_result_builder(context: Context, backend: Backend):
 @command()
 def identifiable(node: Node) -> bool:
     """Check if node is identifiable"""
+
+
+@overload
+def create_page(page_info: PageInfo, data: Any) -> Page:
+    """Creates Page from PageInfo and given preset data"""
+
+
+@overload
+def create_page(page_info: PageInfo, params: UrlParams) -> Page:
+    """Creates Page from PageInfo and UrlParams"""
+
+
+@overload
+def create_page(page_info: PageInfo) -> Page:
+    """Creates Page from PageInfo"""
+
+
+@command()
+def create_page(**kwargs) -> Page:
+    """Creates Page from given data"""
+
+
+@overload
+def export_data(
+    context: Context,
+    model: Model,
+    backend: Backend,
+    *,
+    data: Iterator,
+    txn: str,
+    **kwargs
+):
+    """Exports data into given backend format"""
+
+
+@overload
+def export_data(
+    context: Context,
+    model: Model,
+    fmt: Format,
+    *,
+    data: Iterator,
+    txn: str,
+    **kwargs
+):
+    """Exports data into given output format"""
+
+
+@command()
+def export_data(**kwargs):
+    """Exports data"""
+
+
+@command()
+def before_export():
+    """Prepare patch for backend before exporting data
+
+    This command converts Python-native data types to backend-native data types
+    and prepares patch that can be exported to a file, which then later on can be used to import data to specific database.
+    """
+
+
+@overload
+def validate_export_output(
+    context: Context,
+    fmt: Format,
+    output: object,
+    **kwargs
+):
+    """Validates given output for specified Format"""
+
+
+@overload
+def validate_export_output(
+    context: Context,
+    fmt: Backend,
+    output: object,
+    **kwargs
+):
+    """Validates given output for specified Backend"""
+
+
+@command()
+def validate_export_output(**kwargs):
+    """Validates given output for specified format"""

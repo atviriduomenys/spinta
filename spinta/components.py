@@ -376,6 +376,7 @@ class Node(Component):
     def basename(self):
         return self.name and self.name.split('/')[-1]
 
+
 # MetaData entry ID can be file path, uuid, table row id of a Model, Dataset,
 # etc, depends on manifest type.
 EntryId = Union[int, str, pathlib.Path]
@@ -502,9 +503,28 @@ class PageBy:
         self.value = value
 
 
+class PageInfo:
+    model: Model
+    enabled: bool
+    keys: Dict[str, Property]
+    size: int
+
+    def __init__(
+        self,
+        model: Model,
+        enabled: bool = True,
+        size: int = None,
+        keys: Dict[str, Property] = None
+    ):
+        self.model = model
+        self.enabled = enabled
+        self.size = size
+        self.keys = keys or {}
+
+
 class Page:
     model: Model
-    is_enabled: bool
+    enabled: bool
     by: Dict[str, PageBy]
     size: int
     filter_only: bool
@@ -514,14 +534,14 @@ class Page:
         self,
         by=None,
         size=None,
-        is_enabled=True,
+        enabled=True,
         filter_only=False,
         model=None,
         first_time=True
     ):
         self.by = {} if by is None else by
         self.size = size
-        self.is_enabled = is_enabled
+        self.enabled = enabled
         self.filter_only = filter_only
         self.model = model
         self.first_time = first_time
@@ -529,7 +549,7 @@ class Page:
     def __deepcopy__(self, memo):
         cls = self.__class__
         result = cls.__new__(cls)
-        result.is_enabled = self.is_enabled
+        result.enabled = self.enabled
         result.size = self.size
         result.by = {}
         result.model = self.model
@@ -617,7 +637,7 @@ def pagination_enabled(model: Model, params: UrlParams = None) -> bool:
     if params is not None and params.page is not None and params.page.is_enabled is not None:
         return params.page.is_enabled
 
-    return model.page.is_enabled
+    return model.page.enabled
 
 
 def page_in_data(data: dict) -> bool:
@@ -654,10 +674,10 @@ class Model(MetaData):
     base: Base = None
     uri: str = None
     uri_prop: Property = None
-    page: Page = None
+    page: PageInfo = None
     features: str = None
 
-    required_keymap_properties = []
+    required_keymap_properties = None
 
     schema = {
         'keymap': {'type': 'string'},
@@ -701,7 +721,7 @@ class Model(MetaData):
         self.given = ModelGiven()
         self.params = {}
         self.required_keymap_properties = []
-        self.page = Page()
+        self.page = PageInfo(self)
         self.uri_prop = None
 
     def model_type(self):
