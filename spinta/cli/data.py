@@ -126,6 +126,7 @@ def export_(
         cli_error(
             "Output argument is required (`--output`)."
         )
+    commands.validate_export_output(context, fmt or backend, output)
 
     with context:
         require_auth(context)
@@ -171,7 +172,10 @@ def export_(
         else:
             dependant_models = extract_dependant_nodes(context, models, True)
             if dependant_models:
-                echo(f"Detected some models, that might require synchronization step: {', '.join([model.model_type() for model in dependant_models])}")
+                cli_error((
+                    f"Detected some models, that might require synchronization step: {', '.join([model.model_type() for model in dependant_models])}\n"
+                    "Add --input argument to run export with incremental synchronization."
+                ))
             echo("Input source not given, skipping synchronization step.")
 
         counts = count_rows(

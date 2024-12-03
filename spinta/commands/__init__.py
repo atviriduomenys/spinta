@@ -1385,3 +1385,28 @@ def before_export():
     This command converts Python-native data types to backend-native data types
     and prepares patch that can be exported to a file, which then later on can be used to import data to specific database.
     """
+
+
+@overload
+def validate_export_output(
+    context: Context,
+    fmt: Format,
+    output: object,
+    **kwargs
+):
+    """Validates given output for specified Format"""
+
+
+@overload
+def validate_export_output(
+    context: Context,
+    fmt: Backend,
+    output: object,
+    **kwargs
+):
+    """Validates given output for specified Backend"""
+
+
+@command()
+def validate_export_output(**kwargs):
+    """Validates given output for specified format"""

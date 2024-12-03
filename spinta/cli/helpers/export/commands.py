@@ -1,6 +1,8 @@
 from spinta import commands
 from spinta.backends import Backend
+from spinta.cli.helpers.errors import cli_error
 from spinta.components import Context, Model, DataSubItem, Property
+from spinta.exceptions import NotImplementedFeature
 from spinta.formats.components import Format
 from spinta.types.datatype import DataType, Ref, ExternalRef, Denorm, Object
 from spinta.utils.data import take
@@ -9,12 +11,16 @@ from spinta.utils.nestedstruct import flatten_value
 
 @commands.export_data.register(Context, Model, Format)
 def export_data(context: Context, model: Model, fmt: Format, *, data: object, **kwargs):
-    raise Exception("NOT IMPLEMENTED")
+    cli_error(
+        f"Export for {type(fmt)!r} Format is supported yet."
+    )
 
 
 @commands.export_data.register(Context, Model, Backend)
 def export_data(context: Context, model: Model, backend: Backend, *, data: object, **kwargs):
-    raise Exception("NOT IMPLEMENTED")
+    cli_error(
+        f"Export for {backend.type!r} Backend is supported yet."
+    )
 
 
 @commands.before_export.register(Context, Model, Backend)
@@ -183,3 +189,27 @@ def before_export(
         )
         patch.update(value)
     return patch
+
+
+@commands.validate_export_output.register(Context, Backend, type(None))
+def validate_export_output(context: Context, backend: Backend, output):
+    cli_error(
+        "Output argument is required (`--output`)."
+    )
+
+
+@commands.validate_export_output.register(Context, Format, type(None))
+def validate_export_output(context: Context, backend: Format, output):
+    cli_error(
+        "Output argument is required (`--output`)."
+    )
+
+
+@commands.validate_export_output.register(Context, Backend, object)
+def validate_export_output(context: Context, backend: Backend, output):
+    return
+
+
+@commands.validate_export_output.register(Context, Format, object)
+def validate_export_output(context: Context, fmt: Format, output):
+    return

@@ -7,6 +7,7 @@ import aiofiles
 
 from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
+from spinta.cli.helpers.errors import cli_error
 from spinta.cli.helpers.export.backends.postgresql.components import PostgresqlExportMetadata
 from spinta.cli.helpers.export.backends.postgresql.helpers import split_data, generate_file_paths, \
     generate_export_metadata, prepare_changelog, generate_csv_headers, generate_table_data, extract_headers
@@ -169,3 +170,20 @@ def before_export(
             **array_data,
             table_data.name: table_data
         }
+
+
+@commands.validate_export_output.register(Context, PostgreSQL, str)
+def validate_export_output(context: Context, backend: PostgreSQL, output: str):
+    commands.validate_export_output(
+        context,
+        backend,
+        pathlib.Path(output)
+    )
+
+
+@commands.validate_export_output.register(Context, PostgreSQL, pathlib.Path)
+def validate_export_output(context: Context, backend: PostgreSQL, output: pathlib.Path):
+    if not output.exists():
+        cli_error(
+            f"{str(output)!r} directory does not exist."
+        )

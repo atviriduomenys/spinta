@@ -325,6 +325,7 @@ def test_export_postgresql(
     # Configure local server with SQL backend
     localrc = create_rc(rc, tmp_path, export_db, mode='internal')
     dir_path = tmp_path / 'data'
+    dir_path.mkdir()
     result = cli.invoke(localrc, [
         'export',
         '-b', 'postgresql',
@@ -536,6 +537,7 @@ def test_export_postgresql_empty_ref(
     # Configure local server with SQL backend
     localrc = create_rc(rc, tmp_path, export_db, mode='external')
     dir_path = tmp_path / 'data'
+    dir_path.mkdir()
     result = cli.invoke(localrc, [
         'export',
         '-b', 'postgresql',
@@ -736,6 +738,7 @@ def test_export_postgresql_denorm(
     # Configure local server with SQL backend
     localrc = create_rc(rc, tmp_path, export_db, mode='external')
     dir_path = tmp_path / 'data'
+    dir_path.mkdir()
     result = cli.invoke(localrc, [
         'export',
         '-b', 'postgresql',
@@ -865,6 +868,7 @@ def test_export_postgresql_text(
     # Configure local server with SQL backend
     localrc = create_rc(rc, tmp_path, export_db, mode='external')
     dir_path = tmp_path / 'data'
+    dir_path.mkdir()
     result = cli.invoke(localrc, [
         'export',
         '-b', 'postgresql',
@@ -983,6 +987,7 @@ def test_export_postgresql_without_progress_bar(
     # Configure local server with SQL backend
     localrc = create_rc(rc, tmp_path, export_db, mode='external')
     dir_path = tmp_path / 'data'
+    dir_path.mkdir()
     result = cli.invoke(localrc, [
         'export',
         '-b', 'postgresql',
@@ -1028,6 +1033,7 @@ def test_export_postgresql_sync_data(
     # Configure local server with SQL backend
     localrc = create_rc(rc, tmp_path, export_db, mode='external')
     dir_path = tmp_path / 'data'
+    dir_path.mkdir()
 
     remoterc = create_rc(rc, internal_path, export_db, mode='internal')
     remote = configure_remote_server(cli, remoterc, rc, tmp_path, responses)
@@ -1144,7 +1150,7 @@ def test_export_postgresql_sync_data(
     )
 
 
-def test_export_postgresql_skip_required_sync_data(
+def test_export_postgresql_required_sync(
     context,
     rc,
     cli: SpintaCliRunner,
@@ -1165,130 +1171,43 @@ def test_export_postgresql_skip_required_sync_data(
       |   |   |   | country      | ref      | Country | COUNTRY      | open
     '''))
 
-    internal_path = tmp_path / 'internal'
-    internal_path.mkdir(exist_ok=True)
-    create_tabular_manifest(context, internal_path / 'manifest.csv', striptable('''
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, export_db, mode='external')
+    dir_path = tmp_path / 'data'
+    dir_path.mkdir()
+    result = cli.invoke(localrc, [
+        'export',
+        '-b', 'postgresql',
+        '-o', dir_path,
+    ], fail=False)
+    assert result.exit_code == 1
+    assert "Detected some models, that might require synchronization step" in result.stderr
+
+
+def test_export_postgresql_invalid_output(
+    context,
+    rc,
+    cli: SpintaCliRunner,
+    tmp_path: pathlib.Path,
+    export_db: Sqlite,
+    responses,
+):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property     | type     | ref     | source       | access
-    datasets/gov/export          |          |         |              |
-      | data                     | sql      |         |              |
+    datasets/gov/export/nsync    |          |         |              |
+      | data                     | sql      | sql     |              |
       |   |                      |          |         |              |
-      |   |   | Country          |          | id      |              |
-      |   |   |   | id           | integer  |         |              | open
+      |   |   | City             |          | id      | CITY         |
+      |   |   |   | id           | integer  |         | ID           | open
     '''))
 
     # Configure local server with SQL backend
     localrc = create_rc(rc, tmp_path, export_db, mode='external')
     dir_path = tmp_path / 'data'
-
-    remoterc = create_rc(rc, internal_path, export_db, mode='internal')
-    remote = configure_remote_server(cli, remoterc, rc, tmp_path, responses)
-    request.addfinalizer(remote.app.context.wipe_all)
-
-    remote.app.authmodel('datasets/gov/export/nsync/Country', ['insert', 'wipe'])
-    resp = remote.app.post('datasets/gov/export/nsync/Country', json={
-        'id': 0,
-    })
-    lt_id = resp.json()['_id']
-    resp = remote.app.post('datasets/gov/export/nsync/Country', json={
-        'id': 1,
-    })
-    lv_id = resp.json()['_id']
-    resp = remote.app.post('datasets/gov/export/nsync/Country', json={
-        'id': 2,
-    })
-    pl_id = resp.json()['_id']
-    responses.remove('POST', re.compile(r'https://example\.com/.*'))
-
     result = cli.invoke(localrc, [
         'export',
         '-b', 'postgresql',
         '-o', dir_path,
-    ])
-    _assert_files_exist(
-        dir_path, [
-            "datasets/gov/export/nsync/City.csv",
-            "datasets/gov/export/nsync/City.changes.csv",
-        ]
-    )
-    data_meta_keys = ['_id', '_revision', '_txn', '_created', '_updated']
-    nullable_keys = ['_updated']
-    changes_meta_keys = ['_id', '_revision', '_txn', '_rid', 'datetime', 'action']
-
-    city_data = _extract_postgresql_data_from_file(dir_path, "datasets/gov/export/nsync/City.csv")
-    assert len(city_data) == 3
-    vln_data = city_data[0]
-    ryg_data = city_data[1]
-    war_data = city_data[2]
-
-    city_changes_data = _extract_postgresql_data_from_file(dir_path, "datasets/gov/export/nsync/City.changes.csv")
-    assert len(city_changes_data) == 3
-    vln_change_data = city_changes_data[0]
-    ryg_change_data = city_changes_data[1]
-    war_change_data = city_changes_data[2]
-
-    txn_city = vln_data['_txn']
-    # Check `City` data
-    _assert_meta_keys_exists(city_data, data_meta_keys, nullable_keys)
-    _assert_data(
-        vln_data, {
-            '_txn': txn_city,
-            '_updated': '',
-            'id': '0',
-        },
-        skip_columns=['_id', '_revision', '_created', 'country._id']
-    )
-    _assert_data(
-        ryg_data, {
-            '_txn': txn_city,
-            '_updated': '',
-            'id': '1',
-        },
-        skip_columns=['_id', '_revision', '_created', 'country._id']
-    )
-    _assert_data(
-        war_data, {
-            '_txn': txn_city,
-            '_updated': '',
-            'id': '2',
-        },
-        skip_columns=['_id', '_revision', '_created', 'country._id']
-    )
-    assert lt_id != vln_data["country._id"]
-    assert lv_id != ryg_data["country._id"]
-    assert pl_id != war_data["country._id"]
-
-    # Check `Country` changelog data
-    _assert_meta_keys_exists(city_changes_data, changes_meta_keys)
-    _assert_data(
-        vln_change_data, {
-            '_id': '1',
-            '_revision': vln_data['_revision'],
-            '_txn': txn_city,
-            '_rid': vln_data['_id'],
-            'action': 'insert',
-            'data': f'{{"id": 0, "country": {{"_id": "{vln_data["country._id"]}"}}}}'
-        },
-        skip_columns=['datetime']
-    )
-    _assert_data(
-        ryg_change_data, {
-            '_id': '2',
-            '_revision': ryg_data['_revision'],
-            '_txn': txn_city,
-            '_rid': ryg_data['_id'],
-            'action': 'insert',
-            'data': f'{{"id": 1, "country": {{"_id": "{ryg_data["country._id"]}"}}}}'
-        },
-        skip_columns=['datetime']
-    )
-    _assert_data(
-        war_change_data, {
-            '_id': '3',
-            '_revision': war_data['_revision'],
-            '_txn': txn_city,
-            '_rid': war_data['_id'],
-            'action': 'insert',
-            'data': f'{{"id": 2, "country": {{"_id": "{war_data["country._id"]}"}}}}'
-        },
-        skip_columns=['datetime']
-    )
+    ], fail=False)
+    assert result.exit_code == 1
+    assert "directory does not exist" in result.stderr

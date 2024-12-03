@@ -998,4 +998,3 @@ class BackendUnavailable(BaseError):
 
 class InvalidClientFileFormat(UserError):
     template = "File {client_file} data must be a dictionary, not a {client_file_type}."
-
