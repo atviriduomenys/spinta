@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from spinta.core.config import RawConfig
 from spinta.testing.manifest import load_manifest
 
@@ -39,22 +41,79 @@ def test_xsd(rc: RawConfig, tmp_path: Path):
     """
 
     table = """
- id | d | r | b | m | property        | type             | ref | source                            | prepare | level | access | uri | title | description
-    | manifest                        |                  |     |                                   |         |       |        |     |       |
-    |   | resource1                   | xml              |     |                                   |         |       |        |     |       |
-    |                                 |                  |     |                                   |         |       |        |     |       |
-    |   |   |   | Administracinis     |                  |     | /ADMINISTRACINIAI/ADMINISTRACINIS |         |       |        |     |       |
-    |   |   |   |   | adm_id          | integer required |     | ADM_ID/text()                     |         |       |        |     |       |
-    |   |   |   |   | adm_kodas       | integer required |     | ADM_KODAS/text()                  |         |       |        |     |       |
-    |                                 |                  |     |                                   |         |       |        |     |       |
-    |   |   |   | Gyvenviete          |                  |     | /GYVENVIETES/GYVENVIETE           |         |       |        |     |       |
-    |   |   |   |   | gyv_id          | integer required |     | GYV_ID/text()                     |         |       |        |     |       |
-    |   |   |   |   | gyv_kodas       | integer required |     | GYV_KODAS/text()                  |         |       |        |     |       |
+ id | d | r | b | m | property          | type             | ref              | source            | prepare  | level | access | uri | title | description
+    | manifest                          |                  |                  |                   |          |       |        |     |       |
+    |   | resource1                     | xml              |                  |                   |          |       |        |     |       |
+    |                                   |                  |                  |                   |          |       |        |     |       |
+    |   |   |   | Administraciniai      |                  |                  | /ADMINISTRACINIAI |          |       |        |     |       |
+    |   |   |   |   | administracinis[] | backref          | Administracinis  | ADMINISTRACINIS   | expand() |       |        |     |       |
+    |                                   |                  |                  |                   |          |       |        |     |       |
+    |   |   |   | Administracinis/:part |                  |                  |                   |          |       |        |     |       |
+    |   |   |   |   | adm_id            | integer required |                  | ADM_ID/text()     |          |       |        |     |       |
+    |   |   |   |   | adm_kodas         | integer required |                  | ADM_KODAS/text()  |          |       |        |     |       |
+    |   |   |   |   | administraciniai  | ref              | Administraciniai |                   |          |       |        |     |       |
+    |                                   |                  |                  |                   |          |       |        |     |       |
+    |   |   |   | Gyvenviete/:part      |                  |                  |                   |          |       |        |     |       |
+    |   |   |   |   | gyv_id            | integer required |                  | GYV_ID/text()     |          |       |        |     |       |
+    |   |   |   |   | gyv_kodas         | integer required |                  | GYV_KODAS/text()  |          |       |        |     |       |
+    |   |   |   |   | gyvenvietes       | ref              | Gyvenvietes      |                   |          |       |        |     |       |
+    |                                   |                  |                  |                   |          |       |        |     |       |
+    |   |   |   | Gyvenvietes           |                  |                  | /GYVENVIETES      |          |       |        |     |       |
+    |   |   |   |   | gyvenviete[]      | backref          | Gyvenviete       | GYVENVIETE        | expand() |       |        |     |       |
+
 """
     path = tmp_path / 'manifest.xsd'
+    path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
-    manifest = load_manifest(rc, path)
+    manifest = load_manifest(rc, path_xsd2)
+    assert manifest == table
+
+
+def test_xsd_backref(rc: RawConfig, tmp_path: Path):
+    xsd = """
+
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+<xs:element name="asmenys">
+  <xs:complexType>
+    <xs:sequence>
+      <xs:element ref="asmuo" maxOccurs="unbounded" />
+    </xs:sequence>
+    <xs:attribute name="puslapis" type="xs:long" />
+  </xs:complexType>
+</xs:element>
+
+<xs:element name="asmuo">
+  <xs:complexType>
+      <xs:attribute name="id" type="xs:string" />
+      <xs:attribute name="ak" type="xs:string" />
+  </xs:complexType>
+</xs:element>
+</xs:schema>
+    """
+
+    table = """
+ id | d | r | b | m | property    | type             | ref     | source    | prepare  | level | access | uri | title | description
+    | manifest                    |                  |         |           |          |       |        |     |       |
+    |   | resource1               | xml              |         |           |          |       |        |     |       |
+    |                             |                  |         |           |          |       |        |     |       |
+    |   |   |   | Asmenys         |                  |         | /asmenys  |          |       |        |     |       |
+    |   |   |   |   | asmuo[]     | backref required | Asmuo   | asmuo     | expand() |       |        |     |       |
+    |   |   |   |   | puslapis    | integer          |         | @puslapis |          |       |        |     |       |
+    |                             |                  |         |           |          |       |        |     |       |
+    |   |   |   | Asmuo/:part     |                  |         |           |          |       |        |     |       |
+    |   |   |   |   | ak          | string           |         | @ak       |          |       |        |     |       |
+    |   |   |   |   | asmenys     | ref              | Asmenys |           |          |       |        |     |       |
+    |   |   |   |   | id          | string           |         | @id       |          |       |        |     |       |
+
+"""
+
+    path = tmp_path / 'manifest.xsd'
+    path_xsd2 = f"xsd2+file://{path}"
+    with open(path, "w") as xsd_file:
+        xsd_file.write(xsd)
+    manifest = load_manifest(rc, path_xsd2)
+    print(manifest)
     assert manifest == table
 
 
@@ -65,7 +124,7 @@ def test_xsd_ref(rc: RawConfig, tmp_path: Path):
 <xs:element name="asmenys">
   <xs:complexType mixed="true">
     <xs:sequence>
-      <xs:element ref="asmuo" minOccurs="0" maxOccurs="unbounded" />
+      <xs:element ref="asmuo" minOccurs="0" />
     </xs:sequence>
     <xs:attribute name="puslapis" type="xs:long" use="required">
       <xs:annotation><xs:documentation>rezultatu puslapio numeris</xs:documentation></xs:annotation>
@@ -87,30 +146,27 @@ def test_xsd_ref(rc: RawConfig, tmp_path: Path):
     """
 
     table = """
- id | d | r | b | m | property     | type             | ref     | source         | prepare | level | access | uri | title | description
-    | manifest                     |                  |         |                |         |       |        |     |       |
-    |   | resource1                | xml              |         |                |         |       |        |     |       |
-    |                              |                  |         |                |         |       |        |     |       |
-    |   |   |   | Asmenys          |                  |         | /asmenys       |         |       |        |     |       |
-    |   |   |   |   | asmuo[]      | backref          | Asmuo   | asmuo          |         |       |        |     |       |
-    |   |   |   |   | asmuo[].ak   | string required  |         | @ak            |         |       |        |     |       |
-    |   |   |   |   | asmuo[].id   | string required  |         | @id            |         |       |        |     |       |
-    |   |   |   |   | asmuo[].text | string           |         | text()         |         |       |        |     |       |
-    |   |   |   |   | puslapis     | integer required |         | @puslapis      |         |       |        |     |       | rezultatu puslapio numeris
-    |   |   |   |   | text         | string           |         | text()         |         |       |        |     |       |
-    |                              |                  |         |                |         |       |        |     |       |
-    |   |   |   | Asmuo            |                  |         |                |         |       |        |     |       |
-    |   |   |   |   | ak           | string required  |         | @ak            |         |       |        |     |       |
-    |   |   |   |   | asmenys      | ref              | Asmenys |                |         |       |        |     |       |
-    |   |   |   |   | id           | string required  |         | @id            |         |       |        |     |       |
-    |   |   |   |   | text         | string           |         | text()         |         |       |        |     |       |
+ id | d | r | b | m | property    | type             | ref   | source    | prepare  | level | access | uri | title | description
+    | manifest                    |                  |       |           |          |       |        |     |       |
+    |   | resource1               | xml              |       |           |          |       |        |     |       |
+    |                             |                  |       |           |          |       |        |     |       |
+    |   |   |   | Asmenys         |                  |       | /asmenys  |          |       |        |     |       |
+    |   |   |   |   | asmuo       | ref              | Asmuo | asmuo     | expand() |       |        |     |       |
+    |   |   |   |   | puslapis    | integer required |       | @puslapis |          |       |        |     |       | rezultatu puslapio numeris
+    |   |   |   |   | text        | string           |       | text()    |          |       |        |     |       |
+    |                             |                  |       |           |          |       |        |     |       |
+    |   |   |   | Asmuo/:part     |                  |       |           |          |       |        |     |       |
+    |   |   |   |   | ak          | string required  |       | @ak       |          |       |        |     |       |
+    |   |   |   |   | id          | string required  |       | @id       |          |       |        |     |       |
+    |   |   |   |   | text        | string           |       | text()    |          |       |        |     |       |
 
 """
 
     path = tmp_path / 'manifest.xsd'
+    path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
-    manifest = load_manifest(rc, path)
+    manifest = load_manifest(rc, path_xsd2)
     print(manifest)
     assert manifest == table
 
@@ -138,23 +194,24 @@ def test_xsd_resource_model(rc: RawConfig, tmp_path: Path):
     """
 
     table = """
- id | d | r | b | m | property | type             | ref | source        | prepare | level | access | uri                                           | title | description
-    | manifest                 |                  |     |               |         |       |        |                                               |       |
-    |   | resource1            | xml              |     |               |         |       |        |                                               |       |
-    |                          |                  |     |               |         |       |        |                                               |       |
-    |   |   |   | Asmenys      |                  |     | /asmenys      |         |       |        |                                               |       |
-    |   |   |   |   | puslapis | integer required |     | @puslapis     |         |       |        |                                               |       | rezultatu puslapio numeris
-    |   |   |   |   | text     | string           |     | text()        |         |       |        |                                               |       |
-    |                          |                  |     |               |         |       |        |                                               |       |
-    |   |   |   | Resource     |                  |     | /             |         |       |        | http://www.w3.org/2000/01/rdf-schema#Resource |       | Įvairūs duomenys
-    |   |   |   |   | klaida   | string           |     | klaida/text() |         |       |        |                                               |       | Klaidos atveju - klaidos pranešimas
+ id | d | r | b | m | property   | type             | ref | source        | prepare | level | access | uri                                           | title | description
+    | manifest                   |                  |     |               |         |       |        |                                               |       |
+    |   | resource1              | xml              |     |               |         |       |        |                                               |       |
+    |                            |                  |     |               |         |       |        |                                               |       |
+    |   |   |   | Asmenys        |                  |     | /asmenys      |         |       |        |                                               |       |
+    |   |   |   |   | puslapis   | integer required |     | @puslapis     |         |       |        |                                               |       | rezultatu puslapio numeris
+    |   |   |   |   | text       | string           |     | text()        |         |       |        |                                               |       |
+    |                            |                  |     |               |         |       |        |                                               |       |
+    |   |   |   | Resource       |                  |     | /             |         |       |        | http://www.w3.org/2000/01/rdf-schema#Resource |       | Įvairūs duomenys
+    |   |   |   |   | klaida     | string required  |     | klaida/text() |         |       |        |                                               |       | Klaidos atveju - klaidos pranešimas
 
 """
 
     path = tmp_path / 'manifest.xsd'
+    path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
-    manifest = load_manifest(rc, path)
+    manifest = load_manifest(rc, path_xsd2)
     print(manifest)
     assert manifest == table
 
@@ -202,13 +259,14 @@ id | d | r | b | m | property            | type            | ref              | 
    |                                     |                 |                  |                                |         |       |        |     |       |
    |   |   |   | SkiepasEu               |                 |                  | /SKIEPAS_EU                    |         |       |        |     |       |
    |   |   |   |   | paciento_ak         | string          |                  | PACIENTO_AK/text()             |         |       |        |     |       | Paciento asmens kodas (LTU)
-   |   |   |   |   | skiepijimo_data     | string required |                  | SKIEPIJIMO_DATA/text()         |         |       |        |     |       | Skiepijimo data
+   |   |   |   |   | skiepijimo_data     | string required |                  | SKIEPIJIMO_DATA/text()         |         |       |        |     |       | Skiepijimo data - Data
 """
 
     path = tmp_path / 'manifest.xsd'
+    path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
-    manifest = load_manifest(rc, path)
+    manifest = load_manifest(rc, path_xsd2)
     print(manifest)
     assert manifest == table
 
@@ -254,11 +312,11 @@ def test_xsd_choice(rc: RawConfig, tmp_path: Path):
     | manifest                             |                  |     |                             |         |       |        |     |       |
     |   | resource1                        | xml              |     |                             |         |       |        |     |       |
     |                                      |                  |     |                             |         |       |        |     |       |
-    |   |   |   | Parcel1                  |                  |     | /parcel                     |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
+    |   |   |   | Parcel                   |                  |     | /parcel                     |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
     |   |   |   |   | parcel_unique_number | integer required |     | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
     |   |   |   |   | text                 | string           |     | text()                      |         |       |        |     |       |
     |                                      |                  |     |                             |         |       |        |     |       |
-    |   |   |   | Parcel2                  |                  |     | /parcel                     |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
+    |   |   |   | Parcel1                  |                  |     | /parcel                     |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
     |   |   |   |   | sign_of_change       | integer required |     | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
     |                                      | enum             |     | 1                           |         |       |        |     |       |
     |                                      |                  |     | 2                           |         |       |        |     |       |
@@ -267,9 +325,10 @@ def test_xsd_choice(rc: RawConfig, tmp_path: Path):
 """
 
     path = tmp_path / 'manifest.xsd'
+    path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
-    manifest = load_manifest(rc, path)
+    manifest = load_manifest(rc, path_xsd2)
     print(manifest)
     assert manifest == table
 
@@ -311,23 +370,24 @@ def test_xsd_choice_max_occurs_unbounded(rc: RawConfig, tmp_path: Path):
     """
 
     table = """
- id | d | r | b | m | property               | type    | ref | source                      | prepare | level | access | uri | title | description
-    | manifest                               |         |     |                             |         |       |        |     |       |
-    |   | resource1                          | xml     |     |                             |         |       |        |     |       |
-    |                                        |         |     |                             |         |       |        |     |       |
-    |   |   |   | Parcel                     |         |     | /parcel                     |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
-    |   |   |   |   | parcel_unique_number[] | integer |     | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
-    |   |   |   |   | sign_of_change[]       | integer |     | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
-    |                                        | enum    |     | 1                           |         |       |        |     |       |
-    |                                        |         |     | 2                           |         |       |        |     |       |
-    |   |   |   |   | text                   | string  |     | text()                      |         |       |        |     |       |
+ id | d | r | b | m | property               | type             | ref | source                      | prepare | level | access | uri | title | description
+    | manifest                               |                  |     |                             |         |       |        |     |       |
+    |   | resource1                          | xml              |     |                             |         |       |        |     |       |
+    |                                        |                  |     |                             |         |       |        |     |       |
+    |   |   |   | Parcel                     |                  |     | /parcel                     |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
+    |   |   |   |   | parcel_unique_number[] | integer required |     | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
+    |   |   |   |   | sign_of_change[]       | integer required |     | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
+    |                                        | enum             |     | 1                           |         |       |        |     |       |
+    |                                        |                  |     | 2                           |         |       |        |     |       |
+    |   |   |   |   | text                   | string           |     | text()                      |         |       |        |     |       |
 
 """
 
     path = tmp_path / 'manifest.xsd'
+    path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
-    manifest = load_manifest(rc, path)
+    manifest = load_manifest(rc, path_xsd2)
     print(manifest)
     assert manifest == table
 
@@ -358,9 +418,10 @@ def test_xsd_attributes(rc: RawConfig, tmp_path: Path):
 """
 
     path = tmp_path / 'manifest.xsd'
+    path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
-    manifest = load_manifest(rc, path)
+    manifest = load_manifest(rc, path_xsd2)
     print(manifest)
     assert manifest == table
 
@@ -372,38 +433,42 @@ def test_xsd_model_one_property(rc: RawConfig, tmp_path: Path):
         <xs:element name="Response">
             <xs:complexType>
                 <xs:sequence>
-                    <xs:element minOccurs="0" maxOccurs="1" name="searchParameters" type="SearchParametersTRA"/>
+                    <xs:element minOccurs="0" maxOccurs="1" name="searchParameters" type="xs:string" />
                     <xs:element minOccurs="0" maxOccurs="1" name="klaida">
                         <xs:complexType>
                             <xs:sequence>
                                 <xs:element minOccurs="0" name="Aprasymas" type="xs:string" />
                             </xs:sequence>
                         </xs:complexType>
-                    </xs:element>  
+                    </xs:element>
                 </xs:sequence>
             </xs:complexType>
         </xs:element>
-        
+
     </xs:schema>
     """
 
     table = """
- id | d | r | b | m | property          | type   | ref | source                  | prepare | level | access | uri | title | description
-    | manifest                          |        |     |                         |         |       |        |     |       |
-    |   | resource1                     | xml    |     |                         |         |       |        |     |       |
-    |                                   |        |     |                         |         |       |        |     |       |
-    |   |   |   | Response              |        |     | /Response               |         |       |        |     |       |
-    |   |   |   |   | aprasymas         | string |     | klaida/Aprasymas/text() |         |       |        |     |       |
-    |   |   |   |   | search_parameters | string |     | searchParameters/text() |         |       |        |     |       |
-
+ id | d | r | b | m | property          | type   | ref    | source                  | prepare  | level | access | uri | title | description
+    | manifest                          |        |        |                         |          |       |        |     |       |
+    |   | resource1                     | xml    |        |                         |          |       |        |     |       |
+    |                                   |        |        |                         |          |       |        |     |       |
+    |   |   |   | Klaida/:part          |        |        |                         |          |       |        |     |       |
+    |   |   |   |   | aprasymas         | string |        | Aprasymas/text()        |          |       |        |     |       |
+    |                                   |        |        |                         |          |       |        |     |       |
+    |   |   |   | Response              |        |        | /Response               |          |       |        |     |       |
+    |   |   |   |   | klaida            | ref    | Klaida | klaida                  | expand() |       |        |     |       |
+    |   |   |   |   | search_parameters | string |        | searchParameters/text() |          |       |        |     |       |
 """
     path = tmp_path / 'manifest.xsd'
+    path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
-    manifest = load_manifest(rc, path)
+    manifest = load_manifest(rc, path_xsd2)
     assert manifest == table
 
 
+@pytest.mark.skip("waiting for #941")
 def test_xsd_separate_simple_type(rc: RawConfig, tmp_path: Path):
     xsd = """
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
@@ -451,9 +516,10 @@ def test_xsd_separate_simple_type(rc: RawConfig, tmp_path: Path):
     |   |   |   |   | ct_paciento_spi         | string |     | CT_PACIENTO_SPI/text()         |         |       |        |     |       | Paciento prisirašymo įstaigos pavadinimas
 """
     path = tmp_path / 'manifest.xsd'
+    path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
-    manifest = load_manifest(rc, path)
+    manifest = load_manifest(rc, path_xsd2)
     assert manifest == table
 
 
@@ -486,24 +552,26 @@ def test_xsd_sequence_choice_sequence(rc: RawConfig, tmp_path: Path):
     | manifest                      |        |     |                     |         |       |        |     |       |
     |   | resource1                 | xml    |     |                     |         |       |        |     |       |
     |                               |        |     |                     |         |       |        |     |       |
-    |   |   |   | Person1           |        |     | /person             |         |       |        |     |       |
+    |   |   |   | Person            |        |     | /person             |         |       |        |     |       |
     |   |   |   |   | first_name    | string |     | firstName/text()    |         |       |        |     |       |
     |   |   |   |   | iltu_code     | string |     | iltu_code/text()    |         |       |        |     |       |
     |   |   |   |   | last_name     | string |     | lastName/text()     |         |       |        |     |       |
     |                               |        |     |                     |         |       |        |     |       |
-    |   |   |   | Person2           |        |     | /person             |         |       |        |     |       |
+    |   |   |   | Person1           |        |     | /person             |         |       |        |     |       |
     |   |   |   |   | business_name | string |     | businessName/text() |         |       |        |     |       |
     |   |   |   |   | iltu_code     | string |     | iltu_code/text()    |         |       |        |     |       |
 
 """
     path = tmp_path / 'manifest.xsd'
+    path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
-    manifest = load_manifest(rc, path)
+    manifest = load_manifest(rc, path_xsd2)
     assert manifest == table
 
 
-def test_xsd_complex_ontent(rc: RawConfig, tmp_path: Path):
+@pytest.mark.skip(reason='waiting for #942')
+def test_xsd_complex_content(rc: RawConfig, tmp_path: Path):
     xsd = """
     <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
         <xs:element name="BE_FULL" nillable="true" type="BE_FULL"/>
@@ -532,9 +600,10 @@ def test_xsd_complex_ontent(rc: RawConfig, tmp_path: Path):
 
 """
     path = tmp_path / 'manifest.xsd'
+    path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
-    manifest = load_manifest(rc, path)
+    manifest = load_manifest(rc, path_xsd2)
     assert manifest == table
 
 
@@ -542,41 +611,24 @@ def test_xsd_recursion(rc: RawConfig, tmp_path: Path):
     # recursion in XSD
     xsd = """
 <s:schema xmlns:s="http://www.w3.org/2001/XMLSchema" xmlns:tns="http://rc/ireg/1.0/" targetNamespace="http://rc/ireg/1.0/" elementFormDefault="qualified" attributeFormDefault="unqualified">
-        <s:element name="data">
+
+        <s:element name="responseData">
             <s:complexType>
                 <s:sequence>
-                    <s:element minOccurs="0" maxOccurs="1" name="responseData" type="tns:responseData"/>
-                    <s:element minOccurs="0" maxOccurs="1" name="responseMessage" type="s:string"/>
+                    <s:element minOccurs="0" maxOccurs="unbounded" name="action" type="tns:action" />
                 </s:sequence>
             </s:complexType>
         </s:element>
-    
-        <s:complexType name="responseData">
-            <s:sequence>
-                <s:element minOccurs="0" maxOccurs="unbounded" name="actions" type="tns:actions"/>
-            </s:sequence>
-        </s:complexType>
-    
+
         <s:complexType name="children">
             <s:sequence>
                 <s:element minOccurs="0" maxOccurs="unbounded" name="action" type="tns:action"/>
             </s:sequence>
         </s:complexType>
-    
-        <s:complexType name="actions">
-            <s:sequence>
-                <s:element minOccurs="0" maxOccurs="unbounded" name="action" type="tns:action"/>
-            </s:sequence>
-        </s:complexType>
-    
+
         <s:complexType name="action">
             <s:sequence>
-                <s:element minOccurs="1" maxOccurs="1" name="code" type="s:string">
-                    <s:annotation>
-                        <s:documentation>Paslaugos kodas (RC kodas)</s:documentation>
-                    </s:annotation>
-                </s:element>
-    
+                <s:element minOccurs="1" maxOccurs="1" name="code" type="s:string" />
                 <s:element minOccurs="1" maxOccurs="unbounded" name="children" type="tns:children" />
             </s:sequence>
         </s:complexType>
@@ -584,24 +636,28 @@ def test_xsd_recursion(rc: RawConfig, tmp_path: Path):
 """
 
     table = """
- id | d | r | b | m | property               | type            | ref     | source                     | prepare | level | access | uri | title | description
-    | manifest                               |                 |         |                            |         |       |        |     |       |
-    |   | resource1                          | xml             |         |                            |         |       |        |     |       |
-    |                                        |                 |         |                            |         |       |        |     |       |
-    |   |   |   | Actions                    |                 |         |                            |         |       |        |     |       |
-    |   |   |   |   | code[]                 | string required |         | action/code/text()         |         |       |        |     |       | Paslaugos kodas (RC kodas)
-    |   |   |   |   | data                   | ref             | Data    |                            |         |       |        |     |       |
-    |                                        |                 |         |                            |         |       |        |     |       |
-    |   |   |   | Data                       |                 |         | /data                      |         |       |        |     |       |
-    |   |   |   |   | response_data[]        | backref         | Actions | responseData/actions       |         |       |        |     |       |
-    |   |   |   |   | response_data[].code[] | string required |         | action/code/text()         |         |       |        |     |       | Paslaugos kodas (RC kodas)
-    |   |   |   |   | response_message       | string          |         | responseMessage/text()     |         |       |        |     |       |
-
+ id | d | r | b | m | property       | type             | ref          | source        | prepare  | level | access | uri | title | description
+    | manifest                       |                  |              |               |          |       |        |     |       |
+    |   | resource1                  | xml              |              |               |          |       |        |     |       |
+    |                                |                  |              |               |          |       |        |     |       |
+    |   |   |   | Action/:part       |                  |              |               |          |       |        |     |       |
+    |   |   |   |   | children[]     | backref required | Children     | children      | expand() |       |        |     |       |
+    |   |   |   |   | children1      | ref              | Children     |               |          |       |        |     |       |
+    |   |   |   |   | code           | string required  |              | code/text()   |          |       |        |     |       |
+    |   |   |   |   | response_data  | ref              | ResponseData |               |          |       |        |     |       |
+    |                                |                  |              |               |          |       |        |     |       |
+    |   |   |   | Children/:part     |                  |              |               |          |       |        |     |       |
+    |   |   |   |   | action[]       | backref          | Action       | action        | expand() |       |        |     |       |
+    |   |   |   |   | action1        | ref              | Action       |               |          |       |        |     |       |
+    |                                |                  |              |               |          |       |        |     |       |
+    |   |   |   | ResponseData       |                  |              | /responseData |          |       |        |     |       |
+    |   |   |   |   | action[]       | backref          | Action       | action        | expand() |       |        |     |       |
 """
     path = tmp_path / 'manifest.xsd'
+    path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
-    manifest = load_manifest(rc, path)
+    manifest = load_manifest(rc, path_xsd2)
     assert manifest == table
 
 
@@ -617,10 +673,10 @@ def test_xsd_enumeration(rc: RawConfig, tmp_path: Path):
                 </s:sequence>
             </s:complexType>
         </s:element>
-    
+
         <s:complexType name="action">
             <s:sequence>
-                <s:element name="who_may_consitute" minOccurs="1" maxOccurs="1">
+                <s:element name="who_may_constitute" minOccurs="1" maxOccurs="1">
                     <s:simpleType>
                         <s:restriction base="s:string">
                             <s:enumeration value="fiz"/>
@@ -628,98 +684,97 @@ def test_xsd_enumeration(rc: RawConfig, tmp_path: Path):
                         </s:restriction>
                     </s:simpleType>
                 </s:element>
-                
+
             </s:sequence>
         </s:complexType>
     </s:schema>
 """
 
     table = """
- id | d | r | b | m | property          | type            | ref | source                                | prepare | level | access | uri | title | description
-    | manifest                          |                 |     |                                       |         |       |        |     |       |
-    |   | resource1                     | xml             |     |                                       |         |       |        |     |       |
-    |                                   |                 |     |                                       |         |       |        |     |       |
-    |   |   |   | Data                  |                 |     | /data                                 |         |       |        |     |       |
-    |   |   |   |   | response_message  | string          |     | responseMessage/text()                |         |       |        |     |       |
-    |   |   |   |   | who_may_consitute | string required |     | responseData/who_may_consitute/text() |         |       |        |     |       |
-
+ id | d | r | b | m | property           | type            | ref    | source                    | prepare  | level | access | uri | title | description
+    | manifest                           |                 |        |                           |          |       |        |     |       |
+    |   | resource1                      | xml             |        |                           |          |       |        |     |       |
+    |                                    |                 |        |                           |          |       |        |     |       |
+    |   |   |   | Action/:part           |                 |        |                           |          |       |        |     |       |
+    |   |   |   |   | who_may_constitute | string required |        | who_may_constitute/text() |          |       |        |     |       |
+    |                                    | enum            |        | fiz                       |          |       |        |     |       |
+    |                                    |                 |        | fiz-notarial              |          |       |        |     |       |
+    |                                    |                 |        |                           |          |       |        |     |       |
+    |   |   |   | Data                   |                 |        | /data                     |          |       |        |     |       |
+    |   |   |   |   | response_data      | ref             | Action | responseData              | expand() |       |        |     |       |
+    |   |   |   |   | response_message   | string          |        | responseMessage/text()    |          |       |        |     |       |
 """
     path = tmp_path / 'manifest.xsd'
+    path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
-    manifest = load_manifest(rc, path)
+    manifest = load_manifest(rc, path_xsd2)
     assert manifest == table
 
 
+@pytest.mark.skip(reason='waiting for 942')
 def test_duplicate_removal(rc: RawConfig, tmp_path: Path):
     xsd = """
-    <xs:schema xmlns="http://eTaarPlat.ServiceContracts/2007/08/Messages" elementFormDefault="qualified" targetNamespace="http://eTaarPlat.ServiceContracts/2007/08/Messages" xmlns:xs="http://www.w3.org/2001/XMLSchema">
-        <xs:element name="getDocumentsByWagonResponse" nillable="true" type="getDocumentsByWagonResponse" />
-        <xs:complexType name="getDocumentsByWagonResponse">
+<xs:schema xmlns="http://countriesCities.ServiceContracts/2024/11/Messages" elementFormDefault="qualified" targetNamespace="http://countriesCities.ServiceContracts/2024/11/Messages" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <xs:element name="getCitiesByCountry">
+        <xs:complexType>
             <xs:sequence>
-                <xs:element minOccurs="0" maxOccurs="1" name="searchParameters" type="getDocumentsByWagonSearchParams" />
-                <xs:choice minOccurs="1" maxOccurs="1">
-                    <xs:element minOccurs="0" maxOccurs="1" name="klaida" type="Klaida" />
-                    <xs:element minOccurs="0" maxOccurs="1" name="extract" type="Extract" />
+                <xs:element name="queryParameters" />
+                <xs:choice>
+                    <xs:element minOccurs="0" name="error" type="Error" />
+                    <xs:element minOccurs="0" name="cityList" type="CityList" />
                 </xs:choice>
             </xs:sequence>
         </xs:complexType>
-        <xs:complexType name="getDocumentsByWagonSearchParams">
-            <xs:sequence>
-                <xs:element minOccurs="0" maxOccurs="1" name="searchType" type="xs:string" />
-                <xs:element minOccurs="0" maxOccurs="1" name="code" type="xs:string" />
-            </xs:sequence>
-        </xs:complexType>
-        <xs:complexType name="Klaida">
-                    <xs:sequence>
-                        <xs:element minOccurs="0" maxOccurs="1" name="Aprasymas" type="xs:string" />
-                    </xs:sequence>
-        </xs:complexType>
-        <xs:complexType name="Extract">
-                    <xs:sequence>
-                        <xs:element minOccurs="1" maxOccurs="1" name="extractPreparationTime" type="xs:dateTime" />
-                        <xs:element minOccurs="1" maxOccurs="1" name="lastUpdateTime" type="xs:dateTime" />
-                    </xs:sequence>
-        </xs:complexType>
-    </xs:schema>
+    </xs:element>
+    
+    <xs:complexType name="Error">
+        <xs:sequence>
+            <xs:element minOccurs="0" maxOccurs="1" name="description" type="xs:string" />
+        </xs:sequence>
+    </xs:complexType>
+    
+    <xs:complexType name="CityList">
+        <xs:sequence>
+            <xs:element name="retrievalTime" type="xs:dateTime" />
+            <xs:element name="lastUpdateTime" type="xs:dateTime" />
+        </xs:sequence>
+    </xs:complexType>
+</xs:schema>
+
 """
 
     table = """
- id | d | r | b | m | property                         | type              | ref              | source                                        | prepare | level | access | uri | title | description
-    | manifest                                         |                   |                  |                                               |         |       |        |     |       |
-    |   | resource1                                    | xml               |                  |                                               |         |       |        |     |       |
-    |                                                  |                   |                  |                                               |         |       |        |     |       |
-    |   |   |   | Extract                              |                   |                  |                                               |         |       |        |     |       |
-    |   |   |   |   | extract_preparation_time         | datetime required |                  | extractPreparationTime/text()                 |         |       |        |     |       |
-    |   |   |   |   | last_update_time                 | datetime required |                  | lastUpdateTime/text()                         |         |       |        |     |       |
-    |                                                  |                   |                  |                                               |         |       |        |     |       |
-    |   |   |   | GetDocumentsByWagonResponse1         |                   |                  | /getDocumentsByWagonResponse                  |         |       |        |     |       |
-    |   |   |   |   | aprasymas                        | string            |                  | klaida/Aprasymas/text()                       |         |       |        |     |       |
-    |   |   |   |   | search_parameters                | ref               | SearchParameters | searchParameters                              |         |       |        |     |       |
-    |   |   |   |   | search_parameters.code           | string            |                  | searchParameters/code/text()                  |         |       |        |     |       |
-    |   |   |   |   | search_parameters.search_type    | string            |                  | searchParameters/searchType/text()            |         |       |        |     |       |
-    |                                                  |                   |                  |                                               |         |       |        |     |       |
-    |   |   |   | GetDocumentsByWagonResponse2         |                   |                  | /getDocumentsByWagonResponse                  |         |       |        |     |       |
-    |   |   |   |   | extract                          | ref               | Extract          | extract                                       |         |       |        |     |       |
-    |   |   |   |   | extract.extract_preparation_time | datetime required |                  | extract/extractPreparationTime/text()         |         |       |        |     |       |
-    |   |   |   |   | extract.last_update_time         | datetime required |                  | extract/lastUpdateTime/text()                 |         |       |        |     |       |
-    |   |   |   |   | search_parameters                | ref               | SearchParameters | searchParameters                              |         |       |        |     |       |
-    |   |   |   |   | search_parameters.code           | string            |                  | searchParameters/code/text()                  |         |       |        |     |       |
-    |   |   |   |   | search_parameters.search_type    | string            |                  | searchParameters/searchType/text()            |         |       |        |     |       |
-    |                                                  |                   |                  |                                               |         |       |        |     |       |
-    |   |   |   | SearchParameters                     |                   |                  |                                               |         |       |        |     |       |
-    |   |   |   |   | code                             | string            |                  | code/text()                                   |         |       |        |     |       |
-    |   |   |   |   | search_type                      | string            |                  | searchType/text()                             |         |       |        |     |       |
+ id | d | r | b | m | property                         | type              | ref              | source                                        | prepare  | level | access | uri | title | description
+    | manifest                                         |                   |                  |                                               |          |       |        |     |       |
+    |   | resource1                                    | xml               |                  |                                               |          |       |        |     |       |
+    |                                                  |                   |                  |                                               |          |       |        |     |       |
+    |   |   |   | Extract/:part                        |                   |                  |                                               |          |       |        |     |       |
+    |   |   |   |   | extract_preparation_time         | datetime required |                  | extractPreparationTime/text()                 |          |       |        |     |       |
+    |   |   |   |   | last_update_time                 | datetime required |                  | lastUpdateTime/text()                         |          |       |        |     |       |
+    |                                                  |                   |                  |                                               |          |       |        |     |       |
+    |   |   |   | GetDocumentsByWagonResponse1         |                   |                  | /getDocumentsByWagonResponse                  |          |       |        |     |       |
+    |   |   |   |   | aprasymas                        | string            |                  | klaida/Aprasymas/text()                       |          |       |        |     |       |
+    |   |   |   |   | search_parameters                | ref               | SearchParameters | searchParameters                              | expand() |       |        |     |       |      |     |       |
+    |                                                  |                   |                  |                                               |          |       |        |     |       |
+    |   |   |   | GetDocumentsByWagonResponse2         |                   |                  | /getDocumentsByWagonResponse                  |          |       |        |     |       |
+    |   |   |   |   | extract                          | ref               | Extract          | extract                                       |          |       |        |     |       |
+    |                                                  |                   |                  |                                               |          |       |        |     |       |
+    |   |   |   | SearchParameters                     |                   |                  |                                               |          |       |        |     |       |
+    |   |   |   |   | code                             | string            |                  | code/text()                                   |          |       |        |     |       |
+    |   |   |   |   | search_type                      | string            |                  | searchType/text()                             |          |       |        |     |       |
 
   """
 
     path = tmp_path / 'manifest.xsd'
+    path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
-    manifest = load_manifest(rc, path)
+    manifest = load_manifest(rc, path_xsd2)
     assert manifest == table
 
 
+@pytest.mark.skip(reason='waiting for #942')
 def test_duplicate_removal_backref(rc: RawConfig, tmp_path: Path):
     xsd = """
     <xs:schema xmlns="http://eTaarPlat.ServiceContracts/2007/08/Messages" elementFormDefault="qualified" targetNamespace="http://eTaarPlat.ServiceContracts/2007/08/Messages" xmlns:xs="http://www.w3.org/2001/XMLSchema">
@@ -785,59 +840,49 @@ def test_duplicate_removal_backref(rc: RawConfig, tmp_path: Path):
   """
 
     path = tmp_path / 'manifest.xsd'
+    path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
-    manifest = load_manifest(rc, path)
+    manifest = load_manifest(rc, path_xsd2)
     assert manifest == table
 
 
+@pytest.mark.skip(reason='waiting for 942')
 def test_duplicate_removal_different_models(rc: RawConfig, tmp_path: Path):
     """
     in this situation, "Extract" model has to be only once
     """
     xsd = """
     <xs:schema xmlns="http://eTaarPlat.ServiceContracts/2007/08/Messages" elementFormDefault="qualified" targetNamespace="http://eTaarPlat.ServiceContracts/2007/08/Messages" xmlns:xs="http://www.w3.org/2001/XMLSchema">
-        <xs:element name="getDocumentsByWagonResponse" nillable="true" type="getDocumentsByWagonResponse" />
-        <xs:complexType name="getDocumentsByWagonResponse">
+        <xs:element name="Wagon" type="Wagon" />
+        <xs:complexType name="Wagon">
             <xs:sequence>
-                <xs:element minOccurs="0" maxOccurs="1" name="searchParameters" type="getDocumentsByWagonSearchParams" />
-                <xs:choice minOccurs="1" maxOccurs="1">
-                    <xs:element minOccurs="0" maxOccurs="1" name="klaida" type="Klaida" />
-                    <xs:element minOccurs="0" maxOccurs="1" name="extract" type="Extract" />
+                <xs:element name="searchParameters" type="xs:string" />
+                <xs:choice>
+                    <xs:element minOccurs="0" name="klaida" type="Klaida" />
+                    <xs:element minOccurs="0" name="extract" type="Extract" />
                 </xs:choice>
             </xs:sequence>
         </xs:complexType>
-        <xs:complexType name="getDocumentsByWagonSearchParams">
+        <xs:element name="AirCraft" type="AirCraft" />
+        <xs:complexType name="AirCraft">
             <xs:sequence>
-                <xs:element minOccurs="0" maxOccurs="1" name="searchType" type="xs:string" />
-                <xs:element minOccurs="0" maxOccurs="1" name="code" type="xs:string" />
-            </xs:sequence>
-        </xs:complexType>
-        <xs:element name="getDocumentsByAirCraftResponse" nillable="true" type="getDocumentsByAirCraftResponse" />
-        <xs:complexType name="getDocumentsByAirCraftResponse">
-            <xs:sequence>
-                <xs:element minOccurs="0" maxOccurs="1" name="searchParameters" type="getDocumentsByAirCraftSearchParams" />
-                <xs:choice minOccurs="1" maxOccurs="1">
-                    <xs:element minOccurs="0" maxOccurs="1" name="klaida" type="Klaida" />
-                    <xs:element minOccurs="0" maxOccurs="1" name="extract" type="Extract" />
+                <xs:element name="searchParameters" type="xs:string" />
+                <xs:choice>
+                    <xs:element minOccurs="0" name="klaida" type="Klaida" />
+                    <xs:element minOccurs="0" name="extract" type="Extract" />
                 </xs:choice>
-            </xs:sequence>
-        </xs:complexType>
-        <xs:complexType name="getDocumentsByAirCraftSearchParams">
-            <xs:sequence>
-                <xs:element minOccurs="0" maxOccurs="1" name="searchType" type="xs:string" />
-                <xs:element minOccurs="0" maxOccurs="1" name="code" type="xs:string" />
             </xs:sequence>
         </xs:complexType>
         <xs:complexType name="Klaida">
                     <xs:sequence>
-                        <xs:element minOccurs="0" maxOccurs="1" name="Aprasymas" type="xs:string" />
+                        <xs:element name="Aprasymas" type="xs:string" />
                     </xs:sequence>
         </xs:complexType>
         <xs:complexType name="Extract">
                     <xs:sequence>
-                        <xs:element minOccurs="1" maxOccurs="1" name="extractPreparationTime" type="xs:dateTime" />
-                        <xs:element minOccurs="1" maxOccurs="1" name="lastUpdateTime" type="xs:dateTime" />
+                        <xs:element name="extractPreparationTime" type="xs:dateTime" />
+                        <xs:element name="lastUpdateTime" type="xs:dateTime" />
                     </xs:sequence>
         </xs:complexType>
     </xs:schema>
@@ -887,9 +932,10 @@ def test_duplicate_removal_different_models(rc: RawConfig, tmp_path: Path):
   """
 
     path = tmp_path / 'manifest.xsd'
+    path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
-    manifest = load_manifest(rc, path)
+    manifest = load_manifest(rc, path_xsd2)
     assert manifest == table
 
 
@@ -909,7 +955,7 @@ def test_duplicate_removal_two_level(rc: RawConfig, tmp_path: Path):
             </xs:sequence>
         </xs:complexType>
     </xs:element>
-    
+
     <xs:element name="Documentation">
         <xs:complexType>
             <xs:sequence>
@@ -917,7 +963,7 @@ def test_duplicate_removal_two_level(rc: RawConfig, tmp_path: Path):
                 <xs:element ref="Maker"/>
             </xs:sequence>
         </xs:complexType>
-    
+
     </xs:element>
 
     <xs:element name="Car">
@@ -928,9 +974,9 @@ def test_duplicate_removal_two_level(rc: RawConfig, tmp_path: Path):
                 <xs:element ref="Documentation"/>
             </xs:sequence>
         </xs:complexType>
-        
+
     </xs:element>
-    
+
         <xs:element name="Ship">
         <xs:complexType>
             <xs:sequence>
@@ -939,54 +985,46 @@ def test_duplicate_removal_two_level(rc: RawConfig, tmp_path: Path):
                 <xs:element ref="Documentation"/>
             </xs:sequence>
         </xs:complexType>
-        
+
     </xs:element>
 
 </xs:schema>
 """
 
     table = """
- id | d | r | b | m | property                 | type            | ref           | source                              | prepare | level | access | uri | title | description
-    | manifest                                 |                 |               |                                     |         |       |        |     |       |
-    |   | resource1                            | xml             |               |                                     |         |       |        |     |       |
-    |                                          |                 |               |                                     |         |       |        |     |       |
-    |   |   |   | Car                          |                 |               | /Car                                |         |       |        |     |       |
-    |   |   |   |   | colour                   | string required |               | colour/text()                       |         |       |        |     |       |
-    |   |   |   |   | documentation            | ref required    | Documentation | Documentation                       |         |       |        |     |       |
-    |   |   |   |   | documentation.country    | string required |               | Documentation/country/text()        |         |       |        |     |       |
-    |   |   |   |   | documentation.maker      | ref required    | Maker         | Documentation/Maker                 |         |       |        |     |       |
-    |   |   |   |   | documentation.maker.code | string required |               | Documentation/Maker/code/text()     |         |       |        |     |       |
-    |   |   |   |   | documentation.maker.name | string required |               | Documentation/Maker/name/text()     |         |       |        |     |       |
-    |   |   |   |   | make                     | string required |               | make/text()                         |         |       |        |     |       |
-    |                                          |                 |               |                                     |         |       |        |     |       |
-    |   |   |   | Documentation                |                 |               |                                     |         |       |        |     |       |
-    |   |   |   |   | country                  | string required |               | country/text()                      |         |       |        |     |       |
-    |   |   |   |   | maker                    | ref required    | Maker         | Maker                               |         |       |        |     |       |
-    |                                          |                 |               |                                     |         |       |        |     |       |
-    |   |   |   | Maker                        |                 |               |                                     |         |       |        |     |       |
-    |   |   |   |   | code                     | string required |               | code/text()                         |         |       |        |     |       |
-    |   |   |   |   | name                     | string required |               | name/text()                         |         |       |        |     |       |
-    |                                          |                 |               |                                     |         |       |        |     |       |
-    |   |   |   | Ship                         |                 |               | /Ship                               |         |       |        |     |       |
-    |   |   |   |   | colour                   | string required |               | colour/text()                       |         |       |        |     |       |
-    |   |   |   |   | documentation            | ref required    | Documentation | Documentation                       |         |       |        |     |       |
-    |   |   |   |   | documentation.country    | string required |               | Car/Documentation/country/text()    |         |       |        |     |       |
-    |   |   |   |   | documentation.maker      | ref required    | Maker         | Car/Documentation/Maker             |         |       |        |     |       |
-    |   |   |   |   | documentation.maker.code | string required |               | Car/Documentation/Maker/code/text() |         |       |        |     |       |
-    |   |   |   |   | documentation.maker.name | string required |               | Car/Documentation/Maker/name/text() |         |       |        |     |       |
-    |   |   |   |   | make                     | string required |               | make/text()                         |         |       |        |     |       |
+ id | d | r | b | m | property                 | type            | ref           | source                              | prepare  | level | access | uri | title | description
+    | manifest                                 |                 |               |                                     |          |       |        |     |       |
+    |   | resource1                            | xml             |               |                                     |          |       |        |     |       |
+    |                                          |                 |               |                                     |          |       |        |     |       |
+    |   |   |   | Car                          |                 |               | /Car                                |          |       |        |     |       |
+    |   |   |   |   | colour                   | string required |               | colour/text()                       |          |       |        |     |       |
+    |   |   |   |   | documentation            | ref required    | Documentation | Documentation                       | expand() |       |        |     |       |
+    |   |   |   |   | make                     | string required |               | make/text()                         |          |       |        |     |       |
+    |                                          |                 |               |                                     |          |       |        |     |       |
+    |   |   |   | Documentation/:part          |                 |               |                                     |          |       |        |     |       |
+    |   |   |   |   | country                  | string required |               | country/text()                      |          |       |        |     |       |
+    |   |   |   |   | maker                    | ref required    | Maker         | Maker                               | expand() |       |        |     |       |
+    |                                          |                 |               |                                     |          |       |        |     |       |
+    |   |   |   | Maker/:part                  |                 |               |                                     |          |       |        |     |       |
+    |   |   |   |   | code                     | string required |               | code/text()                         |          |       |        |     |       |
+    |   |   |   |   | name                     | string required |               | name/text()                         |          |       |        |     |       |
+    |                                          |                 |               |                                     |          |       |        |     |       |
+    |   |   |   | Ship                         |                 |               | /Ship                               |          |       |        |     |       |
+    |   |   |   |   | colour                   | string required |               | colour/text()                       |          |       |        |     |       |
+    |   |   |   |   | documentation            | ref required    | Documentation | Documentation                       | expand() |       |        |     |       |
+    |   |   |   |   | make                     | string required |               | make/text()                         |          |       |        |     |       |
 
   """
 
     path = tmp_path / 'manifest.xsd'
+    path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
-    manifest = load_manifest(rc, path)
+    manifest = load_manifest(rc, path_xsd2)
     assert manifest == table
 
 
 def test_xsd_resource_model_only(rc: RawConfig, tmp_path: Path):
-    # recursion in XSD
     xsd = """
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
 <xs:element name="name" type="xs:string"/>
@@ -1000,13 +1038,12 @@ id | d | r | b | m | property   | type             | ref | source            | p
    |   | resource1              | xml              |     |                   |         |       |        |                                               |       |
    |                            |                  |     |                   |         |       |        |                                               |       |
    |   |   |   | Resource       |                  |     | /                 |         |       |        | http://www.w3.org/2000/01/rdf-schema#Resource |       | Įvairūs duomenys
-   |   |   |   |   | name       | string           |     | name/text()       |         |       |        |                                               |       |
-   |   |   |   |   | population | integer          |     | population/text() |         |       |        |                                               |       |
+   |   |   |   |   | name       | string required  |     | name/text()       |         |       |        |                                               |       |
+   |   |   |   |   | population | integer required |     | population/text() |         |       |        |                                               |       |
 """
-    # todo actually, those properties should be required. Fixed in the new version
-
     path = tmp_path / 'manifest.xsd'
+    path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
-    manifest = load_manifest(rc, path)
+    manifest = load_manifest(rc, path_xsd2)
     assert manifest == table
