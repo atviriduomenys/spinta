@@ -97,6 +97,9 @@ def export_(
     read_timeout: float = Option(300, '--read-timeout', help=(
         "Timeout for reading a response, default: 5 minutes (300s). The value is in seconds."
     )),
+    connect_timeout: float = Option(5, '--connect-timeout', help=(
+        "Timeout for connecting, default: 5 seconds."
+    )),
 ):
     manifests = convert_str_to_manifest_path(manifests)
     context = configure_context(ctx.obj, manifests, mode=mode)
@@ -171,7 +174,7 @@ def export_(
                     error_counter=error_counter,
                     no_progress_bar=no_progress_bar,
                     reset_cid=ignore_sync_cid,
-                    timeout=(5, read_timeout)
+                    timeout=(connect_timeout, read_timeout)
                 )
         else:
             dependant_models = extract_dependant_nodes(context, models, True)

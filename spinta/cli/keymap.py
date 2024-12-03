@@ -56,6 +56,9 @@ def keymap_sync(
     read_timeout: float = Option(300, '--read-timeout', help=(
         "Timeout for reading a response, default: 5 minutes (300s). The value is in seconds."
     )),
+    connect_timeout: float = Option(5, '--connect-timeout', help=(
+        "Timeout for connecting, default: 5 seconds."
+    )),
 ):
     """Sync keymap from external data source"""
     if not input_source:
@@ -118,7 +121,7 @@ def keymap_sync(
                 no_progress_bar=no_progress_bar,
                 reset_cid=True,
                 dry_run=dry_run,
-                timeout=(5, read_timeout)
+                timeout=(connect_timeout, read_timeout)
             )
 
         if error_counter.has_errors():
