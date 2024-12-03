@@ -186,7 +186,8 @@ def push(
                 error_counter=error_counter,
                 no_progress_bar=no_progress_bar,
                 reset_cid=synchronize_keymap,
-                timeout = (connect_timeout, read_timeout),
+                dry_run=dry_run,
+                timeout=(connect_timeout, read_timeout),
             )
 
         # Synchronize push state
