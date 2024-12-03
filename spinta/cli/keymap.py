@@ -54,8 +54,8 @@ def keymap_sync(
         "Skip counting total rows to improve performance."
     )),
     read_timeout: float = Option(300, '--read-timeout', help=(
-                    "Timeout for reading a response, default: 5 minutes (300s). The value is in seconds."
-     )),
+        "Timeout for reading a response, default: 5 minutes (300s). The value is in seconds."
+    )),
 ):
     """Sync keymap from external data source"""
     if not input_source:
