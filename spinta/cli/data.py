@@ -94,6 +94,9 @@ def export_(
     max_error_count: int = Option(50, '--max-errors', help=(
         "If errors exceed given number, export command will be stopped."
     )),
+    read_timeout: float = Option(300, '--read-timeout', help=(
+        "Timeout for reading a response, default: 5 minutes (300s). The value is in seconds."
+    )),
 ):
     manifests = convert_str_to_manifest_path(manifests)
     context = configure_context(ctx.obj, manifests, mode=mode)
@@ -167,7 +170,8 @@ def export_(
                     models=dependant_models,
                     error_counter=error_counter,
                     no_progress_bar=no_progress_bar,
-                    reset_cid=ignore_sync_cid
+                    reset_cid=ignore_sync_cid,
+                    timeout=(5, read_timeout)
                 )
         else:
             dependant_models = extract_dependant_nodes(context, models, True)

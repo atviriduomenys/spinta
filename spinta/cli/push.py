@@ -104,11 +104,11 @@ def push(
         "Synchronize push state and keymap, in {data_path}/push/{remote}.db and {data_path}/keymap.db"
     )),
     read_timeout: float = Option(300, '--read-timeout', help=(
-            "Timeout for reading a response, default: 5 minutes (300s). The value is in seconds."
-        )),
+        "Timeout for reading a response, default: 5 minutes (300s). The value is in seconds."
+    )),
     connect_timeout: float = Option(5, '--connect-timeout', help=(
-            "Timeout for connecting, default: 5 seconds."
-            )),
+        "Timeout for connecting, default: 5 seconds."
+    )),
 ):
     """Push data to external data store"""
     synchronize_keymap = synchronize
