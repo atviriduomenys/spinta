@@ -3,6 +3,7 @@ import datetime
 import sqlalchemy as sa
 
 from spinta.backends.helpers import get_table_name
+from spinta.backends.postgresql.helpers.migrate.name import get_pg_table_name, get_pg_column_name
 from spinta.core.ufuncs import Expr
 from spinta.types.datatype import Integer, Number, Boolean, String, Date, DateTime, Time, Ref
 from spinta import commands
@@ -59,8 +60,8 @@ def summary(
 
 def _handle_numeric_summary(connection, model_prop: Property):
     try:
-        prop = model_prop.name
-        model = get_table_name(model_prop)
+        prop = get_pg_column_name(model_prop.place)
+        model = get_pg_table_name(get_table_name(model_prop))
         min_value, max_value = connection.execute(f'SELECT MIN("{prop}") , MAX("{prop}") FROM "{model}"').fetchone()
         if min_value is None and max_value is None:
             return []
@@ -115,8 +116,8 @@ def summary(
 ):
     connection = context.get('transaction').connection
     try:
-        prop = dtype.prop.name
-        model = get_table_name(dtype.prop)
+        prop = get_pg_column_name(dtype.prop.place)
+        model = get_pg_table_name(get_table_name(dtype.prop))
 
         result = connection.execute(f'''
                 SELECT 
@@ -160,8 +161,8 @@ def summary(
     for key, value in dtype.prop.enum.items():
         enum_list.append(value.prepare)
     try:
-        prop = dtype.prop.name
-        model = get_table_name(dtype.prop)
+        prop = get_pg_column_name(dtype.prop.place)
+        model = get_pg_table_name(get_table_name(dtype.prop))
 
         result = connection.execute(f'''
                 SELECT 
@@ -287,8 +288,8 @@ def _handle_time_units_given(model_prop: Property, value):
 
 def _handle_time_summary(connection, model_prop: Property):
     try:
-        prop = model_prop.name
-        model = get_table_name(model_prop)
+        prop = get_pg_column_name(model_prop.place)
+        model = get_pg_table_name(get_table_name(model_prop))
         if isinstance(model_prop.dtype, (Date, DateTime)):
             min_value, max_value = connection.execute(f'SELECT MIN("{prop}"::TIMESTAMP) , MAX("{prop}"::TIMESTAMP) FROM "{model}"').fetchone()
         else:
@@ -356,14 +357,14 @@ def summary(
     connection = context.get('transaction').connection
 
     try:
-        prop = dtype.prop.name
+        prop = get_pg_column_name(dtype.prop.place)
         key = "_id"
         if not commands.identifiable(dtype.prop):
             if len(dtype.refprops) > 1:
                 raise NotImplementedFeature(dtype.prop,
                                             feature="Ability to get summary for Ref type Property, when level is 3 and below and there are multiple refprops")
             key = dtype.refprops[0].name
-        model = get_table_name(dtype.prop)
+        model = get_pg_table_name(get_table_name(dtype.prop))
         uri = dtype.model.uri
         prefixes = dtype.model.external.dataset.prefixes
         label = None
@@ -420,8 +421,8 @@ def summary(
 ):
     connection = context.get('transaction').connection
     try:
-        prop = dtype.prop.name
-        model = get_table_name(dtype.prop)
+        prop = get_pg_column_name(dtype.prop.place)
+        model = get_pg_table_name(get_table_name(dtype.prop))
         bounding_box = ""
         params = {}
         if "bbox" in kwargs:
