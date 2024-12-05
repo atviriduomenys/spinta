@@ -1,3 +1,4 @@
+from collections.abc import Generator
 from typing import Optional, Any
 
 import datetime
@@ -17,6 +18,7 @@ from spinta.core.config import RawConfig
 from spinta.datasets.keymaps.components import KeyMap
 from sqlalchemy.dialects.sqlite import insert
 
+from spinta.datasets.keymaps.sync import KeymapData
 from spinta.exceptions import KeyMapGivenKeyMissmatch
 
 from multipledispatch import dispatch
@@ -24,6 +26,9 @@ from multipledispatch import dispatch
 
 class SqlAlchemyKeyMap(KeyMap):
     dsn: str = None
+
+    sync_table_name = '_synchronize'
+    sync_batch_size = 10_000
 
     def __init__(self, dsn: str = None):
         self.dsn = dsn
@@ -43,7 +48,7 @@ class SqlAlchemyKeyMap(KeyMap):
 
     def get_table(self, name):
         if name not in self.metadata.tables:
-            if name == '_synchronize':
+            if name == self.sync_table_name:
                 table = sa.Table(
                     name, self.metadata,
                     sa.Column('model', sa.Text, primary_key=True),
@@ -111,7 +116,7 @@ class SqlAlchemyKeyMap(KeyMap):
         value = msgpack.loads(value, raw=False)
         return value
 
-    def contains_key(self, name: str, value: Any) -> bool:
+    def contains(self, name: str, value: Any) -> bool:
         result = _hash_value(value)
 
         if result is None:
@@ -128,14 +133,14 @@ class SqlAlchemyKeyMap(KeyMap):
         )
         return self.conn.execute(query).scalar() > 0
 
-    def get_sync_data(self, name: str) -> object:
-        table = self.get_table('_synchronize')
+    def get_last_synced_id(self, name: str) -> object:
+        table = self.get_table(self.sync_table_name)
         query = sa.select([table.c.cid]).where(table.c.model == name)
         value = self.conn.execute(query).scalar()
         return value
 
     def update_sync_data(self, name: str, cid: Any, time: datetime.datetime):
-        table = self.get_table('_synchronize')
+        table = self.get_table(self.sync_table_name)
         query = insert(table).values(model=name, cid=cid, updated=time)
         query = query.on_conflict_do_update(
             index_elements=[table.c.model],
@@ -167,10 +172,10 @@ class SqlAlchemyKeyMap(KeyMap):
             query = insert(table).values(key=primary_key, hash=hashed, value=value)
             self.conn.execute(query)
 
-    def first_time_sync(self) -> bool:
-        table = self.get_table('_synchronize')
+    def has_synced_before(self) -> bool:
+        table = self.get_table(self.sync_table_name)
         count = self.conn.execute(sa.func.count(table.c.model)).scalar()
-        return count == 0
+        return count != 0
 
 
 def _hash_value(value):
@@ -228,3 +233,22 @@ def configure(context: Context, keymap: SqlAlchemyKeyMap):
 def prepare(context: Context, keymap: SqlAlchemyKeyMap, **kwargs):
     keymap.engine = sa.create_engine(keymap.dsn)
     keymap.metadata = sa.MetaData(keymap.engine)
+
+
+@commands.sync.register(Context, SqlAlchemyKeyMap)
+def sync(context: Context, keymap: SqlAlchemyKeyMap, *, data: Generator[KeymapData]):
+    batch_size = keymap.sync_batch_size
+    transaction = None
+    try:
+        for i, row in enumerate(data):
+            if i % batch_size == 0:
+                if transaction is not None and transaction.is_active:
+                    transaction.commit()
+
+                transaction = keymap.conn.begin()
+
+            keymap.synchronize(row.key, row.value, row.identifier)
+            yield row
+    finally:
+        if transaction is not None and transaction.is_active:
+            transaction.commit()
