@@ -4,6 +4,29 @@ Changes
 0.1.81 (unreleased)
 ===================
 
+Backwards incompatible:
+
+- `SqlAlchemyKeyMap` synchronization no longer uses individual transactions for each synchronization action. Now it
+  batches the actions under multiple transactions. By default it batches `10000` rows. In order to change that value,
+  set `sync_transaction_size` in `config` under your `keymaps` configuration (`#1011`_).
+
+  Like so:
+
+  .. code-block:: yaml
+
+      keymaps:
+        default:
+            type: sqlalchemy
+            dsn: ...
+            sync_transaction_size: 20000
+
+
+Improvements:
+
+- `SqlAlchemyKeyMap` now uses batch transactions to synchronize data, which greatly improves performance (`#1011`_).
+
+  .. _#1011: https://github.com/atviriduomenys/spinta/issues/1011
+
 Bug fix:
 
 - `Postgresql` `summary` now properly handles tables with long names (`P#160`).
