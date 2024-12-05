@@ -27,8 +27,8 @@ from multipledispatch import dispatch
 class SqlAlchemyKeyMap(KeyMap):
     dsn: str = None
 
-    sync_table_name = '_synchronize'
-    sync_batch_size = 10_000
+    sync_table_name: str = '_synchronize'
+    sync_transaction_size: int = None
 
     def __init__(self, dsn: str = None):
         self.dsn = dsn
@@ -222,10 +222,12 @@ def configure(context: Context, keymap: SqlAlchemyKeyMap):
     rc: RawConfig = context.get('rc')
     config: Config = context.get('config')
     dsn = rc.get('keymaps', keymap.name, 'dsn', required=True)
+    sync_transaction_size = rc.get('keymaps', keymap.name, 'sync_transaction_size', default=10000, cast=int)
     ensure_data_dir(config.data_path)
     dsn = dsn.format(data_dir=config.data_path)
     if dsn.startswith('sqlite:///'):
         dsn = dsn.replace('sqlite:///', 'sqlite+spinta:///')
+    keymap.sync_transaction_size = sync_transaction_size
     keymap.dsn = dsn
 
 
@@ -237,12 +239,13 @@ def prepare(context: Context, keymap: SqlAlchemyKeyMap, **kwargs):
 
 @commands.sync.register(Context, SqlAlchemyKeyMap)
 def sync(context: Context, keymap: SqlAlchemyKeyMap, *, data: Generator[KeymapData]):
-    batch_size = keymap.sync_batch_size
+    transaction_size = keymap.sync_transaction_size
     transaction = None
     try:
+        transaction = keymap.conn.begin()
         for i, row in enumerate(data):
-            if i % batch_size == 0:
-                if transaction is not None and transaction.is_active:
+            if transaction_size is not None and i % transaction_size == 0 and i != 0:
+                if transaction.is_active:
                     transaction.commit()
 
                 transaction = keymap.conn.begin()

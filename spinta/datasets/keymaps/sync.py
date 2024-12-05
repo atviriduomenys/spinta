@@ -136,7 +136,6 @@ def sync_keymap(
         counters = {
             '_total': tqdm.tqdm(desc='SYNCHRONIZING KEYMAP', ascii=True)
         }
-        echo()
     try:
         for model in models:
             model_keymaps = [model.model_type()]
