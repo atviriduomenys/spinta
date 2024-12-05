@@ -4,6 +4,10 @@ Changes
 0.1.81 (unreleased)
 ===================
 
+Bug fix:
+
+- `Postgresql` `summary` now properly handles tables with long names (`P#160`).
+
 
 0.1.80 (2024-12-03)
 ===================

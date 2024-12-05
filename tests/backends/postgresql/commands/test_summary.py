@@ -223,6 +223,35 @@ def test_summary_integer_single_item(rc: RawConfig, postgresql: str, request: Fi
     })
 
 
+def test_summary_integer_long_name(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    dataset_name = f"example/summary/integer/{'a'*100}"
+    model_name = dataset_name + "/Test"
+    context = bootstrap_manifest(rc, f'''
+            d | r | b | m | property | type   | ref     | access  | uri
+            {dataset_name} |        |         |         |
+              |   |   | Test       |        | value    |         | 
+              |   |   |   | value    | integer |         | open    | 
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel(dataset_name, ['insert', 'getall', 'search'])
+    resp_64 = app.post(f'/{dataset_name}/Test', json={'value': 64})
+    response = app.get(f'/{model_name}/:summary/value')
+    json_response = response.json()
+
+    assert len(json_response["_data"]) == 100
+    assert dict_equals(json_response["_data"][0], {
+        'bin': 64.5,
+        'count': 1,
+        '_type': model_name,
+        "_id": resp_64.json()["_id"]
+    })
+    assert dict_equals(json_response["_data"][99], {
+        'bin': 163.5,
+        'count': 0,
+        '_type': model_name
+    })
+
+
 def test_summary_number_no_fraction(rc: RawConfig, postgresql: str, request: FixtureRequest):
     context = bootstrap_manifest(rc, '''
             d | r | b | m | property | type   | ref     | access  | uri
@@ -359,6 +388,35 @@ def test_summary_number_single_item(rc: RawConfig, postgresql: str, request: Fix
     })
 
 
+def test_summary_number_long_name(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    dataset_name = f"example/summary/number/{'a'*100}"
+    model_name = dataset_name + "/Test"
+    context = bootstrap_manifest(rc, f'''
+            d | r | b | m | property | type   | ref     | access  | uri
+            {dataset_name}    |        |         |         |
+              |   |   | Test       |        | value    |         | 
+              |   |   |   | value    | number |         | open    | 
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel(dataset_name, ['insert', 'getall', 'search'])
+    resp_5 = app.post(model_name, json={'value': 5})
+    response = app.get(f'/{model_name}/:summary/value')
+    json_response = response.json()
+
+    assert len(json_response["_data"]) == 100
+    assert dict_equals(json_response["_data"][0], {
+        'bin': 5.5,
+        'count': 1,
+        '_type': model_name,
+        "_id": resp_5.json()["_id"]
+    })
+    assert dict_equals(json_response["_data"][99], {
+        'bin': 104.5,
+        'count': 0,
+        '_type': model_name
+    })
+
+
 def test_summary_boolean(rc: RawConfig, postgresql: str, request: FixtureRequest):
     context = bootstrap_manifest(rc, '''
             d | r | b | m | property | type   | ref     | access  | uri
@@ -439,6 +497,38 @@ def test_summary_boolean_empty(rc: RawConfig, postgresql: str, request: FixtureR
         'bin': True,
         'count': 0,
         '_type': 'example/summary/boolean/Test'
+    })
+
+
+def test_summary_boolean_long_name(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    dataset_name = f"example/summary/boolean/{'a'*100}"
+    model_name = dataset_name + "/Test"
+    context = bootstrap_manifest(rc, f'''
+            d | r | b | m | property | type   | ref     | access  | uri
+            {dataset_name}    |        |         |         |
+              |   |   | Test       |        |         |         | 
+              |   |   |   | value    | boolean |         | open    | 
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel(dataset_name, ['insert', 'getall', 'search'])
+    app.post(model_name, json={'value': True})
+    app.post(model_name, json={'value': True})
+    app.post(model_name, json={'value': True})
+    resp = app.post(model_name, json={'value': False})
+    response = app.get(f'/{model_name}/:summary/value')
+    json_response = response.json()
+
+    assert len(json_response["_data"]) == 2
+    assert dict_equals(json_response["_data"][0], {
+        'bin': False,
+        'count': 1,
+        '_type': model_name,
+        "_id": resp.json()["_id"]
+    })
+    assert dict_equals(json_response["_data"][1], {
+        'bin': True,
+        'count': 3,
+        '_type': model_name
     })
 
 
@@ -608,6 +698,48 @@ def test_summary_string_no_enum(rc: RawConfig, postgresql: str, request: Fixture
     assert response.status_code == 500
 
 
+def test_summary_string_long_name(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    dataset_name = f"example/summary/string/{'a'*100}"
+    model_name = dataset_name + "/Test"
+    context = bootstrap_manifest(rc, f'''
+            d | r | b | m | property | type   | ref     | source | prepare | access | uri
+            {dataset_name}   |        |         |        |         |        |
+              |   |   | Test       |        |         |        |         |        |
+              |   |   |   | value    | string |         |        |         | open   |
+              |   |   |   |          | enum   |         | 1      | "TEST1" | open   |
+              |   |   |   |          |        |         | 2      | "TEST2" | open   |
+              |   |   |   |          |        |         | 3      | "TEST3" | open   |
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel(dataset_name, ['insert', 'getall', 'search'])
+    resp = app.post(model_name, json={"value": "TEST1"})
+    app.post(model_name, json={"value": "TEST2"})
+    app.post(model_name, json={"value": "TEST2"})
+    app.post(model_name, json={"value": "TEST3"})
+    app.post(model_name, json={"value": "TEST3"})
+    app.post(model_name, json={"value": "TEST3"})
+    response = app.get(f'/{model_name}/:summary/value')
+    json_response = response.json()
+
+    assert len(json_response["_data"]) == 3
+    assert dict_equals(json_response["_data"][0], {
+        'bin': "TEST1",
+        'count': 1,
+        '_type': model_name,
+        '_id': resp.json()["_id"]
+    })
+    assert dict_equals(json_response["_data"][1], {
+        'bin': "TEST2",
+        'count': 2,
+        '_type': model_name
+    })
+    assert dict_equals(json_response["_data"][2], {
+        'bin': "TEST3",
+        'count': 3,
+        '_type': model_name
+    })
+
+
 def test_summary_time(rc: RawConfig, postgresql: str, request: FixtureRequest):
     context = bootstrap_manifest(rc, '''
             d | r | b | m | property | type   | ref     | access  | uri
@@ -731,6 +863,44 @@ def test_summary_time_empty(rc: RawConfig, postgresql: str, request: FixtureRequ
 
     assert len(json_response["_data"]) == 0
     assert json_response["_data"] == []
+
+
+def test_summary_time_long_name(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    dataset_name = f"example/summary/time/{'a'*100}"
+    model_name = dataset_name + "/Test"
+    context = bootstrap_manifest(rc, f'''
+            d | r | b | m | property | type   | ref     | access  | uri
+            {dataset_name}    |        |         |         |
+              |   |   | Test       |        |      |         | 
+              |   |   |   | value    | time |         | open    | 
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel(dataset_name, ['insert', 'getall', 'search'])
+    app.post(model_name, json={'value': '10:00:00'})
+    app.post(model_name, json={'value': '10:00:05'})
+    resp_middle = app.post(model_name, json={'value': '14:08:03'})
+    resp_last = app.post(model_name, json={'value': '22:12:00'})
+    response = app.get(f'/{model_name}/:summary/value')
+    json_response = response.json()
+
+    assert len(json_response["_data"]) == 100
+    assert dict_equals(json_response["_data"][0], {
+        'bin': '10:03:39.600000',
+        'count': 2,
+        '_type': model_name
+    })
+    assert dict_equals(json_response["_data"][33], {
+        'bin': '14:05:13.200000',
+        'count': 1,
+        '_type': model_name,
+        '_id': resp_middle.json()["_id"],
+    })
+    assert dict_equals(json_response["_data"][99], {
+        'bin': '22:08:20.400000',
+        'count': 1,
+        '_type': model_name,
+        '_id': resp_last.json()["_id"],
+    })
 
 
 def test_summary_datetime(rc: RawConfig, postgresql: str, request: FixtureRequest):
@@ -886,6 +1056,44 @@ def test_summary_datetime_empty(rc: RawConfig, postgresql: str, request: Fixture
     assert json_response["_data"] == []
 
 
+def test_summary_datetime_long_name(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    dataset_name = f"example/summary/datetime/{'a'*100}"
+    model_name = dataset_name + "/Test"
+    context = bootstrap_manifest(rc, f'''
+            d | r | b | m | property | type   | ref     | access  | uri
+            {dataset_name}    |        |         |         |
+              |   |   | Test       |        |      |         | 
+              |   |   |   | value    | datetime |   | open    | 
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel(dataset_name, ['insert', 'getall', 'search'])
+    app.post(model_name, json={'value': '2023-01-01T10:00:00'})
+    app.post(model_name, json={'value': '2023-01-02T10:00:05'})
+    resp_middle = app.post(model_name, json={'value': '2023-09-12T14:08:03'})
+    resp_last = app.post(model_name, json={'value': '2023-12-29T22:12:00'})
+    response = app.get(f'/{model_name}/:summary/value')
+    json_response = response.json()
+
+    assert len(json_response["_data"]) == 100
+    assert dict_equals(json_response["_data"][0], {
+        'bin': '2023-01-03 05:30:03.600000',
+        'count': 2,
+        '_type': model_name
+    })
+    assert dict_equals(json_response["_data"][70], {
+        'bin': '2023-09-13 23:38:27.600000',
+        'count': 1,
+        '_type': model_name,
+        '_id': resp_middle.json()["_id"],
+    })
+    assert dict_equals(json_response["_data"][99], {
+        'bin': '2023-12-28 02:41:56.400000',
+        'count': 1,
+        '_type': model_name,
+        '_id': resp_last.json()["_id"],
+    })
+
+
 def test_summary_date(rc: RawConfig, postgresql: str, request: FixtureRequest):
     context = bootstrap_manifest(rc, '''
             d | r | b | m | property | type   | ref     | access  | uri
@@ -1037,6 +1245,44 @@ def test_summary_date_empty(rc: RawConfig, postgresql: str, request: FixtureRequ
 
     assert len(json_response["_data"]) == 0
     assert json_response["_data"] == []
+
+
+def test_summary_date_long_name(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    dataset_name = f"example/summary/date/{'a'*100}"
+    model_name = dataset_name + "/Test"
+    context = bootstrap_manifest(rc, f'''
+            d | r | b | m | property | type   | ref     | access  | uri
+            {dataset_name}    |        |         |         |
+              |   |   | Test       |        |      |         | 
+              |   |   |   | value    | date |         | open    | 
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel(dataset_name, ['insert', 'getall', 'search'])
+    app.post(model_name, json={'value': '2023-01-01'})
+    app.post(model_name, json={'value': '2023-01-02'})
+    resp_middle = app.post(model_name, json={'value': '2023-08-01'})
+    resp_last = app.post(model_name, json={'value': '2024-01-08'})
+    response = app.get(f'/{model_name}/:summary/value')
+    json_response = response.json()
+
+    assert len(json_response["_data"]) == 100
+    assert dict_equals(json_response["_data"][0], {
+        'bin': '2023-01-02 20:38:24',
+        'count': 2,
+        '_type': model_name
+    })
+    assert dict_equals(json_response["_data"][56], {
+        'bin': '2023-07-30 04:19:12',
+        'count': 1,
+        '_type': model_name,
+        '_id': resp_middle.json()["_id"],
+    })
+    assert dict_equals(json_response["_data"][99], {
+        'bin': '2024-01-06 03:21:36',
+        'count': 1,
+        '_type': model_name,
+        '_id': resp_last.json()["_id"],
+    })
 
 
 def test_summary_ref_level_4_no_uri(rc: RawConfig, postgresql: str, request: FixtureRequest):
@@ -1267,6 +1513,63 @@ def test_summary_ref_level_4_with_uri_url(rc: RawConfig, postgresql: str, reques
     })
 
 
+def test_summary_ref_level_4_long_name(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    dataset_name = f"example/summary/ref/{'a'*100}"
+    model_name = dataset_name + "/Test"
+    model_ref_name = dataset_name + "/Ref"
+    context = bootstrap_manifest(rc, f'''
+            d | r | b | m | property   | type   | ref       | access | uri | level
+            {dataset_name}        |        |           |        |     |
+              |   |   | Test           |        |           |        |     |
+              |   |   |   | value_test | ref    | Ref       | open   |     | 4
+              |   |   | Ref            |        | value_ref |        |     |
+              |   |   |   | value_ref  | string |           | open   |     | 
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel(dataset_name, ['insert', 'getall', 'search'])
+    resp_0 = app.post(model_ref_name, json={'value_ref': "test_0"})
+    resp_1 = app.post(model_ref_name, json={'value_ref': "test_1"})
+    resp_2 = app.post(model_ref_name, json={'value_ref': "test_2"})
+
+    id_0 = resp_0.json()["_id"]
+    id_1 = resp_1.json()["_id"]
+    id_2 = resp_2.json()["_id"]
+
+    app.post(model_name, json={'value_test': {
+        "_id": id_0
+    }})
+    app.post(model_name, json={'value_test': {
+        "_id": id_0
+    }})
+    resp_middle = app.post(model_name, json={'value_test': {
+        "_id": id_1
+    }})
+    resp_last = app.post(model_name, json={'value_test': {
+        "_id": id_2
+    }})
+    response = app.get(f'/{model_name}/:summary/value_test')
+    json_response = response.json()
+
+    assert len(json_response["_data"]) == 3
+    assert dict_equals(json_response["_data"][0], {
+        'bin': extract_uuid(id_0),
+        'count': 2,
+        '_type': model_name
+    })
+    assert dict_equals(json_response["_data"][1], {
+        'bin': extract_uuid(id_1),
+        'count': 1,
+        '_type': model_name,
+        '_id': resp_middle.json()["_id"],
+    })
+    assert dict_equals(json_response["_data"][2], {
+        'bin': extract_uuid(id_2),
+        'count': 1,
+        '_type': model_name,
+        '_id': resp_last.json()["_id"],
+    })
+
+
 def test_summary_ref_level_3_no_uri(rc: RawConfig, postgresql: str, request: FixtureRequest):
     context = bootstrap_manifest(rc, '''
             d | r | b | m | property   | type   | ref       | access | uri | level
@@ -1350,6 +1653,59 @@ def test_summary_ref_level_3_multiple_ref_props(rc: RawConfig, postgresql: str, 
     response = app.get('/example/summary/ref3multi/Test/:summary/value_test')
 
     assert response.status_code == 500
+
+
+def test_summary_ref_level_3_long_name(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    dataset_name = f"example/summary/ref3/{'a'*100}"
+    model_name = dataset_name + "/Test"
+    model_ref_name = dataset_name + "/Ref"
+    context = bootstrap_manifest(rc, f'''
+            d | r | b | m | property   | type   | ref       | access | uri | level
+            {dataset_name}        |        |           |        |     |
+              |   |   | Test           |        |           |        |     |
+              |   |   |   | value_test | ref    | Ref       | open   |     | 3
+              |   |   | Ref            |        | value_ref |        |     |
+              |   |   |   | value_ref  | string |           | open   |     | 
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel(dataset_name, ['insert', 'getall', 'search'])
+    app.post(model_ref_name, json={'value_ref': "test_0"})
+    app.post(model_ref_name, json={'value_ref': "test_1"})
+    app.post(model_ref_name, json={'value_ref': "test_2"})
+
+    app.post(model_name, json={'value_test': {
+        "value_ref": "test_0"
+    }})
+    app.post(model_name, json={'value_test': {
+        "value_ref": "test_0"
+    }})
+    resp_middle = app.post(model_name, json={'value_test': {
+        "value_ref": "test_1"
+    }})
+    resp_last = app.post(model_name, json={'value_test': {
+        "value_ref": "test_2"
+    }})
+    response = app.get(f'/{model_name}/:summary/value_test')
+    json_response = response.json()
+
+    assert len(json_response["_data"]) == 3
+    assert dict_equals(json_response["_data"][0], {
+        'bin': "test_0",
+        'count': 2,
+        '_type': model_name
+    })
+    assert dict_equals(json_response["_data"][1], {
+        'bin': "test_1",
+        'count': 1,
+        '_type': model_name,
+        '_id': resp_middle.json()["_id"],
+    })
+    assert dict_equals(json_response["_data"][2], {
+        'bin': "test_2",
+        'count': 1,
+        '_type': model_name,
+        '_id': resp_last.json()["_id"],
+    })
 
 
 def test_summary_ref_missing(rc: RawConfig, postgresql: str, request: FixtureRequest):
@@ -1845,3 +2201,41 @@ def test_summary_geometry_under_unique_limit_bbox(rc: RawConfig, postgresql: str
         '_type': 'example/summary/geometry/TestSrid'
     })
     assert sum([item['cluster'] for item in json_response["_data"]]) == 11
+
+
+def test_summary_geometry_long_name(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    dataset_name = f"example/summary/geometry/{'a'*100}"
+    model_name = dataset_name + "/Test"
+    context = bootstrap_manifest(rc, f'''
+            d | r | b | m | property | type   | ref     | access  | uri
+            {dataset_name}    |        |         |         |
+              |   |   | Test       |        |         |         | 
+              |   |   |   | value    | geometry |         | open    | 
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel(dataset_name, ['insert', 'getall', 'search'])
+    app.post(model_name, json={'value': 'POINT(0 0)'})
+    app.post(model_name, json={'value': 'POINT(0 0)'})
+    resp_10_20 = app.post(model_name, json={'value': 'POINT(10 20)'})
+    resp_40_80 = app.post(model_name, json={'value': 'POINT(40 80)'})
+    response = app.get(f'/{model_name}/:summary/value')
+    json_response = response.json()
+
+    assert len(json_response["_data"]) == 3
+    assert dict_equals(json_response["_data"][0], {
+        'cluster': 2,
+        'centroid': 'POINT(0 0)',
+        '_type': model_name
+    })
+    assert dict_equals(json_response["_data"][1], {
+        'cluster': 1,
+        'centroid': 'POINT(10 20)',
+        "_id": resp_10_20.json()["_id"],
+        '_type': model_name
+    })
+    assert dict_equals(json_response["_data"][2], {
+        'cluster': 1,
+        'centroid': 'POINT(40 80)',
+        "_id": resp_40_80.json()["_id"],
+        '_type': model_name
+    })
