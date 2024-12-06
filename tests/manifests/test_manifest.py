@@ -1078,3 +1078,18 @@ def test_multi_nested_type_missmatch_with_partial(manifest_type, tmp_path, rc):
                   |   |   |   | meta.version.id                | integer |          | open   |
                   |   |   |   | meta                           | object  |          | open   |
             ''', manifest_type)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_text_prop_as_reference(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
+        d | r | b | m | property | type | ref     | level | access
+        example                  |      |         |       |
+                                 |      |         |       |
+          |   |   | Country      |      | name@en | 4     |
+          |   |   |   | name@en  | text |         | 4     | open
+                                 |      |         |       |
+          |   |   | City         |      | name@en | 4     |
+          |   |   |   | name@en  | text |         | 4     | open
+          |   |   |   | country  | ref  | Country | 3     | open
+    ''', manifest_type)
