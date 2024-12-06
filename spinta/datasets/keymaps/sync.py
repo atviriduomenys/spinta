@@ -73,6 +73,28 @@ def _fetch_changelog_data(
         offset = cid
 
 
+def _cid_offset(
+    keymap: KeyMap,
+    model_keymaps: list,
+    reset_cid: bool
+) -> int:
+    sync_cid = 0
+    if not reset_cid:
+        initial = True
+        for keymap_name in model_keymaps:
+            cid = keymap.get_last_synced_id(keymap_name)
+            if not cid:
+                sync_cid = 0
+                break
+
+            if initial:
+                sync_cid = cid
+                initial = False
+            else:
+                sync_cid = min(sync_cid, cid)
+    return sync_cid
+
+
 @dataclasses.dataclass
 class KeymapData:
     key: str
@@ -116,131 +138,6 @@ def process_keymap_data(
                     dry_run=dry_run
                 )
             )
-
-
-def sync_keymap(
-    context: Context,
-    keymap: KeyMap,
-    client,
-    server: str,
-    models: List[Model],
-    error_counter: ErrorCounter,
-    no_progress_bar: bool,
-    reset_cid: bool,
-    timeout: tuple[float, float],
-    dry_run: bool = False,
-):
-    config = context.get('config')
-    counters = {}
-    if not no_progress_bar:
-        counters = {
-            '_total': tqdm.tqdm(desc='SYNCHRONIZING KEYMAP', ascii=True)
-        }
-    try:
-        for model in models:
-            model_keymaps = [model.model_type()]
-            primary_keys = model.external.pkeys
-            skip_model = False
-            for key in primary_keys:
-                is_authorized = authorized(context, key, action=Action.SEARCH)
-                if not is_authorized:
-                    echo(f"SKIPPED KEYMAP '{model.model_type()}' MODEL SYNC, NO PERMISSION.")
-                    skip_model = True
-                    break
-            if skip_model:
-                continue
-
-            for combination in model.required_keymap_properties:
-                model_keymaps.append(f'{model.model_type()}.{"_".join(combination)}')
-
-            # Get min cid (in case new model was added, or models are out of sync)
-            sync_cid = 0
-            if not reset_cid:
-                initial = True
-                for keymap_name in model_keymaps:
-                    cid = keymap.get_last_synced_id(keymap_name)
-                    if not cid:
-                        sync_cid = 0
-                        break
-
-                    if initial:
-                        sync_cid = cid
-                        initial = False
-                    else:
-                        sync_cid = min(sync_cid, cid)
-
-            data = _fetch_changelog_data(
-                config=config,
-                model=model,
-                client=client,
-                server=server,
-                offset_cid=sync_cid,
-                error_counter=error_counter,
-                timeout=timeout
-            )
-
-            if not no_progress_bar:
-                model_counters = {}
-                for keymap_name in model_keymaps:
-                    model_counters[keymap_name] = tqdm.tqdm(desc=keymap_name, ascii=True)
-                counters[model.model_type()] = model_counters
-
-            data = process_keymap_data(
-                keymap=keymap,
-                model=model,
-                data=data,
-                primary_keys=primary_keys,
-                counters=counters,
-                dry_run=dry_run
-            )
-            data = commands.sync(context, keymap, data=data)
-            try:
-                for row in data:
-                    sync_cid = row.data['_cid']
-            finally:
-                if not dry_run:
-                    for keymap_name in model_keymaps:
-                        keymap.update_sync_data(keymap_name, sync_cid, datetime.datetime.now())
-
-                if model.model_type() in counters:
-                    for counter in counters[model.model_type()].values():
-                        counter.close()
-    finally:
-        if '_total' in counters:
-            counters['_total'].close()
-
-
-def remap_decoded_values(decoded: object, properties: List[str]):
-    mapped = {}
-    if not isinstance(decoded, list):
-        decoded = [decoded]
-    for i, prop in enumerate(properties):
-        mapped[prop] = decoded[i]
-    return mapped
-
-
-def keymaps_affected_by_change(row: dict, model: Model) -> dict:
-    keymaps = {}
-    for key in model.external.pkeys:
-        if key.name in row.keys():
-            keymaps[model.model_type()] = list([prop.name for prop in model.external.pkeys])
-            break
-
-    for combination in model.required_keymap_properties:
-        for prop in combination:
-            if prop in row.keys():
-                keymaps[f'{model.model_type()}.{"_".join(combination)}'] = combination
-                break
-
-    return keymaps
-
-
-def _extract_row_data_from_keys(row: dict, keys: List[Property]) -> dict:
-    result = {}
-    for key in keys:
-        if key.name in row:
-            result[key.name] = row[key.name]
-    return result
 
 
 def sync_model_insert(keymap: KeyMap, model: Model, row: dict, primary_keys: List[Property], counters: dict,
@@ -291,6 +188,122 @@ def sync_model_update(keymap: KeyMap, model: Model, row: dict, counters: dict, d
             counters[model.model_type()][km].update(1)
         if '_total' in counters:
             counters['_total'].update(1)
+
+
+def sync_keymap(
+    context: Context,
+    keymap: KeyMap,
+    client,
+    server: str,
+    models: List[Model],
+    error_counter: ErrorCounter,
+    no_progress_bar: bool,
+    reset_cid: bool,
+    timeout: tuple[float, float],
+    dry_run: bool = False,
+):
+    config = context.get('config')
+    counters = {}
+    if not no_progress_bar:
+        counters = {
+            '_total': tqdm.tqdm(desc='SYNCHRONIZING KEYMAP', ascii=True)
+        }
+    try:
+        for model in models:
+            model_keymaps = [model.model_type()]
+            primary_keys = model.external.pkeys
+            skip_model = False
+            for key in primary_keys:
+                is_authorized = authorized(context, key, action=Action.SEARCH)
+                if not is_authorized:
+                    echo(f"SKIPPED KEYMAP '{model.model_type()}' MODEL SYNC, NO PERMISSION.")
+                    skip_model = True
+                    break
+            if skip_model:
+                continue
+
+            for combination in model.required_keymap_properties:
+                model_keymaps.append(f'{model.model_type()}.{"_".join(combination)}')
+
+            # Get min cid (in case new model was added, or models are out of sync)
+            offset_cid = _cid_offset(
+                keymap=keymap,
+                model_keymaps=model_keymaps,
+                reset_cid=reset_cid
+            )
+
+            data = _fetch_changelog_data(
+                config=config,
+                model=model,
+                client=client,
+                server=server,
+                offset_cid=offset_cid,
+                error_counter=error_counter,
+                timeout=timeout
+            )
+
+            if not no_progress_bar:
+                model_counters = {}
+                for keymap_name in model_keymaps:
+                    model_counters[keymap_name] = tqdm.tqdm(desc=keymap_name, ascii=True)
+                counters[model.model_type()] = model_counters
+
+            data = process_keymap_data(
+                keymap=keymap,
+                model=model,
+                data=data,
+                primary_keys=primary_keys,
+                counters=counters,
+                dry_run=dry_run
+            )
+            data = commands.sync(context, keymap, data=data)
+            try:
+                for row in data:
+                    offset_cid = row.data['_cid']
+            finally:
+                if not dry_run:
+                    for keymap_name in model_keymaps:
+                        keymap.update_sync_data(keymap_name, offset_cid, datetime.datetime.now())
+
+                if model.model_type() in counters:
+                    for counter in counters[model.model_type()].values():
+                        counter.close()
+    finally:
+        if '_total' in counters:
+            counters['_total'].close()
+
+
+def remap_decoded_values(decoded: object, properties: List[str]):
+    mapped = {}
+    if not isinstance(decoded, list):
+        decoded = [decoded]
+    for i, prop in enumerate(properties):
+        mapped[prop] = decoded[i]
+    return mapped
+
+
+def keymaps_affected_by_change(row: dict, model: Model) -> dict:
+    keymaps = {}
+    for key in model.external.pkeys:
+        if key.name in row.keys():
+            keymaps[model.model_type()] = list([prop.name for prop in model.external.pkeys])
+            break
+
+    for combination in model.required_keymap_properties:
+        for prop in combination:
+            if prop in row.keys():
+                keymaps[f'{model.model_type()}.{"_".join(combination)}'] = combination
+                break
+
+    return keymaps
+
+
+def _extract_row_data_from_keys(row: dict, keys: List[Property]) -> dict:
+    result = {}
+    for key in keys:
+        if key.name in row:
+            result[key.name] = row[key.name]
+    return result
 
 
 @commands.sync.register(Context, KeyMap)
