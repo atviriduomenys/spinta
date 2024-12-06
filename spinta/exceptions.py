@@ -299,7 +299,7 @@ class NodeNotFound(UserError):
 
 
 class ModelReferenceNotFound(BaseError):
-    template = "Model reference {ref!r} not found."
+    template = "Model reference {ref!r} not found. Are you sure that all files (sources) are included?"
 
 
 class ModelReferenceKeyNotFound(BaseError):
