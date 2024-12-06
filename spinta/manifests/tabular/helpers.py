@@ -2388,7 +2388,7 @@ def _model_to_tabular(
             # Add `ref` only if all properties are available in the
             # resulting manifest.
             data['ref'] = ', '.join([
-                p.given_name or p.name for p in model.external.pkeys
+                p.given.name or p.name for p in model.external.pkeys
             ])
 
     hide_list = []
