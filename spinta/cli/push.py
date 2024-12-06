@@ -179,8 +179,8 @@ def push(
 
         # Synchronize keymaps
         with manifest.keymap as km:
-            first_time = km.first_time_sync()
-            if first_time:
+            synced = km.has_synced_before()
+            if not synced:
                 synchronize_keymap = True
             dependant_models = extract_dependant_nodes(context, models, not synchronize_keymap)
             sync_keymap(

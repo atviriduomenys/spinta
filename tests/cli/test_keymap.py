@@ -636,3 +636,67 @@ def test_keymap_sync_with_pages(
     assert len(keymap_after_sync) == 10
     keymap_keys = [entry[0] for entry in keymap_after_sync]
     assert all(key in entry_ids for key in keymap_keys)
+
+
+def test_keymap_sync_with_transaction_batches(
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    geodb,
+    request,
+    reset_keymap
+):
+    table = '''
+            d | r | b | m | property | type    | ref                             | source         | level | access
+            largedataset             |         |                                 |                |       |
+              | db                   | sql     |                                 |                |       |
+              |   |   | City         |         | id                              | cities         | 4     |
+              |   |   |   | id       | integer |                                 | id             | 4     | open
+              |   |   |   | name     | string  |                                 | name           | 2     | open
+              |   |   |   | country  | ref     | /largedataset/countries/Country | country        | 4     | open
+              |   |   |   |          |         |                                 |                |       |
+            largedataset/countries   |         |                                 |                |       |
+              |   |   | Country      |         | code                            |                | 4     |
+              |   |   |   | code     | integer |                                 |                | 4     | open
+              |   |   |   | name     | string  |                                 |                | 2     | open
+            '''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(table))
+    localrc = create_rc(rc, tmp_path, geodb)
+    localrc = localrc.fork({
+        "sync_page_size": 3,
+        "keymaps": {
+            "default": {
+                "type": "sqlalchemy",
+                "sync_transaction_size": 4
+            }
+        }
+    })
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    assert remote.url == 'https://example.com/'
+    remote.app.authmodel('largedataset/countries/Country', ['insert', 'wipe'])
+
+    entry_ids = [
+        remote.app.post('https://example.com/largedataset/countries/Country', json={'code': i}).json()['_id']
+        for i in range(10)]
+
+    keymap_before_sync = check_keymap_state(context, 'largedataset/countries/Country')
+    assert len(keymap_before_sync) == 0
+
+    manifest = tmp_path / 'manifest.csv'
+
+    result = cli.invoke(localrc, [
+        'keymap', 'sync', manifest,
+        '-i', remote.url,
+        '--credentials', remote.credsfile
+    ])
+    assert result.exit_code == 0
+
+    keymap_after_sync = check_keymap_state(context, 'largedataset/countries/Country')
+    assert len(keymap_after_sync) == 10
+    keymap_keys = [entry[0] for entry in keymap_after_sync]
+    assert all(key in entry_ids for key in keymap_keys)

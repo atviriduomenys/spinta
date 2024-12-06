@@ -13,13 +13,13 @@ class KeyMap(Component):
     def decode(self, name: str, key: str) -> object:
         raise NotImplementedError
 
-    def contains_key(self, name: str, value: Any) -> bool:
+    def contains(self, name: str, value: Any) -> bool:
         raise NotImplementedError
 
-    def first_time_sync(self) -> bool:
+    def has_synced_before(self) -> bool:
         raise NotImplementedError
 
-    def get_sync_data(self, name: str) -> object:
+    def get_last_synced_id(self, name: str) -> object:
         raise NotImplementedError
 
     def update_sync_data(self, name: str, cid: Any, time: datetime):

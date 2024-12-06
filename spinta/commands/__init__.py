@@ -502,7 +502,7 @@ def bootstrap():
 
 @command()
 def sync():
-    """Sync manifest YAML files to database."""
+    """Sync data with external source."""
 
 
 @command()
@@ -1410,3 +1410,4 @@ def validate_export_output(
 @command()
 def validate_export_output(**kwargs):
     """Validates given output for specified format"""
+
