@@ -16,3 +16,4 @@ project.
    functions
    manifests
    git-flow
+   issues
