@@ -1,13 +1,11 @@
-from mypy.types import NoneType
 from typing import TypedDict, Callable, Dict
 
 from spinta import commands
 from spinta.components import Namespace, Model, Node, Context
 from spinta.datasets.components import Dataset
 from spinta.exceptions import DatasetNotFound, NamespaceNotFound, ModelNotFound, ManifestObjectNotDefined, \
-    NotImplementedFeature, MissingRefModel
+    NotImplementedFeature
 from spinta.manifests.components import Manifest
-from spinta.manifests.yaml.components import InlineManifest
 
 
 class _FunctionTypes(TypedDict):
