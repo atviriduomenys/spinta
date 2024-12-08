@@ -998,3 +998,7 @@ class BackendUnavailable(BaseError):
 
 class InvalidClientFileFormat(UserError):
     template = "File {client_file} data must be a dictionary, not a {client_file_type}."
+
+
+class MissingModelForRef(UserError):
+    template = "Property of type `ref` or `backref` should have a model in the `ref` column"
