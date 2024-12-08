@@ -77,11 +77,6 @@ def has_model(context: Context, manifest: Manifest, model: str, **kwargs):
     return model in manifest.get_objects()['model']
 
 
-@commands.has_model.register(Context, InlineManifest, NoneType)
-def has_model(context: Context, manifest: Manifest, model: None, **kwargs):
-    raise MissingModelForRef
-
-
 @commands.get_model.register(Context, Manifest, str)
 def get_model(context: Context, manifest: Manifest, model: str, **kwargs):
     if has_model(context, manifest, model):
