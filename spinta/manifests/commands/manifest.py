@@ -5,7 +5,7 @@ from spinta import commands
 from spinta.components import Namespace, Model, Node, Context
 from spinta.datasets.components import Dataset
 from spinta.exceptions import DatasetNotFound, NamespaceNotFound, ModelNotFound, ManifestObjectNotDefined, \
-    NotImplementedFeature, MissingModelForRef
+    NotImplementedFeature, MissingRefModel
 from spinta.manifests.components import Manifest
 from spinta.manifests.yaml.components import InlineManifest
 
