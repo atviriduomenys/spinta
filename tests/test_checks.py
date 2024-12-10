@@ -6,7 +6,6 @@ from spinta import commands
 from spinta.core.config import RawConfig
 from spinta.testing.manifest import load_manifest_and_context, load_manifest
 from spinta.testing.manifest import load_manifest_get_context
-from spinta.manifests.tabular.helpers import TabularManifestError
 from spinta.exceptions import InvalidValue
 from spinta.exceptions import InvalidName
 from spinta.testing.tabular import create_tabular_manifest
