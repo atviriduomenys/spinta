@@ -6,31 +6,9 @@ from spinta import commands
 from spinta.core.config import RawConfig
 from spinta.testing.manifest import load_manifest_and_context, load_manifest
 from spinta.testing.manifest import load_manifest_get_context
-from spinta.manifests.tabular.helpers import TabularManifestError
 from spinta.exceptions import InvalidValue
 from spinta.exceptions import InvalidName
 from spinta.testing.tabular import create_tabular_manifest
-
-
-@pytest.mark.manifests('internal_sql', 'csv')
-def test_enum_level(
-    manifest_type: str,
-    tmp_path: Path,
-    rc: RawConfig,
-):
-    with pytest.raises(TabularManifestError) as e:
-        load_manifest(rc, '''
-        d | r | b | m | property | type    | prepare | level | title
-        datasets/gov/example     |         |         |       |
-                                 |         |         |       |
-          |   |   | Data         |         |         |       |
-          |   |   |   | value    | integer |         |       |
-                                 | enum    | 1       | 3     | Positive
-                                 |         | 2       | 3     | Negative
-        ''', manifest_type=manifest_type, tmp_path=tmp_path)
-    assert str(e.value).endswith(
-        ":6: Enum's do not have a level, but level '3' is given."
-    )
 
 
 @pytest.mark.manifests('internal_sql', 'csv')

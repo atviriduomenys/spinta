@@ -1380,9 +1380,6 @@ class EnumReader(TabularReader):
                 "At least source or prepare must be specified for an enum."
             )
 
-        if row[LEVEL]:
-            self.error(f"Enum's do not have a level, but level {row[LEVEL]!r} is given.")
-
         self.data = {
             'id': row[ID],
             'name': self.name,
