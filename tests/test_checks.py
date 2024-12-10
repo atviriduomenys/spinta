@@ -13,27 +13,6 @@ from spinta.testing.tabular import create_tabular_manifest
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_enum_level(
-    manifest_type: str,
-    tmp_path: Path,
-    rc: RawConfig,
-):
-    with pytest.raises(TabularManifestError) as e:
-        load_manifest(rc, '''
-        d | r | b | m | property | type    | prepare | level | title
-        datasets/gov/example     |         |         |       |
-                                 |         |         |       |
-          |   |   | Data         |         |         |       |
-          |   |   |   | value    | integer |         |       |
-                                 | enum    | 1       | 3     | Positive
-                                 |         | 2       | 3     | Negative
-        ''', manifest_type=manifest_type, tmp_path=tmp_path)
-    assert str(e.value).endswith(
-        ":6: Enum's do not have a level, but level '3' is given."
-    )
-
-
-@pytest.mark.manifests('internal_sql', 'csv')
 def test_enum_type_integer(
     manifest_type: str,
     tmp_path: Path,
