@@ -15,7 +15,7 @@ def link(context: Context, dtype: Ref) -> None:
     # XXX: https://github.com/atviriduomenys/spinta/issues/44
     rmodel: str = dtype.model
     if rmodel is None:
-        raise MissingRefModel
+        raise MissingRefModel(model_name=dtype.prop.model.basename, property_name=dtype.prop.name, property_type=dtype.prop.dtype.name)
     if rmodel == dtype.prop.model.name:
         # Self reference.
         dtype.model = dtype.prop.model
