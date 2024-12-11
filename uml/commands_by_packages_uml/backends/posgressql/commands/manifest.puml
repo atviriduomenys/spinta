@@ -1,0 +1,23 @@
+@startuml
+package manifest <<Rectangle>> {
+
+    object load {
+        +context: Context,
+        +manifest: BackendManifest,
+        +backend: PostgreSQL,
+        +*,
+        +into: Manifest = None,
+        +freezed: bool = True,
+    }
+
+
+
+}
+
+load *-- Context
+load *-- BackendManifest
+load *-- PostgreSQL
+load *-- Manifest
+
+@enduml
+
