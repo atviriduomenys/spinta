@@ -698,7 +698,7 @@ def _enums_to_sql(
             'name': name,
             'type': 'enum',
             'ref': name,
-            'prepare': _handle_prepare(NA)
+            'prepare': _handle_prepare(NA),
         })
         for item in items:
             if item.access is not None and item.access < access:
@@ -717,6 +717,7 @@ def _enums_to_sql(
                 'access': item.given.access,
                 'title': item.title,
                 'description': item.description,
+                'level': item.level,
             })
             yield from _lang_to_sql(item.lang, path=path, mpath=new_item_mpath, depth=depth + 2, parent_id=new_item_id)
 

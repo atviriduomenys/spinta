@@ -1388,6 +1388,7 @@ class EnumReader(TabularReader):
             'access': row[ACCESS],
             'title': row[TITLE],
             'description': row[DESCRIPTION],
+            'level': row[LEVEL],
         }
 
         node_data: PropertyRow = self._get_node_data(row)
@@ -2052,6 +2053,7 @@ def _enums_to_tabular(
                 'access': item.given.access,
                 'title': item.title,
                 'description': item.description,
+                'level': item.level,
             })
             if lang := list(_lang_to_tabular(item.lang)):
                 first = True
