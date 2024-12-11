@@ -27,6 +27,10 @@ Improvements:
 
   .. _#1011: https://github.com/atviriduomenys/spinta/issues/1011
 
+- added enum level support, allowing to indicate a level for enum. (`#982`_)
+
+  .. _#982: https://github.com/atviriduomenys/spinta/issues/982
+
 Bug fix:
 
 - `Postgresql` `summary` now properly handles tables with long names (`P#160`).
