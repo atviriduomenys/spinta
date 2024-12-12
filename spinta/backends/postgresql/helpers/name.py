@@ -29,18 +29,18 @@ PG_NAMING_CONVENTION = immutabledict({
 
 @dispatch(str, str)
 def name_changed(
-        old_name: str,
-        new_name: str
+    old_name: str,
+    new_name: str
 ) -> bool:
     return old_name != new_name
 
 
 @dispatch(str, str, str, str)
 def name_changed(
-        old_table_name: str,
-        new_table_name: str,
-        old_property_name: str,
-        new_property_name: str
+    old_table_name: str,
+    new_table_name: str,
+    old_property_name: str,
+    new_property_name: str
 ) -> bool:
     return old_table_name != new_table_name or old_property_name != new_property_name
 
