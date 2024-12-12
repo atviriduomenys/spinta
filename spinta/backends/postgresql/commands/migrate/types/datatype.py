@@ -172,7 +172,9 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
 def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, table: sa.Table,
             old: list, new: NotAvailable, foreign_key: bool = False, **kwargs):
     for item in old:
-        commands.migrate(context, backend, meta, table, item, new, **adjust_kwargs(kwargs, 'foreign_key', foreign_key))
+        commands.migrate(context, backend, meta, table, item, new, **adjust_kwargs(kwargs, {
+            'foreign_key': foreign_key
+        }))
 
 
 @commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, sa.Table, sa.Column, NotAvailable)

@@ -442,7 +442,9 @@ def handle_internal_ref_to_scalar_conversion(
     ref_primary_property = ref_model.flatprops[ref_primary_keys[0]]
     ref_primary_column = commands.prepare(context, backend, ref_primary_property)
     column_name = get_pg_name(get_column_name(new_property))
-    updated_kwargs = adjust_kwargs(kwargs, 'foreign_key', True)
+    updated_kwargs = adjust_kwargs(kwargs, {
+        'foreign_key': True
+    })
 
     commands.migrate(context, backend, meta, table, NA, new_property, **updated_kwargs)
     table_name = get_pg_table_name(rename.get_table_name(table.name))
@@ -472,9 +474,9 @@ def extract_target_column(rename: MigrateRename, columns: list, table: sa.Table,
     return columns
 
 
-def adjust_kwargs(kwargs: dict, key: str, value: Any) -> dict:
+def adjust_kwargs(kwargs: dict, new: dict) -> dict:
     copied = kwargs.copy()
-    copied[key] = value
+    copied.update(new)
     return copied
 
 

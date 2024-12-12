@@ -23,7 +23,9 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
     column: sa.Column = commands.prepare(context, backend, new.prop)
     columns = old.copy()
 
-    adjusted_kwargs = adjust_kwargs(kwargs, "model_meta", model_meta)
+    adjusted_kwargs = adjust_kwargs(kwargs, {
+        "model_meta": model_meta
+    })
 
     table_name = get_pg_table_name(rename.get_table_name(table.name))
 

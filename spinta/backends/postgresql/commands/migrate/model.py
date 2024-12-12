@@ -395,7 +395,9 @@ def _handle_json_column_migrations(
     handler: MigrationHandler,
     **kwargs
 ):
-    adjusted_kwargs = adjust_kwargs(kwargs, "model_meta", model_meta)
+    adjusted_kwargs = adjust_kwargs(kwargs, {
+        "model_meta": model_meta
+    })
     for json_meta in model_meta.json_columns.values():
         if json_meta.new_keys and json_meta.cast_to is None:
             removed_keys = [key for key, new_key in json_meta.new_keys.items() if new_key == get_pg_removed_name(key)]

@@ -27,7 +27,6 @@ from spinta.utils.schema import NotAvailable, NA
 @commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, sa.Table, NotAvailable, Ref)
 def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, table: sa.Table,
             old: NotAvailable, new: Ref, model_meta: MigrateModelMeta, **kwargs):
-
     new_primary_columns = commands.prepare(context, backend, new.prop, propagate=False)
     new_primary_columns = ensure_list(new_primary_columns)
     new_primary_columns = extract_sqlalchemy_columns(new_primary_columns)
@@ -39,7 +38,10 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
         columns = [columns]
     for column in columns:
         if isinstance(column, sa.Column):
-            commands.migrate(context, backend, meta, table, old, column, **adjust_kwargs(kwargs, 'foreign_key', True))
+            commands.migrate(context, backend, meta, table, old, column, **adjust_kwargs(kwargs, {
+                'foreign_key': True,
+                'model_meta': model_meta
+            }))
 
     table_name = get_pg_table_name(get_table_name(new.prop.model))
     _handle_property_foreign_key_constraint(
@@ -62,7 +64,9 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
         columns = [columns]
     for column in columns:
         if isinstance(column, sa.Column):
-            commands.migrate(context, backend, meta, table, old, column, **adjust_kwargs(kwargs, 'foreign_key', True))
+            commands.migrate(context, backend, meta, table, old, column, **adjust_kwargs(kwargs, {
+                'foreign_key': True
+            }))
 
 
 @commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, sa.Table, sa.Column, Ref)
@@ -248,8 +252,10 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
     rename = meta.rename
     inspector = meta.inspector
     handler = meta.handler
-    adjusted_kwargs = adjust_kwargs(kwargs, 'foreign_key', True)
-    adjusted_kwargs = adjust_kwargs(adjusted_kwargs, 'model_meta', model_meta)
+    adjusted_kwargs = adjust_kwargs(kwargs, {
+        'foreign_key': True,
+        'model_meta': model_meta
+    })
 
     new_primary_columns = commands.prepare(context, backend, new.prop, propagate=False)
     new_primary_columns = ensure_list(new_primary_columns)
@@ -428,7 +434,9 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
     inspector = meta.inspector
     handler = meta.handler
 
-    adjusted_kwargs = adjust_kwargs(kwargs, 'foreign_key', True)
+    adjusted_kwargs = adjust_kwargs(kwargs, {
+        'foreign_key': True
+    })
 
     table_name = get_pg_table_name(rename.get_table_name(table.name))
     old_ref_table = get_pg_table_name(rename.get_old_table_name(get_table_name(new.model)))
@@ -444,7 +452,7 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
     new_all_columns = extract_sqlalchemy_columns(new_all_columns)
 
     new_children_columns = [column for column in new_all_columns if
-                               column.name not in new_primary_column_name_mapping]
+                            column.name not in new_primary_column_name_mapping]
     new_children_column_names = [column.name for column in new_children_columns]
 
     new_name = get_pg_column_name(new.prop.place)
