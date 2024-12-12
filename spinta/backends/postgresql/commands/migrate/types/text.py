@@ -6,8 +6,9 @@ from sqlalchemy.dialects.postgresql import JSONB
 import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers.migrate.migrate import MigratePostgresMeta, MigrateModelMeta, json_has_key
-from spinta.backends.postgresql.helpers.migrate.name import name_changed, get_pg_removed_name
+from spinta.backends.postgresql.helpers.migrate.migrate import MigratePostgresMeta, MigrateModelMeta, json_has_key, \
+    adjust_kwargs
+from spinta.backends.postgresql.helpers.name import name_changed, get_pg_removed_name, get_pg_table_name
 from spinta.components import Context
 from spinta.types.text.components import Text
 from spinta.utils.nestedstruct import get_last_attr
@@ -22,7 +23,9 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
     column: sa.Column = commands.prepare(context, backend, new.prop)
     columns = old.copy()
 
-    table_name = rename.get_table_name(table.name)
+    adjusted_kwargs = adjust_kwargs(kwargs, "model_meta", model_meta)
+
+    table_name = get_pg_table_name(rename.get_table_name(table.name))
 
     # Affected keys, are keys that have already been processed, since
     # scalar -> text conversion is done separately as well as lang rename
@@ -47,7 +50,7 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
 
     # Add empty jsonb column, if it was not found
     if json_column_meta is None and json_column is None:
-        commands.migrate(context, backend, meta, table, NA, column, **kwargs)
+        commands.migrate(context, backend, meta, table, NA, column, **adjusted_kwargs)
 
     # Handle scalar -> text conversion
     for item in columns.copy():
@@ -72,7 +75,7 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
             ])
         )
         affected_keys.append(key)
-        commands.migrate(context, backend, meta, table, item, NA, **kwargs)
+        commands.migrate(context, backend, meta, table, item, NA, **adjusted_kwargs)
         columns.remove(item)
 
     # Handle lang rename, remove and add
@@ -107,7 +110,7 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
         if json_column_meta:
             json_column_meta.new_name = column.name
         else:
-            commands.migrate(context, backend, meta, table, json_column, column, **kwargs)
+            commands.migrate(context, backend, meta, table, json_column, column, **adjusted_kwargs)
 
 
 @commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, sa.Table, sa.Column, Text)

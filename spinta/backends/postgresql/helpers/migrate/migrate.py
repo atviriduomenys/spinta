@@ -1,5 +1,6 @@
 import dataclasses
-from typing import Any, List, Union, Dict, Tuple
+from collections import defaultdict
+from typing import Any, List, Union, Dict, Tuple, Callable
 
 import sqlalchemy as sa
 import geoalchemy2.types
@@ -16,8 +17,8 @@ from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_pg_name, get_column_name
 from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
-from spinta.backends.postgresql.helpers.migrate.name import name_changed, get_pg_constraint_name, get_pg_index_name, \
-    nested_column_rename
+from spinta.backends.postgresql.helpers.name import name_changed, get_pg_constraint_name, get_pg_index_name, \
+    nested_column_rename, get_pg_table_name
 from spinta.cli.helpers.migrate import MigrateRename
 from spinta.components import Context, Model, Property
 from spinta.exceptions import MigrateScalarToRefTooManyKeys
@@ -194,7 +195,7 @@ def name_key(name: str):
 
 
 def model_name_key(model: str) -> str:
-    return get_pg_name(model)
+    return get_pg_table_name(model)
 
 
 def is_name_complex(name: str):
@@ -313,8 +314,17 @@ class JSONColumnMigrateMeta:
 @dataclasses.dataclass
 class MigrateModelMeta:
     json_columns: Dict[str, JSONColumnMigrateMeta] = dataclasses.field(default_factory=dict)
+    unique_constraint_states: Dict[str, bool] = dataclasses.field(default_factory=lambda: defaultdict(lambda: False))
+    foreign_constraint_states: Dict[str, bool] = dataclasses.field(default_factory=lambda: defaultdict(lambda: False))
+    index_states: Dict[str, bool] = dataclasses.field(default_factory=lambda: defaultdict(lambda: False))
 
-    def initialize(self, backend: PostgreSQL, table: sa.Table, columns: List[sa.Column]):
+    def initialize(
+        self,
+        backend: PostgreSQL,
+        table: sa.Table,
+        columns: List[sa.Column],
+        inspector: Inspector
+    ):
         for column in columns:
             # Add JSONB to meta (JSONB has different handle system)
             if isinstance(column.type, JSONB):
@@ -324,12 +334,40 @@ class MigrateModelMeta:
                     column
                 )
 
+        constraints = inspector.get_unique_constraints(table.name)
+        for constraint in constraints:
+            if not _reserved_constraint(constraint):
+                self.unique_constraint_states[constraint['name']] = False
+
+        constraints = inspector.get_foreign_keys(table.name)
+        for constraint in constraints:
+            self.foreign_constraint_states[constraint['name']] = False
+
+        indexes = inspector.get_indexes(table.name)
+        for index in indexes:
+            if not _reserved_constraint(index):
+                self.index_states[index['name']] = False
+
+    def handle_unique_constraint(self, constraint: str):
+        self.unique_constraint_states[constraint] = True
+        self.index_states[constraint] = True
+
+    def handle_foreign_constraint(self, constraint: str):
+        self.foreign_constraint_states[constraint] = True
+
+    def handle_index(self, constraint: str):
+        self.index_states[constraint] = True
+
     def __add_json_column(self, backend: PostgreSQL, table: sa.Table, column: sa.Column):
         meta = JSONColumnMigrateMeta(
             column=column,
         )
         meta.initialize(backend, table)
         self.json_columns[column.name] = meta
+
+
+def _reserved_constraint(constraint: dict) -> bool:
+    return all(column_name.startswith('_') for column_name in constraint["column_names"])
 
 
 def is_internal_ref(dtype: Ref):
@@ -407,8 +445,8 @@ def handle_internal_ref_to_scalar_conversion(
     updated_kwargs = adjust_kwargs(kwargs, 'foreign_key', True)
 
     commands.migrate(context, backend, meta, table, NA, new_property, **updated_kwargs)
-    table_name = rename.get_table_name(table.name)
-    foreign_table_name = get_table_name(ref_model)
+    table_name = get_pg_table_name(rename.get_table_name(table.name))
+    foreign_table_name = get_pg_table_name(get_table_name(ref_model))
     handler.add_action(
         ma.DowngradeTransferDataMigrationAction(
             table_name,
@@ -496,12 +534,48 @@ def generate_type_missmatch_exception_details(
     return result
 
 
-def contains_unique_constraint(inspector: Inspector, table: Union[sa.Table, str], column_name: str):
-    table_name = table.name if isinstance(table, sa.Table) else table
-    return any(constraint["column_names"] == [column_name] for constraint in
-               inspector.get_unique_constraints(table_name=table_name)) or any(
-        index["column_names"] == [column_name] and index["unique"] for index in
-        inspector.get_indexes(table_name=table_name))
+def constraint_with_name(constraints: list, constraint_name: str):
+    try:
+        return next(constraint for constraint in constraints if constraint["name"] == constraint_name)
+    except StopIteration:
+        return None
+
+
+def constraint_with_columns(constraints: list, column_names: list[str]):
+    try:
+        return next(constraint for constraint in constraints if constraint["column_names"] == column_names)
+    except StopIteration:
+        return None
+
+
+def index_with_columns(indexes: list, column_names: list[str], condition: Callable[[dict], bool] = lambda index: True):
+    try:
+        return next(index for index in indexes if index["column_names"] == column_names and condition(index))
+    except StopIteration:
+        return None
+
+
+def index_with_name(indexes: list, index_name: str, condition: Callable[[dict], bool] = lambda index: True):
+    try:
+        return next(index for index in indexes if index["name"] == index_name and condition(index))
+    except StopIteration:
+        return None
+
+
+def index_not_handled_condition(meta: MigrateModelMeta):
+    return lambda index: not meta.index_states[index['name']]
+
+
+def contains_unique_constraint(constraints: list, column_name: str):
+    return any(constraint["column_names"] == [column_name] for constraint in constraints)
+
+
+def contains_constraint_name(constraints: list, constraint_name: str):
+    return any(constraint["name"] == constraint_name for constraint in constraints)
+
+
+def contains_index(indexes: list, column_name: str):
+    return any(index["column_names"] == [column_name] for index in indexes)
 
 
 def handle_unique_constraint_migration(
@@ -513,57 +587,76 @@ def handle_unique_constraint_migration(
     handler: MigrationHandler,
     inspector: Inspector,
     foreign_key: bool,
-    removed: list,
-    renamed: bool
+    renamed: bool,
+    meta: MigrateModelMeta
 ):
+    if not new.unique:
+        return
+
     unique_name = get_pg_constraint_name(table_name, column_name)
+
+    if meta.unique_constraint_states[unique_name]:
+        return
 
     unique_constraints = inspector.get_unique_constraints(table_name=table.name)
     constraint_column = old.name if renamed else column_name
 
-    if new.unique and not renamed and not contains_unique_constraint(inspector, table, constraint_column):
+    meta.handle_unique_constraint(unique_name)
+    old_constraint = constraint_with_columns(unique_constraints, [constraint_column])
+    if old_constraint and old_constraint['name'] == unique_name:
+        return
+
+    if not contains_constraint_name(unique_constraints, unique_name):
+        if old_constraint:
+            meta.handle_unique_constraint(old_constraint['name'])
+            handler.add_action(ma.RenameConstraintMigrationAction(
+                table_name=table_name,
+                old_constraint_name=old_constraint['name'],
+                new_constraint_name=unique_name
+            ))
+            return
+
         handler.add_action(ma.CreateUniqueConstraintMigrationAction(
             constraint_name=unique_name,
             table_name=table_name,
-            columns=[constraint_column]
+            columns=[column_name]
         ), foreign_key)
-    else:
-        for constraint in unique_constraints:
-            dropped = False
-            if constraint["column_names"] == [constraint_column]:
-                removed.append(constraint["name"])
-                if renamed or old.unique:
-                    dropped = True
-                    handler.add_action(ma.DropConstraintMigrationAction(
-                        constraint_name=constraint["name"],
-                        table_name=table_name
-                    ), foreign_key)
-                unique_name = get_pg_index_name(table_name, new.name)
+        return
 
-                if new.unique and (dropped or not contains_unique_constraint(inspector, table, constraint_column)):
-                    handler.add_action(ma.CreateUniqueConstraintMigrationAction(
-                        constraint_name=unique_name,
-                        table_name=table_name,
-                        columns=[constraint_column]
-                    ), foreign_key)
-        if not new.unique:
-            for index in inspector.get_indexes(table_name=table.name):
-                if index["column_names"] == [column_name] and index["unique"] and index["name"] not in removed:
-                    index_name = index["name"]
-                    handler.add_action(ma.DropIndexMigrationAction(
-                        index_name=index_name,
-                        table_name=table_name,
-                    ), foreign_key)
-                    handler.add_action(ma.CreateIndexMigrationAction(
-                        index_name=index_name,
-                        table_name=table_name,
-                        columns=[constraint_column]
-                    ), foreign_key)
+    if not contains_unique_constraint(unique_constraints, constraint_column):
+        handler.add_action(ma.DropConstraintMigrationAction(
+            constraint_name=unique_name,
+            table_name=table_name,
+        ), foreign_key)
+
+        handler.add_action(ma.CreateUniqueConstraintMigrationAction(
+            constraint_name=unique_name,
+            table_name=table_name,
+            columns=[column_name]
+        ), foreign_key)
 
 
-def contains_index(inspector: Inspector, table: Union[sa.Table, str], column_name: str):
-    table_name = table.name if isinstance(table, sa.Table) else table
-    return any(index["column_names"] == [column_name] for index in inspector.get_indexes(table_name=table_name))
+def _index_using_suffix(
+    column: sa.Column
+):
+    if isinstance(column.type, geoalchemy2.types.Geometry):
+        return "GIST"
+
+    return None
+
+
+def _requires_index(
+    column: sa.Column,
+    skip_unique: bool = True
+) -> bool:
+    if isinstance(column.type, geoalchemy2.types.Geometry):
+        return True
+
+    # This is handled with UniqueConstraint handler
+    if skip_unique and column.unique:
+        return False
+
+    return column.index
 
 
 def handle_index_migration(
@@ -575,47 +668,69 @@ def handle_index_migration(
     handler: MigrationHandler,
     inspector: Inspector,
     foreign_key: bool,
-    removed: list,
-    renamed: bool
+    renamed: bool,
+    meta: MigrateModelMeta
 ):
-    index_name = get_pg_name(f'ix_{table_name}_{column_name}')
+    if not _requires_index(new):
+        return
+
+    index_name = get_pg_index_name(table_name=table_name, columns=[column_name])
+    if meta.index_states[index_name]:
+        return
 
     constraint_column = old.name if renamed else column_name
     indexes = inspector.get_indexes(table_name=table.name)
-    if (new.index or isinstance(new.type, geoalchemy2.types.Geometry)) and not renamed and not contains_index(inspector,
-                                                                                                              table,
-                                                                                                              constraint_column):
-        handler.add_action(ma.CreateIndexMigrationAction(
+    using = _index_using_suffix(new)
+
+    # Check unhandled index with same columns
+    existing_index = index_with_columns(indexes, [constraint_column], condition=index_not_handled_condition(meta))
+    meta.handle_index(index_name)
+    if existing_index is not None:
+        if existing_index['name'] == index_name:
+            return
+
+        meta.handle_index(existing_index["name"])
+        handler.add_action(ma.RenameIndexMigrationAction(
+            old_index_name=existing_index["name"],
+            new_index_name=index_name
+        ))
+        return
+
+    # Check index with existing name
+    if contains_index(indexes, index_name):
+        existing_index = index_with_name(indexes, index_name)
+        if existing_index['column_names'] == [constraint_column]:
+            return
+
+        handler.add_action(
+            ma.DropIndexMigrationAction(
+                index_name=index_name,
+                table_name=table_name
+            ), foreign_key)
+        handler.add_action(
+            ma.CreateIndexMigrationAction(
+                index_name=index_name,
+                table_name=table_name,
+                columns=[constraint_column],
+                using=using
+            ), foreign_key)
+        return
+
+    handler.add_action(
+        ma.CreateIndexMigrationAction(
             index_name=index_name,
             table_name=table_name,
             columns=[constraint_column],
-            using="gist" if isinstance(new.type, geoalchemy2.types.Geometry) else None
+            using=using
         ), foreign_key)
-    else:
-        for index in indexes:
-            dropped = False
-            if index["column_names"] == [constraint_column] and index["name"] not in removed:
-                index_name = get_pg_index_name(table_name, new.name)
-                removed.append(index["name"])
-                if renamed or (not new.index and not isinstance(new.type, geoalchemy2.types.Geometry)):
-                    dropped = True
-                    handler.add_action(
-                        ma.DropIndexMigrationAction(
-                            index_name=index["name"],
-                            table_name=table_name
-                        ), foreign_key)
-                if (new.index or isinstance(new.type, geoalchemy2.types.Geometry)) and (
-                    dropped or not contains_index(inspector, table, constraint_column)):
-                    handler.add_action(ma.CreateIndexMigrationAction(
-                        index_name=index_name,
-                        table_name=table_name,
-                        columns=[column_name],
-                        using="gist" if isinstance(new.type, geoalchemy2.types.Geometry) else None
-                    ), foreign_key)
 
 
 def extract_sqlalchemy_columns(data: list) -> List[sa.Column]:
     return [item for item in data if isinstance(item, sa.Column)]
+
+
+def reduce_columns(data: list) -> Union[sa.Column, list[sa.Column]]:
+    return data[0] if len(data) == 1 else data
 
 
 def is_internal(
@@ -832,7 +947,6 @@ def zip_and_migrate_properties(
             # If neither column nor property is matched skip it
             if not new_properties:
                 continue
-
         if new_properties:
             for new_property in new_properties:
                 handled = handle_internal_ref_to_scalar_conversion(
@@ -841,12 +955,13 @@ def zip_and_migrate_properties(
                     meta,
                     old_table,
                     old_columns,
-                    new_property
+                    new_property,
+                    **kwargs
                 )
 
                 if not handled:
                     commands.migrate(context, backend, meta, old_table, old_columns, new_property,
                                      **kwargs)
         else:
-            commands.migrate(context, backend, meta, old_table, old_columns, NA, foreign_key=False,
+            commands.migrate(context, backend, meta, old_table, old_columns, NA,
                              **kwargs)

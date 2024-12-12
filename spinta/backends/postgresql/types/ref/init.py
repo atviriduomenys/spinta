@@ -5,6 +5,7 @@ import sqlalchemy as sa
 from sqlalchemy.sql.type_api import TypeEngine
 
 from spinta import commands
+from spinta.backends.postgresql.helpers.name import get_pg_column_name
 from spinta.components import Context, Property
 from spinta.types.datatype import Ref
 from spinta.backends.helpers import get_table_name
@@ -44,23 +45,25 @@ def get_pg_foreign_key(
     *,
     table_name: str,
     model_name: str,
-    column_type: TypeEngine) -> List[Union[sa.Column, sa.Constraint]]:
-    column_name = get_column_name(prop) + '._id'
+    column_type: TypeEngine
+) -> List[Union[sa.Column, sa.Constraint]]:
+    column_name = get_pg_column_name(get_column_name(prop) + '._id')
     if prop.list and prop.place == prop.list.place:
         column_name = '_id'
     nullable = not prop.dtype.required
-    return [
+
+    columns = [
         sa.Column(
             column_name,
             column_type,
             nullable=nullable,
-            unique=prop.dtype.unique,
-            index=True
+            index=not prop.dtype.unique,
+            unique=prop.dtype.unique
         ),
         sa.ForeignKeyConstraint(
-            [column_name], [f'{table_name}._id'],
-            name=get_pg_name(f'fk_{model_name}_{column_name}'),
+            [column_name], [get_pg_column_name(f'{table_name}._id')],
             ondelete='CASCADE' if prop.list else None,
             onupdate='CASCADE' if prop.list else None
-        ),
+        )
     ]
+    return columns

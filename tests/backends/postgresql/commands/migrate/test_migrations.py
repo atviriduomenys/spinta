@@ -145,8 +145,8 @@ def test_migrate_create_simple_datatype_model(
         '    "someUri" VARCHAR, \n'
         '    "someBinary" BYTEA, \n'
         '    "someJson" JSONB, \n'
-        '    PRIMARY KEY (_id), \n'
-        '    UNIQUE ("someUri")\n'
+        '    CONSTRAINT "pk_migrate/example/Test" PRIMARY KEY (_id), \n'
+        '    CONSTRAINT "uq_migrate/example/Test_someUri" UNIQUE ("someUri")\n'
         ');\n'
         '\n'
         'CREATE INDEX "ix_migrate/example/Test__txn" ON "migrate/example/Test" '
@@ -160,7 +160,7 @@ def test_migrate_create_simple_datatype_model(
         '    datetime TIMESTAMP WITHOUT TIME ZONE, \n'
         '    action VARCHAR(8), \n'
         '    data JSONB, \n'
-        '    PRIMARY KEY (_id)\n'
+        '    CONSTRAINT "pk_migrate/example/Test/:changelog" PRIMARY KEY (_id)\n'
         ');\n'
         '\n'
         'CREATE INDEX "ix_migrate/example/Test/:changelog__txn" ON '
@@ -619,7 +619,7 @@ def test_migrate_add_unique_constraint(
         'BEGIN;\n'
         '\n'
         'ALTER TABLE "migrate/example/Test" ADD CONSTRAINT '
-        '"migrate/example/Test_someText_key" UNIQUE ("someText");\n'
+        '"uq_migrate/example/Test_someText" UNIQUE ("someText");\n'
         '\n'
         'COMMIT;\n'
         '\n')
@@ -696,7 +696,7 @@ def test_migrate_remove_unique_constraint(
         'BEGIN;\n'
         '\n'
         'ALTER TABLE "migrate/example/Test" DROP CONSTRAINT '
-        '"migrate/example/Test_someText_key";\n'
+        '"uq_migrate/example/Test_someText";\n'
         '\n'
         'COMMIT;\n'
         '\n')
@@ -769,15 +769,13 @@ def test_migrate_create_models_with_base(
         '    "someText" TEXT, \n'
         '    "someInteger" INTEGER, \n'
         '    "someNumber" FLOAT, \n'
-        '    PRIMARY KEY (_id)\n'
+        '    CONSTRAINT "pk_migrate/example/Base" PRIMARY KEY (_id), \n'
+        '    CONSTRAINT "uq_migrate/example/Base_someText_someNumber" UNIQUE '
+        '("someText", "someNumber")\n'
         ');\n'
         '\n'
         'CREATE INDEX "ix_migrate/example/Base__txn" ON "migrate/example/Base" '
         '(_txn);\n'
-        '\n'
-        'ALTER TABLE "migrate/example/Base" ADD CONSTRAINT '
-        '"migrate/example/Base_someText_someNumber_key" UNIQUE ("someText", '
-        '"someNumber");\n'
         '\n'
         'CREATE TABLE "migrate/example/Base/:changelog" (\n'
         '    _id BIGSERIAL NOT NULL, \n'
@@ -787,7 +785,7 @@ def test_migrate_create_models_with_base(
         '    datetime TIMESTAMP WITHOUT TIME ZONE, \n'
         '    action VARCHAR(8), \n'
         '    data JSONB, \n'
-        '    PRIMARY KEY (_id)\n'
+        '    CONSTRAINT "pk_migrate/example/Base/:changelog" PRIMARY KEY (_id)\n'
         ');\n'
         '\n'
         'CREATE INDEX "ix_migrate/example/Base/:changelog__txn" ON '
@@ -799,7 +797,9 @@ def test_migrate_create_models_with_base(
         '    _updated TIMESTAMP WITHOUT TIME ZONE, \n'
         '    _id UUID NOT NULL, \n'
         '    _revision TEXT, \n'
-        '    PRIMARY KEY (_id)\n'
+        '    CONSTRAINT "pk_migrate/example/Test" PRIMARY KEY (_id), \n'
+        '    CONSTRAINT "fk_migrate/example/Base__id" FOREIGN KEY(_id) REFERENCES '
+        '"migrate/example/Base" (_id)\n'
         ');\n'
         '\n'
         'CREATE INDEX "ix_migrate/example/Test__txn" ON "migrate/example/Test" '
@@ -813,15 +813,11 @@ def test_migrate_create_models_with_base(
         '    datetime TIMESTAMP WITHOUT TIME ZONE, \n'
         '    action VARCHAR(8), \n'
         '    data JSONB, \n'
-        '    PRIMARY KEY (_id)\n'
+        '    CONSTRAINT "pk_migrate/example/Test/:changelog" PRIMARY KEY (_id)\n'
         ');\n'
         '\n'
         'CREATE INDEX "ix_migrate/example/Test/:changelog__txn" ON '
         '"migrate/example/Test/:changelog" (_txn);\n'
-        '\n'
-        'ALTER TABLE "migrate/example/Test" ADD CONSTRAINT '
-        '"fk_migrate/example/Base_id" FOREIGN KEY(_id) REFERENCES '
-        '"migrate/example/Base" (_id);\n'
         '\n'
         'COMMIT;\n'
         '\n')
@@ -843,7 +839,7 @@ def test_migrate_create_models_with_base(
         )
 
         cleanup_table_list(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog', 'migrate/example/Base',
-                                'migrate/example/Base/:changelog'])
+                                  'migrate/example/Base/:changelog'])
 
 
 def test_migrate_remove_base_from_model(
@@ -890,7 +886,7 @@ def test_migrate_remove_base_from_model(
         'BEGIN;\n'
         '\n'
         'ALTER TABLE "migrate/example/Test" DROP CONSTRAINT '
-        '"fk_migrate/example/Base_id";\n'
+        '"fk_migrate/example/Base__id";\n'
         '\n'
         'COMMIT;\n'
         '\n')
@@ -912,7 +908,7 @@ def test_migrate_remove_base_from_model(
         )
 
         cleanup_table_list(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog', 'migrate/example/Base',
-                                'migrate/example/Base/:changelog'])
+                                  'migrate/example/Base/:changelog'])
 
 
 def test_migrate_rename_model(
@@ -999,17 +995,12 @@ def test_migrate_rename_model(
         'ALTER TABLE "migrate/example/Test/:file/someFile" RENAME TO '
         '"migrate/example/New/:file/someFile";\n'
         '\n'
-        'DROP INDEX "ix_migrate/example/Test_someRef._id";\n'
+        'ALTER INDEX "ix_migrate/example/Test_someRef._id" RENAME TO '
+        '"ix_migrate/example/New_someRef._id";\n'
         '\n'
-        'CREATE INDEX "ix_migrate/example/New_someRef._id" ON "migrate/example/New" '
-        '("someRef._id");\n'
-        '\n'
-        'ALTER TABLE "migrate/example/New" DROP CONSTRAINT '
-        '"fk_migrate/example/Test_someRef._id";\n'
-        '\n'
-        'ALTER TABLE "migrate/example/New" ADD CONSTRAINT '
-        '"fk_migrate/example/New_someRef._id" FOREIGN KEY("someRef._id") REFERENCES '
-        '"migrate/example/NewRef" (_id);\n'
+        'ALTER TABLE "migrate/example/New" RENAME CONSTRAINT '
+        '"fk_migrate/example/Test_someRef._id" TO '
+        '"fk_migrate/example/New_someRef._id";\n'
         '\n'
         'COMMIT;\n'
         '\n')
@@ -1035,7 +1026,7 @@ def test_migrate_rename_model(
             constraint["constraint_name"] == 'fk_migrate/example/Test_someRef._id' for constraint in constraints)
 
         cleanup_table_list(meta, ['migrate/example/New', 'migrate/example/New/:changelog',
-                                'migrate/example/New/:file/someFile', 'migrate/example/NewRef'])
+                                  'migrate/example/New/:file/someFile', 'migrate/example/NewRef'])
 
 
 def test_migrate_rename_property(
@@ -1115,11 +1106,8 @@ def test_migrate_rename_property(
         '\n'
         'ALTER TABLE "migrate/example/Ref" RENAME "someText" TO "newText";\n'
         '\n'
-        'ALTER TABLE "migrate/example/Ref" DROP CONSTRAINT '
-        '"migrate/example/Ref_someText_key";\n'
-        '\n'
-        'ALTER TABLE "migrate/example/Ref" ADD CONSTRAINT '
-        '"migrate/example/Ref_newText_key" UNIQUE ("newText");\n'
+        'ALTER TABLE "migrate/example/Ref" RENAME CONSTRAINT '
+        '"uq_migrate/example/Ref_someText" TO "uq_migrate/example/Ref_newText";\n'
         '\n'
         'ALTER TABLE "migrate/example/Test" RENAME "someText" TO "newText";\n'
         '\n'
@@ -1140,23 +1128,18 @@ def test_migrate_rename_property(
         'ALTER TABLE "migrate/example/Test/:file/someFile" RENAME TO '
         '"migrate/example/Test/:file/newFile";\n'
         '\n'
+        'ALTER INDEX "ix_migrate/example/Test_someOther._id" RENAME TO '
+        '"ix_migrate/example/Test_newOther._id";\n'
+        '\n'
         'ALTER TABLE "migrate/example/Test" RENAME "someRef.someText" TO '
         '"newRef.newText";\n'
         '\n'
         'ALTER TABLE "migrate/example/Test" RENAME "someOther._id" TO '
         '"newOther._id";\n'
         '\n'
-        'DROP INDEX "ix_migrate/example/Test_someOther._id";\n'
-        '\n'
-        'CREATE INDEX "ix_migrate/example/Test_newOther._id" ON '
-        '"migrate/example/Test" ("newOther._id");\n'
-        '\n'
-        'ALTER TABLE "migrate/example/Test" DROP CONSTRAINT '
-        '"fk_migrate/example/Test_someOther._id";\n'
-        '\n'
-        'ALTER TABLE "migrate/example/Test" ADD CONSTRAINT '
-        '"fk_migrate/example/Test_newOther._id" FOREIGN KEY("newOther._id") '
-        'REFERENCES "migrate/example/Ref" (_id);\n'
+        'ALTER TABLE "migrate/example/Test" RENAME CONSTRAINT '
+        '"fk_migrate/example/Test_someOther._id" TO '
+        '"fk_migrate/example/Test_newOther._id";\n'
         '\n'
         'COMMIT;\n'
         '\n')
@@ -1192,7 +1175,7 @@ def test_migrate_rename_property(
             constraint["constraint_name"] == 'fk_migrate/example/Test_someOther._id' for constraint in constraints)
 
         cleanup_table_list(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog',
-                                'migrate/example/Test/:file/newFile', 'migrate/example/Ref'])
+                                  'migrate/example/Test/:file/newFile', 'migrate/example/Ref'])
 
 
 def test_migrate_long_names(
@@ -1226,22 +1209,22 @@ def test_migrate_long_names(
     pieces = [
         (
             'CREATE INDEX '
-            '"ix_migrate/example/very/very/long/dat_a891da56_ropertyNameOther" ON '
+            '"ix_migrate/example/very/very/long/dat_d5eeba2c_ropertyNameOther" ON '
             '"migrate/example/very/very/long/datase_0f562213_elyLongModelName" USING gist '
             '("veryLongGeometryPropertyNameOther");\n'
             '\n'
         ),
         (
             'CREATE INDEX '
-            '"ix_migrate/example/very/very/long/dat_15d1f601_etryPropertyName" ON '
+            '"ix_migrate/example/very/very/long/dat_4b7a633e_etryPropertyName" ON '
             '"migrate/example/very/very/long/datase_0f562213_elyLongModelName" USING gist '
             '("veryLongGeometryPropertyName");\n'
             '\n'
         ),
         (
-            'CREATE INDEX "ix_migrate/example/very/very/long/datase_0f562213_elyLo_d813" '
-            'ON "migrate/example/very/very/long/datase_0f562213_elyLongModelName" '
-            '(_txn);\n'
+            'CREATE INDEX '
+            '"ix_migrate/example/very/very/long/dat_31c24f29_ngModelName__txn" ON '
+            '"migrate/example/very/very/long/datase_0f562213_elyLongModelName" (_txn);\n'
             '\n'
         )
     ]
@@ -1267,15 +1250,15 @@ def test_migrate_long_names(
         '    "veryLongPrimaryKeyName" TEXT, \n'
         '    "veryLongGeometryPropertyName" geometry(GEOMETRY,4326), \n'
         '    "veryLongGeometryPropertyNameOther" geometry(GEOMETRY,4326), \n'
-        '    PRIMARY KEY (_id)\n'
+        '    CONSTRAINT '
+        '"pk_migrate/example/very/very/long/dat_f2de534c_elyLongModelName" PRIMARY '
+        'KEY (_id), \n'
+        '    CONSTRAINT '
+        '"uq_migrate/example/very/very/long/dat_9d7c795e_ngPrimaryKeyName" UNIQUE '
+        '("veryLongPrimaryKeyName")\n'
         ');\n'
         '\n'
         f'{ordered}'
-        'ALTER TABLE '
-        '"migrate/example/very/very/long/datase_0f562213_elyLongModelName" ADD '
-        'CONSTRAINT "migrate/example/very/very/long/datase_c824bbc4_imaryKeyName_key" '
-        'UNIQUE ("veryLongPrimaryKeyName");\n'
-        '\n'
         'CREATE TABLE '
         '"migrate/example/very/very/long/datase_d087b1e4_lName/:changelog" (\n'
         '    _id BIGSERIAL NOT NULL, \n'
@@ -1285,12 +1268,14 @@ def test_migrate_long_names(
         '    datetime TIMESTAMP WITHOUT TIME ZONE, \n'
         '    action VARCHAR(8), \n'
         '    data JSONB, \n'
-        '    PRIMARY KEY (_id)\n'
+        '    CONSTRAINT '
+        '"pk_migrate/example/very/very/long/dat_68caa171_lName/:changelog" PRIMARY '
+        'KEY (_id)\n'
         ');\n'
         '\n'
-        'CREATE INDEX "ix_migrate/example/very/very/long/datase_d087b1e4_lName_c8ee" '
-        'ON "migrate/example/very/very/long/datase_d087b1e4_lName/:changelog" '
-        '(_txn);\n'
+        'CREATE INDEX '
+        '"ix_migrate/example/very/very/long/dat_1c6eef67_/:changelog__txn" ON '
+        '"migrate/example/very/very/long/datase_d087b1e4_lName/:changelog" (_txn);\n'
         '\n'
         'COMMIT;\n'
         '\n')
@@ -1305,7 +1290,7 @@ def test_migrate_long_names(
         table = tables[get_pg_name("migrate/example/very/very/long/dataset/name/ExtremelyLongModelName")]
 
         cleanup_table_list(meta, ['migrate/example/very/very/long/dataset/name/ExtremelyLongModelName',
-                                'migrate/example/very/very/long/dataset/name/ExtremelyLongModelName/:changelog'])
+                                  'migrate/example/very/very/long/dataset/name/ExtremelyLongModelName/:changelog'])
 
 
 def test_migrate_rename_already_existing_property(
@@ -1538,8 +1523,16 @@ def test_migrate_datasets(
         'migrate', f'{tmp_path}/manifest.csv', '-p', '-d', 'migrate/example'
     ])
     assert result.exit_code == 0
-    assert 'ALTER TABLE "migrate/example/Test" ADD COLUMN "newColumn" INTEGER;' in result.output
-    assert 'ALTER TABLE "migrate/example/Test" DROP CONSTRAINT "migrate/example/Test_someText_key";' in result.output
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test" ADD COLUMN "newColumn" INTEGER;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test" DROP CONSTRAINT '
+        '"uq_migrate/example/Test_someText";\n'
+        '\n'
+        'COMMIT;\n'
+        '\n')
 
     result = cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv', '-d', 'migrate/example'
@@ -1595,10 +1588,21 @@ def test_migrate_datasets_multiple_models(
         'migrate', f'{tmp_path}/manifest.csv', '-p', '-d', 'migrate/example'
     ])
     assert result.exit_code == 0
-    assert 'ALTER TABLE "migrate/example/Test" ADD COLUMN "newColumn" INTEGER;' in result.output
-    assert 'ALTER TABLE "migrate/example/Test" DROP CONSTRAINT "migrate/example/Test_someText_key";' in result.output
-    assert 'ALTER TABLE "migrate/example/Test2" ADD COLUMN "newColumn2" INTEGER;' in result.output
-    assert 'ALTER TABLE "migrate/example/Test2" DROP CONSTRAINT "migrate/example/Test2_anotherText_key";' in result.output
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test" ADD COLUMN "newColumn" INTEGER;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test" DROP CONSTRAINT '
+        '"uq_migrate/example/Test_someText";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test2" ADD COLUMN "newColumn2" INTEGER;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test2" DROP CONSTRAINT '
+        '"uq_migrate/example/Test2_anotherText";\n'
+        '\n'
+        'COMMIT;\n'
+        '\n')
 
     result = cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv', '-d', 'migrate/example'
@@ -1697,9 +1701,16 @@ def test_migrate_datasets_single(
         'migrate', f'{tmp_path}/manifest.csv', '-p', '-d', 'dataset1'
     ])
     assert result.exit_code == 0
-    assert 'ALTER TABLE "dataset1/Test" ADD COLUMN "newColumn" INTEGER;' in result.output
-    assert 'ALTER TABLE "dataset1/Test" DROP CONSTRAINT "dataset1/Test_someText_key";' in result.output
-    assert 'ALTER TABLE "dataset2/Test" ADD COLUMN "newColumn2" INTEGER;' not in result.output
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'ALTER TABLE "dataset1/Test" ADD COLUMN "newColumn" INTEGER;\n'
+        '\n'
+        'ALTER TABLE "dataset1/Test" DROP CONSTRAINT '
+        '"uq_dataset1/Test_someText";\n'
+        '\n'
+        'COMMIT;\n'
+        '\n')
 
     result = cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv', '-d', 'dataset1'
@@ -1770,11 +1781,20 @@ def test_migrate_datasets_list(
         'migrate', f'{tmp_path}/manifest.csv', '-p', '-d', 'dataset1', '-d', 'dataset2'
     ])
     assert result.exit_code == 0
-    assert 'ALTER TABLE "dataset1/Test" ADD COLUMN "newColumn" INTEGER;' in result.output
-    assert 'ALTER TABLE "dataset1/Test" DROP CONSTRAINT "dataset1/Test_someText_key";' in result.output
-    assert 'ALTER TABLE "dataset2/Test2" ADD COLUMN "newColumn2" INTEGER;' in result.output
-    assert 'ALTER TABLE "dataset2/Test2" DROP CONSTRAINT "dataset2/Test2_anotherText_key";' in result.output
-    assert 'ALTER TABLE "dataset3/Test3" ADD COLUMN "newColumn3" INTEGER;' not in result.output
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'ALTER TABLE "dataset1/Test" ADD COLUMN "newColumn" INTEGER;\n'
+        '\n'
+        'ALTER TABLE "dataset1/Test" DROP CONSTRAINT "uq_dataset1/Test_someText";\n'
+        '\n'
+        'ALTER TABLE "dataset2/Test2" ADD COLUMN "newColumn2" INTEGER;\n'
+        '\n'
+        'ALTER TABLE "dataset2/Test2" DROP CONSTRAINT '
+        '"uq_dataset2/Test2_anotherText";\n'
+        '\n'
+        'COMMIT;\n'
+        '\n')
 
     result = cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv', '-d', 'dataset1', '-d', 'dataset2'
@@ -1804,4 +1824,3 @@ def test_migrate_datasets_list(
         assert 'thirdText' in columns3
 
         cleanup_table_list(meta, ['dataset1/Test', 'dataset2/Test2', 'dataset3/Test3'])
-
