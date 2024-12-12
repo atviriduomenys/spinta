@@ -39,7 +39,12 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
     op = Operations(ctx)
     inspector = sa.inspect(conn)
     metadata = sa.MetaData(bind=conn, naming_convention=get_metadata_naming_convention(PG_NAMING_CONVENTION))
-    metadata.reflect()
+    metadata.reflect(
+        only=_filter_reflect_datasets(
+            inspector,
+            migrate_meta.datasets
+        )
+    )
 
     handler = MigrationHandler()
     meta = MigratePostgresMeta(
@@ -68,7 +73,9 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
     for zipped_name in zipped_names:
         for new_model_name, old_table_name in zipped_name:
             # Skip Changelog and File table migrations, because this is done in DataType migration section
-            if old_table_name and any(value in old_table_name for value in (TableType.CHANGELOG.value, TableType.FILE.value)):
+            if old_table_name and any(
+                value in old_table_name for value in (TableType.CHANGELOG.value, TableType.FILE.value)
+            ):
                 continue
 
             # Skip excluded tables
@@ -91,7 +98,8 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
             with backend.engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
                 ctx = MigrationContext.configure(conn, opts={
                     "as_sql": migrate_meta.plan,
-                    "literal_binds": migrate_meta.plan
+                    "literal_binds": migrate_meta.plan,
+                    "target_metadata": backend.schema
                 })
                 op = Operations(ctx)
                 handler.run_migrations(op)
@@ -126,6 +134,17 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
     except sa.exc.OperationalError as error:
         exception = create_exception(manifest, error)
         raise exception
+
+
+def _filter_reflect_datasets(
+    inspector: Inspector,
+    datasets: list
+):
+    if not datasets:
+        return None
+
+    all_tables = inspector.get_table_names()
+    return [table for table in all_tables if any(table.startswith(dataset) for dataset in datasets)]
 
 
 def _filter_models_and_tables(

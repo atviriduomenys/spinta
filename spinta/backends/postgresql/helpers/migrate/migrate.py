@@ -18,7 +18,7 @@ from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_pg_name, get_column_name
 from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
 from spinta.backends.postgresql.helpers.name import name_changed, get_pg_constraint_name, get_pg_index_name, \
-    nested_column_rename, get_pg_table_name
+    nested_column_rename, get_pg_table_name, get_pg_column_name
 from spinta.cli.helpers.migrate import MigrateRename
 from spinta.components import Context, Model, Property
 from spinta.exceptions import MigrateScalarToRefTooManyKeys
@@ -190,6 +190,14 @@ def jsonb_keys(backend: PostgreSQL, column: sa.Column, table: sa.Table):
         return [result[0] for result in connection.execute(query)]
 
 
+def empty_table(backend: PostgreSQL, table: sa.Table) -> bool:
+    with backend.engine.begin() as connection:
+        # Fetching one row with limit is more efficient
+        query = sa.select(1).select_from(table).limit(1)
+        result = connection.execute(query)
+        return result.fetchone() is None
+
+
 def name_key(name: str):
     return name
 
@@ -302,9 +310,11 @@ class JSONColumnMigrateMeta:
     full_remove: bool = dataclasses.field(default=True)
     cast_to: Tuple[sa.Column, str] = dataclasses.field(default=None)
     new_name: str = dataclasses.field(default=None)
+    empty: bool = False
 
     def initialize(self, backend, table):
         self.keys = jsonb_keys(backend, self.column, table)
+        self.empty = empty_table(backend, table)
 
     def add_new_key(self, old_key: str, new_key: str):
         if old_key in self.keys and old_key not in self.new_keys:
@@ -580,6 +590,12 @@ def contains_index(indexes: list, column_name: str):
     return any(index["column_names"] == [column_name] for index in indexes)
 
 
+def contains_foreign_key_with_table_columns(constraints: list, table_name: str, column_names: list[str]):
+    return any(
+        constraint["constrained_columns"] == column_names and constraint["referred_table"] == table_name for constraint
+        in constraints)
+
+
 def handle_unique_constraint_migration(
     table: sa.Table,
     table_name: str,
@@ -737,9 +753,19 @@ def reduce_columns(data: list) -> Union[sa.Column, list[sa.Column]]:
 
 def is_internal(
     columns: List[sa.Column],
-    base_name: str
-):
-    return any(column.name == f'{base_name}._id' for column in columns)
+    base_name: str,
+    table_name: str,
+    ref_table_name: str,
+    inspector: Inspector
+) -> bool:
+    column_name = get_pg_column_name(f'{base_name}._id')
+    contains_column = any(column.name == column_name for column in columns)
+
+    if not contains_column:
+        return False
+
+    foreign_keys = inspector.get_foreign_keys(table_name)
+    return contains_foreign_key_with_table_columns(foreign_keys, ref_table_name, [column_name])
 
 
 def split_columns(

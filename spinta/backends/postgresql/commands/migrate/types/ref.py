@@ -282,7 +282,13 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
         model=new.model,
         inspector=inspector
     )
-    old_columns_internal = is_internal(old, old_prop_name)
+    old_columns_internal = is_internal(
+        columns=old,
+        base_name=old_prop_name,
+        table_name=table.name,
+        ref_table_name=old_ref_table,
+        inspector=inspector
+    )
     old_primary_columns, old_children_columns = split_columns(
         columns=old,
         base_name=old_prop_name,
@@ -461,7 +467,13 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
         model=new.model,
         inspector=inspector
     )
-    old_columns_internal = is_internal(old, old_prop_name)
+    old_columns_internal = is_internal(
+        columns=old,
+        base_name=old_prop_name,
+        table_name=table.name,
+        ref_table_name=old_ref_table,
+        inspector=inspector
+    )
     old_primary_columns, old_children_columns = split_columns(
         columns=old,
         base_name=old_prop_name,
