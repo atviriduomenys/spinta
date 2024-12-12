@@ -129,7 +129,7 @@ def prepare(context: Context, backend: PostgreSQL, dtype: PrimaryKey, **kwargs):
         return [
             sa.Column('_id', pkey_type, primary_key=True),
             sa.ForeignKeyConstraint(
-                ['_id'], [get_pg_column_name(f'{get_pg_table_name(get_table_name(base.parent))}._id')],
+                ['_id'], [f'{get_pg_table_name(get_table_name(base.parent))}._id'],
                 name=PG_NAMING_CONVENTION[Convention.FK] % {
                     "table_name": get_pg_table_name(get_table_name(base.parent)),
                     "column_0_N_name": "_id"
