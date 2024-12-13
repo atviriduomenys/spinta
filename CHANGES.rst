@@ -1,6 +1,16 @@
 Changes
 #######
 
+0.2dev1
+=======
+
+Backwards incompatible:
+ - conversion of XSD schemas to DSA manifests in an improved way. (`#842`_)
+ - support for language tag for properties. (`#582`_)
+
+  .. _#842: https://github.com/atviriduomenys/spinta/issues/842
+  .. _#582: https://github.com/atviriduomenys/spinta/issues/582
+
 0.1.81 (unreleased)
 ===================
 
