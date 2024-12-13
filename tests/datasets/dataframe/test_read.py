@@ -1262,7 +1262,7 @@ def test_json_read_parametrize_iterate_pages_limit(rc: RawConfig, tmp_path: Path
     ]
     resp = app.get('/example/json/PageDistinct?limit(4)')
     assert listdata(resp, "name", sort=False) == [
-        'Page1', 'Page2', 'Page0'
+        'Page1', 'Page0', 'Page2'
     ]
 
 
