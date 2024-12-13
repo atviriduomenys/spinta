@@ -1539,15 +1539,15 @@ def test_xml_json_csv_combined_read_parametrize_advanced_iterate_pages(rc: RawCo
     ]
     resp = app.get('/example/all/Meta')
     assert listdata(resp, "name", "context", sort=False) == [
+        ('MongoDB', 'MongoDB21'),
         ('PostgresSQL', 'PostgresSQL01'),
+        ('SQLite', 'SQLite13'),
         ('PostgresSQL', 'PostgresSQL02'),
         ('PostgresSQL', 'PostgresSQL03'),
-        ('SQLite', 'SQLite11'),
         ('SQLite', 'SQLite12'),
-        ('SQLite', 'SQLite13'),
-        ('MongoDB', 'MongoDB21'),
-        ('MongoDB', 'MongoDB22'),
         ('MongoDB', 'MongoDB23'),
+        ('MongoDB', 'MongoDB22'),
+        ('SQLite', 'SQLite11'),
     ]
     resp = app.get('/example/all/MetaNotDistinct')
     assert listdata(resp, "name", "context", sort=False) == [
