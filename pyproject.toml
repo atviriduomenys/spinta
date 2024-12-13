@@ -1,15 +1,15 @@
 [tool.poetry]
 name = "spinta"
-version = "0.1.81.dev0"
+version = "0.2.dev1"
 description = "A platform for describing, extracting, transforming, loading and serving open data."
 authors = ["Mantas Zimnickas <sirexas@gmail.com>"]
 license = "MIT"
 readme = "README.rst"
-homepage = "https://gitlab.com/atviriduomenys/spinta"
-repository = "https://gitlab.com/atviriduomenys/spinta"
+homepage = "https://github.com/atviriduomenys/spinta"
+repository = "https://github.com/atviriduomenys/spinta"
 documentation = "https://spinta.readthedocs.io/"
 classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
+    "Development Status :: 3 - Alpha",
     "Environment :: Console",
     "Environment :: Web Environment",
     "Intended Audience :: Developers",
@@ -26,7 +26,7 @@ packages = [
 
 
 [tool.poetry.urls]
-"Bug Tracker" = "https://gitlab.com/atviriduomenys/spinta/-/issues"
+"Bug Tracker" = "https://github.com/atviriduomenys/spinta/issues"
 
 
 [tool.poetry.scripts]
@@ -34,7 +34,7 @@ spinta = "spinta.cli.main:app"
 
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.9"
 aiofiles = "*"
 authlib = "~0.11"
 jinja2 = "*"
