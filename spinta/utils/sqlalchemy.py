@@ -1,3 +1,7 @@
+import enum
+from typing import Any
+
+from sqlalchemy.cimmutabledict import immutabledict
 from sqlalchemy.dialects import registry
 from sqlalchemy.dialects.sqlite.pysqlite import SQLiteDialect_pysqlite
 from sqlalchemy.dialects.sqlite.base import SQLiteDialect
@@ -33,3 +37,20 @@ registry.register(
 
 # This changes default sqlite dialect from pysqlite to spinta
 base.dialect = SQLiteDialect_spinta
+
+
+class Convention(enum.Enum):
+    UQ = "uq"
+    IX = "ix"
+    FK = "fk"
+    CK = "ck"
+    PK = "pk"
+
+
+def get_metadata_naming_convention(
+        naming_convention: dict[Convention, Any]
+) -> immutabledict:
+    return immutabledict({
+        key.value: value
+        for key, value in naming_convention.items()
+    })

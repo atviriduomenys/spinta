@@ -20,6 +20,9 @@ Backwards incompatible:
             dsn: ...
             sync_transaction_size: 20000
 
+- Changed `postgresql` naming convention. This will result in old tables having incorrect constraint and index names.
+  `spinta migrate` should be able to find most of them (`P#153`).
+
 
 Improvements:
 
@@ -27,14 +30,23 @@ Improvements:
 
   .. _#1011: https://github.com/atviriduomenys/spinta/issues/1011
 
+
 - added enum level support, allowing to indicate a level for enum. (`#982`_)
 
   .. _#982: https://github.com/atviriduomenys/spinta/issues/982
+
+- Standardized `postgresql` naming convention, now all new constraints and indexes should follow same naming
+  scheme (`P#153`).
+
+- `spinta migrate` now tries to rename constraints and indexes (if the name only changed) instead of dropping them and
+  adding them with correct name (`P#153`).
+
 
 Bug fix:
 
 - `Postgresql` `summary` now properly handles tables with long names (`P#160`).
 
+- Fixed various cases where `migrate` command would not take into account truncated names (`P#153`).
 
 0.1.80 (2024-12-03)
 ===================

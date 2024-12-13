@@ -11,12 +11,13 @@ from spinta.backends.constants import TableType
 from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.commands.migrate.constants import EXCLUDED_MODELS
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers import get_pg_name, get_column_name
+from spinta.backends.postgresql.helpers import get_column_name
 from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
 from spinta.backends.postgresql.helpers.migrate.migrate import drop_all_indexes_and_constraints, model_name_key, \
     MigratePostgresMeta
-from spinta.backends.postgresql.helpers.migrate.name import get_pg_table_name, get_pg_column_name, \
-    get_pg_foreign_key_name
+from spinta.backends.postgresql.helpers.name import get_pg_table_name, get_pg_column_name, \
+    get_pg_foreign_key_name, get_pg_file_name, PG_NAMING_CONVENTION
+from spinta.utils.sqlalchemy import get_metadata_naming_convention
 from spinta.cli.helpers.migrate import MigrateRename, MigrateMeta
 from spinta.commands import create_exception
 from spinta.components import Context, Model
@@ -32,12 +33,18 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
     conn = context.get(f'transaction.{backend.name}')
     ctx = MigrationContext.configure(conn, opts={
         "as_sql": migrate_meta.plan,
-        "literal_binds": migrate_meta.plan
+        "literal_binds": migrate_meta.plan,
+        "target_metadata": backend.schema
     })
     op = Operations(ctx)
     inspector = sa.inspect(conn)
-    metadata = sa.MetaData(bind=conn)
-    metadata.reflect()
+    metadata = sa.MetaData(bind=conn, naming_convention=get_metadata_naming_convention(PG_NAMING_CONVENTION))
+    metadata.reflect(
+        only=_filter_reflect_datasets(
+            inspector,
+            migrate_meta.datasets
+        )
+    )
 
     handler = MigrationHandler()
     meta = MigratePostgresMeta(
@@ -66,7 +73,9 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
     for zipped_name in zipped_names:
         for new_model_name, old_table_name in zipped_name:
             # Skip Changelog and File table migrations, because this is done in DataType migration section
-            if old_table_name and any(value in old_table_name for value in (TableType.CHANGELOG.value, TableType.FILE.value)):
+            if old_table_name and any(
+                value in old_table_name for value in (TableType.CHANGELOG.value, TableType.FILE.value)
+            ):
                 continue
 
             # Skip excluded tables
@@ -75,11 +84,11 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
 
             old = NA
             if old_table_name:
-                old = metadata.tables[migrate_meta.rename.get_old_table_name(old_table_name)]
+                name = get_pg_table_name(migrate_meta.rename.get_old_table_name(old_table_name))
+                old = metadata.tables[name]
 
             new = commands.get_model(context, manifest, new_model_name) if new_model_name else new_model_name
             commands.migrate(context, backend, meta, old, new)
-    _handle_foreign_key_constraints(inspector, sorted_models, handler, migrate_meta.rename)
     _clean_up_file_type(inspector, sorted_models, handler, migrate_meta.rename)
 
     try:
@@ -89,7 +98,8 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
             with backend.engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
                 ctx = MigrationContext.configure(conn, opts={
                     "as_sql": migrate_meta.plan,
-                    "literal_binds": migrate_meta.plan
+                    "literal_binds": migrate_meta.plan,
+                    "target_metadata": backend.schema
                 })
                 op = Operations(ctx)
                 handler.run_migrations(op)
@@ -126,6 +136,17 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
         raise exception
 
 
+def _filter_reflect_datasets(
+    inspector: Inspector,
+    datasets: list
+):
+    if not datasets:
+        return None
+
+    all_tables = inspector.get_table_names()
+    return [table for table in all_tables if any(table.startswith(dataset) for dataset in datasets)]
+
+
 def _filter_models_and_tables(
     models: Dict[str, Model],
     existing_tables: List[str],
@@ -153,6 +174,7 @@ def _filter_models_and_tables(
         existing_tables = filtered_names
 
     for table in existing_tables:
+        # Do not apply `get_pg_table_name`, since this will be done later on while zipping with `model_name_key`
         name = rename.get_table_name(table)
         if name not in models.keys():
             name = table
@@ -166,8 +188,9 @@ def _handle_foreign_key_constraints(inspector: Inspector, models: List[Model], h
     existing_table_names = set(inspector.get_table_names())
 
     for model in models:
-        source_table = get_pg_name(get_table_name(model))
-        old_name = get_pg_name(rename.get_old_table_name(source_table))
+        source_name = get_table_name(model)
+        source_table = get_pg_table_name(source_name)
+        old_name = get_pg_table_name(rename.get_old_table_name(source_name))
         foreign_keys = inspector.get_foreign_keys(old_name) if old_name in existing_table_names else []
 
         # Handle Base _id foreign key constraints
@@ -217,7 +240,7 @@ def _handle_foreign_key_constraints(inspector: Inspector, models: List[Model], h
                     required_ref_props[name] = {
                         "name": name,
                         "constrained_columns": [column_name],
-                        "referred_table": get_pg_table_name(prop.dtype.model.name),
+                        "referred_table": get_pg_table_name(get_table_name(prop.dtype.model)),
                         "referred_columns": ["_id"]
                     }
 
@@ -261,14 +284,16 @@ def _clean_up_file_type(inspector: Inspector, models: List[Model], handler: Migr
             if isinstance(prop.dtype, File):
                 old_table = rename.get_old_table_name(get_table_name(model))
                 old_column = rename.get_old_column_name(old_table, get_column_name(prop))
-                allowed_file_tables.append(get_pg_name(f'{old_table}{TableType.FILE.value}/{old_column}'))
+                allowed_file_tables.append(
+                    get_pg_file_name(old_table, old_column)
+                )
 
     for table in inspector.get_table_names():
         if TableType.FILE.value in table:
             split = table.split(f'{TableType.FILE.value}/')
             if split[0] in existing_tables:
                 if table not in allowed_file_tables and not split[1].startswith("__"):
-                    new_name = get_pg_name(f'{split[0]}{TableType.FILE.value}/__{split[1]}')
+                    new_name = get_pg_file_name(split[0], f'__{split[1]}')
                     if inspector.has_table(new_name):
                         handler.add_action(ma.DropTableMigrationAction(
                             table_name=new_name
