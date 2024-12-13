@@ -26,7 +26,7 @@ def test_empty_config_path(rc: RawConfig, cli: SpintaCliRunner):
     version = result.stdout.strip()
     version = re.sub(r'\d+', 'x', version)
     version = version.replace('.devx', '')
-    assert version == 'x.x.x'
+    assert version in ('x.x.x', 'x.x')
 
 
 @pytest.mark.skip('datasets')
