@@ -106,6 +106,15 @@ class CreateUniqueConstraintMigrationAction(MigrationAction):
                                     columns=self.columns)
 
 
+class RenameConstraintMigrationAction(MigrationAction):
+    def __init__(self, table_name: str, old_constraint_name: str, new_constraint_name: str):
+        self.query = f'ALTER TABLE "{table_name}" RENAME CONSTRAINT "{old_constraint_name}" TO "{new_constraint_name}"'
+
+    def execute(self, op: Operations):
+        replaced = self.query.replace(":", "\\:")
+        op.execute(replaced)
+
+
 class CreatePrimaryKeyMigrationAction(MigrationAction):
     def __init__(self, table_name: str, constraint_name: str, columns: List[str]):
         self.table_name = table_name
@@ -126,6 +135,15 @@ class CreateIndexMigrationAction(MigrationAction):
     def execute(self, op: Operations):
         op.create_index(index_name=self.index_name, table_name=self.table_name, columns=self.columns,
                         postgresql_using=self.using)
+
+
+class RenameIndexMigrationAction(MigrationAction):
+    def __init__(self, old_index_name: str, new_index_name: str):
+        self.query = f'ALTER INDEX "{old_index_name}" RENAME TO "{new_index_name}"'
+
+    def execute(self, op: Operations):
+        replaced = self.query.replace(":", "\\:")
+        op.execute(replaced)
 
 
 class DowngradeTransferDataMigrationAction(MigrationAction):

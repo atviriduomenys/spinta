@@ -6,7 +6,8 @@ from spinta import commands
 from spinta.backends.constants import BackendFeatures
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers.migrate.migrate import get_root_attr, MigratePostgresMeta
-from spinta.backends.postgresql.helpers.migrate.name import name_changed, get_pg_file_name, get_pg_column_name
+from spinta.backends.postgresql.helpers.name import name_changed, get_pg_file_name, get_pg_column_name, \
+    get_pg_table_name
 from spinta.components import Context
 from spinta.types.datatype import File
 from spinta.utils.schema import NotAvailable
@@ -22,7 +23,7 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
     name = new.prop.name
     pg_name = get_pg_column_name(name)
     nullable = not new.required
-    table_name = rename.get_table_name(table.name)
+    table_name = get_pg_table_name(rename.get_table_name(table.name))
     pkey_type = commands.get_primary_key_type(context, new.backend)
     handler.add_action(ma.AddColumnMigrationAction(
         table_name=table_name,
@@ -45,8 +46,8 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
             table_name=table_name,
             column=sa.Column(get_pg_column_name(f'{name}._blocks'), ARRAY(pkey_type, ), nullable=nullable)
         ))
-    old_table = get_pg_file_name(table.name, f'/{pg_name}')
-    new_table = get_pg_file_name(table_name, f'/{pg_name}')
+    old_table = get_pg_file_name(table.name, pg_name)
+    new_table = get_pg_file_name(table_name, pg_name)
     if not inspector.has_table(old_table):
         handler.add_action(ma.CreateTableMigrationAction(
             table_name=new_table,
@@ -67,7 +68,7 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
     column_name = rename.get_column_name(table.name, new.prop.name)
     old_name = rename.get_old_column_name(table.name, new.prop.name)
     for item in old:
-        table_name = rename.get_table_name(table.name)
+        table_name = get_pg_table_name(rename.get_table_name(table.name))
         nullable = new.required if new.required == item.nullable else None
         item_name = item.name
         new_name = item_name.replace(get_root_attr(item_name), column_name) if not item_name.startswith(
@@ -79,10 +80,10 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
                 nullable=nullable,
                 new_column_name=new_name
             ))
-    table_name = rename.get_table_name(table.name)
-    old_table = get_pg_file_name(table.name, f'/{old_name}')
-    new_table_old_prop = get_pg_file_name(table_name,f'/{old_name}')
-    new_table_new_prop = get_pg_file_name(table_name, f'/{column_name}')
+    table_name = get_pg_table_name(rename.get_table_name(table.name))
+    old_table = get_pg_file_name(table.name, old_name)
+    new_table_old_prop = get_pg_file_name(table_name, old_name)
+    new_table_new_prop = get_pg_file_name(table_name, column_name)
     if name_changed(old_name, column_name) and inspector.has_table(old_table):
         handler.add_action(
             ma.RenameTableMigrationAction(

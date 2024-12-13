@@ -17,6 +17,8 @@ def prepare(
 ) -> list:
     prop = dtype.prop
     name = get_column_name(prop)
+
+    # Have to disable spatial index and create our own, because Geoalchemy2 uses their own naming convention
     kwargs = {
         'geometry_type': dtype.geometry_type,
         'srid': dtype.srid,
@@ -25,6 +27,17 @@ def prepare(
     kwargs = {k: v for k, v in kwargs.items() if v is not None}
     column_type = ga.Geometry(**kwargs)
     nullable = not dtype.required
-    column = sa.Column(name, column_type, unique=dtype.unique, nullable=nullable)
-    index = sa.Index(get_pg_name(f'ix_{prop.model.model_type()}_{prop.name}'), column, postgresql_using='gist')
-    return [column, index]
+    columns = [
+        column := sa.Column(name, column_type, nullable=nullable),
+        sa.Index(None, column, postgresql_using='GIST')
+    ]
+
+    # Technically speaking we shouldn't create UniqueConstraint and Index at the same time
+    # behind the scenes UniqueConstraint is an Index
+    # but this uses GIST for Index, not BTREE
+    # need to investigate this further
+    if dtype.unique:
+        columns.append(
+            sa.UniqueConstraint(column)
+        )
+    return columns
