@@ -838,3 +838,70 @@ def test_migrate_multi_text_do_nothing(
             columns.keys())
 
         cleanup_table_list(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog'])
+
+
+def test_migrate_empty_text_do_nothing(
+    postgresql_migration: URL,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    cleanup_tables(postgresql_migration)
+    initial_manifest = '''
+     d               | r | b    | m    | property       | type     | ref      | level
+     migrate/example |   |      |      |                |          |          |
+                     |   |      | Test |                |          |          |
+                     |   |      |      | text@lt        | string   |          |
+                     |   |      |      | text@en        | string   |          |
+    '''
+    context, rc = configure_migrate(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {'migrate/example/Test', 'migrate/example/Test/:changelog'}.issubset(
+            tables.keys())
+        table = tables["migrate/example/Test"]
+        columns = table.columns
+        assert {'text'}.issubset(columns.keys())
+
+    override_manifest(context, tmp_path, '''
+     d               | r | b    | m    | property       | type     | ref      | level
+     migrate/example |   |      |      |                |          |          |
+                     |   |      | Test |                |          |          |
+                     |   |      |      | text@lt        | string   |          |
+                     |   |      |      | text@en        | string   |          |
+    ''')
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p',
+    ])
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'COMMIT;\n'
+        '\n'
+    )
+
+    cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv',
+    ])
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {'migrate/example/Test', 'migrate/example/Test/:changelog'}.issubset(tables.keys())
+
+        table = tables["migrate/example/Test"]
+        columns = table.columns
+        assert {'text'}.issubset(
+            columns.keys())
+        assert not {'__text'}.issubset(
+            columns.keys())
+
+        cleanup_table_list(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog'])

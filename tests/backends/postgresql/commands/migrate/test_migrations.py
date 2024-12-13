@@ -1824,3 +1824,189 @@ def test_migrate_datasets_list(
         assert 'thirdText' in columns3
 
         cleanup_table_list(meta, ['dataset1/Test', 'dataset2/Test2', 'dataset3/Test3'])
+
+
+def test_migrate_incorrect_unique_constraint_name(
+    postgresql_migration: URL,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    cleanup_tables(postgresql_migration)
+    initial_manifest = '''
+     d               | r | b | m    | property     | type
+     migrate/example |   |   |      |              |
+                     |   |   | Test |              |
+                     |   |   |      | someText     | string unique
+    '''
+    context, rc = configure_migrate(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {'migrate/example/Test', 'migrate/example/Test/:changelog'}.issubset(tables.keys())
+
+        constraint_columns = get_table_unique_constraint_columns(tables['migrate/example/Test'])
+        assert any(columns == ["someText"] for columns in constraint_columns)
+        # Corrupt unique constraint name
+
+        conn.execute(
+            f'ALTER TABLE "migrate/example/Test" RENAME CONSTRAINT "uq_migrate/example/Test_someText" TO "corrupted_unique_constraint"'
+        )
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p'
+    ])
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test" RENAME CONSTRAINT '
+        '"corrupted_unique_constraint" TO "uq_migrate/example/Test_someText";\n'
+        '\n'
+        'COMMIT;\n'
+        '\n')
+
+    cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv'
+    ])
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {'migrate/example/Test', 'migrate/example/Test/:changelog'}.issubset(tables.keys())
+
+        constraint_columns = get_table_unique_constraint_columns(tables['migrate/example/Test'])
+        assert any(columns == ["someText"] for columns in constraint_columns)
+
+        cleanup_table_list(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog'])
+
+
+def test_migrate_incorrect_index_name(
+    postgresql_migration: URL,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    cleanup_tables(postgresql_migration)
+    initial_manifest = '''
+     d               | r | b    | m    | property       | type     | ref | source
+     migrate/example |   |      |      |                |          |     |
+                     |   |      | Ref  |                |          |     |
+                     |   |      |      | someText       | string   |     |
+                     |   |      |      |                |          |     |
+                     |   |      | Test |                |          |     |
+                     |   |      |      | someText       | string   |     |
+                     |   |      |      | someRef        | ref      | Ref |
+    '''
+    context, rc = configure_migrate(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {'migrate/example/Test', 'migrate/example/Test/:changelog', 'migrate/example/Ref',
+                'migrate/example/Ref/:changelog'}.issubset(tables.keys())
+
+        # Corrupt ref index name
+        conn.execute(
+            f'ALTER INDEX "ix_migrate/example/Test_someRef._id" RENAME TO "corrupted_index_name"'
+        )
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p'
+    ])
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'ALTER INDEX "corrupted_index_name" RENAME TO '
+        '"ix_migrate/example/Test_someRef._id";\n'
+        '\n'
+        'COMMIT;\n'
+        '\n')
+
+    cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv'
+    ])
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+
+        cleanup_table_list(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog', 'migrate/example/Ref',
+                                  'migrate/example/Ref/:changelog'])
+
+
+def test_migrate_incorrect_foreign_key_constraint_name(
+    postgresql_migration: URL,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    cleanup_tables(postgresql_migration)
+    initial_manifest = '''
+     d               | r | b    | m    | property       | type     | ref | source
+     migrate/example |   |      |      |                |          |     |
+                     |   |      | Ref  |                |          |     |
+                     |   |      |      | someText       | string   |     |
+                     |   |      |      |                |          |     |
+                     |   |      | Test |                |          |     |
+                     |   |      |      | someText       | string   |     |
+                     |   |      |      | someRef        | ref      | Ref |
+    '''
+    context, rc = configure_migrate(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {'migrate/example/Test', 'migrate/example/Test/:changelog', 'migrate/example/Ref',
+                'migrate/example/Ref/:changelog'}.issubset(tables.keys())
+
+        table = tables['migrate/example/Test']
+
+        constraints = get_table_foreign_key_constraint_columns(table)
+        assert any(constraint["constraint_name"] == 'fk_migrate/example/Test_someRef._id' for constraint in constraints)
+
+        # Corrupt ref index name
+        conn.execute(
+            f'ALTER TABLE "migrate/example/Test" RENAME CONSTRAINT "fk_migrate/example/Test_someRef._id" TO "corrupted_fkey_constraint"'
+        )
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p'
+    ])
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test" RENAME CONSTRAINT '
+        '"corrupted_fkey_constraint" TO "fk_migrate/example/Test_someRef._id";\n'
+        '\n'
+        'COMMIT;\n'
+        '\n')
+
+    cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv'
+    ])
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+
+        table = tables['migrate/example/Test']
+
+        constraints = get_table_foreign_key_constraint_columns(table)
+        assert any(constraint["constraint_name"] == 'fk_migrate/example/Test_someRef._id' for constraint in constraints)
+
+        cleanup_table_list(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog', 'migrate/example/Ref',
+                                  'migrate/example/Ref/:changelog'])
