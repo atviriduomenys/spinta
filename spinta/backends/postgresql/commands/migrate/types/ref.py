@@ -1,6 +1,7 @@
 from typing import List
 
 import sqlalchemy as sa
+from sqlalchemy.engine.reflection import Inspector
 
 import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
@@ -11,8 +12,9 @@ from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
 from spinta.backends.postgresql.helpers.migrate.migrate import name_key, MigratePostgresMeta, adjust_kwargs, \
     is_name_complex, extract_literal_name_from_column, generate_type_missmatch_exception_details, \
     extract_sqlalchemy_columns, is_internal, split_columns, get_spinta_primary_keys, remap_and_rename_columns, \
-    remove_property_prefix_from_column_name, zip_and_migrate_properties
-from spinta.backends.postgresql.helpers.migrate.name import get_pg_column_name
+    remove_property_prefix_from_column_name, zip_and_migrate_properties, contains_constraint_name, MigrateModelMeta, \
+    constraint_with_name
+from spinta.backends.postgresql.helpers.name import get_pg_column_name, get_pg_table_name, get_pg_foreign_key_name
 from spinta.cli.helpers.migrate import MigrateRename
 from spinta.components import Context
 from spinta.datasets.inspect.helpers import zipitems
@@ -24,13 +26,47 @@ from spinta.utils.schema import NotAvailable, NA
 
 @commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, sa.Table, NotAvailable, Ref)
 def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, table: sa.Table,
+            old: NotAvailable, new: Ref, model_meta: MigrateModelMeta, **kwargs):
+    new_primary_columns = commands.prepare(context, backend, new.prop, propagate=False)
+    new_primary_columns = ensure_list(new_primary_columns)
+    new_primary_columns = extract_sqlalchemy_columns(new_primary_columns)
+    # Since its `Ref` type, it should only generate 1 columns 'column._id'
+    primary_column = new_primary_columns[0]
+
+    columns = commands.prepare(context, backend, new.prop)
+    if not isinstance(columns, list):
+        columns = [columns]
+    for column in columns:
+        if isinstance(column, sa.Column):
+            commands.migrate(context, backend, meta, table, old, column, **adjust_kwargs(kwargs, {
+                'foreign_key': True,
+                'model_meta': model_meta
+            }))
+
+    table_name = get_pg_table_name(get_table_name(new.prop.model))
+    _handle_property_foreign_key_constraint(
+        table_name=table_name,
+        table=table,
+        primary_column=primary_column,
+        ref=new,
+        handler=meta.handler,
+        inspector=meta.inspector,
+        rename=meta.rename,
+        model_meta=model_meta
+    )
+
+
+@commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, sa.Table, NotAvailable, ExternalRef)
+def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, table: sa.Table,
             old: NotAvailable, new: Ref, **kwargs):
     columns = commands.prepare(context, backend, new.prop)
     if not isinstance(columns, list):
         columns = [columns]
     for column in columns:
         if isinstance(column, sa.Column):
-            commands.migrate(context, backend, meta, table, old, column, **adjust_kwargs(kwargs, 'foreign_key', True))
+            commands.migrate(context, backend, meta, table, old, column, **adjust_kwargs(kwargs, {
+                'foreign_key': True
+            }))
 
 
 @commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, sa.Table, sa.Column, Ref)
@@ -73,7 +109,7 @@ def _migrate_scalar_to_ref_4(
     if not len(columns) == 1:
         return False
 
-    table_name = rename.get_table_name(table.name)
+    table_name = get_pg_table_name(rename.get_table_name(table.name))
 
     column = columns[0]
     new_name = rename.get_column_name(table.name, column.name)
@@ -110,7 +146,7 @@ def _migrate_scalar_to_ref_4(
     # Apply conversion from scalar to ref column
     handler.add_action(ma.UpgradeTransferDataMigrationAction(
         table_name=table_name,
-        referenced_table_name=get_table_name(ref.model),
+        referenced_table_name=get_pg_table_name(get_table_name(ref.model)),
         ref_column=ref_column,
         columns={
             key: column
@@ -156,7 +192,7 @@ def _migrate_scalar_to_ref_3(
     if not len(columns) == 1:
         return False
 
-    table_name = rename.get_table_name(table.name)
+    table_name = get_pg_table_name(rename.get_table_name(table.name))
 
     column = columns[0]
     new_name = rename.get_column_name(table.name, column.name)
@@ -196,7 +232,7 @@ def _migrate_scalar_to_ref_3(
     handler.add_action(
         ma.DowngradeTransferDataMigrationAction(
             table_name=table_name,
-            referenced_table_name=get_table_name(ref.model),
+            referenced_table_name=get_pg_table_name(get_table_name(ref.model)),
             source_column=column,
             columns={
                 ref_column.name: sa.Column(target, type_=ref_column.type)
@@ -212,11 +248,14 @@ def _migrate_scalar_to_ref_3(
 
 @commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, sa.Table, list, Ref)
 def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, table: sa.Table,
-            old: List[sa.Column], new: Ref, **kwargs):
+            old: List[sa.Column], new: Ref, model_meta: MigrateModelMeta, **kwargs):
     rename = meta.rename
     inspector = meta.inspector
     handler = meta.handler
-    adjusted_kwargs = adjust_kwargs(kwargs, 'foreign_key', True)
+    adjusted_kwargs = adjust_kwargs(kwargs, {
+        'foreign_key': True,
+        'model_meta': model_meta
+    })
 
     new_primary_columns = commands.prepare(context, backend, new.prop, propagate=False)
     new_primary_columns = ensure_list(new_primary_columns)
@@ -233,9 +272,9 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
     new_children_columns = [column for column in new_all_columns if column.name not in new_primary_column_names]
     new_children_column_names = [column.name for column in new_children_columns]
 
-    table_name = rename.get_table_name(table.name)
-    old_ref_table = rename.get_old_table_name(get_table_name(new.model))
-    old_prop_name = rename.get_old_column_name(table.name, get_column_name(new.prop))
+    table_name = get_pg_table_name(rename.get_table_name(table.name))
+    old_ref_table = get_pg_table_name(rename.get_old_table_name(get_table_name(new.model)))
+    old_prop_name = get_pg_column_name(rename.get_old_column_name(table.name, get_column_name(new.prop)))
 
     new_name = get_pg_column_name(new.prop.place)
     ref_model_primary_keys = get_spinta_primary_keys(
@@ -243,7 +282,13 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
         model=new.model,
         inspector=inspector
     )
-    old_columns_internal = is_internal(old, old_prop_name)
+    old_columns_internal = is_internal(
+        columns=old,
+        base_name=old_prop_name,
+        table_name=table.name,
+        ref_table_name=old_ref_table,
+        inspector=inspector
+    )
     old_primary_columns, old_children_columns = split_columns(
         columns=old,
         base_name=old_prop_name,
@@ -283,25 +328,48 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
         # Scalar did not pass
         if not migrated:
             column_mapping = dict()
-            for column in old_primary_columns:
-                new_name = rename.get_column_name(table.name, column.name)
-                key = new_name.split('.')[-1]
-                column_mapping[key] = column
+            # Ref level 3 (no pkeys) -> ref level 4
+            if len(old_primary_columns) == 1 and old_primary_columns[0].name.endswith('._id'):
+                commands.migrate(
+                    context,
+                    backend,
+                    meta,
+                    table,
+                    old_primary_columns[0],
+                    primary_column,
+                    **adjusted_kwargs
+                )
+            else:
+                for column in old_primary_columns:
+                    new_name = rename.get_column_name(table.name, column.name)
+                    key = new_name.split('.')[-1]
+                    column_mapping[key] = column
 
-            # Create empty ref column
-            commands.migrate(context, backend, meta, table, NA, primary_column, **adjusted_kwargs)
+                # Create empty ref column
+                commands.migrate(context, backend, meta, table, NA, primary_column, **adjusted_kwargs)
 
-            # Migrate from level 3 to level 4 ref
-            handler.add_action(ma.UpgradeTransferDataMigrationAction(
-                table_name=table_name,
-                referenced_table_name=get_table_name(new.model),
-                ref_column=primary_column,
-                columns=column_mapping
-            ), True)
+                # Migrate from level 3 to level 4 ref
+                handler.add_action(ma.UpgradeTransferDataMigrationAction(
+                    table_name=table_name,
+                    referenced_table_name=get_pg_table_name(get_table_name(new.model)),
+                    ref_column=primary_column,
+                    columns=column_mapping
+                ), True)
 
-            # Drop old columns
-            for column in column_mapping.values():
-                commands.migrate(context, backend, meta, table, column, NA, **adjusted_kwargs)
+                # Drop old columns
+                for column in column_mapping.values():
+                    commands.migrate(context, backend, meta, table, column, NA, **adjusted_kwargs)
+
+    _handle_property_foreign_key_constraint(
+        table_name=table_name,
+        table=table,
+        primary_column=primary_column,
+        ref=new,
+        rename=rename,
+        inspector=inspector,
+        model_meta=model_meta,
+        handler=handler,
+    )
 
     zip_and_migrate_properties(
         context=context,
@@ -313,8 +381,68 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
         meta=meta,
         rename=rename,
         root_name=new.prop.place,
-        **kwargs
+        **adjusted_kwargs
     )
+
+
+def _handle_property_foreign_key_constraint(
+    table_name: str,
+    table: sa.Table,
+    primary_column: sa.Column,
+    ref: Ref,
+    handler: MigrationHandler,
+    inspector: Inspector,
+    rename: MigrateRename,
+    model_meta: MigrateModelMeta
+):
+    foreign_keys = inspector.get_foreign_keys(table.name)
+    foreign_key_name = get_pg_foreign_key_name(
+        table_name=table_name,
+        column_name=primary_column.name
+    )
+    model_meta.handle_foreign_constraint(foreign_key_name)
+    referent_table = get_pg_table_name(get_table_name(ref.model))
+
+    old_prop_name = get_pg_column_name(f'{rename.get_old_column_name(table.name, get_column_name(ref.prop))}._id')
+    old_referent_table = get_pg_table_name(rename.get_old_table_name(get_table_name(ref.model)))
+    if not contains_constraint_name(foreign_keys, foreign_key_name):
+        for foreign_key in foreign_keys:
+            if foreign_key["constrained_columns"] == [old_prop_name] and foreign_key["referred_table"] == old_referent_table:
+                model_meta.handle_foreign_constraint(foreign_key["name"])
+                handler.add_action(ma.RenameConstraintMigrationAction(
+                    table_name=table_name,
+                    old_constraint_name=foreign_key["name"],
+                    new_constraint_name=foreign_key_name
+                ), foreign_key=True)
+                return
+
+        handler.add_action(
+            ma.CreateForeignKeyMigrationAction(
+                source_table=table_name,
+                referent_table=referent_table,
+                constraint_name=foreign_key_name,
+                local_cols=[primary_column.name],
+                remote_cols=["_id"]
+            ), foreign_key=True
+        )
+        return
+
+    constraint = constraint_with_name(foreign_keys, foreign_key_name)
+    if constraint["constrained_columns"] != [old_prop_name] or constraint["referred_table"] != old_referent_table:
+        model_meta.handle_foreign_constraint(constraint["name"])
+        handler.add_action(ma.DropConstraintMigrationAction(
+            table_name=table_name,
+            constraint_name=constraint["name"]
+        ), foreign_key=True)
+        handler.add_action(
+            ma.CreateForeignKeyMigrationAction(
+                source_table=table_name,
+                referent_table=referent_table,
+                constraint_name=foreign_key_name,
+                local_cols=[primary_column.name],
+                remote_cols=["_id"]
+            ), foreign_key=True
+        )
 
 
 @commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, sa.Table, list, ExternalRef)
@@ -324,10 +452,12 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
     inspector = meta.inspector
     handler = meta.handler
 
-    adjusted_kwargs = adjust_kwargs(kwargs, 'foreign_key', True)
+    adjusted_kwargs = adjust_kwargs(kwargs, {
+        'foreign_key': True
+    })
 
-    table_name = rename.get_table_name(table.name)
-    old_ref_table = rename.get_old_table_name(get_table_name(new.model))
+    table_name = get_pg_table_name(rename.get_table_name(table.name))
+    old_ref_table = get_pg_table_name(rename.get_old_table_name(get_table_name(new.model)))
     old_prop_name = rename.get_old_column_name(table.name, get_column_name(new.prop))
 
     new_primary_columns = commands.prepare(context, backend, new.prop, propagate=False)
@@ -340,7 +470,7 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
     new_all_columns = extract_sqlalchemy_columns(new_all_columns)
 
     new_children_columns = [column for column in new_all_columns if
-                               column.name not in new_primary_column_name_mapping]
+                            column.name not in new_primary_column_name_mapping]
     new_children_column_names = [column.name for column in new_children_columns]
 
     new_name = get_pg_column_name(new.prop.place)
@@ -349,7 +479,13 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
         model=new.model,
         inspector=inspector
     )
-    old_columns_internal = is_internal(old, old_prop_name)
+    old_columns_internal = is_internal(
+        columns=old,
+        base_name=old_prop_name,
+        table_name=table.name,
+        ref_table_name=old_ref_table,
+        inspector=inspector
+    )
     old_primary_columns, old_children_columns = split_columns(
         columns=old,
         base_name=old_prop_name,
@@ -366,32 +502,44 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
         old_primary_column = old_primary_columns[0]
 
         if old_columns_internal:
-            # Handle Internal ref mapping
-            # Ensure columns exist
-            column_mapping = {}
-            for column in new_primary_columns:
-                column_mapping[column.name] = sa.Column(
-                    remove_property_prefix_from_column_name(
-                        column.name,
-                        new.prop
-                    ),
-                    type_=column.type
+            # Ref 4 -> ref 3 (no pkeys)
+            if len(new_primary_columns) == 1 and new_primary_columns[0].name.endswith('._id'):
+                commands.migrate(
+                    context,
+                    backend,
+                    meta,
+                    table,
+                    old_primary_column,
+                    new_primary_columns[0],
+                    **adjusted_kwargs
                 )
-                commands.migrate(context, backend, meta, table, NA, column, **adjusted_kwargs)
+            else:
+                # Handle Internal ref mapping
+                # Ensure columns exist
+                column_mapping = {}
+                for column in new_primary_columns:
+                    column_mapping[column.name] = sa.Column(
+                        remove_property_prefix_from_column_name(
+                            column.name,
+                            new.prop
+                        ),
+                        type_=column.type
+                    )
+                    commands.migrate(context, backend, meta, table, NA, column, **adjusted_kwargs)
 
-            # Downgrade ref column
-            handler.add_action(
-                ma.DowngradeTransferDataMigrationAction(
-                    table_name=table_name,
-                    referenced_table_name=get_table_name(new.model),
-                    source_column=old_primary_column,
-                    columns=column_mapping,
-                    target='_id'
-                ), True
-            )
+                # Downgrade ref column
+                handler.add_action(
+                    ma.DowngradeTransferDataMigrationAction(
+                        table_name=table_name,
+                        referenced_table_name=get_pg_table_name(get_table_name(new.model)),
+                        source_column=old_primary_column,
+                        columns=column_mapping,
+                        target='_id'
+                    ), True
+                )
 
-            # Drop old column
-            commands.migrate(context, backend, meta, table, old_primary_column, NA, **adjusted_kwargs)
+                # Drop old column
+                commands.migrate(context, backend, meta, table, old_primary_column, NA, **adjusted_kwargs)
             migrated = True
         else:
             migrated = _migrate_scalar_to_ref_3(

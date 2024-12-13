@@ -8,9 +8,11 @@ from spinta.backends.constants import TableType
 from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.constants import UNSUPPORTED_TYPES
+from spinta.utils.sqlalchemy import Convention
 from spinta.backends.postgresql.helpers import get_column_name
 from spinta.backends.postgresql.helpers import get_pg_name
 from spinta.backends.postgresql.helpers.changes import get_changes_table
+from spinta.backends.postgresql.helpers.name import PG_NAMING_CONVENTION, get_pg_table_name, get_pg_column_name
 from spinta.components import Context, Model
 from spinta.manifests.components import Manifest
 from spinta.types.datatype import DataType, PrimaryKey, Ref
@@ -127,8 +129,11 @@ def prepare(context: Context, backend: PostgreSQL, dtype: PrimaryKey, **kwargs):
         return [
             sa.Column('_id', pkey_type, primary_key=True),
             sa.ForeignKeyConstraint(
-                ['_id'], [f'{get_pg_name(get_table_name(base.parent))}._id'],
-                name=get_pg_name(f'fk_{base.parent.name}_id'),
+                ['_id'], [f'{get_pg_table_name(get_table_name(base.parent))}._id'],
+                name=PG_NAMING_CONVENTION[Convention.FK] % {
+                    "table_name": get_pg_table_name(get_table_name(base.parent)),
+                    "column_0_N_name": "_id"
+                }
             )
         ]
     return sa.Column('_id', pkey_type, primary_key=True)

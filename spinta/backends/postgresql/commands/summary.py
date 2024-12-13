@@ -3,7 +3,7 @@ import datetime
 import sqlalchemy as sa
 
 from spinta.backends.helpers import get_table_name
-from spinta.backends.postgresql.helpers.migrate.name import get_pg_table_name, get_pg_column_name
+from spinta.backends.postgresql.helpers.name import get_pg_table_name, get_pg_column_name
 from spinta.core.ufuncs import Expr
 from spinta.types.datatype import Integer, Number, Boolean, String, Date, DateTime, Time, Ref
 from spinta import commands

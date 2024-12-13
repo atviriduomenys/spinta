@@ -2,7 +2,7 @@ import sqlalchemy as sa
 
 from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers.migrate.migrate import MigratePostgresMeta, adjust_kwargs
+from spinta.backends.postgresql.helpers.migrate.migrate import MigratePostgresMeta
 from spinta.components import Context
 from spinta.types.datatype import DataType
 from spinta.types.geometry.components import Geometry
