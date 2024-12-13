@@ -675,6 +675,7 @@ class Model(MetaData):
     uri: str = None
     uri_prop: Property = None
     page: PageInfo = None
+    features: str = None
 
     required_keymap_properties = None
 
@@ -702,6 +703,7 @@ class Model(MetaData):
         'comments': {},
         'uri': {'type': 'string'},
         'given_name': {'type': 'string', 'default': None},
+        'features': {},
     }
 
     def __init__(self):
@@ -726,10 +728,12 @@ class Model(MetaData):
         return self.name
 
     def get_name_without_ns(self):
-        if '/' in self.name:
-            return self.name.split('/')[-1]
-        else:
-            return self.name
+        # todo workaround, maybe remove after dealing with /: properly
+        #  https://github.com/atviriduomenys/spinta/issues/927
+        return self.basename
+
+        # return self.name.split('/')[-1]
+
 
     def add_keymap_property_combination(self, given_props: List[Property]):
         extract_names = list([prop.name for prop in given_props])

@@ -15,7 +15,6 @@ from spinta.components import Context, Component, Property
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
 from spinta.manifests.components import Manifest
-from spinta.manifests.tabular.constants import DataTypeEnum
 from spinta.types.helpers import check_no_extra_keys
 from spinta.types.helpers import set_dtype_backend
 from spinta.utils.schema import NA, NotAvailable

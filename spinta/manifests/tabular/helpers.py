@@ -436,6 +436,11 @@ class ModelReader(TabularReader):
             row['model'],
         )
 
+        if "/:" in name:
+            name, features = name.rsplit("/:", 1)
+        else:
+            features = None
+
         if self.state.rename_duplicates:
             dup = 1
             _name = name
@@ -465,18 +470,21 @@ class ModelReader(TabularReader):
             'description': row['description'],
             'properties': {},
             'uri': row['uri'],
-            'unique': [([x.strip() for x in row['ref'].split(',')])] if row['ref'] else [],
+            'unique': [
+                ([x.strip().split('@')[0] for x in row['ref'].split(',')])
+            ] if row['ref'] else [],
             'external': {
                 'dataset': dataset.name if dataset else '',
                 'resource': resource.name if dataset and resource else '',
                 'pk': (
-                    [x.strip() for x in row['ref'].split(',')]
+                    [x.strip().split('@')[0] for x in row['ref'].split(',')]
                     if row['ref'] else []
                 ),
                 'name': row['source'],
                 'prepare': _parse_spyna(self, row[PREPARE]),
             },
             'given_name': name,
+            'features': features
         }
         if resource and not dataset:
             self.data['backend'] = resource.name
@@ -668,7 +676,7 @@ class PropertyReader(TabularReader):
         STR_PROPERTIES = 'properties'
         parts = prop_given_name.split('.')[1:]
         result = '.'.join(
-            part + ('.' + STR_PROPERTIES if i < len(parts) - 1 else '')
+            part.split('@')[0] + ('.' + STR_PROPERTIES if i < len(parts) - 1 else '')
             for i, part in enumerate(parts)
         )
         return STR_PROPERTIES + '.' + result if result else ''
@@ -2365,6 +2373,8 @@ def _model_to_tabular(
             model,
             model.external.dataset,
         )
+    if model.features:
+        data['model'] = f"{data['model']}{model.features}"
     if external and model.external:
         data.update({
             'source': model.external.name,
@@ -2377,7 +2387,7 @@ def _model_to_tabular(
             # Add `ref` only if all properties are available in the
             # resulting manifest.
             data['ref'] = ', '.join([
-                p.name for p in model.external.pkeys
+                p.given.name or p.name for p in model.external.pkeys
             ])
 
     hide_list = []
