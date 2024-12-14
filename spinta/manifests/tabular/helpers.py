@@ -1388,9 +1388,6 @@ class EnumReader(TabularReader):
                 "At least source or prepare must be specified for an enum."
             )
 
-        if row[LEVEL]:
-            self.error(f"Enum's do not have a level, but level {row[LEVEL]!r} is given.")
-
         self.data = {
             'id': row[ID],
             'name': self.name,
@@ -1399,6 +1396,7 @@ class EnumReader(TabularReader):
             'access': row[ACCESS],
             'title': row[TITLE],
             'description': row[DESCRIPTION],
+            'level': row[LEVEL],
         }
 
         node_data: PropertyRow = self._get_node_data(row)
@@ -2063,6 +2061,7 @@ def _enums_to_tabular(
                 'access': item.given.access,
                 'title': item.title,
                 'description': item.description,
+                'level': item.level,
             })
             if lang := list(_lang_to_tabular(item.lang)):
                 first = True

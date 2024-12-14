@@ -1081,6 +1081,23 @@ def test_multi_nested_type_missmatch_with_partial(manifest_type, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
+def test_enum_level(
+    manifest_type: str,
+    tmp_path,
+    rc
+):
+    check(tmp_path=tmp_path, rc=rc, table='''
+        d | r | b | m | property | type    | prepare | level | title
+        datasets/gov/example     |         |         |       |
+                                 |         |         |       |
+          |   |   | Data         |         |         |       |
+          |   |   |   | value    | integer |         |       |
+                                 | enum    | 1       | 3     | Positive
+                                 |         | 2       | 3     | Negative
+    ''', manifest_type=manifest_type)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_text_prop_as_reference(manifest_type, tmp_path, rc):
     check(tmp_path, rc, '''
         d | r | b | m | property | type | ref     | level | access
@@ -1093,3 +1110,4 @@ def test_text_prop_as_reference(manifest_type, tmp_path, rc):
           |   |   |   | name@en  | text |         | 4     | open
           |   |   |   | country  | ref  | Country | 3     | open
     ''', manifest_type)
+

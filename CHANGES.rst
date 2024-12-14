@@ -1,6 +1,16 @@
 Changes
 #######
 
+0.2dev1
+=======
+
+Backwards incompatible:
+ - conversion of XSD schemas to DSA manifests in an improved way. (`#842`_)
+ - support for language tag for properties. (`#582`_)
+
+  .. _#842: https://github.com/atviriduomenys/spinta/issues/842
+  .. _#582: https://github.com/atviriduomenys/spinta/issues/582
+
 0.1.81 (unreleased)
 ===================
 
@@ -30,11 +40,17 @@ Improvements:
 
   .. _#1011: https://github.com/atviriduomenys/spinta/issues/1011
 
+
+- added enum level support, allowing to indicate a level for enum. (`#982`_)
+
+  .. _#982: https://github.com/atviriduomenys/spinta/issues/982
+
 - Standardized `postgresql` naming convention, now all new constraints and indexes should follow same naming
   scheme (`P#153`).
 
 - `spinta migrate` now tries to rename constraints and indexes (if the name only changed) instead of dropping them and
   adding them with correct name (`P#153`).
+
 
 Bug fix:
 
