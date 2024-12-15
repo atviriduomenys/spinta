@@ -7,12 +7,16 @@ poetry update
 # Generate changes and readme html formats
 poetry run rst2html.py CHANGES.rst var/changes.html
 xdg-open var/changes.html
+# alternative:
+# poetry shell
+# rst2html CHANGES.rst var/changes.html
 
 poetry run rst2html.py README.rst var/readme.html
 xdg-open var/readme.html
 
 
 # Reset test database
+# password is in the docker-compose.yml file
 psql -h localhost -p 54321 -U admin postgres -c 'DROP DATABASE spinta_tests'
 psql -h localhost -p 54321 -U admin postgres -c 'CREATE DATABASE spinta_tests'
 psql -h localhost -p 54321 -U admin spinta_tests <<EOF
@@ -89,8 +93,9 @@ EOF
 
 # Configure spinta
 # BASEDIR should be set by respective release type (patch, rc, etc.)
+#export BASEDIR=x
 mkdir -p "$BASEDIR"
-cat "$BASEDIR"/config.yml
+#cat "$BASEDIR"/config.yml
 cat > "$BASEDIR"/config.yml <<EOF
 env: production
 data_path: $BASEDIR
