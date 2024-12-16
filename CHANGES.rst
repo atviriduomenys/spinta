@@ -23,6 +23,12 @@ Backwards incompatible:
 - Changed `postgresql` naming convention. This will result in old tables having incorrect constraint and index names.
   `spinta migrate` should be able to find most of them (`P#153`).
 
+- `AccessLog` no longer stores `scope` field on every request. Instead it will store `token` field (token `JTI` value).
+  In order to track what scopes token uses, now we log `auth` requests (`/auth/token`), which will store list of scopes.
+  This change should reduce the spam in logging and reduce log file size.
+
+  In order track unique token identifiers, `JTI` field has been added to all new tokens (meaning old tokens, that still
+  do not have the field, will not be properly logged) (`#1003`_).
 
 Improvements:
 
@@ -35,6 +41,14 @@ Improvements:
 
 - `spinta migrate` now tries to rename constraints and indexes (if the name only changed) instead of dropping them and
   adding them with correct name (`P#153`).
+
+- `JWT` tokens now also store `JTI` claim (`#1003`_).
+
+  .. _#1003: https://github.com/atviriduomenys/spinta/issues/1003
+
+- `AccessLog` now has `auth` logging (`#1003`_).
+
+  .. _#1003: https://github.com/atviriduomenys/spinta/issues/1003
 
 Bug fix:
 
