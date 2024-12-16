@@ -93,7 +93,7 @@ EOF
 
 # Configure spinta
 # BASEDIR should be set by respective release type (patch, rc, etc.)
-#export BASEDIR=x
+# export BASEDIR=x (better add full path)
 mkdir -p "$BASEDIR"
 #cat "$BASEDIR"/config.yml
 cat > "$BASEDIR"/config.yml <<EOF
@@ -132,11 +132,18 @@ export SPINTA_CONFIG=$BASEDIR/config.yml
 
 
 # Create manifest file
-# BASEDIR should be set by respective release type (patch, rc, etc.)
+# this is a directory to which manifest data will be downloaded.
+# If you don't have one, create an empty directory and cs into it.
+# If you create a new directory, do this:
+# git clone git@github.com:atviriduomenys/manifest.git
+# git checkout get.data.gov.lt
+# otherwise, do the following steps:
 cd ~/dev/data/manifest
 git status
 git checkout get.data.gov.lt
 git pull
+
+
 find datasets -iname "*.csv" | xargs spinta check
 cat get_data_gov_lt.in | xargs spinta copy -o "$BASEDIR"/manifest.csv
 spinta check
