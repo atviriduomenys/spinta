@@ -1002,8 +1002,3 @@ class InvalidClientFileFormat(UserError):
 
 class MissingRefModel(UserError):
     template = 'Property "{property_name}" of type "{property_type}" in the model "{model_name}" should have a model name in the `ref` column, to which it refers.'
-    context = {
-        'model_name': 'dtype.prop.model.basename',
-        'property_name': 'dtype.prop.name',
-        'property_type': 'dtype.prop.dtype.name',
-    }
