@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import uuid
 from functools import lru_cache
 
 from multipledispatch import dispatch
@@ -31,7 +32,7 @@ from authlib.oauth2 import rfc6749
 from authlib.oauth2 import rfc6750
 from authlib.oauth2.rfc6749 import grants
 from authlib.oauth2.rfc6750.errors import InsufficientScopeError
-from authlib.oauth2.rfc6749.errors import InvalidClientError
+from authlib.oauth2.rfc6749.errors import InvalidClientError, UnsupportedTokenTypeError
 from authlib.oauth2 import OAuth2Error
 
 from spinta.components import Config
@@ -189,7 +190,7 @@ class Client(rfc6749.ClientMixin):
         if unknown_scopes:
             log.warning(f"requested unknown scopes: %s", ', '.join(sorted(unknown_scopes)))
             unknown_scopes = ', '.join(sorted(unknown_scopes))
-            raise InvalidScopes(scopes = unknown_scopes)
+            raise InvalidScopes(scopes=unknown_scopes)
         else:
             return True
 
@@ -241,6 +242,9 @@ class Token(rfc6749.TokenMixin):
     def get_aud(self):  # Client.
         return self._token.get('aud', '')
 
+    def get_jti(self):
+        return self._token.get('jti', '')
+
     def get_client_id(self):
         return self.get_aud()
 
@@ -259,8 +263,19 @@ class AdminToken(rfc6749.TokenMixin):
     def get_aud(self):  # Client.
         return 'admin'
 
+    def get_jti(self):
+        return 'admin'
+
     def get_client_id(self):
         return self.get_aud()
+
+
+def authenticate_token(protector: ResourceProtector, token: str, type_: str) -> Token:
+    type_ = type_.lower()
+    if type_ not in protector.TOKEN_VALIDATORS:
+        raise UnsupportedTokenTypeError()
+
+    return protector.TOKEN_VALIDATORS[type_].authenticate_token(token)
 
 
 def get_auth_token(context: Context) -> Token:
@@ -397,6 +412,7 @@ def create_access_token(
     iat = int(time.time())
     exp = iat + expires_in
     scopes = ' '.join(sorted(scopes)) if scopes else ''
+    jti = str(uuid.uuid4())
     payload = {
         'iss': config.server_url,
         'sub': client,
@@ -404,6 +420,7 @@ def create_access_token(
         'iat': iat,
         'exp': exp,
         'scope': scopes,
+        'jti': jti
     }
     return jwt.encode(header, payload, private_key).decode('ascii')
 

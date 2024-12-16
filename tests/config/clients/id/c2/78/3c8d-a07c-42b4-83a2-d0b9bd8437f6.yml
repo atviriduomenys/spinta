@@ -1,0 +1,11 @@
+client_id: c2783c8d-a07c-42b4-83a2-d0b9bd8437f6
+client_name: test-insert
+client_secret_hash: pbkdf2$sha256$410198$nd2uw-aqPKLkUdPRgEsE9w$WSvKT2sijfLrTQRkoCEzDWIHwAXpmKsyXWTguWBQ-NQ
+scopes:
+  - spinta_check
+  - spinta_getone
+  - spinta_getall
+  - spinta_search
+  - spinta_insert
+  - spinta_delete
+  - spinta_wipe

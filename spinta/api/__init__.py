@@ -1,3 +1,4 @@
+import json
 import uuid
 from typing import Type
 
@@ -18,13 +19,14 @@ from starlette.middleware import Middleware
 
 from spinta import components, commands
 from spinta.auth import AuthorizationServer, check_scope, query_client, get_clients_list, \
-    client_exists, create_client_file, delete_client_file, update_client_file, get_clients_path, Scopes
+    client_exists, create_client_file, delete_client_file, update_client_file, get_clients_path, Scopes, Token, \
+    authenticate_token
 from spinta.auth import ResourceProtector
 from spinta.auth import BearerTokenValidator
 from spinta.auth import get_auth_request
 from spinta.auth import get_auth_token
 from spinta.commands import prepare, get_version
-from spinta.components import Context
+from spinta.components import Context, UrlParams
 from spinta.exceptions import BaseError, MultipleErrors, error_response, InsufficientPermission, \
     UnknownPropertyInRequest, InsufficientPermissionForUpdate, EmptyPassword
 from spinta.middlewares import ContextMiddleware
@@ -60,16 +62,58 @@ async def version(request: Request):
 
 
 async def auth_token(request: Request):
-    auth_server = request.state.context.get('auth.server')
+    context = request.state.context
+    auth_server = context.get('auth.server')
     if auth_server.enabled():
-        return auth_server.create_token_response({
+        resp: JSONResponse = auth_server.create_token_response({
             'method': request.method,
             'url': str(request.url.replace(query='')),
             'body': dict(await request.form()),
             'headers': request.headers,
         })
+
+        payload = json.loads(resp.body.decode("utf-8"))
+        _auth_accesslog(
+            context,
+            request,
+            payload,
+            'json'
+        )
+
+        return resp
     else:
         raise NoAuthServer()
+
+
+def _auth_accesslog(
+    context: Context,
+    request: Request,
+    payload: dict,
+    output_format: str
+):
+    access_token = payload.get('access_token')
+    if not access_token:
+        return
+
+    token = payload['access_token']
+    type_ = payload['token_type']
+
+    resource_protector = context.get('auth.resource_protector')
+    token = authenticate_token(
+        resource_protector,
+        token=token,
+        type_=type_
+    )
+    params = UrlParams()
+    params.format = output_format
+    context.attach('accesslog', create_accesslog, context, loaders=(
+        context.get('store'),
+        request,
+        token,
+        params
+    ))
+    accesslog = context.get('accesslog')
+    accesslog.auth()
 
 
 def _auth_client_context(request: Request) -> Context:

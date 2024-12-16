@@ -47,7 +47,7 @@ def test_post_accesslog(model, app, context):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
-            'scope': accesslog[-2]['scope'],
+            'token': accesslog[-2]['token'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'client': 'test-client',
@@ -90,7 +90,7 @@ def test_post_array_accesslog(model, app, context):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
-            'scope': accesslog[-2]['scope'],
+            'token': accesslog[-2]['token'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'method': 'POST',
@@ -138,7 +138,7 @@ def test_put_accesslog(model, app, context):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
-            'scope': accesslog[-2]['scope'],
+            'token': accesslog[-2]['token'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'method': 'PUT',
@@ -177,7 +177,7 @@ def test_pdf_put_accesslog(model, app, context):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
-            'scope': accesslog[-2]['scope'],
+            'token': accesslog[-2]['token'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'action': 'update',
@@ -227,7 +227,7 @@ def test_patch_accesslog(model, app, context):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
-            'scope': accesslog[-2]['scope'],
+            'token': accesslog[-2]['token'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'agent': 'testclient',
@@ -272,7 +272,7 @@ def test_get_accesslog(app, model, context):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
-            'scope': accesslog[-2]['scope'],
+            'token': accesslog[-2]['token'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'agent': 'testclient',
@@ -318,7 +318,7 @@ def test_get_array_accesslog(model, app, context):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
-            'scope': accesslog[-2]['scope'],
+            'token': accesslog[-2]['token'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'agent': 'testclient',
@@ -356,7 +356,7 @@ def test_pdf_get_accesslog(model, app, context):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
-            'scope': accesslog[-2]['scope'],
+            'token': accesslog[-2]['token'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'format': 'json',
@@ -400,7 +400,7 @@ def test_get_prop_accesslog(app, model, context):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
-            'scope': accesslog[-2]['scope'],
+            'token': accesslog[-2]['token'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'agent': 'testclient',
@@ -443,7 +443,7 @@ def test_get_w_select_accesslog(app, model, context):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
-            'scope': accesslog[-2]['scope'],
+            'token': accesslog[-2]['token'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'agent': 'testclient',
@@ -485,7 +485,7 @@ def test_getall_accesslog(app, model, context):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
-            'scope': accesslog[-2]['scope'],
+            'token': accesslog[-2]['token'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'agent': 'testclient',
@@ -525,7 +525,7 @@ def test_getall_w_select_accesslog(app, model, context):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
-            'scope': accesslog[-2]['scope'],
+            'token': accesslog[-2]['token'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'agent': 'testclient',
@@ -574,7 +574,7 @@ def test_accesslog_file(model, postgresql, rc, request, tmp_path):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
-            'scope': accesslog[-2]['scope'],
+            'token': accesslog[-2]['token'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'agent': 'testclient',
@@ -685,7 +685,7 @@ def test_accesslog_file_stdin(
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
-            'scope': accesslog[-2]['scope'],
+            'token': accesslog[-2]['token'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'action': 'insert',
@@ -748,7 +748,7 @@ def test_accesslog_file_stderr(
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
-            'scope': accesslog[-2]['scope'],
+            'token': accesslog[-2]['token'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'action': 'insert',
@@ -792,7 +792,7 @@ def test_delete_accesslog(model, app, context):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
-            'scope': accesslog[-2]['scope'],
+            'token': accesslog[-2]['token'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'agent': 'testclient',
@@ -833,7 +833,7 @@ def test_pdf_delete_accesslog(model, app, context):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
-            'scope': accesslog[-2]['scope'],
+            'token': accesslog[-2]['token'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'agent': 'testclient',
@@ -902,7 +902,7 @@ def test_pdf_ref_update_accesslog(model, app, context, tmp_path):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
-            'scope': accesslog[-2]['scope'],
+            'token': accesslog[-2]['token'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'agent': 'testclient',
@@ -954,7 +954,7 @@ def test_batch_write(model, app, context, tmp_path):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
-            'scope': accesslog[-2]['scope'],
+            'token': accesslog[-2]['token'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'agent': 'testclient',
@@ -1000,7 +1000,7 @@ def test_stream_write(model, app, context, tmp_path):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
-            'scope': accesslog[-2]['scope'],
+            'token': accesslog[-2]['token'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'agent': 'testclient',
@@ -1046,7 +1046,7 @@ def test_ns_read(model, app, context, tmp_path):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
-            'scope': accesslog[-2]['scope'],
+            'token': accesslog[-2]['token'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'agent': 'testclient',
@@ -1091,7 +1091,7 @@ def test_ns_read_csv(model, app, context, tmp_path):
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
-            'scope': accesslog[-2]['scope'],
+            'token': accesslog[-2]['token'],
             'type': 'request',
             'time': accesslog[-2]['time'],
             'agent': 'testclient',
@@ -1114,7 +1114,8 @@ def test_ns_read_csv(model, app, context, tmp_path):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_get_accesslog_default_user(manifest_type: str, tmp_path: pathlib.Path, rc: RawConfig, postgresql: str, request: FixtureRequest):
+def test_get_accesslog_default_user(manifest_type: str, tmp_path: pathlib.Path, rc: RawConfig, postgresql: str,
+                                    request: FixtureRequest):
     context = bootstrap_manifest(
         rc, '''
         d | r | b | m | property      | type    | access
@@ -1135,7 +1136,7 @@ def test_get_accesslog_default_user(manifest_type: str, tmp_path: pathlib.Path, 
         load_key(context, KeyType.private),
         default_client_id,
         int(datetime.timedelta(days=10).total_seconds()),
-        { 'spinta_getall', 'spinta_search'}
+        {'spinta_getall', 'spinta_search'}
     )
 
     model = 'backends/postgres/dtypes/test/Entity'
@@ -1146,7 +1147,7 @@ def test_get_accesslog_default_user(manifest_type: str, tmp_path: pathlib.Path, 
     assert resp.status_code == 201, resp.json()
 
     # Get with default client auth
-    resp = app.get('/backends/postgres/dtypes/test/Entity?select(id)',  headers={'authorization': f'Bearer {token}'})
+    resp = app.get('/backends/postgres/dtypes/test/Entity?select(id)', headers={'authorization': f'Bearer {token}'})
     assert resp.status_code == 200, resp.json()
 
     accesslog = context.get('accesslog.stream')
@@ -1178,7 +1179,7 @@ def test_get_accesslog_default_user(manifest_type: str, tmp_path: pathlib.Path, 
 
 @pytest.mark.manifests('internal_sql', 'csv')
 def test_get_accesslog_not_default_user(manifest_type: str, tmp_path: pathlib.Path, rc: RawConfig, postgresql: str,
-                                     request: FixtureRequest):
+                                        request: FixtureRequest):
     context = bootstrap_manifest(
         rc, '''
         d | r | b | m | property      | type    | access
@@ -1194,10 +1195,9 @@ def test_get_accesslog_not_default_user(manifest_type: str, tmp_path: pathlib.Pa
     )
     context.set('accesslog.stream', [])
 
-
     model = 'backends/postgres/dtypes/test/Entity'
     app = create_test_client(context)
-    app.authmodel(model, ['insert', 'getall', 'search'])
+    app.authorize(['spinta_insert', 'spinta_getall', 'spinta_search'], creds=('test-insert', 'secret'))
 
     resp = app.post('/backends/postgres/dtypes/test/Entity', json={'id': 1})
     assert resp.status_code == 201, resp.json()
@@ -1207,17 +1207,54 @@ def test_get_accesslog_not_default_user(manifest_type: str, tmp_path: pathlib.Pa
     assert resp.status_code == 200, resp.json()
 
     accesslog = context.get('accesslog.stream')
-    assert len(accesslog) == 4
-    assert accesslog[-2:] == [
+    assert len(accesslog) == 5
+    client = accesslog[-5]['client']
+    token = accesslog[-5]['token']
+    assert accesslog[-5:] == [
+        {
+            'agent': 'testclient',
+            'client': client,
+            'format': 'json',
+            'method': 'POST',
+            'rctype': 'application/x-www-form-urlencoded',
+            'scope': 'spinta_getall spinta_insert spinta_search',
+            'time': accesslog[-5]['time'],
+            'token': token,
+            'type': 'auth',
+            'url': 'https://testserver/auth/token',
+        },
+        {
+            'action': 'insert',
+            'agent': 'testclient',
+            'client': client,
+            'format': 'json',
+            'method': 'POST',
+            'model': 'backends/postgres/dtypes/test/Entity',
+            'pid': accesslog[-4]['pid'],
+            'rctype': 'application/json',
+            'time': accesslog[-4]['time'],
+            'token': token,
+            'txn': accesslog[-4]['txn'],
+            'type': 'request',
+            'url': 'https://testserver/backends/postgres/dtypes/test/Entity',
+        },
+        {
+            'delta': accesslog[-3]['delta'],
+            'memory': accesslog[-3]['memory'],
+            'objects': 1,
+            'time': accesslog[-3]['time'],
+            'txn': accesslog[-4]['txn'],
+            'type': 'response',
+        },
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
-            'scope': accesslog[-2]['scope'],
+            'token': token,
             'type': 'request',
             'time': accesslog[-2]['time'],
-            'client': 'test-client',
+            'client': client,
             'method': 'GET',
-            'url': f'https://testserver/{model}?select(id)',
+            'url': 'https://testserver/backends/postgres/dtypes/test/Entity?select(id)',
             'agent': 'testclient',
             'format': 'json',
             'action': 'search',
@@ -1235,7 +1272,8 @@ def test_get_accesslog_not_default_user(manifest_type: str, tmp_path: pathlib.Pa
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_get_accesslog_scope_log_false(manifest_type: str, tmp_path: pathlib.Path, rc: RawConfig, postgresql: str, request: FixtureRequest):
+def test_get_accesslog_scope_log_false(manifest_type: str, tmp_path: pathlib.Path, rc: RawConfig, postgresql: str,
+                                       request: FixtureRequest):
     context = bootstrap_manifest(
         rc, '''
         d | r | b | m | property      | type    | access
@@ -1256,20 +1294,32 @@ def test_get_accesslog_scope_log_false(manifest_type: str, tmp_path: pathlib.Pat
 
     model = 'backends/postgres/dtypes/test/Entity'
     app = create_test_client(context)
-    app.authmodel(model, ['insert'])
+    app.authorize(['spinta_insert'], creds=("test-insert", "secret"))
 
     resp = app.post('/backends/postgres/dtypes/test/Entity', json={'id': 1})
     assert resp.status_code == 201, resp.json()
 
     accesslog = context.get('accesslog.stream')
-    assert len(accesslog) == 2
-    assert accesslog[-2:] == [
+    assert len(accesslog) == 3
+    assert accesslog[-3:] == [
+        {
+            'type': 'auth',
+            'time': accesslog[-3]['time'],
+            'client': accesslog[-3]['client'],
+            'token': accesslog[-3]['token'],
+            'method': 'POST',
+            'format': 'json',
+            'rctype': 'application/x-www-form-urlencoded',
+            'url': 'https://testserver/auth/token',
+            'agent': 'testclient'
+        },
         {
             'txn': accesslog[-2]['txn'],
             'pid': accesslog[-2]['pid'],
             'type': 'request',
             'time': accesslog[-2]['time'],
-            'client': 'test-client',
+            'client': accesslog[-3]['client'],
+            'token': accesslog[-3]['token'],
             'method': 'POST',
             'url': f'https://testserver/{model}',
             'agent': 'testclient',

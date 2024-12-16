@@ -25,13 +25,14 @@ class AccessLog:
     reason: str = None
     url: str = None
     buffer_size: int = 100
-    format: str = None          # response format
-    content_type: str = None    # request content-type header
-    agent: str = None           # request user-agent header
-    txn: str = None             # request transaction id
-    start: float = None         # request start time in secodns
-    memory: int = None          # memory used in bytes at the start of request
-    scopes: List[str] = None    # list of scopes
+    format: str = None  # response format
+    content_type: str = None  # request content-type header
+    agent: str = None  # request user-agent header
+    txn: str = None  # request transaction id
+    start: float = None  # request start time in seconds
+    memory: int = None  # memory used in bytes at the start of request
+    scopes: List[str] = None  # list of scopes
+    token: str = None  # token used for request
 
     def __enter__(self):
         return self
@@ -75,7 +76,7 @@ class AccessLog:
             'format': self.format,
             'url': self.url,
             'client': self.client,
-            'scope': self.scopes,
+            'token': self.token,
             'reason': reason or self.reason,
             'agent': self.agent,
         }
@@ -98,6 +99,27 @@ class AccessLog:
             'txn': self.txn,
         }
 
+        self.log(message)
+
+    def auth(
+        self,
+        *,
+        reason: str = None,
+    ):
+        message = {
+            'time': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            'type': 'auth',
+            'client': self.client,
+            'token': self.token,
+            'scope': self.scopes,
+            'reason': reason or self.reason,
+            'method': self.method,
+            'rctype': self.content_type,
+            'format': self.format,
+            'url': self.url,
+            'agent': self.agent,
+        }
+        message = {k: v for k, v in message.items() if v is not None}
         self.log(message)
 
     def _get_time(self) -> float:
@@ -124,8 +146,10 @@ def load(context: Context, accesslog: AccessLog, token: Token):  # noqa
 
     client_id = token.get_client_id()
     config = context.get('config')
-    if config.scope_log and client_id != get_default_auth_client_id(context):
-        accesslog.scopes = token.get_scope()
+    if client_id != get_default_auth_client_id(context):
+        if config.scope_log:
+            accesslog.scopes = token.get_scope()
+        accesslog.token = token.get_jti()
 
 
 @overload
