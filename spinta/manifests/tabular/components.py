@@ -210,6 +210,7 @@ class EnumRow(TypedDict, total=False):
     title: str
     description: str
     lang: LangData
+    level: str
 
 
 class PropertyRow(TypedDict, total=False):

@@ -36,6 +36,10 @@ Improvements:
 
   .. _#1011: https://github.com/atviriduomenys/spinta/issues/1011
 
+- added enum level support, allowing to indicate a level for enum. (`#982`_)
+
+  .. _#982: https://github.com/atviriduomenys/spinta/issues/982
+
 - Standardized `postgresql` naming convention, now all new constraints and indexes should follow same naming
   scheme (`P#153`).
 

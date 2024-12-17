@@ -26,6 +26,7 @@ class EnumItem(ExtraMetaData):
     description: str
     given: EnumValueGiven
     lang: LangData
+    level: str
 
     schema = {
         'name': {'type': 'string'},
@@ -40,6 +41,7 @@ class EnumItem(ExtraMetaData):
         'title': {'type': 'string'},
         'description': {'type': 'string'},
         'lang': {'type': 'object'},
+        'level': {'type': 'string'},
     }
 
     def __init__(self):
