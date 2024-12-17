@@ -156,8 +156,8 @@ git checkout master
 git pull
 
 export POST_RELEASE_BRANCH=post-release_${NEW_VERSION}
-git branch POST_RELEASE_BRANCH
-git checkout POST_RELEASE_BRANCH
+git branch $POST_RELEASE_BRANCH
+git checkout $POST_RELEASE_BRANCH
 git status
 
 
