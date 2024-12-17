@@ -48,8 +48,6 @@ Improvements:
 
 - `JWT` tokens now also store `JTI` claim (`#1003`_).
 
-  .. _#1003: https://github.com/atviriduomenys/spinta/issues/1003
-
 - `AccessLog` now has `auth` logging (`#1003`_).
 
   .. _#1003: https://github.com/atviriduomenys/spinta/issues/1003
