@@ -148,4 +148,41 @@ git commit -a -m "Prepare for the next $FUTURE_VERSION release"
 git push origin HEAD
 git log -n3
 
-# Merge pull request with release and master branches
+# Merge pull request with release branch
+
+# Prepare master branch post release
+git status
+git checkout master
+git pull
+
+export POST_RELEASE_BRANCH=post-release_${NEW_VERSION}
+git branch POST_RELEASE_BRANCH
+git checkout POST_RELEASE_BRANCH
+git status
+
+
+# Update version release date in CHANGES.rst
+ed CHANGES.rst <<EOF
+/$NEW_VERSION (unreleased)/c
+$NEW_VERSION ($(date +%Y-%m-%d))
+.
+wq
+EOF
+
+ed CHANGES.rst <<EOF
+/$NEW_VERSION ($(date +%Y-%m-%d))/i
+$FUTURE_VERSION (unreleased)
+===================
+
+
+.
+wq
+EOF
+head CHANGES.rst
+
+git diff
+git commit -a -m "Post-release changes for $NEW_VERSION release"
+git push origin HEAD
+git log -n3
+
+# Create PR for master and merge it if all tests pass
