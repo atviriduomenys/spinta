@@ -264,6 +264,26 @@ EOF
 test -f "$BASEDIR"/keymap.db && rm "$BASEDIR"/keymap.db
 test -f "$BASEDIR"/push/localhost.db && rm "$BASEDIR"/push/localhost.db
 
+# configure credentials.cfg according to this: https://spinta.readthedocs.io/en/latest/manual/access.html#client-credentials
+# add ~/.config/spinta/credentials.cfg with this content:
+#[test@localhost]
+#server = http://localhost:8000
+#client = client
+#secret = secret
+#scopes =
+#  spinta_set_meta_fields
+#  spinta_getone
+#  spinta_getall
+#  spinta_search
+#  spinta_changes
+#  spinta_insert
+#  spinta_upsert
+#  spinta_update
+#  spinta_patch
+#  spinta_delete
+#  spinta_wipe
+
+
 spinta push "$BASEDIR"/sdsa.txt -o test@localhost
 
 http GET ":8000/datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo?select(_id,ja_kodas,ja_pavadinimas,reg_data,forma.pavadinimas,statusas.pavadinimas)&format(json)"
@@ -282,6 +302,8 @@ xdg-open http://localhost:8000/datasets/gov/rc/ar/adresai/Adresas/264ae0f9-53eb-
 
 
 # Publish project to PyPI
+# If you don't have token, see here: https://pypi.org/help/#apitoken and here: https://www.digitalocean.com/community/tutorials/how-to-publish-python-packages-to-pypi-using-poetry-on-ubuntu-22-04
+
 poetry build
 poetry publish
 xdg-open https://pypi.org/project/spinta/
