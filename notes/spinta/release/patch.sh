@@ -119,7 +119,7 @@ git diff
 git commit -a -m "Releasing version $NEW_VERSION"
 git push origin HEAD
 
-# Create pull request for release version and master in github and check if all tests run
+# Create pull request for release version in github and check if all tests run
 
 # notes/spinta/release/common.sh    Publish version to PyPI
 
