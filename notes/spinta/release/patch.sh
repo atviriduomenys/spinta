@@ -15,9 +15,9 @@ git checkout $RELEASE_VERSION
 git pull
 git tag -l -n1 | sort -h | tail -n5
 
-export CURRENT_PATCH=79
-export NEW_PATCH=80
-export FUTURE_PATCH=81
+export CURRENT_PATCH=80
+export NEW_PATCH=81
+export FUTURE_PATCH=82
 
 export CURRENT_VERSION=$RELEASE_VERSION.$CURRENT_PATCH
 export NEW_VERSION=$RELEASE_VERSION.$NEW_PATCH
@@ -29,26 +29,19 @@ git checkout $PREPARE_BRANCH
 git status
 
 # notes/spinta/release/common.sh    Check outdated packages and upgrade them
-#| Package operations: 0 installs, 17 updates, 0 removals
+#| Package operations: 0 installs, 11 updates, 0 removals
 #|
-#|   • Updating asttokens (2.4.1 -> 3.0.0)
-#|   • Updating tomli (2.1.0 -> 2.2.1)
-#|   • Updating tornado (6.4.1 -> 6.4.2)
-#|   • Updating aiohappyeyeballs (2.4.3 -> 2.4.4)
-#|   • Updating async-timeout (4.0.3 -> 5.0.1)
-#|   • Updating httpcore (1.0.6 -> 1.0.7)
-#|   • Updating aiohttp (3.10.10 -> 3.10.11)
-#|   • Updating geoalchemy2 (0.15.2 -> 0.16.0)
-#|   • Updating httpx (0.27.2 -> 0.28.0)
-#|   • Updating phonenumbers (8.13.49 -> 8.13.51)
-#|   • Updating python-multipart (0.0.17 -> 0.0.19)
-#|   • Updating sphinx-rtd-theme (3.0.1 -> 3.0.2)
-#|   • Updating sqlparse (0.5.1 -> 0.5.2)
-#|   • Updating starlette (0.41.2 -> 0.41.3)
-#|   • Updating tqdm (4.67.0 -> 4.67.1)
-#|   • Updating typer (0.13.0 -> 0.14.0)
-#|   • Updating uvicorn (0.32.0 -> 0.32.1)
-
+#|   • Updating certifi (2024.8.30 -> 2024.12.14)
+#|   • Updating six (1.16.0 -> 1.17.0)
+#|   • Updating attrs (24.2.0 -> 24.3.0)
+#|   • Updating mako (1.3.6 -> 1.3.8)
+#|   • Updating httpx (0.28.0 -> 0.28.1)
+#|   • Updating phonenumbers (8.13.51 -> 8.13.52)
+#|   • Updating python-multipart (0.0.19 -> 0.0.20)
+#|   • Updating sqlparse (0.5.2 -> 0.5.3)
+#|   • Updating starlette (0.41.3 -> 0.42.0)
+#|   • Updating typer (0.14.0 -> 0.15.1)
+#|   • Updating uvicorn (0.32.1 -> 0.33.0)
 
 # Run Makefile
 cd docs
@@ -65,7 +58,7 @@ head CHANGES.rst
 # notes/spinta/release/common.sh    Reset test database
 
 poetry run pytest -vvx --tb=short tests
-#| 2224 passed, 45 skipped, 55 warnings in 354.33s (0:05:54)
+#| 2241 passed, 45 skipped, 55 warnings in 348.64s (0:05:48)
 
 # If possible run same tests using test and prod env library versions
 # Test env
@@ -90,7 +83,7 @@ BASEDIR=$PWD/var/instances/$INSTANCE
 
 # notes/spinta/release/common.sh    Run server in EXTERNAL mode
 # notes/spinta/release/common.sh    Run migrations
-#| (3248 rows)
+#| (3314 rows)
 
 # notes/spinta/release/common.sh    Run server in INTERNAL mode
 # Don't forget to add client to server and credentials;
@@ -126,7 +119,7 @@ git diff
 git commit -a -m "Releasing version $NEW_VERSION"
 git push origin HEAD
 
-# Create pull request for release version and master in github and check if all tests run
+# Create pull request for release version in github and check if all tests run
 
 # notes/spinta/release/common.sh    Publish version to PyPI
 
@@ -155,4 +148,41 @@ git commit -a -m "Prepare for the next $FUTURE_VERSION release"
 git push origin HEAD
 git log -n3
 
-# Merge pull request with release and master branches
+# Merge pull request with release branch
+
+# Prepare master branch post release
+git status
+git checkout master
+git pull
+
+export POST_RELEASE_BRANCH=post-release_${NEW_VERSION}
+git branch $POST_RELEASE_BRANCH
+git checkout $POST_RELEASE_BRANCH
+git status
+
+
+# Update version release date in CHANGES.rst
+ed CHANGES.rst <<EOF
+/$NEW_VERSION (unreleased)/c
+$NEW_VERSION ($(date +%Y-%m-%d))
+.
+wq
+EOF
+
+ed CHANGES.rst <<EOF
+/$NEW_VERSION ($(date +%Y-%m-%d))/i
+$FUTURE_VERSION (unreleased)
+===================
+
+
+.
+wq
+EOF
+head CHANGES.rst
+
+git diff
+git commit -a -m "Post-release changes for $NEW_VERSION release"
+git push origin HEAD
+git log -n3
+
+# Create PR for master and merge it if all tests pass
