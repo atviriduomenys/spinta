@@ -11,7 +11,11 @@ Backwards incompatible:
   .. _#842: https://github.com/atviriduomenys/spinta/issues/842
   .. _#582: https://github.com/atviriduomenys/spinta/issues/582
 
-0.1.81 (unreleased)
+0.1.82 (unreleased)
+===================
+
+
+0.1.81 (2024-12-17)
 ===================
 
 Backwards incompatible:
