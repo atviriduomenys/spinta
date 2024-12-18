@@ -66,8 +66,8 @@ async def push(
         message = Message()
         message['Content-Disposition'] = content_disposition
 
-        params = dict(message.get_params(header='Content-Disposition'))
-        filename = params.get('filename')
+        parameters = dict(message.get_params(header='Content-Disposition'))
+        filename = parameters.get('filename')
 
         if filename:
             data.given[prop.name]['_id'] = filename
