@@ -29,5 +29,8 @@ def is_ignored(rules, base, path):
 
 
 def resource_filename(package: str, target: str) -> Path:
-    with importlib.resources.files(package) / target as ref:
-        return ref
+    resource = importlib.resources.files(package) / target
+    if isinstance(resource, Path):
+        return resource
+    else:
+        raise RuntimeError(f"Resource {target} in package {package} could not be resolved as a local filesystem path.")
