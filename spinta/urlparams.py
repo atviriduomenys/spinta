@@ -380,12 +380,14 @@ def get_response_type(
             for media_type in exporter.accept_types:
                 formats[media_type] = name
 
-        message = Message()
-        message['Accept'] = request.headers['accept']
+        # Parse the Accept header manually
+        accept_header = request.headers['accept']
+        media_types = [
+            media.split(';')[0].strip()  # Extract main media type, ignoring parameters
+            for media in accept_header.split(',')
+        ]
 
-        media_types = message.get_content_type()
-
-        for media_type in media_types.lower().split(','):
+        for media_type in media_types:
             if media_type in formats:
                 return formats[media_type]
 
