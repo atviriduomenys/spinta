@@ -1,7 +1,7 @@
-import cgi
 import re
 import urllib.parse
 from collections import OrderedDict
+from email.message import Message
 from typing import List
 from typing import Union
 
@@ -380,7 +380,11 @@ def get_response_type(
             for media_type in exporter.accept_types:
                 formats[media_type] = name
 
-        media_types, _ = cgi.parse_header(request.headers['accept'])
+        message = Message()
+        message['Accept'] = request.headers['accept']
+
+        media_types = message.get_content_type()
+
         for media_type in media_types.lower().split(','):
             if media_type in formats:
                 return formats[media_type]
