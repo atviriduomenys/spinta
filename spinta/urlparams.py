@@ -1,7 +1,6 @@
 import re
 import urllib.parse
 from collections import OrderedDict
-from email.message import Message
 from typing import List
 from typing import Union
 

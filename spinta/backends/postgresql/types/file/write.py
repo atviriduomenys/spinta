@@ -85,11 +85,11 @@ async def push(
             message['Content-Disposition'] = content_disposition
 
             # Extract parameters from the header
-            params = dict(message.get_params(header='Content-Disposition'))
+            parameters = dict(message.get_params(header='Content-Disposition'))
 
             # Check if 'filename' is present in the parameters
-            if 'filename' in params:
-                data.given[prop.name]['_id'] = params['filename']
+            if 'filename' in parameters:
+                data.given[prop.name]['_id'] = parameters['filename']
 
     if 'Revision' in request.headers:
         data.given['_revision'] = request.headers['Revision']
