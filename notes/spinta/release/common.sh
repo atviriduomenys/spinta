@@ -7,12 +7,16 @@ poetry update
 # Generate changes and readme html formats
 poetry run rst2html.py CHANGES.rst var/changes.html
 xdg-open var/changes.html
+# alternative:
+# poetry shell
+# rst2html CHANGES.rst var/changes.html
 
 poetry run rst2html.py README.rst var/readme.html
 xdg-open var/readme.html
 
 
 # Reset test database
+# password is in the docker-compose.yml file
 psql -h localhost -p 54321 -U admin postgres -c 'DROP DATABASE spinta_tests'
 psql -h localhost -p 54321 -U admin postgres -c 'CREATE DATABASE spinta_tests'
 psql -h localhost -p 54321 -U admin spinta_tests <<EOF
@@ -89,8 +93,9 @@ EOF
 
 # Configure spinta
 # BASEDIR should be set by respective release type (patch, rc, etc.)
+# export BASEDIR=x (better add full path)
 mkdir -p "$BASEDIR"
-cat "$BASEDIR"/config.yml
+#cat "$BASEDIR"/config.yml
 cat > "$BASEDIR"/config.yml <<EOF
 env: production
 data_path: $BASEDIR
@@ -127,11 +132,18 @@ export SPINTA_CONFIG=$BASEDIR/config.yml
 
 
 # Create manifest file
-# BASEDIR should be set by respective release type (patch, rc, etc.)
+# this is a directory to which manifest data will be downloaded.
+# If you don't have one, create an empty directory and cs into it.
+# If you create a new directory, do this:
+# git clone git@github.com:atviriduomenys/manifest.git
+# git checkout get.data.gov.lt
+# otherwise, do the following steps:
 cd ~/dev/data/manifest
 git status
 git checkout get.data.gov.lt
 git pull
+
+
 find datasets -iname "*.csv" | xargs spinta check
 cat get_data_gov_lt.in | xargs spinta copy -o "$BASEDIR"/manifest.csv
 spinta check
@@ -252,6 +264,26 @@ EOF
 test -f "$BASEDIR"/keymap.db && rm "$BASEDIR"/keymap.db
 test -f "$BASEDIR"/push/localhost.db && rm "$BASEDIR"/push/localhost.db
 
+# configure credentials.cfg according to this: https://spinta.readthedocs.io/en/latest/manual/access.html#client-credentials
+# add ~/.config/spinta/credentials.cfg with this content:
+#[test@localhost]
+#server = http://localhost:8000
+#client = client
+#secret = secret
+#scopes =
+#  spinta_set_meta_fields
+#  spinta_getone
+#  spinta_getall
+#  spinta_search
+#  spinta_changes
+#  spinta_insert
+#  spinta_upsert
+#  spinta_update
+#  spinta_patch
+#  spinta_delete
+#  spinta_wipe
+
+
 spinta push "$BASEDIR"/sdsa.txt -o test@localhost
 
 http GET ":8000/datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo?select(_id,ja_kodas,ja_pavadinimas,reg_data,forma.pavadinimas,statusas.pavadinimas)&format(json)"
@@ -270,6 +302,8 @@ xdg-open http://localhost:8000/datasets/gov/rc/ar/adresai/Adresas/264ae0f9-53eb-
 
 
 # Publish project to PyPI
+# If you don't have token, see here: https://pypi.org/help/#apitoken and here: https://www.digitalocean.com/community/tutorials/how-to-publish-python-packages-to-pypi-using-poetry-on-ubuntu-22-04
+
 poetry build
 poetry publish
 xdg-open https://pypi.org/project/spinta/
