@@ -3582,3 +3582,78 @@ def test_ref_object(context, rc, tmp_path, geodb_denorm):
         'country.meta.name': 'Lietuva',
         'country.meta.year': 1204,
     }]
+
+
+def test_object_filter(context, rc, tmp_path, geodb_denorm):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    d | r | m | property            | type    | ref     | source       | prepare | access | level
+    datasets/object                 |         |         |              |         |        |
+      | rs                          | sql     |         |              |         |        |
+      |   | City                    |         | code    | CITY         |         | open   |
+      |   |   | code                | string  |         | code         |         |        |
+      |   |   | name                | string  |         | name         |         |        |
+      |   |   | country             | object  |         |              |         |        |
+      |   |   | country.name        | string  |         | countryName  |         |        |
+      |   |   | country.year        | integer |         | countryYear  |         |        |
+    '''))
+
+    app = create_client(rc, tmp_path, geodb_denorm)
+
+    resp = app.get('/datasets/object/City?country.year>1300')
+    assert listdata(resp, sort='code', full=True) == [{
+        'code': 'RYG',
+        'name': 'Ryga',
+        'country.name': 'Latvia',
+        'country.year': 1408,
+    }, {
+        'code': 'TLN',
+        'name': 'Talin',
+        'country.name': 'Estija',
+        'country.year': 1784,
+    }]
+
+    resp = app.get('/datasets/object/City?country.year=1408')
+    assert listdata(resp, sort='code', full=True) == [{
+        'code': 'RYG',
+        'name': 'Ryga',
+        'country.name': 'Latvia',
+        'country.year': 1408,
+    }]
+
+
+def test_object_filter_nested(context, rc, tmp_path, geodb_denorm):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    d | r | m | property            | type    | ref     | source       | prepare | access | level
+    datasets/object/nested          |         |         |              |         |        |
+      | rs                          | sql     |         |              |         |        |
+      |   | City                    |         | code    | CITY         |         | open   |
+      |   |   | code                | string  |         | code         |         |        |
+      |   |   | name                | string  |         | name         |         |        |
+      |   |   | c                   | object  |         |              |         |        |
+      |   |   | c.country           | object  |         |              |         |        |
+      |   |   | c.country.name      | string  |         | countryName  |         |        |
+      |   |   | c.country.year      | integer |         | countryYear  |         |        |
+    '''))
+
+    app = create_client(rc, tmp_path, geodb_denorm)
+
+    resp = app.get('/datasets/object/nested/City?c.country.year>1300')
+    assert listdata(resp, sort='code', full=True) == [{
+        'code': 'RYG',
+        'name': 'Ryga',
+        'c.country.name': 'Latvia',
+        'c.country.year': 1408,
+    }, {
+        'code': 'TLN',
+        'name': 'Talin',
+        'c.country.name': 'Estija',
+        'c.country.year': 1784,
+    }]
+
+    resp = app.get('/datasets/object/nested/City?c.country.year=1408')
+    assert listdata(resp, sort='code', full=True) == [{
+        'code': 'RYG',
+        'name': 'Ryga',
+        'c.country.name': 'Latvia',
+        'c.country.year': 1408,
+    }]
