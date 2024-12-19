@@ -271,6 +271,7 @@ class Object(DataType):
     }
 
     properties: Dict[str, Property] = None
+    requires_source = False
 
     def load(self, value: Any):
         if value is None or value is NA:
