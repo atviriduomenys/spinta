@@ -4,6 +4,11 @@ Changes
 0.1.82 (unreleased)
 ===================
 
+New features:
+
+- Added support for `Object` type with `external` `Sql` `backend` (`#973`_).
+
+  .. _#973: https://github.com/atviriduomenys/spinta/issues/973
 
 0.1.81 (2024-12-17)
 ===================
