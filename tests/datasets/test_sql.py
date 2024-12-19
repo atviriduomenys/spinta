@@ -132,7 +132,7 @@ def geodb_denorm():
         db.write('CITY', [
             {'code': 'VLN', 'name': 'Vilnius', 'country': 'LT', 'countryYear': 1204, 'countryName': 'Lietuva',
              'planetName': 'Zeme'},
-            {'code': 'RYG', 'name': 'Ryga', 'country': 'LV', 'countryYear': 1408, 'countryName': 'Riga',
+            {'code': 'RYG', 'name': 'Ryga', 'country': 'LV', 'countryYear': 1408, 'countryName': 'Latvia',
              'planetName': 'Marsas'},
             {'code': 'TLN', 'name': 'Talin', 'country': 'EE', 'countryYear': 1784, 'countryName': 'Estija',
              'planetName': 'Jupiteris'},
@@ -2973,7 +2973,7 @@ def test_advanced_denorm(context, rc, tmp_path, geodb_denorm):
         'code': 'RYG',
         'name': 'Ryga',
         'country.name': 'Latvia',
-        'country.code': 'Riga',
+        'country.code': 'Latvia',
         'country.year': 1408,
         'country.planet.name': 'Mars',
         'country.planet.code': 'Marsas'
@@ -3466,4 +3466,119 @@ example                  |         |                           |              | 
         'name_en': "City of Vilnius",
         'lt.lang': "lt",
         'name_lt': "Vilniaus miestas"
+    }]
+
+
+def test_object(context, rc, tmp_path, geodb_denorm):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    d | r | m | property            | type    | ref     | source       | prepare | access | level
+    datasets/object                 |         |         |              |         |        |
+      | rs                          | sql     |         |              |         |        |
+      |   | City                    |         | code    | CITY         |         | open   |
+      |   |   | code                | string  |         | code         |         |        |
+      |   |   | name                | string  |         | name         |         |        |
+      |   |   | country             | object  |         |              |         |        |
+      |   |   | country.name        | string  |         | countryName  |         |        |
+      |   |   | country.year        | integer |         | countryYear  |         |        |
+    '''))
+
+    app = create_client(rc, tmp_path, geodb_denorm)
+
+    resp = app.get('/datasets/object/City')
+    assert listdata(resp, sort='code', full=True) == [{
+        'code': 'RYG',
+        'name': 'Ryga',
+        'country.name': 'Latvia',
+        'country.year': 1408,
+    }, {
+        'code': 'TLN',
+        'name': 'Talin',
+        'country.name': 'Estija',
+        'country.year': 1784,
+    }, {
+        'code': 'VLN',
+        'name': 'Vilnius',
+        'country.name': 'Lietuva',
+        'country.year': 1204,
+    }]
+
+
+def test_nested_object(context, rc, tmp_path, geodb_denorm):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    d | r | m | property            | type    | ref     | source       | prepare | access | level
+    datasets/object/nested          |         |         |              |         |        |
+      | rs                          | sql     |         |              |         |        |
+      |   | City                    |         | code    | CITY         |         | open   |
+      |   |   | code                | string  |         | code         |         |        |
+      |   |   | name                | string  |         | name         |         |        |
+      |   |   | c                   | object  |         |              |         |        |
+      |   |   | c.country           | object  |         |              |         |        |
+      |   |   | c.country.name      | string  |         | countryName  |         |        |
+      |   |   | c.country.year      | integer |         | countryYear  |         |        |
+    '''))
+
+    app = create_client(rc, tmp_path, geodb_denorm)
+
+    resp = app.get('/datasets/object/nested/City')
+    assert listdata(resp, sort='code', full=True) == [{
+        'code': 'RYG',
+        'name': 'Ryga',
+        'c.country.name': 'Latvia',
+        'c.country.year': 1408,
+    }, {
+        'code': 'TLN',
+        'name': 'Talin',
+        'c.country.name': 'Estija',
+        'c.country.year': 1784,
+    }, {
+        'code': 'VLN',
+        'name': 'Vilnius',
+        'c.country.name': 'Lietuva',
+        'c.country.year': 1204,
+    }]
+
+
+def test_ref_object(context, rc, tmp_path, geodb_denorm):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    d | r | m | property            | type    | ref     | source       | prepare | access | level
+    datasets/object/ref             |         |         |              |         |        |
+      | rs                          | sql     |         |              |         |        |
+      |   | Country                 |         | c       | COUNTRY      |         | open   |
+      |   |   | c                   | string  |         | code         |         |        |
+      |   |   | name                | string  |         | name         |         |        |
+      |   |   | code                | string  |         | code         |         |        |
+      |   | City                    |         | code    | CITY         |         | open   |
+      |   |   | code                | string  |         | code         |         |        |
+      |   |   | name                | string  |         | name         |         |        |
+      |   |   | country             | ref     | Country | country      |         |        | 3
+      |   |   | country.code        |         |         |              |         |        |
+      |   |   | country.meta        | object  |         |              |         |        |
+      |   |   | country.meta.name   | string  |         | countryName  |         |        |
+      |   |   | country.meta.year   | string  |         | countryYear  |         |        |
+    '''))
+
+    app = create_client(rc, tmp_path, geodb_denorm)
+
+    resp = app.get('/datasets/object/ref/City')
+    assert listdata(resp, sort='code', full=True) == [{
+        'code': 'RYG',
+        'name': 'Ryga',
+        'country.c': 'LV',
+        'country.code': 'LV',
+        'country.meta.name': 'Latvia',
+        'country.meta.year': 1408,
+    }, {
+        'code': 'TLN',
+        'name': 'Talin',
+        'country.c': 'EE',
+        'country.code': 'EE',
+        'country.meta.name': 'Estija',
+        'country.meta.year': 1784,
+    }, {
+        'code': 'VLN',
+        'name': 'Vilnius',
+        'country.c': 'LT',
+        'country.code': 'LT',
+        'country.meta.name': 'Lietuva',
+        'country.meta.year': 1204,
     }]

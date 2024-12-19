@@ -1,20 +1,17 @@
 from __future__ import annotations
 
-from typing import Any, Tuple
+from typing import Any
 from typing import List
 from typing import Tuple
 from typing import TypeVar
 from typing import Union
 from typing import overload
-from typing import Dict
 
 import sqlalchemy as sa
 from sqlalchemy.sql.functions import Function
 
-from spinta import exceptions
 from spinta.auth import authorized
 from spinta.components import Action, Page
-from spinta.components import Model
 from spinta.components import Property
 from spinta.core.ufuncs import Bind, GetAttr
 from spinta.core.ufuncs import Expr
@@ -22,11 +19,10 @@ from spinta.core.ufuncs import Negative
 from spinta.core.ufuncs import Unresolved
 from spinta.core.ufuncs import ufunc
 from spinta.datasets.backends.sql.helpers import dialect_specific_desc, dialect_specific_asc
-from spinta.datasets.backends.sql.ufuncs.components import Selected
 from spinta.datasets.backends.sql.ufuncs.query.components import SqlQueryBuilder
 from spinta.dimensions.enum.helpers import prepare_enum_value
 from spinta.exceptions import PropertyNotFound, SourceCannotBeList
-from spinta.types.datatype import DataType, Denorm
+from spinta.types.datatype import DataType, Denorm, Object
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.types.datatype import String
@@ -36,7 +32,6 @@ from spinta.types.text.helpers import determine_language_property_for_text
 from spinta.ufuncs.basequerybuilder.components import LiteralProperty, Selected
 from spinta.ufuncs.basequerybuilder.helpers import get_language_column, process_literal_value
 from spinta.ufuncs.basequerybuilder.ufuncs import Star
-from spinta.ufuncs.basequerybuilder.ufuncs import ResultProperty, NestedProperty, ReservedProperty
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.data import take
 from spinta.utils.itertools import flatten
@@ -324,6 +319,7 @@ def select(env: SqlQueryBuilder, expr: Expr):
 def select(env, column):
     return Selected(env.add_column(column))
 
+
 @ufunc.resolver(SqlQueryBuilder, Bind)
 def select(env: SqlQueryBuilder, item: Bind, *, nested: bool = False):
     if item.name == '_page':
@@ -393,7 +389,7 @@ def select(env: SqlQueryBuilder, prop: Property) -> Selected:
             # Reserved properties never have external source.
             result = env.call('select', prop.dtype)
         elif not prop.dtype.requires_source:
-            # Some DataTypes might have children that have source instead of themselves, like: Text
+            # Some DataTypes might have children that have source instead of themselves, like: Text, Object
             result = env.call('select', prop.dtype)
         elif prop.dtype.inherited:
             # Some DataTypes might be inherited, or hidden, so we need to go through them in case they can be joined
@@ -416,6 +412,16 @@ def select(env: SqlQueryBuilder, dtype: DataType) -> Selected:
         item=env.add_column(column),
         prop=dtype.prop,
     )
+
+
+@ufunc.resolver(SqlQueryBuilder, Object)
+def select(env: SqlQueryBuilder, dtype: Object) -> Selected:
+    prep = {}
+    for prop in take(dtype.properties).values():
+        sel = env.call('select', prop)
+        if sel is not None:
+            prep[prop.name] = sel
+    return Selected(prop=dtype.prop, prep=prep)
 
 
 @ufunc.resolver(SqlQueryBuilder, Ref)
