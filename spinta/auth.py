@@ -821,12 +821,19 @@ def _default_client_id_cache_key(context: Context, *args, **kwargs):
     return key
 
 
-def _client_file_cache_key(path: pathlib.Path, client: str, *args, **kwargs):
+def _client_file_cache_key(path: pathlib.Path, client: str, *args, is_name: bool = False, **kwargs):
     """
     Creates client file cache key using
     client folder path, client id and client file update time.
     """
     key = hashkey(path, client, *args, **kwargs)
+    if is_name:
+        client_id = get_client_id_from_name(path, client)
+        if client_id is None:
+            raise (InvalidClientError(description='Invalid client name'))
+
+        client = client_id
+
     client_file = get_client_file_path(path, client)
     if not client_file.exists():
         raise (InvalidClientError(description='Invalid client id or secret'))
@@ -858,13 +865,11 @@ def get_default_auth_client_id(context: Context) -> str:
 @cached(LRUCache(CLIENT_FILE_CACHE_SIZE_LIMIT), key=_client_file_cache_key, lock=Lock())
 def query_client(path: pathlib.Path, client: str, is_name: bool = False) -> Client:
     if is_name:
-        keymap_path = get_keymap_path(path)
-        validate_keymap_path(keymap_path)
-
-        data = _load_keymap_data(keymap_path)
-        if not client_name_exists(data, client):
+        client_id = get_client_id_from_name(path, client)
+        if client_id is None:
             raise (InvalidClientError(description='Invalid client name'))
-        client = data[client]
+
+        client = client_id
     client_file = get_client_file_path(path, client)
 
     id_path = get_id_path(path)
