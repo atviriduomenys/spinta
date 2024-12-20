@@ -106,6 +106,7 @@ tabulate = "*"
 pyproj = "*"
 xmltodict = "*"
 sqlean-py = "*"
+cachetools = "*"
 
 
 [tool.poetry.group.dev.dependencies]
