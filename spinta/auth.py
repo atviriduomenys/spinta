@@ -1,49 +1,47 @@
 from __future__ import annotations
 
-import os
-import uuid
-from functools import lru_cache
-
-from multipledispatch import dispatch
-from typing import Set
-from typing import Type
-from typing import Union, List, Tuple
-
+import base64
 import datetime
 import enum
 import json
 import logging
-import time
+import os
 import pathlib
-import base64
+import time
+import uuid
+from threading import Lock
+from typing import Set
+from typing import Type
+from typing import Union, List, Tuple
 
 import ruamel.yaml
-
-from starlette.responses import JSONResponse
-from starlette.exceptions import HTTPException
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.asymmetric import rsa
-
 from authlib.jose import jwk
 from authlib.jose import jwt
 from authlib.jose.errors import JoseError
+from authlib.oauth2 import OAuth2Error
 from authlib.oauth2 import OAuth2Request
 from authlib.oauth2 import rfc6749
 from authlib.oauth2 import rfc6750
 from authlib.oauth2.rfc6749 import grants
-from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 from authlib.oauth2.rfc6749.errors import InvalidClientError, UnsupportedTokenTypeError
-from authlib.oauth2 import OAuth2Error
+from authlib.oauth2.rfc6750.errors import InsufficientScopeError
+from cachetools import cached, LRUCache
+from cachetools.keys import hashkey
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.asymmetric import rsa
+from multipledispatch import dispatch
+from starlette.exceptions import HTTPException
+from starlette.responses import JSONResponse
 
 from spinta.components import Config
+from spinta.components import Context, Action, Namespace, Model, Property
 from spinta.components import ScopeFormatterFunc
 from spinta.core.enums import Access
-from spinta.components import Context, Action, Namespace, Model, Property
+from spinta.exceptions import AuthorizedClientsOnly
+from spinta.exceptions import BasicAuthRequired
 from spinta.exceptions import InvalidToken, NoTokenValidationKey, ClientWithNameAlreadyExists, ClientAlreadyExists, \
     ClientsKeymapNotFound, ClientsIdFolderNotFound, InvalidClientsKeymapStructure, InvalidScopes, \
     InvalidClientFileFormat
-from spinta.exceptions import AuthorizedClientsOnly
-from spinta.exceptions import BasicAuthRequired
 from spinta.utils import passwords
 from spinta.utils.config import get_clients_path, get_keymap_path, get_id_path, get_helpers_path
 from spinta.utils.scopes import name_to_scope
@@ -56,6 +54,16 @@ yml = ruamel.yaml.YAML()
 yml.indent(mapping=2, sequence=4, offset=2)
 yml.width = 80
 yml.explicit_start = False
+
+# Cache limits
+CLIENT_FILE_CACHE_SIZE_LIMIT = 10
+KEYMAP_CACHE_SIZE_LIMIT = 1
+DEFAULT_CLIENT_ID_CACHE_SIZE_LIMIT = 1
+
+
+class KeyType(enum.Enum):
+    public = 'public'
+    private = 'private'
 
 
 class Scopes(enum.Enum):
@@ -348,11 +356,6 @@ def create_key_pair():
     return rsa.generate_private_key(public_exponent=65537, key_size=2048, backend=default_backend())
 
 
-class KeyType(enum.Enum):
-    public = 'public'
-    private = 'private'
-
-
 def load_key(context: Context, key_type: KeyType, *, required: bool = True):
     key = None
     config = context.get('config')
@@ -423,35 +426,6 @@ def create_access_token(
         'jti': jti
     }
     return jwt.encode(header, payload, private_key).decode('ascii')
-
-
-def query_client(path: pathlib.Path, client: str, is_name: bool = False) -> Client:
-    if is_name:
-        keymap_path = get_keymap_path(path)
-        validate_keymap_path(keymap_path)
-
-        data = _load_keymap_data(keymap_path)
-        if not client_name_exists(data, client):
-            raise (InvalidClientError(description='Invalid client name'))
-        client = data[client]
-    client_file = get_client_file_path(path, client)
-
-    id_path = get_id_path(path)
-    validate_id_path(id_path)
-
-    try:
-        data = yaml.load(client_file)
-    except FileNotFoundError:
-        raise (InvalidClientError(description='Invalid client id or secret'))
-    if not isinstance(data, dict):
-        raise InvalidClientFileFormat(client_file=client_file.name, client_file_type=type(data))
-    if not isinstance(data['scopes'], list):
-        raise Exception(f'Client {client_file} scopes must be list of scopes.')
-    client_id = data["client_id"]
-    client_name = data["client_name"] if ("client_name" in data.keys() and data["client_name"]) else None
-    client = Client(id_=client_id, name_=client_name, secret_hash=data['client_secret_hash'],
-                    scopes=data['scopes'])
-    return client
 
 
 def get_client_file_path(
@@ -640,18 +614,6 @@ def client_exists(path: pathlib.Path, client: str) -> bool:
     return False
 
 
-def _load_keymap_data(keymap_path: pathlib.Path) -> dict:
-    keymap = yaml.load(keymap_path)
-    # This could mean keymap is empty, or keymap has bad yml structure
-    if keymap is None:
-        if os.stat(keymap_path).st_size == 0:
-            return {}
-        raise InvalidClientsKeymapStructure()
-    if not isinstance(keymap, dict):
-        raise InvalidClientsKeymapStructure()
-    return keymap
-
-
 @dispatch(pathlib.Path, str)
 def client_name_exists(path: pathlib.Path, client_name: str) -> bool:
     keymap_path = get_keymap_path(path)
@@ -764,7 +726,7 @@ def update_client_file(
         new_scopes = scopes if scopes is not None else client.scopes
 
         client_path = get_client_file_path(path, client_id)
-        keymap =  _load_keymap_data(keymap_path)
+        keymap = _load_keymap_data(keymap_path)
         if new_name != client.name:
             if client_name_exists(keymap, new_name):
                 raise ClientWithNameAlreadyExists(client_name=new_name)
@@ -815,13 +777,6 @@ def validate_id_path(id_path: pathlib.Path):
         raise ClientsIdFolderNotFound()
 
 
-# Get default auth client id using cache
-@lru_cache
-def get_default_auth_client_id(context: Context) -> str:
-    config: Config = context.get('config')
-    return get_client_id_from_name(get_clients_path(config.config_path), config.default_auth_client)
-
-
 def ensure_client_folders_exist(clients_path: pathlib.Path):
     # Ensure clients folder exist
     clients_path.mkdir(parents=True, exist_ok=True)
@@ -837,3 +792,95 @@ def ensure_client_folders_exist(clients_path: pathlib.Path):
     # Ensure clients/id directory
     id_path = get_id_path(clients_path)
     id_path.mkdir(parents=True, exist_ok=True)
+
+
+def _keymap_file_cache_key(path: pathlib.Path, *args, **kwargs):
+    """
+    Creates keymap file cache key using
+    keymap path and keymap file update time.
+    """
+    key = hashkey(path, *args, **kwargs)
+    time_ = os.path.getmtime(path)
+    key += tuple([time_])
+    return key
+
+
+def _default_client_id_cache_key(context: Context, *args, **kwargs):
+    """
+    Creates default client id cache key using
+    client folder path, default client name and keymap update time.
+    """
+    key = hashkey(*args, **kwargs)
+    config: Config = context.get('config')
+    path = get_clients_path(config.config_path)
+    client = config.default_auth_client
+    keymap_path = get_keymap_path(path)
+    validate_keymap_path(keymap_path)
+    time_ = os.path.getmtime(keymap_path)
+    key += tuple([path, client, time_])
+    return key
+
+
+def _client_file_cache_key(path: pathlib.Path, client: str, *args, **kwargs):
+    """
+    Creates client file cache key using
+    client folder path, client id and client file update time.
+    """
+    key = hashkey(path, client, *args, **kwargs)
+    client_file = get_client_file_path(path, client)
+    if not client_file.exists():
+        raise (InvalidClientError(description='Invalid client id or secret'))
+
+    time_ = os.path.getmtime(client_file)
+    key += tuple([time_])
+    return key
+
+
+@cached(LRUCache(KEYMAP_CACHE_SIZE_LIMIT), key=_keymap_file_cache_key)
+def _load_keymap_data(keymap_path: pathlib.Path) -> dict:
+    keymap = yaml.load(keymap_path)
+    # This could mean keymap is empty, or keymap has bad yml structure
+    if keymap is None:
+        if os.stat(keymap_path).st_size == 0:
+            return {}
+        raise InvalidClientsKeymapStructure()
+    if not isinstance(keymap, dict):
+        raise InvalidClientsKeymapStructure()
+    return keymap
+
+
+@cached(LRUCache(DEFAULT_CLIENT_ID_CACHE_SIZE_LIMIT), key=_default_client_id_cache_key)
+def get_default_auth_client_id(context: Context) -> str:
+    config: Config = context.get('config')
+    return get_client_id_from_name(get_clients_path(config.config_path), config.default_auth_client)
+
+
+@cached(LRUCache(CLIENT_FILE_CACHE_SIZE_LIMIT), key=_client_file_cache_key, lock=Lock())
+def query_client(path: pathlib.Path, client: str, is_name: bool = False) -> Client:
+    if is_name:
+        keymap_path = get_keymap_path(path)
+        validate_keymap_path(keymap_path)
+
+        data = _load_keymap_data(keymap_path)
+        if not client_name_exists(data, client):
+            raise (InvalidClientError(description='Invalid client name'))
+        client = data[client]
+    client_file = get_client_file_path(path, client)
+
+    id_path = get_id_path(path)
+    validate_id_path(id_path)
+
+    try:
+        data = yaml.load(client_file)
+    except FileNotFoundError:
+        raise (InvalidClientError(description='Invalid client id or secret'))
+    if not isinstance(data, dict):
+        raise InvalidClientFileFormat(client_file=client_file.name, client_file_type=type(data))
+    if not isinstance(data['scopes'], list):
+        raise Exception(f'Client {client_file} scopes must be list of scopes.')
+    client_id = data["client_id"]
+    client_name = data["client_name"] if ("client_name" in data.keys() and data["client_name"]) else None
+    client = Client(id_=client_id, name_=client_name, secret_hash=data['client_secret_hash'],
+                    scopes=data['scopes'])
+    return client
+
