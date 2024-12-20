@@ -826,6 +826,9 @@ def _client_file_cache_key(path: pathlib.Path, client: str, *args, is_name: bool
     Creates client file cache key using
     client folder path, client id and client file update time.
     """
+    id_path = get_id_path(path)
+    validate_id_path(id_path)
+
     key = hashkey(path, client, *args, **kwargs)
     if is_name:
         client_id = get_client_id_from_name(path, client)
