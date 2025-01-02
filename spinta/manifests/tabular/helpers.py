@@ -447,10 +447,14 @@ class ModelReader(TabularReader):
             row['model'],
         )
 
-        if "/:" in name:
-            name, features = name.rsplit("/:", 1)
-        else:
-            features = None
+        # Check for partial model syntax
+        features = None
+        if "/:" in name or "?" in name:
+            if "/:" in name:
+                name, features = name.rsplit("/:", 1)
+            elif "?" in name:
+                name, features = name.split("?", 1)
+                features = "?" + features
 
         if self.state.rename_duplicates:
             dup = 1

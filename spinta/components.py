@@ -760,6 +760,31 @@ class Model(MetaData):
         return {prop_name: prop for prop_name, prop in self.properties.items() if not prop_name.startswith('_')}
 
 
+
+class PartialModel(Model):
+    """A partial variant of a model, e.g. 'City/:getone' or 'City/:getall'."""
+
+    parent_model: Optional[Model] = None
+    params: UrlParams  # `City/:part` would be `params.part`
+    features: str = None
+    
+    def __init__(self):
+        super().__init__()
+        self.parent_model = None
+        self.params = None
+
+    def model_type(self):
+        if self.features:
+            return f"{self.parent_model.name}/{self.features}"
+        return self.parent_model.name
+
+    def __getattr__(self, name):
+        """Delegate unknown attributes to parent_model"""
+        if name not in ('parent_model', 'params', 'features') and self.parent_model:
+            return getattr(self.parent_model, name)
+        raise AttributeError(f"'PartialModel' object has no attribute '{name}'")
+
+
 class PropertyGiven:
     access: str | None = None
     enum: str | None = None
