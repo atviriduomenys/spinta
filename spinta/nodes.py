@@ -118,6 +118,15 @@ def get_node(
             )
 
     Node_ = config.components[group][ctype]
+
+    # If it's a model type and has features, return PartialModel instead
+    if (ctype == 'model' and 
+        data is not None and 
+        'features' in data and 
+        data['features']):
+        from spinta.components import PartialModel
+        return PartialModel()
+
     return Node_()
 
 

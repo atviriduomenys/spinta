@@ -195,11 +195,7 @@ def _load_manifest_node(
     eid: EntryId,
     data: dict,
 ) -> MetaData:
-    # Check if this is a partial model
-    if data.get('type') == 'model' and data.get('features'):
-        node = PartialModel()
-    else:
-        node = get_node(context, config, manifest, eid, data)
+    node = get_node(context, config, manifest, eid, data)
     
     node.eid = eid
     node.type = data['type']
