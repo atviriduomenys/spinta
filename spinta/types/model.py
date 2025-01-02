@@ -18,7 +18,7 @@ from spinta.backends.nobackend.components import NoBackend
 from spinta.commands import authorize
 from spinta.commands import check
 from spinta.commands import load
-from spinta.components import Action, Component, PageBy, Page, PageInfo, UrlParams, pagination_enabled
+from spinta.components import Action, Component, PageBy, Page, PageInfo, PartialModel, UrlParams, pagination_enabled
 from spinta.components import Base
 from spinta.components import Context
 from spinta.components import Mode
@@ -153,12 +153,63 @@ def load(
 
     model.params = load_params(context, manifest, model.params)
 
-    # if "/:" in model.name:
-    #     model.name, model.features = model.name.rsplit("/:", 1)
-
     if not model.name.startswith('_') and not model.basename[0].isupper():
         raise Exception(model.basename, "MODEL NAME NEEDS TO BE UPPER CASED")
 
+    return model
+
+
+@load.register(Context, PartialModel, dict, Manifest)
+def load(
+    context: Context,
+    model: PartialModel,
+    data: dict,
+    manifest: Manifest,
+    *,
+    source: Manifest = None,
+) -> PartialModel:
+
+    load(context, Model, model, data, manifest, source=source)
+    
+    parent_name = model.name
+    features = data.get('features')
+    
+    params = UrlParams()
+    
+    if '?' in features:
+        action, query = features.split('?', 1)
+        action = action.strip(':') if action else None
+        
+        if action:
+            params.action = Action.by_value(action)
+            
+        # Parse query parameters
+        if 'select(' in query:
+            select_start = query.find('select(') + 7
+            select_end = query.find(')', select_start)
+            if select_end > select_start:
+                params.select = [
+                    s.strip() 
+                    for s in query[select_start:select_end].split(',')
+                ]
+        else:
+            # Handle filters like continent.code="eu"
+            filters = {}
+            for pair in query.split('&'):
+                if '=' in pair:
+                    key, value = pair.split('=', 1)
+                    filters[key] = value.strip('"')
+            if filters:
+                params.query = [filters]
+                
+    elif features.startswith(':'):
+        # Handle action-only features like /:getall
+        action = features.strip(':')
+        params.action = Action.by_value(action)
+
+    model.parent_model = commands.get_model(context, manifest, parent_name)
+    model.params = params
+    
     return model
 
 
@@ -216,6 +267,14 @@ def link(context: Context, model: Model):
         commands.link(context, prop)
 
     _link_model_page(model)
+
+
+@overload
+@commands.link.register(Context, PartialModel) 
+def link(context: Context, model: PartialModel):
+    link(context, Model, model)
+    if model.parent_model and not getattr(model.parent_model, 'backend', None):
+        commands.link(context, model.parent_model)
 
 
 def _disable_page_in_model(model: Model):
@@ -479,6 +538,13 @@ def check(context: Context, model: Model):
 
     for prop in model.properties.values():
         commands.check(context, prop)
+
+
+@check.register(Context, PartialModel)
+def check(context: Context, model: PartialModel):
+    check(context, Model, model)
+    if not model.parent_model:
+        raise Exception(f"Partial model {model.name} has no parent model")
 
 
 @check.register(Context, Property)
