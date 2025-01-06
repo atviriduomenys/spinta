@@ -449,3 +449,54 @@ def test_enum_ref(context: Context, rc: RawConfig, cli: SpintaCliRunner, tmp_pat
       |   |   |   | sex      | integer | sex     | SEX         |         | open   |
       |   |   |   | name     | string  |         | NAME        |         | open   |
     '''
+
+
+def test_copy_status(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    d | r | b | m | property | type   | ref     | source      | prepare | access | status 
+    datasets/gov/example     |        |         |             |         |        | 
+      | data                 | sql    |         |             |         |        |
+                             |        |         |             |         |        |
+      |   |   | Country      |        | code    | salis       |         |        |
+      |   |   |   | code     | string |         | kodas       |         | public | develop
+      |   |   |   | name     | string |         | pavadinimas |         | open   | completed
+      |   |   |   | driving  | string |         | vairavimas  |         | open   | discont
+                             | enum   |         | l           | 'left'  | open   |
+                             |        |         | r           | 'right' | open   |
+                             |        |         |             |         |        |
+      |   |   | City         |        | name    | miestas     |         |        |
+      |   |   |   | name     | string |         | pavadinimas |         | open   | deprecated
+      |   |   |   | country  | ref    | Country | salis       |         | open   | withdrawn
+                             |        |         |             |         |        |
+      |   |   | Capital      |        | name    | miestas     |         |        |
+      |   |   |   | name     | string |         | pavadinimas |         |        |
+      |   |   |   | country  | ref    | Country | salis       |         |        |
+    '''))
+
+    cli.invoke(rc, [
+        'copy',
+        '-o', tmp_path / 'result.csv',
+        tmp_path / 'manifest.csv',
+    ])
+
+    manifest = load_manifest(rc, tmp_path / 'result.csv')
+    assert manifest == '''
+    d | r | b | m | property | type   | ref     | source      | prepare | access | status    
+    datasets/gov/example     |        |         |             |         |        | 
+      | data                 | sql    |         |             |         |        |
+                             |        |         |             |         |        |
+      |   |   | Country      |        | code    | salis       |         |        |
+      |   |   |   | code     | string |         | kodas       |         | public | develop
+      |   |   |   | name     | string |         | pavadinimas |         | open   | completed
+      |   |   |   | driving  | string |         | vairavimas  |         | open   | discont
+                             | enum   |         | l           | 'left'  | open   |
+                             |        |         | r           | 'right' | open   |
+                             |        |         |             |         |        |
+      |   |   | City         |        | name    | miestas     |         |        |
+      |   |   |   | name     | string |         | pavadinimas |         | open   | deprecated
+      |   |   |   | country  | ref    | Country | salis       |         | open   | withdrawn
+                             |        |         |             |         |        |
+      |   |   | Capital      |        | name    | miestas     |         |        |
+      |   |   |   | name     | string |         | pavadinimas |         |        |
+      |   |   |   | country  | ref    | Country | salis       |         |        |
+    '''

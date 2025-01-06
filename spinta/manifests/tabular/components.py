@@ -80,6 +80,7 @@ ACCESS: Final = 'access'
 URI: Final = 'uri'
 TITLE: Final = 'title'
 DESCRIPTION: Final = 'description'
+STATUS: Final = 'status'
 ManifestColumn = Literal[
     'id',
     'dataset',
@@ -96,6 +97,7 @@ ManifestColumn = Literal[
     'uri',
     'title',
     'description',
+    'status'
 ]
 MANIFEST_COLUMNS: List[ManifestColumn] = [
     ID,
@@ -113,6 +115,7 @@ MANIFEST_COLUMNS: List[ManifestColumn] = [
     URI,
     TITLE,
     DESCRIPTION,
+    STATUS
 ]
 
 ManifestRow = Dict[ManifestColumn, str]
