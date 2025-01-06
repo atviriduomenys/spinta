@@ -170,9 +170,9 @@ def load(
     source: Manifest = None,
 ) -> PartialModel:
 
-    load(context, Model, model, data, manifest, source=source)
+    # parent_model = load(context, model, data, manifest, source=source)
     
-    parent_name = model.name
+    # parent_name = model.name
     features = data.get('features')
     
     params = UrlParams()
@@ -208,7 +208,7 @@ def load(
         action = features.strip(':')
         params.action = Action.by_value(action)
 
-    model.parent_model = commands.get_model(context, manifest, parent_name)
+    model.parent_model = commands.get_model(context, manifest, model.name.split(features)[0])
     model.params = params
     
     return model

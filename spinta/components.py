@@ -773,10 +773,10 @@ class PartialModel(Model):
         self.parent_model = None
         self.params = None
 
-    def model_type(self):
-        if self.features:
-            return f"{self.parent_model.name}/{self.features}"
-        return self.parent_model.name
+    # def model_type(self):
+    #     if self.features:
+    #         return f"{self.parent_model.name}/{self.features}"
+    #     return self.parent_model.name
 
     def __getattr__(self, name):
         """Delegate unknown attributes to parent_model"""
