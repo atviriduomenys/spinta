@@ -3,7 +3,7 @@ from typing import List
 from spinta import commands
 from spinta.components import Context
 from spinta.types.datatype import Ref
-from spinta.exceptions import ModelReferenceNotFound
+from spinta.exceptions import ModelReferenceNotFound, MissingRefModel
 from spinta.exceptions import ModelReferenceKeyNotFound
 from spinta.types.helpers import set_dtype_backend
 
@@ -14,6 +14,8 @@ def link(context: Context, dtype: Ref) -> None:
 
     # XXX: https://github.com/atviriduomenys/spinta/issues/44
     rmodel: str = dtype.model
+    if rmodel is None:
+        raise MissingRefModel(dtype, model_name=dtype.prop.model.basename, property_name=dtype.prop.name, property_type=dtype.prop.dtype.name)
     if rmodel == dtype.prop.model.name:
         # Self reference.
         dtype.model = dtype.prop.model
