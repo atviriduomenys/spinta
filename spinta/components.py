@@ -784,6 +784,8 @@ class Property(ExtraMetaData):
     lang: LangData = None
     unit: Unit = None       # Given in ref column.
     comments: List[Comment] = None
+    status: str | None = None
+    # todo maybe add a type for status. Possible statuses are here: https://github.com/ivpk/dsa/issues/30
 
     schema = {
         'title': {},

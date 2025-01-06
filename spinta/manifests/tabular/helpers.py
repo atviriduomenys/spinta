@@ -2257,6 +2257,7 @@ def _property_to_tabular(
         'uri': prop.uri,
         'title': prop.title,
         'description': prop.description,
+        'status': prop.status,
     }
 
     if external and prop.external:
