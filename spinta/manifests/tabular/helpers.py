@@ -441,12 +441,13 @@ class ModelReader(TabularReader):
 
         # Check for partial model syntax
         features = None
+
         if "/:" in name or "?" in name:
             if "/:" in name:
-                name, features = name.rsplit("/:", 1)
+                features = name.rsplit("/:", 1)[1]
             elif "?" in name:
-                name, features = name.split("?", 1)
-                features = "?" + features
+                features = "?" + name.split("?", 1)[1]
+
 
         if self.state.rename_duplicates:
             dup = 1
