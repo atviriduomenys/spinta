@@ -106,7 +106,6 @@ tabulate = "*"
 pyproj = "*"
 xmltodict = "*"
 sqlean-py = "*"
-docutils = "^0.21.2"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -120,6 +119,7 @@ pytest-mock = "*"
 responses = "*"
 snoop = "*"
 python-dotenv = "*"
+docutils = "*"
 
 # Starlette
 httpx = "*"
