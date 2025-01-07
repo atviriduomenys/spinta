@@ -120,6 +120,7 @@ pytest-mock = "*"
 responses = "*"
 snoop = "*"
 python-dotenv = "*"
+docutils = "*"
 
 # Starlette
 httpx = "*"
