@@ -170,15 +170,14 @@ def load(
     source: Manifest = None,
 ) -> PartialModel:
 
-    # parent_model = load(context, model, data, manifest, source=source)
+    parent_model = load[Context, Model, dict, Manifest](context, model, data, manifest, source=source)
     
-    # parent_name = model.name
-    features = data.get('features')
+    parent_model.given.features = data.get('features')
     
     params = UrlParams()
     
-    if '?' in features:
-        action, query = features.split('?', 1)
+    if '?' in parent_model.given.features:
+        action, query = parent_model.given.features.split('?', 1)
         action = action.strip(':') if action else None
         
         if action:
@@ -203,13 +202,13 @@ def load(
             if filters:
                 params.query = [filters]
                 
-    elif features.startswith(':'):
+    elif parent_model.given.features.startswith(':'):
         # Handle action-only features like /:getall
-        action = features.strip(':')
+        action = parent_model.given.features.strip(':')
         params.action = Action.by_value(action)
 
-    model.parent_model = commands.get_model(context, manifest, model.name.split(features)[0])
-    model.params = params
+    model.parent_model = parent_model
+    model.url_params = params
     
     return model
 
@@ -270,12 +269,11 @@ def link(context: Context, model: Model):
     _link_model_page(model)
 
 
-@overload
-@commands.link.register(Context, PartialModel) 
-def link(context: Context, model: PartialModel):
-    link(context, Model, model)
-    if model.parent_model and not getattr(model.parent_model, 'backend', None):
-        commands.link(context, model.parent_model)
+# @overload
+# @commands.link.register(Context, PartialModel) 
+# def link(context: Context, model: PartialModel):
+#     if model.parent_model:
+#         link(context, model.parent_model)
 
 
 def _disable_page_in_model(model: Model):
@@ -533,7 +531,6 @@ def check(context: Context, model: Model):
 
 @check.register(Context, PartialModel)
 def check(context: Context, model: PartialModel):
-    check(context, Model, model)
     if not model.parent_model:
         raise Exception(f"Partial model {model.name} has no parent model")
 
