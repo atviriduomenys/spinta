@@ -374,7 +374,10 @@ class Node(Component):
 
     @property
     def basename(self):
-        return self.name and self.name.split('/')[-1]
+        name = self.name
+        if "/:" in name:
+            name = name.split("/:")[0]
+        return name and name.split("/")[-1]
 
 
 # MetaData entry ID can be file path, uuid, table row id of a Model, Dataset,
@@ -492,6 +495,7 @@ class ModelGiven:
     access: str = None
     pkeys: list[str] = None
     name: str = None
+    features: str = None
 
 
 class PageBy:
@@ -755,24 +759,12 @@ class PartialModel(Model):
     """A partial variant of a model, e.g. 'City/:getone' or 'City/:getall'."""
 
     parent_model: Optional[Model] = None
-    params: UrlParams  # `City/:part` would be `params.part`
-    features: str = None
+    url_params: UrlParams  # `City/:part` would be `params.part`
     
     def __init__(self):
         super().__init__()
         self.parent_model = None
-        self.params = None
-
-    # def model_type(self):
-    #     if self.features:
-    #         return f"{self.parent_model.name}/{self.features}"
-    #     return self.parent_model.name
-
-    def __getattr__(self, name):
-        """Delegate unknown attributes to parent_model"""
-        if name not in ('parent_model', 'params', 'features') and self.parent_model:
-            return getattr(self.parent_model, name)
-        raise AttributeError(f"'PartialModel' object has no attribute '{name}'")
+        self.url_params = None
 
 
 class PropertyGiven:
