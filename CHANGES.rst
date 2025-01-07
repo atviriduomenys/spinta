@@ -10,6 +10,12 @@ New features:
 
   .. _#973: https://github.com/atviriduomenys/spinta/issues/973
 
+Improvements:
+
+- Client data and `keymap` is now cached. This will reduce amount of file reads with each request (`#948`_).
+
+  .. _#948: https://github.com/atviriduomenys/spinta/issues/948
+
 0.1.81 (2024-12-17)
 ===================
 
