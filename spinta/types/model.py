@@ -73,6 +73,7 @@ def load(
     *,
     source: Manifest = None,
 ) -> Model:
+    # temp data here should have status, but doesn't
     model.parent = manifest
     model.manifest = manifest
     model.mode = manifest.mode  # TODO: mode should be inherited from namespace.
@@ -91,6 +92,7 @@ def load(
         model.ns.parents(),
     ))
     load_level(model, model.level)
+    #  temp data.get('properties) gets a list of properties, and it should have status, but doesn't have
     load_model_properties(context, model, Property, data.get('properties'))
 
     # XXX: Maybe it is worth to leave possibility to override _id access?
@@ -270,10 +272,14 @@ def load(
     data: PropertyRow,
     manifest: Manifest,
 ) -> Property:
+    # temp data should have status, and it should be loaded into prop, but it's not there
     config = context.get('config')
     prop.type = 'property'
     prop, data = load_node(context, prop, data, mixed=True)
     prop = cast(Property, prop)
+
+    if prop.model.name == "datasets/gov/example/Country":
+        print()
 
     parents = list(itertools.chain(
         [prop.model, prop.model.ns],
@@ -286,7 +292,7 @@ def load(
     if prop.prepare_given:
         prop.given.prepare = prop.prepare_given
     load_level(prop, prop.level)
-
+    # temp is this a place where I should add something like load_status? If so, from what should it load that status?
     if data['type'] is None:
         raise UnknownPropertyType(prop, type=data['type'])
     if data['type'] == 'ref' and not commands.identifiable(prop):

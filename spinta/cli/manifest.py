@@ -182,7 +182,7 @@ def _read_and_return_rows(
         verbose=verbose,
         full_load=True
     )
-
+    # temp here in the store.manifest status exist but is empty
     if format_names:
         reformat_names(context, store.manifest)
 

@@ -56,6 +56,7 @@ def load(
             file=file,
             rename_duplicates=rename_duplicates,
         )
+        # temp here it seems that schemas don't have the status data we need and they should have it
         load_manifest_nodes(context, into, schemas, source=manifest)
     else:
         log.info(

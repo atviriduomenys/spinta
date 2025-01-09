@@ -50,7 +50,7 @@ from spinta.exceptions import MultipleErrors, InvalidBackRefReferenceAmount, Dat
 from spinta.exceptions import PropertyNotFound
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
-from spinta.manifests.tabular.components import ACCESS, URI
+from spinta.manifests.tabular.components import ACCESS, URI, STATUS
 from spinta.manifests.tabular.components import BackendRow
 from spinta.manifests.tabular.components import BaseRow
 from spinta.manifests.tabular.components import CommentData
@@ -697,7 +697,8 @@ def _initial_normal_property_schema(given_name: str, dtype: dict, row: dict):
         'unique': dtype['unique'],
         'given_name': given_name,
         'prepare_given': [],
-        'explicitly_given': True
+        'explicitly_given': True,
+        'status': row.get(STATUS),
     }
 
 
@@ -803,8 +804,9 @@ def _string_datatype_handler(reader: PropertyReader, row: dict):
         reader.error(
             dtype['error']
         )
-
+    # temp here row still has status
     new_data = _initial_normal_property_schema(given_name, dtype, row)
+    # temp here new_data doesn't have status
     dataset = reader.state.dataset.data if reader.state.dataset else None
 
     if row['prepare']:
@@ -1650,6 +1652,7 @@ def _read_tabular_manifest_rows(
     yield from state.release(reader)
 
     for line, row in rows:
+        #  temp here row still has status
         _check_row_size(path, line, header, row)
         row = dict(zip(header, row))
         row = {**defaults, **row}
@@ -1701,6 +1704,7 @@ def read_tabular_manifest(
     else:
         raise ValueError(f"Unknown tabular manifest format {format_!r}.")
 
+    #  temp here rows still have status and it's values
     try:
         yield from _read_tabular_manifest_rows(
             path,
@@ -2259,7 +2263,7 @@ def _property_to_tabular(
         'description': prop.description,
         'status': prop.status,
     }
-
+    # temp status not here yet
     if external and prop.external:
         if isinstance(prop.external, list):
             # data['source'] = ', '.join(x.name for x in prop.external)
@@ -2429,12 +2433,13 @@ def datasets_to_tabular(
         order_by=order_by,
         separator=True,
     )
-
+    # temp manifest here doesn't have status values
     seen_datasets = set()
     dataset = None
     resource = None
     base = None
     models = commands.get_models(context, manifest)
+    # temp here status is None
     models = models if internal else take(models)
     models = sort(MODELS_ORDER_BY, models.values(), order_by)
 

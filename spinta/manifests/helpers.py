@@ -130,6 +130,9 @@ def load_manifest_nodes(
 ) -> None:
     to_link = []
     config = context.get('config')
+    # temp properties don't have "status" though they do have for example, "access" with values
+    #  they should be in schema
+
     for eid, schema in schemas:
         if schema.get('type') == 'manifest':
             _load_manifest(context, manifest, schema, eid)
@@ -195,6 +198,7 @@ def _load_manifest_node(
     eid: EntryId,
     data: dict,
 ) -> MetaData:
+    # temp data here should have status, but doesn't
     node = get_node(context, config, manifest, eid, data)
     node.eid = eid
     node.type = data['type']

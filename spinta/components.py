@@ -813,6 +813,7 @@ class Property(ExtraMetaData):
         'given_name': {'type': 'string', 'default': None},
         'explicitly_given': {'type': 'boolean'},
         'prepare_given': {'required': False},
+        'status': {'type': 'string'},
     }
 
     def __init__(self):
