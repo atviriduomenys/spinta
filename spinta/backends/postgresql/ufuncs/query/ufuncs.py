@@ -433,6 +433,19 @@ def select(
     return super_(env, fpr, dtype)
 
 
+@ufunc.resolver(PgQueryBuilder, Geometry, Flip)
+def select(env: PgQueryBuilder, dtype: Geometry, func_: Flip):
+    table = env.backend.get_table(env.model)
+
+    if dtype.prop.list is None:
+        column = env.backend.get_column(table, dtype.prop, select=True)
+    else:
+        column = env.backend.get_column(table, dtype.prop.list, select=True)
+
+    column = geoalchemy2.functions.ST_FlipCoordinates(column)
+    return Selected(env.add_column(column), prop=dtype.prop)
+
+
 @ufunc.resolver(PgQueryBuilder, int)
 def limit(env, n):
     env.limit = n
@@ -1248,35 +1261,6 @@ def checksum(env: PgQueryBuilder, expr: Expr):
     )
 
 
-@ufunc.resolver(PgQueryBuilder, Expr)
-def swap(env: PgQueryBuilder, expr: Expr):
-    args, kwargs = expr.resolve(env)
-    return Expr('swap', *args, **kwargs)
-
-
-@ufunc.resolver(PgQueryBuilder)
-def flip(env: PgQueryBuilder):
-    return env.call('flip', env.this)
-
-
-@ufunc.resolver(PgQueryBuilder, Property)
-def flip(env: PgQueryBuilder, prop: Property):
-    return env.call('flip', prop.dtype)
-
-
-@ufunc.resolver(PgQueryBuilder, DataType)
-def flip(env: PgQueryBuilder, dtype: DataType):
+@ufunc.resolver(PgQueryBuilder, Geometry)
+def flip(env: PgQueryBuilder, dtype: Geometry):
     return Flip(dtype)
-
-
-@ufunc.resolver(PgQueryBuilder, Geometry, Flip)
-def select(env: PgQueryBuilder, dtype: Geometry, func_: Flip):
-    table = env.backend.get_table(env.model)
-
-    if dtype.prop.list is None:
-        column = env.backend.get_column(table, dtype.prop, select=True)
-    else:
-        column = env.backend.get_column(table, dtype.prop.list, select=True)
-
-    column = geoalchemy2.functions.ST_FlipCoordinates(column)
-    return Selected(env.add_column(column), prop=dtype.prop)

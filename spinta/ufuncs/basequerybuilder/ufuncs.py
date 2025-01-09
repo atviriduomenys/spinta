@@ -491,3 +491,18 @@ def testlist(env: BaseQueryBuilder, expr: Expr) -> tuple:
     for arg in args:
         result.append(process_literal_value(arg))
     return tuple(result)
+
+
+@ufunc.resolver(BaseQueryBuilder)
+def flip(env: BaseQueryBuilder):
+    return env.call('flip', env.this)
+
+
+@ufunc.resolver(BaseQueryBuilder, Property)
+def flip(env: BaseQueryBuilder, prop: Property):
+    return env.call('flip', prop.dtype)
+
+
+@ufunc.resolver(BaseQueryBuilder, DataType)
+def flip(env: BaseQueryBuilder, dtype: DataType):
+    return Expr('flip')
