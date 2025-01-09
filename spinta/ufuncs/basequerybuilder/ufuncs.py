@@ -3,6 +3,7 @@ from typing import List, Any, Tuple, Dict
 from spinta.components import Page, Property
 from spinta.core.ufuncs import ufunc, Expr, Negative, Bind, GetAttr
 from spinta.datasets.backends.sql.ufuncs.components import Selected
+from spinta.datasets.components import ExternalBackend
 from spinta.exceptions import InvalidArgumentInExpression, CannotSelectTextAndSpecifiedLang, \
     LangNotDeclared, FieldNotInResource
 from spinta.types.datatype import DataType, String, Ref, Object, Array, File, BackRef, PrimaryKey, ExternalRef
@@ -388,7 +389,7 @@ def select(env: BaseQueryBuilder, dtype: DataType, prep: Any) -> Selected:
         # If `prepare` expression returns another expression, then this means,
         # it must be processed on values returned by query.
         prop = dtype.prop
-        if not isinstance(env.backend, ExternalRef) or (prop.external and prop.external.name):
+        if not isinstance(env.backend, ExternalBackend) or (prop.external and prop.external.name):
             sel = env.call('select', dtype)
             return Selected(item=sel.item, prop=sel.prop, prep=prep)
         else:
