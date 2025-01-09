@@ -4,6 +4,7 @@ import datetime
 import uuid
 from typing import Union, Any
 
+import geoalchemy2.functions
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
 
@@ -31,10 +32,11 @@ from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.types.datatype import String
 from spinta.types.datatype import UUID as UUID_dtype
+from spinta.types.geometry.components import Geometry
 from spinta.types.text.components import Text
 from spinta.types.text.helpers import determine_language_property_for_text
 from spinta.ufuncs.basequerybuilder.components import ReservedProperty, \
-    NestedProperty, ResultProperty
+    NestedProperty, ResultProperty, Flip
 from spinta.ufuncs.basequerybuilder.helpers import get_column_with_extra, get_language_column, \
     expandable_not_expanded
 from spinta.ufuncs.basequerybuilder.ufuncs import Star
@@ -128,7 +130,11 @@ def select(
 @ufunc.resolver(PgQueryBuilder, Property)
 def select(env, prop):
     if prop.place not in env.resolved:
-        result = env.call("select", prop.dtype)
+        if prop.external and prop.external.prepare:
+            result = env(this=prop).resolve(prop.external.prepare)
+            result = env.call("select", prop.dtype, result)
+        else:
+            result = env.call("select", prop.dtype)
         env.resolved[prop.place] = result
     return env.resolved[prop.place]
 
@@ -541,6 +547,7 @@ def compare(env, op, dtype, value):
     cond = _sa_compare(op, column, value)
     return _prepare_condition(env, dtype.prop, cond)
 
+
 @ufunc.resolver(PgQueryBuilder, UUID_dtype, str, names=COMPARE)
 def compare(env, op, dtype, value):
     column = env.backend.get_column(env.table, dtype.prop)
@@ -631,6 +638,7 @@ def eq(env, dtype, value):
     cond = _sa_compare('eq', column, value)
     return _prepare_condition(env, dtype.prop, cond)
 
+
 @ufunc.resolver(PgQueryBuilder, DataType, type(None))
 def eq(env, dtype, value):
     column = env.backend.get_column(env.table, dtype.prop)
@@ -674,6 +682,7 @@ def eq(
 def _ensure_non_empty(op, s):
     if s == '':
         raise EmptyStringSearch(op=op)
+
 
 @ufunc.resolver(PgQueryBuilder, UUID_dtype, str, names=COMPARE_STRING)
 def compare(env: PgQueryBuilder, op: str, dtype: UUID, value: str):
@@ -833,6 +842,7 @@ def _prepare_condition(env: PgQueryBuilder, prop: Property, cond):
 def ne(env, dtype, value):
     column = env.backend.get_column(env.table, dtype.prop)
     return _ne_compare(env, dtype.prop, column, value)
+
 
 @ufunc.resolver(PgQueryBuilder, UUID_dtype, str)
 def ne(env, dtype, value):
@@ -1012,6 +1022,7 @@ def _ne_compare(env: PgQueryBuilder, prop: Property, column, value):
 FUNCS = [
     'lower',
     'upper',
+    'flip'
 ]
 
 
@@ -1235,3 +1246,37 @@ def checksum(env: PgQueryBuilder, expr: Expr):
     return ResultProperty(
         Expr('checksum', *args)
     )
+
+
+@ufunc.resolver(PgQueryBuilder, Expr)
+def swap(env: PgQueryBuilder, expr: Expr):
+    args, kwargs = expr.resolve(env)
+    return Expr('swap', *args, **kwargs)
+
+
+@ufunc.resolver(PgQueryBuilder)
+def flip(env: PgQueryBuilder):
+    return env.call('flip', env.this)
+
+
+@ufunc.resolver(PgQueryBuilder, Property)
+def flip(env: PgQueryBuilder, prop: Property):
+    return env.call('flip', prop.dtype)
+
+
+@ufunc.resolver(PgQueryBuilder, DataType)
+def flip(env: PgQueryBuilder, dtype: DataType):
+    return Flip(dtype)
+
+
+@ufunc.resolver(PgQueryBuilder, Geometry, Flip)
+def select(env: PgQueryBuilder, dtype: Geometry, func_: Flip):
+    table = env.backend.get_table(env.model)
+
+    if dtype.prop.list is None:
+        column = env.backend.get_column(table, dtype.prop, select=True)
+    else:
+        column = env.backend.get_column(table, dtype.prop.list, select=True)
+
+    column = geoalchemy2.functions.ST_FlipCoordinates(column)
+    return Selected(env.add_column(column), prop=dtype.prop)

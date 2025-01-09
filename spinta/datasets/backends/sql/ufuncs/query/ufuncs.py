@@ -18,7 +18,8 @@ from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import Negative
 from spinta.core.ufuncs import Unresolved
 from spinta.core.ufuncs import ufunc
-from spinta.datasets.backends.sql.helpers import dialect_specific_desc, dialect_specific_asc
+from spinta.datasets.backends.sql.helpers import dialect_specific_desc, dialect_specific_asc, \
+    contains_geometry_flip_function, dialect_specific_geometry_flip
 from spinta.datasets.backends.sql.ufuncs.query.components import SqlQueryBuilder
 from spinta.dimensions.enum.helpers import prepare_enum_value
 from spinta.exceptions import PropertyNotFound, SourceCannotBeList
@@ -27,9 +28,10 @@ from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.types.datatype import String
 from spinta.types.datatype import UUID
+from spinta.types.geometry.components import Geometry
 from spinta.types.text.components import Text
 from spinta.types.text.helpers import determine_language_property_for_text
-from spinta.ufuncs.basequerybuilder.components import LiteralProperty, Selected
+from spinta.ufuncs.basequerybuilder.components import LiteralProperty, Selected, Flip
 from spinta.ufuncs.basequerybuilder.helpers import get_language_column, process_literal_value
 from spinta.ufuncs.basequerybuilder.ufuncs import Star
 from spinta.ufuncs.components import ForeignProperty
@@ -808,3 +810,35 @@ def select(
 ) -> Selected:
     super_ = ufunc.resolver[env, fpr, dtype]
     return super_(env, fpr, dtype)
+
+
+@ufunc.resolver(SqlQueryBuilder)
+def flip(env: SqlQueryBuilder):
+    return env.call('flip', env.this)
+
+
+@ufunc.resolver(SqlQueryBuilder, Property)
+def flip(env: SqlQueryBuilder, prop: Property):
+    return env.call('flip', prop.dtype)
+
+
+@ufunc.resolver(SqlQueryBuilder, DataType)
+def flip(env: SqlQueryBuilder, dtype: DataType):
+    if contains_geometry_flip_function(env.backend.engine):
+        return Flip(dtype)
+
+    # Returning expr means, that it will be passed to ResultBuilder to handle it
+    return Expr('flip')
+
+
+@ufunc.resolver(SqlQueryBuilder, Geometry, Flip)
+def select(env: SqlQueryBuilder, dtype: Geometry, func_: Flip):
+    table = env.backend.get_table(env.model)
+
+    if dtype.prop.list is None:
+        column = env.backend.get_column(table, dtype.prop, select=True)
+    else:
+        column = env.backend.get_column(table, dtype.prop.list, select=True)
+
+    column = dialect_specific_geometry_flip(env.backend.engine, column)
+    return Selected(env.add_column(column), prop=dtype.prop)

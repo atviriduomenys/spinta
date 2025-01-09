@@ -12,7 +12,6 @@ from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, Star, Re
 from spinta.ufuncs.basequerybuilder.helpers import get_pagination_compare_query, process_literal_value
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.schema import NA
-from spinta.utils.types import is_value_literal
 
 # This file contains reusable resolvers, that should be backend independent
 # in case there are cases where you need to have backend specific, just overload them
@@ -389,7 +388,7 @@ def select(env: BaseQueryBuilder, dtype: DataType, prep: Any) -> Selected:
         # If `prepare` expression returns another expression, then this means,
         # it must be processed on values returned by query.
         prop = dtype.prop
-        if prop.external and prop.external.name:
+        if not isinstance(env.backend, ExternalRef) or (prop.external and prop.external.name):
             sel = env.call('select', dtype)
             return Selected(item=sel.item, prop=sel.prop, prep=prep)
         else:
