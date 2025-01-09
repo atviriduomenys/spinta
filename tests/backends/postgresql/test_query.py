@@ -537,7 +537,7 @@ def test_paginate_invalid_types(rc: RawConfig):
     example                    |          |         |        |
       |   |   | Country        |          |         |        | page(fl)
       |   |   |   | name       | string   |         | open   |
-      |   |   |   | fl         | file     |         | open   | file()
+      |   |   |   | fl         | file     |         | open   |
         ''', 'example/Country', '', {
         'fl': 'test'
     }) == '''

@@ -583,6 +583,19 @@ def select(
         )
 
 
+@ufunc.resolver(SqlQueryBuilder, Geometry, Flip)
+def select(env: SqlQueryBuilder, dtype: Geometry, func_: Flip):
+    table = env.backend.get_table(env.model)
+
+    if dtype.prop.list is None:
+        column = env.backend.get_column(table, dtype.prop, select=True)
+    else:
+        column = env.backend.get_column(table, dtype.prop.list, select=True)
+
+    column = dialect_specific_geometry_flip(env.backend.engine, column)
+    return Selected(env.add_column(column), prop=dtype.prop)
+
+
 @ufunc.resolver(SqlQueryBuilder, Property)
 def join_table_on(env: SqlQueryBuilder, prop: Property) -> Any:
     if prop.external.prepare is not NA:
@@ -812,33 +825,11 @@ def select(
     return super_(env, fpr, dtype)
 
 
-@ufunc.resolver(SqlQueryBuilder)
-def flip(env: SqlQueryBuilder):
-    return env.call('flip', env.this)
-
-
-@ufunc.resolver(SqlQueryBuilder, Property)
-def flip(env: SqlQueryBuilder, prop: Property):
-    return env.call('flip', prop.dtype)
-
-
-@ufunc.resolver(SqlQueryBuilder, DataType)
-def flip(env: SqlQueryBuilder, dtype: DataType):
+@ufunc.resolver(SqlQueryBuilder, Geometry)
+def flip(env: SqlQueryBuilder, dtype: Geometry):
     if contains_geometry_flip_function(env.backend.engine):
         return Flip(dtype)
 
     # Returning expr means, that it will be passed to ResultBuilder to handle it
     return Expr('flip')
 
-
-@ufunc.resolver(SqlQueryBuilder, Geometry, Flip)
-def select(env: SqlQueryBuilder, dtype: Geometry, func_: Flip):
-    table = env.backend.get_table(env.model)
-
-    if dtype.prop.list is None:
-        column = env.backend.get_column(table, dtype.prop, select=True)
-    else:
-        column = env.backend.get_column(table, dtype.prop.list, select=True)
-
-    column = dialect_specific_geometry_flip(env.backend.engine, column)
-    return Selected(env.add_column(column), prop=dtype.prop)
