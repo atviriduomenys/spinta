@@ -1959,7 +1959,7 @@ def test_push_file(
     sqlite: Sqlite,
     request,
 ):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', '''
+    create_tabular_manifest(context, tmp_path / 'manifest_push.csv', '''
     d | r | m | property   | type   | ref | source    | prepare                                   | access
     datasets/gov/push/file |        |     |           |                                           |
       | resource           | sql    | sql |           |                                           |
@@ -1969,6 +1969,17 @@ def test_push_file(
       |   |   | flag_name  | string |     | FLAG_FILE |                                           | private
       |   |   | flag_data  | binary |     | FLAG_DATA |                                           | private
       |   |   | flag       | file   |     |           | file(name: flag_name, content: flag_data) | open
+    ''')
+
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', '''
+    d | r | m | property   | type   | ref | source | prepare | access
+    datasets/gov/push/file |        |     |        |         |
+      |   | Country        |        | id  |        |         |
+      |   |   | id         | string |     |        |         | private
+      |   |   | name       | string |     |        |         | open
+      |   |   | flag_name  | string |     |        |         | private
+      |   |   | flag_data  | binary |     |        |         | private
+      |   |   | flag       | file   |     |        |         | open
     ''')
 
     # Configure local server with SQL backend
@@ -1997,7 +2008,7 @@ def test_push_file(
     # Push data to the remote server
     cli.invoke(local_rc, [
         'push',
-        str(tmp_path / 'manifest.csv'),
+        str(tmp_path / 'manifest_push.csv'),
         '-o', remote.url,
         '--credentials', remote.credsfile,
     ])
@@ -2069,7 +2080,7 @@ def test_image_file(
     sqlite: Sqlite,
     request,
 ):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', '''
+    create_tabular_manifest(context, tmp_path / 'manifest_push.csv', '''
     d | r | m | property   | type   | ref | source    | prepare                                   | access
     datasets/gov/push/file |        |     |           |                                           |
       | resource           | sql    | sql |           |                                           |
@@ -2079,6 +2090,17 @@ def test_image_file(
       |   |   | flag_name  | string |     | FLAG_FILE |                                           | private
       |   |   | flag_data  | binary |     | FLAG_DATA |                                           | private
       |   |   | flag       | image  |     |           | file(name: flag_name, content: flag_data) | open
+    ''')
+
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', '''
+    d | r | m | property   | type   | ref | source | prepare | access
+    datasets/gov/push/file |        |     |        |         |
+      |   | Country        |        | id  |        |         |
+      |   |   | id         | string |     |        |         | private
+      |   |   | name       | string |     |        |         | open
+      |   |   | flag_name  | string |     |        |         | private
+      |   |   | flag_data  | binary |     |        |         | private
+      |   |   | flag       | image  |     |        |         | open
     ''')
 
     # Configure local server with SQL backend
@@ -2107,7 +2129,7 @@ def test_image_file(
     # Push data to the remote server
     cli.invoke(local_rc, [
         'push',
-        str(tmp_path / 'manifest.csv'),
+        str(tmp_path / 'manifest_push.csv'),
         '-o', remote.url,
         '--credentials', remote.credsfile,
     ])
