@@ -39,3 +39,22 @@ class Level(enum.IntEnum):
 
     # Data is linked with a known vocabulary.
     linked = 5
+
+
+class Status(enum.IntEnum):
+    # the data of this element is being updated. This field can be changed without any warning
+    develop = 0
+
+    # data in this element is completed. The data of this row can be changed with a warning issued
+    # before time X, where X is not less than 12 months
+    completed = 1
+
+    # data isn't being updated, but the element isn't planned for removing
+    discont = 2
+
+    # for elements which are planned for removal.
+    deprecated = 3
+
+    # withdrawn and isn't used anymore. Can be set after the field has been in the `deprecated` status for X time
+    withdrawn = 4
+

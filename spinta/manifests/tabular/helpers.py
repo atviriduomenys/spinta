@@ -50,7 +50,7 @@ from spinta.exceptions import MultipleErrors, InvalidBackRefReferenceAmount, Dat
 from spinta.exceptions import PropertyNotFound
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
-from spinta.manifests.tabular.components import ACCESS, URI, STATUS
+from spinta.manifests.tabular.components import ACCESS, URI, STATUS, VISIBILITY
 from spinta.manifests.tabular.components import BackendRow
 from spinta.manifests.tabular.components import BaseRow
 from spinta.manifests.tabular.components import CommentData
@@ -484,7 +484,8 @@ class ModelReader(TabularReader):
                 'prepare': _parse_spyna(self, row[PREPARE]),
             },
             'given_name': name,
-            'features': features
+            'features': features,
+            'status': row['status'],
         }
         if resource and not dataset:
             self.data['backend'] = resource.name
@@ -699,6 +700,7 @@ def _initial_normal_property_schema(given_name: str, dtype: dict, row: dict):
         'prepare_given': [],
         'explicitly_given': True,
         'status': row.get(STATUS),
+        'visibility': row.get(VISIBILITY),
     }
 
 

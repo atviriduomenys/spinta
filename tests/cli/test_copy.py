@@ -457,7 +457,7 @@ def test_copy_status(context: Context, rc, cli: SpintaCliRunner, tmp_path):
     datasets/gov/example     |        |         |             |         |        |
       | data                 | sql    |         |             |         |        |
                              |        |         |             |         |        |
-      |   |   | Country      |        | code    | salis       |         |        |
+      |   |   | Country      |        | code    | salis       |         |        | develop
       |   |   |   | code     | string |         | kodas       |         | public | develop
       |   |   |   | name     | string |         | pavadinimas |         | open   | completed
       |   |   |   | driving  | string |         | vairavimas  |         | open   | discont
@@ -481,7 +481,7 @@ def test_copy_status(context: Context, rc, cli: SpintaCliRunner, tmp_path):
     datasets/gov/example     |        |         |             |         |        |
       | data                 | sql    |         |             |         |        |
                              |        |         |             |         |        |
-      |   |   | Country      |        | code    | salis       |         |        |
+      |   |   | Country      |        | code    | salis       |         |        | develop
       |   |   |   | code     | string |         | kodas       |         | public | develop
       |   |   |   | name     | string |         | pavadinimas |         | open   | completed
       |   |   |   | driving  | string |         | vairavimas  |         | open   | discont
@@ -491,4 +491,47 @@ def test_copy_status(context: Context, rc, cli: SpintaCliRunner, tmp_path):
       |   |   | City         |        | name    | miestas     |         |        |
       |   |   |   | name     | string |         | pavadinimas |         | open   | deprecated
       |   |   |   | country  | ref    | Country | salis       |         | open   | withdrawn
+    '''
+
+
+def test_copy_visibility(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    d | r | b | m | property | type   | ref     | source      | prepare | access | visibility
+    datasets/gov/example     |        |         |             |         |        |
+      | data                 | sql    |         |             |         |        |
+                             |        |         |             |         |        |
+      |   |   | Country      |        | code    | salis       |         |        |
+      |   |   |   | code     | string |         | kodas       |         | public | public
+      |   |   |   | name     | string |         | pavadinimas |         | open   | package
+      |   |   |   | driving  | string |         | vairavimas  |         | open   | discont
+                             | enum   |         | l           | 'left'  | open   |
+                             |        |         | r           | 'right' | open   |
+                             |        |         |             |         |        |
+      |   |   | City         |        | name    | miestas     |         |        |
+      |   |   |   | name     | string |         | pavadinimas |         | open   | deprecated
+      |   |   |   | country  | ref    | Country | salis       |         | open   | withdrawn
+    '''))
+
+    cli.invoke(rc, [
+        'copy',
+        '-o', tmp_path / 'result.csv',
+        tmp_path / 'manifest.csv',
+    ])
+
+    manifest = load_manifest(rc, tmp_path / 'result.csv')
+    assert manifest == '''
+    d | r | b | m | property | type   | ref     | source      | prepare | access | visibility
+    datasets/gov/example     |        |         |             |         |        |
+      | data                 | sql    |         |             |         |        |
+                             |        |         |             |         |        |
+      |   |   | Country      |        | code    | salis       |         |        |
+      |   |   |   | code     | string |         | kodas       |         | public | publlic
+      |   |   |   | name     | string |         | pavadinimas |         | open   | package
+      |   |   |   | driving  | string |         | vairavimas  |         | open   | protected
+                             | enum   |         | l           | 'left'  | open   |
+                             |        |         | r           | 'right' | open   |
+                             |        |         |             |         |        |
+      |   |   | City         |        | name    | miestas     |         |        |
+      |   |   |   | name     | string |         | pavadinimas |         | open   | private
+      |   |   |   | country  | ref    | Country | salis       |         | open   |
     '''

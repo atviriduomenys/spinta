@@ -81,6 +81,7 @@ URI: Final = 'uri'
 TITLE: Final = 'title'
 DESCRIPTION: Final = 'description'
 STATUS: Final = 'status'
+VISIBILITY: Final = 'visibility'
 ManifestColumn = Literal[
     'id',
     'dataset',
@@ -97,7 +98,8 @@ ManifestColumn = Literal[
     'uri',
     'title',
     'description',
-    'status'
+    'status',
+    'visibility'
 ]
 MANIFEST_COLUMNS: List[ManifestColumn] = [
     ID,

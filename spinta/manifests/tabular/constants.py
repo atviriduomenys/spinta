@@ -17,6 +17,7 @@ DATASET = [
     'title',
     'description',
     'status',
+    'visibility',
 ]
 
 
