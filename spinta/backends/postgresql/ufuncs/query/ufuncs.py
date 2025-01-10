@@ -18,7 +18,7 @@ from spinta.core.ufuncs import Bind, Negative as Negative_
 from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import ufunc, GetAttr
 from spinta.datasets.backends.sql.ufuncs.components import Selected
-from spinta.exceptions import EmptyStringSearch, NoneValueComparison
+from spinta.exceptions import EmptyStringSearch, NoneValueComparison, NotImplementedFeature
 from spinta.exceptions import FieldNotInResource
 from spinta.types.datatype import Array
 from spinta.types.datatype import DataType, ExternalRef, Inherit, BackRef, Time, ArrayBackRef, Denorm
@@ -1264,3 +1264,8 @@ def checksum(env: PgQueryBuilder, expr: Expr):
 @ufunc.resolver(PgQueryBuilder, Geometry)
 def flip(env: PgQueryBuilder, dtype: Geometry):
     return Flip(dtype)
+
+
+@ufunc.resolver(PgQueryBuilder, Expr)
+def file(env: PgQueryBuilder, expr: Expr) -> Expr:
+    raise NotImplementedFeature(env.backend, feature="Ability to use file() function with `PostgreSql` backend")
