@@ -2374,6 +2374,7 @@ def _model_to_tabular(
         'title': model.title,
         'description': model.description,
         'uri': model.uri if model.uri else "",
+        'status': model.status
     }
     if model.external and model.external.dataset:
         data['model'] = to_relative_model_name(

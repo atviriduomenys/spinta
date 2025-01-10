@@ -196,6 +196,7 @@ class ModelRow(TypedDict, total=False):
     lang: LangData
     data: ModelExtraData
     given_name: str
+    status: str
 
 
 class ModelExternalRow(TypedDict, total=False):
@@ -240,6 +241,7 @@ class PropertyRow(TypedDict, total=False):
     given_name: str
     prepare_given: List[PrepareGiven]
     explicitly_given: bool
+    status: str
 
 
 class PropertyExternalRow(TypedDict, total=False):
