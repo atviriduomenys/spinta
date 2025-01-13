@@ -1070,3 +1070,144 @@ def test_checksum_geometry(
             'checksum()': lv_checksum
         },
     ]
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_geometry_manifest_flip_select(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property   | type                 | ref | prepare | access | level
+    datasets/geometry/flip     |                      |     |         |        |
+      |   |   | Country        |                      | id  |         |        |
+      |   |   |   | id         | integer              |     |         | open   |
+      |   |   |   | name       | string               |     |         | open   |
+      |   |   |   | poly       | geometry(polygon)    |     | flip()  | open   |
+      |   |   |   | geo_lt     | geometry(3346)       |     | flip()  | open   |
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+
+    app = create_test_client(context)
+    app.authorize(['spinta_insert', 'spinta_getall', 'spinta_wipe', 'spinta_search', 'spinta_set_meta_fields'])
+    lt_id = str(uuid.uuid4())
+
+    resp = app.post('/datasets/geometry/flip/Country', json={
+        '_id': lt_id,
+        'id': 0,
+        'name': 'Lithuania',
+        'poly': 'POLYGON ((80 50, 50 50, 50 80, 80 80, 80 50))',
+        'geo_lt': 'POINT (5980000 200000)'
+    })
+    assert resp.status_code == 201
+
+    resp = app.get('/datasets/geometry/flip/Country?select(id, name, poly, geo_lt)')
+    assert resp.status_code == 200
+    assert listdata(resp, 'id', 'name', 'poly', 'geo_lt', full=True) == [
+        {
+            'id': 0,
+            'name': 'Lithuania',
+            'poly': 'POLYGON ((50 80, 50 50, 80 50, 80 80, 50 80))',
+            'geo_lt': 'POINT (200000 5980000)'
+        },
+    ]
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_geometry_manifest_flip(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property   | type                 | ref | prepare | access | level
+    datasets/geometry/flip     |                      |     |         |        |
+      |   |   | Country        |                      | id  |         |        |
+      |   |   |   | id         | integer              |     |         | open   |
+      |   |   |   | name       | string               |     |         | open   |
+      |   |   |   | poly       | geometry(polygon)    |     | flip()  | open   |
+      |   |   |   | geo_lt     | geometry(3346)       |     | flip()  | open   |
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+
+    app = create_test_client(context)
+    app.authorize(['spinta_insert', 'spinta_getall', 'spinta_wipe', 'spinta_search', 'spinta_set_meta_fields'])
+    lt_id = str(uuid.uuid4())
+
+    resp = app.post('/datasets/geometry/flip/Country', json={
+        '_id': lt_id,
+        'id': 0,
+        'name': 'Lithuania',
+        'poly': 'POLYGON ((80 50, 50 50, 50 80, 80 80, 80 50))',
+        'geo_lt': 'POINT (5980000 200000)'
+    })
+    assert resp.status_code == 201
+
+    resp = app.get('/datasets/geometry/flip/Country')
+    assert resp.status_code == 200
+    assert listdata(resp, 'id', 'name', 'poly', 'geo_lt', full=True) == [
+        {
+            'id': 0,
+            'name': 'Lithuania',
+            'poly': 'POLYGON ((50 80, 50 50, 80 50, 80 80, 50 80))',
+            'geo_lt': 'POINT (200000 5980000)'
+        },
+    ]
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_geometry_manifest_flip_invalid_bbox(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property   | type                 | ref | prepare | access | level
+    datasets/geometry/flip     |                      |     |         |        |
+      |   |   | Country        |                      | id  |         |        |
+      |   |   |   | id         | integer              |     |         | open   |
+      |   |   |   | name       | string               |     |         | open   |
+      |   |   |   | poly       | geometry(polygon)    |     | flip()  | open   |
+      |   |   |   | geo_lt     | geometry(3346)       |     | flip()  | open   |
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+
+    app = create_test_client(context)
+    app.authorize(['spinta_insert', 'spinta_getall', 'spinta_wipe', 'spinta_search', 'spinta_set_meta_fields'])
+    lt_id = str(uuid.uuid4())
+
+    resp = app.post('/datasets/geometry/flip/Country', json={
+        '_id': lt_id,
+        'id': 0,
+        'name': 'Lithuania',
+        'poly': 'POLYGON ((80 50, 50 50, 50 80, 80 80, 80 50))',
+        'geo_lt': 'POINT (200000 5980000)'
+    })
+    assert resp.status_code == 400
+    assert get_error_codes(resp.json()) == ["CoordinatesOutOfRange"]
+

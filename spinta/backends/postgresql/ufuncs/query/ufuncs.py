@@ -108,7 +108,7 @@ def select(env, arg):
     prop = _get_property_for_select(env, arg.name)
     if expandable_not_expanded(env, prop):
         return Selected(None, prop, prep=[])
-    return env.call('select', prop.dtype)
+    return env.call('select', prop)
 
 
 @ufunc.resolver(PgQueryBuilder, ForeignProperty, DataType)

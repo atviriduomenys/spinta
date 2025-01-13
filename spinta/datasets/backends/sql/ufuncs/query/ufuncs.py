@@ -289,6 +289,34 @@ def count(env: SqlQueryBuilder):
     return sa.func.count()
 
 
+def _get_property_for_select(
+    env: SqlQueryBuilder,
+    name: str,
+    *,
+    nested: bool = False,
+) -> Property:
+    # TODO: `name` can refer to (in specified order):
+    #       - var - a defined variable
+    #       - param - a parameter if parametrization is used
+    #       - item - an item of a dict or list
+    #       - prop - a property
+    #       Currently only `prop` is resolved.
+    prop = env.model.flatprops.get(name)
+    if prop and (
+        # Check authorization only for top level properties in select list.
+        # XXX: Not sure if nested is the right property to user, probably better
+        #      option is to check if this call comes from a prepare context. But
+        #      then how prepare context should be defined? Probably resolvers
+        #      should be called with a different env class?
+        #      tag:resolving_private_properties_in_prepare_context
+        nested or
+        authorized(env.context, prop, Action.SEARCH)
+    ):
+        return prop
+    else:
+        raise PropertyNotFound(env.model, property=name)
+
+
 @ufunc.resolver(SqlQueryBuilder, Expr)
 def select(env: SqlQueryBuilder, expr: Expr):
     keys = [str(k) for k in expr.args]
@@ -335,34 +363,6 @@ def select(env: SqlQueryBuilder, item: str, *, nested: bool = False):
     # XXX: Backwards compatible resolver, `str` arguments are deprecated.
     prop = _get_property_for_select(env, item, nested=nested)
     return env.call('select', prop)
-
-
-def _get_property_for_select(
-    env: SqlQueryBuilder,
-    name: str,
-    *,
-    nested: bool = False,
-) -> Property:
-    # TODO: `name` can refer to (in specified order):
-    #       - var - a defined variable
-    #       - param - a parameter if parametrization is used
-    #       - item - an item of a dict or list
-    #       - prop - a property
-    #       Currently only `prop` is resolved.
-    prop = env.model.flatprops.get(name)
-    if prop and (
-        # Check authorization only for top level properties in select list.
-        # XXX: Not sure if nested is the right property to user, probably better
-        #      option is to check if this call comes from a prepare context. But
-        #      then how prepare context should be defined? Probably resolvers
-        #      should be called with a different env class?
-        #      tag:resolving_private_properties_in_prepare_context
-        nested or
-        authorized(env.context, prop, Action.SEARCH)
-    ):
-        return prop
-    else:
-        raise PropertyNotFound(env.model, property=name)
 
 
 @ufunc.resolver(SqlQueryBuilder, Property)

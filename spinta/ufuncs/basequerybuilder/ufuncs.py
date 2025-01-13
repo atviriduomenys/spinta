@@ -9,7 +9,7 @@ from spinta.exceptions import InvalidArgumentInExpression, CannotSelectTextAndSp
 from spinta.types.datatype import DataType, String, Ref, Object, Array, File, BackRef, PrimaryKey, ExternalRef
 from spinta.types.text.components import Text
 from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, Star, ReservedProperty, NestedProperty, \
-    ResultProperty, LiteralProperty
+    ResultProperty, LiteralProperty, Flip
 from spinta.ufuncs.basequerybuilder.helpers import get_pagination_compare_query, process_literal_value
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.schema import NA
@@ -397,6 +397,11 @@ def select(env: BaseQueryBuilder, dtype: DataType, prep: Any) -> Selected:
     else:
         result = env.call('select', prep)
         return Selected(prop=dtype.prop, prep=result)
+
+
+@ufunc.resolver(BaseQueryBuilder, Flip)
+def select(env: BaseQueryBuilder, flip_: Flip):
+    return env.call('select', flip_.dtype, flip_)
 
 
 @ufunc.resolver(BaseQueryBuilder, GetAttr)
