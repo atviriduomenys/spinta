@@ -83,6 +83,9 @@ DESCRIPTION: Final = 'description'
 STATUS: Final = 'status'
 VISIBILITY: Final = 'visibility'
 ELI: Final = 'eli'
+COUNT: Final = 'count'
+ORIGIN: Final = 'origin'
+
 ManifestColumn = Literal[
     'id',
     'dataset',
@@ -102,6 +105,8 @@ ManifestColumn = Literal[
     'status',
     'visibility',
     'eli',
+    'count',
+    'origin',
 ]
 MANIFEST_COLUMNS: List[ManifestColumn] = [
             ID,
@@ -122,6 +127,8 @@ MANIFEST_COLUMNS: List[ManifestColumn] = [
             STATUS,
             VISIBILITY,
             ELI,
+            COUNT,
+            ORIGIN
         ]
 
 ManifestRow = Dict[ManifestColumn, str]
@@ -152,6 +159,7 @@ class ResourceRow(ManifestRow):
     external: str
     lang: LangData
     given_name: str
+    count: int
 
 
 class BackendRow(TypedDict, total=False):
@@ -202,6 +210,9 @@ class ModelRow(TypedDict, total=False):
     given_name: str
     status: str
     visibility: str
+    eli: str
+    count: int
+    origin: str
 
 
 class ModelExternalRow(TypedDict, total=False):
@@ -222,6 +233,10 @@ class EnumRow(TypedDict, total=False):
     description: str
     lang: LangData
     level: str
+    status: str
+    visibility: str
+    eli: str
+    count: int
 
 
 class PropertyRow(TypedDict, total=False):
@@ -248,6 +263,9 @@ class PropertyRow(TypedDict, total=False):
     explicitly_given: bool
     status: str
     visibility: str
+    eli: str
+    count: int
+    origin: str
 
 
 class PropertyExternalRow(TypedDict, total=False):

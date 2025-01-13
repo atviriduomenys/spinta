@@ -50,7 +50,7 @@ from spinta.exceptions import MultipleErrors, InvalidBackRefReferenceAmount, Dat
 from spinta.exceptions import PropertyNotFound
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
-from spinta.manifests.tabular.components import ACCESS, URI, STATUS, VISIBILITY
+from spinta.manifests.tabular.components import ACCESS, URI, STATUS, VISIBILITY, ELI, COUNT, ORIGIN
 from spinta.manifests.tabular.components import BackendRow
 from spinta.manifests.tabular.components import BaseRow
 from spinta.manifests.tabular.components import CommentData
@@ -362,6 +362,7 @@ class ResourceReader(TabularReader):
             'title': row['title'],
             'description': row['description'],
             'given_name': self.name,
+            'count': row.get('count'),
         }
 
         dataset['resources'][self.name] = self.data
@@ -485,8 +486,11 @@ class ModelReader(TabularReader):
             },
             'given_name': name,
             'features': features,
-            'status': row['status'],
-            'visibility': row['visibility']
+            'status': row.get(STATUS),
+            'visibility': row.get(VISIBILITY),
+            'eli': row.get(ELI),
+            'count': row.get(COUNT),
+            'origin': row.get(ORIGIN),
         }
         if resource and not dataset:
             self.data['backend'] = resource.name
@@ -702,6 +706,9 @@ def _initial_normal_property_schema(given_name: str, dtype: dict, row: dict):
         'explicitly_given': True,
         'status': row.get(STATUS),
         'visibility': row.get(VISIBILITY),
+        'eli': row.get(ELI),
+        'count': row.get(COUNT),
+        'origin': row.get(ORIGIN),
     }
 
 
@@ -2069,6 +2076,11 @@ def _enums_to_tabular(
                 'title': item.title,
                 'description': item.description,
                 'level': item.level,
+                'status': item.status,
+                'visibility': item.visibility,
+                'eli': item.eli,
+                'count': item.count,
+                'origin': item.origin,
             })
             if lang := list(_lang_to_tabular(item.lang)):
                 first = True
@@ -2222,6 +2234,7 @@ def _resource_to_tabular(
         'access': resource.given.access,
         'title': resource.title,
         'description': resource.description,
+        'count': resource.count
     })
     yield from _params_to_tabular(resource.params)
     yield from _comments_to_tabular(resource.comments, access=access)
@@ -2265,7 +2278,10 @@ def _property_to_tabular(
         'title': prop.title,
         'description': prop.description,
         'status': prop.status,
-        'visibility': prop.visibility
+        'visibility': prop.visibility,
+        'eli': prop.eli,
+        'count': prop.count,
+        'origin': prop.origin,
     }
     # temp status not here yet
     if external and prop.external:
@@ -2376,7 +2392,11 @@ def _model_to_tabular(
         'title': model.title,
         'description': model.description,
         'uri': model.uri if model.uri else "",
-        'status': model.status
+        'status': model.status,
+        'visibility': model.visibility,
+        'eli': model.eli,
+        'count': model.count,
+        'origin': model.origin,
     }
     if model.external and model.external.dataset:
         data['model'] = to_relative_model_name(

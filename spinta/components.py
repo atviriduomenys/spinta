@@ -678,6 +678,9 @@ class Model(MetaData):
     features: str = None
     status: Status | None = None
     visibility: Visibility | None = None
+    eli: str | None = None
+    count: int | None = None
+    origin: str | None = None
 
     required_keymap_properties = None
 
@@ -717,6 +720,9 @@ class Model(MetaData):
                 'choices': Visibility,
                 'default': 'public',
             },
+        'eli': {'type': 'string'},
+        'count': {'type': 'integer'},
+        'origin': {'type': 'string'},
     }
 
     def __init__(self):
@@ -738,6 +744,9 @@ class Model(MetaData):
         self.uri_prop = None
         self.status = None
         self.visibility = None
+        self.eli = None
+        self.count = None
+        self.origin = None
 
     def model_type(self):
         return self.name
@@ -800,6 +809,9 @@ class Property(ExtraMetaData):
     comments: List[Comment] = None
     status: Status | None = None
     visibility: Visibility | None = None
+    eli: str = None
+    count: int = None
+    origin: str = None
 
     schema = {
         'title': {},
@@ -839,6 +851,9 @@ class Property(ExtraMetaData):
             'inherit': 'model.visibility',
             'default': 'public',
         },
+        'eli': {'type': 'string'},
+        'count': {'type': 'integer'},
+        'origin': {'type': 'string'},
     }
 
     def __init__(self):

@@ -18,7 +18,9 @@ DATASET = [
     'description',
     'status',
     'visibility',
-    'eli'
+    'eli',
+    'count',
+    'origin'
 ]
 
 

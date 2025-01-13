@@ -118,6 +118,7 @@ class Resource(External):
     comments: List[Comment] = None
     params: List[Param]
     source_params: set
+    count: int
 
     schema = {
         'type': {'type': 'string'},
@@ -153,6 +154,7 @@ class Resource(External):
         'comments': {},
         'lang': {'type': 'object'},
         'given_name': {'type': 'string', 'default': None},
+        'count': {'type': 'integer'},
     }
 
     def __init__(self):
