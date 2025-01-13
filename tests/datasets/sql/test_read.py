@@ -74,7 +74,8 @@ def test__get_row_value_null(rc: RawConfig):
 
 
 @pytest.mark.parametrize("use_default_dialect", [True, False])
-def test_getall_paginate_invalid_type(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path, geodb_null_check, mocker):
+def test_getall_paginate_invalid_type(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path,
+                                      geodb_null_check, mocker):
     if use_default_dialect:
         use_default_dialect_functions(mocker)
 
@@ -99,7 +100,8 @@ def test_getall_paginate_invalid_type(use_default_dialect: bool, context: Contex
 
 
 @pytest.mark.parametrize("use_default_dialect", [True, False])
-def test_getall_paginate_null_check_value(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path, geodb_null_check, mocker):
+def test_getall_paginate_null_check_value(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path,
+                                          geodb_null_check, mocker):
     if use_default_dialect:
         use_default_dialect_functions(mocker)
 
@@ -122,7 +124,8 @@ def test_getall_paginate_null_check_value(use_default_dialect: bool, context: Co
 
 
 @pytest.mark.parametrize("use_default_dialect", [True, False])
-def test_getall_paginate_with_nulls_page_too_small(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path, geodb_with_nulls, mocker):
+def test_getall_paginate_with_nulls_page_too_small(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path,
+                                                   geodb_with_nulls, mocker):
     if use_default_dialect:
         use_default_dialect_functions(mocker)
 
@@ -147,7 +150,8 @@ def test_getall_paginate_with_nulls_page_too_small(use_default_dialect: bool, co
 
 
 @pytest.mark.parametrize("use_default_dialect", [True, False])
-def test_getall_paginate_with_nulls(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path, geodb_with_nulls, mocker):
+def test_getall_paginate_with_nulls(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path,
+                                    geodb_with_nulls, mocker):
     if use_default_dialect:
         use_default_dialect_functions(mocker)
 
@@ -181,7 +185,8 @@ def test_getall_paginate_with_nulls(use_default_dialect: bool, context: Context,
 
 
 @pytest.mark.parametrize("use_default_dialect", [True, False])
-def test_getall_paginate_with_nulls_multi_key(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path, geodb_with_nulls, mocker):
+def test_getall_paginate_with_nulls_multi_key(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path,
+                                              geodb_with_nulls, mocker):
     if use_default_dialect:
         use_default_dialect_functions(mocker)
 
@@ -215,7 +220,8 @@ def test_getall_paginate_with_nulls_multi_key(use_default_dialect: bool, context
 
 
 @pytest.mark.parametrize("use_default_dialect", [True, False])
-def test_getall_paginate_with_nulls_all_keys(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path, geodb_with_nulls, mocker):
+def test_getall_paginate_with_nulls_all_keys(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path,
+                                             geodb_with_nulls, mocker):
     if use_default_dialect:
         use_default_dialect_functions(mocker)
 
@@ -249,7 +255,8 @@ def test_getall_paginate_with_nulls_all_keys(use_default_dialect: bool, context:
 
 
 @pytest.mark.parametrize("use_default_dialect", [True, False])
-def test_getall_paginate_with_nulls_and_sort(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path, geodb_with_nulls, mocker):
+def test_getall_paginate_with_nulls_and_sort(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path,
+                                             geodb_with_nulls, mocker):
     if use_default_dialect:
         use_default_dialect_functions(mocker)
 
@@ -283,7 +290,8 @@ def test_getall_paginate_with_nulls_and_sort(use_default_dialect: bool, context:
 
 
 @pytest.mark.parametrize("use_default_dialect", [True, False])
-def test_getall_paginate_with_nulls_unique(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path, geodb_with_nulls, mocker):
+def test_getall_paginate_with_nulls_unique(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path,
+                                           geodb_with_nulls, mocker):
     if use_default_dialect:
         use_default_dialect_functions(mocker)
 
@@ -402,7 +410,6 @@ def test_getall_distinct(context, rc, tmp_path):
 
 
 def test_get_one(context, rc, tmp_path):
-
     with create_sqlite_db({
         'cities': [
             sa.Column('name', sa.Text),
@@ -414,13 +421,13 @@ def test_get_one(context, rc, tmp_path):
             {'name': 'Kaunas', 'id': 1},
         ])
         create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
-id | d | r | b | m | property     | type    | ref | level | source  | access
-   | example                      |         |     |       |         |
-   |   | db                       | sql     |     |       |         |
-   |   |   |   | City             |         | id  |       | cities  |
-   |   |   |   |   | id           | integer |     | 4     | id      | open
-   |   |   |   |   | name         | string  |     | 4     | name    | open
-  '''))
+        id | d | r | b | m | property     | type    | ref | level | source  | access
+           | example                      |         |     |       |         |
+           |   | db                       | sql     |     |       |         |
+           |   |   |   | City             |         | id  |       | cities  |
+           |   |   |   |   | id           | integer |     | 4     | id      | open
+           |   |   |   |   | name         | string  |     | 4     | name    | open
+        '''))
         app = create_client(rc, tmp_path, db)
         response = app.get('/example/City')
         response_json = response.json()
@@ -437,7 +444,6 @@ id | d | r | b | m | property     | type    | ref | level | source  | access
 
 
 def test_get_one_compound_pk(context, rc, tmp_path):
-
     with create_sqlite_db({
         'cities': [
             sa.Column('name', sa.Text),
@@ -450,14 +456,14 @@ def test_get_one_compound_pk(context, rc, tmp_path):
             {'name': 'Kaunas', 'id': 2, "code": "city"},
         ])
         create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
-id | d | r | b | m | property     | type    | ref | level | source  | access
-   | example                      |         |     |       |         |
-   |   | db                       | sql     |     |       |         |
-   |   |   |   | City             |         | id, code  |       | cities  |
-   |   |   |   |   | id           | integer |     | 4     | id      | open
-   |   |   |   |   | name         | string  |     | 4     | name    | open
-   |   |   |   |   | code         | string  |     | 4     | code    | open
-  '''))
+        id | d | r | b | m | property     | type    | ref | level | source  | access
+           | example                      |         |     |       |         |
+           |   | db                       | sql     |     |       |         |
+           |   |   |   | City             |         | id, code  |       | cities  |
+           |   |   |   |   | id           | integer |     | 4     | id      | open
+           |   |   |   |   | name         | string  |     | 4     | name    | open
+           |   |   |   |   | code         | string  |     | 4     | code    | open
+        '''))
         app = create_client(rc, tmp_path, db)
         response = app.get('/example/City')
         response_json = response.json()
@@ -471,3 +477,83 @@ id | d | r | b | m | property     | type    | ref | level | source  | access
             "id": 2,
             "name": "Kaunas"
         }
+
+
+def test_getall_geometry_manifest_flip_select(context, rc, tmp_path):
+    with create_sqlite_db({
+        'cities': [
+            sa.Column('name', sa.Text),
+            sa.Column('id', sa.Integer),
+            sa.Column('poly', sa.Text),
+            sa.Column('geo_lt', sa.Text)
+        ]
+    }) as db:
+        db.write('cities', [
+            {
+                'name': 'Vilnius',
+                'id': 0,
+                'poly': 'POLYGON ((80 50, 50 50, 50 80, 80 80, 80 50))',
+                'geo_lt': 'POINT (5980000 200000)'
+            },
+        ])
+        create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+        id | d | r | b | m | property     | type              | ref | level | source  | access | prepare
+           | example                      |                   |     |       |         |        |
+           |   | db                       | sql               |     |       |         |        |
+           |   |   |   | City             |                   | id  |       | cities  |        |
+           |   |   |   |   | id           | integer           |     | 4     | id      | open   |
+           |   |   |   |   | name         | string            |     | 4     | name    | open   |
+           |   |   |   |   | poly         | geometry(polygon) |     | 4     | poly    | open   | flip()
+           |   |   |   |   | geo_lt       | geometry(3346)    |     | 4     | geo_lt  | open   | flip()
+        '''))
+        app = create_client(rc, tmp_path, db)
+        resp = app.get(f'/example/City?select(id, name, poly, geo_lt)')
+        assert resp.status_code == 200
+        assert listdata(resp, 'id', 'name', 'poly', 'geo_lt', full=True) == [
+            {
+                'id': 0,
+                'name': 'Vilnius',
+                'poly': 'POLYGON ((50 80, 50 50, 80 50, 80 80, 50 80))',
+                'geo_lt': 'POINT (200000 5980000)'
+            },
+        ]
+
+
+def test_getall_geometry_manifest_flip(context, rc, tmp_path):
+    with create_sqlite_db({
+        'cities': [
+            sa.Column('name', sa.Text),
+            sa.Column('id', sa.Integer),
+            sa.Column('poly', sa.Text),
+            sa.Column('geo_lt', sa.Text)
+        ]
+    }) as db:
+        db.write('cities', [
+            {
+                'name': 'Vilnius',
+                'id': 0,
+                'poly': 'POLYGON ((80 50, 50 50, 50 80, 80 80, 80 50))',
+                'geo_lt': 'POINT (5980000 200000)'
+            },
+        ])
+        create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+        id | d | r | b | m | property     | type              | ref | level | source  | access | prepare
+           | example                      |                   |     |       |         |        |
+           |   | db                       | sql               |     |       |         |        |
+           |   |   |   | City             |                   | id  |       | cities  |        |
+           |   |   |   |   | id           | integer           |     | 4     | id      | open   |
+           |   |   |   |   | name         | string            |     | 4     | name    | open   |
+           |   |   |   |   | poly         | geometry(polygon) |     | 4     | poly    | open   | flip()
+           |   |   |   |   | geo_lt       | geometry(3346)    |     | 4     | geo_lt  | open   | flip()
+        '''))
+        app = create_client(rc, tmp_path, db)
+        resp = app.get(f'/example/City')
+        assert resp.status_code == 200
+        assert listdata(resp, 'id', 'name', 'poly', 'geo_lt', full=True) == [
+            {
+                'id': 0,
+                'name': 'Vilnius',
+                'poly': 'POLYGON ((50 80, 50 50, 80 50, 80 80, 50 80))',
+                'geo_lt': 'POINT (200000 5980000)'
+            },
+        ]
