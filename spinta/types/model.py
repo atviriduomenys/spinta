@@ -278,9 +278,6 @@ def load(
     prop, data = load_node(context, prop, data, mixed=True)
     prop = cast(Property, prop)
 
-    if prop.model.name == "datasets/gov/example/Country":
-        print()
-
     parents = list(itertools.chain(
         [prop.model, prop.model.ns],
         prop.model.ns.parents(),

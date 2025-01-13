@@ -2265,6 +2265,7 @@ def _property_to_tabular(
         'title': prop.title,
         'description': prop.description,
         'status': prop.status,
+        'visibility': prop.visibility
     }
     # temp status not here yet
     if external and prop.external:
