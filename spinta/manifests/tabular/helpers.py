@@ -486,6 +486,7 @@ class ModelReader(TabularReader):
             'given_name': name,
             'features': features,
             'status': row['status'],
+            'visibility': row['visibility']
         }
         if resource and not dataset:
             self.data['backend'] = resource.name

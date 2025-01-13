@@ -503,13 +503,13 @@ def test_copy_visibility(context: Context, rc, cli: SpintaCliRunner, tmp_path):
       |   |   | Country      |        | code    | salis       |         |        |
       |   |   |   | code     | string |         | kodas       |         | public | public
       |   |   |   | name     | string |         | pavadinimas |         | open   | package
-      |   |   |   | driving  | string |         | vairavimas  |         | open   | discont
+      |   |   |   | driving  | string |         | vairavimas  |         | open   | protected
                              | enum   |         | l           | 'left'  | open   |
                              |        |         | r           | 'right' | open   |
                              |        |         |             |         |        |
       |   |   | City         |        | name    | miestas     |         |        |
-      |   |   |   | name     | string |         | pavadinimas |         | open   | deprecated
-      |   |   |   | country  | ref    | Country | salis       |         | open   | withdrawn
+      |   |   |   | name     | string |         | pavadinimas |         | open   | private
+      |   |   |   | country  | ref    | Country | salis       |         | open   |
     '''))
 
     cli.invoke(rc, [
@@ -525,7 +525,7 @@ def test_copy_visibility(context: Context, rc, cli: SpintaCliRunner, tmp_path):
       | data                 | sql    |         |             |         |        |
                              |        |         |             |         |        |
       |   |   | Country      |        | code    | salis       |         |        |
-      |   |   |   | code     | string |         | kodas       |         | public | publlic
+      |   |   |   | code     | string |         | kodas       |         | public | public
       |   |   |   | name     | string |         | pavadinimas |         | open   | package
       |   |   |   | driving  | string |         | vairavimas  |         | open   | protected
                              | enum   |         | l           | 'left'  | open   |

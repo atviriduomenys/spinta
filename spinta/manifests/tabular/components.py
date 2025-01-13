@@ -82,6 +82,7 @@ TITLE: Final = 'title'
 DESCRIPTION: Final = 'description'
 STATUS: Final = 'status'
 VISIBILITY: Final = 'visibility'
+ELI: Final = 'eli'
 ManifestColumn = Literal[
     'id',
     'dataset',
@@ -99,26 +100,29 @@ ManifestColumn = Literal[
     'title',
     'description',
     'status',
-    'visibility'
+    'visibility',
+    'eli',
 ]
 MANIFEST_COLUMNS: List[ManifestColumn] = [
-    ID,
-    DATASET,
-    RESOURCE,
-    BASE,
-    MODEL,
-    PROPERTY,
-    TYPE,
-    REF,
-    SOURCE,
-    PREPARE,
-    LEVEL,
-    ACCESS,
-    URI,
-    TITLE,
-    DESCRIPTION,
-    STATUS
-]
+            ID,
+            DATASET,
+            RESOURCE,
+            BASE,
+            MODEL,
+            PROPERTY,
+            TYPE,
+            REF,
+            SOURCE,
+            PREPARE,
+            LEVEL,
+            ACCESS,
+            URI,
+            TITLE,
+            DESCRIPTION,
+            STATUS,
+            VISIBILITY,
+            ELI,
+        ]
 
 ManifestRow = Dict[ManifestColumn, str]
 
@@ -197,6 +201,7 @@ class ModelRow(TypedDict, total=False):
     data: ModelExtraData
     given_name: str
     status: str
+    visibility: str
 
 
 class ModelExternalRow(TypedDict, total=False):
@@ -242,6 +247,7 @@ class PropertyRow(TypedDict, total=False):
     prepare_given: List[PrepareGiven]
     explicitly_given: bool
     status: str
+    visibility: str
 
 
 class PropertyExternalRow(TypedDict, total=False):

@@ -42,19 +42,35 @@ class Level(enum.IntEnum):
 
 
 class Status(enum.IntEnum):
-    # the data of this element is being updated. This field can be changed without any warning
+    # The data of this element is being updated. This field can be changed without any warning
     develop = 0
 
-    # data in this element is completed. The data of this row can be changed with a warning issued
+    # Data in this element is completed. The data of this row can be changed with a warning issued
     # before time X, where X is not less than 12 months
     completed = 1
 
-    # data isn't being updated, but the element isn't planned for removing
+    # Data isn't being updated, but the element isn't planned for removing
     discont = 2
 
-    # for elements which are planned for removal.
+    # For elements which are planned for removal.
     deprecated = 3
 
-    # withdrawn and isn't used anymore. Can be set after the field has been in the `deprecated` status for X time
+    # Withdrawn and isn't used anymore. Can be set after the field has been in the `deprecated` status for X time.
     withdrawn = 4
+
+
+class Visibility(enum.IntEnum):
+    # Visibility of the data, which means access to this metadata.
+
+    # Metadata isn't published.
+    private = 0
+
+    # Application on the level of the informational system.
+    protected = 1
+
+    # Application on the level of the country.
+    package = 2
+
+    # Application on the level of the EU.
+    public = 3
 

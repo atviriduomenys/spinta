@@ -23,7 +23,7 @@ from spinta.dimensions.lang.components import LangData
 from spinta.units.components import Unit
 from spinta.utils.encoding import encode_page_values
 from spinta.utils.schema import NA
-from spinta.core.enums import Access, Level, Status
+from spinta.core.enums import Access, Level, Status, Visibility
 
 if TYPE_CHECKING:
     from spinta.backends.components import Backend
@@ -677,6 +677,7 @@ class Model(MetaData):
     page: PageInfo = None
     features: str = None
     status: Status | None = None
+    visibility: Visibility | None = None
 
     required_keymap_properties = None
 
@@ -710,6 +711,12 @@ class Model(MetaData):
             'choices': Status,
             'default': 'develop',
         },
+        'visibility':
+            {
+                'type': 'string',
+                'choices': Visibility,
+                'default': 'public',
+            },
     }
 
     def __init__(self):
@@ -730,6 +737,7 @@ class Model(MetaData):
         self.page = PageInfo(self)
         self.uri_prop = None
         self.status = None
+        self.visibility = None
 
     def model_type(self):
         return self.name
@@ -740,7 +748,6 @@ class Model(MetaData):
         return self.basename
 
         # return self.name.split('/')[-1]
-
 
     def add_keymap_property_combination(self, given_props: List[Property]):
         extract_names = list([prop.name for prop in given_props])
@@ -792,8 +799,7 @@ class Property(ExtraMetaData):
     unit: Unit = None       # Given in ref column.
     comments: List[Comment] = None
     status: Status | None = None
-    visibility: str | None = None
-    # todo maybe add a type for status. Possible statuses are here: https://github.com/ivpk/dsa/issues/30
+    visibility: Visibility | None = None
 
     schema = {
         'title': {},
@@ -827,7 +833,12 @@ class Property(ExtraMetaData):
             'inherit': 'model.status',
             'default': 'develop',
         },
-        'visibility': {'type': 'string'},
+        'visibility': {
+            'type': 'string',
+            'choices': Visibility,
+            'inherit': 'model.visibility',
+            'default': 'public',
+        },
     }
 
     def __init__(self):
