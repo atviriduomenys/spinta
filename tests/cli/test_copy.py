@@ -576,7 +576,7 @@ def test_copy_count(context: Context, rc, cli: SpintaCliRunner, tmp_path):
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | type   | ref     | source      | prepare | access | count
     datasets/gov/example     |        |         |             |         |        |
-      | data                 | sql    |         |             |         |        |
+      | data                 | sql    |         |             |         |        | 4
                              |        |         |             |         |        |
       |   |   | Country      |        | code    | salis       |         |        | 5 
       |   |   |   | code     | string |         | kodas       |         | public | 6
@@ -596,7 +596,7 @@ def test_copy_count(context: Context, rc, cli: SpintaCliRunner, tmp_path):
     assert manifest == '''
     d | r | b | m | property | type   | ref     | source      | prepare | access | count
     datasets/gov/example     |        |         |             |         |        |
-      | data                 | sql    |         |             |         |        |
+      | data                 | sql    |         |             |         |        | 4
                              |        |         |             |         |        |
       |   |   | Country      |        | code    | salis       |         |        | 5
       |   |   |   | code     | string |         | kodas       |         | public | 6
