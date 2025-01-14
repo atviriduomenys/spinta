@@ -1409,6 +1409,11 @@ class EnumReader(TabularReader):
             'title': row[TITLE],
             'description': row[DESCRIPTION],
             'level': row[LEVEL],
+            'status': row[STATUS],
+            'visibility': row[VISIBILITY],
+            'eli': row[ELI],
+            'count': row[COUNT],
+            'origin': row[ORIGIN],
         }
 
         node_data: PropertyRow = self._get_node_data(row)

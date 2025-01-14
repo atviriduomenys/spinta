@@ -464,7 +464,7 @@ def test_copy_status(context: Context, rc, cli: SpintaCliRunner, tmp_path):
                              | enum   |         | l           | 'left'  | open   | completed
                              |        |         | r           | 'right' | open   | discont
                              |        |         |             |         |        |
-      |   |   | City         |        | name    | miestas     |         |        |
+      |   |   | City         |        | name    | miestas     |         |        | completed
       |   |   |   | name     | string |         | pavadinimas |         | open   | deprecated
       |   |   |   | country  | ref    | Country | salis       |         | open   | withdrawn
     '''))
@@ -531,9 +531,9 @@ def test_copy_visibility(context: Context, rc, cli: SpintaCliRunner, tmp_path):
                              | enum   |         | l           | 'left'  | open   | public
                              |        |         | r           | 'right' | open   | package
                              |        |         |             |         |        |
-      |   |   | City         |        | name    | miestas     |         |        | private
+      |   |   | City         |        | name    | miestas     |         |        |
       |   |   |   | name     | string |         | pavadinimas |         | open   | private
-      |   |   |   | country  | ref    | Country | salis       |         | open   |
+      |   |   |   | country  | ref    | Country | salis       |         | open   | private
     '''
 
 
@@ -547,8 +547,8 @@ def test_copy_eli(context: Context, rc, cli: SpintaCliRunner, tmp_path):
       |   |   |   | code     | string |         | kodas       |         | public | https://example.com/law/2
       |   |   |   | name     | string |         | pavadinimas |         | open   |
       |   |   |   | driving  | string |         | vairavimas  |         | open   | https://example.com/law/3
-                             | enum   |         | l           | 'left'  | open   |
-                             |        |         | r           | 'right' | open   |
+                             | enum   |         | l           | 'left'  | open   | https://example.com/law/4
+                             |        |         | r           | 'right' | open   | https://example.com/law/5
     '''))
 
     cli.invoke(rc, [
@@ -559,7 +559,7 @@ def test_copy_eli(context: Context, rc, cli: SpintaCliRunner, tmp_path):
 
     manifest = load_manifest(rc, tmp_path / 'result.csv')
     assert manifest == '''
-    d | r | b | m | property | type   | ref     | source      | prepare | access | visibility
+    d | r | b | m | property | type   | ref     | source      | prepare | access | eli
     datasets/gov/example     |        |         |             |         |        |
       | data                 | sql    |         |             |         |        |
                              |        |         |             |         |        |
@@ -567,6 +567,88 @@ def test_copy_eli(context: Context, rc, cli: SpintaCliRunner, tmp_path):
       |   |   |   | code     | string |         | kodas       |         | public | https://example.com/law/2
       |   |   |   | name     | string |         | pavadinimas |         | open   |
       |   |   |   | driving  | string |         | vairavimas  |         | open   | https://example.com/law/3
+                             | enum   |         | l           | 'left'  | open   | https://example.com/law/4
+                             |        |         | r           | 'right' | open   | https://example.com/law/5
+    '''
+
+
+def test_copy_count(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    d | r | b | m | property | type   | ref     | source      | prepare | access | count
+    datasets/gov/example     |        |         |             |         |        |
+      | data                 | sql    |         |             |         |        |
+                             |        |         |             |         |        |
+      |   |   | Country      |        | code    | salis       |         |        | 5 
+      |   |   |   | code     | string |         | kodas       |         | public | 6
+      |   |   |   | name     | string |         | pavadinimas |         | open   |
+      |   |   |   | driving  | string |         | vairavimas  |         | open   | 7
+                             | enum   |         | l           | 'left'  | open   | 8
+                             |        |         | r           | 'right' | open   | 9
+    '''))
+
+    cli.invoke(rc, [
+        'copy',
+        '-o', tmp_path / 'result.csv',
+        tmp_path / 'manifest.csv',
+    ])
+
+    manifest = load_manifest(rc, tmp_path / 'result.csv')
+    assert manifest == '''
+    d | r | b | m | property | type   | ref     | source      | prepare | access | count
+    datasets/gov/example     |        |         |             |         |        |
+      | data                 | sql    |         |             |         |        |
+                             |        |         |             |         |        |
+      |   |   | Country      |        | code    | salis       |         |        | 5
+      |   |   |   | code     | string |         | kodas       |         | public | 6
+      |   |   |   | name     | string |         | pavadinimas |         | open   |
+      |   |   |   | driving  | string |         | vairavimas  |         | open   | 7
+                             | enum   |         | l           | 'left'  | open   | 8
+                             |        |         | r           | 'right' | open   | 9
+    '''
+
+
+def test_copy_origin(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    d | r | b | m | property | type   | ref     | source      | prepare | access | origin
+    datasets/gov/example     |        |         |             |         |        |
+      | data                 | sql    |         |             |         |        |
+                             |        |         |             |         |        |
+      |   |   | Country      |        | code    | salis       |         |        |
+      |   |   |   | code     | string |         | kodas       |         | public |
+      |   |   |   | name     | string |         | pavadinimas |         | open   |
+      |   |   |   | driving  | string |         | vairavimas  |         | open   |
                              | enum   |         | l           | 'left'  | open   |
                              |        |         | r           | 'right' | open   |
+    datasets/gov/example2    |        |         |             |         |        |
+      | data                 | sql    |         |             |         |        |        
+                             |        |         |             |         |        |              
+      |   |   | Country      |        | code    | salis       |         |        | datasets/gov/example/Country
+      |   |   |   | code     | string |         | kodas       |         | public | code
+      |   |   |   | name     | string |         | pavadinimas |         | open   | name
+    '''))
+
+    cli.invoke(rc, [
+        'copy',
+        '-o', tmp_path / 'result.csv',
+        tmp_path / 'manifest.csv',
+    ])
+
+    manifest = load_manifest(rc, tmp_path / 'result.csv')
+    assert manifest == '''
+    d | r | b | m | property | type   | ref     | source      | prepare | access | origin
+    datasets/gov/example     |        |         |             |         |        |
+      | data                 | sql    |         |             |         |        |
+                             |        |         |             |         |        |
+      |   |   | Country      |        | code    | salis       |         |        |
+      |   |   |   | code     | string |         | kodas       |         | public |
+      |   |   |   | name     | string |         | pavadinimas |         | open   |
+      |   |   |   | driving  | string |         | vairavimas  |         | open   |
+                             | enum   |         | l           | 'left'  | open   |
+                             |        |         | r           | 'right' | open   |
+    datasets/gov/example2    |        |         |             |         |        |
+      | data                 | sql    |         |             |         |        |
+                             |        |         |             |         |        |
+      |   |   | Country      |        | code    | salis       |         |        | datasets/gov/example/Country
+      |   |   |   | code     | string |         | kodas       |         | public | code
+      |   |   |   | name     | string |         | pavadinimas |         | open   | name
     '''

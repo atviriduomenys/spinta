@@ -28,7 +28,7 @@ class EnumItem(ExtraMetaData):
     lang: LangData
     level: str
     status: Status | None = None
-    visible: Visibility | None = None
+    visibility: Visibility | None = None
     eli: str | None = None
     count: int | None = None
     origin: str | None = None
