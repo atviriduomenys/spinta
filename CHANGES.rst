@@ -14,11 +14,20 @@ Backwards incompatible:
 0.1.82 (unreleased)
 ===================
 
+Backwards incompatible:
+
+- `postgresql` `backend` now no longer ignores `prepare` functions. Meaning if there are properties, which has functions
+  set in `prepare` column, it can cause errors (if those functions are not supported in `postgresql` `backend`) (`#1048`_).
+
 New features:
 
 - Added support for `Object` type with `external` `Sql` `backend` (`#973`_).
 
   .. _#973: https://github.com/atviriduomenys/spinta/issues/973
+
+- Added 'flip` function, which currently only supports `Geometry` type (flips coordinate axis) (`#1048`_).
+
+  .. _#1048: https://github.com/atviriduomenys/spinta/issues/1048
 
 Improvements:
 
