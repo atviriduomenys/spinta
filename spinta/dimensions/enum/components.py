@@ -31,7 +31,6 @@ class EnumItem(ExtraMetaData):
     visibility: Visibility | None = None
     eli: str | None = None
     count: int | None = None
-    origin: str | None = None
 
     schema = {
         'name': {'type': 'string'},
@@ -59,7 +58,6 @@ class EnumItem(ExtraMetaData):
         },
         'eli': {'type': 'string'},
         'count': {'type': 'integer'},
-        'origin': {'type': 'string'},
     }
 
     def __init__(self):
