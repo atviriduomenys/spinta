@@ -15,7 +15,8 @@ New features:
 
   .. _#973: https://github.com/atviriduomenys/spinta/issues/973
 
-- Added 'flip` function, which currently only supports `Geometry` type (flips coordinate axis) (`#1048`_).
+- Added 'flip` function, which currently only supports `Geometry` type (flips coordinate axis). This features only works
+  when reading data, meaning, when writing, you still need to provide coordinates in the right order (`#1048`_).
 
   .. _#1048: https://github.com/atviriduomenys/spinta/issues/1048
 
