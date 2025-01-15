@@ -15,8 +15,9 @@ from spinta.datasets.backends.sql.ufuncs.query.components import SqlQueryBuilder
 from spinta.manifests.components import Manifest
 from spinta.testing.datasets import use_dialect_functions
 from spinta.testing.manifest import load_manifest_and_context
-from spinta.types.datatype import DataType
+from spinta.types.datatype import DataType, Integer, String, Boolean
 from spinta.types.datatype import Ref
+from spinta.types.geometry.components import Geometry
 from spinta.ufuncs.basequerybuilder.helpers import add_page_expr
 from spinta.ufuncs.helpers import merge_formulas
 from spinta.datasets.helpers import get_enum_filters
@@ -25,6 +26,9 @@ from spinta.ufuncs.loadbuilder.helpers import page_contains_unsupported_keys
 
 _SUPPORT_NULLS = ["postgresql", "oracle", "sqlite"]
 _DEFAULT_NULL_IMPL = ['mysql', 'mssql', 'other']
+
+_QUERY_FLIP_IMPL = ['postgresql']
+_DEFAULT_FLIP_IMPL = ['other', 'sqlite', 'mysql', 'mssql']
 
 
 def _qry(qry: Select, indent: int = 4) -> str:
@@ -45,12 +49,14 @@ def _qry(qry: Select, indent: int = 4) -> str:
 def _get_sql_type(dtype: DataType) -> Type[TypeEngine]:
     if isinstance(dtype, Ref):
         return _get_sql_type(dtype.refprops[0].dtype)
-    if dtype.name == 'integer':
+    if isinstance(dtype, Integer):
         return sa.Integer
-    if dtype.name == 'string':
+    if isinstance(dtype, String):
         return sa.Text
-    if dtype.name == 'boolean':
+    if isinstance(dtype, Boolean):
         return sa.Boolean
+    if isinstance(dtype, Geometry):
+        return sa.Text
     raise NotImplementedError(dtype.name)
 
 
@@ -681,4 +687,51 @@ example                  |         |                           |              | 
       AND "TRANSLATION_1"."LANG" = :LANG_1
     LEFT OUTER JOIN "TRANSLATION" AS "TRANSLATION_2" ON "CITY"."ID" = "TRANSLATION_2"."CITY_ID"
       AND "TRANSLATION_2"."LANG" = :LANG_2
+    '''
+
+
+@pytest.mark.parametrize('db_dialect', _DEFAULT_FLIP_IMPL)
+def test_flip_result_builder(db_dialect: str, rc: RawConfig, mocker):
+    use_dialect_functions(mocker, db_dialect)
+    assert _build(rc, '''
+    d | r | b | m | property | type     | ref     | source     | prepare          | access
+    example                  |          |         |            |                  |
+      | data                 | sql      |         |            |                  |
+      |   |                  |          |         |            |                  |
+      |   |   | Planet       |          |         | PLANET     |                  |
+      |   |   |   | id       | string   |         | ID         |                  | open
+      |   |   |   | code     | string   |         | CODE       |                  | open
+      |   |   |   | geo      | geometry |         | GEO        | flip()           | open
+        ''', 'example/Planet', {
+        'name': 'test',
+        '-code': 5,
+    }) == '''
+    SELECT
+      "PLANET"."CODE",
+      "PLANET"."GEO",
+      "PLANET"."ID"
+    FROM "PLANET"
+    '''
+
+
+@pytest.mark.parametrize('db_dialect', _QUERY_FLIP_IMPL)
+def test_flip_query_builder(db_dialect: str, rc: RawConfig, mocker):
+    use_dialect_functions(mocker, db_dialect)
+    assert _build(rc, '''
+    d | r | b | m | property | type     | ref     | source     | prepare          | access
+    example                  |          |         |            |                  |
+      | data                 | sql      |         |            |                  |
+      |   |                  |          |         |            |                  |
+      |   |   | Planet       |          |         | PLANET     |                  |
+      |   |   |   | id       | string   |         | ID         |                  | open
+      |   |   |   | code     | string   |         | CODE       |                  | open
+      |   |   |   | geo      | geometry |         | GEO        | flip()           | open
+        ''', 'example/Planet', {
+        'name': 'test',
+        '-code': 5,
+    }) == '''
+    SELECT
+      "PLANET"."CODE", ST_AsEWKB(ST_FlipCoordinates("PLANET"."GEO")) AS "ST_FlipCoordinates_1",
+      "PLANET"."ID"
+    FROM "PLANET"
     '''

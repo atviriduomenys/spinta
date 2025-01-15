@@ -3,16 +3,16 @@ from typing import List, Any, Tuple, Dict
 from spinta.components import Page, Property
 from spinta.core.ufuncs import ufunc, Expr, Negative, Bind, GetAttr
 from spinta.datasets.backends.sql.ufuncs.components import Selected
+from spinta.datasets.components import ExternalBackend
 from spinta.exceptions import InvalidArgumentInExpression, CannotSelectTextAndSpecifiedLang, \
     LangNotDeclared, FieldNotInResource
 from spinta.types.datatype import DataType, String, Ref, Object, Array, File, BackRef, PrimaryKey, ExternalRef
 from spinta.types.text.components import Text
 from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, Star, ReservedProperty, NestedProperty, \
-    ResultProperty, LiteralProperty
+    ResultProperty, LiteralProperty, Flip
 from spinta.ufuncs.basequerybuilder.helpers import get_pagination_compare_query, process_literal_value
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.schema import NA
-from spinta.utils.types import is_value_literal
 
 # This file contains reusable resolvers, that should be backend independent
 # in case there are cases where you need to have backend specific, just overload them
@@ -389,7 +389,7 @@ def select(env: BaseQueryBuilder, dtype: DataType, prep: Any) -> Selected:
         # If `prepare` expression returns another expression, then this means,
         # it must be processed on values returned by query.
         prop = dtype.prop
-        if prop.external and prop.external.name:
+        if not isinstance(env.backend, ExternalBackend) or (prop.external and prop.external.name):
             sel = env.call('select', dtype)
             return Selected(item=sel.item, prop=sel.prop, prep=prep)
         else:
@@ -397,6 +397,11 @@ def select(env: BaseQueryBuilder, dtype: DataType, prep: Any) -> Selected:
     else:
         result = env.call('select', prep)
         return Selected(prop=dtype.prop, prep=result)
+
+
+@ufunc.resolver(BaseQueryBuilder, Flip)
+def select(env: BaseQueryBuilder, flip_: Flip):
+    return env.call('select', flip_.dtype, flip_)
 
 
 @ufunc.resolver(BaseQueryBuilder, GetAttr)
@@ -492,3 +497,18 @@ def testlist(env: BaseQueryBuilder, expr: Expr) -> tuple:
     for arg in args:
         result.append(process_literal_value(arg))
     return tuple(result)
+
+
+@ufunc.resolver(BaseQueryBuilder)
+def flip(env: BaseQueryBuilder):
+    return env.call('flip', env.this)
+
+
+@ufunc.resolver(BaseQueryBuilder, Property)
+def flip(env: BaseQueryBuilder, prop: Property):
+    return env.call('flip', prop.dtype)
+
+
+@ufunc.resolver(BaseQueryBuilder, DataType)
+def flip(env: BaseQueryBuilder, dtype: DataType):
+    return Expr('flip')
