@@ -18,7 +18,8 @@ from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import Negative
 from spinta.core.ufuncs import Unresolved
 from spinta.core.ufuncs import ufunc
-from spinta.datasets.backends.sql.helpers import dialect_specific_desc, dialect_specific_asc
+from spinta.datasets.backends.sql.helpers import dialect_specific_desc, dialect_specific_asc, \
+    contains_geometry_flip_function, dialect_specific_geometry_flip
 from spinta.datasets.backends.sql.ufuncs.query.components import SqlQueryBuilder
 from spinta.dimensions.enum.helpers import prepare_enum_value
 from spinta.exceptions import PropertyNotFound, SourceCannotBeList
@@ -27,9 +28,10 @@ from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.types.datatype import String
 from spinta.types.datatype import UUID
+from spinta.types.geometry.components import Geometry
 from spinta.types.text.components import Text
 from spinta.types.text.helpers import determine_language_property_for_text
-from spinta.ufuncs.basequerybuilder.components import LiteralProperty, Selected
+from spinta.ufuncs.basequerybuilder.components import LiteralProperty, Selected, Flip
 from spinta.ufuncs.basequerybuilder.helpers import get_language_column, process_literal_value
 from spinta.ufuncs.basequerybuilder.ufuncs import Star
 from spinta.ufuncs.components import ForeignProperty
@@ -287,6 +289,34 @@ def count(env: SqlQueryBuilder):
     return sa.func.count()
 
 
+def _get_property_for_select(
+    env: SqlQueryBuilder,
+    name: str,
+    *,
+    nested: bool = False,
+) -> Property:
+    # TODO: `name` can refer to (in specified order):
+    #       - var - a defined variable
+    #       - param - a parameter if parametrization is used
+    #       - item - an item of a dict or list
+    #       - prop - a property
+    #       Currently only `prop` is resolved.
+    prop = env.model.flatprops.get(name)
+    if prop and (
+        # Check authorization only for top level properties in select list.
+        # XXX: Not sure if nested is the right property to user, probably better
+        #      option is to check if this call comes from a prepare context. But
+        #      then how prepare context should be defined? Probably resolvers
+        #      should be called with a different env class?
+        #      tag:resolving_private_properties_in_prepare_context
+        nested or
+        authorized(env.context, prop, Action.SEARCH)
+    ):
+        return prop
+    else:
+        raise PropertyNotFound(env.model, property=name)
+
+
 @ufunc.resolver(SqlQueryBuilder, Expr)
 def select(env: SqlQueryBuilder, expr: Expr):
     keys = [str(k) for k in expr.args]
@@ -333,34 +363,6 @@ def select(env: SqlQueryBuilder, item: str, *, nested: bool = False):
     # XXX: Backwards compatible resolver, `str` arguments are deprecated.
     prop = _get_property_for_select(env, item, nested=nested)
     return env.call('select', prop)
-
-
-def _get_property_for_select(
-    env: SqlQueryBuilder,
-    name: str,
-    *,
-    nested: bool = False,
-) -> Property:
-    # TODO: `name` can refer to (in specified order):
-    #       - var - a defined variable
-    #       - param - a parameter if parametrization is used
-    #       - item - an item of a dict or list
-    #       - prop - a property
-    #       Currently only `prop` is resolved.
-    prop = env.model.flatprops.get(name)
-    if prop and (
-        # Check authorization only for top level properties in select list.
-        # XXX: Not sure if nested is the right property to user, probably better
-        #      option is to check if this call comes from a prepare context. But
-        #      then how prepare context should be defined? Probably resolvers
-        #      should be called with a different env class?
-        #      tag:resolving_private_properties_in_prepare_context
-        nested or
-        authorized(env.context, prop, Action.SEARCH)
-    ):
-        return prop
-    else:
-        raise PropertyNotFound(env.model, property=name)
 
 
 @ufunc.resolver(SqlQueryBuilder, Property)
@@ -579,6 +581,19 @@ def select(
             item=env.add_column(column),
             prop=right,
         )
+
+
+@ufunc.resolver(SqlQueryBuilder, Geometry, Flip)
+def select(env: SqlQueryBuilder, dtype: Geometry, func_: Flip):
+    table = env.backend.get_table(env.model)
+
+    if dtype.prop.list is None:
+        column = env.backend.get_column(table, dtype.prop, select=True)
+    else:
+        column = env.backend.get_column(table, dtype.prop.list, select=True)
+
+    column = dialect_specific_geometry_flip(env.backend.engine, column)
+    return Selected(env.add_column(column), prop=dtype.prop)
 
 
 @ufunc.resolver(SqlQueryBuilder, Property)
@@ -808,3 +823,13 @@ def select(
 ) -> Selected:
     super_ = ufunc.resolver[env, fpr, dtype]
     return super_(env, fpr, dtype)
+
+
+@ufunc.resolver(SqlQueryBuilder, Geometry)
+def flip(env: SqlQueryBuilder, dtype: Geometry):
+    if contains_geometry_flip_function(env.backend.engine):
+        return Flip(dtype)
+
+    # Returning expr means, that it will be passed to ResultBuilder to handle it
+    return Expr('flip')
+

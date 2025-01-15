@@ -325,7 +325,7 @@ def test_internal_store_properties_rows(
                          |   |   |      | new_bool     | boolean  |      |
                          |   |   |      | new_bin      | binary   |      |
                          |   |   |      | new_geo      | geometry |      |
-                         |   |   |      | new_file     | file     |      | file()
+                         |   |   |      | new_file     | file     |      | 
                          |   |   |      | new_ref      | ref      | Test |
                          |   |   |      | new_url      | url      |      |
                          |   |   |      | new_uri      | uri      |      |
@@ -354,7 +354,7 @@ def test_internal_store_properties_rows(
         [10, 10, 3, 2, 'datasets/gov/example/New/new_bool', 'datasets/gov/example/New/new_bool', 'property', 'new_bool', 'boolean', None, None, None, None, None, None, None, None],
         [11, 11, 3, 2, 'datasets/gov/example/New/new_bin', 'datasets/gov/example/New/new_bin', 'property', 'new_bin', 'binary', None, None, None, None, None, None, None, None],
         [12, 12, 3, 2, 'datasets/gov/example/New/new_geo', 'datasets/gov/example/New/new_geo', 'property', 'new_geo', 'geometry', None, None, None, None, None, None, None, None],
-        [13, 13, 3, 2, 'datasets/gov/example/New/new_file', 'datasets/gov/example/New/new_file', 'property', 'new_file', 'file', None, None, {"name": "file", "args": []}, None, None, None, None, None],
+        [13, 13, 3, 2, 'datasets/gov/example/New/new_file', 'datasets/gov/example/New/new_file', 'property', 'new_file', 'file', None, None, None, None, None, None, None, None],
         [14, 14, 3, 2, 'datasets/gov/example/New/new_ref', 'datasets/gov/example/New/new_ref', 'property', 'new_ref', 'ref', 'datasets/gov/example/Test', None, None, None, None, None, None, None],
         [15, 15, 3, 2, 'datasets/gov/example/New/new_url', 'datasets/gov/example/New/new_url', 'property', 'new_url', 'url', None, None, None, None, None, None, None, None],
         [16, 16, 3, 2, 'datasets/gov/example/New/new_uri', 'datasets/gov/example/New/new_uri', 'property', 'new_uri', 'uri unique', None, None, None, None, None, None, None, None]

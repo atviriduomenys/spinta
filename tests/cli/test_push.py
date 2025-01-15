@@ -9,7 +9,7 @@ import sqlalchemy_utils as su
 from requests.exceptions import ReadTimeout, ConnectTimeout
 
 from spinta.core.config import RawConfig
-from spinta.exceptions import UnauthorizedKeymapSync
+from spinta.exceptions import UnauthorizedKeymapSync, CoordinatesOutOfRange
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.client import create_client, create_rc, configure_remote_server
@@ -3026,3 +3026,197 @@ def test_push_connect_and_read_timeout(
     assert any(
         "Read timeout occurred. Consider using a smaller --chunk-size to avoid timeouts. Current timeout settings are (connect: 0.1s, read: 0.1s)." in message
         for message in caplog.messages)
+
+
+def test_push_with_geometry_flip_both(
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    request,
+    sqlite
+):
+    sqlite.init({
+        'TEST': [
+            sa.Column('ID', sa.Integer, primary_key=True),
+            sa.Column('GEO', sa.Text),
+        ],
+    })
+
+    sqlite.write('TEST', [
+        {'ID': 0, 'GEO': 'POINT(200000 5980000)'},
+        {'ID': 1, 'GEO': 'POINT(210000 5985000)'},
+        {'ID': 2, 'GEO': 'POINT(220000 5990000)'},
+    ])
+
+    table = '''
+        d | r | b | m | property | type                  | ref | source | level | access | prepare
+        datasets/push/geo/flip   |                       |     |        |       |        |
+          | db                   | sql                   |     |        |       |        |
+          |   |   | Test         |                       | id  | TEST   | 4     |        |
+          |   |   |   | id       | integer               |     | ID     | 4     | open   |    
+          |   |   |   | geo      | geometry(point, 3346) |     | GEO    | 2     | open   | flip()
+        '''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(table))
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, sqlite)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    remote.app.authorize(['spinta_set_meta_fields', 'spinta_patch', 'spinta_update', 'spinta_insert', 'spinta_getall', 'spinta_search', 'spinta_wipe'])
+
+    result = cli.invoke(localrc, [
+        'push',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+    ])
+    assert result.exit_code == 0
+
+    result = remote.app.get('datasets/push/geo/flip/Test')
+    assert result.status_code == 200
+    assert listdata(result, 'id', 'geo', sort=True) == [
+        (0, 'POINT (200000 5980000)'),
+        (1, 'POINT (210000 5985000)'),
+        (2, 'POINT (220000 5990000)')
+    ]
+    remote.app.delete('https://example.com/datasets/push/geo/flip/Test/:wipe')
+
+
+def test_push_with_geometry_flip_source(
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    request,
+    sqlite
+):
+    sqlite.init({
+        'TEST': [
+            sa.Column('ID', sa.Integer, primary_key=True),
+            sa.Column('GEO', sa.Text),
+        ],
+    })
+
+    sqlite.write('TEST', [
+        {'ID': 0, 'GEO': 'POINT(200000 5980000)'},
+        {'ID': 1, 'GEO': 'POINT(210000 5985000)'},
+        {'ID': 2, 'GEO': 'POINT(220000 5990000)'},
+    ])
+
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', '''
+        d | r | b | m | property | type                  | ref | source | level | access | prepare
+        datasets/push/geo/flip   |                       |     |        |       |        |
+          |   |   | Test         |                       | id  |        | 4     |        |
+          |   |   |   | id       | integer               |     |        | 4     | open   |    
+          |   |   |   | geo      | geometry(point, 3346) |     |        | 2     | open   |
+        ''')
+
+    create_tabular_manifest(context, tmp_path / 'manifest_push.csv', '''
+        d | r | b | m | property | type                  | ref | source | level | access | prepare
+        datasets/push/geo/flip   |                       |     |        |       |        |
+          | db                   | sql                   | sql |        |       |        |
+          |   |   | Test         |                       | id  | TEST   | 4     |        |
+          |   |   |   | id       | integer               |     | ID     | 4     | open   |    
+          |   |   |   | geo      | geometry(point, 3346) |     | GEO    | 2     | open   | flip()
+        ''')
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, sqlite)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    remote.app.authorize(['spinta_set_meta_fields', 'spinta_patch', 'spinta_update', 'spinta_insert', 'spinta_getall', 'spinta_search', 'spinta_wipe'])
+
+    result = cli.invoke(localrc, [
+        'push',
+        tmp_path / 'manifest_push.csv',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+    ])
+    assert result.exit_code == 0
+
+    result = remote.app.get('datasets/push/geo/flip/Test')
+    assert result.status_code == 200
+    assert listdata(result, 'id', 'geo', sort=True) == [
+        (0, 'POINT (5980000 200000)'),
+        (1, 'POINT (5985000 210000)'),
+        (2, 'POINT (5990000 220000)')
+    ]
+    remote.app.delete('https://example.com/datasets/push/geo/flip/Test/:wipe')
+
+
+def test_push_with_geometry_flip_invalid_bounding_box(
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    request,
+    sqlite
+):
+    sqlite.init({
+        'TEST': [
+            sa.Column('ID', sa.Integer, primary_key=True),
+            sa.Column('GEO', sa.Text),
+        ],
+    })
+
+    sqlite.write('TEST', [
+        {'ID': 0, 'GEO': 'POINT(5980000 200000)'},
+        {'ID': 1, 'GEO': 'POINT(5985000 210000)'},
+        {'ID': 2, 'GEO': 'POINT(5990000 220000)'},
+    ])
+
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', '''
+        d | r | b | m | property | type                  | ref | source | level | access | prepare
+        datasets/push/geo/flip   |                       |     |        |       |        |
+          |   |   | Test         |                       | id  |        | 4     |        |
+          |   |   |   | id       | integer               |     |        | 4     | open   |    
+          |   |   |   | geo      | geometry(point, 3346) |     |        | 2     | open   |
+        ''')
+
+    create_tabular_manifest(context, tmp_path / 'manifest_push.csv', '''
+        d | r | b | m | property | type                  | ref | source | level | access | prepare
+        datasets/push/geo/flip   |                       |     |        |       |        |
+          | db                   | sql                   | sql |        |       |        |
+          |   |   | Test         |                       | id  | TEST   | 4     |        |
+          |   |   |   | id       | integer               |     | ID     | 4     | open   |    
+          |   |   |   | geo      | geometry(point, 3346) |     | GEO    | 2     | open   | flip()
+        ''')
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, sqlite)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    remote.app.authorize(['spinta_set_meta_fields', 'spinta_patch', 'spinta_update', 'spinta_insert', 'spinta_getall', 'spinta_search', 'spinta_wipe'])
+
+    result = cli.invoke(localrc, [
+        'push',
+        tmp_path / 'manifest_push.csv',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+    ], fail=False)
+    assert result.exit_code == 1
+
+    result = remote.app.get('datasets/push/geo/flip/Test')
+    assert result.status_code == 200
+    assert listdata(result, 'id', 'geo', sort=True) == []
+    remote.app.delete('https://example.com/datasets/push/geo/flip/Test/:wipe')

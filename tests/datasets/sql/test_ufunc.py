@@ -70,7 +70,7 @@ def test_point(rc: RawConfig):
     env = SqlQueryBuilder(context)
     env.update(model=model)
 
-    backend = PostgreSQL()
+    backend = Sql()
     backend.schema = sa.MetaData()
     backend.tables = {}
 
