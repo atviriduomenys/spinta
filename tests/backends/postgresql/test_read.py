@@ -1211,3 +1211,54 @@ def test_geometry_manifest_flip_invalid_bbox(
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["CoordinatesOutOfRange"]
 
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_geometry_point(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property   | type     | ref | prepare                 | access | level
+    datasets/geometry/point    |          |     |                         |        |
+      |   |   | Country        |          | id  |                         |        |
+      |   |   |   | id         | integer  |     |                         | open   |
+      |   |   |   | name       | string   |     |                         | open   |
+      |   |   |   | coord_x    | number   |     |                         | open   |
+      |   |   |   | coord_y    | number   |     |                         | open   |
+      |   |   |   | geo        | geometry |     | point(coord_x, coord_y) | open   |
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+
+    app = create_test_client(context)
+    app.authorize(['spinta_insert', 'spinta_getall', 'spinta_wipe', 'spinta_search', 'spinta_set_meta_fields'])
+    lt_id = str(uuid.uuid4())
+
+    resp = app.post('/datasets/geometry/point/Country', json={
+        '_id': lt_id,
+        'id': 0,
+        'name': 'Lithuania',
+        'coord_x': 10.5,
+        'coord_y': 20.95
+    })
+    assert resp.status_code == 201
+
+    resp = app.get('/datasets/geometry/point/Country')
+    assert resp.status_code == 200
+    assert listdata(resp, 'id', 'name', 'coord_x', 'coord_y', 'geo', full=True) == [
+        {
+            'id': 0,
+            'name': 'Lithuania',
+            'coord_x': 10.5,
+            'coord_y': 20.95,
+            'geo': 'POINT (10.5 20.95)'
+        },
+    ]
