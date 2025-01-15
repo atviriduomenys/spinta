@@ -567,3 +567,21 @@ def test_paginate_invalid_types(rc: RawConfig):
            "example/Country"._revision
     FROM "example/Country"
     '''
+
+
+def test_flip(rc: RawConfig):
+    assert _build(rc, '''
+        d | r | b | m | property | type     | ref     | access | prepare
+        example                  |          |         |        |
+          |   |   | Planet       |          |         |        | 
+          |   |   |   | id       | string   |         | open   |
+          |   |   |   | code     | string   |         | open   |
+          |   |   |   | geo      | geometry |         | open   | flip()
+        ''', 'example/Planet', '', ) == '''
+    SELECT "example/Planet".id,
+           "example/Planet".code,
+           ST_AsEWKB(ST_FlipCoordinates("example/Planet".geo)) AS "ST_FlipCoordinates_1",
+           "example/Planet"._id,
+           "example/Planet"._revision
+    FROM "example/Planet"
+    '''
