@@ -30,6 +30,10 @@ New features:
 
   .. _#1048: https://github.com/atviriduomenys/spinta/issues/1048
 
+- Added `point` function support to `postgresql` `backend` (`#1053`_).
+
+  .. _#1053: https://github.com/atviriduomenys/spinta/issues/1053
+
 Improvements:
 
 - Client data and `keymap` is now cached. This will reduce amount of file reads with each request (`#948`_).
