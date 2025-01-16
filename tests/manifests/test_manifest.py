@@ -1112,6 +1112,38 @@ def test_text_prop_as_reference(manifest_type, tmp_path, rc):
     ''', manifest_type)
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_prop_multi_nested_text(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
+        d | r | b | m | property               | type    | ref       | access | title
+        example                                |         |           |        |
+                                               |         |           |        |
+          |   |   | Country                    |         | id        |        |
+          |   |   |   | id                     | integer |           | open   |
+          |   |   |   | name                   | string  |           | open   |
+                                               |         |           |        |
+          |   |   | City                       |         | id        |        |
+          |   |   |   | id                     | integer |           | open   |
+          |   |   |   | country                | ref     | Country   | open   |
+          |   |   |   | country.code           | string  |           | open   |
+          |   |   |   | country.name@lt        | string  |           | open   |
+          |   |   |   | country.name@en        | string  |           | open   |
+    ''', manifest_type)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_prop_text(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
+        d | r | b | m | property               | type    | ref       | access | title
+        example                                |         |           |        |
+                                               |         |           |        |
+          |   |   | City                       |         | id        |        |
+          |   |   |   | id                     | integer |           | open   |
+          |   |   |   | name@lt                | string  |           | open   |
+          |   |   |   | name@en                | string  |           | open   |
+
+    ''', manifest_type)
+
 
 @pytest.mark.manifests('internal_sql', 'csv')
 def test_prop_multi_nested_text(manifest_type, tmp_path, rc):
