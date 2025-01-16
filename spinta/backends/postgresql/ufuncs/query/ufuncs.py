@@ -1269,3 +1269,12 @@ def flip(env: PgQueryBuilder, dtype: Geometry):
 @ufunc.resolver(PgQueryBuilder, Expr)
 def file(env: PgQueryBuilder, expr: Expr) -> Expr:
     raise NotImplementedFeature(env.backend, feature="Ability to use file() function with `PostgreSql` backend")
+
+
+@ufunc.resolver(PgQueryBuilder, Bind, Bind)
+def point(env: PgQueryBuilder, x: Bind, y: Bind) -> Expr:
+    return Expr(
+        'point',
+        env.call('select', x),
+        env.call('select', y),
+    )

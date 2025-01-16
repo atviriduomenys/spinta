@@ -12,7 +12,6 @@ from spinta.exceptions import UnableToCast
 from spinta.types.datatype import Integer, String
 from spinta.types.file.components import FileData
 from spinta.types.geometry.components import Geometry
-from spinta.ufuncs.basequerybuilder.components import Selected
 
 
 @overload
@@ -75,14 +74,6 @@ def file(env: SqlResultBuilder, expr: Expr) -> FileData:
 def swap(env: SqlResultBuilder, expr: Expr):
     args, kwargs = expr.resolve(env)
     return env.call('swap', *args, *kwargs)
-
-
-@overload
-@ufunc.resolver(SqlResultBuilder, Selected, Selected)
-def point(env: SqlResultBuilder, x: Selected, y: Selected) -> Expr:
-    x = env.data[x.item]
-    y = env.data[y.item]
-    return f'POINT ({x} {y})'
 
 
 @ufunc.resolver(SqlResultBuilder)
