@@ -7,6 +7,7 @@ from spinta.core.ufuncs import Expr, ufunc, Bind, Unresolved, GetAttr
 from spinta.datasets.backends.dataframe.ufuncs.query.components import DaskDataFrameQueryBuilder, DaskSelected as Selected
 from spinta.exceptions import PropertyNotFound, NotImplementedFeature, SourceCannotBeList
 from spinta.types.datatype import DataType, PrimaryKey, Ref, Binary
+from spinta.types.text.components import Text
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.data import take
 from spinta.utils.schema import NA
@@ -161,6 +162,9 @@ def select(env: DaskDataFrameQueryBuilder, prop: Property) -> Selected:
         elif prop.is_reserved():
             # Reserved properties never have external source.
             result = env.call('select', prop.dtype)
+        elif not prop.dtype.requires_source:
+            # Some property types do not require source (object, text, etc)
+            result = env.call('select', prop.dtype)
         else:
             # If `source` is not given, return None.
             result = Selected(prop=prop, prep=None)
@@ -175,6 +179,14 @@ def select(env: DaskDataFrameQueryBuilder, dtype: DataType) -> Selected:
         item=dtype.prop.external.name,
         prop=dtype.prop,
     )
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Text)
+def select(env: DaskDataFrameQueryBuilder, dtype: Text) -> Selected:
+    prep = {}
+    for lang, prop in dtype.langs.items():
+        prep[lang] = env.call('select', prop)
+    return Selected(prop=dtype.prop, prep=prep)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, DataType, object)
