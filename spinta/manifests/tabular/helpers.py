@@ -831,38 +831,18 @@ def _string_datatype_handler(reader: PropertyReader, row: dict):
             'name': row['source'],
         }
 
-    lang = None
-    if '@' in given_name:
+    if '@' in given_name and existing_data:
+        if existing_data['type'] not in ALLOWED_NESTING_TYPES:
+            reader.error(
+                "Language can only be added to Text type properties."
+            )
+
         lang = given_name.split('@', 1)[-1]
-    should_return = True
-    if existing_data:
         if existing_data['type'] == DataTypeEnum.TEXT.value:
-            should_return = False
             if lang and lang in existing_data['langs']:
                 reader.error(
                     f"Language {lang} has already been set for the {existing_data['given_name']} property."
                 )
-            # elif not lang:
-            #     existing_data['langs']['C'] = new_data
-            # else:
-            #     existing_data['langs'][lang] = new_data
-        else:
-            if existing_data['type'] not in ALLOWED_NESTING_TYPES:
-                reader.error(
-                    "Language can only be added to Text type properties."
-                )
-    # elif lang and not existing_data:
-    #     copy = new_data.copy()
-    #     new_data = _initial_text_property_schema(given_name, dtype, {
-    #         'property': row['property'],
-    #         'access': row['access']
-    #     })
-    #     new_data['type'] = DataTypeEnum.TEXT.value
-    #     new_data['explicitly_given'] = False
-    #     new_data['langs'] = {
-    #         lang: copy
-    #     }
-    # if should_return:
     return new_data
 
 
@@ -1090,23 +1070,24 @@ def _get_parent_data_partial(reader: PropertyReader, given_row: dict, full_name:
     name = _clean_up_prop_name(full_name.split('.')[-1])
     if not current_parent:
         current_parent.update(_empty_property(_partial_datatype_handler(reader, empty_partial_row)))
-    else:
-        if current_parent['type'] in ALLOWED_ARRAY_TYPES:
-            if current_parent['items'] and current_parent['items']['type'] not in ALLOWED_PARTIAL_TYPES:
-                raise NestedDataTypeMismatch(initial=current_parent['type'], required=DataTypeEnum._PARTIAL.value)
-            elif not current_parent['items']:
-                current_parent['items'].update(_empty_property(_partial_datatype_handler(reader, empty_partial_row)))
-            current_parent = current_parent['items']
-        elif current_parent['type'] in ALLOWED_PARTIAL_TYPES:
-            if (
-                name in current_parent['properties']
-                and current_parent['properties'][name]['type'] not in ALLOWED_PARTIAL_TYPES
-            ):
-                raise NestedDataTypeMismatch(initial=current_parent['type'], required=DataTypeEnum._PARTIAL.value)
-            elif name not in current_parent['properties']:
-                current_parent['properties'][name] = _empty_property(
-                    _partial_datatype_handler(reader, empty_partial_row))
-            current_parent = current_parent['properties'][name]
+        return current_parent
+
+    if current_parent['type'] in ALLOWED_ARRAY_TYPES:
+        if current_parent['items'] and current_parent['items']['type'] not in ALLOWED_PARTIAL_TYPES:
+            raise NestedDataTypeMismatch(initial=current_parent['type'], required=DataTypeEnum._PARTIAL.value)
+        elif not current_parent['items']:
+            current_parent['items'].update(_empty_property(_partial_datatype_handler(reader, empty_partial_row)))
+        current_parent = current_parent['items']
+    elif current_parent['type'] in ALLOWED_PARTIAL_TYPES:
+        if (
+            name in current_parent['properties']
+            and current_parent['properties'][name]['type'] not in ALLOWED_PARTIAL_TYPES
+        ):
+            raise NestedDataTypeMismatch(initial=current_parent['type'], required=DataTypeEnum._PARTIAL.value)
+        elif name not in current_parent['properties']:
+            current_parent['properties'][name] = _empty_property(
+                _partial_datatype_handler(reader, empty_partial_row))
+        current_parent = current_parent['properties'][name]
     return current_parent
 
 
@@ -1119,21 +1100,21 @@ def _get_parent_data_text(reader: PropertyReader, given_row: dict, full_name: st
     name = _clean_up_prop_name(full_name.split('.')[-1])
     if not current_parent:
         current_parent.update(_empty_property(_text_datatype_handler(reader, empty_text_row)))
-    else:
-        if current_parent['type'] in ALLOWED_ARRAY_TYPES:
-            if current_parent['items'] and current_parent['items']['type'] != DataTypeEnum.TEXT.value:
-                raise NestedDataTypeMismatch(initial=current_parent['type'], required=DataTypeEnum.TEXT.value)
-            elif not current_parent['items']:
-                current_parent['items'].update(_empty_property(_text_datatype_handler(reader, empty_text_row)))
-            current_parent = current_parent['items']
-        elif current_parent['type'] in ALLOWED_PARTIAL_TYPES:
-            if name in current_parent['properties'] and current_parent['properties'][name][
-                'type'] != DataTypeEnum.TEXT.value:
-                raise NestedDataTypeMismatch(initial=current_parent['type'], required=DataTypeEnum.TEXT.value)
-            elif name not in current_parent['properties']:
-                current_parent['properties'][name] = _empty_property(
-                    _text_datatype_handler(reader, empty_text_row))
-            current_parent = current_parent['properties'][name]
+        return current_parent
+
+    if current_parent['type'] in ALLOWED_ARRAY_TYPES:
+        if current_parent['items'] and current_parent['items']['type'] != DataTypeEnum.TEXT.value:
+            raise NestedDataTypeMismatch(initial=current_parent['type'], required=DataTypeEnum.TEXT.value)
+        elif not current_parent['items']:
+            current_parent['items'].update(_empty_property(_text_datatype_handler(reader, empty_text_row)))
+        current_parent = current_parent['items']
+    elif current_parent['type'] in ALLOWED_PARTIAL_TYPES:
+        if name in current_parent['properties'] and current_parent['properties'][name]['type'] != DataTypeEnum.TEXT.value:
+            raise NestedDataTypeMismatch(initial=current_parent['type'], required=DataTypeEnum.TEXT.value)
+        elif name not in current_parent['properties']:
+            current_parent['properties'][name] = _empty_property(
+                _text_datatype_handler(reader, empty_text_row))
+        current_parent = current_parent['properties'][name]
     return current_parent
 
 
