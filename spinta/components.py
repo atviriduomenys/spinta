@@ -712,13 +712,13 @@ class Model(MetaData):
         'status': {
             'type': 'string',
             'choices': Status,
-            'default': 'develop',
+            'default': "develop"
         },
         'visibility':
             {
                 'type': 'string',
                 'choices': Visibility,
-                'default': 'public',
+                'default': 'private',
             },
         'eli': {'type': 'string'},
         'count': {'type': 'integer'},
@@ -849,7 +849,7 @@ class Property(ExtraMetaData):
             'type': 'string',
             'choices': Visibility,
             'inherit': 'model.visibility',
-            'default': 'public',
+            'default': 'private',
         },
         'eli': {'type': 'string'},
         'count': {'type': 'integer'},

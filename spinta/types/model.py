@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import itertools
+from enum import Enum
 from typing import Any
 from typing import Dict
 from typing import List
@@ -26,7 +27,7 @@ from spinta.components import Model
 from spinta.components import Property
 from spinta.core.access import link_access_param
 from spinta.core.access import load_access_param
-from spinta.core.enums import Level
+from spinta.core.enums import Level, Status, Visibility
 from spinta.datasets.components import ExternalBackend
 from spinta.dimensions.comments.helpers import load_comments
 from spinta.dimensions.enum.components import EnumValue
@@ -51,7 +52,7 @@ from spinta.types.namespace import load_namespace_from_name
 from spinta.ufuncs.loadbuilder.components import LoadBuilder
 from spinta.ufuncs.loadbuilder.helpers import page_contains_unsupported_keys, get_allowed_page_property_types
 from spinta.units.helpers import is_unit
-from spinta.utils.enums import enum_by_value
+from spinta.utils.enums import enum_by_value, enum_by_name
 from spinta.utils.schema import NA
 
 if TYPE_CHECKING:
@@ -92,7 +93,10 @@ def load(
         model.ns.parents(),
     ))
     load_level(model, model.level)
-    #  temp data.get('properties) gets a list of properties, and it should have status, but doesn't have
+    model.status = load_enum_type_item(model, model.status, Status)
+
+    model.visibility = load_enum_type_item(model, model.visibility, Visibility)
+
     load_model_properties(context, model, Property, data.get('properties'))
 
     # XXX: Maybe it is worth to leave possibility to override _id access?
@@ -289,7 +293,13 @@ def load(
     if prop.prepare_given:
         prop.given.prepare = prop.prepare_given
     load_level(prop, prop.level)
-    # temp is this a place where I should add something like load_status? If so, from what should it load that status?
+
+    # todo properties should inherit those from model OR have a default. They shouldn't be empty
+    #  Now they are empty in cases when model gets a default value, for example in inspect - tests/apie/test_inspect.py
+    prop.status = load_enum_type_item(prop, prop.status, Status)
+    prop.visibility = load_enum_type_item(prop, prop.visibility, Visibility)
+
+
     if data['type'] is None:
         raise UnknownPropertyType(prop, type=data['type'])
     if data['type'] == 'ref' and not commands.identifiable(prop):
@@ -351,6 +361,21 @@ def load_level(
         level = None
     component.level = level
 
+
+def load_enum_type_item(
+    component: Component,
+    given_item: Status | Visibility | str,
+    cls: type[Enum]
+):
+    if given_item:
+        if isinstance(given_item, cls):
+            item = given_item
+        else:
+            given_item = given_item.split('.')[-1]
+            item = enum_by_name(component, cls.__name__.lower(), cls, given_item)
+    else:
+        item = None
+    return item
 
 def _link_prop_enum(
     prop: Property,
