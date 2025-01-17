@@ -1144,7 +1144,7 @@ def test_text_read_from_external_source(
     example/countries           |         |      |                        |         |
       | csv                     | csv     |      | memory://countries.csv |         |
       |   |   | Country         |         | name |                        |         |
-      |   |   |   | name@lt     | text    |      | šalislt                |         | open
+      |   |   |   | name@lt     | string  |      | šalislt                |         | open
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
