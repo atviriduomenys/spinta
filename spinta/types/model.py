@@ -281,7 +281,8 @@ def load(
     prop.type = 'property'
     prop, data = load_node(context, prop, data, mixed=True)
     prop = cast(Property, prop)
-
+    if not (prop.model.basename.startswith('_') or prop.model.name.startswith('_') or prop.name.startswith('_')) and prop.model.ns.name == "datasets/gov/example":
+        print()
     parents = list(itertools.chain(
         [prop.model, prop.model.ns],
         prop.model.ns.parents(),
@@ -296,7 +297,13 @@ def load(
 
     # todo properties should inherit those from model OR have a default. They shouldn't be empty
     #  Now they are empty in cases when model gets a default value, for example in inspect - tests/apie/test_inspect.py
-    prop.status = load_enum_type_item(prop, prop.status, Status)
+
+    #  todo the bug is probably in the place where the models and properties are written
+    # prop.given.status = prop.status
+    # prop.status = load_enum_type_item(prop, prop.status, Status)
+    load_status(prop, prop.status)
+
+    prop.given.visibility = prop.visibility
     prop.visibility = load_enum_type_item(prop, prop.visibility, Visibility)
 
 
@@ -376,6 +383,19 @@ def load_enum_type_item(
     else:
         item = None
     return item
+
+
+def load_status(
+    component: Component,
+    given_status: Status | str
+):
+    if isinstance(component, Property) and component.model.name == "datasets/gov/example/Country":
+        print()
+
+    status = enum_by_name(component, 'status', Status, given_status) if not isinstance(given_status, Status) else given_status
+    component.status = status
+    component.given.status = given_status
+
 
 def _link_prop_enum(
     prop: Property,

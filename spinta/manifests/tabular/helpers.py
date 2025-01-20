@@ -2280,13 +2280,13 @@ def _property_to_tabular(
         'uri': prop.uri,
         'title': prop.title,
         'description': prop.description,
-        'status': prop.status,
-        'visibility': prop.visibility,
+        'status': prop.status.name if prop.status is not None else "",
+        'visibility': prop.visibility.name if prop.visibility is not None else "",
         'eli': prop.eli,
         'count': prop.count,
         'origin': prop.origin,
     }
-    # temp status not here yet
+
     if external and prop.external:
         if isinstance(prop.external, list):
             # data['source'] = ', '.join(x.name for x in prop.external)
@@ -2395,8 +2395,8 @@ def _model_to_tabular(
         'title': model.title,
         'description': model.description,
         'uri': model.uri if model.uri else "",
-        'status': model.status,
-        'visibility': model.visibility,
+        'status': model.status.name if model.status is not None else "",
+        'visibility': model.visibility.name if model.visibility is not None else "",
         'eli': model.eli,
         'count': model.count,
         'origin': model.origin,
