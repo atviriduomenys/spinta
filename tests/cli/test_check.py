@@ -1,6 +1,7 @@
 import pytest
 
 from spinta.components import Context
+from spinta.exceptions import InvalidValue
 from spinta.testing.cli import SpintaCliRunner
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.tabular import create_tabular_manifest
@@ -141,7 +142,43 @@ def test_check_level(context: Context, rc, cli: SpintaCliRunner, tmp_path):
     '''))
 
     # with pytest.raises(Exception, match='No level specified'):
-    cli.invoke(rc, [
+    result = cli.invoke(rc, [
         'check',
         tmp_path / 'manifest.csv',
-    ])
+    ],
+        fail=False)
+
+    assert result.exit_code != 0
+    assert result.exc_info[0] is InvalidValue
+    assert result.exception.context.get('given') == 9
+
+
+def test_check_access(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    d | r | b | m | property | type   | ref     | source      | prepare | access | level
+    datasets/gov/example     |        |         |             |         |        |
+      | data                 | sql    |         |             |         |        |
+                             |        |         |             |         |        |
+      |   |   | Country      |        | code    | salis       |         |        | 
+      |   |   |   | code     | string |         | kodas       |         | public | 1
+      |   |   |   | name     | string |         | pavadinimas |         | open   | 2
+      |   |   |   | driving  | string |         | vairavimas  |         | open   | 3
+                             | enum   |         | l           | 'left'  | open   | 
+                             |        |         | r           | 'right' | test   |
+    datasets/gov/example2    |        |         |             |         |        |
+      | data                 | sql    |         |             |         |        |        
+                             |        |         |             |         |        |              
+      |   |   | Country      |        | code    | salis       |         |        |
+      |   |   |   | code     | string |         | kodas       |         | public |
+      |   |   |   | name     | string |         | pavadinimas |         | open   |
+    '''))
+
+    result = cli.invoke(rc, [
+        'check',
+        tmp_path / 'manifest.csv'
+    ],
+        fail=False)
+
+    assert result.exit_code != 0
+    assert result.exc_info[0] is InvalidValue
+    assert result.exception.context.get('given') == "test"

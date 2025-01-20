@@ -126,14 +126,12 @@ def load_manifest(
                 f"Loading {type(store.manifest).__name__} "
                 f"manifest {store.manifest.name}"
             )
-            # temp here mamifest isn't loaded yet
     commands.load(
         context, store.manifest,
         rename_duplicates=rename_duplicates,
         load_internal=load_internal,
         full_load=full_load
     )
-    # temp here model properties in store.manifest already have status, but values are None
     commands.link(context, store.manifest)
     commands.check(context, store.manifest)
     return store

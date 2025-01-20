@@ -814,9 +814,7 @@ def _string_datatype_handler(reader: PropertyReader, row: dict):
         reader.error(
             dtype['error']
         )
-    # temp here row still has status
     new_data = _initial_normal_property_schema(given_name, dtype, row)
-    # temp here new_data doesn't have status
     dataset = reader.state.dataset.data if reader.state.dataset else None
 
     if row['prepare']:
@@ -1666,7 +1664,6 @@ def _read_tabular_manifest_rows(
     yield from state.release(reader)
 
     for line, row in rows:
-        #  temp here row still has status
         _check_row_size(path, line, header, row)
         row = dict(zip(header, row))
         row = {**defaults, **row}
@@ -1718,7 +1715,6 @@ def read_tabular_manifest(
     else:
         raise ValueError(f"Unknown tabular manifest format {format_!r}.")
 
-    #  temp here rows still have status and it's values
     try:
         yield from _read_tabular_manifest_rows(
             path,
@@ -2280,8 +2276,8 @@ def _property_to_tabular(
         'uri': prop.uri,
         'title': prop.title,
         'description': prop.description,
-        'status': prop.status.name if prop.status is not None else "",
-        'visibility': prop.visibility.name if prop.visibility is not None else "",
+        'status': prop.status.name if prop.status else "",
+        'visibility': prop.visibility.name if prop.visibility else "",
         'eli': prop.eli,
         'count': prop.count,
         'origin': prop.origin,
@@ -2395,8 +2391,8 @@ def _model_to_tabular(
         'title': model.title,
         'description': model.description,
         'uri': model.uri if model.uri else "",
-        'status': model.status.name if model.status is not None else "",
-        'visibility': model.visibility.name if model.visibility is not None else "",
+        'status': model.status.name if model.status else "",
+        'visibility': model.visibility.name if model.visibility else "",
         'eli': model.eli,
         'count': model.count,
         'origin': model.origin,
@@ -2461,13 +2457,11 @@ def datasets_to_tabular(
         order_by=order_by,
         separator=True,
     )
-    # temp manifest here doesn't have status values
     seen_datasets = set()
     dataset = None
     resource = None
     base = None
     models = commands.get_models(context, manifest)
-    # temp here status is None
     models = models if internal else take(models)
     models = sort(MODELS_ORDER_BY, models.values(), order_by)
 

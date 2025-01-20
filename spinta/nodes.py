@@ -199,7 +199,6 @@ def load_model_properties(
     Prop: Type[Node],
     data: Optional[dict],
 ) -> None:
-    # temp data here should have status, but it doesn't
     data = data or {}
 
     # Add build-in properties.
@@ -227,7 +226,6 @@ def load_model_properties(
         prop.place = name
         prop.path = model.path
         prop.model = model
-        # temp third parameter, params, should have status here, but it doesn't
         prop = commands.load(context, prop, params, model.manifest)
         model.properties[name] = prop
         model.flatprops[name] = prop

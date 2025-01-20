@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import itertools
-from enum import Enum
 from typing import Any
 from typing import Dict
 from typing import List
@@ -27,7 +26,7 @@ from spinta.components import Model
 from spinta.components import Property
 from spinta.core.access import link_access_param
 from spinta.core.access import load_access_param
-from spinta.core.enums import Level, Status, Visibility
+from spinta.core.enums import Level, Status, Visibility, load_level, load_status, load_visibility
 from spinta.datasets.components import ExternalBackend
 from spinta.dimensions.comments.helpers import load_comments
 from spinta.dimensions.enum.components import EnumValue
@@ -74,7 +73,6 @@ def load(
     *,
     source: Manifest = None,
 ) -> Model:
-    # temp data here should have status, but doesn't
     model.parent = manifest
     model.manifest = manifest
     model.mode = manifest.mode  # TODO: mode should be inherited from namespace.
@@ -93,9 +91,8 @@ def load(
         model.ns.parents(),
     ))
     load_level(model, model.level)
-    model.status = load_enum_type_item(model, model.status, Status)
-
-    model.visibility = load_enum_type_item(model, model.visibility, Visibility)
+    load_status(model, model.status)
+    load_visibility(model, model.visibility)
 
     load_model_properties(context, model, Property, data.get('properties'))
 
@@ -276,7 +273,6 @@ def load(
     data: PropertyRow,
     manifest: Manifest,
 ) -> Property:
-    # temp data should have status, and it should be loaded into prop, but it's not there
     config = context.get('config')
     prop.type = 'property'
     prop, data = load_node(context, prop, data, mixed=True)
@@ -302,10 +298,7 @@ def load(
     # prop.given.status = prop.status
     # prop.status = load_enum_type_item(prop, prop.status, Status)
     load_status(prop, prop.status)
-
-    prop.given.visibility = prop.visibility
-    prop.visibility = load_enum_type_item(prop, prop.visibility, Visibility)
-
+    load_visibility(prop, prop.visibility)
 
     if data['type'] is None:
         raise UnknownPropertyType(prop, type=data['type'])
@@ -349,53 +342,6 @@ def load(
     prop.given.explicit = prop.explicitly_given if prop.explicitly_given is not None else True
     prop.given.name = prop.given_name
     return prop
-
-
-def load_level(
-    component: Component,
-    given_level: Union[Level, int, str],
-):
-    if given_level:
-        if isinstance(given_level, Level):
-            level = given_level
-        else:
-            if isinstance(given_level, str) and given_level.isdigit():
-                given_level = int(given_level)
-            if not isinstance(given_level, int):
-                raise InvalidLevel(component, level=given_level)
-            level = enum_by_value(component, 'level', Level, given_level)
-    else:
-        level = None
-    component.level = level
-
-
-def load_enum_type_item(
-    component: Component,
-    given_item: Status | Visibility | str,
-    cls: type[Enum]
-):
-    if given_item:
-        if isinstance(given_item, cls):
-            item = given_item
-        else:
-            given_item = given_item.split('.')[-1]
-            item = enum_by_name(component, cls.__name__.lower(), cls, given_item)
-    else:
-        item = None
-    return item
-
-
-def load_status(
-    component: Component,
-    given_status: Status | str
-):
-    if isinstance(component, Property) and component.model.name == "datasets/gov/example/Country":
-        print()
-
-    status = enum_by_name(component, 'status', Status, given_status) if not isinstance(given_status, Status) else given_status
-    component.status = status
-    component.given.status = given_status
-
 
 def _link_prop_enum(
     prop: Property,
