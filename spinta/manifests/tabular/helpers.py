@@ -1196,7 +1196,8 @@ def _extract_children_from_nested(base: dict, children_name: str) -> dict:
 
 
 def _check_if_property_already_set(reader: PropertyReader, given_row: dict, full_name: str):
-    split = full_name.split('.')
+    # Treat '@' as normal '.', since '_extract_children_from_nested' is able to extract based on type
+    split = full_name.replace('@', '.').split('.')
     base = {}
 
     properties = reader.state.model.data['properties']
@@ -1234,15 +1235,6 @@ def _check_if_property_already_set(reader: PropertyReader, given_row: dict, full
                 if not base:
                     return
                 base = _extract_children_from_nested(base, name)
-        elif '@' in name:
-            name, lang = name.split('@')
-            # For edge case when there is no nesting, text is already given and root is extracted:
-            # name    | text
-            # name@lt | string
-            # From root we get name(text), so we can skip it, since given name is place and for nested should not affect it
-            if base.get('given_name', None) != name:
-                base = _extract_children_from_nested(base, name)
-            base = _extract_children_from_nested(base, lang)
         else:
             base = _extract_children_from_nested(base, name)
     if (
