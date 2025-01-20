@@ -1,6 +1,7 @@
 import pytest
 
-from spinta.exceptions import InvalidManifestFile, ReferencedPropertyNotFound, PartialTypeNotFound, DataTypeCannotBeUsedForNesting, NestedDataTypeMismatch
+from spinta.exceptions import InvalidManifestFile, ReferencedPropertyNotFound, PartialTypeNotFound, \
+    DataTypeCannotBeUsedForNesting, NestedDataTypeMismatch
 from spinta.testing.manifest import load_manifest
 from spinta.manifests.tabular.helpers import TabularManifestError
 
@@ -8,6 +9,11 @@ from spinta.manifests.tabular.helpers import TabularManifestError
 def check(tmp_path, rc, table, manifest_type: str = 'csv'):
     manifest = load_manifest(rc, manifest=table, manifest_type=manifest_type, tmp_path=tmp_path)
     assert manifest == table
+
+
+def compare(tmp_path, rc, initial_table, result_table, manifest_type: str = 'csv'):
+    manifest = load_manifest(rc, manifest=initial_table, manifest_type=manifest_type, tmp_path=tmp_path)
+    assert manifest == result_table
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
@@ -1111,6 +1117,26 @@ def test_text_prop_as_reference(manifest_type, tmp_path, rc):
     ''', manifest_type)
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_prop_multi_nested_exposed_text(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
+        d | r | b | m | property               | type    | ref       | access | title
+        example                                |         |           |        |
+                                               |         |           |        |
+          |   |   | Country                    |         | id        |        |
+          |   |   |   | id                     | integer |           | open   |
+          |   |   |   | name                   | string  |           | open   |
+                                               |         |           |        |
+          |   |   | City                       |         | id        |        |
+          |   |   |   | id                     | integer |           | open   |
+          |   |   |   | country                | ref     | Country   | open   |
+          |   |   |   | country.code           | string  |           | open   |
+          |   |   |   | country.name           | text    |           | open   |
+          |   |   |   | country.name@lt        | string  |           | open   |
+          |   |   |   | country.name@en        | string  |           | open   |
+    ''', manifest_type)
+
+
 def test_prop_multi_nested_text_csv(tmp_path, rc):
     check(tmp_path, rc, '''
         d | r | b | m | property               | type    | ref       | access | title
@@ -1131,22 +1157,56 @@ def test_prop_multi_nested_text_csv(tmp_path, rc):
 
 # Currently separating csv from internal_sql, since internal_sql, does not know when to hide text
 def test_prop_multi_nested_text_internal_sql(tmp_path, rc):
+    compare(
+        tmp_path,
+        rc,
+        initial_table='''
+            d | r | b | m | property               | type    | ref       | access | title
+            example                                |         |           |        |
+                                                   |         |           |        |
+              |   |   | Country                    |         | id        |        |
+              |   |   |   | id                     | integer |           | open   |
+              |   |   |   | name                   | string  |           | open   |
+                                                   |         |           |        |
+              |   |   | City                       |         | id        |        |
+              |   |   |   | id                     | integer |           | open   |
+              |   |   |   | country                | ref     | Country   | open   |
+              |   |   |   | country.code           | string  |           | open   |
+              |   |   |   | country.name@lt        | string  |           | open   |
+              |   |   |   | country.name@en        | string  |           | open   |
+        ''',
+        result_table='''
+            d | r | b | m | property               | type    | ref       | access | title
+            example                                |         |           |        |
+                                                   |         |           |        |
+              |   |   | Country                    |         | id        |        |
+              |   |   |   | id                     | integer |           | open   |
+              |   |   |   | name                   | string  |           | open   |
+                                                   |         |           |        |
+              |   |   | City                       |         | id        |        |
+              |   |   |   | id                     | integer |           | open   |
+              |   |   |   | country                | ref     | Country   | open   |
+              |   |   |   | country.code           | string  |           | open   |
+              |   |   |   | country.name           | text    |           | open   |
+              |   |   |   | country.name@lt        | string  |           | open   |
+              |   |   |   | country.name@en        | string  |           | open   |
+        ''',
+        manifest_type='internal_sql'
+    )
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_prop_exposed_text(manifest_type, tmp_path, rc):
     check(tmp_path, rc, '''
         d | r | b | m | property               | type    | ref       | access | title
         example                                |         |           |        |
                                                |         |           |        |
-          |   |   | Country                    |         | id        |        |
-          |   |   |   | id                     | integer |           | open   |
-          |   |   |   | name                   | string  |           | open   |
-                                               |         |           |        |
           |   |   | City                       |         | id        |        |
           |   |   |   | id                     | integer |           | open   |
-          |   |   |   | country                | ref     | Country   | open   |
-          |   |   |   | country.code           | string  |           | open   |
-          |   |   |   | country.name           | text    |           | open   |
-          |   |   |   | country.name@lt        | string  |           | open   |
-          |   |   |   | country.name@en        | string  |           | open   |
-    ''', 'internal_sql')
+          |   |   |   | name                   | text    |           | open   |
+          |   |   |   | name@lt                | string  |           | open   |
+          |   |   |   | name@en                | string  |           | open   |
+    ''',manifest_type)
 
 
 def test_prop_text_csv(tmp_path, rc):
@@ -1158,19 +1218,32 @@ def test_prop_text_csv(tmp_path, rc):
           |   |   |   | id                     | integer |           | open   |
           |   |   |   | name@lt                | string  |           | open   |
           |   |   |   | name@en                | string  |           | open   |
-
     ''')
 
 
 # Currently separating csv from internal_sql, since internal_sql, does not know when to hide text
 def test_prop_text_internal_sql(tmp_path, rc):
-    check(tmp_path, rc, '''
-        d | r | b | m | property               | type    | ref       | access | title
-        example                                |         |           |        |
-                                               |         |           |        |
-          |   |   | City                       |         | id        |        |
-          |   |   |   | id                     | integer |           | open   |
-          |   |   |   | name@lt                | string  |           | open   |
-          |   |   |   | name@en                | string  |           | open   |
-
-    ''', 'internal_sql')
+    compare(
+        tmp_path,
+        rc,
+        initial_table='''
+            d | r | b | m | property               | type    | ref       | access | title
+            example                                |         |           |        |
+                                                   |         |           |        |
+              |   |   | City                       |         | id        |        |
+              |   |   |   | id                     | integer |           | open   |
+              |   |   |   | name@lt                | string  |           | open   |
+              |   |   |   | name@en                | string  |           | open   |
+        ''',
+        result_table='''
+            d | r | b | m | property               | type    | ref       | access | title
+            example                                |         |           |        |
+                                                   |         |           |        |
+              |   |   | City                       |         | id        |        |
+              |   |   |   | id                     | integer |           | open   |
+              |   |   |   | name                   | text    |           | open   |
+              |   |   |   | name@lt                | string  |           | open   |
+              |   |   |   | name@en                | string  |           | open   |
+        ''',
+        manifest_type='internal_sql'
+    )
