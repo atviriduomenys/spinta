@@ -780,7 +780,6 @@ def test_prop_array_backref_nested(tmp_path, rc):
     ''')
 
 
-
 @pytest.mark.skip('backref not implemented yet #96')
 def test_prop_array_with_custom_backref(rc, tmp_path):
     check(tmp_path, rc, '''
@@ -1112,9 +1111,7 @@ def test_text_prop_as_reference(manifest_type, tmp_path, rc):
     ''', manifest_type)
 
 
-
-@pytest.mark.manifests('internal_sql', 'csv')
-def test_prop_multi_nested_text(manifest_type, tmp_path, rc):
+def test_prop_multi_nested_text_csv(tmp_path, rc):
     check(tmp_path, rc, '''
         d | r | b | m | property               | type    | ref       | access | title
         example                                |         |           |        |
@@ -1129,11 +1126,30 @@ def test_prop_multi_nested_text(manifest_type, tmp_path, rc):
           |   |   |   | country.code           | string  |           | open   |
           |   |   |   | country.name@lt        | string  |           | open   |
           |   |   |   | country.name@en        | string  |           | open   |
-    ''', manifest_type)
+    ''')
 
 
-@pytest.mark.manifests('internal_sql', 'csv')
-def test_prop_text(manifest_type, tmp_path, rc):
+# Currently separating csv from internal_sql, since internal_sql, does not know when to hide text
+def test_prop_multi_nested_text_internal_sql(tmp_path, rc):
+    check(tmp_path, rc, '''
+        d | r | b | m | property               | type    | ref       | access | title
+        example                                |         |           |        |
+                                               |         |           |        |
+          |   |   | Country                    |         | id        |        |
+          |   |   |   | id                     | integer |           | open   |
+          |   |   |   | name                   | string  |           | open   |
+                                               |         |           |        |
+          |   |   | City                       |         | id        |        |
+          |   |   |   | id                     | integer |           | open   |
+          |   |   |   | country                | ref     | Country   | open   |
+          |   |   |   | country.code           | string  |           | open   |
+          |   |   |   | country.name           | text    |           | open   |
+          |   |   |   | country.name@lt        | string  |           | open   |
+          |   |   |   | country.name@en        | string  |           | open   |
+    ''', 'internal_sql')
+
+
+def test_prop_text_csv(tmp_path, rc):
     check(tmp_path, rc, '''
         d | r | b | m | property               | type    | ref       | access | title
         example                                |         |           |        |
@@ -1143,4 +1159,18 @@ def test_prop_text(manifest_type, tmp_path, rc):
           |   |   |   | name@lt                | string  |           | open   |
           |   |   |   | name@en                | string  |           | open   |
 
-    ''', manifest_type)
+    ''')
+
+
+# Currently separating csv from internal_sql, since internal_sql, does not know when to hide text
+def test_prop_text_internal_sql(tmp_path, rc):
+    check(tmp_path, rc, '''
+        d | r | b | m | property               | type    | ref       | access | title
+        example                                |         |           |        |
+                                               |         |           |        |
+          |   |   | City                       |         | id        |        |
+          |   |   |   | id                     | integer |           | open   |
+          |   |   |   | name@lt                | string  |           | open   |
+          |   |   |   | name@en                | string  |           | open   |
+
+    ''', 'internal_sql')
