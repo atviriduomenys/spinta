@@ -1074,7 +1074,7 @@ def _get_parent_data_text(reader: PropertyReader, given_row: dict, full_name: st
     split = full_name.split('.')
     name = _clean_up_prop_name(split[-1])
     empty_text_row = torow(DATASET, {
-        'property': name if len(split) == 1 else '.'.join(split[:-1] + name),
+        'property': name if len(split) == 1 else '.'.join(split[:-1] + [name]),
         'type': 'text',
         'access': given_row['access']
     })
