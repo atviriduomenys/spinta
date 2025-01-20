@@ -1168,8 +1168,10 @@ def _property_to_sql(
     )
     if yield_rows:
         for yield_row in yield_rows:
-            if yield_row:
-                yield from _property_to_sql(yield_row, external=external, access=access, order_by=order_by, parent_id=item_id, depth=depth + 1, path=new_path, mpath=new_mpath)
+            if not yield_row:
+                continue
+
+            yield from _property_to_sql(yield_row, external=external, access=access, order_by=order_by, parent_id=item_id, depth=depth + 1, path=new_path, mpath=new_mpath)
 
 
 def _value_or_null(value: Any):

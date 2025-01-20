@@ -1071,12 +1071,14 @@ def _get_parent_data_partial(reader: PropertyReader, given_row: dict, full_name:
 
 
 def _get_parent_data_text(reader: PropertyReader, given_row: dict, full_name: str, current_parent: dict):
+    split = full_name.split('.')
+    name = _clean_up_prop_name(split[-1])
     empty_text_row = torow(DATASET, {
-        'property': full_name,
+        'property': name if len(split) == 1 else '.'.join(split[:-1] + name),
         'type': 'text',
         'access': given_row['access']
     })
-    name = _clean_up_prop_name(full_name.split('.')[-1])
+
     if not current_parent:
         if given_row['type'] == 'text':
             return current_parent
