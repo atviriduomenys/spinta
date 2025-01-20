@@ -831,18 +831,6 @@ def _string_datatype_handler(reader: PropertyReader, row: dict):
             'name': row['source'],
         }
 
-    if '@' in given_name and existing_data:
-        if existing_data['type'] not in ALLOWED_NESTING_TYPES:
-            reader.error(
-                "Language can only be added to Text type properties."
-            )
-
-        lang = given_name.split('@', 1)[-1]
-        if existing_data['type'] == DataTypeEnum.TEXT.value:
-            if lang and lang in existing_data['langs']:
-                reader.error(
-                    f"Language {lang} has already been set for the {existing_data['given_name']} property."
-                )
     return new_data
 
 
@@ -886,16 +874,17 @@ def _text_datatype_handler(reader: PropertyReader, row: dict):
         new_data['external'] = {
             'name': row['source'],
         }
-    temp_data = _empty_property(_initial_normal_property_schema(given_name, dtype, {
-        'property': row['property'],
+    c_lang_name = f'{row["property"]}@C'
+    c_lang_data = _empty_property(_initial_normal_property_schema(c_lang_name, dtype, {
+        'property': c_lang_name,
         'access': row['access'],
     }))
-    temp_data['type'] = DataTypeEnum.STRING.value
-    temp_data['external'] = new_data['external'] if 'external' in new_data else {}
+    c_lang_data['type'] = DataTypeEnum.STRING.value
+    c_lang_data['external'] = new_data['external'] if 'external' in new_data else {}
     if result:
         new_data['langs'] = result['langs']
         if new_data['level'] and int(new_data['level']) <= 3:
-            new_data['langs']['C'] = temp_data
+            new_data['langs']['C'] = c_lang_data
             if 'external' in new_data and new_data['external']:
                 new_data['external'] = {}
         result.update(new_data)
@@ -903,7 +892,7 @@ def _text_datatype_handler(reader: PropertyReader, row: dict):
 
     if new_data['level'] and int(new_data['level']) <= 3:
         new_data['langs'] = {
-            'C': temp_data
+            'C': c_lang_data
         }
         if 'external' in new_data and new_data['external']:
             new_data['external'] = {}
@@ -982,8 +971,6 @@ def _combine_parent_with_prop(prop_name: str, prop: dict, parent_prop: dict, ful
             parent_prop['items'] = prop
             return_name = _clean_up_prop_name(full_prop['given_name'].split('.')[0])
         elif parent_prop['type'] == DataTypeEnum.TEXT.value:
-            # if parent_prop['langs']:
-            #     prop = _restore_previously_nested_data(prop, parent_prop['langs'])
             given_name = prop['given_name']
             lang_name = given_name.split('@')[-1] if '@' in given_name else 'C'
             parent_prop['langs'][lang_name] = prop
@@ -1099,18 +1086,21 @@ def _get_parent_data_text(reader: PropertyReader, given_row: dict, full_name: st
     })
     name = _clean_up_prop_name(full_name.split('.')[-1])
     if not current_parent:
+        if given_row['type'] == 'text':
+            return current_parent
+
         current_parent.update(_empty_property(_text_datatype_handler(reader, empty_text_row)))
         return current_parent
 
     if current_parent['type'] in ALLOWED_ARRAY_TYPES:
         if current_parent['items'] and current_parent['items']['type'] != DataTypeEnum.TEXT.value:
-            raise NestedDataTypeMismatch(initial=current_parent['type'], required=DataTypeEnum.TEXT.value)
+            raise NestedDataTypeMismatch(initial=current_parent['properties'][name]['type'], required=DataTypeEnum.TEXT.value)
         elif not current_parent['items']:
             current_parent['items'].update(_empty_property(_text_datatype_handler(reader, empty_text_row)))
         current_parent = current_parent['items']
     elif current_parent['type'] in ALLOWED_PARTIAL_TYPES:
         if name in current_parent['properties'] and current_parent['properties'][name]['type'] != DataTypeEnum.TEXT.value:
-            raise NestedDataTypeMismatch(initial=current_parent['type'], required=DataTypeEnum.TEXT.value)
+            raise NestedDataTypeMismatch(initial=current_parent['properties'][name]['type'], required=DataTypeEnum.TEXT.value)
         elif name not in current_parent['properties']:
             current_parent['properties'][name] = _empty_property(
                 _text_datatype_handler(reader, empty_text_row))
@@ -1192,138 +1182,85 @@ def _get_parent_data(reader: PropertyReader, given_row: dict, name: str):
     return full_prop, current_parent, prop_name
 
 
-def _check_if_property_already_set(reader: PropertyReader, given_row: dict, full_name: str):
-    # split = full_name.split('.')
-    # base = {}
-    #
-    # properties = reader.state.model.data['properties']
-    # root = True
-    # pp(properties)
-    # for name in split:
-    #
-    #     base_name = name
-    #
-    #     if not base and root:
-    #         skip = True
-    #         root = False
-    #         if _name_complex(name):
-    #             skip = False
-    #             base_name = _clean_up_prop_name(name)
-    #
-    #         if base_name not in properties:
-    #             return
-    #
-    #         base = properties[base_name]
-    #
-    #         if skip:
-    #             continue
-    #
-    #     if not base:
-    #         return
-    #
-    #     if base.get('given_name', None) == full_name:
-    #         break
-    #
-    #     pp(name)
-    #     pp(base)
-    #
-    #     if '[]' in name:
-    #         count = name.count('[]') + 1
-    #         name = name.replace('[]', '')
-    #
-    #         for _ in range(count):
-    #             if not base:
-    #                 return
-    #             if base['type'] in ALLOWED_ARRAY_TYPES:
-    #                 base = base['items']
-    #             elif base['type'] in ALLOWED_PARTIAL_TYPES:
-    #                 base = base['properties'].get(name, None)
-    #             else:
-    #                 raise DataTypeCannotBeUsedForNesting(dtype=base['type'])
-    #     elif '@' in name:
-    #         break
-    #     else:
-    #         if base['type'] in ALLOWED_PARTIAL_TYPES:
-    #             base = base['properties'].get(base_name, None)
-    #         elif base['type'] in ALLOWED_ARRAY_TYPES:
-    #             base = base['items']
-    #         else:
-    #             raise DataTypeCannotBeUsedForNesting(dtype=base['type'])
-    # pp(full_name)
-    # if (
-    #     base
-    #     and base['given_name'] == full_name
-    #     and base['explicitly_given']
-    # ):
-    #     pp("ERRORED")
-    #     reader.error(
-    #         f"Property {reader.name!r} with the same name is already "
-    #         f"defined for this {reader.state.model.name!r} model."
-    #     )
-    #
-    # if (
-    #     base
-    #     and ((base['type'] in ALLOWED_PARTIAL_TYPES and given_row['type'] not in ALLOWED_PARTIAL_TYPES)
-    #          or (base['type'] in ALLOWED_ARRAY_TYPES and given_row['type'] not in ALLOWED_ARRAY_TYPES))
-    # ):
-    #     raise DataTypeCannotBeUsedForNesting(dtype=given_row['type'])
-    # return base
-    split = full_name.split('.')
-    base_name = _clean_up_prop_name(split[0])
-    base = {}
-    if base_name in reader.state.model.data['properties']:
-        base = reader.state.model.data['properties'][base_name]
-        if (
-            base_name == full_name
-            and base['type'] != DataTypeEnum._PARTIAL.value
-            and base['type'] != DataTypeEnum._PARTIAL_ARRAY.value
-            and (base['type'] == DataTypeEnum.TEXT.value
-                 and given_row['type'] != DataTypeEnum.STRING.value)
-            and base['explicitly_given']
-        ):
-            reader.error(
-                f"Property {reader.name!r} with the same name is already "
-                f"defined for this {reader.state.model.name!r} model."
-            )
-    if not base:
-        return
+def _extract_children_from_nested(base: dict, children_name: str) -> dict:
+    if base['type'] in ALLOWED_ARRAY_TYPES:
+        base = base['items']
+    elif base['type'] in ALLOWED_PARTIAL_TYPES:
+        base = base['properties'].get(children_name, None)
+    elif base['type'] == DataTypeEnum.TEXT.value:
+        base = base['langs'].get(children_name, None)
+    else:
+        raise DataTypeCannotBeUsedForNesting(dtype=base['type'])
 
-    for i, prop in enumerate(split):
-        if '[]' in prop:
-            count = prop.count('[]') + 1
-            prop = prop.replace('[]', '')
+    return base
+
+
+def _check_if_property_already_set(reader: PropertyReader, given_row: dict, full_name: str):
+    split = full_name.split('.')
+    base = {}
+
+    properties = reader.state.model.data['properties']
+    root = True
+    for name in split:
+
+        base_name = name
+
+        if not base and root:
+            skip = True
+            root = False
+            if _name_complex(name):
+                skip = False
+                base_name = _clean_up_prop_name(name)
+
+            if base_name not in properties:
+                return
+
+            base = properties[base_name]
+
+            if skip:
+                continue
+
+        if not base:
+            return
+
+        if base.get('given_name', None) == full_name:
+            break
+
+        if '[]' in name:
+            count = name.count('[]') + 1
+            name = name.replace('[]', '')
 
             for _ in range(count):
                 if not base:
                     return
-                if base['type'] in ALLOWED_ARRAY_TYPES:
-                    base = base['items']
-                elif base['type'] in ALLOWED_PARTIAL_TYPES:
-                    base = base['properties'].get(prop, None)
-                else:
-                    raise DataTypeCannotBeUsedForNesting(dtype=base['type'])
+                base = _extract_children_from_nested(base, name)
+        elif '@' in name:
+            name, lang = name.split('@')
+            # For edge case when there is no nesting, text is already given and root is extracted:
+            # name    | text
+            # name@lt | string
+            # From root we get name(text), so we can skip it, since given name is place and for nested should not affect it
+            if base.get('given_name', None) != name:
+                base = _extract_children_from_nested(base, name)
+            base = _extract_children_from_nested(base, lang)
         else:
-            if i > 0:
-                prop = _clean_up_prop_name(prop)
-                if not base:
-                    return
-                if base['type'] in ALLOWED_PARTIAL_TYPES:
-                    base = base['properties'].get(prop, None)
-                elif base['type'] in ALLOWED_ARRAY_TYPES:
-                    base = base['items']
-                else:
-                    raise DataTypeCannotBeUsedForNesting(dtype=base['type'])
+            base = _extract_children_from_nested(base, name)
+    if (
+        base
+        and base['given_name'] == full_name
+        and base['explicitly_given']
+    ):
+        reader.error(
+            f"Property {full_name!r} with the same name is already "
+            f"defined for this {reader.state.model.name!r} model."
+        )
 
-    if base:
-        if ((
-            base['type'] in ALLOWED_PARTIAL_TYPES
-            and given_row['type'] not in ALLOWED_PARTIAL_TYPES)
-            or (
-                base['type'] in ALLOWED_ARRAY_TYPES
-                and given_row['type'] not in ALLOWED_ARRAY_TYPES
-            )):
-            raise DataTypeCannotBeUsedForNesting(dtype=given_row['type'])
-
+    if (
+        base
+        and ((base['type'] in ALLOWED_PARTIAL_TYPES and given_row['type'] not in ALLOWED_PARTIAL_TYPES)
+             or (base['type'] in ALLOWED_ARRAY_TYPES and given_row['type'] not in ALLOWED_ARRAY_TYPES))
+    ):
+        raise DataTypeCannotBeUsedForNesting(dtype=given_row['type'])
     return base
 
 
