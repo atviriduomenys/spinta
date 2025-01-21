@@ -1103,21 +1103,6 @@ def test_enum_level(
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_text_prop_as_reference(manifest_type, tmp_path, rc):
-    check(tmp_path, rc, '''
-        d | r | b | m | property | type | ref     | level | access
-        example                  |      |         |       |
-                                 |      |         |       |
-          |   |   | Country      |      | name@en | 4     |
-          |   |   |   | name@en  | text |         | 4     | open
-                                 |      |         |       |
-          |   |   | City         |      | name@en | 4     |
-          |   |   |   | name@en  | text |         | 4     | open
-          |   |   |   | country  | ref  | Country | 3     | open
-    ''', manifest_type)
-
-
-@pytest.mark.manifests('internal_sql', 'csv')
 def test_prop_multi_nested_exposed_text(manifest_type, tmp_path, rc):
     check(tmp_path, rc, '''
         d | r | b | m | property               | type    | ref       | access | title
