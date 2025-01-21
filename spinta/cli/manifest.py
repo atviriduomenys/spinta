@@ -124,8 +124,6 @@ def copy_manifest(
             verbose=verbose,
         )
 
-    #      temp status exists but is None everywhere
-
     if output:
         if output_type == 'mermaid':
             write_mermaid_manifest(context, output, rows)
