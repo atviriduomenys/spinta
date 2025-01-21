@@ -19,6 +19,32 @@ Backwards incompatible:
 - `postgresql` `backend` now no longer ignores `prepare` functions. Meaning if there are properties, which has functions
   set in `prepare` column, it can cause errors (if those functions are not supported in `postgresql` `backend`) (`#1048`_).
 
+- `InternalSqlManifest` no longer is capable of knowing when to hide `Text` or `C` language (`#940`_). That means if you have
+  `tabular` `manifest` with hidden `Text`, like so:
+
+  .. code-block:: text
+
+    d | r | b | m | property | type    | ref       | access | title
+    example                  |         |           |        |
+                             |         |           |        |
+      |   |   | City         |         | id        |        |
+      |   |   |   | id       | integer |           | open   |
+      |   |   |   | name@lt  | string  |           | open   |
+      |   |   |   | name@en  | string  |           | open   |
+
+  if you were to convert it to `InternalSqlManifest` and back, you would get this result:
+
+  .. code-block:: text
+
+    d | r | b | m | property | type    | ref       | access | title
+    example                  |         |           |        |
+                             |         |           |        |
+      |   |   | City         |         | id        |        |
+      |   |   |   | id       | integer |           | open   |
+      |   |   |   | name     | text    |           | open   |
+      |   |   |   | name@lt  | string  |           | open   |
+      |   |   |   | name@en  | string  |           | open   |
+
 New features:
 
 - Added support for `Object` type with `external` `Sql` `backend` (`#973`_).
@@ -39,6 +65,10 @@ Improvements:
 - Client data and `keymap` is now cached. This will reduce amount of file reads with each request (`#948`_).
 
   .. _#948: https://github.com/atviriduomenys/spinta/issues/948
+
+- `Tabular` `manifest` now supports `Text` type nesting with other complex types (`Object`, `Ref`, etc.) (`#940`_).
+
+  .. _#940: https://github.com/atviriduomenys/spinta/issues/940
 
 0.1.81 (2024-12-17)
 ===================
