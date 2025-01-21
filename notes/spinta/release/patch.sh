@@ -15,9 +15,9 @@ git checkout $RELEASE_VERSION
 git pull
 git tag -l -n1 | sort -h | tail -n5
 
-export CURRENT_PATCH=80
-export NEW_PATCH=81
-export FUTURE_PATCH=82
+export CURRENT_PATCH=81
+export NEW_PATCH=82
+export FUTURE_PATCH=83
 
 export CURRENT_VERSION=$RELEASE_VERSION.$CURRENT_PATCH
 export NEW_VERSION=$RELEASE_VERSION.$NEW_PATCH
@@ -29,19 +29,31 @@ git checkout $PREPARE_BRANCH
 git status
 
 # notes/spinta/release/common.sh    Check outdated packages and upgrade them
-#| Package operations: 0 installs, 11 updates, 0 removals
+# Install
+#| Package operations: 1 install, 10 updates, 0 removals
 #|
-#|   • Updating certifi (2024.8.30 -> 2024.12.14)
-#|   • Updating six (1.16.0 -> 1.17.0)
-#|   • Updating attrs (24.2.0 -> 24.3.0)
-#|   • Updating mako (1.3.6 -> 1.3.8)
-#|   • Updating httpx (0.28.0 -> 0.28.1)
-#|   • Updating phonenumbers (8.13.51 -> 8.13.52)
-#|   • Updating python-multipart (0.0.19 -> 0.0.20)
-#|   • Updating sqlparse (0.5.2 -> 0.5.3)
-#|   • Updating starlette (0.41.3 -> 0.42.0)
-#|   • Updating typer (0.14.0 -> 0.15.1)
-#|   • Updating uvicorn (0.32.1 -> 0.33.0)
+#|   • Updating charset-normalizer (3.4.0 -> 3.4.1)
+#|   • Updating jinja2 (3.1.4 -> 3.1.5)
+#|   • Updating pygments (2.18.0 -> 2.19.0)
+#|   • Updating click (8.1.7 -> 8.1.8)
+#|   • Updating fsspec (2024.10.0 -> 2024.12.0)
+#|   • Updating livereload (2.7.0 -> 2.7.1)
+#|   • Updating mypy (1.13.0 -> 1.14.1)
+#|   • Updating psutil (6.1.0 -> 6.1.1)
+#|   • Installing cachetools (5.5.0)
+#|   • Updating ruamel-yaml (0.18.6 -> 0.18.9)
+#|   • Updating starlette (0.42.0 -> 0.44.0)
+
+# Update
+#| Package operations: 0 installs, 7 updates, 0 removals
+#|
+#|   • Updating pygments (2.19.0 -> 2.19.1)
+#|   • Updating prompt-toolkit (3.0.48 -> 3.0.50)
+#|   • Updating cloudpickle (3.1.0 -> 3.1.1)
+#|   • Updating geoalchemy2 (0.16.0 -> 0.17.0)
+#|   • Updating phonenumbers (8.13.52 -> 8.13.53)
+#|   • Updating responses (0.25.3 -> 0.25.6)
+#|   • Updating ruamel-yaml (0.18.9 -> 0.18.10)
 
 # Run Makefile
 cd docs
@@ -58,7 +70,7 @@ head CHANGES.rst
 # notes/spinta/release/common.sh    Reset test database
 
 poetry run pytest -vvx --tb=short tests
-#| 2241 passed, 45 skipped, 55 warnings in 348.64s (0:05:48)
+#| 2278 passed, 45 skipped, 57 warnings in 359.62s (0:05:59)
 
 # If possible run same tests using test and prod env library versions
 # Test env
@@ -83,7 +95,7 @@ BASEDIR=$PWD/var/instances/$INSTANCE
 
 # notes/spinta/release/common.sh    Run server in EXTERNAL mode
 # notes/spinta/release/common.sh    Run migrations
-#| (3314 rows)
+#| (3406 rows)
 
 # notes/spinta/release/common.sh    Run server in INTERNAL mode
 # Don't forget to add client to server and credentials;
