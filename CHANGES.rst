@@ -1,7 +1,11 @@
 Changes
 #######
 
-0.1.82 (unreleased)
+0.1.83 (unreleased)
+===================
+
+
+0.1.82 (2025-01-21)
 ===================
 
 Backwards incompatible:
