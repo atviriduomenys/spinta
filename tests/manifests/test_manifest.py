@@ -1206,7 +1206,7 @@ def test_prop_exposed_text(manifest_type, tmp_path, rc):
           |   |   |   | name                   | text    |           | open   |
           |   |   |   | name@lt                | string  |           | open   |
           |   |   |   | name@en                | string  |           | open   |
-    ''',manifest_type)
+    ''', manifest_type)
 
 
 def test_prop_text_csv(tmp_path, rc):
@@ -1244,6 +1244,49 @@ def test_prop_text_internal_sql(tmp_path, rc):
               |   |   |   | name                   | text    |           | open   |
               |   |   |   | name@lt                | string  |           | open   |
               |   |   |   | name@en                | string  |           | open   |
+        ''',
+        manifest_type='internal_sql'
+    )
+
+
+def test_prop_text_level_3_csv(tmp_path, rc):
+    check(tmp_path, rc, '''
+        d | r | b | m | property               | type    | ref       | access | title | level
+        example                                |         |           |        |       |
+                                               |         |           |        |       |
+          |   |   | City                       |         | id        |        |       |
+          |   |   |   | id                     | integer |           | open   |       |
+          |   |   |   | name                   | text    |           | open   |       | 3
+          |   |   |   | name@lt                | string  |           | open   |       |
+          |   |   |   | name@en                | string  |           | open   |       |
+    ''')
+
+
+# Currently separating csv from internal_sql, since internal_sql, does not know when to hide C lang
+def test_prop_text_level_3_internal_sql(tmp_path, rc):
+    compare(
+        tmp_path,
+        rc,
+        initial_table='''
+            d | r | b | m | property               | type    | ref       | access | title | level
+            example                                |         |           |        |       |
+                                                   |         |           |        |       |
+              |   |   | City                       |         | id        |        |       |
+              |   |   |   | id                     | integer |           | open   |       |
+              |   |   |   | name                   | text    |           | open   |       | 3
+              |   |   |   | name@lt                | string  |           | open   |       |
+              |   |   |   | name@en                | string  |           | open   |       |
+        ''',
+        result_table='''
+            d | r | b | m | property               | type    | ref       | access | title | level
+            example                                |         |           |        |       |
+                                                   |         |           |        |       |
+              |   |   | City                       |         | id        |        |       |
+              |   |   |   | id                     | integer |           | open   |       |
+              |   |   |   | name                   | text    |           | open   |       | 3
+              |   |   |   | name@C                 | string  |           | open   |       |
+              |   |   |   | name@lt                | string  |           | open   |       |
+              |   |   |   | name@en                | string  |           | open   |       |
         ''',
         manifest_type='internal_sql'
     )
