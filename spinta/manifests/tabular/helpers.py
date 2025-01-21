@@ -2075,9 +2075,9 @@ def _enums_to_tabular(
                 'access': item.given.access,
                 'title': item.title,
                 'description': item.description,
-                'level': item.level,
-                'status': item.status,
-                'visibility': item.visibility,
+                'level': item.level.value if item.level else "",
+                'status': item.status.name if item.status else "",
+                'visibility': item.visibility.name if item.visibility else "",
                 'eli': item.eli,
                 'count': item.count,
             })
