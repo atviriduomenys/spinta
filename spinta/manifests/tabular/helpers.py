@@ -88,7 +88,6 @@ log = logging.getLogger(__name__)
 
 ParsedRow = Tuple[int, Dict[str, Any]]
 
-
 MAIN_DIMENSIONS = [
     'dataset',
     'resource',
@@ -119,6 +118,10 @@ ALLOWED_ARRAY_TYPES = [
     DataTypeEnum.ARRAY.value,
     DataTypeEnum._PARTIAL_ARRAY.value,
     DataTypeEnum._ARRAY_BACKREF.value,
+]
+
+ALLOWED_NESTING_TYPES = ALLOWED_PARTIAL_TYPES + ALLOWED_ARRAY_TYPES + [
+    DataTypeEnum.TEXT.value
 ]
 
 
@@ -567,7 +570,8 @@ def _get_type_repr(dtype: List[DataType, str]):
         if dtype.type_args:
             args = ', '.join(dtype.type_args)
             args = f'({args})'
-        dtype_name = dtype.name if not isinstance(dtype, (Denorm, Inherit, ExternalRef, ArrayBackRef)) else dtype.get_type_repr()
+        dtype_name = dtype.name if not isinstance(dtype, (
+            Denorm, Inherit, ExternalRef, ArrayBackRef)) else dtype.get_type_repr()
         return f'{dtype_name}{args}{required}{unique}'
     else:
         args = ''
@@ -620,12 +624,17 @@ class PropertyReader(TabularReader):
 
     def read(self, row: Dict[str, str]) -> None:
         self.path_to_current_prop = self._path_to_current_prop(row['property'])
-        full_prop, parent_prop, prop_name = _get_parent_data(self, row, row['property'])
+        complete_structure, parent_structure, prop_name = _extract_and_create_parent_data(self, row, row['property'])
+
         prop_data = _handle_datatype(self, row)
-        if prop_data:
-            prop_name = _combine_parent_with_prop(prop_name, prop_data, parent_prop, full_prop)
+        prop_name = _combine_parent_with_prop(
+            prop_name,
+            prop_data,
+            parent_structure,
+            complete_structure
+        )
+        self.data = complete_structure
         self.name = prop_name
-        self.data = full_prop
         self.state.model.data['properties'][prop_name] = self.data
 
     def append(self, row: Dict[str, str]) -> None:
@@ -822,38 +831,7 @@ def _string_datatype_handler(reader: PropertyReader, row: dict):
             'name': row['source'],
         }
 
-    lang = None
-    if '@' in given_name:
-        lang = given_name.split('@', 1)[-1]
-    should_return = True
-    if existing_data:
-        if existing_data['type'] == DataTypeEnum.TEXT.value:
-            should_return = False
-            if lang and lang in existing_data['langs']:
-                reader.error(
-                    f"Language {lang} has already been set for the {existing_data['given_name']} property."
-                )
-            elif not lang:
-                existing_data['langs']['C'] = new_data
-            else:
-                existing_data['langs'][lang] = new_data
-        else:
-            reader.error(
-                "Language can only be added to Text type properties."
-            )
-    elif lang and not existing_data:
-        copy = new_data.copy()
-        new_data = _initial_text_property_schema(given_name, dtype, {
-            'property': row['property'],
-            'access': row['access']
-        })
-        new_data['type'] = DataTypeEnum.TEXT.value
-        new_data['explicitly_given'] = False
-        new_data['langs'] = {
-            lang: copy
-        }
-    if should_return:
-        return new_data
+    return new_data
 
 
 def _text_datatype_handler(reader: PropertyReader, row: dict):
@@ -896,28 +874,29 @@ def _text_datatype_handler(reader: PropertyReader, row: dict):
         new_data['external'] = {
             'name': row['source'],
         }
-    temp_data = _empty_property(_initial_normal_property_schema(given_name, dtype, {
-        'property': row['property'],
+    c_lang_name = f'{row["property"]}@C'
+    c_lang_data = _empty_property(_initial_normal_property_schema(c_lang_name, dtype, {
+        'property': c_lang_name,
         'access': row['access'],
     }))
-    temp_data['type'] = DataTypeEnum.STRING.value
-    temp_data['external'] = new_data['external'] if 'external' in new_data else {}
+    c_lang_data['type'] = DataTypeEnum.STRING.value
+    c_lang_data['external'] = new_data['external'] if 'external' in new_data else {}
     if result:
         new_data['langs'] = result['langs']
         if new_data['level'] and int(new_data['level']) <= 3:
-            new_data['langs']['C'] = temp_data
+            new_data['langs']['C'] = c_lang_data
             if 'external' in new_data and new_data['external']:
                 new_data['external'] = {}
         result.update(new_data)
         return result
-    else:
-        if new_data['level'] and int(new_data['level']) <= 3:
-            new_data['langs'] = {
-                'C': temp_data
-            }
-            if 'external' in new_data and new_data['external']:
-                new_data['external'] = {}
-        return new_data
+
+    if new_data['level'] and int(new_data['level']) <= 3:
+        new_data['langs'] = {
+            'C': c_lang_data
+        }
+        if 'external' in new_data and new_data['external']:
+            new_data['external'] = {}
+    return new_data
 
 
 def _default_datatype_handler(reader: PropertyReader, row: dict):
@@ -964,11 +943,17 @@ def _clean_up_prop_name(name: str):
     return name.replace('[]', '').split('@', 1)[0]
 
 
-def _combine_previous_data(prop: dict, existing_prop: dict):
+def _name_complex(name: str) -> bool:
+    return '.' in name or '@' in name or '[]' in name
+
+
+def _restore_previously_nested_data(prop: dict, existing_prop: dict) -> dict:
     if 'properties' in existing_prop:
         prop['properties'] = existing_prop['properties']
     elif 'items' in existing_prop:
         prop['items'] = existing_prop['items']
+    elif 'langs' in existing_prop:
+        prop['langs'] = existing_prop['langs']
     return prop
 
 
@@ -977,13 +962,18 @@ def _combine_parent_with_prop(prop_name: str, prop: dict, parent_prop: dict, ful
     if parent_prop:
         if parent_prop['type'] in ALLOWED_PARTIAL_TYPES:
             if prop_name in parent_prop['properties']:
-                prop = _combine_previous_data(prop, parent_prop['properties'][prop_name])
+                prop = _restore_previously_nested_data(prop, parent_prop['properties'][prop_name])
             parent_prop['properties'][prop_name] = prop
             return_name = _clean_up_prop_name(full_prop['given_name'].split('.')[0])
         elif parent_prop['type'] in ALLOWED_ARRAY_TYPES:
             if parent_prop['items']:
-                prop = _combine_previous_data(prop, parent_prop['items'])
+                prop = _restore_previously_nested_data(prop, parent_prop['items'])
             parent_prop['items'] = prop
+            return_name = _clean_up_prop_name(full_prop['given_name'].split('.')[0])
+        elif parent_prop['type'] == DataTypeEnum.TEXT.value:
+            given_name = prop['given_name']
+            lang_name = given_name.split('@')[-1] if '@' in given_name else 'C'
+            parent_prop['langs'][lang_name] = prop
             return_name = _clean_up_prop_name(full_prop['given_name'].split('.')[0])
         else:
             full_prop.clear()
@@ -1007,31 +997,31 @@ def _get_parent_data_array(reader: PropertyReader, given_row: dict, full_name: s
     name = full_name.split('.')[-1]
     array_depth = name.count('[]')
     root_name = name.replace('[]', '')
-    
+
     empty_array_row = torow(DATASET, {
         'property': full_name,
         'type': DataTypeEnum._PARTIAL_ARRAY.value,
         'access': given_row['access'],
     })
-    
+
     if not current_parent:
         current_parent.update(_empty_property(_array_datatype_handler(reader, empty_array_row)))
 
     if given_row.get('type') == DataTypeEnum.BACKREF.value:
         current_parent['type'] = DataTypeEnum._ARRAY_BACKREF.value
-    
+
     adjustment = 1 if current_parent.get('type') in ALLOWED_ARRAY_TYPES else 0
-    
+
     for _ in range(array_depth - adjustment):
         current_type = current_parent.get('type')
-        
+
         if current_type in ALLOWED_ARRAY_TYPES:
             current_parent = _process_allowed_array_type(reader, current_parent, empty_array_row)
         elif current_type in ALLOWED_PARTIAL_TYPES:
             current_parent = _process_allowed_partial_type(reader, current_parent, root_name, empty_array_row)
         else:
             raise NestedDataTypeMismatch(initial=current_type, required=DataTypeEnum.ARRAY.value)
-    
+
     return current_parent
 
 
@@ -1040,20 +1030,21 @@ def _process_allowed_array_type(reader: PropertyReader, current_parent: dict, em
         raise NestedDataTypeMismatch(initial=current_parent['type'], required=DataTypeEnum.ARRAY.value)
     if not current_parent.get('items'):
         current_parent['items'] = _empty_property(_array_datatype_handler(reader, empty_array_row))
-    
+
     return current_parent['items']
 
 
-def _process_allowed_partial_type(reader: PropertyReader, current_parent: dict, root_name: str, empty_array_row: dict) -> dict:
+def _process_allowed_partial_type(reader: PropertyReader, current_parent: dict, root_name: str,
+                                  empty_array_row: dict) -> dict:
     properties = current_parent.setdefault('properties', {})
-    
+
     if root_name in properties:
         prop_type = properties[root_name].get('type')
         if prop_type not in ALLOWED_ARRAY_TYPES:
             raise NestedDataTypeMismatch(initial=current_parent['type'], required=DataTypeEnum.ARRAY.value)
     else:
         properties[root_name] = _empty_property(_array_datatype_handler(reader, empty_array_row))
-    
+
     return properties[root_name]
 
 
@@ -1066,20 +1057,102 @@ def _get_parent_data_partial(reader: PropertyReader, given_row: dict, full_name:
     name = _clean_up_prop_name(full_name.split('.')[-1])
     if not current_parent:
         current_parent.update(_empty_property(_partial_datatype_handler(reader, empty_partial_row)))
-    else:
-        if current_parent['type'] in ALLOWED_ARRAY_TYPES:
-            if current_parent['items'] and current_parent['items']['type'] not in ALLOWED_PARTIAL_TYPES:
-                raise NestedDataTypeMismatch(initial=current_parent['type'], required=DataTypeEnum._PARTIAL.value)
-            elif not current_parent['items']:
-                current_parent['items'].update(_empty_property(_partial_datatype_handler(reader, empty_partial_row)))
-            current_parent = current_parent['items']
-        elif current_parent['type'] in ALLOWED_PARTIAL_TYPES:
-            if name in current_parent['properties'] and current_parent['properties'][name]['type'] not in ALLOWED_PARTIAL_TYPES:
-                raise NestedDataTypeMismatch(initial=current_parent['type'], required=DataTypeEnum._PARTIAL.value)
-            elif name not in current_parent['properties']:
-                current_parent['properties'][name] = _empty_property(_partial_datatype_handler(reader, empty_partial_row))
-            current_parent = current_parent['properties'][name]
+        return current_parent
+
+    if current_parent['type'] in ALLOWED_ARRAY_TYPES:
+        if current_parent['items'] and current_parent['items']['type'] not in ALLOWED_PARTIAL_TYPES:
+            raise NestedDataTypeMismatch(initial=current_parent['type'], required=DataTypeEnum._PARTIAL.value)
+        elif not current_parent['items']:
+            current_parent['items'].update(_empty_property(_partial_datatype_handler(reader, empty_partial_row)))
+        current_parent = current_parent['items']
+    elif current_parent['type'] in ALLOWED_PARTIAL_TYPES:
+        if (
+            name in current_parent['properties']
+            and current_parent['properties'][name]['type'] not in ALLOWED_PARTIAL_TYPES
+        ):
+            raise NestedDataTypeMismatch(initial=current_parent['type'], required=DataTypeEnum._PARTIAL.value)
+        elif name not in current_parent['properties']:
+            current_parent['properties'][name] = _empty_property(
+                _partial_datatype_handler(reader, empty_partial_row))
+        current_parent = current_parent['properties'][name]
     return current_parent
+
+
+def _get_parent_data_text(reader: PropertyReader, given_row: dict, full_name: str, current_parent: dict):
+    split = full_name.split('.')
+    name = _clean_up_prop_name(split[-1])
+    empty_text_row = torow(DATASET, {
+        'property': name if len(split) == 1 else '.'.join(split[:-1] + [name]),
+        'type': 'text',
+        'access': given_row['access']
+    })
+
+    if not current_parent:
+        if given_row['type'] == 'text':
+            return current_parent
+
+        current_parent.update(_empty_property(_text_datatype_handler(reader, empty_text_row)))
+        return current_parent
+
+    if current_parent['type'] in ALLOWED_ARRAY_TYPES:
+        if current_parent['items'] and current_parent['items']['type'] != DataTypeEnum.TEXT.value:
+            raise NestedDataTypeMismatch(initial=current_parent['properties'][name]['type'], required=DataTypeEnum.TEXT.value)
+        elif not current_parent['items']:
+            current_parent['items'].update(_empty_property(_text_datatype_handler(reader, empty_text_row)))
+        current_parent = current_parent['items']
+    elif current_parent['type'] in ALLOWED_PARTIAL_TYPES:
+        if name in current_parent['properties'] and current_parent['properties'][name]['type'] != DataTypeEnum.TEXT.value:
+            raise NestedDataTypeMismatch(initial=current_parent['properties'][name]['type'], required=DataTypeEnum.TEXT.value)
+        elif name not in current_parent['properties']:
+            current_parent['properties'][name] = _empty_property(
+                _text_datatype_handler(reader, empty_text_row))
+        current_parent = current_parent['properties'][name]
+    return current_parent
+
+
+def _extract_and_create_parent_data(
+    reader: PropertyReader,
+    current_row: dict,
+    property_path: str
+) -> (dict, dict, str):
+    property_parts = property_path.split('.')
+    complete_structure = {}
+    root_property = _get_root_prop(reader, _clean_up_prop_name(property_parts[0]))
+
+    if root_property:
+        complete_structure.update(root_property)
+
+    current_nested_dict = None
+    total_parts = len(property_parts)
+    property_name = property_path
+    accumulated_path = []
+
+    for index, part in enumerate(property_parts):
+        accumulated_path.append(part)
+
+        if '[]' in part:
+            current_nested_dict = _get_parent_data_array(
+                reader, current_row, '.'.join(accumulated_path), current_nested_dict or complete_structure
+            )
+        elif '@' in part:
+            current_nested_dict = _get_parent_data_text(
+                reader, current_row, '.'.join(accumulated_path), current_nested_dict or complete_structure
+            )
+
+        if index < total_parts - 1:
+            if not current_nested_dict and complete_structure:
+                current_nested_dict = complete_structure
+            else:
+                current_nested_dict = _get_parent_data_partial(
+                    reader, current_row, '.'.join(accumulated_path), current_nested_dict or complete_structure
+                )
+        else:
+            property_name = _clean_up_prop_name(part)
+
+        if current_nested_dict and current_nested_dict['type'] not in ALLOWED_NESTING_TYPES:
+            raise DataTypeCannotBeUsedForNesting(dtype=current_nested_dict['type'])
+
+    return complete_structure, current_nested_dict, property_name
 
 
 def _get_parent_data(reader: PropertyReader, given_row: dict, name: str):
@@ -1101,64 +1174,87 @@ def _get_parent_data(reader: PropertyReader, given_row: dict, name: str):
             if not current_parent and full_prop:
                 current_parent = full_prop
             else:
-                current_parent = _get_parent_data_partial(reader, given_row, '.'.join(full_name), current_parent or full_prop)
+                current_parent = _get_parent_data_partial(reader, given_row, '.'.join(full_name),
+                                                          current_parent or full_prop)
         else:
             prop_name = _clean_up_prop_name(prop)
-        if current_parent and (current_parent['type'] not in ALLOWED_PARTIAL_TYPES and current_parent['type'] not in ALLOWED_ARRAY_TYPES):
+        if current_parent and (
+            current_parent['type'] not in ALLOWED_PARTIAL_TYPES and current_parent['type'] not in ALLOWED_ARRAY_TYPES):
             raise DataTypeCannotBeUsedForNesting(dtype=current_parent['type'])
     return full_prop, current_parent, prop_name
 
 
+def _extract_children_from_nested(base: dict, children_name: str) -> dict:
+    if base['type'] in ALLOWED_ARRAY_TYPES:
+        base = base['items']
+    elif base['type'] in ALLOWED_PARTIAL_TYPES:
+        base = base['properties'].get(children_name, None)
+    elif base['type'] == DataTypeEnum.TEXT.value:
+        base = base['langs'].get(children_name, None)
+    else:
+        raise DataTypeCannotBeUsedForNesting(dtype=base['type'])
+
+    return base
+
+
 def _check_if_property_already_set(reader: PropertyReader, given_row: dict, full_name: str):
-    split = full_name.split('.')
-    base_name = _clean_up_prop_name(split[0])
+    # Treat '@' as normal '.', since '_extract_children_from_nested' is able to extract based on type
+    split = full_name.replace('@', '.').split('.')
     base = {}
-    if base_name in reader.state.model.data['properties']:
-        base = reader.state.model.data['properties'][base_name]
-        if (
-            base_name == full_name 
-            and base['type'] != DataTypeEnum._PARTIAL.value
-            and base['type'] != DataTypeEnum._PARTIAL_ARRAY.value
-            and (base['type'] == DataTypeEnum.TEXT.value
-            and given_row['type'] != DataTypeEnum.STRING.value)
-            and base['explicitly_given']
-        ):
-            reader.error(
-                f"Property {reader.name!r} with the same name is already "
-                f"defined for this {reader.state.model.name!r} model."
-            )
-    if not base:
-        return
 
-    for i, prop in enumerate(split):
-        if '[]' in prop:
-            count = prop.count('[]') + 1
-            prop = prop.replace('[]', '')
+    properties = reader.state.model.data['properties']
+    root = True
+    for name in split:
 
-            for a_i in range(count):
+        base_name = name
+
+        if not base and root:
+            skip = True
+            root = False
+            if _name_complex(name):
+                skip = False
+                base_name = _clean_up_prop_name(name)
+
+            if base_name not in properties:
+                return
+
+            base = properties[base_name]
+
+            if skip:
+                continue
+
+        if not base:
+            return
+
+        if base.get('given_name', None) == full_name:
+            break
+
+        if '[]' in name:
+            count = name.count('[]') + 1
+            name = name.replace('[]', '')
+
+            for _ in range(count):
                 if not base:
                     return
-                if base['type'] in ALLOWED_ARRAY_TYPES:
-                    base = base['items']
-                elif base['type'] in ALLOWED_PARTIAL_TYPES:
-                    base = base['properties'].get(prop, None)
-                else:
-                    raise DataTypeCannotBeUsedForNesting(dtype=base['type'])
+                base = _extract_children_from_nested(base, name)
         else:
-            if i > 0:
-                if not base:
-                    return
-                if base['type'] in ALLOWED_PARTIAL_TYPES:
-                    base = base['properties'].get(prop, None)
-                elif base['type'] in ALLOWED_ARRAY_TYPES:
-                    base = base['items']
-                else:
-                    raise DataTypeCannotBeUsedForNesting(dtype=base['type'])
+            base = _extract_children_from_nested(base, name)
+    if (
+        base
+        and base['given_name'] == full_name
+        and base['explicitly_given']
+    ):
+        reader.error(
+            f"Property {full_name!r} with the same name is already "
+            f"defined for this {reader.state.model.name!r} model."
+        )
 
-    if base:
-        if (base['type'] in ALLOWED_PARTIAL_TYPES and given_row['type'] not in ALLOWED_PARTIAL_TYPES) or (base['type'] in ALLOWED_ARRAY_TYPES and given_row['type'] not in ALLOWED_ARRAY_TYPES):
-            raise DataTypeCannotBeUsedForNesting(dtype=given_row['type'])
-
+    if (
+        base
+        and ((base['type'] in ALLOWED_PARTIAL_TYPES and given_row['type'] not in ALLOWED_PARTIAL_TYPES)
+             or (base['type'] in ALLOWED_ARRAY_TYPES and given_row['type'] not in ALLOWED_ARRAY_TYPES))
+    ):
+        raise DataTypeCannotBeUsedForNesting(dtype=given_row['type'])
     return base
 
 
@@ -1937,7 +2033,6 @@ PROPERTIES_ORDER_BY = {
     'access': OrderBy(_order_properties_by_access, reverse=True),
 }
 
-
 T = TypeVar('T', Dataset, Model, Property, EnumItem)
 
 
@@ -2455,8 +2550,10 @@ def datasets_to_tabular(
                         access=access,
                         order_by=order_by,
                     )
-            elif dataset is not None and \
-                    model.external.dataset is None:
+            elif (
+                dataset is not None
+                and model.external.dataset is None
+            ):
                 dataset = None
                 resource = None
                 base = None
@@ -2475,11 +2572,13 @@ def datasets_to_tabular(
                         external=external,
                         access=access,
                     )
-            elif external and \
-                    model.external and \
-                    model.external.resource is None and \
-                    dataset is not None and \
-                    resource is not None:
+            elif (
+                external
+                and model.external
+                and model.external.resource is None
+                and dataset is not None
+                and resource is not None
+            ):
                 base = None
                 yield from _end_marker('resource')
 
