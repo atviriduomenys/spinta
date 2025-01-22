@@ -197,6 +197,8 @@ class DowngradeTransferDataMigrationAction(MigrationAction):
             sa.Column('_id', UUID),
             *[column._copy() for column in columns.values()]
         )
+        if table_name == referenced_table_name:
+            foreign_table = foreign_table.alias()
         self.query = original_table.update().values(
             **{
                 key: foreign_table.columns[column.name]
@@ -257,6 +259,8 @@ class UpgradeTransferDataMigrationAction(MigrationAction):
             sa.Column('_id', UUID),
             *[sa.Column(key, column.type) for key, column in columns.items()]
         )
+        if table_name == referenced_table_name:
+            referenced_table = referenced_table.alias()
         self.query = original_table.update().values(
             **{
                 ref_column.name: referenced_table.columns['_id']
