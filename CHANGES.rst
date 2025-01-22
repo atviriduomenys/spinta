@@ -4,6 +4,11 @@ Changes
 0.1.83 (unreleased)
 ===================
 
+Bug fix:
+
+- Convertion from scalar to ref (and ref to scalar) now uses `alias` when there is self reference (`#1105`_).
+
+  .. _#1105: https://github.com/atviriduomenys/spinta/issues/1105
 
 0.1.82 (2025-01-21)
 ===================
