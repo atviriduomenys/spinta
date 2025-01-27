@@ -110,7 +110,7 @@ class Resource(External):
     backend: ExternalBackend = None
     level: Level
     access: Access
-    external: str
+    external: dict[str, str]
     prepare: Expr
     models: Dict[str, Model]
     given: ResourceGiven
@@ -135,7 +135,11 @@ class Resource(External):
         # explicit backend dsn can be given. Only one `ref` or `source` can be
         # given.
         'external': {
-            'type': 'string'
+            'type': 'array',
+            'items': {
+                'type': {'type': 'string'},
+                'name': {'type': 'string'}
+            },
         },
         'params': {'type': 'object'},
         'level': {
@@ -222,7 +226,8 @@ class Entity(External):
                 'type': 'ref',
                 'ref': 'model.properties',
             },
-        }
+        },
+        'type': {'type': 'string'},
     }
 
 
@@ -235,4 +240,5 @@ class Attribute(External):
         'prop': {'parent': True},
         'name': {'default': None},
         'prepare': {'type': 'spyna', 'default': NA},
+        'type': {'type': 'string'},
     }

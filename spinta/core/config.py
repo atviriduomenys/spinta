@@ -590,7 +590,7 @@ def configure_rc(
     *,
     mode: Mode = Mode.internal,
     check_names: Optional[bool] = None,
-    backend: str = None,
+    backend: dict[str, str] = None,
     resources: List[ResourceTuple] = None,
     dataset: str = None,
     manifest_type: str = 'inline'
@@ -601,14 +601,14 @@ def configure_rc(
     if backend:
         # TODO: Parse backend string to detect type. Currently type is hardcoded
         #       to 'postgresql'.
-        if backend == 'memory':
+        if backend["name"] == 'memory':  # name for backwards compatibility, but maybe should be type later?
             config['backends.default'] = {
                 'type': 'memory',
             }
         else:
             config['backends.default'] = {
-                'type': 'postgresql',
-                'dsn': backend,
+                'type': backend['type'],
+                'dsn': backend['name'],
             }
     elif 'default' not in rc.get('backends', default={}):
         config['backends.default'] = {

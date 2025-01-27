@@ -49,7 +49,7 @@ def load_resource_backend(
         return load_backend(context, resource, name, BackendOrigin.resource, {
             'type': resource.type,
             'name': name,
-            'dsn': resource.external,
+            'dsn': resource.external["name"] if resource.external else None,
         })
 
     else:

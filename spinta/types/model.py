@@ -73,6 +73,8 @@ def load(
     *,
     source: Manifest = None,
 ) -> Model:
+    if (model and model.name and 'CountryA' in model.name) or (data and 'name' in data and 'CountryA' in data['name']):
+        print()
     model.parent = manifest
     model.manifest = manifest
     model.mode = manifest.mode  # TODO: mode should be inherited from namespace.

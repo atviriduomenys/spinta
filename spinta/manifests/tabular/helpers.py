@@ -358,7 +358,7 @@ class ResourceReader(TabularReader):
             'id': row['id'],
             'type': row['type'],
             'backend': row['ref'],
-            'external': row['source'],
+            'external': {'name': row['source'], 'type': row['source.type']},
             'prepare': _parse_spyna(self, row[PREPARE]),
             'level': row['level'],
             'access': row['access'],
@@ -484,6 +484,7 @@ class ModelReader(TabularReader):
                     if row['ref'] else []
                 ),
                 'name': row['source'],
+                'type': row['source.type'],
                 'prepare': _parse_spyna(self, row[PREPARE]),
             },
             'given_name': name,
@@ -784,6 +785,7 @@ def _datatype_handler(reader: PropertyReader, row: dict, initial_data_loader: Ca
     if dataset or row['source']:
         new_data['external'] = {
             'name': row['source'],
+            'type': row['source.type'],
         }
 
     return new_data
