@@ -496,20 +496,20 @@ def test_copy_source_type_resource(context: Context, rc, cli, tmp_path):
 
 def test_copy_source_type_model(context: Context, rc, cli, tmp_path):
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
-    d | r | b | m | property | type    | ref     | source      | source.type  
+    d | r | b | m | property | type    | ref     | source      | source.type
     datasets/gov/example     |         |         |             |
       | data                 | sql     |         |             |
                              |         |         |             |
-      |   |   | CountryA     |         | code    | salis       | table
+      |   |   | Country      |         | code    | salis       | table
       |   |   |   | code     | integer |         | kodas       |
       |   |   |   | name     | string  |         | pavadinimas |
       |   |   |   | driving  | string  |         | vairavimas  |
       |   |   |   |          | enum    |         | l           |
       |   |   |   |          |         |         | r           |  
                              |         |         |             |
-      |   |   | CityA        |         | name    | miestas     | view materialized
+      |   |   | City         |         | name    | miestas     | view materialized
       |   |   |   | name     | string  |         | pavadinimas |
-      |   |   |   | country  | ref     | CountryA | salis       |
+      |   |   |   | country  | ref     | Country | salis       |
     '''))
 
     cli.invoke(rc, [
@@ -520,20 +520,20 @@ def test_copy_source_type_model(context: Context, rc, cli, tmp_path):
 
     manifest = load_manifest(rc, tmp_path / 'result.csv')
     assert manifest == '''
-    d | r | b | m | property | type    | ref     | source      | source.type  
+    d | r | b | m | property | type    | ref     | source      | source.type
     datasets/gov/example     |         |         |             |
       | data                 | sql     |         |             |
                              |         |         |             |
-      |   |   | CountryA      |         | code    | salis       | table
+      |   |   | Country      |         | code    | salis       | table
       |   |   |   | code     | integer |         | kodas       |
       |   |   |   | name     | string  |         | pavadinimas |
       |   |   |   | driving  | string  |         | vairavimas  |
-      |   |   |   |          | enum    |         | l           |
-      |   |   |   |          |         |         | r           |  
+                             | enum    |         | l           |
+                             |         |         | r           |
                              |         |         |             |
-      |   |   | CityA         |         | name    | miestas     | view materialized
+      |   |   | City         |         | name    | miestas     | view materialized
       |   |   |   | name     | string  |         | pavadinimas |
-      |   |   |   | country  | ref     | CountryA | salis       |
+      |   |   |   | country  | ref     | Country | salis       |
     '''
 
 
@@ -563,13 +563,13 @@ def test_copy_source_type_property(context: Context, rc, cli, tmp_path):
 
     manifest = load_manifest(rc, tmp_path / 'result.csv')
     assert manifest == '''
-    d | r | b | m | property | type    | ref     | source      | source.type  
+    d | r | b | m | property | type    | ref     | source      | source.type
     datasets/gov/example     |         |         |             |
-      | data                 | sql     |         | sqlite://   | sqlite
+      | data                 | sql     |         | sqlite://   |
                              |         |         |             |
       |   |   | Country      |         | code    | salis       |
-      |   |   |   | code     | integer |         | kodas       | integer 
-      |   |   |   | name     | string  |         | pavadinimas | varchar(255) 
+      |   |   |   | code     | integer |         | kodas       | integer
+      |   |   |   | name     | string  |         | pavadinimas | varchar(255)
       |   |   |   | driving  | string  |         | vairavimas  | varchar(1)
       |   |   |   |          | enum    |         | l           |
       |   |   |   |          |         |         | r           |  

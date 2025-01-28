@@ -126,6 +126,7 @@ def load_manifest(
                 f"Loading {type(store.manifest).__name__} "
                 f"manifest {store.manifest.name}"
             )
+    # temp info pasimeta kažkur šitoj load funkcijoj
     commands.load(
         context, store.manifest,
         rename_duplicates=rename_duplicates,

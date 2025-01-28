@@ -485,7 +485,7 @@ class ModelReader(TabularReader):
                     if row['ref'] else []
                 ),
                 'name': row['source'],
-                # 'type': row['source.type'],
+                'type': row['source.type'],
                 'prepare': _parse_spyna(self, row[PREPARE]),
             },
             'given_name': name,
@@ -2298,6 +2298,7 @@ def _resource_to_tabular(
         'id': resource.id,
         'resource': resource.name,
         'source': resource.external if external else '',
+        'source.type': resource.source_type,
         'prepare': unparse(resource.prepare or NA) if external else '',
         'type': resource.type,
         'ref': (
@@ -2369,6 +2370,7 @@ def _property_to_tabular(
             )
         elif prop.external:
             data['source'] = prop.external.name
+            data['source.type'] = prop.external.type
             data['prepare'] = unparse(prop.external.prepare or NA)
 
     yield_rows = []
@@ -2476,6 +2478,7 @@ def _model_to_tabular(
     if external and model.external:
         data.update({
             'source': model.external.name,
+            'source.type': model.external.type,
             'prepare': unparse(model.external.prepare or NA),
         })
         if (
