@@ -159,4 +159,4 @@ def dialect_specific_group_array(engine: sa.engine, column: Union[sa.Column, Seq
 
 
 def contains_geometry_flip_function(engine: sa.engine) -> bool:
-    return _contains_dialect_function(engine, _GROUP_ARRAY_DIALECT_MAPPER)
+    return _contains_dialect_function(engine, _GEOMETRY_FLIP_DIALECT_MAPPER)
