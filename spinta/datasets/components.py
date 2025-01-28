@@ -110,7 +110,8 @@ class Resource(External):
     backend: ExternalBackend = None
     level: Level
     access: Access
-    external: dict[str, str]
+    # external: dict[str, str]
+    external: str
     prepare: Expr
     models: Dict[str, Model]
     given: ResourceGiven
@@ -118,6 +119,7 @@ class Resource(External):
     comments: List[Comment] = None
     params: List[Param]
     source_params: set
+    source_type: str
 
     schema = {
         'type': {'type': 'string'},
@@ -134,13 +136,15 @@ class Resource(External):
         # If `backend` is not given via `ref` column, then in `source` column,
         # explicit backend dsn can be given. Only one `ref` or `source` can be
         # given.
-        'external': {
-            'type': 'array',
-            'items': {
-                'type': {'type': 'string'},
-                'name': {'type': 'string'}
-            },
-        },
+
+        'external': {'type': 'string'},
+        # 'external': {
+        #     'type': 'array',
+        #     'items': {
+        #         'type': {'type': 'string'},
+        #         'name': {'type': 'string'}
+        #     },
+        # },
         'params': {'type': 'object'},
         'level': {
             'type': 'integer',
@@ -157,6 +161,7 @@ class Resource(External):
         'comments': {},
         'lang': {'type': 'object'},
         'given_name': {'type': 'string', 'default': None},
+        'source_type': {'type': "string"}
     }
 
     def __init__(self):

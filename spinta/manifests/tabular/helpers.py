@@ -358,7 +358,8 @@ class ResourceReader(TabularReader):
             'id': row['id'],
             'type': row['type'],
             'backend': row['ref'],
-            'external': {'name': row['source'], 'type': row['source.type']},
+            'external': row['source'],
+            # 'external': {'name': row['source'], 'type': row['source.type']},
             'prepare': _parse_spyna(self, row[PREPARE]),
             'level': row['level'],
             'access': row['access'],
@@ -484,7 +485,7 @@ class ModelReader(TabularReader):
                     if row['ref'] else []
                 ),
                 'name': row['source'],
-                'type': row['source.type'],
+                # 'type': row['source.type'],
                 'prepare': _parse_spyna(self, row[PREPARE]),
             },
             'given_name': name,
