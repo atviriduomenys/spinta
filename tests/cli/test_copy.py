@@ -581,13 +581,13 @@ def test_copy_source_type_property(context: Context, rc, cli, tmp_path):
 
 def test_copy_source_type_resource_model_property(context: Context, rc, cli, tmp_path):
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
-    d | r | b | m | property | type    | ref     | source      | source.type  
+    d | r | b | m | property | type    | ref     | source      | source.type
     datasets/gov/example     |         |         |             |
       | data                 | sql     |         | sqlite://   | sqlite
                              |         |         |             |
       |   |   | Country      |         | code    | salis       | table
-      |   |   |   | code     | integer |         | kodas       | integer 
-      |   |   |   | name     | string  |         | pavadinimas | varchar(255) 
+      |   |   |   | code     | integer |         | kodas       | integer
+      |   |   |   | name     | string  |         | pavadinimas | varchar(255)
       |   |   |   | driving  | string  |         | vairavimas  | varchar(1)
       |   |   |   |          | enum    |         | l           |
       |   |   |   |          |         |         | r           |  
@@ -605,13 +605,13 @@ def test_copy_source_type_resource_model_property(context: Context, rc, cli, tmp
 
     manifest = load_manifest(rc, tmp_path / 'result.csv')
     assert manifest == '''
-    d | r | b | m | property | type    | ref     | source      | source.type  
+    d | r | b | m | property | type    | ref     | source      | source.type
     datasets/gov/example     |         |         |             |
       | data                 | sql     |         | sqlite://   | sqlite
                              |         |         |             |
       |   |   | Country      |         | code    | salis       | table
-      |   |   |   | code     | integer |         | kodas       | integer 
-      |   |   |   | name     | string  |         | pavadinimas | varchar(255) 
+      |   |   |   | code     | integer |         | kodas       | integer
+      |   |   |   | name     | string  |         | pavadinimas | varchar(255)
       |   |   |   | driving  | string  |         | vairavimas  | varchar(1)
       |   |   |   |          | enum    |         | l           |
       |   |   |   |          |         |         | r           |  

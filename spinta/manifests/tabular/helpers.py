@@ -366,6 +366,7 @@ class ResourceReader(TabularReader):
             'title': row['title'],
             'description': row['description'],
             'given_name': self.name,
+            'source_type': row['source.type']
         }
 
         dataset['resources'][self.name] = self.data
