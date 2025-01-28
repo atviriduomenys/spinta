@@ -19,11 +19,11 @@ from spinta.core.ufuncs import Negative
 from spinta.core.ufuncs import Unresolved
 from spinta.core.ufuncs import ufunc
 from spinta.datasets.backends.sql.helpers import dialect_specific_desc, dialect_specific_asc, \
-    contains_geometry_flip_function, dialect_specific_geometry_flip
+    contains_geometry_flip_function, dialect_specific_geometry_flip, dialect_specific_group_array
 from spinta.datasets.backends.sql.ufuncs.query.components import SqlQueryBuilder
 from spinta.dimensions.enum.helpers import prepare_enum_value
-from spinta.exceptions import PropertyNotFound, SourceCannotBeList
-from spinta.types.datatype import DataType, Denorm, Object
+from spinta.exceptions import PropertyNotFound, SourceCannotBeList, NoExternalName
+from spinta.types.datatype import DataType, Denorm, Object, Array
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.types.datatype import String
@@ -233,11 +233,27 @@ def _resolve_unresolved(env: SqlQueryBuilder, value: Any) -> Any:
         return value
 
 
+@ufunc.resolver(SqlQueryBuilder, Property)
+def _resolve_unresolved(env: SqlQueryBuilder, prop: Property) -> sa.Column:
+    if prop.external is None:
+        raise NoExternalName(prop)
+
+    if prop.external.name:
+        return env.backend.get_column(env.table, prop)
+
+    if prop.external.prepare and isinstance(prop.external.prepare, Expr):
+        result = env(this=prop).resolve(prop.external.prepare)
+        columns = env.call('_resolve_unresolved', result)
+        return columns
+
+    raise NoExternalName(prop)
+
+
 @ufunc.resolver(SqlQueryBuilder, Bind)
 def _resolve_unresolved(env: SqlQueryBuilder, field: Bind) -> sa.Column:
     prop = env.model.flatprops.get(field.name)
     if prop:
-        return env.backend.get_column(env.table, prop)
+        return env.call('_resolve_unresolved', prop)
     else:
         raise PropertyNotFound(env.model, property=field.name)
 
@@ -248,6 +264,16 @@ def _resolve_unresolved(env: SqlQueryBuilder, attr: GetAttr) -> sa.Column:
     table = env.joins.get_table(env, fpr)
     dtype = fpr.right
     return env.backend.get_column(table, dtype.prop)
+
+
+@ufunc.resolver(SqlQueryBuilder, list)
+def _resolve_unresolved(env: SqlQueryBuilder, data: list) -> list:
+    return list(env.call('_resolve_unresolved', value) for value in data)
+
+
+@ufunc.resolver(SqlQueryBuilder, tuple)
+def _resolve_unresolved(env: SqlQueryBuilder, data: tuple) -> tuple:
+    return tuple(env.call('_resolve_unresolved', value) for value in data)
 
 
 @ufunc.resolver(SqlQueryBuilder, Expr, name='and')
@@ -522,6 +548,30 @@ def select(env, dtype: Denorm):
         return env.call("select", fpr)
 
 
+@ufunc.resolver(SqlQueryBuilder, Array)
+def select(env: SqlQueryBuilder, dtype: Array):
+    if dtype.model is not None:
+        table = env.joins.get_intermediate_table(env, dtype)
+        right = dtype.right_prop
+        if right.external is None:
+            raise NoExternalName(right)
+
+        columns = env(table=table, model=dtype.model).call('_resolve_unresolved', right)
+
+        column = dialect_specific_group_array(env.backend.engine, columns)
+
+        # Group by all (required for aggregation functions)
+        env.add_to_group_by(list(env.table.columns))
+
+        return Selected(
+            prop=dtype.prop,
+            prep=Selected(
+                item=env.add_column(column),
+                prop=dtype.right_prop
+            )
+        )
+
+
 @ufunc.resolver(SqlQueryBuilder, Page)
 def select(env: SqlQueryBuilder, page: Page) -> List[sa.Column]:
     table = env.backend.get_table(env.model)
@@ -574,13 +624,13 @@ def select(
     env: SqlQueryBuilder,
     fpr: ForeignProperty,
 ) -> Selected:
-        table = env.joins.get_table(env, fpr)
-        right = fpr.right.prop
-        column = env.backend.get_column(table, right, select=True)
-        return Selected(
-            item=env.add_column(column),
-            prop=right,
-        )
+    table = env.joins.get_table(env, fpr)
+    right = fpr.right.prop
+    column = env.backend.get_column(table, right, select=True)
+    return Selected(
+        item=env.add_column(column),
+        prop=right,
+    )
 
 
 @ufunc.resolver(SqlQueryBuilder, Geometry, Flip)
@@ -610,7 +660,10 @@ def join_table_on(env: SqlQueryBuilder, prop: Property) -> Any:
 
 @ufunc.resolver(SqlQueryBuilder, DataType)
 def join_table_on(env: SqlQueryBuilder, dtype: DataType) -> Tuple[Any]:
-    column = env.backend.get_column(env.table, dtype.prop)
+    table = env.table
+    if table is None:
+        table = env.backend.get_table(dtype.prop.model)
+    column = env.backend.get_column(table, dtype.prop)
     return column
 
 
@@ -798,13 +851,9 @@ def point(env: SqlQueryBuilder, x: Bind, y: Bind) -> Expr:
 @ufunc.resolver(SqlQueryBuilder)
 def distinct(env: SqlQueryBuilder):
     if env.model and env.model.external and not env.model.external.unknown_primary_key:
-        extracted_columns = [env.backend.get_column(env.table, prop) for prop in env.model.external.pkeys if prop.external]
-        if env.group_by is None:
-            env.group_by = extracted_columns
-        else:
-            for column in extracted_columns:
-                if column not in env.group_by:
-                    env.group_by.append(column)
+        extracted_columns = [env.backend.get_column(env.table, prop) for prop in env.model.external.pkeys if
+                             prop.external]
+        env.add_to_group_by(extracted_columns)
     else:
         env.distinct = True
 
@@ -832,4 +881,3 @@ def flip(env: SqlQueryBuilder, dtype: Geometry):
 
     # Returning expr means, that it will be passed to ResultBuilder to handle it
     return Expr('flip')
-

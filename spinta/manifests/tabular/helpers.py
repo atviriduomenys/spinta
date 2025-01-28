@@ -756,7 +756,12 @@ def _datatype_handler(reader: PropertyReader, row: dict, initial_data_loader: Ca
         )
 
     if row['ref']:
-        if dtype['type'] in (DataTypeEnum.REF.value, DataTypeEnum.GENERIC.value, DataTypeEnum.BACKREF.value):
+        if dtype['type'] in (
+            DataTypeEnum.REF.value,
+            DataTypeEnum.GENERIC.value,
+            DataTypeEnum.BACKREF.value,
+            DataTypeEnum.ARRAY.value
+        ):
             ref_model, ref_props = _parse_property_ref(row['ref'])
             new_data['model'] = get_relative_model_name(dataset, ref_model)
 
