@@ -221,11 +221,29 @@ class Generic(DataType):
 
 class Array(DataType):
     schema = {
+        'model': {'type': 'string'},
+        'refprops': {
+            'type': 'array',
+            'items': {'type': 'string'},
+        },
         'items': {},
     }
 
+    # Exposed intermediate table model
+    model: Model = None
+
+    # Given intermediate table explicit mapping
+    refprops: List[Property] = None
+
+    # Intermediate table's left property (self)
+    left_prop: Property = None
+
+    # Intermediate table's right property (other)
+    right_prop: Property = None
+
     items: Property = None
     expandable = True
+    requires_source = False
 
     def load(self, value: Any):
         if value is None or value is NA:

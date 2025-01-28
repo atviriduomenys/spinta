@@ -6,14 +6,14 @@ from spinta.backends.helpers import validate_and_return_begin
 from spinta.components import Context
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
-from spinta.datasets.backends.helpers import handle_ref_key_assignment, generate_pk_for_row
+from spinta.datasets.backends.helpers import handle_ref_key_assignment, generate_pk_for_row, handle_external_array_type
 from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.backends.sql.ufuncs.query.components import SqlQueryBuilder
 from spinta.datasets.helpers import get_enum_filters
 from spinta.datasets.helpers import get_ref_filters
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.datasets.utils import iterparams
-from spinta.types.datatype import PrimaryKey
+from spinta.types.datatype import PrimaryKey, Array
 from spinta.types.datatype import Ref
 from spinta.typing import ObjectData
 from spinta.ufuncs.basequerybuilder.components import QueryParams
@@ -69,6 +69,8 @@ def getall(
                         val = generate_pk_for_row(sel.prop.model, row, keymap, val)
                     elif isinstance(sel.prop.dtype, Ref):
                         val = handle_ref_key_assignment(context, keymap, env, val, sel.prop.dtype)
+                    elif isinstance(sel.prop.dtype, Array):
+                        val = handle_external_array_type(context, sel.prop.dtype, keymap, env, val)
                 res[key] = val
             if is_page_enabled:
                 res['_page'] = get_page_values(env, row)
@@ -120,7 +122,7 @@ def getone(
 
     for field in model.properties:
         if not field.startswith('_'):
-            value = row[field]
+            value = row.get(field, None)
             data[field] = value
 
     additional_data = {
