@@ -122,7 +122,7 @@ def getone(
 
     for field in model.properties:
         if not field.startswith('_'):
-            value = row.get(field, None)
+            value = row[field]
             data[field] = value
 
     additional_data = {

@@ -57,6 +57,87 @@ def geodb_with_nulls():
         yield db
 
 
+@pytest.fixture(scope='module')
+def geodb_array():
+    with create_sqlite_db({
+        'language': [
+            sa.Column('name', sa.Text),
+            sa.Column('id', sa.Integer),
+        ],
+        'country': [
+            sa.Column('name', sa.Text),
+            sa.Column('id', sa.Integer),
+        ],
+        'country_language': [
+            sa.Column('country_id', sa.Integer),
+            sa.Column('country_name', sa.Text),
+            sa.Column('language_id', sa.Integer),
+            sa.Column('language_name', sa.Text),
+        ]
+    }) as db:
+        db.write('language', [
+            {
+                'id': 0,
+                'name': 'English'
+            },
+            {
+                'id': 1,
+                'name': 'Lithuanian'
+            },
+            {
+                'id': 2,
+                'name': 'Polish'
+            }
+        ])
+        db.write('country', [
+            {
+                'id': 0,
+                'name': 'United Kingdoms'
+            },
+            {
+                'id': 1,
+                'name': 'Lithuania'
+            },
+            {
+                'id': 2,
+                'name': 'Poland'
+            }
+        ])
+        db.write('country_language', [
+            {
+                'country_id': 0,
+                'country_name': 'United Kingdoms',
+                'language_id': 0,
+                'language_name': 'English'
+            },
+            {
+                'country_id': 1,
+                'country_name': 'Lithuania',
+                'language_id': 0,
+                'language_name': 'English'
+            },
+            {
+                'country_id': 1,
+                'country_name': 'Lithuania',
+                'language_id': 1,
+                'language_name': 'Lithuanian'
+            },
+            {
+                'country_id': 2,
+                'country_name': 'Poland',
+                'language_id': 0,
+                'language_name': 'English'
+            },
+            {
+                'country_id': 2,
+                'country_name': 'Poland',
+                'language_id': 2,
+                'language_name': 'Polish'
+            }
+        ])
+        yield db
+
+
 def test__get_row_value_null(rc: RawConfig):
     context, manifest = load_manifest_and_context(rc, '''
     d | r | b | m | property | type    | ref | source | prepare | access
@@ -559,239 +640,330 @@ def test_getall_geometry_manifest_flip(context, rc, tmp_path):
         ]
 
 
-def test_getall_array_intermediate_ref_level_4_sqlite(context, rc, tmp_path):
-    with create_sqlite_db({
-        'language': [
-            sa.Column('name', sa.Text),
-            sa.Column('id', sa.Integer),
-        ],
-        'country': [
-            sa.Column('name', sa.Text),
-            sa.Column('id', sa.Integer),
-        ],
-        'countrylanguage': [
-            sa.Column('country', sa.Integer),
-            sa.Column('language', sa.Integer),
-        ]
-    }) as db:
-        db.write('language', [
-            {
-                'id': 0,
-                'name': 'English'
-            },
-            {
-                'id': 1,
-                'name': 'Lithuanian'
-            },
-            {
-                'id': 2,
-                'name': 'Polish'
-            }
-        ])
-        db.write('country', [
-            {
-                'id': 0,
-                'name': 'United Kingdoms'
-            },
-            {
-                'id': 1,
-                'name': 'Lithuania'
-            },
-            {
-                'id': 2,
-                'name': 'Poland'
-            }
-        ])
-        db.write('countrylanguage', [
-            {
-                'country': 0,
-                'language': 0
-            },
-            {
-                'country': 1,
-                'language': 0
-            },
-            {
-                'country': 1,
-                'language': 1
-            },
-            {
-                'country': 2,
-                'language': 0
-            },
-            {
-                'country': 2,
-                'language': 2
-            }
-        ])
+def test_getall_array_intermediate_single_pkey_sqlite(context, rc, tmp_path, geodb_array):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+    d | r | b | m | property    | type   | ref             | source           | level   | access
+    example                     |        |                 |                  |         |        
+      | db                      | sql    |                 |                  |         |        
+      |                         |        |                 |                  |         |
+      |   |   | Language        |        | id              | language         |         |
+      |   |   |   | id          | string |                 | id               |         | open
+      |   |   |   | name        | string |                 | name             |         | open
+      |   |                     |        |                 |                  |         |
+      |   |   | Country         |        | id              | country          |         |
+      |   |   |   | id          | string |                 | id               |         | open
+      |   |   |   | name        | string |                 | name             |         | open
+      |   |   |   | languages   | array  | CountryLanguage |                  |         | open
+      |   |   |   | languages[] | ref    | Language        |                  |         | open
+      |   |                     |        |                 |                  |         |
+      |   |   | CountryLanguage |        |                 | country_language |         |
+      |   |   |   | country     | ref    | Country         | country_id       |         | open
+      |   |   |   | language    | ref    | Language        | language_id      |         | open
+    '''))
+    app = create_client(rc, tmp_path, geodb_array)
+    resp = app.get(f'/example/Language')
+    lang_data = resp.json()['_data']
+    lang_mapping = {lang['id']: lang for lang in lang_data}
+    resp = app.get(f'/example/Country')
 
-        create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
-        d | r | b | m | property    | type   | ref             | source          | level   | access
-        example                     |        |                 |                 |         |        
-          | db                      | sql    |                 |                 |         |        
-          |                         |        |                 |                 |         |
-          |   |   | Language        |        | id              | language        |         |
-          |   |   |   | id          | string |                 | id              |         | open
-          |   |   |   | name        | string |                 | name            |         | open
-          |   |                     |        |                 |                 |         |
-          |   |   | Country         |        | id              | country         |         |
-          |   |   |   | id          | string |                 | id              |         | open
-          |   |   |   | name        | string |                 | name            |         | open
-          |   |   |   | languages   | array  | CountryLanguage |                 |         | open
-          |   |   |   | languages[] | ref    | Language        |                 |         | open
-          |   |                     |        |                 |                 |         |
-          |   |   | CountryLanguage |        |                 | countrylanguage |         |
-          |   |   |   | country     | ref    | Country         | country         |         | open
-          |   |   |   | language    | ref    | Language        | language        |         | open
-        '''))
-        app = create_client(rc, tmp_path, db)
-        resp = app.get(f'/example/Language')
-        lang_data = resp.json()['_data']
-        lang_mapping = {lang['id']: lang for lang in lang_data}
-        resp = app.get(f'/example/Country')
-
-        assert resp.status_code == 200
-        assert listdata(resp, 'id', 'name', 'languages', full=True) == [
-            {
-                'id': 0,
-                'name': 'United Kingdoms',
-                'languages': [
-                    {'_id': lang_mapping[0]['_id']}
-                ]
-            },
-            {
-                'id': 1,
-                'name': 'Lithuania',
-                'languages': [
-                    {'_id': lang_mapping[0]['_id']},
-                    {'_id': lang_mapping[1]['_id']}
-                ]
-            },
-            {
-                'id': 2,
-                'name': 'Poland',
-                'languages': [
-                    {'_id': lang_mapping[0]['_id']},
-                    {'_id': lang_mapping[2]['_id']}
-                ]
-            },
-        ]
+    assert resp.status_code == 200
+    assert listdata(resp, 'id', 'name', 'languages', full=True) == [
+        {
+            'id': 0,
+            'name': 'United Kingdoms',
+            'languages': [
+                {'_id': lang_mapping[0]['_id']}
+            ]
+        },
+        {
+            'id': 1,
+            'name': 'Lithuania',
+            'languages': [
+                {'_id': lang_mapping[0]['_id']},
+                {'_id': lang_mapping[1]['_id']}
+            ]
+        },
+        {
+            'id': 2,
+            'name': 'Poland',
+            'languages': [
+                {'_id': lang_mapping[0]['_id']},
+                {'_id': lang_mapping[2]['_id']}
+            ]
+        },
+    ]
 
 
-def test_getall_array_intermediate_ref_level_3_sqlite(context, rc, tmp_path):
-    with create_sqlite_db({
-        'language': [
-            sa.Column('name', sa.Text),
-            sa.Column('id', sa.Integer),
-        ],
-        'country': [
-            sa.Column('name', sa.Text),
-            sa.Column('id', sa.Integer),
-        ],
-        'countrylanguage': [
-            sa.Column('country', sa.Integer),
-            sa.Column('language', sa.Integer),
-        ]
-    }) as db:
-        db.write('language', [
-            {
-                'id': 0,
-                'name': 'English'
-            },
-            {
-                'id': 1,
-                'name': 'Lithuanian'
-            },
-            {
-                'id': 2,
-                'name': 'Polish'
-            }
-        ])
-        db.write('country', [
-            {
-                'id': 0,
-                'name': 'United Kingdoms'
-            },
-            {
-                'id': 1,
-                'name': 'Lithuania'
-            },
-            {
-                'id': 2,
-                'name': 'Poland'
-            }
-        ])
-        db.write('countrylanguage', [
-            {
-                'country': 0,
-                'language': 0
-            },
-            {
-                'country': 1,
-                'language': 0
-            },
-            {
-                'country': 1,
-                'language': 1
-            },
-            {
-                'country': 2,
-                'language': 0
-            },
-            {
-                'country': 2,
-                'language': 2
-            }
-        ])
+def test_getall_array_intermediate_multi_pkey_sqlite(context, rc, tmp_path, geodb_array):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+    d | r | b | m | property     | type    | ref             | source           | level   | access | prepare  
+    example                      |         |                 |                  |         |        |        
+      | db                       | sql     |                 |                  |         |        |        
+      |                          |         |                 |                  |         |        |
+      |   |   | Language         |         | id              | language         |         |        |
+      |   |   |   | id           | integer |                 | id               |         | open   |    
+      |   |   |   | name         | string  |                 | name             |         | open   |    
+      |   |                      |         |                 |                  |         |        |
+      |   |   | Country          |         | id, name        | country          |         |        |
+      |   |   |   | id           | integer |                 | id               |         | open   |    
+      |   |   |   | name         | string  |                 | name             |         | open   |    
+      |   |   |   | languages    | array   | CountryLanguage |                  |         | open   |    
+      |   |   |   | languages[]  | ref     | Language        |                  |         | open   |    
+      |   |                      |         |                 |                  |         |        |
+      |   |   | CountryLanguage  |         |                 | country_language |         |        |
+      |   |   |   | country_id   | integer |                 | country_id       |         | open   |    
+      |   |   |   | country_name | string  |                 | country_name     |         | open   |    
+      |   |   |   | country      | ref     | Country         |                  |         | open   | country_id, country_name   
+      |   |   |   | language     | ref     | Language        | language_id      |         | open   |    
+    '''))
+    app = create_client(rc, tmp_path, geodb_array)
+    resp = app.get(f'/example/Language')
+    lang_data = resp.json()['_data']
+    lang_mapping = {lang['id']: lang for lang in lang_data}
+    resp = app.get(f'/example/Country')
 
-        create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
-        d | r | b | m | property    | type   | ref             | source          | level   | access
-        example                     |        |                 |                 |         |        
-          | db                      | sql    |                 |                 |         |        
-          |                         |        |                 |                 |         |
-          |   |   | Language        |        | id, name        | language        |         |
-          |   |   |   | id          | string |                 | id              |         | open
-          |   |   |   | name        | string |                 | name            |         | open
-          |   |                     |        |                 |                 |         |
-          |   |   | Country         |        | id, name        | country         |         |
-          |   |   |   | id          | string |                 | id              |         | open
-          |   |   |   | name        | string |                 | name            |         | open
-          |   |   |   | languages   | array  | CountryLanguage |                 |         | open
-          |   |   |   | languages[] | ref    | Language        |                 | 3       | open
-          |   |                     |        |                 |                 |         |
-          |   |   | CountryLanguage |        |                 | countrylanguage |         |
-          |   |   |   | country     | ref    | Country         | country         |         | open
-          |   |   |   | language    | ref    | Language        | language        | 3       | open
-        '''))
-        app = create_client(rc, tmp_path, db)
-        resp = app.get(f'/example/Language')
-        lang_data = resp.json()['_data']
-        lang_mapping = {lang['id']: lang for lang in lang_data}
-        resp = app.get(f'/example/Country')
+    assert resp.status_code == 200
+    assert listdata(resp, 'id', 'name', 'languages', full=True) == [
+        {
+            'id': 0,
+            'name': 'United Kingdoms',
+            'languages': [
+                {'_id': lang_mapping[0]['_id']}
+            ]
+        },
+        {
+            'id': 1,
+            'name': 'Lithuania',
+            'languages': [
+                {'_id': lang_mapping[0]['_id']},
+                {'_id': lang_mapping[1]['_id']}
+            ]
+        },
+        {
+            'id': 2,
+            'name': 'Poland',
+            'languages': [
+                {'_id': lang_mapping[0]['_id']},
+                {'_id': lang_mapping[2]['_id']}
+            ]
+        },
+    ]
 
-        assert resp.status_code == 200
-        assert listdata(resp, 'id', 'name', 'languages', full=True) == [
-            {
-                'id': 0,
-                'name': 'United Kingdoms',
-                'languages': [
-                    {'_id': lang_mapping[0]['_id']}
-                ]
-            },
-            {
-                'id': 1,
-                'name': 'Lithuania',
-                'languages': [
-                    {'_id': lang_mapping[0]['_id']},
-                    {'_id': lang_mapping[1]['_id']}
-                ]
-            },
-            {
-                'id': 2,
-                'name': 'Poland',
-                'languages': [
-                    {'_id': lang_mapping[0]['_id']},
-                    {'_id': lang_mapping[2]['_id']}
-                ]
-            },
-        ]
+
+def test_getall_array_intermediate_ref_single_pkey_sqlite(context, rc, tmp_path, geodb_array):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+    d | r | b | m | property      | type    | ref             | source           | level   | access | prepare  
+    example                       |         |                 |                  |         |        |        
+      | db                        | sql     |                 |                  |         |        |        
+      |                           |         |                 |                  |         |        |
+      |   |   | Language          |         | id              | language         |         |        |
+      |   |   |   | id            | integer |                 | id               |         | open   |    
+      |   |   |   | name          | string  |                 | name             |         | open   |    
+      |   |                       |         |                 |                  |         |        |
+      |   |   | Country           |         | id              | country          |         |        |
+      |   |   |   | id            | integer |                 | id               |         | open   |    
+      |   |   |   | name          | string  |                 | name             |         | open   |    
+      |   |   |   | languages     | array   | CountryLanguage |                  |         | open   |    
+      |   |   |   | languages[]   | ref     | Language        |                  |         | open   |    
+      |   |                       |         |                 |                  |         |        |
+      |   |   | CountryLanguage   |         |                 | country_language |         |        |  
+      |   |   |   | country       | ref     | Country         | country_id       |         | open   |
+      |   |   |   | language_id   | integer |                 | language_id      |         | open   |    
+      |   |   |   | language      | ref     | Language        |                  |         | open   | language_id   
+    '''))
+    app = create_client(rc, tmp_path, geodb_array)
+    resp = app.get(f'/example/Language')
+    lang_data = resp.json()['_data']
+    lang_mapping = {lang['id']: lang for lang in lang_data}
+    resp = app.get(f'/example/Country')
+
+    assert resp.status_code == 200
+    assert listdata(resp, 'id', 'name', 'languages', full=True) == [
+        {
+            'id': 0,
+            'name': 'United Kingdoms',
+            'languages': [
+                {'_id': lang_mapping[0]['_id']}
+            ]
+        },
+        {
+            'id': 1,
+            'name': 'Lithuania',
+            'languages': [
+                {'_id': lang_mapping[0]['_id']},
+                {'_id': lang_mapping[1]['_id']}
+            ]
+        },
+        {
+            'id': 2,
+            'name': 'Poland',
+            'languages': [
+                {'_id': lang_mapping[0]['_id']},
+                {'_id': lang_mapping[2]['_id']}
+            ]
+        },
+    ]
+
+
+def test_getall_array_intermediate_ref_multi_pkey_sqlite(context, rc, tmp_path, geodb_array):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+    d | r | b | m | property      | type    | ref             | source           | level   | access | prepare  
+    example                       |         |                 |                  |         |        |        
+      | db                        | sql     |                 |                  |         |        |        
+      |                           |         |                 |                  |         |        |
+      |   |   | Language          |         | id, name        | language         |         |        |
+      |   |   |   | id            | integer |                 | id               |         | open   |    
+      |   |   |   | name          | string  |                 | name             |         | open   |    
+      |   |                       |         |                 |                  |         |        |
+      |   |   | Country           |         | id              | country          |         |        |
+      |   |   |   | id            | integer |                 | id               |         | open   |    
+      |   |   |   | name          | string  |                 | name             |         | open   |    
+      |   |   |   | languages     | array   | CountryLanguage |                  |         | open   |    
+      |   |   |   | languages[]   | ref     | Language        |                  |         | open   |    
+      |   |                       |         |                 |                  |         |        |
+      |   |   | CountryLanguage   |         |                 | country_language |         |        |  
+      |   |   |   | country       | ref     | Country         | country_id       |         | open   |
+      |   |   |   | language_id   | integer |                 | language_id      |         | open   |    
+      |   |   |   | language_name | string  |                 | language_name    |         | open   |  
+      |   |   |   | language      | ref     | Language        |                  |         | open   | language_id, language_name   
+    '''))
+    app = create_client(rc, tmp_path, geodb_array)
+    resp = app.get(f'/example/Language')
+    lang_data = resp.json()['_data']
+    lang_mapping = {lang['id']: lang for lang in lang_data}
+    resp = app.get(f'/example/Country')
+
+    assert resp.status_code == 200
+    assert listdata(resp, 'id', 'name', 'languages', full=True) == [
+        {
+            'id': 0,
+            'name': 'United Kingdoms',
+            'languages': [
+                {'_id': lang_mapping[0]['_id']}
+            ]
+        },
+        {
+            'id': 1,
+            'name': 'Lithuania',
+            'languages': [
+                {'_id': lang_mapping[0]['_id']},
+                {'_id': lang_mapping[1]['_id']}
+            ]
+        },
+        {
+            'id': 2,
+            'name': 'Poland',
+            'languages': [
+                {'_id': lang_mapping[0]['_id']},
+                {'_id': lang_mapping[2]['_id']}
+            ]
+        },
+    ]
+
+
+def test_getall_array_intermediate_ref_level_3_sqlite(context, rc, tmp_path, geodb_array):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+    d | r | b | m | property      | type    | ref             | source           | level   | access | prepare  
+    example                       |         |                 |                  |         |        |        
+      | db                        | sql     |                 |                  |         |        |        
+      |                           |         |                 |                  |         |        |
+      |   |   | Language          |         | id, name        | language         |         |        |
+      |   |   |   | id            | integer |                 | id               |         | open   |    
+      |   |   |   | name          | string  |                 | name             |         | open   |    
+      |   |                       |         |                 |                  |         |        |
+      |   |   | Country           |         | id              | country          |         |        |
+      |   |   |   | id            | integer |                 | id               |         | open   |    
+      |   |   |   | name          | string  |                 | name             |         | open   |    
+      |   |   |   | languages     | array   | CountryLanguage |                  |         | open   |    
+      |   |   |   | languages[]   | ref     | Language        |                  | 3       | open   |    
+      |   |                       |         |                 |                  |         |        |
+      |   |   | CountryLanguage   |         |                 | country_language |         |        |  
+      |   |   |   | country       | ref     | Country         | country_id       |         | open   |
+      |   |   |   | language_id   | integer |                 | language_id      |         | open   |    
+      |   |   |   | language_name | string  |                 | language_name    |         | open   |  
+      |   |   |   | language      | ref     | Language        |                  |         | open   | language_id, language_name   
+    '''))
+    app = create_client(rc, tmp_path, geodb_array)
+    resp = app.get(f'/example/Country')
+
+    assert resp.status_code == 200
+    assert listdata(resp, 'id', 'name', 'languages', full=True) == [
+        {
+            'id': 0,
+            'name': 'United Kingdoms',
+            'languages': [
+                {'id': 0, 'name': 'English'}
+            ]
+        },
+        {
+            'id': 1,
+            'name': 'Lithuania',
+            'languages': [
+                {'id': 0, 'name': 'English'},
+                {'id': 1, 'name': 'Lithuanian'}
+            ]
+        },
+        {
+            'id': 2,
+            'name': 'Poland',
+            'languages': [
+                {'id': 0, 'name': 'English'},
+                {'id': 2, 'name': 'Polish'}
+            ]
+        },
+    ]
+
+
+def test_getall_array_intermediate_ref_refprop_sqlite(context, rc, tmp_path, geodb_array):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+    d | r | b | m | property      | type    | ref             | source           | level   | access | prepare  
+    example                       |         |                 |                  |         |        |        
+      | db                        | sql     |                 |                  |         |        |        
+      |                           |         |                 |                  |         |        |
+      |   |   | Language          |         | id, name        | language         |         |        |
+      |   |   |   | id            | integer |                 | id               |         | open   |    
+      |   |   |   | name          | string  |                 | name             |         | open   |    
+      |   |                       |         |                 |                  |         |        |
+      |   |   | Country           |         | id              | country          |         |        |
+      |   |   |   | id            | integer |                 | id               |         | open   |    
+      |   |   |   | name          | string  |                 | name             |         | open   |    
+      |   |   |   | languages     | array   | CountryLanguage |                  |         | open   |    
+      |   |   |   | languages[]   | ref     | Language[id]    |                  |         | open   |    
+      |   |                       |         |                 |                  |         |        |
+      |   |   | CountryLanguage   |         |                 | country_language |         |        |  
+      |   |   |   | country       | ref     | Country         | country_id       |         | open   |
+      |   |   |   | language_id   | integer |                 | language_id      |         | open   |    
+      |   |   |   | language      | ref     | Language[id]    |                  |         | open   | language_id   
+    '''))
+    app = create_client(rc, tmp_path, geodb_array)
+    resp = app.get(f'/example/Language')
+    lang_data = resp.json()['_data']
+    lang_mapping = {lang['id']: lang for lang in lang_data}
+    resp = app.get(f'/example/Country')
+
+    assert resp.status_code == 200
+    assert listdata(resp, 'id', 'name', 'languages', full=True) == [
+        {
+            'id': 0,
+            'name': 'United Kingdoms',
+            'languages': [
+                {'_id': lang_mapping[0]['_id']}
+            ]
+        },
+        {
+            'id': 1,
+            'name': 'Lithuania',
+            'languages': [
+                {'_id': lang_mapping[0]['_id']},
+                {'_id': lang_mapping[1]['_id']}
+            ]
+        },
+        {
+            'id': 2,
+            'name': 'Poland',
+            'languages': [
+                {'_id': lang_mapping[0]['_id']},
+                {'_id': lang_mapping[2]['_id']}
+            ]
+        },
+    ]
