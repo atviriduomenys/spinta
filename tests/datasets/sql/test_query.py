@@ -792,7 +792,7 @@ def test_array_intermediate_table_postgresql(db_dialect: str, rc: RawConfig, moc
         ''', 'example/Country', page_mapping={}) == '''
     SELECT
       "COUNTRY"."ID",
-      "COUNTRY"."CODE", array_agg("COUNTRYLANGUAGE_1"."LANGUAGE") AS array_agg_1
+      "COUNTRY"."CODE", jsonb_agg("COUNTRYLANGUAGE_1"."LANGUAGE") AS jsonb_agg_1
     FROM "COUNTRY"
     LEFT OUTER JOIN "COUNTRYLANGUAGE" AS "COUNTRYLANGUAGE_1" ON "COUNTRYLANGUAGE_1"."COUNTRY" = "COUNTRY"."ID" GROUP BY "COUNTRY"."ID",
       "COUNTRY"."CODE"
