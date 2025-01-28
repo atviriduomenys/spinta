@@ -173,3 +173,53 @@ def test_check_names_dataset(
         commands.check(context, manifest)
 
     assert e.value.message == "Invalid 'datasets/gov/Example' namespace code name."
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_check_enum_values_under_source(manifest_type , tmp_path, rc):
+    context, manifest = load_manifest_and_context(rc, '''
+    d | r | b | m | property   | type    | ref | source     | prepare
+    test_dataset               |         |     |            |        
+      | resource1              | xml     |     |            |         
+      |   |   | Country        |         |     | Country    |        
+      |   |   |   | driving    | string  |     |            |        
+      |   |   |   |            | enum    |     | 'left'     |        
+      |   |   |   |            |         |     | 'right'    |        
+        ''', manifest_type=manifest_type, tmp_path=tmp_path)
+    commands.check(context, manifest)
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_check_enum_values_under_prepare(manifest_type , tmp_path, rc):
+    context, manifest = load_manifest_and_context(rc, '''
+    d | r | b | m | property   | type    | ref | source     | prepare
+    test_dataset               |         |     |            |        
+      | resource1              | xml     |     |            |         
+      |   |   | Country        |         |     | Country    |        
+      |   |   |   | driving    | string  |     |            |        
+      |   |   |   |            | enum    |     |            | 'left'  
+      |   |   |   |            |         |     |            | 'right' 
+        ''', manifest_type=manifest_type, tmp_path=tmp_path)
+    commands.check(context, manifest)
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_check_enum_values_under_source_transforms_into_prepare_value(manifest_type , tmp_path, rc):
+    context, manifest = load_manifest_and_context(rc, '''
+    d | r | b | m | property   | type    | ref | source     | prepare
+    test_dataset               |         |     |            |        
+      | resource1              | xml     |     |            |         
+      |   |   | Country        |         |     | Country    |        
+      |   |   |   | driving    | string  |     |            |        
+      |   |   |   |            | enum    |     | "1"        | "2"    
+        ''', manifest_type=manifest_type, tmp_path=tmp_path)
+    commands.check(context, manifest)
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_check_enum_null_under_prepare(manifest_type , tmp_path, rc):
+    context, manifest = load_manifest_and_context(rc, '''
+    d | r | b | m | property   | type    | ref | source     | prepare
+    test_dataset               |         |     |            |        
+      | resource1              | xml     |     |            |         
+      |   |   | Country        |         |     | Country    |        
+      |   |   |   | driving    | string  |     |            |           
+      |   |   |   |            | enum    |     |            | null
+        ''', manifest_type=manifest_type, tmp_path=tmp_path)
+    commands.check(context, manifest)

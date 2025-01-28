@@ -1484,7 +1484,8 @@ class EnumReader(TabularReader):
             return
 
         # FIXME AST should be handled by Env
-        source = str(row[SOURCE])
+        source = row[SOURCE]
+        source = str(source) if source else None
         if not source:
             prepare = _parse_spyna(self, row[PREPARE])
             if isinstance(prepare, dict):
