@@ -18,7 +18,7 @@ class _FunctionTypes(TypedDict):
 NODE_FUNCTION_MAPPER = {
     'model': _FunctionTypes(
         has=commands.has_model,
-        # get=commands.get_model,
+        get=commands.get_model,
         set=commands.set_model,
         get_all=commands.get_models
     ),
@@ -26,7 +26,7 @@ NODE_FUNCTION_MAPPER = {
         has=commands.has_model,
         get=commands.get_model,
         set=commands.set_model,
-        # get_all=commands.get_models
+        get_all=commands.get_models
     ),
     'ns': _FunctionTypes(
         has=commands.has_namespace,
