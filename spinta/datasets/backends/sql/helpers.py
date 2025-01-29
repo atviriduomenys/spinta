@@ -89,6 +89,14 @@ def _group_array_mysql(column: Union[sa.Column, Sequence[sa.Column]]):
     return sa.sql.func.json_arrayagg(column)
 
 
+def _group_array_mssql(column: Union[sa.Column, Sequence[sa.Column]]):
+    if isinstance(column, Sequence) and not isinstance(column, str):
+        column = sa.sql.func.json_array(*column)
+    # Using concat for mssql, because `json_arrayagg` is only available for Azure SQL version
+    # https://learn.microsoft.com/en-us/sql/t-sql/functions/json-array-transact-sql?view=azuresqldb-current
+    return sa.sql.func.concat('[', column, ']')
+
+
 def _default_group_array(column: sa.Column):
     raise NotImplemented("Current Sql dialect currently does not support array aggregation.")
 
@@ -111,6 +119,7 @@ _GEOMETRY_FLIP_DIALECT_MAPPER = {
 _GROUP_ARRAY_DIALECT_MAPPER = {
     "sqlite": _group_array_sqlite,
     "postgresql": _group_array_postgresql,
+    "mssql": _group_array_mssql,
     ("mysql", "mariadb"): _group_array_mysql,
     _DEFAULT_DIALECT_KEY: _default_group_array
 }

@@ -830,6 +830,37 @@ def test_array_intermediate_table_mysql(db_dialect: str, rc: RawConfig, mocker):
     '''
 
 
+@pytest.mark.parametrize('db_dialect', ['mssql'])
+def test_array_intermediate_table_mssql(db_dialect: str, rc: RawConfig, mocker):
+    use_dialect_functions(mocker, db_dialect)
+    assert _build(rc, '''
+    d | r | b | m | property    | type   | ref             | source          | prepare | access
+    example                     |        |                 |                 |         |
+      | data                    | sql    |                 |                 |         |
+      |   |                     |        |                 |                 |         |
+      |   |   | Language        |        | id              | LANGUAGE        |         |
+      |   |   |   | id          | string |                 | ID              |         | open
+      |   |   |   | code        | string |                 | CODE            |         | open
+      |   |                     |        |                 |                 |         |
+      |   |   | Country         |        | id              | COUNTRY         |         |
+      |   |   |   | id          | string |                 | ID              |         | open
+      |   |   |   | code        | string |                 | CODE            |         | open
+      |   |   |   | languages   | array  | CountryLanguage |                 |         | open
+      |   |   |   | languages[] | ref    | Language        |                 |         | open
+      |   |                     |        |                 |                 |         |
+      |   |   | CountryLanguage |        |                 | COUNTRYLANGUAGE |         |
+      |   |   |   | country     | ref    | Country         | COUNTRY         |         | open
+      |   |   |   | language    | ref    | Language        | LANGUAGE        |         | open
+        ''', 'example/Country', page_mapping={}) == '''
+    SELECT
+      "COUNTRY"."ID",
+      "COUNTRY"."CODE", concat(:concat_2, "COUNTRYLANGUAGE_1"."LANGUAGE", :concat_3) AS concat_1
+    FROM "COUNTRY"
+    LEFT OUTER JOIN "COUNTRYLANGUAGE" AS "COUNTRYLANGUAGE_1" ON "COUNTRYLANGUAGE_1"."COUNTRY" = "COUNTRY"."ID" GROUP BY "COUNTRY"."ID",
+      "COUNTRY"."CODE"
+    '''
+
+
 @pytest.mark.parametrize('db_dialect', ['sqlite'])
 def test_array_intermediate_table_multi_column_sqlite(db_dialect: str, rc: RawConfig, mocker):
     use_dialect_functions(mocker, db_dialect)
@@ -926,6 +957,40 @@ def test_array_intermediate_table_multi_column_mysql(db_dialect: str, rc: RawCon
       "COUNTRY"."ID",
       "COUNTRY"."CODE", json_arrayagg(json_array("COUNTRYLANGUAGE_1"."LANGUAGEID",
       "COUNTRYLANGUAGE_1"."LANGUAGECODE")) AS json_arrayagg_1
+    FROM "COUNTRY"
+    LEFT OUTER JOIN "COUNTRYLANGUAGE" AS "COUNTRYLANGUAGE_1" ON "COUNTRYLANGUAGE_1"."COUNTRY" = "COUNTRY"."ID" GROUP BY "COUNTRY"."ID",
+      "COUNTRY"."CODE"
+    '''
+
+
+@pytest.mark.parametrize('db_dialect', ['mssql'])
+def test_array_intermediate_table_multi_column_mssql(db_dialect: str, rc: RawConfig, mocker):
+    use_dialect_functions(mocker, db_dialect)
+    assert _build(rc, '''
+    d | r | b | m | property      | type   | ref             | source          | prepare                    | access | level
+    example                       |        |                 |                 |                            |        |
+      | data                      | sql    |                 |                 |                            |        |
+      |   |                       |        |                 |                 |                            |        |
+      |   |   | Language          |        | id, code        | LANGUAGE        |                            |        |
+      |   |   |   | id            | string |                 | ID              |                            | open   |    
+      |   |   |   | code          | string |                 | CODE            |                            | open   |    
+      |   |                       |        |                 |                 |                            |        |
+      |   |   | Country           |        | id              | COUNTRY         |                            |        |
+      |   |   |   | id            | string |                 | ID              |                            | open   |    
+      |   |   |   | code          | string |                 | CODE            |                            | open   |    
+      |   |   |   | languages     | array  | CountryLanguage |                 |                            | open   |    
+      |   |   |   | languages[]   | ref    | Language        |                 |                            | open   |    
+      |   |                       |        |                 |                 |                            |        |
+      |   |   | CountryLanguage   |        |                 | COUNTRYLANGUAGE |                            |        |
+      |   |   |   | language_id   | string |                 | LANGUAGEID      |                            | open   |    
+      |   |   |   | language_code | string |                 | LANGUAGECODE    |                            | open   |    
+      |   |   |   | country       | ref    | Country         | COUNTRY         |                            | open   |    
+      |   |   |   | language      | ref    | Language        |                 | language_id, language_code | open   | 3   
+        ''', 'example/Country', page_mapping={}) == '''
+    SELECT
+      "COUNTRY"."ID",
+      "COUNTRY"."CODE", concat(:concat_2, json_array("COUNTRYLANGUAGE_1"."LANGUAGEID",
+      "COUNTRYLANGUAGE_1"."LANGUAGECODE"), :concat_3) AS concat_1
     FROM "COUNTRY"
     LEFT OUTER JOIN "COUNTRYLANGUAGE" AS "COUNTRYLANGUAGE_1" ON "COUNTRYLANGUAGE_1"."COUNTRY" = "COUNTRY"."ID" GROUP BY "COUNTRY"."ID",
       "COUNTRY"."CODE"
