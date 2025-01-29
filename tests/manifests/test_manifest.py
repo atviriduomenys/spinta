@@ -1227,7 +1227,6 @@ def test_text_prop_as_reference(manifest_type, tmp_path, rc):
           |   |   |   | country  | ref  | Country | 3     | open
     ''', manifest_type)
 
-<<<<<<< HEAD
 
 @pytest.mark.manifests('internal_sql', 'csv')
 def test_prop_multi_nested_exposed_text(manifest_type, tmp_path, rc):
@@ -1653,7 +1652,7 @@ def test_intermediate_table_invalid_mapping_left_property_model_missmatch(manife
                   |   |   |   | country     | ref     | Extra           | open   |
                   |   |   |   | language    | ref     | Language        | open   |
             ''', manifest_type)
-=======
+
 @pytest.mark.manifests('internal_sql', 'csv')
 def test_partial_model_getall(manifest_type, tmp_path, rc):
     check(tmp_path, rc, '''
@@ -1738,20 +1737,6 @@ def test_partial_model_filter(manifest_type, tmp_path, rc):
 @pytest.mark.manifests('internal_sql', 'csv')
 def test_partial_model_select(manifest_type, tmp_path, rc):
     check(tmp_path, rc, '''
-<<<<<<< HEAD
-    d | r | b | m | property | type    | ref       | source | prepare
-    datasets/gov/example     |         |           |        |
-      | resource1            | sql     | default   |        |
-                             |         |           |        |
-      |   |   | City         |         |           |        |
-      |   |   |   | id       | integer |           |        |
-      |   |   |   | name     | string  |           |        |
-      |   |   |   | population | integer |         |        |
-                             |         |           |        |
-      |   |   | City?select(id,name) | |          | cities |        
-    ''', manifest_type)
->>>>>>> de948899 (add tests and fix)
-=======
     d | r | b | m | property         | type    | ref      | source | prepare
     datasets/gov/example             |         |          |        |
       | resource1                    | sql     | default  |        |
@@ -1779,4 +1764,3 @@ def test_partial_model_part(manifest_type, tmp_path, rc):
       |   |   | City/:part     |         | name    | cities |
       |   |   |   | name       | string  |         |        |
     ''', manifest_type)
->>>>>>> aab295cc (add some code review fixes)
