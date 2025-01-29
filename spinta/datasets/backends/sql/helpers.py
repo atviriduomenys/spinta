@@ -83,8 +83,14 @@ def _group_array_postgresql(column: Union[sa.Column, Sequence[sa.Column]]):
     return sa.sql.func.jsonb_agg(column)
 
 
+def _group_array_mysql(column: Union[sa.Column, Sequence[sa.Column]]):
+    if isinstance(column, Sequence) and not isinstance(column, str):
+        column = sa.sql.func.json_array(*column)
+    return sa.sql.func.json_arrayagg(column)
+
+
 def _default_group_array(column: sa.Column):
-    return column
+    raise NotImplemented("Current Sql dialect currently does not support array aggregation.")
 
 
 _DEFAULT_DIALECT_KEY = ""
@@ -105,6 +111,7 @@ _GEOMETRY_FLIP_DIALECT_MAPPER = {
 _GROUP_ARRAY_DIALECT_MAPPER = {
     "sqlite": _group_array_sqlite,
     "postgresql": _group_array_postgresql,
+    ("mysql", "mariadb"): _group_array_mysql,
     _DEFAULT_DIALECT_KEY: _default_group_array
 }
 

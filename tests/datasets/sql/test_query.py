@@ -799,6 +799,37 @@ def test_array_intermediate_table_postgresql(db_dialect: str, rc: RawConfig, moc
     '''
 
 
+@pytest.mark.parametrize('db_dialect', ['mysql', 'mariadb'])
+def test_array_intermediate_table_mysql(db_dialect: str, rc: RawConfig, mocker):
+    use_dialect_functions(mocker, db_dialect)
+    assert _build(rc, '''
+    d | r | b | m | property    | type   | ref             | source          | prepare | access
+    example                     |        |                 |                 |         |
+      | data                    | sql    |                 |                 |         |
+      |   |                     |        |                 |                 |         |
+      |   |   | Language        |        | id              | LANGUAGE        |         |
+      |   |   |   | id          | string |                 | ID              |         | open
+      |   |   |   | code        | string |                 | CODE            |         | open
+      |   |                     |        |                 |                 |         |
+      |   |   | Country         |        | id              | COUNTRY         |         |
+      |   |   |   | id          | string |                 | ID              |         | open
+      |   |   |   | code        | string |                 | CODE            |         | open
+      |   |   |   | languages   | array  | CountryLanguage |                 |         | open
+      |   |   |   | languages[] | ref    | Language        |                 |         | open
+      |   |                     |        |                 |                 |         |
+      |   |   | CountryLanguage |        |                 | COUNTRYLANGUAGE |         |
+      |   |   |   | country     | ref    | Country         | COUNTRY         |         | open
+      |   |   |   | language    | ref    | Language        | LANGUAGE        |         | open
+        ''', 'example/Country', page_mapping={}) == '''
+    SELECT
+      "COUNTRY"."ID",
+      "COUNTRY"."CODE", json_arrayagg("COUNTRYLANGUAGE_1"."LANGUAGE") AS json_arrayagg_1
+    FROM "COUNTRY"
+    LEFT OUTER JOIN "COUNTRYLANGUAGE" AS "COUNTRYLANGUAGE_1" ON "COUNTRYLANGUAGE_1"."COUNTRY" = "COUNTRY"."ID" GROUP BY "COUNTRY"."ID",
+      "COUNTRY"."CODE"
+    '''
+
+
 @pytest.mark.parametrize('db_dialect', ['sqlite'])
 def test_array_intermediate_table_multi_column_sqlite(db_dialect: str, rc: RawConfig, mocker):
     use_dialect_functions(mocker, db_dialect)
@@ -861,6 +892,40 @@ def test_array_intermediate_table_multi_column_postgresql(db_dialect: str, rc: R
       "COUNTRY"."ID",
       "COUNTRY"."CODE", jsonb_agg(jsonb_build_array("COUNTRYLANGUAGE_1"."LANGUAGEID",
       "COUNTRYLANGUAGE_1"."LANGUAGECODE")) AS jsonb_agg_1
+    FROM "COUNTRY"
+    LEFT OUTER JOIN "COUNTRYLANGUAGE" AS "COUNTRYLANGUAGE_1" ON "COUNTRYLANGUAGE_1"."COUNTRY" = "COUNTRY"."ID" GROUP BY "COUNTRY"."ID",
+      "COUNTRY"."CODE"
+    '''
+
+
+@pytest.mark.parametrize('db_dialect', ['mysql', 'mariadb'])
+def test_array_intermediate_table_multi_column_mysql(db_dialect: str, rc: RawConfig, mocker):
+    use_dialect_functions(mocker, db_dialect)
+    assert _build(rc, '''
+    d | r | b | m | property      | type   | ref             | source          | prepare                    | access | level
+    example                       |        |                 |                 |                            |        |
+      | data                      | sql    |                 |                 |                            |        |
+      |   |                       |        |                 |                 |                            |        |
+      |   |   | Language          |        | id, code        | LANGUAGE        |                            |        |
+      |   |   |   | id            | string |                 | ID              |                            | open   |    
+      |   |   |   | code          | string |                 | CODE            |                            | open   |    
+      |   |                       |        |                 |                 |                            |        |
+      |   |   | Country           |        | id              | COUNTRY         |                            |        |
+      |   |   |   | id            | string |                 | ID              |                            | open   |    
+      |   |   |   | code          | string |                 | CODE            |                            | open   |    
+      |   |   |   | languages     | array  | CountryLanguage |                 |                            | open   |    
+      |   |   |   | languages[]   | ref    | Language        |                 |                            | open   |    
+      |   |                       |        |                 |                 |                            |        |
+      |   |   | CountryLanguage   |        |                 | COUNTRYLANGUAGE |                            |        |
+      |   |   |   | language_id   | string |                 | LANGUAGEID      |                            | open   |    
+      |   |   |   | language_code | string |                 | LANGUAGECODE    |                            | open   |    
+      |   |   |   | country       | ref    | Country         | COUNTRY         |                            | open   |    
+      |   |   |   | language      | ref    | Language        |                 | language_id, language_code | open   | 3   
+        ''', 'example/Country', page_mapping={}) == '''
+    SELECT
+      "COUNTRY"."ID",
+      "COUNTRY"."CODE", json_arrayagg(json_array("COUNTRYLANGUAGE_1"."LANGUAGEID",
+      "COUNTRYLANGUAGE_1"."LANGUAGECODE")) AS json_arrayagg_1
     FROM "COUNTRY"
     LEFT OUTER JOIN "COUNTRYLANGUAGE" AS "COUNTRYLANGUAGE_1" ON "COUNTRYLANGUAGE_1"."COUNTRY" = "COUNTRY"."ID" GROUP BY "COUNTRY"."ID",
       "COUNTRY"."CODE"
