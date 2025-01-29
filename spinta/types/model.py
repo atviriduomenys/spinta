@@ -45,6 +45,7 @@ from spinta.manifests.tabular.components import PropertyRow
 from spinta.nodes import get_node
 from spinta.nodes import load_model_properties
 from spinta.nodes import load_node
+from spinta.spyna import parse
 from spinta.types.helpers import check_model_name
 from spinta.types.helpers import check_property_name
 from spinta.types.namespace import load_namespace_from_name
@@ -168,43 +169,36 @@ def load(
     *,
     source: Manifest = None,
 ) -> PartialModel:
-
     parent_model = load[Context, Model, dict, Manifest](context, model, data, manifest, source=source)
+    parent_model.given.params = data.get('given_params')
     
-    parent_model.given.features = data.get('features')
+    url_params = UrlParams()
+    params = parent_model.given.params
     
-    params = UrlParams()
-    
-    if '?' in parent_model.given.features:
-        action, query = parent_model.given.features.split('?', 1)
-        action = action.strip(':') if action else None
-        
-        if action:
-            params.action = Action.by_value(action)
+    if params:
+        if '?' in params:
+            action_part, query = params.split('?', 1)
+            action = action_part.strip(':') if action_part else None
             
-        # Parse query parameters
-        if 'select(' in query:
-            select_start = query.find('select(') + 7
-            select_end = query.find(')', select_start)
-            if select_end > select_start:
-                params.select = [
-                    s.strip() 
-                    for s in query[select_start:select_end].split(',')
-                ]
-        else:
-            # Handle filters like continent.code="eu"
-            filters = {}
-            for pair in query.split('&'):
-                if '=' in pair:
-                    key, value = pair.split('=', 1)
-                    filters[key] = value.strip('"')
-            if filters:
-                params.query = [filters]
+            if action:
+                params.action = Action.by_value(action)
+            
+            parsed = parse(query)
+            if parsed:
+                if parsed['name'] == 'select':
+                    # For select(id,name)
+                    url_params.select = [
+                        arg['args'][0] for arg in parsed['args'] 
+                        if arg['name'] == 'bind'
+                    ]
+                else:
+                    # For filters like continent.code="eu"
+                    url_params.query = [parsed]
                 
-    elif parent_model.given.features.startswith(':'):
-        # Handle action-only features like /:getall
-        action = parent_model.given.features.strip(':')
-        params.action = Action.by_value(action)
+        elif params.startswith(':'):
+            # Action-only params like /:getall
+            action = params.strip(':')
+            url_params.action = Action.by_value(action)
 
     model.parent_model = parent_model
     model.url_params = params
