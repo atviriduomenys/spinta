@@ -1876,7 +1876,7 @@ def _read_xlsx_manifest(path: str) -> Iterator[Tuple[str, List[str]]]:
 
         empty_rows = _empty_rows_counter()
         for i, row in enumerate(rows, 2):
-            row = [row[c] if c is not None else None for c in cols]
+            row = [row[c] or "" if c is not None else None for c in cols]
             yield f'{sheet.title}:{i}', row
 
             if empty_rows(row) > 100:
