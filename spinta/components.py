@@ -373,10 +373,11 @@ class Node(Component):
 
     @property
     def basename(self):
-        name = self.name
-        if "/:" in name:
-            name = name.split("/:")[0]
-        return name and name.split("/")[-1]
+        if "/:" in self.name:
+            name, params = self.name.split("/:")
+            if name:
+                return name.split("/")[-1] + "/:" + params
+        return self.name.split("/")[-1]
 
 
 # MetaData entry ID can be file path, uuid, table row id of a Model, Dataset,
@@ -494,7 +495,7 @@ class ModelGiven:
     access: str = None
     pkeys: list[str] = None
     name: str = None
-    features: str = None
+    params: str = None
 
 
 class PageBy:
@@ -678,7 +679,7 @@ class Model(MetaData):
     uri: str = None
     uri_prop: Property = None
     page: PageInfo = None
-    features: str = None
+    given_params: str = None
     status: Status | None = None
     visibility: Visibility | None = None
     eli: str | None = None
@@ -711,7 +712,7 @@ class Model(MetaData):
         'comments': {},
         'uri': {'type': 'string'},
         'given_name': {'type': 'string', 'default': None},
-        'features': {},
+        'given_params': {},
         'status': {
             'type': 'string',
             'choices': Status,

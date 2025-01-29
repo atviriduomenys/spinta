@@ -448,13 +448,13 @@ class ModelReader(TabularReader):
         )
 
         # Check for partial model syntax
-        features = None
+        given_params = None
 
         if "/:" in name or "?" in name:
             if "/:" in name:
-                features = name.rsplit("/:", 1)[1]
+                given_params = name.rsplit("/:", 1)[1]
             elif "?" in name:
-                features = "?" + name.split("?", 1)[1]
+                given_params = "?" + name.split("?", 1)[1]
 
 
         if self.state.rename_duplicates:
@@ -470,7 +470,7 @@ class ModelReader(TabularReader):
         self.name = name
 
         self.data = {
-            'type': 'model',
+            'type': 'model' if given_params is None else 'partial_model',
             'id': row['id'],
             'name': name,
             'base': {
@@ -501,7 +501,7 @@ class ModelReader(TabularReader):
                 'prepare': _parse_spyna(self, row[PREPARE]),
             },
             'given_name': name,
-            'features': features,
+            'given_params': given_params,,
             'status': row.get(STATUS),
             'visibility': row.get(VISIBILITY),
             'eli': row.get(ELI),
@@ -1990,29 +1990,50 @@ def load_ascii_tabular_manifest(
 
 
 def get_relative_model_name(dataset: [str, dict], name: str) -> str:
+    # First handle any feature parts
+    base_name = name
+    params = None
+    if "/:" in name:
+        base_name, params = name.rsplit("/:", 1)
+    elif "?" in name:
+        base_name, params = name.split("?", 1)
+        
     if isinstance(dataset, str):
-        return name.replace(dataset, '')
-    if name.startswith('/'):
-        return name[1:]
-    elif '/' in name:
-        return name
+        result = base_name.replace(dataset, '')
+    elif base_name.startswith('/'):
+        result = base_name[1:]
+    elif '/' in base_name:
+        result = base_name
     elif dataset is None:
-        return name
+        result = base_name
     else:
-        return '/'.join([
+        result = '/'.join([
             dataset['name'],
-            name,
+            base_name,
         ])
+        
+    # Add back any features
+    if params:
+        if "?" in name:
+            result = f"{result}?{params}"
+        else:
+            result = f"{result}/:{params}"
+            
+    return result
 
 
 def to_relative_model_name(model: Model, dataset: Dataset = None) -> str:
     """Convert absolute model `name` to relative."""
+    print(f"Model name: {model.name}")
+    print(f"Dataset name: {dataset.name}")
+    print(f"Check condition: {model.name.startswith(f'{dataset.name}/')}")
+    print(f"Basename: {model.basename}")
     if dataset is None:
         return model.name
-    if model.name == f'{dataset.name}/{model.basename}':
+    if model.name.startswith(f'{dataset.name}/'):
         return model.basename
-    else:
-        return '/' + model.name
+    
+    return '/' + model.name
 
 
 def _relative_referenced_model_name(
@@ -2570,7 +2591,7 @@ def _model_to_tabular(
             model,
             model.external.dataset,
         )
-    if model.features:
+    if model.given_params:
         data['model'] = f"{data['model']}"
     if external and model.external:
         data.update({

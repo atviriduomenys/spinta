@@ -20,7 +20,7 @@ def prepare_patch_data(
     else:
         patch = take(['_id', '_content_type', '_size'], data.patch)
 
-    if BackendFeatures.FILE_BLOCKS in dtype.backend.features:
+    if BackendFeatures.FILE_BLOCKS in dtype.backend.ManifestObjectNotDefined:
         if data.root.action == Action.DELETE:
             patch.update({
                 '_blocks': [],

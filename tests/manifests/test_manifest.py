@@ -1767,16 +1767,16 @@ def test_partial_model_select(manifest_type, tmp_path, rc):
 @pytest.mark.manifests('internal_sql', 'csv')
 def test_partial_model_part(manifest_type, tmp_path, rc):
     check(tmp_path, rc, '''
-    d | r | b | m | property   | type    | ref      | source | prepare
-    datasets/gov/example       |         |          |        |
-      | resource1              | sql     | default  |        |
-                               |         |          |        |
-      |   |   | City           |         |          |        |
-      |   |   |   | id         | integer |          |        |
-      |   |   |   | name       | string  |          |        |
-      |   |   |   | population | integer |          |        |
-                               |         |          |        |
-      |   |   | City/:part     |         |  name    | cities |    
-      |   |   |   | name       | string  |          |        |
+    d | r | b | m | property   | type    | ref     | source | prepare
+    datasets/gov/example       |         |         |        |
+      | resource1              | sql     | default |        |
+                               |         |         |        |
+      |   |   | City           |         |         |        |
+      |   |   |   | id         | integer |         |        |
+      |   |   |   | name       | string  |         |        |
+      |   |   |   | population | integer |         |        |
+                               |         |         |        |
+      |   |   | City/:part     |         | name    | cities |
+      |   |   |   | name       | string  |         |        |
     ''', manifest_type)
 >>>>>>> aab295cc (add some code review fixes)
