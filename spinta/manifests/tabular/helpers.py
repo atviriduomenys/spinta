@@ -2008,10 +2008,6 @@ def get_relative_model_name(dataset: [str, dict], name: str) -> str:
 
 def to_relative_model_name(model: Model, dataset: Dataset = None) -> str:
     """Convert absolute model `name` to relative."""
-    print(f"Model name: {model.name}")
-    print(f"Dataset name: {dataset.name}")
-    print(f"Check condition: {model.name.startswith(f'{dataset.name}/')}")
-    print(f"Basename: {model.basename}")
     if dataset is None:
         return model.name
     if model.name.startswith(f'{dataset.name}/'):
