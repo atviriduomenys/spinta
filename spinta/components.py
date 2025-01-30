@@ -744,11 +744,12 @@ class Model(MetaData):
 
 
 class PropertyGiven:
-    access: str = None
-    enum: str = None
-    unit: str = None
-    name: str = None
+    access: Optional[str] = None
+    enum: Optional[str] = None
+    unit: Optional[str] = None
+    name: Optional[str] = None
     explicit: bool = True
+    type: Optional[str] = None
     prepare: List[PrepareGiven] = []
 
 
