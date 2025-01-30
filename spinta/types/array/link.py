@@ -4,7 +4,8 @@ from typing import List
 
 from spinta import commands
 from spinta.components import Context, Model, Property
-from spinta.exceptions import ModelReferenceNotFound, ModelReferenceKeyNotFound
+from spinta.exceptions import ModelReferenceNotFound, ModelReferenceKeyNotFound, \
+    InvalidIntermediateTableMappingRefCount, UnableToMapIntermediateTable, SameModelIntermediateTableMapping
 from spinta.types.datatype import Array, PartialArray, ArrayBackRef, Ref, DataType
 from spinta.types.helpers import set_dtype_backend
 
@@ -54,7 +55,7 @@ def _compare_models(source: Model, target: str | Model) -> bool:
 def _extract_intermediate_table_properties(source: Array, intermediate_model: Model) -> (Property, Property):
     if source.refprops:
         if len(source.refprops) != 2:
-            raise Exception("EXPOSED INTERMEDIATE ARRAY TABLE REQUIRES 2 REF PROPS (LEFT, RIGHT)")
+            raise InvalidIntermediateTableMappingRefCount(source, ref_count=len(source.refprops))
 
         return source.refprops
 
@@ -67,10 +68,10 @@ def _extract_intermediate_table_properties(source: Array, intermediate_model: Mo
 
     ref_properties = [prop for prop in intermediate_model.flatprops.values() if isinstance(prop.dtype, Ref)]
     if len(ref_properties) != 2:
-        raise Exception("COULD NOT MAP INTERMEDIATE ARRAY TABLE")
+        raise UnableToMapIntermediateTable(source)
 
     if all(_compare_models(source.prop.model, prop.dtype.model) for prop in ref_properties):
-        raise Exception("SAME MODELS BEING REFERENCED, CANNOT DETERMINE WHICH ONE IS LEFT AND WHICH ONE IS RIGHT")
+        raise SameModelIntermediateTableMapping(source)
     return ref_properties
 
 
