@@ -173,6 +173,7 @@ def _read_and_return_rows(
     verbose: bool = True,
 ) -> Iterator[ManifestRow]:
     context = configure_context(context, manifests)
+    # temp dingsta po šitos vietos
     store = load_manifest(
         context,
         rename_duplicates=rename_duplicates,

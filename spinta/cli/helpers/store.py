@@ -126,13 +126,13 @@ def load_manifest(
                 f"Loading {type(store.manifest).__name__} "
                 f"manifest {store.manifest.name}"
             )
-    # temp info pasimeta kažkur šitoj load funkcijoj
     commands.load(
         context, store.manifest,
         rename_duplicates=rename_duplicates,
         load_internal=load_internal,
         full_load=full_load
     )
+
     commands.link(context, store.manifest)
     commands.check(context, store.manifest)
     return store

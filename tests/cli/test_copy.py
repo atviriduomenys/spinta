@@ -552,7 +552,7 @@ def test_copy_source_type_property(context: Context, rc, cli, tmp_path):
                              |         |         |             |
       |   |   | City         |         | name    | miestas     |
       |   |   |   | name     | string  |         | pavadinimas | varchar(255)
-      |   |   |   | country  | ref     | Country | salis       | integer
+      |   |   |   | country  | ref     | Country | salis       | test
     '''))
 
     cli.invoke(rc, [
@@ -571,12 +571,12 @@ def test_copy_source_type_property(context: Context, rc, cli, tmp_path):
       |   |   |   | code     | integer |         | kodas       | integer
       |   |   |   | name     | string  |         | pavadinimas | varchar(255)
       |   |   |   | driving  | string  |         | vairavimas  | varchar(1)
-      |   |   |   |          | enum    |         | l           |
-      |   |   |   |          |         |         | r           |  
+                             | enum    |         | l           |
+                             |         |         | r           |
                              |         |         |             |
       |   |   | City         |         | name    | miestas     |
       |   |   |   | name     | string  |         | pavadinimas | varchar(255)
-      |   |   |   | country  | ref     | Country | salis       | integer
+      |   |   |   | country  | ref     | Country | salis       | test
     '''
 
 def test_copy_source_type_resource_model_property(context: Context, rc, cli, tmp_path):
@@ -586,7 +586,7 @@ def test_copy_source_type_resource_model_property(context: Context, rc, cli, tmp
       | data                 | sql     |         | sqlite://   | sqlite
                              |         |         |             |
       |   |   | Country      |         | code    | salis       | table
-      |   |   |   | code     | integer |         | kodas       | integer
+      |   |   |   | code     | integer |         | kodas       | test
       |   |   |   | name     | string  |         | pavadinimas | varchar(255)
       |   |   |   | driving  | string  |         | vairavimas  | varchar(1)
       |   |   |   |          | enum    |         | l           |
@@ -610,11 +610,11 @@ def test_copy_source_type_resource_model_property(context: Context, rc, cli, tmp
       | data                 | sql     |         | sqlite://   | sqlite
                              |         |         |             |
       |   |   | Country      |         | code    | salis       | table
-      |   |   |   | code     | integer |         | kodas       | integer
+      |   |   |   | code     | integer |         | kodas       | test
       |   |   |   | name     | string  |         | pavadinimas | varchar(255)
       |   |   |   | driving  | string  |         | vairavimas  | varchar(1)
-      |   |   |   |          | enum    |         | l           |
-      |   |   |   |          |         |         | r           |  
+                             | enum    |         | l           |
+                             |         |         | r           |
                              |         |         |             |
       |   |   | City         |         | name    | miestas     | view materialized
       |   |   |   | name     | string  |         | pavadinimas | varchar(255)

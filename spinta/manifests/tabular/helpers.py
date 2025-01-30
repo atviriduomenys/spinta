@@ -833,6 +833,7 @@ def _string_datatype_handler(reader: PropertyReader, row: dict):
     if dataset or row['source']:
         new_data['external'] = {
             'name': row['source'],
+            'type': row['source.type']
         }
 
     return new_data
