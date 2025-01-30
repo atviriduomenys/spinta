@@ -557,7 +557,10 @@ def _parse_dtype_string(dtype: str) -> dict:
     }
 
 
-def _get_type_repr(dtype: List[DataType, str]):
+def _get_type_repr(dtype: Optional[Union[DataType, str]]) -> str:
+    if dtype is None:
+        return DataTypeEnum.INHERIT.value
+
     if isinstance(dtype, DataType):
         args = ''
         required = ' required' if dtype.required else ''
