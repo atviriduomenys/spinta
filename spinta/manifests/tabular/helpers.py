@@ -2408,7 +2408,7 @@ def _property_to_tabular(
     yield_rows = []
 
     model = prop.model
-    if isinstance(prop.dtype, (Array, ArrayBackRef)):
+    if isinstance(prop.dtype, Array):
         if prop.dtype.model:
             data['ref'] = _relative_referenced_model_name(
                 relative_model=model,
@@ -2416,6 +2416,10 @@ def _property_to_tabular(
                 refprops=prop.dtype.refprops,
                 explicit=prop.dtype.explicit
             )
+        yield_array_row = prop.dtype.items
+        yield_rows.append(yield_array_row)
+
+    elif isinstance(prop.dtype, ArrayBackRef):
         yield_array_row = prop.dtype.items
         yield_rows.append(yield_array_row)
 
