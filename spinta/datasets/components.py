@@ -110,7 +110,6 @@ class Resource(External):
     backend: ExternalBackend = None
     level: Level
     access: Access
-    # external: dict[str, str]
     external: str
     prepare: Expr
     models: Dict[str, Model]
@@ -138,13 +137,6 @@ class Resource(External):
         # given.
 
         'external': {'type': 'string'},
-        # 'external': {
-        #     'type': 'array',
-        #     'items': {
-        #         'type': {'type': 'string'},
-        #         'name': {'type': 'string'}
-        #     },
-        # },
         'params': {'type': 'object'},
         'level': {
             'type': 'integer',

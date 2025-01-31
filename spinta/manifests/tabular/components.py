@@ -143,7 +143,6 @@ class DatasetRow(TypedDict, total=False):
 class ResourceRow(ManifestRow):
     id: str
     backend: str
-    # external: dict[str, str]
     external: str
     lang: LangData
     given_name: str

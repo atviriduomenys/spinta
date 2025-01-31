@@ -359,7 +359,6 @@ class ResourceReader(TabularReader):
             'type': row['type'],
             'backend': row['ref'],
             'external': row['source'],
-            # 'external': {'name': row['source'], 'type': row['source.type']},
             'prepare': _parse_spyna(self, row[PREPARE]),
             'level': row['level'],
             'access': row['access'],

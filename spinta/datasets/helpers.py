@@ -50,7 +50,6 @@ def load_resource_backend(
             'type': resource.type,
             'name': name,
             'dsn': resource.external,
-            # 'dsn': resource.external["name"] if resource.external else None,
         })
 
     else:
