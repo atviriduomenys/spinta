@@ -289,13 +289,15 @@ def _get_fkeys(
         else:
             name = mapping[table].props[col]
 
+        referenced_model_pkeys = _get_primary_key(insp, rtable, schema, mapping)
+        refprops = [
+            mapping[rtable].props[rcol]
+            for rcol in fk['referred_columns']
+        ]
         ref = _Ref(
             name=name,
             model=mapping[rtable].model,
-            props=[
-                mapping[rtable].props[rcol]
-                for rcol in fk['referred_columns']
-            ],
+            props=[] if referenced_model_pkeys == refprops else refprops,
         )
 
         if composite:
