@@ -1998,7 +1998,8 @@ def _relative_referenced_model_name(
     relative_model: Model,
     referenced_model: Model,
     refprops: list[Property],
-    explicit: bool = False
+    explicit: bool = False,
+    explicit_only: bool = False,
 ) -> str:
     relative_model_name = None
     if relative_model.external and relative_model.external.dataset:
@@ -2011,7 +2012,8 @@ def _relative_referenced_model_name(
         referenced_model=referenced_model,
         refprops=refprops,
         explicit=explicit,
-        relative_model_name=relative_model_name
+        relative_model_name=relative_model_name,
+        explicit_only=explicit_only
     )
 
 
@@ -2019,6 +2021,7 @@ def referenced_model_name(
     referenced_model: Model,
     refprops: list[Property],
     explicit: bool = False,
+    explicit_only: bool = False,
     relative_model_name: Optional[str] = None
 ) -> str:
     model_name = relative_model_name
@@ -2026,9 +2029,16 @@ def referenced_model_name(
         model_name = referenced_model.name
 
     pkeys = referenced_model.external.pkeys
+    keys = []
+    if explicit_only and explicit:
+        keys = refprops
+    elif not explicit_only and (
+        (refprops and pkeys != refprops) or explicit
+    ):
+        keys = refprops
 
-    if refprops and pkeys != refprops or explicit:
-        rkeys = ', '.join([p.place for p in refprops])
+    if keys:
+        rkeys = ', '.join([p.place for p in keys])
         model_name += f'[{rkeys}]'
 
     return model_name
@@ -2448,7 +2458,8 @@ def _property_to_tabular(
             relative_model=model,
             referenced_model=prop.dtype.model,
             refprops=[prop.dtype.refprop],
-            explicit=prop.dtype.explicit
+            explicit=prop.dtype.explicit,
+            explicit_only=True
         )
 
         if prop.dtype.properties:
