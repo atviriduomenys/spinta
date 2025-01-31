@@ -21,15 +21,15 @@ def check(context: Context, dtype: Array):
         if not isinstance(dtype.left_prop.dtype, Ref):
             raise IntermediateTableMappingInvalidType(
                 dtype,
-                prop_name=dtype.left_prop.name,
-                prop_type=dtype.left_prop.dtype.name
+                property_name=dtype.left_prop.name,
+                property_type=dtype.left_prop.dtype.name
             )
 
         if not isinstance(dtype.right_prop.dtype, Ref):
             raise IntermediateTableMappingInvalidType(
                 dtype,
-                prop_name=dtype.right_prop.name,
-                prop_type=dtype.right_prop.dtype.name
+                property_name=dtype.right_prop.name,
+                property_type=dtype.right_prop.dtype.name
             )
 
         if dtype.items is not None and not isinstance(dtype.items.dtype, type(dtype.right_prop.dtype)):
