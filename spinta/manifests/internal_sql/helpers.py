@@ -1143,7 +1143,8 @@ def _property_to_sql(
         data['ref'] = referenced_model_name(
             referenced_model=prop.dtype.model,
             refprops=[prop.dtype.refprop],
-            explicit=prop.dtype.explicit
+            explicit=prop.dtype.explicit,
+            explicit_only=True
         )
 
         if prop.dtype.properties:
