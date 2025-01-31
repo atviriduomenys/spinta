@@ -565,6 +565,28 @@ def test_with_denormalized_data_undefined_error(manifest_type, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
+def test_denormalized_field(manifest_type, tmp_path, rc):
+    """country.continent.size is a denormalized field and has a type directly in City model."""
+    check(tmp_path, rc, '''
+    d | r | b | m | property               | type    | ref       | access
+    example                                |         |           |
+                                           |         |           |
+      |   |   | Continent                  |         |           |
+      |   |   |   | name                   | string  |           | open
+                                           |         |           |
+      |   |   | Country                    |         |           |
+      |   |   |   | name                   | string  |           | open
+      |   |   |   | continent              | ref     | Continent | open
+                                           |         |           |
+      |   |   | City                       |         |           |
+      |   |   |   | name                   | string  |           | open
+      |   |   |   | country                | ref     | Country   | open
+      |   |   |   | country.name           |         |           | open
+      |   |   |   | country.continent.size | integer |           | open
+    ''', manifest_type)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_with_base(manifest_type, tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property   | type    | ref
