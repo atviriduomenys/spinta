@@ -1113,7 +1113,7 @@ def _property_to_sql(
 
     yield_rows = []
 
-    if isinstance(prop.dtype, (Array, ArrayBackRef)):
+    if isinstance(prop.dtype, Array):
         if prop.dtype.model:
             data['ref'] = referenced_model_name(
                 referenced_model=prop.dtype.model,
@@ -1121,6 +1121,10 @@ def _property_to_sql(
                 explicit=prop.dtype.explicit
             )
 
+        yield_array_row = prop.dtype.items
+        yield_rows.append(yield_array_row)
+
+    elif isinstance(prop.dtype, ArrayBackRef):
         yield_array_row = prop.dtype.items
         yield_rows.append(yield_array_row)
 
