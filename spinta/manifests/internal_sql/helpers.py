@@ -24,7 +24,7 @@ from spinta.manifests.internal_sql.components import InternalManifestRow, INTERN
     InternalManifestColumn, InternalSQLManifest
 from spinta.manifests.tabular.components import ManifestRow, MANIFEST_COLUMNS
 from spinta.manifests.tabular.helpers import ENUMS_ORDER_BY, sort, MODELS_ORDER_BY, DATASETS_ORDER_BY, \
-    to_relative_model_name, PROPERTIES_ORDER_BY, _get_type_repr, _read_tabular_manifest_rows
+    to_relative_model_name, PROPERTIES_ORDER_BY, _get_type_repr, _read_tabular_manifest_rows, referenced_model_name
 from sqlalchemy_utils import UUIDType
 
 from spinta.nodes import get_node
@@ -1114,25 +1114,33 @@ def _property_to_sql(
     yield_rows = []
 
     if isinstance(prop.dtype, (Array, ArrayBackRef)):
+        if prop.dtype.model:
+            data['ref'] = referenced_model_name(
+                referenced_model=prop.dtype.model,
+                refprops=prop.dtype.refprops,
+                explicit=prop.dtype.explicit
+            )
+
         yield_array_row = prop.dtype.items
         yield_rows.append(yield_array_row)
 
-    elif isinstance(prop.dtype, (Ref, BackRef)):
-        model = prop.model
-        data['ref'] = prop.dtype.model.name
+    elif isinstance(prop.dtype, Ref):
+        data['ref'] = referenced_model_name(
+            referenced_model=prop.dtype.model,
+            refprops=prop.dtype.refprops,
+            explicit=prop.dtype.explicit
+        )
 
-        if model.external and model.external.dataset:
-            if isinstance(prop.dtype, Ref):
-                pkeys = prop.dtype.model.external.pkeys
-                rkeys = prop.dtype.refprops
+        if prop.dtype.properties:
+            for obj_prop in prop.dtype.properties.values():
+                yield_rows.append(obj_prop)
 
-                if rkeys and pkeys != rkeys:
-                    rkeys = ', '.join([p.place for p in rkeys])
-                    data['ref'] += f'[{rkeys}]'
-            else:
-                rkey = prop.dtype.refprop.place
-                if prop.dtype.explicit:
-                    data['ref'] += f'[{rkey}]'
+    elif isinstance(prop.dtype, BackRef):
+        data['ref'] = referenced_model_name(
+            referenced_model=prop.dtype.model,
+            refprops=[prop.dtype.refprop],
+            explicit=prop.dtype.explicit
+        )
 
         if prop.dtype.properties:
             for obj_prop in prop.dtype.properties.values():

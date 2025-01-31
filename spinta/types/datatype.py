@@ -235,6 +235,9 @@ class Array(DataType):
     # Given intermediate table explicit mapping
     refprops: List[Property] = None
 
+    # True if ref column is set explicitly
+    explicit: bool = False
+
     # Intermediate table's left property (self)
     left_prop: Property = None
 

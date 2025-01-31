@@ -1,7 +1,9 @@
 import pytest
 
 from spinta.exceptions import InvalidManifestFile, ReferencedPropertyNotFound, PartialTypeNotFound, \
-    DataTypeCannotBeUsedForNesting, NestedDataTypeMismatch
+    DataTypeCannotBeUsedForNesting, NestedDataTypeMismatch, SameModelIntermediateTableMapping, \
+    InvalidIntermediateTableMappingRefCount, UnableToMapIntermediateTable, IntermediateTableMappingInvalidType, \
+    IntermediateTableValueTypeMissmatch, IntermediateTableRefPropertyModelMissmatch, IntermediateTableRefModelMissmatch
 from spinta.testing.manifest import load_manifest
 from spinta.manifests.tabular.helpers import TabularManifestError
 
@@ -1290,3 +1292,277 @@ def test_prop_text_level_3_internal_sql(tmp_path, rc):
         ''',
         manifest_type='internal_sql'
     )
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_intermediate_table(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
+            d | r | b | m | property    | type    | ref             | access | title
+            example                     |         |                 |        |
+                                        |         |                 |        |
+              |   |   | Language        |         | id              |        |
+              |   |   |   | id          | integer |                 | open   |
+              |   |   |   | name        | string  |                 | open   |
+                                        |         |                 |        |
+              |   |   | Country         |         | id              |        |
+              |   |   |   | id          | integer |                 | open   |
+              |   |   |   | name        | string  |                 | open   |
+              |   |   |   | languages   | array   | CountryLanguage | open   |
+              |   |   |   | languages[] | ref     | Language        | open   |
+                                        |         |                 |        |
+              |   |   | CountryLanguage |         |                 |        |
+              |   |   |   | country     | ref     | Country         | open   |
+              |   |   |   | language    | ref     | Language        | open   |
+              |   |   |   | extra       | string  |                 | open   |
+        ''', manifest_type)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_intermediate_table_invalid_mapping_refprops(manifest_type, tmp_path, rc):
+    with pytest.raises(InvalidIntermediateTableMappingRefCount):
+        check(tmp_path, rc, '''
+                d | r | b | m | property    | type    | ref                                       | access | title
+                example                     |         |                                           |        |
+                                            |         |                                           |        |
+                  |   |   | Language        |         | id                                        |        |
+                  |   |   |   | id          | integer |                                           | open   |
+                  |   |   |   | name        | string  |                                           | open   |
+                                            |         |                                           |        |
+                  |   |   | Country         |         | id                                        |        |
+                  |   |   |   | id          | integer |                                           | open   |
+                  |   |   |   | name        | string  |                                           | open   |
+                  |   |   |   | languages   | array   | CountryLanguage[country, language, extra] | open   |
+                  |   |   |   | languages[] | ref     | Language                                  | open   |
+                                            |         |                                           |        |
+                  |   |   | CountryLanguage |         |                                           |        |
+                  |   |   |   | country     | ref     | Country                                   | open   |
+                  |   |   |   | language    | ref     | Language                                  | open   |
+                  |   |   |   | extra       | string  |                                           | open   |
+            ''', manifest_type)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_intermediate_table_invalid_mapping_multiple_references(manifest_type, tmp_path, rc):
+    with pytest.raises(UnableToMapIntermediateTable):
+        check(tmp_path, rc, '''
+                d | r | b | m | property    | type    | ref             | access | title
+                example                     |         |                 |        |
+                                            |         |                 |        |
+                  |   |   | Language        |         | id              |        |
+                  |   |   |   | id          | integer |                 | open   |
+                  |   |   |   | name        | string  |                 | open   |
+                                            |         |                 |        |
+                  |   |   | Country         |         | id              |        |
+                  |   |   |   | id          | integer |                 | open   |
+                  |   |   |   | name        | string  |                 | open   |
+                  |   |   |   | languages   | array   | CountryLanguage | open   |
+                  |   |   |   | languages[] | ref     | Language        | open   |
+                                            |         |                 |        |
+                  |   |   | CountryLanguage |         |                 |        |
+                  |   |   |   | country     | ref     | Country         | open   |
+                  |   |   |   | language    | ref     | Language        | open   |
+                  |   |   |   | lang        | ref     | Language        | open   |
+            ''', manifest_type)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_intermediate_table_same_model_mapping_pkey(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
+            d | r | b | m | property    | type    | ref            | access | title
+            example                     |         |                |        |
+                                        |         |                |        |
+              |   |   | Country         |         | id             |        |
+              |   |   |   | id          | integer |                | open   |
+              |   |   |   | name        | string  |                | open   |
+              |   |   |   | countries   | array   | CountryCountry | open   |
+              |   |   |   | countries[] | ref     | Country        | open   |
+                                        |         |                |        |
+              |   |   | CountryCountry  |         | country, other |        |
+              |   |   |   | country     | ref     | Country        | open   |
+              |   |   |   | other       | ref     | Country        | open   |
+        ''', manifest_type)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_intermediate_table_same_model_mapping_refprops(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
+            d | r | b | m | property    | type    | ref                            | access | title
+            example                     |         |                                |        |
+                                        |         |                                |        |
+              |   |   | Country         |         | id                             |        |
+              |   |   |   | id          | integer |                                | open   |
+              |   |   |   | name        | string  |                                | open   |
+              |   |   |   | countries   | array   | CountryCountry[country, other] | open   |
+              |   |   |   | countries[] | ref     | Country                        | open   |
+                                        |         |                                |        |
+              |   |   | CountryCountry  |         |                                |        |
+              |   |   |   | country     | ref     | Country                        | open   |
+              |   |   |   | other       | ref     | Country                        | open   |
+        ''', manifest_type)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_intermediate_table_same_model_unknown_mapping(manifest_type, tmp_path, rc):
+    with pytest.raises(SameModelIntermediateTableMapping):
+        check(tmp_path, rc, '''
+                d | r | b | m | property    | type    | ref            | access | title
+                example                     |         |                |        |
+                  |   |   | Country         |         | id             |        |
+                  |   |   |   | id          | integer |                | open   |
+                  |   |   |   | name        | string  |                | open   |
+                  |   |   |   | countries   | array   | CountryCountry | open   |
+                  |   |   |   | countries[] | ref     | Country        | open   |
+                                            |         |                |        |
+                  |   |   | CountryCountry  |         |                |        |
+                  |   |   |   | country     | ref     | Country        | open   |
+                  |   |   |   | other       | ref     | Country        | open   |
+            ''', manifest_type)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_intermediate_table_invalid_mapping_multiple_references(manifest_type, tmp_path, rc):
+    with pytest.raises(UnableToMapIntermediateTable):
+        check(tmp_path, rc, '''
+                d | r | b | m | property    | type    | ref             | access | title
+                example                     |         |                 |        |
+                                            |         |                 |        |
+                  |   |   | Language        |         | id              |        |
+                  |   |   |   | id          | integer |                 | open   |
+                  |   |   |   | name        | string  |                 | open   |
+                                            |         |                 |        |
+                  |   |   | Country         |         | id              |        |
+                  |   |   |   | id          | integer |                 | open   |
+                  |   |   |   | name        | string  |                 | open   |
+                  |   |   |   | languages   | array   | CountryLanguage | open   |
+                  |   |   |   | languages[] | ref     | Language        | open   |
+                                            |         |                 |        |
+                  |   |   | CountryLanguage |         |                 |        |
+                  |   |   |   | country     | ref     | Country         | open   |
+                  |   |   |   | language    | ref     | Language        | open   |
+                  |   |   |   | lang        | ref     | Language        | open   |
+            ''', manifest_type)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_intermediate_table_invalid_mapping_left_property_type(manifest_type, tmp_path, rc):
+    with pytest.raises(IntermediateTableMappingInvalidType):
+        check(tmp_path, rc, '''
+                d | r | b | m | property    | type    | ref                             | access | title
+                example                     |         |                                 |        |
+                                            |         |                                 |        |
+                  |   |   | Language        |         | id                              |        |
+                  |   |   |   | id          | integer |                                 | open   |
+                  |   |   |   | name        | string  |                                 | open   |
+                                            |         |                                 |        |
+                  |   |   | Country         |         | id                              |        |
+                  |   |   |   | id          | integer |                                 | open   |
+                  |   |   |   | name        | string  |                                 | open   |
+                  |   |   |   | languages   | array   | CountryLanguage[extra,language] | open   |
+                  |   |   |   | languages[] | ref     | Language                        | open   |
+                                            |         |                                 |        |
+                  |   |   | CountryLanguage |         |                                 |        |
+                  |   |   |   | country     | ref     | Country                         | open   |
+                  |   |   |   | language    | ref     | Language                        | open   |
+                  |   |   |   | extra       | string  |                                 | open   |
+            ''', manifest_type)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_intermediate_table_invalid_mapping_right_property_type(manifest_type, tmp_path, rc):
+    with pytest.raises(IntermediateTableMappingInvalidType):
+        check(tmp_path, rc, '''
+                d | r | b | m | property    | type    | ref                            | access | title
+                example                     |         |                                |        |
+                                            |         |                                |        |
+                  |   |   | Language        |         | id                             |        |
+                  |   |   |   | id          | integer |                                | open   |
+                  |   |   |   | name        | string  |                                | open   |
+                                            |         |                                |        |
+                  |   |   | Country         |         | id                             |        |
+                  |   |   |   | id          | integer |                                | open   |
+                  |   |   |   | name        | string  |                                | open   |
+                  |   |   |   | languages   | array   | CountryLanguage[country,extra] | open   |
+                  |   |   |   | languages[] | ref     | Language                       | open   |
+                                            |         |                                |        |
+                  |   |   | CountryLanguage |         |                                |        |
+                  |   |   |   | country     | ref     | Country                        | open   |
+                  |   |   |   | language    | ref     | Language                       | open   |
+                  |   |   |   | extra       | string  |                                | open   |
+            ''', manifest_type)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_intermediate_table_invalid_mapping_right_property_and_item_type_missmatch(manifest_type, tmp_path, rc):
+    with pytest.raises(IntermediateTableValueTypeMissmatch):
+        check(tmp_path, rc, '''
+                d | r | b | m | property    | type    | ref             | access | title
+                example                     |         |                 |        |
+                                            |         |                 |        |
+                  |   |   | Language        |         | id              |        |
+                  |   |   |   | id          | integer |                 | open   |
+                  |   |   |   | name        | string  |                 | open   |
+                                            |         |                 |        |
+                  |   |   | Country         |         | id              |        |
+                  |   |   |   | id          | integer |                 | open   |
+                  |   |   |   | name        | string  |                 | open   |
+                  |   |   |   | languages   | array   | CountryLanguage | open   |
+                  |   |   |   | languages[] | string  |                 | open   |
+                                            |         |                 |        |
+                  |   |   | CountryLanguage |         |                 |        |
+                  |   |   |   | country     | ref     | Country         | open   |
+                  |   |   |   | language    | ref     | Language        | open   |
+            ''', manifest_type)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_intermediate_table_invalid_mapping_right_property_and_item_model_missmatch(manifest_type, tmp_path, rc):
+    with pytest.raises(IntermediateTableRefPropertyModelMissmatch):
+        check(tmp_path, rc, '''
+                d | r | b | m | property    | type    | ref             | access | title
+                example                     |         |                 |        |
+                                            |         |                 |        |
+                  |   |   | Language        |         | id              |        |
+                  |   |   |   | id          | integer |                 | open   |
+                  |   |   |   | name        | string  |                 | open   |
+                                            |         |                 |        |
+                  |   |   | Extra           |         | id              |        |
+                  |   |   |   | id          | integer |                 | open   |
+                  |   |   |   | name        | string  |                 | open   |
+                                            |         |                 |        |
+                  |   |   | Country         |         | id              |        |
+                  |   |   |   | id          | integer |                 | open   |
+                  |   |   |   | name        | string  |                 | open   |
+                  |   |   |   | languages   | array   | CountryLanguage | open   |
+                  |   |   |   | languages[] | ref     | Extra           | open   |
+                                            |         |                 |        |
+                  |   |   | CountryLanguage |         |                 |        |
+                  |   |   |   | country     | ref     | Country         | open   |
+                  |   |   |   | language    | ref     | Language        | open   |
+            ''', manifest_type)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_intermediate_table_invalid_mapping_left_property_model_missmatch(manifest_type, tmp_path, rc):
+    with pytest.raises(IntermediateTableRefModelMissmatch):
+        check(tmp_path, rc, '''
+                d | r | b | m | property    | type    | ref             | access | title
+                example                     |         |                 |        |
+                                            |         |                 |        |
+                  |   |   | Language        |         | id              |        |
+                  |   |   |   | id          | integer |                 | open   |
+                  |   |   |   | name        | string  |                 | open   |
+                                            |         |                 |        |
+                  |   |   | Extra           |         | id              |        |
+                  |   |   |   | id          | integer |                 | open   |
+                  |   |   |   | name        | string  |                 | open   |
+                                            |         |                 |        |
+                  |   |   | Country         |         | id              |        |
+                  |   |   |   | id          | integer |                 | open   |
+                  |   |   |   | name        | string  |                 | open   |
+                  |   |   |   | languages   | array   | CountryLanguage | open   |
+                  |   |   |   | languages[] | ref     | Language        | open   |
+                                            |         |                 |        |
+                  |   |   | CountryLanguage |         |                 |        |
+                  |   |   |   | country     | ref     | Extra           | open   |
+                  |   |   |   | language    | ref     | Language        | open   |
+            ''', manifest_type)
