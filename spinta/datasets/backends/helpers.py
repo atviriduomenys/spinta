@@ -1,3 +1,4 @@
+import json
 from typing import Any
 
 from spinta import commands, spyna
@@ -120,3 +121,22 @@ def extract_values_from_row(row: Any, model: Model, keys: list):
     if len(return_list) == 1:
         return_list = return_list[0]
     return return_list
+
+
+def handle_external_array_type(
+    context: Context,
+    dtype: Array,
+    keymap: KeyMap,
+    env: Env,
+    val: Any
+):
+    if isinstance(val, str):
+        val = json.loads(val)
+
+    if not isinstance(val, list):
+        return val
+
+    if isinstance(dtype.items.dtype, Ref):
+        return [handle_ref_key_assignment(context, keymap, env, value, dtype.items.dtype) for value in val]
+
+    return val

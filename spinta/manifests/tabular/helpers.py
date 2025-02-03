@@ -756,7 +756,12 @@ def _datatype_handler(reader: PropertyReader, row: dict, initial_data_loader: Ca
         )
 
     if row['ref']:
-        if dtype['type'] in (DataTypeEnum.REF.value, DataTypeEnum.GENERIC.value, DataTypeEnum.BACKREF.value):
+        if dtype['type'] in (
+            DataTypeEnum.REF.value,
+            DataTypeEnum.GENERIC.value,
+            DataTypeEnum.BACKREF.value,
+            DataTypeEnum.ARRAY.value
+        ):
             ref_model, ref_props = _parse_property_ref(row['ref'])
             new_data['model'] = get_relative_model_name(dataset, ref_model)
 
@@ -1981,6 +1986,56 @@ def to_relative_model_name(model: Model, dataset: Dataset = None) -> str:
         return '/' + model.name
 
 
+def _relative_referenced_model_name(
+    relative_model: Model,
+    referenced_model: Model,
+    refprops: list[Property],
+    explicit: bool = False,
+    explicit_only: bool = False,
+) -> str:
+    relative_model_name = None
+    if relative_model.external and relative_model.external.dataset:
+        relative_model_name = to_relative_model_name(
+            referenced_model,
+            relative_model.external.dataset,
+        )
+
+    return referenced_model_name(
+        referenced_model=referenced_model,
+        refprops=refprops,
+        explicit=explicit,
+        relative_model_name=relative_model_name,
+        explicit_only=explicit_only
+    )
+
+
+def referenced_model_name(
+    referenced_model: Model,
+    refprops: list[Property],
+    explicit: bool = False,
+    explicit_only: bool = False,
+    relative_model_name: Optional[str] = None
+) -> str:
+    model_name = relative_model_name
+    if model_name is None:
+        model_name = referenced_model.name
+
+    pkeys = referenced_model.external.pkeys
+    keys = []
+    if explicit_only and explicit:
+        keys = refprops
+    elif not explicit_only and (
+        (refprops and pkeys != refprops) or explicit
+    ):
+        keys = refprops
+
+    if keys:
+        rkeys = ', '.join([p.place for p in keys])
+        model_name += f'[{rkeys}]'
+
+    return model_name
+
+
 def tabular_eid(model: Model):
     if isinstance(model.eid, int):
         return model.eid
@@ -2362,33 +2417,42 @@ def _property_to_tabular(
 
     yield_rows = []
 
-    if isinstance(prop.dtype, (Array, ArrayBackRef)):
+    model = prop.model
+    if isinstance(prop.dtype, Array):
+        if prop.dtype.model:
+            data['ref'] = _relative_referenced_model_name(
+                relative_model=model,
+                referenced_model=prop.dtype.model,
+                refprops=prop.dtype.refprops,
+                explicit=prop.dtype.explicit
+            )
         yield_array_row = prop.dtype.items
         yield_rows.append(yield_array_row)
 
-    elif isinstance(prop.dtype, (Ref, BackRef)):
-        model = prop.model
+    elif isinstance(prop.dtype, ArrayBackRef):
+        yield_array_row = prop.dtype.items
+        yield_rows.append(yield_array_row)
 
-        if model.external and model.external.dataset:
-            data['ref'] = to_relative_model_name(
-                prop.dtype.model,
-                model.external.dataset,
-            )
+    elif isinstance(prop.dtype, Ref):
+        data['ref'] = _relative_referenced_model_name(
+            relative_model=model,
+            referenced_model=prop.dtype.model,
+            refprops=prop.dtype.refprops,
+            explicit=prop.dtype.explicit
+        )
 
-            if isinstance(prop.dtype, Ref):
-                pkeys = prop.dtype.model.external.pkeys
-                rkeys = prop.dtype.refprops
+        if prop.dtype.properties:
+            for obj_prop in prop.dtype.properties.values():
+                yield_rows.append(obj_prop)
 
-                if rkeys and pkeys != rkeys:
-                    rkeys = ', '.join([p.place for p in rkeys])
-                    data['ref'] += f'[{rkeys}]'
-            else:
-                rkey = prop.dtype.refprop.place
-                if prop.dtype.explicit:
-                    data['ref'] += f'[{rkey}]'
-
-        else:
-            data['ref'] = prop.dtype.model.name
+    elif isinstance(prop.dtype, BackRef):
+        data['ref'] = _relative_referenced_model_name(
+            relative_model=model,
+            referenced_model=prop.dtype.model,
+            refprops=[prop.dtype.refprop],
+            explicit=prop.dtype.explicit,
+            explicit_only=True
+        )
 
         if prop.dtype.properties:
             for obj_prop in prop.dtype.properties.values():
