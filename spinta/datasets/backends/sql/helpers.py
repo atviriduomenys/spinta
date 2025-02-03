@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from typing import Union, Tuple
 
 import geoalchemy2.functions
@@ -70,6 +71,36 @@ def _default_flip(column: sa.Column):
     return column
 
 
+def _group_array_sqlite(column: Union[sa.Column, Sequence[sa.Column]]):
+    if isinstance(column, Sequence) and not isinstance(column, str):
+        column = sa.sql.func.json_array(*column)
+    return sa.sql.func.json_group_array(column)
+
+
+def _group_array_postgresql(column: Union[sa.Column, Sequence[sa.Column]]):
+    if isinstance(column, Sequence) and not isinstance(column, str):
+        column = sa.sql.func.jsonb_build_array(*column)
+    return sa.sql.func.jsonb_agg(column)
+
+
+def _group_array_mysql(column: Union[sa.Column, Sequence[sa.Column]]):
+    if isinstance(column, Sequence) and not isinstance(column, str):
+        column = sa.sql.func.json_array(*column)
+    return sa.sql.func.json_arrayagg(column)
+
+
+def _group_array_mssql(column: Union[sa.Column, Sequence[sa.Column]]):
+    if isinstance(column, Sequence) and not isinstance(column, str):
+        column = sa.sql.func.json_array(*column)
+    # Using concat for mssql, because `json_arrayagg` is only available for Azure SQL version
+    # https://learn.microsoft.com/en-us/sql/t-sql/functions/json-array-transact-sql?view=azuresqldb-current
+    return sa.sql.func.concat('[', column, ']')
+
+
+def _default_group_array(column: sa.Column):
+    raise NotImplemented("Current Sql dialect currently does not support array aggregation.")
+
+
 _DEFAULT_DIALECT_KEY = ""
 
 
@@ -84,6 +115,13 @@ _ASC_DIALECT_MAPPER = {
 _GEOMETRY_FLIP_DIALECT_MAPPER = {
     "postgresql": _flip_geometry_postgis,
     _DEFAULT_DIALECT_KEY: _default_flip
+}
+_GROUP_ARRAY_DIALECT_MAPPER = {
+    "sqlite": _group_array_sqlite,
+    "postgresql": _group_array_postgresql,
+    "mssql": _group_array_mssql,
+    ("mysql", "mariadb"): _group_array_mysql,
+    _DEFAULT_DIALECT_KEY: _default_group_array
 }
 
 
@@ -124,6 +162,14 @@ def dialect_specific_geometry_flip(engine: sa.engine, column: sa.Column):
     return _dialect_specific_function(
         engine=engine,
         dialect_function_mapper=_GEOMETRY_FLIP_DIALECT_MAPPER,
+        column=column
+    )
+
+
+def dialect_specific_group_array(engine: sa.engine, column: Union[sa.Column, Sequence[sa.Column]]):
+    return _dialect_specific_function(
+        engine=engine,
+        dialect_function_mapper=_GROUP_ARRAY_DIALECT_MAPPER,
         column=column
     )
 

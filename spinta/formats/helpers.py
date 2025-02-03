@@ -50,7 +50,7 @@ def _get_dtype_header(
 
     elif isinstance(dtype, ArrayBackRef):
         name_ = name + '[]'
-        yield from _get_dtype_header(dtype.refprop.dtype, select, name_, langs)
+        yield from _get_dtype_header(dtype.items.dtype, select, name_, langs)
 
     elif isinstance(dtype, BackRef):
         yield from _get_dtype_header(dtype.refprop.dtype, select, name, langs)
