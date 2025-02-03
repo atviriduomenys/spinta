@@ -549,7 +549,7 @@ def _parse_dtype_string(dtype: str) -> dict:
     }
 
 
-def _get_type_repr(dtype: Optional[Union[DataType, str]]) -> str:
+def _get_type_repr(dtype: DataType | str | None) -> str:
     if dtype is None:
         return DataTypeEnum.INHERIT.value
 
