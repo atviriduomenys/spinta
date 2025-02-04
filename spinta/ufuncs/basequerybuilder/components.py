@@ -156,3 +156,8 @@ class ResultProperty(Func):
 class LiteralProperty(Func):
     # Used when returning literal value
     value: Any
+
+
+@dataclasses.dataclass
+class Flip(Func):
+    dtype: DataType

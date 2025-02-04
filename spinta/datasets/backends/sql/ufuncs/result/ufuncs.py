@@ -2,13 +2,16 @@ import base64
 from decimal import Decimal
 from typing import Any, overload, Optional
 
+import shapely
+from shapely.geometry.base import BaseGeometry
+
 from spinta.core.ufuncs import ufunc, Expr
 from spinta.datasets.backends.sql.ufuncs.components import FileSelected
 from spinta.datasets.backends.sql.ufuncs.result.components import SqlResultBuilder
 from spinta.exceptions import UnableToCast
 from spinta.types.datatype import Integer, String
 from spinta.types.file.components import FileData
-from spinta.ufuncs.basequerybuilder.components import Selected
+from spinta.types.geometry.components import Geometry
 
 
 @overload
@@ -73,9 +76,17 @@ def swap(env: SqlResultBuilder, expr: Expr):
     return env.call('swap', *args, *kwargs)
 
 
-@overload
-@ufunc.resolver(SqlResultBuilder, Selected, Selected)
-def point(env: SqlResultBuilder, x: Selected, y: Selected) -> Expr:
-    x = env.data[x.item]
-    y = env.data[y.item]
-    return f'POINT ({x} {y})'
+@ufunc.resolver(SqlResultBuilder)
+def flip(env: SqlResultBuilder):
+    return env.call('flip', env.prop.dtype, env.this)
+
+
+@ufunc.resolver(SqlResultBuilder, Geometry, str)
+def flip(env: SqlResultBuilder, dtype: Geometry, value: str):
+    values = value.split(';', 1)
+    shape: BaseGeometry = shapely.from_wkt(values[-1])
+    inverted: BaseGeometry = shapely.ops.transform(lambda x, y: (y, x), shape)
+    inverted: str = shapely.to_wkt(inverted)
+    if len(values) > 1:
+        return ';'.join([*values[:-1], inverted])
+    return inverted

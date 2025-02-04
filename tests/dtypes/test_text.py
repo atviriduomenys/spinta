@@ -432,7 +432,7 @@ def test_text_unknown_language(
     context = bootstrap_manifest(
         rc, '''
         id | d | r | b | m | property | type     | ref | source | prepare | level | access | uri | title | description
-           | types/text/content               |          |     |        |         |       |        |     |       |
+           | types/text/content       |          |     |        |         |       |        |     |       |
            |   |   |   | Country      |          |     |        |         |       |        |     |       |
            |   |   |   |   | name     | text     |     |        |         | 3     | open   |     |       |
            |   |   |   |   | name@lt  | string   |     |        |         |       | open   |     |       |

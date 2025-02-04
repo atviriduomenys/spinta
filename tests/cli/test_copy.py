@@ -651,3 +651,174 @@ def test_copy_origin(context: Context, rc, cli: SpintaCliRunner, tmp_path):
       |   |   |   | code     | string |         | kodas       |         | public | code
       |   |   |   | name     | string |         | pavadinimas |         | open   | name
     '''
+
+
+def test_copy_source_type_resource(context: Context, rc, cli, tmp_path):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    d | r | b | m | property | type    | ref     | source      | source.type
+    datasets/gov/example     |         |         |             |
+      | data                 | sql     |         | sqlite://   | sqlite
+                             |         |         |             |
+      |   |   | Country      |         | code    | salis       |
+      |   |   |   | code     | integer |         | kodas       |
+      |   |   |   | name     | string  |         | pavadinimas |
+      |   |   |   | driving  | string  |         | vairavimas  |
+      |   |   |   |          | enum    |         | l           |
+      |   |   |   |          |         |         | r           |
+                             |         |         |             |
+      |   |   | City         |         | name    | miestas     |
+      |   |   |   | name     | string  |         | pavadinimas |
+      |   |   |   | country  | ref     | Country | salis       |
+    '''))
+
+    cli.invoke(rc, [
+        'copy',
+        '-o', tmp_path / 'result.csv',
+        tmp_path / 'manifest.csv',
+    ])
+
+    manifest = load_manifest(rc, tmp_path / 'result.csv')
+    assert manifest == '''
+    d | r | b | m | property | type    | ref     | source      | source.type
+    datasets/gov/example     |         |         |             |
+      | data                 | sql     |         | sqlite://   | sqlite
+                             |         |         |             |
+      |   |   | Country      |         | code    | salis       |
+      |   |   |   | code     | integer |         | kodas       |
+      |   |   |   | name     | string  |         | pavadinimas |
+      |   |   |   | driving  | string  |         | vairavimas  |
+                             | enum    |         | l           |
+                             |         |         | r           |
+                             |         |         |             |
+      |   |   | City         |         | name    | miestas     |
+      |   |   |   | name     | string  |         | pavadinimas |
+      |   |   |   | country  | ref     | Country | salis       |
+    '''
+
+
+def test_copy_source_type_model(context: Context, rc, cli, tmp_path):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    d | r | b | m | property | type    | ref     | source      | source.type
+    datasets/gov/example     |         |         |             |
+      | data                 | sql     |         |             |
+                             |         |         |             |
+      |   |   | Country      |         | code    | salis       | table
+      |   |   |   | code     | integer |         | kodas       |
+      |   |   |   | name     | string  |         | pavadinimas |
+      |   |   |   | driving  | string  |         | vairavimas  |
+      |   |   |   |          | enum    |         | l           |
+      |   |   |   |          |         |         | r           |  
+                             |         |         |             |
+      |   |   | City         |         | name    | miestas     | view materialized
+      |   |   |   | name     | string  |         | pavadinimas |
+      |   |   |   | country  | ref     | Country | salis       |
+    '''))
+
+    cli.invoke(rc, [
+        'copy',
+        '-o', tmp_path / 'result.csv',
+        tmp_path / 'manifest.csv',
+    ])
+
+    manifest = load_manifest(rc, tmp_path / 'result.csv')
+    assert manifest == '''
+    d | r | b | m | property | type    | ref     | source      | source.type
+    datasets/gov/example     |         |         |             |
+      | data                 | sql     |         |             |
+                             |         |         |             |
+      |   |   | Country      |         | code    | salis       | table
+      |   |   |   | code     | integer |         | kodas       |
+      |   |   |   | name     | string  |         | pavadinimas |
+      |   |   |   | driving  | string  |         | vairavimas  |
+                             | enum    |         | l           |
+                             |         |         | r           |
+                             |         |         |             |
+      |   |   | City         |         | name    | miestas     | view materialized
+      |   |   |   | name     | string  |         | pavadinimas |
+      |   |   |   | country  | ref     | Country | salis       |
+    '''
+
+
+def test_copy_source_type_property(context: Context, rc, cli, tmp_path):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    d | r | b | m | property | type    | ref     | source      | source.type  
+    datasets/gov/example     |         |         |             |
+      | data                 | sql     |         | sqlite://   |
+                             |         |         |             |
+      |   |   | Country      |         | code    | salis       |
+      |   |   |   | code     | integer |         | kodas       | integer 
+      |   |   |   | name     | string  |         | pavadinimas | varchar(255) 
+      |   |   |   | driving  | string  |         | vairavimas  | varchar(1)
+      |   |   |   |          | enum    |         | l           |
+      |   |   |   |          |         |         | r           |  
+                             |         |         |             |
+      |   |   | City         |         | name    | miestas     |
+      |   |   |   | name     | string  |         | pavadinimas | varchar(255)
+      |   |   |   | country  | ref     | Country | salis       | test
+    '''))
+
+    cli.invoke(rc, [
+        'copy',
+        '-o', tmp_path / 'result.csv',
+        tmp_path / 'manifest.csv',
+    ])
+
+    manifest = load_manifest(rc, tmp_path / 'result.csv')
+    assert manifest == '''
+    d | r | b | m | property | type    | ref     | source      | source.type
+    datasets/gov/example     |         |         |             |
+      | data                 | sql     |         | sqlite://   |
+                             |         |         |             |
+      |   |   | Country      |         | code    | salis       |
+      |   |   |   | code     | integer |         | kodas       | integer
+      |   |   |   | name     | string  |         | pavadinimas | varchar(255)
+      |   |   |   | driving  | string  |         | vairavimas  | varchar(1)
+                             | enum    |         | l           |
+                             |         |         | r           |
+                             |         |         |             |
+      |   |   | City         |         | name    | miestas     |
+      |   |   |   | name     | string  |         | pavadinimas | varchar(255)
+      |   |   |   | country  | ref     | Country | salis       | test
+    '''
+
+def test_copy_source_type_resource_model_property(context: Context, rc, cli, tmp_path):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    d | r | b | m | property | type    | ref     | source      | source.type
+    datasets/gov/example     |         |         |             |
+      | data                 | sql     |         | sqlite://   | sqlite
+                             |         |         |             |
+      |   |   | Country      |         | code    | salis       | table
+      |   |   |   | code     | integer |         | kodas       | test
+      |   |   |   | name     | string  |         | pavadinimas | varchar(255)
+      |   |   |   | driving  | string  |         | vairavimas  | varchar(1)
+      |   |   |   |          | enum    |         | l           |
+      |   |   |   |          |         |         | r           |  
+                             |         |         |             |
+      |   |   | City         |         | name    | miestas     | view materialized
+      |   |   |   | name     | string  |         | pavadinimas | varchar(255)
+      |   |   |   | country  | ref     | Country | salis       | integer
+    '''))
+
+    cli.invoke(rc, [
+        'copy',
+        '-o', tmp_path / 'result.csv',
+        tmp_path / 'manifest.csv',
+    ])
+
+    manifest = load_manifest(rc, tmp_path / 'result.csv')
+    assert manifest == '''
+    d | r | b | m | property | type    | ref     | source      | source.type
+    datasets/gov/example     |         |         |             |
+      | data                 | sql     |         | sqlite://   | sqlite
+                             |         |         |             |
+      |   |   | Country      |         | code    | salis       | table
+      |   |   |   | code     | integer |         | kodas       | test
+      |   |   |   | name     | string  |         | pavadinimas | varchar(255)
+      |   |   |   | driving  | string  |         | vairavimas  | varchar(1)
+                             | enum    |         | l           |
+                             |         |         | r           |
+                             |         |         |             |
+      |   |   | City         |         | name    | miestas     | view materialized
+      |   |   |   | name     | string  |         | pavadinimas | varchar(255)
+      |   |   |   | country  | ref     | Country | salis       | integer
+    '''

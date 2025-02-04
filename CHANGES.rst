@@ -11,14 +11,73 @@ Backwards incompatible:
   .. _#842: https://github.com/atviriduomenys/spinta/issues/842
   .. _#582: https://github.com/atviriduomenys/spinta/issues/582
 
-0.1.82 (unreleased)
+0.1.83 (unreleased)
 ===================
+
+Bug fix:
+
+- Convertion from scalar to ref (and ref to scalar) now uses `alias` when there is self reference (`#1105`_).
+
+  .. _#1105: https://github.com/atviriduomenys/spinta/issues/1105
+
+0.1.82 (2025-01-21)
+===================
+
+Backwards incompatible:
+
+- `postgresql` `backend` now no longer ignores `prepare` functions. Meaning if there are properties, which has functions
+  set in `prepare` column, it can cause errors (if those functions are not supported in `postgresql` `backend`) (`#1048`_).
+
+- `InternalSqlManifest` no longer is capable of knowing when to hide `Text` or `C` language (`#940`_). That means if you have
+  `tabular` `manifest` with hidden `Text`, like so:
+
+  .. code-block:: text
+
+    d | r | b | m | property | type    | ref       | access | title
+    example                  |         |           |        |
+                             |         |           |        |
+      |   |   | City         |         | id        |        |
+      |   |   |   | id       | integer |           | open   |
+      |   |   |   | name@lt  | string  |           | open   |
+      |   |   |   | name@en  | string  |           | open   |
+
+  if you were to convert it to `InternalSqlManifest` and back, you would get this result:
+
+  .. code-block:: text
+
+    d | r | b | m | property | type    | ref       | access | title
+    example                  |         |           |        |
+                             |         |           |        |
+      |   |   | City         |         | id        |        |
+      |   |   |   | id       | integer |           | open   |
+      |   |   |   | name     | text    |           | open   |
+      |   |   |   | name@lt  | string  |           | open   |
+      |   |   |   | name@en  | string  |           | open   |
 
 New features:
 
 - Added support for `Object` type with `external` `Sql` `backend` (`#973`_).
 
   .. _#973: https://github.com/atviriduomenys/spinta/issues/973
+
+- Added 'flip` function, which currently only supports `Geometry` type (flips coordinate axis). This features only works
+  when reading data, meaning, when writing, you still need to provide coordinates in the right order (`#1048`_).
+
+  .. _#1048: https://github.com/atviriduomenys/spinta/issues/1048
+
+- Added `point` function support to `postgresql` `backend` (`#1053`_).
+
+  .. _#1053: https://github.com/atviriduomenys/spinta/issues/1053
+
+Improvements:
+
+- Client data and `keymap` is now cached. This will reduce amount of file reads with each request (`#948`_).
+
+  .. _#948: https://github.com/atviriduomenys/spinta/issues/948
+
+- `Tabular` `manifest` now supports `Text` type nesting with other complex types (`Object`, `Ref`, etc.) (`#940`_).
+
+  .. _#940: https://github.com/atviriduomenys/spinta/issues/940
 
 0.1.81 (2024-12-17)
 ===================

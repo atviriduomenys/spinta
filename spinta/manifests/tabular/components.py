@@ -74,6 +74,7 @@ PROPERTY: Final = 'property'
 TYPE: Final = 'type'
 REF: Final = 'ref'
 SOURCE: Final = 'source'
+SOURCE_TYPE: Final = 'source.type'
 PREPARE: Final = 'prepare'
 LEVEL: Final = 'level'
 ACCESS: Final = 'access'
@@ -96,6 +97,7 @@ ManifestColumn = Literal[
     'type',
     'ref',
     'source',
+    'source.type',
     'prepare',
     'level',
     'access',
@@ -109,27 +111,28 @@ ManifestColumn = Literal[
     'origin',
 ]
 MANIFEST_COLUMNS: List[ManifestColumn] = [
-            ID,
-            DATASET,
-            RESOURCE,
-            BASE,
-            MODEL,
-            PROPERTY,
-            TYPE,
-            REF,
-            SOURCE,
-            PREPARE,
-            LEVEL,
-            ACCESS,
-            URI,
-            TITLE,
-            DESCRIPTION,
-            STATUS,
-            VISIBILITY,
-            ELI,
-            COUNT,
-            ORIGIN
-        ]
+    ID,
+    DATASET,
+    RESOURCE,
+    BASE,
+    MODEL,
+    PROPERTY,
+    TYPE,
+    REF,
+    SOURCE,
+    SOURCE_TYPE,
+    PREPARE,
+    LEVEL,
+    ACCESS,
+    URI,
+    TITLE,
+    DESCRIPTION,
+    STATUS,
+    VISIBILITY,
+    ELI,
+    COUNT,
+    ORIGIN
+]
 
 ManifestRow = Dict[ManifestColumn, str]
 
@@ -160,6 +163,7 @@ class ResourceRow(ManifestRow):
     lang: LangData
     given_name: str
     count: int
+    source_type: str
 
 
 class BackendRow(TypedDict, total=False):
@@ -221,6 +225,7 @@ class ModelExternalRow(TypedDict, total=False):
     pk: List[str]
     name: str
     prepare: Dict[str, Any]
+    type: str
 
 
 class EnumRow(TypedDict, total=False):
@@ -271,6 +276,7 @@ class PropertyRow(TypedDict, total=False):
 class PropertyExternalRow(TypedDict, total=False):
     name: str
     prepare: Optional[Dict[str, Any]]
+    type: str
 
 
 class PrefixRow(TypedDict, total=False):

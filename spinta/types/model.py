@@ -156,9 +156,6 @@ def load(
 
     model.params = load_params(context, manifest, model.params)
 
-    # if "/:" in model.name:
-    #     model.name, model.features = model.name.rsplit("/:", 1)
-
     if not model.name.startswith('_') and not model.basename[0].isupper():
         raise Exception(model.basename, "MODEL NAME NEEDS TO BE UPPER CASED")
 

@@ -10,6 +10,7 @@ DATASET = [
     'type',
     'ref',
     'source',
+    'source.type',
     'prepare',
     'level',
     'access',

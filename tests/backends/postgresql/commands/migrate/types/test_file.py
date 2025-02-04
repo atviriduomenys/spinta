@@ -33,7 +33,7 @@ def test_migrate_create_models_with_file_type(
                      |   |      |      | someInteger    | integer |                      |
                      |   |      |      | someNumber     | number  |                      |
                      |   |      |      | flag           | file    |                      |
-                     |   |      |      | new            | file    |                      | file()
+                     |   |      |      | new            | file    |                      | 
     ''')
 
     result = cli.invoke(rc, [
@@ -133,7 +133,7 @@ def test_migrate_remove_file_type(
                      |   |      |      | someInteger    | integer |                      |
                      |   |      |      | someNumber     | number  |                      |
                      |   |      |      | flag           | file    |                      |
-                     |   |      |      | new            | file    |                      | file()
+                     |   |      |      | new            | file    |                      | 
     '''
     context, rc = configure_migrate(rc, tmp_path, initial_manifest)
 

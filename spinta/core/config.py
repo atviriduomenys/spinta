@@ -590,7 +590,7 @@ def configure_rc(
     *,
     mode: Mode = Mode.internal,
     check_names: Optional[bool] = None,
-    backend: str = None,
+    backend: str | None = None,
     resources: List[ResourceTuple] = None,
     dataset: str = None,
     manifest_type: str = 'inline'

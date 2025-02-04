@@ -897,6 +897,120 @@ def test_migrate_scalar_to_ref_simple_level_4(
         ])
 
 
+def test_migrate_scalar_to_ref_simple_level_4_self_reference(
+    postgresql_migration: URL,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    cleanup_tables(postgresql_migration)
+    initial_manifest = '''
+     d               | r | b    | m       | property       | type     | ref      | level
+     migrate/example |   |      |         |                |          |          |
+                     |   |      | Object  |                |          | id       |
+                     |   |      |         | id             | integer  |          |
+                     |   |      |         | object         | integer  |          |
+    '''
+    context, rc = configure_migrate(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {
+            'migrate/example/Object',
+            'migrate/example/Object/:changelog',
+        }.issubset(
+            tables.keys())
+        obj = tables["migrate/example/Object"]
+        assert {'id', 'object'}.issubset(obj.columns.keys())
+
+        conn.execute(obj.insert().values({
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7a",
+            "id": 0,
+        }))
+
+        conn.execute(obj.insert().values({
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7e",
+            "id": 1,
+            "object": 0
+        }))
+
+    override_manifest(context, tmp_path, '''
+     d               | r | b    | m       | property       | type     | ref      | level
+     migrate/example |   |      |         |                |          |          |
+                     |   |      | Object  |                |          | id       |
+                     |   |      |         | id             | integer  |          |
+                     |   |      |         | object         | ref      | Object   | 4      |
+    ''')
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p'
+    ])
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Object" ADD COLUMN "object._id" UUID;\n'
+        '\n'
+        'CREATE INDEX "ix_migrate/example/Object_object._id" ON '
+        '"migrate/example/Object" ("object._id");\n'
+        '\n'
+        'UPDATE "migrate/example/Object" SET '
+        '"object._id"="migrate/example/Object_1"._id FROM "migrate/example/Object" AS '
+        '"migrate/example/Object_1" WHERE "migrate/example/Object".object = '
+        '"migrate/example/Object_1".id;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Object" RENAME object TO __object;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Object" ADD CONSTRAINT '
+        '"fk_migrate/example/Object_object._id" FOREIGN KEY("object._id") REFERENCES '
+        '"migrate/example/Object" (_id);\n'
+        '\n'
+        'COMMIT;\n'
+        '\n')
+
+    cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv',
+    ])
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {'migrate/example/Object', 'migrate/example/Object/:changelog'}.issubset(tables.keys())
+
+        table = tables["migrate/example/Object"]
+        columns = table.columns
+        assert {'id', 'object._id', '__object'}.issubset(
+            columns.keys())
+        assert not {'object'}.issubset(
+            columns.keys())
+
+        result = conn.execute(table.select())
+        result_mapping = [{
+            '_id': '197109d9-add8-49a5-ab19-3ddc7589ce7a',
+            'id': 0,
+            'object._id': None,
+            '__object': None
+        }, {
+            '_id': '197109d9-add8-49a5-ab19-3ddc7589ce7e',
+            'id': 1,
+            'object._id': '197109d9-add8-49a5-ab19-3ddc7589ce7a',
+            '__object': 0
+        }]
+        for i, row in enumerate(result):
+            for key, value in result_mapping[i].items():
+                assert row[key] == value
+
+        cleanup_table_list(meta, [
+            'migrate/example/Object',
+            'migrate/example/Object/:changelog'
+        ])
+
+
 def test_migrate_scalar_to_ref_simple_level_3(
     postgresql_migration: URL,
     rc: RawConfig,
@@ -1000,6 +1114,113 @@ def test_migrate_scalar_to_ref_simple_level_3(
             'migrate/example/City/:changelog',
             'migrate/example/Country',
             'migrate/example/Country/:changelog'
+        ])
+
+
+def test_migrate_scalar_to_ref_simple_level_3_self_reference(
+    postgresql_migration: URL,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    cleanup_tables(postgresql_migration)
+    initial_manifest = '''
+     d               | r | b    | m       | property       | type     | ref      | level
+     migrate/example |   |      |         |                |          |          |
+                     |   |      | Object  |                |          | id       |
+                     |   |      |         | id             | integer  |          |
+                     |   |      |         | object         | integer  |          |        |
+    '''
+    context, rc = configure_migrate(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {
+            'migrate/example/Object',
+            'migrate/example/Object/:changelog',
+        }.issubset(
+            tables.keys())
+        obj = tables["migrate/example/Object"]
+        assert {'id', 'object'}.issubset(obj.columns.keys())
+
+        conn.execute(obj.insert().values({
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7a",
+            "id": 0
+        }))
+
+        conn.execute(obj.insert().values({
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7e",
+            "id": 1,
+            "object": 0
+        }))
+
+    override_manifest(context, tmp_path, '''
+     d               | r | b    | m       | property       | type     | ref      | level
+     migrate/example |   |      |         |                |          |          |
+                     |   |      | Object  |                |          | id       |
+                     |   |      |         | id             | integer  |          |
+                     |   |      |         | object         | ref      | Object   | 3
+    ''')
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p'
+    ])
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Object" ADD COLUMN "object.id" INTEGER;\n'
+        '\n'
+        'UPDATE "migrate/example/Object" SET '
+        '"object.id"="migrate/example/Object_1".id FROM "migrate/example/Object" AS '
+        '"migrate/example/Object_1" WHERE "migrate/example/Object".object = '
+        '"migrate/example/Object_1".id;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Object" RENAME object TO __object;\n'
+        '\n'
+        'COMMIT;\n'
+        '\n')
+
+    cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv',
+    ])
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {'migrate/example/Object', 'migrate/example/Object/:changelog'}.issubset(tables.keys())
+
+        table = tables["migrate/example/Object"]
+        columns = table.columns
+        assert {'id', 'object.id', '__object'}.issubset(
+            columns.keys())
+        assert not {'object'}.issubset(
+            columns.keys())
+
+        result = conn.execute(table.select())
+        result_mapping = [{
+            '_id': '197109d9-add8-49a5-ab19-3ddc7589ce7a',
+            'id': 0,
+            'object.id': None,
+            '__object': None
+        }, {
+            '_id': '197109d9-add8-49a5-ab19-3ddc7589ce7e',
+            'id': 1,
+            'object.id': 0,
+            '__object': 0
+        }]
+        for i, row in enumerate(result):
+            for key, value in result_mapping[i].items():
+                assert row[key] == value
+
+        cleanup_table_list(meta, [
+            'migrate/example/Object',
+            'migrate/example/Object/:changelog'
         ])
 
 
@@ -1398,6 +1619,101 @@ def test_migrate_ref_to_scalar_simple_level_3(
         ])
 
 
+def test_migrate_ref_to_scalar_simple_level_3_self_reference(
+    postgresql_migration: URL,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    cleanup_tables(postgresql_migration)
+    initial_manifest = '''
+     d               | r | b    | m       | property       | type     | ref      | level
+     migrate/example |   |      |         |                |          |          |
+                     |   |      | Object  |                |          | id       |
+                     |   |      |         | id             | integer  |          |
+                     |   |      |         | object         | ref      | Object   | 3       |
+    '''
+    context, rc = configure_migrate(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {
+            'migrate/example/Object',
+            'migrate/example/Object/:changelog',
+        }.issubset(
+            tables.keys())
+        obj = tables["migrate/example/Object"]
+        assert {'id', 'object.id'}.issubset(obj.columns.keys())
+        conn.execute(obj.insert().values({
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7a",
+            "id": 0,
+        }))
+        conn.execute(obj.insert().values({
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7e",
+            "id": 1,
+            "object.id": 0
+        }))
+
+    override_manifest(context, tmp_path, '''
+     d               | r | b    | m       | property       | type     | ref      | level
+     migrate/example |   |      |         |                |          |          |
+                     |   |      | Object  |                |          | id       |
+                     |   |      |         | id             | integer  |          |
+                     |   |      |         | object         | integer  |          |           |
+    ''')
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p'
+    ])
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Object" RENAME "object.id" TO object;\n'
+        '\n'
+        'COMMIT;\n'
+        '\n')
+
+    cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv',
+    ])
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {'migrate/example/Object', 'migrate/example/Object/:changelog'}.issubset(tables.keys())
+
+        table = tables["migrate/example/Object"]
+        columns = table.columns
+        assert {'id', 'object'}.issubset(
+            columns.keys())
+        assert not {'object.id'}.issubset(
+            columns.keys())
+
+        result = conn.execute(table.select())
+        result_mapping = [{
+            '_id': '197109d9-add8-49a5-ab19-3ddc7589ce7a',
+            'id': 0,
+            'object': None
+        }, {
+            '_id': '197109d9-add8-49a5-ab19-3ddc7589ce7e',
+            'id': 1,
+            'object': 0
+        }]
+        for i, row in enumerate(result):
+            for key, value in result_mapping[i].items():
+                assert row[key] == value
+        cleanup_table_list(meta, [
+            'migrate/example/Object',
+            'migrate/example/Object/:changelog'
+        ])
+
+
 def test_migrate_ref_to_scalar_advanced_level_3_rename(
     postgresql_migration: URL,
     rc: RawConfig,
@@ -1751,6 +2067,114 @@ def test_migrate_ref_to_scalar_simple_level_4(
             'migrate/example/City/:changelog',
             'migrate/example/Country',
             'migrate/example/Country/:changelog'
+        ])
+
+
+def test_migrate_ref_to_scalar_simple_level_4_self_reference(
+    postgresql_migration: URL,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    cleanup_tables(postgresql_migration)
+    initial_manifest = '''
+     d               | r | b    | m       | property       | type     | ref      | level
+     migrate/example |   |      |         |                |          |          |
+                     |   |      | Object  |                |          | id       |
+                     |   |      |         | id             | integer  |          |
+                     |   |      |         | object         | ref      | Object   | 4     |
+    '''
+    context, rc = configure_migrate(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {
+            'migrate/example/Object',
+            'migrate/example/Object/:changelog',
+        }.issubset(
+            tables.keys())
+        obj = tables["migrate/example/Object"]
+        assert {'id', 'object._id'}.issubset(obj.columns.keys())
+        conn.execute(obj.insert().values({
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7a",
+            "id": 0,
+        }))
+        conn.execute(obj.insert().values({
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7e",
+            "id": 1,
+            "object._id": "197109d9-add8-49a5-ab19-3ddc7589ce7a"
+        }))
+
+    override_manifest(context, tmp_path, '''
+     d               | r | b    | m       | property       | type     | ref      | level
+     migrate/example |   |      |         |                |          |          |
+                     |   |      | Object  |                |          | id       |
+                     |   |      |         | id             | integer  |          |
+                     |   |      |         | object         | integer  |          |
+    ''')
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p'
+    ])
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Object" ADD COLUMN object INTEGER;\n'
+        '\n'
+        'UPDATE "migrate/example/Object" SET object="migrate/example/Object_1".id '
+        'FROM "migrate/example/Object" AS "migrate/example/Object_1" WHERE '
+        '"migrate/example/Object"."object._id" = "migrate/example/Object_1"._id;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Object" RENAME "object._id" TO "__object._id";\n'
+        '\n'
+        'DROP INDEX "ix_migrate/example/Object_object._id";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Object" DROP CONSTRAINT '
+        '"fk_migrate/example/Object_object._id";\n'
+        '\n'
+        'COMMIT;\n'
+        '\n')
+
+    cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv',
+    ])
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {'migrate/example/Object', 'migrate/example/Object/:changelog'}.issubset(tables.keys())
+
+        table = tables["migrate/example/Object"]
+        columns = table.columns
+        assert {'id', '__object._id', 'object'}.issubset(
+            columns.keys())
+        assert not {'object._id'}.issubset(
+            columns.keys())
+
+        result = conn.execute(table.select())
+        result_mapping = [{
+            '__object._id': None,
+            '_id': '197109d9-add8-49a5-ab19-3ddc7589ce7a',
+            'id': 0,
+            'object': None
+        }, {
+            '__object._id': '197109d9-add8-49a5-ab19-3ddc7589ce7a',
+            '_id': '197109d9-add8-49a5-ab19-3ddc7589ce7e',
+            'id': 1,
+            'object': 0
+        }]
+        for i, row in enumerate(result):
+            for key, value in result_mapping[i].items():
+                assert row[key] == value
+        cleanup_table_list(meta, [
+            'migrate/example/Object',
+            'migrate/example/Object/:changelog'
         ])
 
 
