@@ -21,7 +21,8 @@ from spinta.backends.postgresql.helpers.name import name_changed, get_pg_constra
     nested_column_rename, get_pg_table_name, get_pg_column_name
 from spinta.cli.helpers.migrate import MigrateRename
 from spinta.components import Context, Model, Property
-from spinta.exceptions import MigrateScalarToRefTooManyKeys
+from spinta.exceptions import MigrateScalarToRefTooManyKeys, UnableToFindPrimaryKeysNoUniqueConstraints, \
+    UnableToFindPrimaryKeysMultipleUniqueConstraints
 from spinta.types.datatype import Ref, File, Array, Object
 from spinta.types.text.components import Text
 from spinta.utils.nestedstruct import get_root_attr
@@ -443,7 +444,8 @@ def handle_internal_ref_to_scalar_conversion(
     ref_primary_keys = get_spinta_primary_keys(
         table_name=table_name,
         model=ref_model,
-        inspector=inspector
+        inspector=inspector,
+        error=True
     )
 
     if len(ref_primary_keys) > 1:
@@ -867,10 +869,20 @@ def split_columns(
     return primary_columns, children_columns
 
 
+def _format_multiple_unique_constraints_error_msg(
+    constraints: list[dict]
+) -> str:
+    result = ''
+    for constraint in constraints:
+        result += f"\t'{constraint['name']}' [{', '.join(constraint['column_names'])}]\n"
+    return result
+
+
 def get_spinta_primary_keys(
     table_name: str,
     model: Model,
-    inspector: Inspector
+    inspector: Inspector,
+    error: bool = False
 ) -> List[str]:
     """Extracts `manifest` declared primary keys (from internal PostgresSql)
 
@@ -878,6 +890,7 @@ def get_spinta_primary_keys(
         table_name: old table's name
         model: new table's model
         inspector: SQLAlchemy Inspector object
+        error: Raise an error if no primary keys were found
 
     Since spinta on internal backend does not actually store primary keys as `PrimaryKey`
     You can only know if primary key was set in manifest through `UniqueConstraint`
@@ -891,20 +904,31 @@ def get_spinta_primary_keys(
     unique_constraint_columns = [constraint['column_names'] for constraint in unique_constraints]
 
     if not unique_constraint_columns:
+        if error:
+            raise UnableToFindPrimaryKeysNoUniqueConstraints(model, table_name=table_name)
+
         return []
 
     if not model.external.unknown_primary_key:
         # If model contains primary key, we might be able to find column combination
         # which would take priority
         primary_property_names = [prop.place for prop in model.external.pkeys]
-        for constraint in unique_constraints:
+        for constraint in unique_constraint_columns:
             if set(constraint) == set(primary_property_names):
                 return constraint
 
-    # New model does have declared primary key, making it hard to predict if table had it set before
+    # New model does not have declared primary key, making it hard to predict if table had it set before
     if len(unique_constraint_columns) == 1:
         # If there is only 1 combination
         return unique_constraint_columns[0]
+
+    if error:
+        raise UnableToFindPrimaryKeysMultipleUniqueConstraints(
+            model,
+            table_name=table_name,
+            unique_constraints=_format_multiple_unique_constraints_error_msg(unique_constraints)
+        )
+
     return []
 
 
