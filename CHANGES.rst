@@ -20,6 +20,12 @@ New features:
 
   .. _#663: https://github.com/atviriduomenys/spinta/issues/663
 
+Improvements:
+
+- Added better error messages for scalar to ref migrations (when system cannot determine previous primary keys) (`#1123`_).
+
+  .. _#1123: https://github.com/atviriduomenys/spinta/issues/1123
+
 Bug fix:
 
 - Convertion from scalar to ref (and ref to scalar) now uses `alias` when there is self reference (`#1105`_).

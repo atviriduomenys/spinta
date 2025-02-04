@@ -1052,3 +1052,18 @@ class IntermediateTableMissingMappingProperty(UserError):
     template = '''
     Intermediate table's {side} property cannot be None.
     '''
+
+
+class UnableToFindPrimaryKeysNoUniqueConstraints(UserError):
+    template = '''
+    Unable to find primary keys for table: {table_name!r}.
+    It does not contain any `UniqueConstraints` (primary keys are part of `UniqueConstraint`).
+    '''
+
+
+class UnableToFindPrimaryKeysMultipleUniqueConstraints(UserError):
+    template = '''
+    Unable to find primary keys for table: {table_name!r}.
+    Multiple `UniqueConstrains` were found (that do not match new model's primary keys):
+    {unique_constraints}
+    '''
