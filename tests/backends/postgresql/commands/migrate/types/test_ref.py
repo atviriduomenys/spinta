@@ -2380,9 +2380,6 @@ def test_migrate_ref_to_scalar_too_many_unique_constraints_error(
             "country._id": "197109d9-add8-49a5-ab19-3ddc7589ce7a"
         }))
 
-        # Corrupt data by deleting primary `UniqueConstraint`
-        #conn.execute('ALTER TABLE "migrate/example/Country" DROP CONSTRAINT "uq_migrate/example/Country_id"')
-
         override_manifest(context, tmp_path, '''
         d               | r | b    | m       | property       | type     | ref      | level
         migrate/example |   |      |         |                |          |          |
