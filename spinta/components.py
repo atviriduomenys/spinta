@@ -747,7 +747,7 @@ class PropertyGiven:
     name: str | None = None
     explicit: bool = True
     type: str | None = None
-    prepare: List[PrepareGiven] = []
+    prepare: list[PrepareGiven] = []
 
 
 class PrepareGiven(TypedDict):
