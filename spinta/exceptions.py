@@ -243,7 +243,7 @@ class InvalidValue(UserError):
 
 
 class InvalidPropertyType(UserError):
-    template = "Invalid property type, expected {expected}, got {type}.."
+    template = "Invalid property type, expected {expected}, got {type}."
 
 
 class UndefinedPropertyType(UserError):
