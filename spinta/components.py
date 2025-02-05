@@ -712,14 +712,13 @@ class Model(MetaData):
         'status': {
             'type': 'string',
             'choices': Status,
-            'default': "develop"
+            'default': 'develop'
         },
-        'visibility':
-            {
-                'type': 'string',
-                'choices': Visibility,
-                'default': 'private',
-            },
+        'visibility': {
+            'type': 'string',
+            'choices': Visibility,
+            'default': 'private',
+        },
         'eli': {'type': 'string'},
         'count': {'type': 'integer'},
         'origin': {'type': 'string'},
