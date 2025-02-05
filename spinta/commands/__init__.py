@@ -678,6 +678,20 @@ def getall(
 def getall(
     context: Context,
     model: Model,
+    page: Page,
+    *,
+    query: Expr = None,
+    limit: int = None,
+    default_expand: bool = True,
+    **kwargs
+) -> Iterator[ObjectData]:
+    pass
+
+
+@overload
+def getall(
+    context: Context,
+    model: Model,
     backend: Backend,
     *,
     query: Expr = None,
