@@ -1,7 +1,6 @@
 import logging
 import pathlib
 import types
-from copy import deepcopy
 from typing import Any
 from typing import Dict
 from typing import Iterable
@@ -16,7 +15,7 @@ from spinta import commands
 from spinta import components
 from spinta.cli.helpers.errors import ErrorCounter
 from spinta.formats.components import Format
-from spinta.components import Context, pagination_enabled
+from spinta.components import Context, pagination_enabled, Page
 from spinta.components import DataStream
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
@@ -83,17 +82,20 @@ def count_rows(
 def read_model_data(
     context: components.Context,
     model: components.Model,
+    page: Page = None,
     limit: int = None,
     stop_on_error: bool = False,
     params: QueryParams = None
 ) -> Iterable[Dict[str, Any]]:
-
     if limit is None:
         query = None
     else:
         query = Expr('limit', limit)
 
-    stream = commands.getall(context, model, model.backend, query=query, params=params)
+    if page is None:
+        stream = commands.getall(context, model, model.backend, query=query, params=params)
+    else:
+        stream = commands.getall(context, model, page, query=query, limit=limit, params=params)
 
     if stop_on_error:
         stream = peek(stream)
@@ -111,22 +113,22 @@ def read_model_data(
         yield item
 
 
-def filter_allowed_props_for_model(model: Model) -> (dict, bool):
+def filter_allowed_props_for_model(model: Model) -> (list, bool):
+    allowed_props = list(model.properties.keys())
     if model.base:
-        allowed_props = model.properties
         for name, prop in model.base.parent.properties.items():
             if not name.startswith('_'):
-                if name in allowed_props and isinstance(allowed_props[name].dtype, Inherit):
-                    allowed_props.pop(name)
+                if name in allowed_props and isinstance(model.properties[name].dtype, Inherit):
+                    allowed_props.remove(name)
         return allowed_props, True
-    return model.properties, False
+    return allowed_props, False
 
 
-def filter_dict_by_keys(dict1: dict, dict2: dict) -> dict:
+def filter_dict_by_keys(keys: list, data: dict) -> dict:
     result = {}
-    for key in dict1:
-        if key in dict2:
-            result[key] = dict2[key]
+    for key in keys:
+        if key in data:
+            result[key] = data[key]
     return result
 
 

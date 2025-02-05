@@ -1,12 +1,14 @@
+from collections.abc import Generator
 from typing import Iterable, AsyncIterator, List, Any
+from typer import echo
 
 from spinta import commands
 from spinta.backends import Backend
 from spinta.cli.helpers.data import read_model_data
 from spinta.cli.helpers.errors import cli_error
 from spinta.cli.helpers.export.components import CounterManager
-from spinta.commands.read import get_page
 from spinta.components import Context, Model, pagination_enabled, DataItem, Action
+from spinta.core.enums import Access
 from spinta.formats.components import Format
 from spinta.ufuncs.basequerybuilder.components import QueryParams
 
@@ -41,26 +43,20 @@ def validate_and_return_formatter(context: Context, type_: str) -> Format:
     return fmt
 
 
-def get_data(context: Context, model: Model):
+def get_data(context: Context, model: Model, access: Access):
     params = QueryParams()
     params.push = True
 
+    page = None
     if pagination_enabled(model):
         page = commands.create_page(model.page)
-        rows = get_page(
-            context,
-            model,
-            model.backend,
-            page,
-            [],
-            params=params
-        )
-    else:
-        rows = read_model_data(
-            context,
-            model,
-            params=params
-        )
+
+    rows = read_model_data(
+        context,
+        model,
+        params=params,
+        page=page
+    )
     yield from rows
 
 
@@ -90,10 +86,11 @@ async def export_data(
     fmt: Any,
     output: str,
     counter: CounterManager,
+    access: Access
 ):
     txn = commands.gen_object_id(context, fmt)
     for model in models:
-        data = get_data(context, model)
+        data = get_data(context, model, access)
         await commands.export_data(
             context,
             model,
@@ -104,3 +101,11 @@ async def export_data(
             txn=txn
         )
         counter.close_model(model)
+
+
+def filter_models_by_access_verbose(models: Generator[Model], access: Access) -> Generator[Model]:
+    for model in models:
+        if model.access < access:
+            echo(f"Skipping '{model.model_type()}' model, access level ('{model.access.name}') is lower than required: '{access.name}'")
+            continue
+        yield model
