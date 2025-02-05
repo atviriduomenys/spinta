@@ -82,10 +82,10 @@ def count_rows(
 def read_model_data(
     context: components.Context,
     model: components.Model,
-    page: Page = None,
     limit: int = None,
     stop_on_error: bool = False,
-    params: QueryParams = None
+    params: QueryParams = None,
+    page: Page = None,
 ) -> Iterable[Dict[str, Any]]:
     if limit is None:
         query = None
