@@ -3,7 +3,6 @@ from __future__ import annotations
 import csv
 import datetime
 import pathlib
-import re
 from typing import Union
 
 import pytest
@@ -62,6 +61,11 @@ def export_db():
 def _assert_files_exist(dir_path: pathlib.Path, files: list):
     for file in files:
         assert (dir_path / file).exists()
+
+
+def _assert_files_not_exist(dir_path: pathlib.Path, files: list):
+    for file in files:
+        assert not (dir_path / file).exists()
 
 
 def _assert_data(source_data: dict, target_data: dict, skip_columns: list = None):
@@ -817,7 +821,7 @@ def test_export_postgresql_denorm(
             '_txn': txn_city,
             '_rid': vln_data['_id'],
             'action': 'insert',
-            'data': f'{{"id": 0, "country": {{"name": "VILNIUS", "_id": "{lt_data["_id"]}"}}}}'
+            'data': f'{{"id": 0, "country": {{"_id": "{lt_data["_id"]}", "name": "VILNIUS"}}}}'
         },
         skip_columns=['datetime']
     )
@@ -828,7 +832,7 @@ def test_export_postgresql_denorm(
             '_txn': txn_city,
             '_rid': ryg_data['_id'],
             'action': 'insert',
-            'data': f'{{"id": 1, "country": {{"name": "RYGA", "_id": "{lv_data["_id"]}"}}}}'
+            'data': f'{{"id": 1, "country": {{"_id": "{lv_data["_id"]}", "name": "RYGA"}}}}'
         },
         skip_columns=['datetime']
     )
@@ -839,7 +843,7 @@ def test_export_postgresql_denorm(
             '_txn': txn_city,
             '_rid': war_data['_id'],
             'action': 'insert',
-            'data': f'{{"id": 2, "country": {{"name": "VARSUVA", "_id": "{pl_data["_id"]}"}}}}'
+            'data': f'{{"id": 2, "country": {{"_id": "{pl_data["_id"]}", "name": "VARSUVA"}}}}'
         },
         skip_columns=['datetime']
     )
@@ -1211,3 +1215,1199 @@ def test_export_postgresql_invalid_output(
     ], fail=False)
     assert result.exit_code == 1
     assert "directory does not exist" in result.stderr
+
+
+def test_export_postgresql_access_private(
+    context,
+    rc,
+    cli: SpintaCliRunner,
+    tmp_path: pathlib.Path,
+    export_db: Sqlite,
+    responses,
+):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    d | r | b | m | property| type     | ref     | source       | access
+    datasets/gov/example    |          |         |              |
+      | data                | sql      | sql     |              |
+      |   |                 |          |         |              |
+      |   |   | Country     |          | id      | COUNTRY      | open
+      |   |   |   | id      | integer  |         | ID           | 
+      |   |   |   | code    | string   |         | CODE         | protected
+      |   |   |   | name    | string   |         | NAME         | private
+      |   |   |   | created | datetime |         | CREATED      | 
+      |   |   | City        |          | id      | CITY         | open
+      |   |   |   | id      | integer  |         | ID           | 
+      |   |   |   | code    | string   |         | CODE         | protected
+      |   |   |   | name    | string   |         | NAME_LT      | 
+      |   |   |   | country | ref      | Country | COUNTRY      | public
+      |   |   | CountryPr   |          | id      | COUNTRY      | private
+      |   |   |   | id      | integer  |         | ID           | 
+      |   |   |   | code    | string   |         | CODE         | 
+      |   |   |   | name    | string   |         | NAME         | 
+      |   |   |   | created | datetime |         | CREATED      | 
+    '''))
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, export_db, mode='internal')
+    dir_path = tmp_path / 'data'
+    dir_path.mkdir()
+    result = cli.invoke(localrc, [
+        'export',
+        '-b', 'postgresql',
+        '-o', dir_path,
+        '--access', 'private'
+    ])
+    _assert_files_exist(
+        dir_path, [
+            "datasets/gov/example/Country.csv",
+            "datasets/gov/example/Country.changes.csv",
+            "datasets/gov/example/City.csv",
+            "datasets/gov/example/City.changes.csv",
+            "datasets/gov/example/CountryPr.csv",
+            "datasets/gov/example/CountryPr.changes.csv",
+        ]
+    )
+    data_meta_keys = ['_id', '_revision', '_txn', '_created', '_updated']
+    nullable_keys = ['_updated']
+    changes_meta_keys = ['_id', '_revision', '_txn', '_rid', 'datetime', 'action']
+
+    country_data = _extract_postgresql_data_from_file(dir_path, "datasets/gov/example/Country.csv")
+    assert len(country_data) == 3
+    lt_data = country_data[0]
+    lv_data = country_data[1]
+    pl_data = country_data[2]
+
+    country_changes_data = _extract_postgresql_data_from_file(dir_path, "datasets/gov/example/Country.changes.csv")
+    assert len(country_changes_data) == 3
+    lt_change_data = country_changes_data[0]
+    lv_change_data = country_changes_data[1]
+    pl_change_data = country_changes_data[2]
+
+    country_pr_data = _extract_postgresql_data_from_file(dir_path, "datasets/gov/example/CountryPr.csv")
+    assert len(country_pr_data) == 3
+    lt_pr_data = country_pr_data[0]
+    lv_pr_data = country_pr_data[1]
+    pl_pr_data = country_pr_data[2]
+
+    country_pr_changes_data = _extract_postgresql_data_from_file(dir_path, "datasets/gov/example/CountryPr.changes.csv")
+    assert len(country_pr_changes_data) == 3
+    lt_pr_change_data = country_pr_changes_data[0]
+    lv_pr_change_data = country_pr_changes_data[1]
+    pl_pr_change_data = country_pr_changes_data[2]
+
+    city_data = _extract_postgresql_data_from_file(dir_path, "datasets/gov/example/City.csv")
+    assert len(city_data) == 3
+    vln_data = city_data[0]
+    ryg_data = city_data[1]
+    war_data = city_data[2]
+
+    city_changes_data = _extract_postgresql_data_from_file(dir_path, "datasets/gov/example/City.changes.csv")
+    assert len(city_changes_data) == 3
+    vln_change_data = city_changes_data[0]
+    ryg_change_data = city_changes_data[1]
+    war_change_data = city_changes_data[2]
+
+    txn = lt_data['_txn']
+    # Check `Country` data
+    _assert_meta_keys_exists(country_data, data_meta_keys, nullable_keys)
+    _assert_data(
+        lt_data, {
+            '_txn': txn,
+            '_updated': '',
+            'id': '0',
+            'code': 'LT',
+            'name': 'LITHUANIA',
+            'created': '2020-01-01 00:00:00'
+        },
+        skip_columns=['_id', '_revision', '_created']
+    )
+    _assert_data(
+        lv_data, {
+            '_txn': txn,
+            '_updated': '',
+            'id': '1',
+            'code': 'LV',
+            'name': 'LATVIA',
+            'created': '2020-01-01 00:00:00'
+        },
+        skip_columns=['_id', '_revision', '_created']
+    )
+    _assert_data(
+        pl_data, {
+            '_txn': txn,
+            '_updated': '',
+            'id': '2',
+            'code': 'PL',
+            'name': 'POLAND',
+            'created': '2020-01-01 00:00:00'
+        },
+        skip_columns=['_id', '_revision', '_created']
+    )
+
+    # Check `Country` changelog data
+    _assert_meta_keys_exists(country_changes_data, changes_meta_keys)
+    _assert_data(
+        lt_change_data, {
+            '_id': '1',
+            '_revision': lt_data['_revision'],
+            '_txn': txn,
+            '_rid': lt_data['_id'],
+            'action': 'insert',
+            'data': '{"id": 0, "code": "LT", "name": "LITHUANIA", "created": "2020-01-01T00:00:00"}'
+        },
+        skip_columns=['datetime']
+    )
+    _assert_data(
+        lv_change_data, {
+            '_id': '2',
+            '_revision': lv_data['_revision'],
+            '_txn': txn,
+            '_rid': lv_data['_id'],
+            'action': 'insert',
+            'data': '{"id": 1, "code": "LV", "name": "LATVIA", "created": "2020-01-01T00:00:00"}'
+        },
+        skip_columns=['datetime']
+    )
+    _assert_data(
+        pl_change_data, {
+            '_id': '3',
+            '_revision': pl_data['_revision'],
+            '_txn': txn,
+            '_rid': pl_data['_id'],
+            'action': 'insert',
+            'data': '{"id": 2, "code": "PL", "name": "POLAND", "created": "2020-01-01T00:00:00"}'
+        },
+        skip_columns=['datetime']
+    )
+
+    # Check `CountryPr` data
+    _assert_meta_keys_exists(country_pr_data, data_meta_keys, nullable_keys)
+    _assert_data(
+        lt_pr_data, {
+            '_txn': txn,
+            '_updated': '',
+            'id': '0',
+            'code': 'LT',
+            'name': 'LITHUANIA',
+            'created': '2020-01-01 00:00:00'
+        },
+        skip_columns=['_id', '_revision', '_created']
+    )
+    _assert_data(
+        lv_pr_data, {
+            '_txn': txn,
+            '_updated': '',
+            'id': '1',
+            'code': 'LV',
+            'name': 'LATVIA',
+            'created': '2020-01-01 00:00:00'
+        },
+        skip_columns=['_id', '_revision', '_created']
+    )
+    _assert_data(
+        pl_pr_data, {
+            '_txn': txn,
+            '_updated': '',
+            'id': '2',
+            'code': 'PL',
+            'name': 'POLAND',
+            'created': '2020-01-01 00:00:00'
+        },
+        skip_columns=['_id', '_revision', '_created']
+    )
+
+    # Check `CountryPr` changelog data
+    _assert_meta_keys_exists(country_pr_changes_data, changes_meta_keys)
+    _assert_data(
+        lt_pr_change_data, {
+            '_id': '1',
+            '_revision': lt_pr_data['_revision'],
+            '_txn': txn,
+            '_rid': lt_pr_data['_id'],
+            'action': 'insert',
+            'data': '{"id": 0, "code": "LT", "name": "LITHUANIA", "created": "2020-01-01T00:00:00"}'
+        },
+        skip_columns=['datetime']
+    )
+    _assert_data(
+        lv_pr_change_data, {
+            '_id': '2',
+            '_revision': lv_pr_data['_revision'],
+            '_txn': txn,
+            '_rid': lv_pr_data['_id'],
+            'action': 'insert',
+            'data': '{"id": 1, "code": "LV", "name": "LATVIA", "created": "2020-01-01T00:00:00"}'
+        },
+        skip_columns=['datetime']
+    )
+    _assert_data(
+        pl_pr_change_data, {
+            '_id': '3',
+            '_revision': pl_pr_data['_revision'],
+            '_txn': txn,
+            '_rid': pl_pr_data['_id'],
+            'action': 'insert',
+            'data': '{"id": 2, "code": "PL", "name": "POLAND", "created": "2020-01-01T00:00:00"}'
+        },
+        skip_columns=['datetime']
+    )
+
+    # Check `City` data
+    _assert_meta_keys_exists(city_data, data_meta_keys, nullable_keys)
+    _assert_data(
+        vln_data, {
+            '_txn': txn,
+            '_updated': '',
+            'id': '0',
+            'code': 'VLN',
+            'name': 'VILNIUS',
+            'country._id': lt_data['_id']
+        },
+        skip_columns=['_id', '_revision', '_created']
+    )
+    _assert_data(
+        ryg_data, {
+            '_txn': txn,
+            '_updated': '',
+            'id': '1',
+            'code': 'RYG',
+            'name': 'RYGA',
+            'country._id': lv_data['_id']
+        },
+        skip_columns=['_id', '_revision', '_created']
+    )
+    _assert_data(
+        war_data, {
+            '_txn': txn,
+            '_updated': '',
+            'id': '2',
+            'code': 'WAR',
+            'name': 'VARSUVA',
+            'country._id': pl_data['_id']
+        },
+        skip_columns=['_id', '_revision', '_created']
+    )
+
+    # Check `Country` changelog data
+    _assert_meta_keys_exists(city_changes_data, changes_meta_keys)
+    _assert_data(
+        vln_change_data, {
+            '_id': '1',
+            '_revision': vln_data['_revision'],
+            '_txn': txn,
+            '_rid': vln_data['_id'],
+            'action': 'insert',
+            'data': f'{{"id": 0, "code": "VLN", "name": "VILNIUS", "country": {{"_id": "{lt_data["_id"]}"}}}}'
+        },
+        skip_columns=['datetime']
+    )
+    _assert_data(
+        ryg_change_data, {
+            '_id': '2',
+            '_revision': ryg_data['_revision'],
+            '_txn': txn,
+            '_rid': ryg_data['_id'],
+            'action': 'insert',
+            'data': f'{{"id": 1, "code": "RYG", "name": "RYGA", "country": {{"_id": "{lv_data["_id"]}"}}}}'
+        },
+        skip_columns=['datetime']
+    )
+    _assert_data(
+        war_change_data, {
+            '_id': '3',
+            '_revision': war_data['_revision'],
+            '_txn': txn,
+            '_rid': war_data['_id'],
+            'action': 'insert',
+            'data': f'{{"id": 2, "code": "WAR", "name": "VARSUVA", "country": {{"_id": "{pl_data["_id"]}"}}}}'
+        },
+        skip_columns=['datetime']
+    )
+
+
+def test_export_postgresql_access_protected(
+    context,
+    rc,
+    cli: SpintaCliRunner,
+    tmp_path: pathlib.Path,
+    export_db: Sqlite,
+    responses,
+):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    d | r | b | m | property| type     | ref     | source       | access
+    datasets/gov/example    |          |         |              |
+      | data                | sql      | sql     |              |
+      |   |                 |          |         |              |
+      |   |   | Country     |          | id      | COUNTRY      | open
+      |   |   |   | id      | integer  |         | ID           | 
+      |   |   |   | code    | string   |         | CODE         | protected
+      |   |   |   | name    | string   |         | NAME         | private
+      |   |   |   | created | datetime |         | CREATED      | 
+      |   |   | City        |          | id      | CITY         | open
+      |   |   |   | id      | integer  |         | ID           | 
+      |   |   |   | code    | string   |         | CODE         | protected
+      |   |   |   | name    | string   |         | NAME_LT      | 
+      |   |   |   | country | ref      | Country | COUNTRY      | public
+      |   |   | CountryPr   |          | id      | COUNTRY      | private
+      |   |   |   | id      | integer  |         | ID           | 
+      |   |   |   | code    | string   |         | CODE         | 
+      |   |   |   | name    | string   |         | NAME         | 
+      |   |   |   | created | datetime |         | CREATED      | 
+    '''))
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, export_db, mode='internal')
+    dir_path = tmp_path / 'data'
+    dir_path.mkdir()
+    result = cli.invoke(localrc, [
+        'export',
+        '-b', 'postgresql',
+        '-o', dir_path,
+        '--access', 'protected'
+    ])
+    _assert_files_exist(
+        dir_path, [
+            "datasets/gov/example/Country.csv",
+            "datasets/gov/example/Country.changes.csv",
+            "datasets/gov/example/City.csv",
+            "datasets/gov/example/City.changes.csv",
+        ]
+    )
+
+    _assert_files_not_exist(
+        dir_path, [
+            "datasets/gov/example/CountryPr.csv",
+            "datasets/gov/example/CountryPr.changes.csv",
+        ]
+    )
+    data_meta_keys = ['_id', '_revision', '_txn', '_created', '_updated']
+    nullable_keys = ['_updated']
+    changes_meta_keys = ['_id', '_revision', '_txn', '_rid', 'datetime', 'action']
+
+    country_data = _extract_postgresql_data_from_file(dir_path, "datasets/gov/example/Country.csv")
+    assert len(country_data) == 3
+    lt_data = country_data[0]
+    lv_data = country_data[1]
+    pl_data = country_data[2]
+
+    country_changes_data = _extract_postgresql_data_from_file(dir_path, "datasets/gov/example/Country.changes.csv")
+    assert len(country_changes_data) == 3
+    lt_change_data = country_changes_data[0]
+    lv_change_data = country_changes_data[1]
+    pl_change_data = country_changes_data[2]
+
+    city_data = _extract_postgresql_data_from_file(dir_path, "datasets/gov/example/City.csv")
+    assert len(city_data) == 3
+    vln_data = city_data[0]
+    ryg_data = city_data[1]
+    war_data = city_data[2]
+
+    city_changes_data = _extract_postgresql_data_from_file(dir_path, "datasets/gov/example/City.changes.csv")
+    assert len(city_changes_data) == 3
+    vln_change_data = city_changes_data[0]
+    ryg_change_data = city_changes_data[1]
+    war_change_data = city_changes_data[2]
+
+    txn = lt_data['_txn']
+    # Check `Country` data
+    _assert_meta_keys_exists(country_data, data_meta_keys, nullable_keys)
+    _assert_data(
+        lt_data, {
+            '_txn': txn,
+            '_updated': '',
+            'id': '0',
+            'code': 'LT',
+            'created': '2020-01-01 00:00:00'
+        },
+        skip_columns=['_id', '_revision', '_created']
+    )
+    _assert_data(
+        lv_data, {
+            '_txn': txn,
+            '_updated': '',
+            'id': '1',
+            'code': 'LV',
+            'created': '2020-01-01 00:00:00'
+        },
+        skip_columns=['_id', '_revision', '_created']
+    )
+    _assert_data(
+        pl_data, {
+            '_txn': txn,
+            '_updated': '',
+            'id': '2',
+            'code': 'PL',
+            'created': '2020-01-01 00:00:00'
+        },
+        skip_columns=['_id', '_revision', '_created']
+    )
+
+    # Check `Country` changelog data
+    _assert_meta_keys_exists(country_changes_data, changes_meta_keys)
+    _assert_data(
+        lt_change_data, {
+            '_id': '1',
+            '_revision': lt_data['_revision'],
+            '_txn': txn,
+            '_rid': lt_data['_id'],
+            'action': 'insert',
+            'data': '{"id": 0, "code": "LT", "created": "2020-01-01T00:00:00"}'
+        },
+        skip_columns=['datetime']
+    )
+    _assert_data(
+        lv_change_data, {
+            '_id': '2',
+            '_revision': lv_data['_revision'],
+            '_txn': txn,
+            '_rid': lv_data['_id'],
+            'action': 'insert',
+            'data': '{"id": 1, "code": "LV", "created": "2020-01-01T00:00:00"}'
+        },
+        skip_columns=['datetime']
+    )
+    _assert_data(
+        pl_change_data, {
+            '_id': '3',
+            '_revision': pl_data['_revision'],
+            '_txn': txn,
+            '_rid': pl_data['_id'],
+            'action': 'insert',
+            'data': '{"id": 2, "code": "PL", "created": "2020-01-01T00:00:00"}'
+        },
+        skip_columns=['datetime']
+    )
+
+    # Check `City` data
+    _assert_meta_keys_exists(city_data, data_meta_keys, nullable_keys)
+    _assert_data(
+        vln_data, {
+            '_txn': txn,
+            '_updated': '',
+            'id': '0',
+            'code': 'VLN',
+            'name': 'VILNIUS',
+            'country._id': lt_data['_id']
+        },
+        skip_columns=['_id', '_revision', '_created']
+    )
+    _assert_data(
+        ryg_data, {
+            '_txn': txn,
+            '_updated': '',
+            'id': '1',
+            'code': 'RYG',
+            'name': 'RYGA',
+            'country._id': lv_data['_id']
+        },
+        skip_columns=['_id', '_revision', '_created']
+    )
+    _assert_data(
+        war_data, {
+            '_txn': txn,
+            '_updated': '',
+            'id': '2',
+            'code': 'WAR',
+            'name': 'VARSUVA',
+            'country._id': pl_data['_id']
+        },
+        skip_columns=['_id', '_revision', '_created']
+    )
+
+    # Check `Country` changelog data
+    _assert_meta_keys_exists(city_changes_data, changes_meta_keys)
+    _assert_data(
+        vln_change_data, {
+            '_id': '1',
+            '_revision': vln_data['_revision'],
+            '_txn': txn,
+            '_rid': vln_data['_id'],
+            'action': 'insert',
+            'data': f'{{"id": 0, "code": "VLN", "name": "VILNIUS", "country": {{"_id": "{lt_data["_id"]}"}}}}'
+        },
+        skip_columns=['datetime']
+    )
+    _assert_data(
+        ryg_change_data, {
+            '_id': '2',
+            '_revision': ryg_data['_revision'],
+            '_txn': txn,
+            '_rid': ryg_data['_id'],
+            'action': 'insert',
+            'data': f'{{"id": 1, "code": "RYG", "name": "RYGA", "country": {{"_id": "{lv_data["_id"]}"}}}}'
+        },
+        skip_columns=['datetime']
+    )
+    _assert_data(
+        war_change_data, {
+            '_id': '3',
+            '_revision': war_data['_revision'],
+            '_txn': txn,
+            '_rid': war_data['_id'],
+            'action': 'insert',
+            'data': f'{{"id": 2, "code": "WAR", "name": "VARSUVA", "country": {{"_id": "{pl_data["_id"]}"}}}}'
+        },
+        skip_columns=['datetime']
+    )
+
+
+def test_export_postgresql_access_public(
+    context,
+    rc,
+    cli: SpintaCliRunner,
+    tmp_path: pathlib.Path,
+    export_db: Sqlite,
+    responses,
+):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    d | r | b | m | property| type     | ref     | source       | access
+    datasets/gov/example    |          |         |              |
+      | data                | sql      | sql     |              |
+      |   |                 |          |         |              |
+      |   |   | Country     |          | id      | COUNTRY      | open
+      |   |   |   | id      | integer  |         | ID           | 
+      |   |   |   | code    | string   |         | CODE         | protected
+      |   |   |   | name    | string   |         | NAME         | private
+      |   |   |   | created | datetime |         | CREATED      | 
+      |   |   | City        |          | id      | CITY         | open
+      |   |   |   | id      | integer  |         | ID           | 
+      |   |   |   | code    | string   |         | CODE         | protected
+      |   |   |   | name    | string   |         | NAME_LT      | 
+      |   |   |   | country | ref      | Country | COUNTRY      | public
+      |   |   | CountryPr   |          | id      | COUNTRY      | private
+      |   |   |   | id      | integer  |         | ID           | 
+      |   |   |   | code    | string   |         | CODE         | 
+      |   |   |   | name    | string   |         | NAME         | 
+      |   |   |   | created | datetime |         | CREATED      | 
+    '''))
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, export_db, mode='internal')
+    dir_path = tmp_path / 'data'
+    dir_path.mkdir()
+    result = cli.invoke(localrc, [
+        'export',
+        '-b', 'postgresql',
+        '-o', dir_path,
+        '--access', 'public'
+    ])
+    _assert_files_exist(
+        dir_path, [
+            "datasets/gov/example/Country.csv",
+            "datasets/gov/example/Country.changes.csv",
+            "datasets/gov/example/City.csv",
+            "datasets/gov/example/City.changes.csv",
+        ]
+    )
+
+    _assert_files_not_exist(
+        dir_path, [
+            "datasets/gov/example/CountryPr.csv",
+            "datasets/gov/example/CountryPr.changes.csv",
+        ]
+    )
+    data_meta_keys = ['_id', '_revision', '_txn', '_created', '_updated']
+    nullable_keys = ['_updated']
+    changes_meta_keys = ['_id', '_revision', '_txn', '_rid', 'datetime', 'action']
+
+    country_data = _extract_postgresql_data_from_file(dir_path, "datasets/gov/example/Country.csv")
+    assert len(country_data) == 3
+    lt_data = country_data[0]
+    lv_data = country_data[1]
+    pl_data = country_data[2]
+
+    country_changes_data = _extract_postgresql_data_from_file(dir_path, "datasets/gov/example/Country.changes.csv")
+    assert len(country_changes_data) == 3
+    lt_change_data = country_changes_data[0]
+    lv_change_data = country_changes_data[1]
+    pl_change_data = country_changes_data[2]
+
+    city_data = _extract_postgresql_data_from_file(dir_path, "datasets/gov/example/City.csv")
+    assert len(city_data) == 3
+    vln_data = city_data[0]
+    ryg_data = city_data[1]
+    war_data = city_data[2]
+
+    city_changes_data = _extract_postgresql_data_from_file(dir_path, "datasets/gov/example/City.changes.csv")
+    assert len(city_changes_data) == 3
+    vln_change_data = city_changes_data[0]
+    ryg_change_data = city_changes_data[1]
+    war_change_data = city_changes_data[2]
+
+    txn = lt_data['_txn']
+    # Check `Country` data
+    _assert_meta_keys_exists(country_data, data_meta_keys, nullable_keys)
+    _assert_data(
+        lt_data, {
+            '_txn': txn,
+            '_updated': '',
+            'id': '0',
+            'created': '2020-01-01 00:00:00'
+        },
+        skip_columns=['_id', '_revision', '_created']
+    )
+    _assert_data(
+        lv_data, {
+            '_txn': txn,
+            '_updated': '',
+            'id': '1',
+            'created': '2020-01-01 00:00:00'
+        },
+        skip_columns=['_id', '_revision', '_created']
+    )
+    _assert_data(
+        pl_data, {
+            '_txn': txn,
+            '_updated': '',
+            'id': '2',
+            'created': '2020-01-01 00:00:00'
+        },
+        skip_columns=['_id', '_revision', '_created']
+    )
+
+    # Check `Country` changelog data
+    _assert_meta_keys_exists(country_changes_data, changes_meta_keys)
+    _assert_data(
+        lt_change_data, {
+            '_id': '1',
+            '_revision': lt_data['_revision'],
+            '_txn': txn,
+            '_rid': lt_data['_id'],
+            'action': 'insert',
+            'data': '{"id": 0, "created": "2020-01-01T00:00:00"}'
+        },
+        skip_columns=['datetime']
+    )
+    _assert_data(
+        lv_change_data, {
+            '_id': '2',
+            '_revision': lv_data['_revision'],
+            '_txn': txn,
+            '_rid': lv_data['_id'],
+            'action': 'insert',
+            'data': '{"id": 1, "created": "2020-01-01T00:00:00"}'
+        },
+        skip_columns=['datetime']
+    )
+    _assert_data(
+        pl_change_data, {
+            '_id': '3',
+            '_revision': pl_data['_revision'],
+            '_txn': txn,
+            '_rid': pl_data['_id'],
+            'action': 'insert',
+            'data': '{"id": 2, "created": "2020-01-01T00:00:00"}'
+        },
+        skip_columns=['datetime']
+    )
+
+    # Check `City` data
+    _assert_meta_keys_exists(city_data, data_meta_keys, nullable_keys)
+    _assert_data(
+        vln_data, {
+            '_txn': txn,
+            '_updated': '',
+            'id': '0',
+            'name': 'VILNIUS',
+            'country._id': lt_data['_id']
+        },
+        skip_columns=['_id', '_revision', '_created']
+    )
+    _assert_data(
+        ryg_data, {
+            '_txn': txn,
+            '_updated': '',
+            'id': '1',
+            'name': 'RYGA',
+            'country._id': lv_data['_id']
+        },
+        skip_columns=['_id', '_revision', '_created']
+    )
+    _assert_data(
+        war_data, {
+            '_txn': txn,
+            '_updated': '',
+            'id': '2',
+            'name': 'VARSUVA',
+            'country._id': pl_data['_id']
+        },
+        skip_columns=['_id', '_revision', '_created']
+    )
+
+    # Check `Country` changelog data
+    _assert_meta_keys_exists(city_changes_data, changes_meta_keys)
+    _assert_data(
+        vln_change_data, {
+            '_id': '1',
+            '_revision': vln_data['_revision'],
+            '_txn': txn,
+            '_rid': vln_data['_id'],
+            'action': 'insert',
+            'data': f'{{"id": 0, "name": "VILNIUS", "country": {{"_id": "{lt_data["_id"]}"}}}}'
+        },
+        skip_columns=['datetime']
+    )
+    _assert_data(
+        ryg_change_data, {
+            '_id': '2',
+            '_revision': ryg_data['_revision'],
+            '_txn': txn,
+            '_rid': ryg_data['_id'],
+            'action': 'insert',
+            'data': f'{{"id": 1, "name": "RYGA", "country": {{"_id": "{lv_data["_id"]}"}}}}'
+        },
+        skip_columns=['datetime']
+    )
+    _assert_data(
+        war_change_data, {
+            '_id': '3',
+            '_revision': war_data['_revision'],
+            '_txn': txn,
+            '_rid': war_data['_id'],
+            'action': 'insert',
+            'data': f'{{"id": 2, "name": "VARSUVA", "country": {{"_id": "{pl_data["_id"]}"}}}}'
+        },
+        skip_columns=['datetime']
+    )
+
+
+def test_export_postgresql_access_open(
+    context,
+    rc,
+    cli: SpintaCliRunner,
+    tmp_path: pathlib.Path,
+    export_db: Sqlite,
+    responses,
+):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    d | r | b | m | property| type     | ref     | source       | access
+    datasets/gov/example    |          |         |              |
+      | data                | sql      | sql     |              |
+      |   |                 |          |         |              |
+      |   |   | Country     |          | id      | COUNTRY      | open
+      |   |   |   | id      | integer  |         | ID           | 
+      |   |   |   | code    | string   |         | CODE         | protected
+      |   |   |   | name    | string   |         | NAME         | private
+      |   |   |   | created | datetime |         | CREATED      | 
+      |   |   | City        |          | id      | CITY         | open
+      |   |   |   | id      | integer  |         | ID           | 
+      |   |   |   | code    | string   |         | CODE         | protected
+      |   |   |   | name    | string   |         | NAME_LT      | 
+      |   |   |   | country | ref      | Country | COUNTRY      | public
+      |   |   | CountryPr   |          | id      | COUNTRY      | private
+      |   |   |   | id      | integer  |         | ID           | 
+      |   |   |   | code    | string   |         | CODE         | 
+      |   |   |   | name    | string   |         | NAME         | 
+      |   |   |   | created | datetime |         | CREATED      | 
+    '''))
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, export_db, mode='internal')
+    dir_path = tmp_path / 'data'
+    dir_path.mkdir()
+    result = cli.invoke(localrc, [
+        'export',
+        '-b', 'postgresql',
+        '-o', dir_path,
+        '--access', 'open'
+    ])
+    _assert_files_exist(
+        dir_path, [
+            "datasets/gov/example/Country.csv",
+            "datasets/gov/example/Country.changes.csv",
+            "datasets/gov/example/City.csv",
+            "datasets/gov/example/City.changes.csv",
+        ]
+    )
+
+    _assert_files_not_exist(
+        dir_path, [
+            "datasets/gov/example/CountryPr.csv",
+            "datasets/gov/example/CountryPr.changes.csv",
+        ]
+    )
+    data_meta_keys = ['_id', '_revision', '_txn', '_created', '_updated']
+    nullable_keys = ['_updated']
+    changes_meta_keys = ['_id', '_revision', '_txn', '_rid', 'datetime', 'action']
+
+    country_data = _extract_postgresql_data_from_file(dir_path, "datasets/gov/example/Country.csv")
+    assert len(country_data) == 3
+    lt_data = country_data[0]
+    lv_data = country_data[1]
+    pl_data = country_data[2]
+
+    country_changes_data = _extract_postgresql_data_from_file(dir_path, "datasets/gov/example/Country.changes.csv")
+    assert len(country_changes_data) == 3
+    lt_change_data = country_changes_data[0]
+    lv_change_data = country_changes_data[1]
+    pl_change_data = country_changes_data[2]
+
+    city_data = _extract_postgresql_data_from_file(dir_path, "datasets/gov/example/City.csv")
+    assert len(city_data) == 3
+    vln_data = city_data[0]
+    ryg_data = city_data[1]
+    war_data = city_data[2]
+
+    city_changes_data = _extract_postgresql_data_from_file(dir_path, "datasets/gov/example/City.changes.csv")
+    assert len(city_changes_data) == 3
+    vln_change_data = city_changes_data[0]
+    ryg_change_data = city_changes_data[1]
+    war_change_data = city_changes_data[2]
+
+    txn = lt_data['_txn']
+    # Check `Country` data
+    _assert_meta_keys_exists(country_data, data_meta_keys, nullable_keys)
+    _assert_data(
+        lt_data, {
+            '_txn': txn,
+            '_updated': '',
+            'id': '0',
+            'created': '2020-01-01 00:00:00'
+        },
+        skip_columns=['_id', '_revision', '_created']
+    )
+    _assert_data(
+        lv_data, {
+            '_txn': txn,
+            '_updated': '',
+            'id': '1',
+            'created': '2020-01-01 00:00:00'
+        },
+        skip_columns=['_id', '_revision', '_created']
+    )
+    _assert_data(
+        pl_data, {
+            '_txn': txn,
+            '_updated': '',
+            'id': '2',
+            'created': '2020-01-01 00:00:00'
+        },
+        skip_columns=['_id', '_revision', '_created']
+    )
+
+    # Check `Country` changelog data
+    _assert_meta_keys_exists(country_changes_data, changes_meta_keys)
+    _assert_data(
+        lt_change_data, {
+            '_id': '1',
+            '_revision': lt_data['_revision'],
+            '_txn': txn,
+            '_rid': lt_data['_id'],
+            'action': 'insert',
+            'data': '{"id": 0, "created": "2020-01-01T00:00:00"}'
+        },
+        skip_columns=['datetime']
+    )
+    _assert_data(
+        lv_change_data, {
+            '_id': '2',
+            '_revision': lv_data['_revision'],
+            '_txn': txn,
+            '_rid': lv_data['_id'],
+            'action': 'insert',
+            'data': '{"id": 1, "created": "2020-01-01T00:00:00"}'
+        },
+        skip_columns=['datetime']
+    )
+    _assert_data(
+        pl_change_data, {
+            '_id': '3',
+            '_revision': pl_data['_revision'],
+            '_txn': txn,
+            '_rid': pl_data['_id'],
+            'action': 'insert',
+            'data': '{"id": 2, "created": "2020-01-01T00:00:00"}'
+        },
+        skip_columns=['datetime']
+    )
+
+    # Check `City` data
+    _assert_meta_keys_exists(city_data, data_meta_keys, nullable_keys)
+    _assert_data(
+        vln_data, {
+            '_txn': txn,
+            '_updated': '',
+            'id': '0',
+            'name': 'VILNIUS'
+        },
+        skip_columns=['_id', '_revision', '_created']
+    )
+    _assert_data(
+        ryg_data, {
+            '_txn': txn,
+            '_updated': '',
+            'id': '1',
+            'name': 'RYGA'
+        },
+        skip_columns=['_id', '_revision', '_created']
+    )
+    _assert_data(
+        war_data, {
+            '_txn': txn,
+            '_updated': '',
+            'id': '2',
+            'name': 'VARSUVA'
+        },
+        skip_columns=['_id', '_revision', '_created']
+    )
+
+    # Check `Country` changelog data
+    _assert_meta_keys_exists(city_changes_data, changes_meta_keys)
+    _assert_data(
+        vln_change_data, {
+            '_id': '1',
+            '_revision': vln_data['_revision'],
+            '_txn': txn,
+            '_rid': vln_data['_id'],
+            'action': 'insert',
+            'data': f'{{"id": 0, "name": "VILNIUS"}}'
+        },
+        skip_columns=['datetime']
+    )
+    _assert_data(
+        ryg_change_data, {
+            '_id': '2',
+            '_revision': ryg_data['_revision'],
+            '_txn': txn,
+            '_rid': ryg_data['_id'],
+            'action': 'insert',
+            'data': f'{{"id": 1, "name": "RYGA"}}'
+        },
+        skip_columns=['datetime']
+    )
+    _assert_data(
+        war_change_data, {
+            '_id': '3',
+            '_revision': war_data['_revision'],
+            '_txn': txn,
+            '_rid': war_data['_id'],
+            'action': 'insert',
+            'data': f'{{"id": 2, "name": "VARSUVA"}}'
+        },
+        skip_columns=['datetime']
+    )
+
+
+def test_export_postgresql_access_nested(
+    context,
+    rc,
+    cli: SpintaCliRunner,
+    tmp_path: pathlib.Path,
+    export_db: Sqlite,
+    responses,
+):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    d | r | b | m | property            | type     | ref     | source  | access
+    datasets/gov/example                |          |         |         |
+      | data                            | sql      | sql     |         |
+      |   |                             |          |         |         |
+      |   |   | Country                 |          | id      | COUNTRY | open
+      |   |   |   | id                  | integer  |         | ID      | 
+      |   |   |   | code                | string   |         | CODE    | 
+      |   |   |   | name                | string   |         | NAME    | private
+      |   |   |   | created             | datetime |         | CREATED | 
+      |   |   | City                    |          | id      | CITY    | open
+      |   |   |   | id                  | integer  |         | ID      | 
+      |   |   |   | code                | string   |         | CODE    | 
+      |   |   |   | name                | string   |         | NAME_LT | 
+      |   |   |   | country             | ref      | Country | COUNTRY | 
+      |   |   |   | country.test        | integer  |         | ID      | 
+      |   |   |   | country.private     | integer  |         | ID      | private 
+      |   |   |   | country.obj         | object   |         |         | 
+      |   |   |   | country.obj.test    | integer  |         | ID      | 
+      |   |   |   | country.obj.private | integer  |         | ID      | private 
+    '''))
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, export_db, mode='internal')
+    dir_path = tmp_path / 'data'
+    dir_path.mkdir()
+    result = cli.invoke(localrc, [
+        'export',
+        '-b', 'postgresql',
+        '-o', dir_path,
+        '--access', 'open'
+    ])
+    _assert_files_exist(
+        dir_path, [
+            "datasets/gov/example/Country.csv",
+            "datasets/gov/example/Country.changes.csv",
+            "datasets/gov/example/City.csv",
+            "datasets/gov/example/City.changes.csv",
+        ]
+    )
+    data_meta_keys = ['_id', '_revision', '_txn', '_created', '_updated']
+    nullable_keys = ['_updated']
+    changes_meta_keys = ['_id', '_revision', '_txn', '_rid', 'datetime', 'action']
+
+    country_data = _extract_postgresql_data_from_file(dir_path, "datasets/gov/example/Country.csv")
+    assert len(country_data) == 3
+    lt_data = country_data[0]
+    lv_data = country_data[1]
+    pl_data = country_data[2]
+
+    country_changes_data = _extract_postgresql_data_from_file(dir_path, "datasets/gov/example/Country.changes.csv")
+    assert len(country_changes_data) == 3
+    lt_change_data = country_changes_data[0]
+    lv_change_data = country_changes_data[1]
+    pl_change_data = country_changes_data[2]
+
+    city_data = _extract_postgresql_data_from_file(dir_path, "datasets/gov/example/City.csv")
+    assert len(city_data) == 3
+    vln_data = city_data[0]
+    ryg_data = city_data[1]
+    war_data = city_data[2]
+
+    city_changes_data = _extract_postgresql_data_from_file(dir_path, "datasets/gov/example/City.changes.csv")
+    assert len(city_changes_data) == 3
+    vln_change_data = city_changes_data[0]
+    ryg_change_data = city_changes_data[1]
+    war_change_data = city_changes_data[2]
+
+    txn = lt_data['_txn']
+    # Check `Country` data
+    _assert_meta_keys_exists(country_data, data_meta_keys, nullable_keys)
+    _assert_data(
+        lt_data, {
+            '_txn': txn,
+            '_updated': '',
+            'id': '0',
+            'code': 'LT',
+            'created': '2020-01-01 00:00:00'
+        },
+        skip_columns=['_id', '_revision', '_created']
+    )
+    _assert_data(
+        lv_data, {
+            '_txn': txn,
+            '_updated': '',
+            'id': '1',
+            'code': 'LV',
+            'created': '2020-01-01 00:00:00'
+        },
+        skip_columns=['_id', '_revision', '_created']
+    )
+    _assert_data(
+        pl_data, {
+            '_txn': txn,
+            '_updated': '',
+            'id': '2',
+            'code': 'PL',
+            'created': '2020-01-01 00:00:00'
+        },
+        skip_columns=['_id', '_revision', '_created']
+    )
+
+    # Check `Country` changelog data
+    _assert_meta_keys_exists(country_changes_data, changes_meta_keys)
+    _assert_data(
+        lt_change_data, {
+            '_id': '1',
+            '_revision': lt_data['_revision'],
+            '_txn': txn,
+            '_rid': lt_data['_id'],
+            'action': 'insert',
+            'data': '{"id": 0, "code": "LT", "created": "2020-01-01T00:00:00"}'
+        },
+        skip_columns=['datetime']
+    )
+    _assert_data(
+        lv_change_data, {
+            '_id': '2',
+            '_revision': lv_data['_revision'],
+            '_txn': txn,
+            '_rid': lv_data['_id'],
+            'action': 'insert',
+            'data': '{"id": 1, "code": "LV", "created": "2020-01-01T00:00:00"}'
+        },
+        skip_columns=['datetime']
+    )
+    _assert_data(
+        pl_change_data, {
+            '_id': '3',
+            '_revision': pl_data['_revision'],
+            '_txn': txn,
+            '_rid': pl_data['_id'],
+            'action': 'insert',
+            'data': '{"id": 2, "code": "PL", "created": "2020-01-01T00:00:00"}'
+        },
+        skip_columns=['datetime']
+    )
+
+    # Check `City` data
+    _assert_meta_keys_exists(city_data, data_meta_keys, nullable_keys)
+    _assert_data(
+        vln_data, {
+            '_txn': txn,
+            '_updated': '',
+            'id': '0',
+            'code': 'VLN',
+            'name': 'VILNIUS',
+            'country._id': lt_data['_id'],
+            'country.test': '0',
+            'country.obj.test': '0',
+        },
+        skip_columns=['_id', '_revision', '_created']
+    )
+    _assert_data(
+        ryg_data, {
+            '_txn': txn,
+            '_updated': '',
+            'id': '1',
+            'code': 'RYG',
+            'name': 'RYGA',
+            'country._id': lv_data['_id'],
+            'country.test': '1',
+            'country.obj.test': '1',
+        },
+        skip_columns=['_id', '_revision', '_created']
+    )
+    _assert_data(
+        war_data, {
+            '_txn': txn,
+            '_updated': '',
+            'id': '2',
+            'code': 'WAR',
+            'name': 'VARSUVA',
+            'country._id': pl_data['_id'],
+            'country.test': '2',
+            'country.obj.test': '2',
+        },
+        skip_columns=['_id', '_revision', '_created']
+    )
+
+    # Check `Country` changelog data
+    _assert_meta_keys_exists(city_changes_data, changes_meta_keys)
+    _assert_data(
+        vln_change_data, {
+            '_id': '1',
+            '_revision': vln_data['_revision'],
+            '_txn': txn,
+            '_rid': vln_data['_id'],
+            'action': 'insert',
+            'data': f'{{"id": 0, "code": "VLN", "name": "VILNIUS", "country": {{"_id": "{lt_data["_id"]}", "test": 0, "obj": {{"test": 0}}}}}}'
+        },
+        skip_columns=['datetime']
+    )
+    _assert_data(
+        ryg_change_data, {
+            '_id': '2',
+            '_revision': ryg_data['_revision'],
+            '_txn': txn,
+            '_rid': ryg_data['_id'],
+            'action': 'insert',
+            'data': f'{{"id": 1, "code": "RYG", "name": "RYGA", "country": {{"_id": "{lv_data["_id"]}", "test": 1, "obj": {{"test": 1}}}}}}'
+        },
+        skip_columns=['datetime']
+    )
+    _assert_data(
+        war_change_data, {
+            '_id': '3',
+            '_revision': war_data['_revision'],
+            '_txn': txn,
+            '_rid': war_data['_id'],
+            'action': 'insert',
+            'data': f'{{"id": 2, "code": "WAR", "name": "VARSUVA", "country": {{"_id": "{pl_data["_id"]}", "test": 2, "obj": {{"test": 2}}}}}}'
+        },
+        skip_columns=['datetime']
+    )
