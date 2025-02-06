@@ -841,13 +841,11 @@ class Property(ExtraMetaData):
         'status': {
             'type': 'string',
             'choices': Status,
-            'inherit': 'model.status',
             'default': 'develop',
         },
         'visibility': {
             'type': 'string',
             'choices': Visibility,
-            'inherit': 'model.visibility',
             'default': 'private',
         },
         'eli': {'type': 'string'},

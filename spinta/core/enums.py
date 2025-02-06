@@ -112,7 +112,11 @@ def load_status(
     component: 'spinta.components.Component',
     given_status: Status | str
 ):
-    status = enum_by_name(component, 'status', Status, given_status) if not isinstance(given_status, Status) else given_status
+    if not isinstance(given_status, Status):
+        status = given_status or component.status
+        status = enum_by_name(component, 'status', Status, status)
+    else:
+        status = given_status
     component.status = status
     component.given.status = given_status
 
@@ -121,6 +125,10 @@ def load_visibility(
     component: 'spinta.components.Component',
     given_visibility: Visibility | str
 ):
-    visibility = enum_by_name(component, 'visibility', Visibility, given_visibility) if not isinstance(given_visibility, Visibility) else given_visibility
+    if not isinstance(given_visibility, Status):
+        visibility = given_visibility or component.visibility
+        visibility = enum_by_name(component, 'visibility', Visibility, visibility)
+    else:
+        visibility = given_visibility
     component.visibility = visibility
     component.given.visibility = given_visibility

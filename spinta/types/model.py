@@ -18,7 +18,7 @@ from spinta.backends.nobackend.components import NoBackend
 from spinta.commands import authorize
 from spinta.commands import check
 from spinta.commands import load
-from spinta.components import Action, Component, PageBy, Page, PageInfo, UrlParams, pagination_enabled
+from spinta.components import Action, PageBy, Page, PageInfo, UrlParams, pagination_enabled
 from spinta.components import Base
 from spinta.components import Context
 from spinta.components import Mode
@@ -26,7 +26,7 @@ from spinta.components import Model
 from spinta.components import Property
 from spinta.core.access import link_access_param
 from spinta.core.access import load_access_param
-from spinta.core.enums import Level, Status, Visibility, load_level, load_status, load_visibility
+from spinta.core.enums import Level, load_level, load_status, load_visibility
 from spinta.datasets.components import ExternalBackend
 from spinta.dimensions.comments.helpers import load_comments
 from spinta.dimensions.enum.components import EnumValue
@@ -35,7 +35,7 @@ from spinta.dimensions.enum.helpers import link_enums
 from spinta.dimensions.enum.helpers import load_enums
 from spinta.dimensions.lang.helpers import load_lang_data
 from spinta.dimensions.param.helpers import load_params
-from spinta.exceptions import KeymapNotSet, InvalidLevel
+from spinta.exceptions import KeymapNotSet
 from spinta.exceptions import PropertyNotFound
 from spinta.exceptions import UndefinedEnum
 from spinta.exceptions import UnknownPropertyType
@@ -51,7 +51,6 @@ from spinta.types.namespace import load_namespace_from_name
 from spinta.ufuncs.loadbuilder.components import LoadBuilder
 from spinta.ufuncs.loadbuilder.helpers import page_contains_unsupported_keys, get_allowed_page_property_types
 from spinta.units.helpers import is_unit
-from spinta.utils.enums import enum_by_value, enum_by_name
 from spinta.utils.schema import NA
 
 if TYPE_CHECKING:
