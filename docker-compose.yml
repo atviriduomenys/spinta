@@ -21,6 +21,20 @@ services:
       - MONGO_INITDB_ROOT_PASSWORD=admin123
     volumes:
       - mongo:/data/db
+  app:
+    volumes:
+      - ./keymap.yml:/keymap.yml
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: make run
+    environment:
+      - SPINTA_CONFIG=/keymap.yml # TODO update to actual keymap
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - mongo
 
 volumes:
   postgres:
