@@ -1,12 +1,15 @@
+from typing import Optional, Union
+
 from spinta import commands
 from spinta.backends import Backend
 from spinta.cli.helpers.errors import cli_error
 from spinta.components import Context, Model, DataSubItem, Property
-from spinta.exceptions import NotImplementedFeature
+from spinta.core.enums import Access
 from spinta.formats.components import Format
-from spinta.types.datatype import DataType, Ref, ExternalRef, Denorm, Object
+from spinta.types.datatype import DataType, Ref, ExternalRef, Denorm, Object, Inherit, BackRef, Array, File
 from spinta.utils.data import take
 from spinta.utils.nestedstruct import flatten_value
+from spinta.utils.schema import NA, NotAvailable
 
 
 @commands.export_data.register(Context, Model, Format)
@@ -213,3 +216,222 @@ def validate_export_output(context: Context, backend: Backend, output):
 @commands.validate_export_output.register(Context, Format, object)
 def validate_export_output(context: Context, fmt: Format, output):
     return
+
+
+@commands.build_data_patch_for_export.register(Context, Model)
+def build_data_patch_for_export(
+    context: Context,
+    model: Model,
+    *,
+    given: dict,
+    access: Access
+) -> dict:
+    props = take(model.properties).values()
+    props = [prop for prop in props if prop.access >= access]
+
+    patch = {}
+    for prop in props:
+        value = build_data_patch_for_export(
+            context,
+            prop.dtype,
+            given=given.get(prop.name, NA),
+            access=access
+        )
+        if value is not NA:
+            patch[prop.name] = value
+    return patch
+
+
+@commands.build_data_patch_for_export.register(Context, Property)
+def build_data_patch_for_export(
+    context: Context,
+    prop: Property,
+    *,
+    given: dict,
+    access: Access
+) -> dict:
+    value = build_data_patch_for_export(
+        context,
+        prop.dtype,
+        given=given.get(prop.name, NA),
+        access=access
+    )
+    if value is not NA:
+        return {prop.name: value}
+    else:
+        return {}
+
+
+@commands.build_data_patch_for_export.register(Context, DataType)
+def build_data_patch_for_export(
+    context: Context,
+    dtype: DataType,
+    *,
+    given: Optional[object],
+    access: Access
+) -> Union[dict, NotAvailable]:
+    if given is NA:
+        given = dtype.default
+    return given
+
+
+@commands.build_data_patch_for_export.register(Context, Object)
+def build_data_patch_for_export(
+    context: Context,
+    dtype: Object,
+    *,
+    given: Optional[dict],
+    access: Access
+) -> Union[dict, NotAvailable]:
+    props = take(dtype.properties).values()
+
+    props = [prop for prop in props if prop.access >= access]
+
+    patch = {}
+    for prop in props:
+        value = build_data_patch_for_export(
+            context,
+            prop.dtype,
+            given=given.get(prop.name, NA) if given else NA,
+            access=access
+        )
+        if value is not NA:
+            patch[prop.name] = value
+    return patch or NA
+
+
+@commands.build_data_patch_for_export.register(Context, Ref)
+def build_data_patch_for_export(
+    context: Context,
+    dtype: Ref,
+    *,
+    given: Optional[dict],
+    access: Access
+) -> Union[dict, NotAvailable]:
+    if given is None:
+        return given
+
+    patch = {
+        '_id': given.get('_id', NA)
+    }
+
+    props = take(dtype.properties).values()
+    props = [prop for prop in props if prop.access >= access]
+
+    for prop in props:
+        value = build_data_patch_for_export(
+            context,
+            prop.dtype,
+            given=given.get(prop.name, NA) if given else NA,
+            access=access
+        )
+        if value is not NA:
+            patch[prop.name] = value
+    return patch or NA
+
+
+@commands.build_data_patch_for_export.register(Context, ExternalRef)
+def build_data_patch_for_export(
+    context: Context,
+    dtype: ExternalRef,
+    *,
+    given: Optional[dict],
+    access: Access
+) -> Union[dict, NotAvailable]:
+    if given is None:
+        return given
+
+    patch = {}
+
+    refprops = [prop for prop in dtype.refprops if prop.access >= access]
+    for prop in refprops:
+        value = build_data_patch_for_export(
+            context,
+            prop.dtype,
+            given=given.get(prop.name, NA) if given else NA,
+            access=access
+        )
+        if value is not NA:
+            patch[prop.name] = value
+
+    props = take(dtype.properties).values()
+    props = [prop for prop in props if prop.access >= access]
+
+    for prop in props:
+        value = build_data_patch_for_export(
+            context,
+            prop.dtype,
+            given=given.get(prop.name, NA) if given else NA,
+            access=access
+        )
+        if value is not NA:
+            patch[prop.name] = value
+    return patch or NA
+
+
+@commands.build_data_patch_for_export.register(Context, Inherit)
+def build_data_patch_for_export(
+    context: Context,
+    dtype: Inherit,
+    *,
+    given: Optional[object],
+    access: Access
+) -> Union[dict, NotAvailable]:
+    # Needs to be implemented when it's possible to modify Inherit type
+    return NA
+
+
+@commands.build_data_patch_for_export.register(Context, BackRef)
+def build_data_patch_for_export(
+    context: Context,
+    dtype: BackRef,
+    *,
+    given: Optional[dict],
+    access: Access
+) -> Union[dict, NotAvailable]:
+    return NA
+
+
+@commands.build_data_patch_for_export.register(Context, Array)
+def build_data_patch_for_export(
+    context: Context,
+    dtype: Array,
+    *,
+    given: Optional[Union[list, NotAvailable]],
+    access: Access
+) -> Union[list, None, NotAvailable]:
+    if dtype.items.access < access:
+        return NA
+
+    if given is NA:
+        return []
+
+    if given is None:
+        return []
+
+    return [
+        build_data_patch_for_export(
+            context,
+            dtype.items.dtype,
+            given=value,
+            access=access
+        )
+        for value in given
+    ]
+
+
+@commands.build_data_patch_for_export.register(Context, File)
+def build_data_patch_for_export(
+    context: Context,
+    dtype: File,
+    *,
+    given: Optional[dict],
+    access: Access
+) -> Union[dict, NotAvailable]:
+    given = {
+        '_id': given.get('_id', None) if given else None,
+        '_content_type': given.get('_content_type', None) if given else None,
+        '_content': given.get('_content', NA) if given else NA,
+    }
+    given = {k: v for k, v in given.items() if v is not NA}
+    return given or NA

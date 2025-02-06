@@ -22,6 +22,7 @@ from spinta.core.ufuncs import Expr
 from spinta.ufuncs.basequerybuilder.components import QueryParams
 from spinta.types.datatype import Inherit
 from spinta.ufuncs.basequerybuilder.helpers import add_page_expr
+from spinta.ufuncs.helpers import merge_formulas
 from spinta.utils.aiotools import alist
 from spinta.utils.itertools import peek
 
@@ -86,11 +87,13 @@ def read_model_data(
     stop_on_error: bool = False,
     params: QueryParams = None,
     page: Page = None,
+    query: Expr = None
 ) -> Iterable[Dict[str, Any]]:
-    if limit is None:
-        query = None
-    else:
-        query = Expr('limit', limit)
+    if limit is not None:
+        if query is None:
+            query = Expr('limit', limit)
+        else:
+            query = merge_formulas(query, Expr('limit', limit))
 
     if page is None:
         stream = commands.getall(context, model, model.backend, query=query, params=params)

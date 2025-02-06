@@ -12,12 +12,13 @@ from spinta.cli.helpers.export.backends.postgresql.components import PostgresqlE
 from spinta.cli.helpers.export.backends.postgresql.helpers import split_data, generate_file_paths, \
     generate_export_metadata, prepare_changelog, generate_csv_headers, generate_table_data, extract_headers
 from spinta.cli.helpers.export.components import CounterManager
-from spinta.cli.helpers.export.helpers import create_data_items, prepare_data_without_checks
-from spinta.commands.write import prepare_patch, prepare_data_for_write
+from spinta.cli.helpers.export.helpers import create_data_items, prepare_data_without_checks, prepare_export_patch
+from spinta.commands.write import prepare_data_for_write
 from spinta.components import Context, Model, UrlParams, Action, DataSubItem
+from spinta.core.enums import Access
 from spinta.types.datatype import Array
 from spinta.types.geometry.components import Geometry
-from spinta.utils.aiotools import aiter, aenumerate, anext, achain
+from spinta.utils.aiotools import aiter, aenumerate
 from spinta.utils.data import take
 
 
@@ -31,17 +32,16 @@ async def export_data(
     path: str,
     counter: CounterManager,
     txn: str,
+    access: Access,
     **kwargs
 ):
     params = UrlParams()
     params.action = Action.INSERT
     dstream = aiter(create_data_items(model, backend, data))
     dstream = prepare_data_without_checks(context, dstream)
-    dstream = prepare_patch(context, dstream)
+    dstream = prepare_export_patch(context, dstream, access)
     dstream = prepare_data_for_write(context, dstream, params)
-
     data_headers, dstream = await extract_headers(context, model, backend, dstream, txn=txn)
-
     file_mapping, property_mapping = generate_file_paths(model, pathlib.Path(path))
     base_key = model.model_type()
     changes_key = f'{model.model_type()}.changes'

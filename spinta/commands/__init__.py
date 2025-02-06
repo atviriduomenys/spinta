@@ -903,6 +903,21 @@ def build_data_patch_for_write():
 
 
 @command()
+def build_data_patch_for_export():
+    """Builds data patch dict for backend consumption on export.
+
+    Purpose of this command is to generate a patch, that satisfies export
+    command's requirements.
+
+    Idea behind is to generate patch data similar to `build_data_patch_for_write`,
+    but instead of generating differences, it would always assume its insert action.
+
+    This patch is then used by other write commands (that process the data further
+    to fit for specific formats).
+    """
+
+
+@command()
 def before_write():
     """Prepare patch for backend before writing
 
