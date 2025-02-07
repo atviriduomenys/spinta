@@ -18,7 +18,7 @@ from spinta.cli.helpers.data import process_stream, count_rows
 from spinta.cli.helpers.errors import cli_error, ErrorCounter
 from spinta.cli.helpers.export.components import CounterManager
 from spinta.cli.helpers.export.helpers import validate_and_return_shallow_backend, validate_and_return_formatter, \
-    export_data
+    export_data, filter_models_by_access_verbose
 from spinta.cli.helpers.manifest import convert_str_to_manifest_path
 from spinta.cli.helpers.push.utils import extract_dependant_nodes
 from spinta.cli.helpers.store import prepare_manifest, attach_backends, attach_keymaps
@@ -26,10 +26,12 @@ from spinta.client import get_client_credentials, get_access_token
 from spinta.commands.write import write
 from spinta.components import Mode, Config, Action
 from spinta.core.context import configure_context
+from spinta.core.enums import Access
 from spinta.datasets.keymaps.sync import sync_keymap
 from spinta.exceptions import NodeNotFound
 from spinta.formats.components import Format
 from spinta.types.namespace import sort_models_by_ref_and_base
+from spinta.utils.enums import get_enum_by_name
 
 
 def import_(
@@ -100,6 +102,9 @@ def export_(
     connect_timeout: float = Option(5, '--connect-timeout', help=(
         "Timeout for connecting, default: 5 seconds."
     )),
+    access: str = Option('private', help=(
+        "Export properties with at least specified access"
+    )),
 ):
     manifests = convert_str_to_manifest_path(manifests)
     context = configure_context(ctx.obj, manifests, mode=mode)
@@ -133,6 +138,7 @@ def export_(
             "Output argument is required (`--output`)."
         )
     commands.validate_export_output(context, fmt or backend, output)
+    access = get_enum_by_name(Access, access)
 
     with context:
         require_auth(context)
@@ -142,6 +148,7 @@ def export_(
         attach_keymaps(context, store)
         ns = commands.get_namespace(context, manifest, '')
         models = commands.traverse_ns_models(context, ns, manifest, Action.SEARCH, dataset_=dataset, source_check=True)
+        models = filter_models_by_access_verbose(models, access)
         models = sort_models_by_ref_and_base(list(models))
 
         # Synchronize only if input_source is given
@@ -202,5 +209,6 @@ def export_(
                     fmt or backend,
                     output,
                     counter,
+                    access
                 )
             )

@@ -75,7 +75,7 @@ def generate_file_name(dtype: File):
     return f'{dtype.prop.model.model_type()}.{dtype.prop.place}.file'
 
 
-@dispatch(Context, File, PostgreSQL)
+@dispatch(Context, DataType, PostgreSQL)
 def generate_csv_headers(context: Context, dtype: DataType, backend: PostgreSQL):
     raise Exception("NOT IMPLEMENTED")
 

@@ -1,7 +1,6 @@
 from copy import deepcopy
 from typing import Any
 from typing import Dict
-from typing import Iterable
 from typing import Iterator
 from typing import List
 
@@ -10,22 +9,18 @@ import sqlalchemy as sa
 import tqdm
 
 from spinta import commands
-from spinta.cli.helpers.data import ModelRow, count_rows, read_model_data, filter_allowed_props_for_model, \
-    filter_dict_by_keys
+from spinta.cli.helpers.data import ModelRow, count_rows, read_model_data
 from spinta.cli.helpers.errors import ErrorCounter
 from spinta.cli.helpers.push.components import State, PushRow, PUSH_NOW
 from spinta.cli.helpers.push.delete import get_deleted_rows
 from spinta.cli.helpers.push.error import get_rows_with_errors, get_rows_with_errors_counts
 from spinta.cli.helpers.push.utils import get_data_checksum, extract_state_page_keys, update_model_page_with_new, \
     construct_where_condition_from_page
-import spinta.cli.push as cli_push
-from spinta.commands.read import get_page, PaginationMetaData, get_paginated_values
+from spinta.commands.read import PaginationMetaData, get_paginated_values
 from spinta.components import Context, pagination_enabled
 from spinta.components import Model
 from spinta.components import Page, get_page_size
-from spinta.core.ufuncs import Expr
 from spinta.ufuncs.basequerybuilder.components import QueryParams
-from spinta.utils.itertools import peek
 
 
 def _iter_model_rows(
@@ -195,46 +190,6 @@ def read_rows(
             break
 
 
-def _read_model_data_with_page(
-    context: Context,
-    model: Model,
-    model_page: Page,
-    limit: int = None,
-    stop_on_error: bool = False,
-    params: QueryParams = None
-) -> Iterable[Dict[str, Any]]:
-
-    if limit is None:
-        query = None
-    else:
-        query = Expr('limit', limit)
-
-    stream = get_page(
-        context,
-        model,
-        model.backend,
-        model_page,
-        query,
-        limit,
-        params=params
-    )
-
-    if stop_on_error:
-        stream = peek(stream)
-    else:
-        try:
-            stream = peek(stream)
-        except Exception:
-            cli_push.log.exception(f"Error when reading data from model {model.name}")
-            return
-
-    prop_filer, needs_filtering = filter_allowed_props_for_model(model)
-    for item in stream:
-        if needs_filtering:
-            item = filter_dict_by_keys(prop_filer, item)
-        yield item
-
-
 def _read_rows_by_pages(
     context: Context,
     model: Model,
@@ -257,13 +212,13 @@ def _read_rows_by_pages(
         model_table,
         size
     )
-    rows = _read_model_data_with_page(
+    rows = read_model_data(
         context,
         model,
-        deepcopy(page),
-        limit,
-        stop_on_error,
-        params
+        page=deepcopy(page),
+        limit=limit,
+        stop_on_error=stop_on_error,
+        params=params
     )
     total_count = 0
     data_push_count = 0
@@ -286,12 +241,12 @@ def _read_rows_by_pages(
                 model_table,
                 size
             )
-            rows = _read_model_data_with_page(
+            rows = read_model_data(
                 context,
                 model,
-                deepcopy(page),
-                limit,
-                stop_on_error
+                page=deepcopy(page),
+                limit=limit,
+                stop_on_error=stop_on_error
             )
 
             data_push_count = 0
