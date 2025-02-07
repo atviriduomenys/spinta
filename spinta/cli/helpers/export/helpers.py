@@ -154,6 +154,6 @@ async def export_data(
 def filter_models_by_access_verbose(models: Generator[Model], access: Access) -> Generator[Model]:
     for model in models:
         if model.access < access:
-            echo(f"Skipping '{model.model_type()}' model, access level ('{model.access.name}') is lower than required: '{access.name}'")
+            echo(f"Skipping '{model.model_type()}' model, access level ('{model.access.name}') is lower than required ('{access.name}')")
             continue
         yield model
