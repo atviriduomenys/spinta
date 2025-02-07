@@ -678,6 +678,20 @@ def getall(
 def getall(
     context: Context,
     model: Model,
+    page: Page,
+    *,
+    query: Expr = None,
+    limit: int = None,
+    default_expand: bool = True,
+    **kwargs
+) -> Iterator[ObjectData]:
+    pass
+
+
+@overload
+def getall(
+    context: Context,
+    model: Model,
     backend: Backend,
     *,
     query: Expr = None,
@@ -885,6 +899,21 @@ def build_data_patch_for_write():
     In the end, this command produces partial patch, with only those values
     which has been changed.
 
+    """
+
+
+@command()
+def build_data_patch_for_export():
+    """Builds data patch dict for backend consumption on export.
+
+    Purpose of this command is to generate a patch, that satisfies export
+    command's requirements.
+
+    Idea behind is to generate patch data similar to `build_data_patch_for_write`,
+    but instead of generating differences, it would always assume its insert action.
+
+    This patch is then used by other write commands (that process the data further
+    to fit for specific formats).
     """
 
 

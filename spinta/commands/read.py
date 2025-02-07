@@ -67,9 +67,24 @@ async def getall(
         rows = []
     else:
         if is_page_enabled:
-            rows = get_page(context, model, backend, copy_page, expr, params.limit, default_expand=False, params=query_params)
+            rows = commands.getall(
+                context,
+                model,
+                copy_page,
+                query=expr,
+                limit=params.limit,
+                default_expand=False,
+                params=query_params
+            )
         else:
-            rows = commands.getall(context, model, backend, params=query_params, query=expr, default_expand=False)
+            rows = commands.getall(
+                context,
+                model,
+                backend,
+                params=query_params,
+                query=expr,
+                default_expand=False
+            )
 
     rows = prepare_data_for_response(
         context,
@@ -82,6 +97,40 @@ async def getall(
     rows = log_response(context, rows)
 
     return render(context, request, model, params, rows, action=action)
+
+
+@commands.getall.register(Context, Model, Page)
+def getall(
+    context: Context,
+    model: Model,
+    page: Page,
+    *,
+    query: Expr = None,
+    limit: int = None,
+    default_expand: bool = True,
+    params: QueryParams = None,
+    **kwargs
+) -> Iterator:
+    backend = model.backend
+    if isinstance(backend, NoBackend):
+        raise BackendNotGiven(model)
+
+    config = context.get('config')
+    size = get_page_size(config, model, page)
+
+    # Add 1 to see future value (to see if it finished, check for infinite loops and page size miss matches).
+    page.size = size + 1
+
+    page_meta = PaginationMetaData(
+        page_size=size,
+        limit=limit
+    )
+    while not page_meta.is_finished:
+        page_meta.is_finished = True
+        query = add_page_expr(query, page)
+        rows = commands.getall(context, model, backend, params=params, query=query, default_expand=default_expand, **kwargs)
+
+        yield from get_paginated_values(page, page_meta, rows, extract_source_page_keys)
 
 
 def prepare_data_for_response(
@@ -148,34 +197,6 @@ def _is_iter_last_real_value(it: int, total: int, added_size: int = 1):
 
 def _is_iter_last_potential_value(it: int, total: int):
     return it > (total - 1)
-
-
-def get_page(
-    context: Context,
-    model: Model,
-    backend: Backend,
-    model_page: Page,
-    expr: Expr,
-    limit: Optional[int] = None,
-    default_expand: bool = True,
-    params: QueryParams = None,
-) -> Iterator[ObjectData]:
-    config = context.get('config')
-    size = get_page_size(config, model, model_page)
-
-    # Add 1 to see future value (to see if it finished, check for infinite loops and page size miss matches).
-    model_page.size = size + 1
-
-    page_meta = PaginationMetaData(
-        page_size=size,
-        limit=limit
-    )
-    while not page_meta.is_finished:
-        page_meta.is_finished = True
-        query = add_page_expr(expr, model_page)
-        rows = commands.getall(context, model, backend, params=params, query=query, default_expand=default_expand)
-
-        yield from get_paginated_values(model_page, page_meta, rows, extract_source_page_keys)
 
 
 def extract_source_page_keys(row: dict):

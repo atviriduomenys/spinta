@@ -26,6 +26,11 @@ Improvements:
 
   .. _#1123: https://github.com/atviriduomenys/spinta/issues/1123
 
+- `export` command now supports `access` argument, that can filter models and properties
+  if they are the same or higher level than given `access` (default is `private`, meaning everything is exported) (`#1130`_).
+
+  .. _#1130: https://github.com/atviriduomenys/spinta/issues/1130
+
 Bug fix:
 
 - Convertion from scalar to ref (and ref to scalar) now uses `alias` when there is self reference (`#1105`_).
