@@ -258,16 +258,16 @@ def test_inspect_resource_file(
             ',,resource,,,,json,,https://get.data.gov.lt/datasets/gov/aaa/atlieku_tvarkymas,,,,,,,,,,,,\r\n'
             ',,,,,,,,,,,,,,,,,,,,\r\n'
              ',,,,Model1,,,,.,,,,,,,,develop,private,,,\r\n'
-            ',,,,,name,string required unique,,name,,,,,,,,,,,,\r\n'
-            ',,,,,code,string required unique,,code,,,,,,,,,,,,\r\n'
-            ',,,,,location_latitude,number unique,,location.latitude,,,,,,,,,,,,\r\n'
-            ',,,,,location_longitude,number unique,,location.longitude,,,,,,,,,,,,\r\n'
+            ',,,,,name,string required unique,,name,,,,,,,,develop,private,,,\r\n'
+            ',,,,,code,string required unique,,code,,,,,,,,develop,private,,,\r\n'
+            ',,,,,location_latitude,number unique,,location.latitude,,,,,,,,develop,private,,,\r\n'
+            ',,,,,location_longitude,number unique,,location.longitude,,,,,,,,develop,private,,,\r\n'
             ',,,,,,,,,,,,,,,,,,,,\r\n'
             ',,,,Cities,,,,cities,,,,,,,,develop,private,,,\r\n'
-            ',,,,,name,string required unique,,name,,,,,,,,,,,,\r\n'
-            ',,,,,weather_temperature,number unique,,weather.temperature,,,,,,,,,,,,\r\n'
-            ',,,,,weather_wind_speed,number unique,,weather.wind_speed,,,,,,,,,,,,\r\n'
-            ',,,,,parent,ref,Model1,..,,,,,,,,,,,,\r\n') in resp.text
+            ',,,,,name,string required unique,,name,,,,,,,,develop,private,,,\r\n'
+            ',,,,,weather_temperature,number unique,,weather.temperature,,,,,,,,develop,private,,,\r\n'
+            ',,,,,weather_wind_speed,number unique,,weather.wind_speed,,,,,,,,develop,private,,,\r\n'
+            ',,,,,parent,ref,Model1,..,,,,,,,,develop,private,,,\r\n') in resp.text
 
 
 def test_inspect_resource_file_format_xlsx(
