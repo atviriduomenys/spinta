@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import functools
 from typing import List
 from typing import Optional
@@ -163,7 +164,7 @@ class Visitor:
 
     def value(self, node, token):
         if token.type == 'STRING':
-            return token.value[1:-1].encode().decode("unicode_escape")
+            return ast.literal_eval(token.value)
         if token.type == 'INT':
             return int(token.value)
         if token.type == 'FLOAT':
