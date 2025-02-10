@@ -6,6 +6,8 @@ ENV PYTHONUNBUFFERED=1
 COPY . /app/
 WORKDIR /app
 
+RUN rm entrypoint.sh
+
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
@@ -19,5 +21,5 @@ RUN apt-get update && apt-get install -y \
 RUN pip install -U pip wheel setuptools
 RUN pip install -U poetry
 RUN poetry config virtualenvs.create false
-RUN poetry install --no-root --without dev --no-interaction --no-ansi
+RUN poetry install --no-interaction
 

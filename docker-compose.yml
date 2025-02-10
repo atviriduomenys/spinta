@@ -23,13 +23,14 @@ services:
       - mongo:/data/db
   app:
     volumes:
-      - ./keymap.yml:/keymap.yml
+      - ./entrypoint.sh:/app/entrypoint.sh
     build:
       context: .
       dockerfile: Dockerfile
-    command: make run
+    command:
+      - ./entrypoint.sh
     environment:
-      - SPINTA_CONFIG=/keymap.yml # TODO update to actual keymap
+      - SPINTA_CONFIG=config.yml  # TODO update actual keymap, using notes/spinta/server.sh keymap for now.
     ports:
       - "8000:8000"
     depends_on:
