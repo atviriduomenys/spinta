@@ -1262,3 +1262,65 @@ def test_geometry_point(
             'geo': 'POINT (10.5 20.95)'
         },
     ]
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_filter_lithuanian_letters(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property   | type     | ref | prepare                 | access | level
+    datasets/filters/chars     |          |     |                         |        |
+      |   |   | City           |          | id  |                         |        |
+      |   |   |   | id         | integer  |     |                         | open   |
+      |   |   |   | name       | string   |     |                         | open   |
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+
+    app = create_test_client(context)
+    app.authorize(['spinta_insert', 'spinta_getall', 'spinta_wipe', 'spinta_search', 'spinta_set_meta_fields'])
+
+    app.post('/datasets/filters/chars/City', json={
+        'id': 0,
+        'name': 'Šiauliai',
+    })
+    app.post('/datasets/filters/chars/City', json={
+        'id': 1,
+        'name': 'Šilutė',
+    })
+    app.post('/datasets/filters/chars/City', json={
+        'id': 2,
+        'name': 'Sydney',
+    })
+
+    resp = app.get('/datasets/filters/chars/City?name.contains("Š")')
+    assert resp.status_code == 200
+    assert listdata(resp, 'id', 'name', full=True) == [
+        {
+            'id': 0,
+            'name': 'Šiauliai',
+        },
+        {
+            'id': 1,
+            'name': 'Šilutė',
+        },
+    ]
+
+    resp = app.get('/datasets/filters/chars/City?name.contains("ė")')
+    assert resp.status_code == 200
+    assert listdata(resp, 'id', 'name', full=True) == [
+        {
+            'id': 1,
+            'name': 'Šilutė',
+        },
+    ]
