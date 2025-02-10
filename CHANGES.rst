@@ -27,6 +27,11 @@ Bug fix:
 
   .. _#1105: https://github.com/atviriduomenys/spinta/issues/1105
 
+- `spyna` when reading string values and escaping characters now properly restores converted `unicode` characters back
+  to `utf-8` encoding, which will allow the use Lithuanian characters in query (`#1139`_).
+
+  .. _#1139: https://github.com/atviriduomenys/spinta/issues/1139
+
 
 0.1.82 (2025-01-21)
 ===================

@@ -37,6 +37,10 @@ def test_contains():
     check("contains(foo, 'bar')")
 
 
+def test_contains_lithuanian_letters():
+    check("contains(foo, 'ąČ')")
+
+
 def test_startswith():
     check("foo.startswith('bar')")
 
