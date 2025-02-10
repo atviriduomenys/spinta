@@ -2026,9 +2026,9 @@ def to_relative_model_name(model: Model, dataset: Dataset = None) -> str:
     """Convert absolute model `name` to relative."""
     if dataset is None:
         return model.name
-    if model.name.startswith(f'{dataset.name}/'):
+    if model.name == f'{dataset.name}/{model.basename}':
         return model.basename
-    
+
     return '/' + model.name
 
 
@@ -2587,8 +2587,8 @@ def _model_to_tabular(
             model,
             model.external.dataset,
         )
-    if model.given_params:
-        data['model'] = f"{data['model']}"
+    if model.given_params and not data['model'].endswith(model.given_params):
+        data['model'] = f"{data['model']}{model.given_params}"
     if external and model.external:
         data.update({
             'source': model.external.name,
