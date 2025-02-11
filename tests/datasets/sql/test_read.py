@@ -612,25 +612,25 @@ def test_getall_geometry_manifest_flip(context, rc, tmp_path):
 
 def test_getall_array_intermediate_single_pkey_sqlite(context, rc, tmp_path, geodb_array):
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
-    d | r | b | m | property    | type   | ref             | source           | level   | access
-    example                     |        |                 |                  |         |        
-      | db                      | sql    |                 |                  |         |        
-      |                         |        |                 |                  |         |
-      |   |   | Language        |        | id              | language         |         |
-      |   |   |   | id          | string |                 | id               |         | open
-      |   |   |   | name        | string |                 | name             |         | open
-      |   |                     |        |                 |                  |         |
-      |   |   | Country         |        | id              | country          |         |
-      |   |   |   | id          | string |                 | id               |         | open
-      |   |   |   | name        | string |                 | name             |         | open
-      |   |   |   | languages   | array  | CountryLanguage |                  |         | open
-      |   |   |   | languages[] | ref    | Language        |                  |         | open
-      |   |                     |        |                 |                  |         |
-      |   |   | CountryLanguage |        |                 | country_language |         |
-      |   |   |   | country     | ref    | Country         | country_id       |         | open
-      |   |   |   | language    | ref    | Language        | language_id      |         | open
+    d | r | b | m | property    | type       | ref             | source           | level   | access
+    example                     |            |                 |                  |         |        
+      | db                      |            | sqlite          |                  |         |        
+      |                         |            |                 |                  |         |
+      |   |   | Language        |            | id              | language         |         |
+      |   |   |   | id          | string     |                 | id               |         | open
+      |   |   |   | name        | string     |                 | name             |         | open
+      |   |                     |            |                 |                  |         |
+      |   |   | Country         |            | id              | country          |         |
+      |   |   |   | id          | string     |                 | id               |         | open
+      |   |   |   | name        | string     |                 | name             |         | open
+      |   |   |   | languages   | array      | CountryLanguage |                  |         | open
+      |   |   |   | languages[] | ref        | Language        |                  |         | open
+      |   |                     |            |                 |                  |         |
+      |   |   | CountryLanguage |            |                 | country_language |         |
+      |   |   |   | country     | ref        | Country         | country_id       |         | open
+      |   |   |   | language    | ref        | Language        | language_id      |         | open
     '''))
-    app = create_client(rc, tmp_path, geodb_array)
+    app = create_client(rc, tmp_path, geodb_array, mode='external')
     resp = app.get(f'/example/Language')
     lang_data = resp.json()['_data']
     lang_mapping = {lang['id']: lang for lang in lang_data}
@@ -666,27 +666,27 @@ def test_getall_array_intermediate_single_pkey_sqlite(context, rc, tmp_path, geo
 
 def test_getall_array_intermediate_multi_pkey_sqlite(context, rc, tmp_path, geodb_array):
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
-    d | r | b | m | property     | type    | ref             | source           | level   | access | prepare  
-    example                      |         |                 |                  |         |        |        
-      | db                       | sql     |                 |                  |         |        |        
-      |                          |         |                 |                  |         |        |
-      |   |   | Language         |         | id              | language         |         |        |
-      |   |   |   | id           | integer |                 | id               |         | open   |    
-      |   |   |   | name         | string  |                 | name             |         | open   |    
-      |   |                      |         |                 |                  |         |        |
-      |   |   | Country          |         | id, name        | country          |         |        |
-      |   |   |   | id           | integer |                 | id               |         | open   |    
-      |   |   |   | name         | string  |                 | name             |         | open   |    
-      |   |   |   | languages    | array   | CountryLanguage |                  |         | open   |    
-      |   |   |   | languages[]  | ref     | Language        |                  |         | open   |    
-      |   |                      |         |                 |                  |         |        |
-      |   |   | CountryLanguage  |         |                 | country_language |         |        |
-      |   |   |   | country_id   | integer |                 | country_id       |         | open   |    
-      |   |   |   | country_name | string  |                 | country_name     |         | open   |    
-      |   |   |   | country      | ref     | Country         |                  |         | open   | country_id, country_name   
-      |   |   |   | language     | ref     | Language        | language_id      |         | open   |    
+    d | r | b | m | property     | type       | ref             | source           | level   | access | prepare  
+    example                      |            |                 |                  |         |        |        
+      | db                       |            | sqlite          |                  |         |        |        
+      |                          |            |                 |                  |         |        |
+      |   |   | Language         |            | id              | language         |         |        |
+      |   |   |   | id           | integer    |                 | id               |         | open   |    
+      |   |   |   | name         | string     |                 | name             |         | open   |    
+      |   |                      |            |                 |                  |         |        |
+      |   |   | Country          |            | id, name        | country          |         |        |
+      |   |   |   | id           | integer    |                 | id               |         | open   |    
+      |   |   |   | name         | string     |                 | name             |         | open   |    
+      |   |   |   | languages    | array      | CountryLanguage |                  |         | open   |    
+      |   |   |   | languages[]  | ref        | Language        |                  |         | open   |    
+      |   |                      |            |                 |                  |         |        |
+      |   |   | CountryLanguage  |            |                 | country_language |         |        |
+      |   |   |   | country_id   | integer    |                 | country_id       |         | open   |    
+      |   |   |   | country_name | string     |                 | country_name     |         | open   |    
+      |   |   |   | country      | ref        | Country         |                  |         | open   | country_id, country_name   
+      |   |   |   | language     | ref        | Language        | language_id      |         | open   |    
     '''))
-    app = create_client(rc, tmp_path, geodb_array)
+    app = create_client(rc, tmp_path, geodb_array, mode='external')
     resp = app.get(f'/example/Language')
     lang_data = resp.json()['_data']
     lang_mapping = {lang['id']: lang for lang in lang_data}
@@ -722,26 +722,26 @@ def test_getall_array_intermediate_multi_pkey_sqlite(context, rc, tmp_path, geod
 
 def test_getall_array_intermediate_ref_single_pkey_sqlite(context, rc, tmp_path, geodb_array):
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
-    d | r | b | m | property      | type    | ref             | source           | level   | access | prepare  
-    example                       |         |                 |                  |         |        |        
-      | db                        | sql     |                 |                  |         |        |        
-      |                           |         |                 |                  |         |        |
-      |   |   | Language          |         | id              | language         |         |        |
-      |   |   |   | id            | integer |                 | id               |         | open   |    
-      |   |   |   | name          | string  |                 | name             |         | open   |    
-      |   |                       |         |                 |                  |         |        |
-      |   |   | Country           |         | id              | country          |         |        |
-      |   |   |   | id            | integer |                 | id               |         | open   |    
-      |   |   |   | name          | string  |                 | name             |         | open   |    
-      |   |   |   | languages     | array   | CountryLanguage |                  |         | open   |    
-      |   |   |   | languages[]   | ref     | Language        |                  |         | open   |    
-      |   |                       |         |                 |                  |         |        |
-      |   |   | CountryLanguage   |         |                 | country_language |         |        |  
-      |   |   |   | country       | ref     | Country         | country_id       |         | open   |
-      |   |   |   | language_id   | integer |                 | language_id      |         | open   |    
-      |   |   |   | language      | ref     | Language        |                  |         | open   | language_id   
+    d | r | b | m | property      | type       | ref             | source           | level   | access | prepare  
+    example                       |            |                 |                  |         |        |        
+      | db                        |            | sqlite          |                  |         |        |        
+      |                           |            |                 |                  |         |        |
+      |   |   | Language          |            | id              | language         |         |        |
+      |   |   |   | id            | integer    |                 | id               |         | open   |    
+      |   |   |   | name          | string     |                 | name             |         | open   |    
+      |   |                       |            |                 |                  |         |        |
+      |   |   | Country           |            | id              | country          |         |        |
+      |   |   |   | id            | integer    |                 | id               |         | open   |    
+      |   |   |   | name          | string     |                 | name             |         | open   |    
+      |   |   |   | languages     | array      | CountryLanguage |                  |         | open   |    
+      |   |   |   | languages[]   | ref        | Language        |                  |         | open   |    
+      |   |                       |            |                 |                  |         |        |
+      |   |   | CountryLanguage   |            |                 | country_language |         |        |  
+      |   |   |   | country       | ref        | Country         | country_id       |         | open   |
+      |   |   |   | language_id   | integer    |                 | language_id      |         | open   |    
+      |   |   |   | language      | ref        | Language        |                  |         | open   | language_id   
     '''))
-    app = create_client(rc, tmp_path, geodb_array)
+    app = create_client(rc, tmp_path, geodb_array, mode='external')
     resp = app.get(f'/example/Language')
     lang_data = resp.json()['_data']
     lang_mapping = {lang['id']: lang for lang in lang_data}
@@ -777,27 +777,27 @@ def test_getall_array_intermediate_ref_single_pkey_sqlite(context, rc, tmp_path,
 
 def test_getall_array_intermediate_ref_multi_pkey_sqlite(context, rc, tmp_path, geodb_array):
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
-    d | r | b | m | property      | type    | ref             | source           | level   | access | prepare  
-    example                       |         |                 |                  |         |        |        
-      | db                        | sql     |                 |                  |         |        |        
-      |                           |         |                 |                  |         |        |
-      |   |   | Language          |         | id, name        | language         |         |        |
-      |   |   |   | id            | integer |                 | id               |         | open   |    
-      |   |   |   | name          | string  |                 | name             |         | open   |    
-      |   |                       |         |                 |                  |         |        |
-      |   |   | Country           |         | id              | country          |         |        |
-      |   |   |   | id            | integer |                 | id               |         | open   |    
-      |   |   |   | name          | string  |                 | name             |         | open   |    
-      |   |   |   | languages     | array   | CountryLanguage |                  |         | open   |    
-      |   |   |   | languages[]   | ref     | Language        |                  |         | open   |    
-      |   |                       |         |                 |                  |         |        |
-      |   |   | CountryLanguage   |         |                 | country_language |         |        |  
-      |   |   |   | country       | ref     | Country         | country_id       |         | open   |
-      |   |   |   | language_id   | integer |                 | language_id      |         | open   |    
-      |   |   |   | language_name | string  |                 | language_name    |         | open   |  
-      |   |   |   | language      | ref     | Language        |                  |         | open   | language_id, language_name   
+    d | r | b | m | property      | type       | ref             | source           | level   | access | prepare  
+    example                       |            |                 |                  |         |        |        
+      | db                        |            | sqlite          |                  |         |        |        
+      |                           |            |                 |                  |         |        |
+      |   |   | Language          |            | id, name        | language         |         |        |
+      |   |   |   | id            | integer    |                 | id               |         | open   |    
+      |   |   |   | name          | string     |                 | name             |         | open   |    
+      |   |                       |            |                 |                  |         |        |
+      |   |   | Country           |            | id              | country          |         |        |
+      |   |   |   | id            | integer    |                 | id               |         | open   |    
+      |   |   |   | name          | string     |                 | name             |         | open   |    
+      |   |   |   | languages     | array      | CountryLanguage |                  |         | open   |    
+      |   |   |   | languages[]   | ref        | Language        |                  |         | open   |    
+      |   |                       |            |                 |                  |         |        |
+      |   |   | CountryLanguage   |            |                 | country_language |         |        |  
+      |   |   |   | country       | ref        | Country         | country_id       |         | open   |
+      |   |   |   | language_id   | integer    |                 | language_id      |         | open   |    
+      |   |   |   | language_name | string     |                 | language_name    |         | open   |  
+      |   |   |   | language      | ref        | Language        |                  |         | open   | language_id, language_name   
     '''))
-    app = create_client(rc, tmp_path, geodb_array)
+    app = create_client(rc, tmp_path, geodb_array, mode='external')
     resp = app.get(f'/example/Language')
     lang_data = resp.json()['_data']
     lang_mapping = {lang['id']: lang for lang in lang_data}
@@ -833,27 +833,27 @@ def test_getall_array_intermediate_ref_multi_pkey_sqlite(context, rc, tmp_path, 
 
 def test_getall_array_intermediate_ref_level_3_sqlite(context, rc, tmp_path, geodb_array):
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
-    d | r | b | m | property      | type    | ref             | source           | level   | access | prepare  
-    example                       |         |                 |                  |         |        |        
-      | db                        | sql     |                 |                  |         |        |        
-      |                           |         |                 |                  |         |        |
-      |   |   | Language          |         | id, name        | language         |         |        |
-      |   |   |   | id            | integer |                 | id               |         | open   |    
-      |   |   |   | name          | string  |                 | name             |         | open   |    
-      |   |                       |         |                 |                  |         |        |
-      |   |   | Country           |         | id              | country          |         |        |
-      |   |   |   | id            | integer |                 | id               |         | open   |    
-      |   |   |   | name          | string  |                 | name             |         | open   |    
-      |   |   |   | languages     | array   | CountryLanguage |                  |         | open   |    
-      |   |   |   | languages[]   | ref     | Language        |                  | 3       | open   |    
-      |   |                       |         |                 |                  |         |        |
-      |   |   | CountryLanguage   |         |                 | country_language |         |        |  
-      |   |   |   | country       | ref     | Country         | country_id       |         | open   |
-      |   |   |   | language_id   | integer |                 | language_id      |         | open   |    
-      |   |   |   | language_name | string  |                 | language_name    |         | open   |  
-      |   |   |   | language      | ref     | Language        |                  |         | open   | language_id, language_name   
+    d | r | b | m | property      | type       | ref             | source           | level   | access | prepare  
+    example                       |            |                 |                  |         |        |        
+      | db                        |            | sqlite          |                  |         |        |        
+      |                           |            |                 |                  |         |        |
+      |   |   | Language          |            | id, name        | language         |         |        |
+      |   |   |   | id            | integer    |                 | id               |         | open   |    
+      |   |   |   | name          | string     |                 | name             |         | open   |    
+      |   |                       |            |                 |                  |         |        |
+      |   |   | Country           |            | id              | country          |         |        |
+      |   |   |   | id            | integer    |                 | id               |         | open   |    
+      |   |   |   | name          | string     |                 | name             |         | open   |    
+      |   |   |   | languages     | array      | CountryLanguage |                  |         | open   |    
+      |   |   |   | languages[]   | ref        | Language        |                  | 3       | open   |    
+      |   |                       |            |                 |                  |         |        |
+      |   |   | CountryLanguage   |            |                 | country_language |         |        |  
+      |   |   |   | country       | ref        | Country         | country_id       |         | open   |
+      |   |   |   | language_id   | integer    |                 | language_id      |         | open   |    
+      |   |   |   | language_name | string     |                 | language_name    |         | open   |  
+      |   |   |   | language      | ref        | Language        |                  |         | open   | language_id, language_name   
     '''))
-    app = create_client(rc, tmp_path, geodb_array)
+    app = create_client(rc, tmp_path, geodb_array, mode='external')
     resp = app.get(f'/example/Country')
 
     assert resp.status_code == 200
@@ -886,26 +886,26 @@ def test_getall_array_intermediate_ref_level_3_sqlite(context, rc, tmp_path, geo
 
 def test_getall_array_intermediate_ref_refprop_sqlite(context, rc, tmp_path, geodb_array):
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
-    d | r | b | m | property      | type    | ref             | source           | level   | access | prepare  
-    example                       |         |                 |                  |         |        |        
-      | db                        | sql     |                 |                  |         |        |        
-      |                           |         |                 |                  |         |        |
-      |   |   | Language          |         | id, name        | language         |         |        |
-      |   |   |   | id            | integer |                 | id               |         | open   |    
-      |   |   |   | name          | string  |                 | name             |         | open   |    
-      |   |                       |         |                 |                  |         |        |
-      |   |   | Country           |         | id              | country          |         |        |
-      |   |   |   | id            | integer |                 | id               |         | open   |    
-      |   |   |   | name          | string  |                 | name             |         | open   |    
-      |   |   |   | languages     | array   | CountryLanguage |                  |         | open   |    
-      |   |   |   | languages[]   | ref     | Language[id]    |                  |         | open   |    
-      |   |                       |         |                 |                  |         |        |
-      |   |   | CountryLanguage   |         |                 | country_language |         |        |  
-      |   |   |   | country       | ref     | Country         | country_id       |         | open   |
-      |   |   |   | language_id   | integer |                 | language_id      |         | open   |    
-      |   |   |   | language      | ref     | Language[id]    |                  |         | open   | language_id   
+    d | r | b | m | property      | type       | ref             | source           | level   | access | prepare  
+    example                       |            |                 |                  |         |        |        
+      | db                        |            | sqlite          |                  |         |        |        
+      |                           |            |                 |                  |         |        |
+      |   |   | Language          |            | id, name        | language         |         |        |
+      |   |   |   | id            | integer    |                 | id               |         | open   |    
+      |   |   |   | name          | string     |                 | name             |         | open   |    
+      |   |                       |            |                 |                  |         |        |
+      |   |   | Country           |            | id              | country          |         |        |
+      |   |   |   | id            | integer    |                 | id               |         | open   |    
+      |   |   |   | name          | string     |                 | name             |         | open   |    
+      |   |   |   | languages     | array      | CountryLanguage |                  |         | open   |    
+      |   |   |   | languages[]   | ref        | Language[id]    |                  |         | open   |    
+      |   |                       |            |                 |                  |         |        |
+      |   |   | CountryLanguage   |            |                 | country_language |         |        |  
+      |   |   |   | country       | ref        | Country         | country_id       |         | open   |
+      |   |   |   | language_id   | integer    |                 | language_id      |         | open   |    
+      |   |   |   | language      | ref        | Language[id]    |                  |         | open   | language_id   
     '''))
-    app = create_client(rc, tmp_path, geodb_array)
+    app = create_client(rc, tmp_path, geodb_array, mode='external')
     resp = app.get(f'/example/Language')
     lang_data = resp.json()['_data']
     lang_mapping = {lang['id']: lang for lang in lang_data}
