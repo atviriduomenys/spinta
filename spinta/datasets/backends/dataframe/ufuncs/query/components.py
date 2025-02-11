@@ -1,13 +1,19 @@
+from __future__ import annotations
+
 from typing import Any
+from typing import TYPE_CHECKING
 
 from dask.dataframe import DataFrame
 
 from spinta.components import Model, Property
 from spinta.core.ufuncs import Env, Expr
-from spinta.datasets.backends.dataframe.components import DaskBackend
+
 from spinta.exceptions import UnknownMethod
 from spinta.ufuncs.basequerybuilder.components import Selected
 from spinta.utils.schema import NA
+
+if TYPE_CHECKING:
+    from spinta.datasets.backends.dataframe.components import DaskBackend
 
 
 class DaskDataFrameQueryBuilder(Env):

@@ -9,6 +9,7 @@ import sqlalchemy as sa
 from sqlalchemy.engine import Engine
 
 from spinta import commands
+from spinta.backends.postgresql.ufuncs.query.components import PgQueryBuilder
 from spinta.utils.schema import NA
 from spinta.components import Model, Property
 from spinta.backends.constants import TableType, BackendFeatures
@@ -36,6 +37,8 @@ class PostgreSQL(Backend):
     engine: Engine = None
     schema: sa.MetaData = None
     tables: Dict[str, sa.Table] = None
+
+    query_builder_class = PgQueryBuilder
 
     @contextlib.contextmanager
     def transaction(self, write=False):

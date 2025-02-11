@@ -8,7 +8,6 @@ from spinta.components import Model
 from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.helpers import handle_ref_key_assignment, generate_pk_for_row, handle_external_array_type
 from spinta.datasets.backends.sql.components import Sql
-from spinta.datasets.backends.sql.ufuncs.query.components import SqlQueryBuilder
 from spinta.datasets.helpers import get_enum_filters
 from spinta.datasets.helpers import get_ref_filters
 from spinta.datasets.keymaps.components import KeyMap
@@ -36,7 +35,7 @@ def getall(
     **kwargs
 ) -> Iterator[ObjectData]:
     conn = context.get(f'transaction.{backend.name}')
-    builder = SqlQueryBuilder(context)
+    builder = backend.query_builder_class(context)
     builder.update(model=model)
     # Merge user passed query with query set in manifest.
     query = merge_formulas(model.external.prepare, query)

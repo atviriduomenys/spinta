@@ -11,24 +11,21 @@ from spinta.auth import AdminToken
 from spinta.components import Model, Mode, Context
 from spinta.core.config import RawConfig
 from spinta.datasets.backends.sql.components import Sql
-from spinta.datasets.backends.sql.ufuncs.query.components import SqlQueryBuilder
+from spinta.datasets.helpers import get_enum_filters
+from spinta.datasets.helpers import get_ref_filters
 from spinta.manifests.components import Manifest
-from spinta.testing.datasets import use_dialect_functions
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.types.datatype import DataType, Integer, String, Boolean
 from spinta.types.datatype import Ref
 from spinta.types.geometry.components import Geometry
 from spinta.ufuncs.basequerybuilder.helpers import add_page_expr
 from spinta.ufuncs.helpers import merge_formulas
-from spinta.datasets.helpers import get_enum_filters
-from spinta.datasets.helpers import get_ref_filters
 from spinta.ufuncs.loadbuilder.helpers import page_contains_unsupported_keys
 
-_SUPPORT_NULLS = ["postgresql", "oracle", "sqlite"]
-_DEFAULT_NULL_IMPL = ['mysql', 'mssql', 'other']
+_SUPPORT_NULLS = ['sql/postgresql', 'sql/oracle', 'sql/sqlite']
+_DEFAULT_NULL_IMPL = ['sql', 'sql/mysql', 'sql/mariadb', 'sql/mssql']
 
-_QUERY_FLIP_IMPL = ['postgresql']
-_DEFAULT_FLIP_IMPL = ['other', 'sqlite', 'mysql', 'mssql']
+_DEFAULT_FLIP_IMPL = ['sql', 'sql/sqlite', 'sql/mysql', 'sql/mssql', 'sql/mariadb', 'sql/oracle']
 
 
 def _qry(qry: Select, indent: int = 4) -> str:
@@ -85,7 +82,10 @@ def _build(rc: RawConfig, manifest: str, model_name: str, page_mapping: dict = N
     context.set('auth.token', AdminToken())
     model = commands.get_model(context, manifest, model_name)
     meta = _meta_from_manifest(context, manifest)
-    backend = Sql()
+    backend = model.backend
+    if not isinstance(backend, Sql):
+        backend = Sql()
+
     backend.schema = meta
     query = model.external.prepare
     if page_mapping:
@@ -97,7 +97,7 @@ def _build(rc: RawConfig, manifest: str, model_name: str, page_mapping: dict = N
             if page_contains_unsupported_keys(page):
                 page.enabled = False
         query = add_page_expr(query, page)
-    builder = SqlQueryBuilder(context)
+    builder = backend.query_builder_class(context)
     builder.update(model=model)
     env = builder.init(backend, meta.tables[_get_model_db_name(model)])
     query = merge_formulas(query, get_enum_filters(context, model))
@@ -257,17 +257,16 @@ def test_explicit_ref(rc: RawConfig):
 
 
 @pytest.mark.parametrize('db_dialect', _SUPPORT_NULLS)
-def test_paginate_none_values(db_dialect: str, rc: RawConfig, mocker):
-    use_dialect_functions(mocker, db_dialect)
-    assert _build(rc, '''
-    d | r | b | m | property | type   | ref     | source     | prepare | access
-    example                  |        |         |            |         |
-      | data                 | sql    |         |            |         |
-      |   |                  |        |         |            |         |
-      |   |   | Planet       |        | id      | PLANET     |         |
-      |   |   |   | id       | string |         | ID         |         | open
-      |   |   |   | code     | string |         | CODE       |         | open
-      |   |   |   | name     | string |         | NAME       |         | open
+def test_paginate_none_values(db_dialect: str, rc: RawConfig):
+    assert _build(rc, f'''
+    d | r | b | m | property | type         | ref     | source     | prepare | access
+    example                  |              |         |            |         |
+      | data                 | {db_dialect} |         |            |         |
+      |   |                  |              |         |            |         |
+      |   |   | Planet       |              | id      | PLANET     |         |
+      |   |   |   | id       | string       |         | ID         |         | open
+      |   |   |   | code     | string       |         | CODE       |         | open
+      |   |   |   | name     | string       |         | NAME       |         | open
         ''', 'example/Planet', {
         'id': None
     }) == '''
@@ -281,17 +280,16 @@ def test_paginate_none_values(db_dialect: str, rc: RawConfig, mocker):
 
 
 @pytest.mark.parametrize('db_dialect', _DEFAULT_NULL_IMPL)
-def test_paginate_none_values(db_dialect: str, rc: RawConfig, mocker):
-    use_dialect_functions(mocker, db_dialect)
-    assert _build(rc, '''
-    d | r | b | m | property | type   | ref     | source     | prepare | access
-    example                  |        |         |            |         |
-      | data                 | sql    |         |            |         |
-      |   |                  |        |         |            |         |
-      |   |   | Planet       |        | id      | PLANET     |         |
-      |   |   |   | id       | string |         | ID         |         | open
-      |   |   |   | code     | string |         | CODE       |         | open
-      |   |   |   | name     | string |         | NAME       |         | open
+def test_paginate_none_values(db_dialect: str, rc: RawConfig):
+    assert _build(rc, f'''
+    d | r | b | m | property | type         | ref     | source     | prepare | access
+    example                  |              |         |            |         |
+      | data                 | {db_dialect} |         |            |         |
+      |   |                  |              |         |            |         |
+      |   |   | Planet       |              | id      | PLANET     |         |
+      |   |   |   | id       | string       |         | ID         |         | open
+      |   |   |   | code     | string       |         | CODE       |         | open
+      |   |   |   | name     | string       |         | NAME       |         | open
         ''', 'example/Planet', {
         'id': None
     }) == '''
@@ -325,17 +323,16 @@ def test_paginate_given_values_page_and_ref_not_given(rc: RawConfig):
 
 
 @pytest.mark.parametrize('db_dialect', _SUPPORT_NULLS)
-def test_paginate_given_values_page_not_given(db_dialect: str, rc: RawConfig, mocker):
-    use_dialect_functions(mocker, db_dialect)
-    assert _build(rc, '''
-    d | r | b | m | property | type   | ref     | source     | prepare | access
-    example                  |        |         |            |         |
-      | data                 | sql    |         |            |         |
-      |   |                  |        |         |            |         |
-      |   |   | Planet       |        | name    | PLANET     |         |
-      |   |   |   | id       | string |         | ID         |         | open
-      |   |   |   | code     | string |         | CODE       |         | open
-      |   |   |   | name     | string |         | NAME       |         | open
+def test_paginate_given_values_page_not_given(db_dialect: str, rc: RawConfig):
+    assert _build(rc, f'''
+    d | r | b | m | property | type         | ref     | source     | prepare | access
+    example                  |              |         |            |         |
+      | data                 | {db_dialect} |         |            |         |
+      |   |                  |              |         |            |         |
+      |   |   | Planet       |              | name    | PLANET     |         |
+      |   |   |   | id       | string       |         | ID         |         | open
+      |   |   |   | code     | string       |         | CODE       |         | open
+      |   |   |   | name     | string       |         | NAME       |         | open
         ''', 'example/Planet', {
         'name': 'test'
     }) == '''
@@ -350,17 +347,16 @@ def test_paginate_given_values_page_not_given(db_dialect: str, rc: RawConfig, mo
 
 
 @pytest.mark.parametrize('db_dialect', _DEFAULT_NULL_IMPL)
-def test_paginate_given_values_page_not_given(db_dialect: str, rc: RawConfig, mocker):
-    use_dialect_functions(mocker, db_dialect)
-    assert _build(rc, '''
-    d | r | b | m | property | type   | ref     | source     | prepare | access
-    example                  |        |         |            |         |
-      | data                 | sql    |         |            |         |
-      |   |                  |        |         |            |         |
-      |   |   | Planet       |        | name    | PLANET     |         |
-      |   |   |   | id       | string |         | ID         |         | open
-      |   |   |   | code     | string |         | CODE       |         | open
-      |   |   |   | name     | string |         | NAME       |         | open
+def test_paginate_given_values_page_not_given(db_dialect: str, rc: RawConfig):
+    assert _build(rc, f'''
+    d | r | b | m | property | type         | ref     | source     | prepare | access
+    example                  |              |         |            |         |
+      | data                 | {db_dialect} |         |            |         |
+      |   |                  |              |         |            |         |
+      |   |   | Planet       |              | name    | PLANET     |         |
+      |   |   |   | id       | string       |         | ID         |         | open
+      |   |   |   | code     | string       |         | CODE       |         | open
+      |   |   |   | name     | string       |         | NAME       |         | open
         ''', 'example/Planet', {
         'name': 'test'
     }) == '''
@@ -375,17 +371,16 @@ def test_paginate_given_values_page_not_given(db_dialect: str, rc: RawConfig, mo
 
 
 @pytest.mark.parametrize('db_dialect', _SUPPORT_NULLS)
-def test_paginate_given_values_size_given(db_dialect: str, rc: RawConfig, mocker):
-    use_dialect_functions(mocker, db_dialect)
-    assert _build(rc, '''
-    d | r | b | m | property | type   | ref     | source     | prepare             | access
-    example                  |        |         |            |                     |
-      | data                 | sql    |         |            |                     |
-      |   |                  |        |         |            |                     |
-      |   |   | Planet       |        | name    | PLANET     | page(name, size: 2) |
-      |   |   |   | id       | string |         | ID         |                     | open
-      |   |   |   | code     | string |         | CODE       |                     | open
-      |   |   |   | name     | string |         | NAME       |                     | open
+def test_paginate_given_values_size_given(db_dialect: str, rc: RawConfig):
+    assert _build(rc, f'''
+    d | r | b | m | property | type         | ref     | source     | prepare             | access
+    example                  |              |         |            |                     |
+      | data                 | {db_dialect} |         |            |                     |
+      |   |                  |              |         |            |                     |
+      |   |   | Planet       |              | name    | PLANET     | page(name, size: 2) |
+      |   |   |   | id       | string       |         | ID         |                     | open
+      |   |   |   | code     | string       |         | CODE       |                     | open
+      |   |   |   | name     | string       |         | NAME       |                     | open
         ''', 'example/Planet', {
         'name': 'test'
     }) == '''
@@ -400,17 +395,16 @@ def test_paginate_given_values_size_given(db_dialect: str, rc: RawConfig, mocker
 
 
 @pytest.mark.parametrize('db_dialect', _DEFAULT_NULL_IMPL)
-def test_paginate_given_values_size_given(db_dialect: str, rc: RawConfig, mocker):
-    use_dialect_functions(mocker, db_dialect)
-    assert _build(rc, '''
-    d | r | b | m | property | type   | ref     | source     | prepare             | access
-    example                  |        |         |            |                     |
-      | data                 | sql    |         |            |                     |
-      |   |                  |        |         |            |                     |
-      |   |   | Planet       |        | name    | PLANET     | page(name, size: 2) |
-      |   |   |   | id       | string |         | ID         |                     | open
-      |   |   |   | code     | string |         | CODE       |                     | open
-      |   |   |   | name     | string |         | NAME       |                     | open
+def test_paginate_given_values_size_given(db_dialect: str, rc: RawConfig):
+    assert _build(rc, f'''
+    d | r | b | m | property | type         | ref     | source     | prepare             | access
+    example                  |              |         |            |                     |
+      | data                 | {db_dialect} |         |            |                     |
+      |   |                  |              |         |            |                     |
+      |   |   | Planet       |              | name    | PLANET     | page(name, size: 2) |
+      |   |   |   | id       | string       |         | ID         |                     | open
+      |   |   |   | code     | string       |         | CODE       |                     | open
+      |   |   |   | name     | string       |         | NAME       |                     | open
         ''', 'example/Planet', {
         'name': 'test'
     }) == '''
@@ -425,17 +419,16 @@ def test_paginate_given_values_size_given(db_dialect: str, rc: RawConfig, mocker
 
 
 @pytest.mark.parametrize('db_dialect', _SUPPORT_NULLS)
-def test_paginate_given_values_private(db_dialect: str, rc: RawConfig, mocker):
-    use_dialect_functions(mocker, db_dialect)
-    assert _build(rc, '''
-    d | r | b | m | property | type   | ref     | source     | prepare          | access
-    example                  |        |         |            |                  |
-      | data                 | sql    |         |            |                  |
-      |   |                  |        |         |            |                  |
-      |   |   | Planet       |        | name    | PLANET     | page(name, code) |
-      |   |   |   | id       | string |         | ID         |                  | open
-      |   |   |   | code     | string |         | CODE       |                  | private
-      |   |   |   | name     | string |         | NAME       |                  | open
+def test_paginate_given_values_private(db_dialect: str, rc: RawConfig):
+    assert _build(rc, f'''
+    d | r | b | m | property | type         | ref     | source     | prepare          | access
+    example                  |              |         |            |                  |
+      | data                 | {db_dialect} |         |            |                  |
+      |   |                  |              |         |            |                  |
+      |   |   | Planet       |              | name    | PLANET     | page(name, code) |
+      |   |   |   | id       | string       |         | ID         |                  | open
+      |   |   |   | code     | string       |         | CODE       |                  | private
+      |   |   |   | name     | string       |         | NAME       |                  | open
         ''', 'example/Planet', {
         'name': 'test',
         'code': 5,
@@ -452,17 +445,16 @@ def test_paginate_given_values_private(db_dialect: str, rc: RawConfig, mocker):
 
 
 @pytest.mark.parametrize('db_dialect', _DEFAULT_NULL_IMPL)
-def test_paginate_given_values_private(db_dialect: str, rc: RawConfig, mocker):
-    use_dialect_functions(mocker, db_dialect)
-    assert _build(rc, '''
-    d | r | b | m | property | type   | ref     | source     | prepare          | access
-    example                  |        |         |            |                  |
-      | data                 | sql    |         |            |                  |
-      |   |                  |        |         |            |                  |
-      |   |   | Planet       |        | name    | PLANET     | page(name, code) |
-      |   |   |   | id       | string |         | ID         |                  | open
-      |   |   |   | code     | string |         | CODE       |                  | private
-      |   |   |   | name     | string |         | NAME       |                  | open
+def test_paginate_given_values_private(db_dialect: str, rc: RawConfig):
+    assert _build(rc, f'''
+    d | r | b | m | property | type         | ref     | source     | prepare          | access
+    example                  |              |         |            |                  |
+      | data                 | {db_dialect} |         |            |                  |
+      |   |                  |              |         |            |                  |
+      |   |   | Planet       |              | name    | PLANET     | page(name, code) |
+      |   |   |   | id       | string       |         | ID         |                  | open
+      |   |   |   | code     | string       |         | CODE       |                  | private
+      |   |   |   | name     | string       |         | NAME       |                  | open
         ''', 'example/Planet', {
         'name': 'test',
         'code': 5,
@@ -479,17 +471,16 @@ def test_paginate_given_values_private(db_dialect: str, rc: RawConfig, mocker):
 
 
 @pytest.mark.parametrize('db_dialect', _SUPPORT_NULLS)
-def test_paginate_given_values_two_keys(db_dialect: str, rc: RawConfig, mocker):
-    use_dialect_functions(mocker, db_dialect)
-    assert _build(rc, '''
-    d | r | b | m | property | type   | ref     | source     | prepare          | access
-    example                  |        |         |            |                  |
-      | data                 | sql    |         |            |                  |
-      |   |                  |        |         |            |                  |
-      |   |   | Planet       |        | name    | PLANET     | page(name, code) |
-      |   |   |   | id       | string |         | ID         |                  | open
-      |   |   |   | code     | string |         | CODE       |                  | open
-      |   |   |   | name     | string |         | NAME       |                  | open
+def test_paginate_given_values_two_keys(db_dialect: str, rc: RawConfig):
+    assert _build(rc, f'''
+    d | r | b | m | property | type         | ref     | source     | prepare          | access
+    example                  |              |         |            |                  |
+      | data                 | {db_dialect} |         |            |                  |
+      |   |                  |              |         |            |                  |
+      |   |   | Planet       |              | name    | PLANET     | page(name, code) |
+      |   |   |   | id       | string       |         | ID         |                  | open
+      |   |   |   | code     | string       |         | CODE       |                  | open
+      |   |   |   | name     | string       |         | NAME       |                  | open
         ''', 'example/Planet', {
         'name': 'test',
         'code': 5,
@@ -506,17 +497,16 @@ def test_paginate_given_values_two_keys(db_dialect: str, rc: RawConfig, mocker):
 
 
 @pytest.mark.parametrize('db_dialect', _DEFAULT_NULL_IMPL)
-def test_paginate_given_values_two_keys(db_dialect: str, rc: RawConfig, mocker):
-    use_dialect_functions(mocker, db_dialect)
-    assert _build(rc, '''
-    d | r | b | m | property | type   | ref     | source     | prepare          | access
-    example                  |        |         |            |                  |
-      | data                 | sql    |         |            |                  |
-      |   |                  |        |         |            |                  |
-      |   |   | Planet       |        | name    | PLANET     | page(name, code) |
-      |   |   |   | id       | string |         | ID         |                  | open
-      |   |   |   | code     | string |         | CODE       |                  | open
-      |   |   |   | name     | string |         | NAME       |                  | open
+def test_paginate_given_values_two_keys(db_dialect: str, rc: RawConfig):
+    assert _build(rc, f'''
+    d | r | b | m | property | type         | ref     | source     | prepare          | access
+    example                  |              |         |            |                  |
+      | data                 | {db_dialect} |         |            |                  |
+      |   |                  |              |         |            |                  |
+      |   |   | Planet       |              | name    | PLANET     | page(name, code) |
+      |   |   |   | id       | string       |         | ID         |                  | open
+      |   |   |   | code     | string       |         | CODE       |                  | open
+      |   |   |   | name     | string       |         | NAME       |                  | open
         ''', 'example/Planet', {
         'name': 'test',
         'code': 5,
@@ -533,17 +523,16 @@ def test_paginate_given_values_two_keys(db_dialect: str, rc: RawConfig, mocker):
 
 
 @pytest.mark.parametrize('db_dialect', _SUPPORT_NULLS)
-def test_paginate_given_values_two_keys_ref_not_given(db_dialect: str, rc: RawConfig, mocker):
-    use_dialect_functions(mocker, db_dialect)
-    assert _build(rc, '''
-    d | r | b | m | property | type   | ref     | source     | prepare          | access
-    example                  |        |         |            |                  |
-      | data                 | sql    |         |            |                  |
-      |   |                  |        |         |            |                  |
-      |   |   | Planet       |        |         | PLANET     | page(name, code) |
-      |   |   |   | id       | string |         | ID         |                  | open
-      |   |   |   | code     | string |         | CODE       |                  | open
-      |   |   |   | name     | string |         | NAME       |                  | open
+def test_paginate_given_values_two_keys_ref_not_given(db_dialect: str, rc: RawConfig):
+    assert _build(rc, f'''
+    d | r | b | m | property | type         | ref     | source     | prepare          | access
+    example                  |              |         |            |                  |
+      | data                 | {db_dialect} |         |            |                  |
+      |   |                  |              |         |            |                  |
+      |   |   | Planet       |              |         | PLANET     | page(name, code) |
+      |   |   |   | id       | string       |         | ID         |                  | open
+      |   |   |   | code     | string       |         | CODE       |                  | open
+      |   |   |   | name     | string       |         | NAME       |                  | open
         ''', 'example/Planet', {
         'name': 'test',
         'code': 5,
@@ -560,17 +549,16 @@ def test_paginate_given_values_two_keys_ref_not_given(db_dialect: str, rc: RawCo
 
 
 @pytest.mark.parametrize('db_dialect', _DEFAULT_NULL_IMPL)
-def test_paginate_given_values_two_keys_ref_not_given(db_dialect: str, rc: RawConfig, mocker):
-    use_dialect_functions(mocker, db_dialect)
-    assert _build(rc, '''
-    d | r | b | m | property | type   | ref     | source     | prepare          | access
-    example                  |        |         |            |                  |
-      | data                 | sql    |         |            |                  |
-      |   |                  |        |         |            |                  |
-      |   |   | Planet       |        |         | PLANET     | page(name, code) |
-      |   |   |   | id       | string |         | ID         |                  | open
-      |   |   |   | code     | string |         | CODE       |                  | open
-      |   |   |   | name     | string |         | NAME       |                  | open
+def test_paginate_given_values_two_keys_ref_not_given(db_dialect: str, rc: RawConfig):
+    assert _build(rc, f'''
+    d | r | b | m | property | type         | ref     | source     | prepare          | access
+    example                  |              |         |            |                  |
+      | data                 | {db_dialect} |         |            |                  |
+      |   |                  |              |         |            |                  |
+      |   |   | Planet       |              |         | PLANET     | page(name, code) |
+      |   |   |   | id       | string       |         | ID         |                  | open
+      |   |   |   | code     | string       |         | CODE       |                  | open
+      |   |   |   | name     | string       |         | NAME       |                  | open
         ''', 'example/Planet', {
         'name': 'test',
         'code': 5,
@@ -587,17 +575,16 @@ def test_paginate_given_values_two_keys_ref_not_given(db_dialect: str, rc: RawCo
 
 
 @pytest.mark.parametrize('db_dialect', _SUPPORT_NULLS)
-def test_paginate_desc(db_dialect: str, rc: RawConfig, mocker):
-    use_dialect_functions(mocker, db_dialect)
-    assert _build(rc, '''
-    d | r | b | m | property | type   | ref     | source     | prepare          | access
-    example                  |        |         |            |                  |
-      | data                 | sql    |         |            |                  |
-      |   |                  |        |         |            |                  |
-      |   |   | Planet       |        |         | PLANET     | page(name, -code) |
-      |   |   |   | id       | string |         | ID         |                  | open
-      |   |   |   | code     | string |         | CODE       |                  | open
-      |   |   |   | name     | string |         | NAME       |                  | open
+def test_paginate_desc(db_dialect: str, rc: RawConfig):
+    assert _build(rc, f'''
+    d | r | b | m | property | type         | ref     | source     | prepare          | access
+    example                  |              |         |            |                  |
+      | data                 | {db_dialect} |         |            |                  |
+      |   |                  |              |         |            |                  |
+      |   |   | Planet       |              |         | PLANET     | page(name, -code) |
+      |   |   |   | id       | string       |         | ID         |                  | open
+      |   |   |   | code     | string       |         | CODE       |                  | open
+      |   |   |   | name     | string       |         | NAME       |                  | open
         ''', 'example/Planet', {
         'name': 'test',
         '-code': 5,
@@ -614,17 +601,16 @@ def test_paginate_desc(db_dialect: str, rc: RawConfig, mocker):
 
 
 @pytest.mark.parametrize('db_dialect', _DEFAULT_NULL_IMPL)
-def test_paginate_desc(db_dialect: str, rc: RawConfig, mocker):
-    use_dialect_functions(mocker, db_dialect)
-    assert _build(rc, '''
-    d | r | b | m | property | type   | ref     | source     | prepare          | access
-    example                  |        |         |            |                  |
-      | data                 | sql    |         |            |                  |
-      |   |                  |        |         |            |                  |
-      |   |   | Planet       |        |         | PLANET     | page(name, -code) |
-      |   |   |   | id       | string |         | ID         |                  | open
-      |   |   |   | code     | string |         | CODE       |                  | open
-      |   |   |   | name     | string |         | NAME       |                  | open
+def test_paginate_desc(db_dialect: str, rc: RawConfig):
+    assert _build(rc, f'''
+    d | r | b | m | property | type         | ref     | source     | prepare          | access
+    example                  |              |         |            |                  |
+      | data                 | {db_dialect} |         |            |                  |
+      |   |                  |              |         |            |                  |
+      |   |   | Planet       |              |         | PLANET     | page(name, -code) |
+      |   |   |   | id       | string       |         | ID         |                  | open
+      |   |   |   | code     | string       |         | CODE       |                  | open
+      |   |   |   | name     | string       |         | NAME       |                  | open
         ''', 'example/Planet', {
         'name': 'test',
         '-code': 5,
@@ -691,17 +677,16 @@ example                  |         |                           |              | 
 
 
 @pytest.mark.parametrize('db_dialect', _DEFAULT_FLIP_IMPL)
-def test_flip_result_builder(db_dialect: str, rc: RawConfig, mocker):
-    use_dialect_functions(mocker, db_dialect)
-    assert _build(rc, '''
-    d | r | b | m | property | type     | ref     | source     | prepare          | access
-    example                  |          |         |            |                  |
-      | data                 | sql      |         |            |                  |
-      |   |                  |          |         |            |                  |
-      |   |   | Planet       |          |         | PLANET     |                  |
-      |   |   |   | id       | string   |         | ID         |                  | open
-      |   |   |   | code     | string   |         | CODE       |                  | open
-      |   |   |   | geo      | geometry |         | GEO        | flip()           | open
+def test_flip_result_builder(db_dialect: str, rc: RawConfig):
+    assert _build(rc, f'''
+    d | r | b | m | property | type         | ref     | source     | prepare          | access
+    example                  |              |         |            |                  |
+      | data                 | {db_dialect} |         |            |                  |
+      |   |                  |              |         |            |                  |
+      |   |   | Planet       |              |         | PLANET     |                  |
+      |   |   |   | id       | string       |         | ID         |                  | open
+      |   |   |   | code     | string       |         | CODE       |                  | open
+      |   |   |   | geo      | geometry     |         | GEO        | flip()           | open
         ''', 'example/Planet', {
         'name': 'test',
         '-code': 5,
@@ -714,18 +699,16 @@ def test_flip_result_builder(db_dialect: str, rc: RawConfig, mocker):
     '''
 
 
-@pytest.mark.parametrize('db_dialect', _QUERY_FLIP_IMPL)
-def test_flip_query_builder(db_dialect: str, rc: RawConfig, mocker):
-    use_dialect_functions(mocker, db_dialect)
+def test_flip_postgresql(rc: RawConfig):
     assert _build(rc, '''
-    d | r | b | m | property | type     | ref     | source     | prepare          | access
-    example                  |          |         |            |                  |
-      | data                 | sql      |         |            |                  |
-      |   |                  |          |         |            |                  |
-      |   |   | Planet       |          |         | PLANET     |                  |
-      |   |   |   | id       | string   |         | ID         |                  | open
-      |   |   |   | code     | string   |         | CODE       |                  | open
-      |   |   |   | geo      | geometry |         | GEO        | flip()           | open
+    d | r | b | m | property | type           | ref     | source     | prepare          | access
+    example                  |                |         |            |                  |
+      | data                 | sql/postgresql |         |            |                  |
+      |   |                  |                |         |            |                  |
+      |   |   | Planet       |                |         | PLANET     |                  |
+      |   |   |   | id       | string         |         | ID         |                  | open
+      |   |   |   | code     | string         |         | CODE       |                  | open
+      |   |   |   | geo      | geometry       |         | GEO        | flip()           | open
         ''', 'example/Planet', {
         'name': 'test',
         '-code': 5,
@@ -737,27 +720,25 @@ def test_flip_query_builder(db_dialect: str, rc: RawConfig, mocker):
     '''
 
 
-@pytest.mark.parametrize('db_dialect', ['sqlite'])
-def test_array_intermediate_table_sqlite(db_dialect: str, rc: RawConfig, mocker):
-    use_dialect_functions(mocker, db_dialect)
+def test_array_intermediate_table_sqlite(rc: RawConfig):
     assert _build(rc, '''
-    d | r | b | m | property    | type   | ref             | source          | prepare | access
-    example                     |        |                 |                 |         |
-      | data                    | sql    |                 |                 |         |
-      |   |                     |        |                 |                 |         |
-      |   |   | Language        |        | id              | LANGUAGE        |         |
-      |   |   |   | id          | string |                 | ID              |         | open
-      |   |   |   | code        | string |                 | CODE            |         | open
-      |   |                     |        |                 |                 |         |
-      |   |   | Country         |        | id              | COUNTRY         |         |
-      |   |   |   | id          | string |                 | ID              |         | open
-      |   |   |   | code        | string |                 | CODE            |         | open
-      |   |   |   | languages   | array  | CountryLanguage |                 |         | open
-      |   |   |   | languages[] | ref    | Language        |                 |         | open
-      |   |                     |        |                 |                 |         |
-      |   |   | CountryLanguage |        |                 | COUNTRYLANGUAGE |         |
-      |   |   |   | country     | ref    | Country         | COUNTRY         |         | open
-      |   |   |   | language    | ref    | Language        | LANGUAGE        |         | open
+    d | r | b | m | property    | type       | ref             | source          | prepare | access
+    example                     |            |                 |                 |         |
+      | data                    | sql/sqlite |                 |                 |         |
+      |   |                     |            |                 |                 |         |
+      |   |   | Language        |            | id              | LANGUAGE        |         |
+      |   |   |   | id          | string     |                 | ID              |         | open
+      |   |   |   | code        | string     |                 | CODE            |         | open
+      |   |                     |            |                 |                 |         |
+      |   |   | Country         |            | id              | COUNTRY         |         |
+      |   |   |   | id          | string     |                 | ID              |         | open
+      |   |   |   | code        | string     |                 | CODE            |         | open
+      |   |   |   | languages   | array      | CountryLanguage |                 |         | open
+      |   |   |   | languages[] | ref        | Language        |                 |         | open
+      |   |                     |            |                 |                 |         |
+      |   |   | CountryLanguage |            |                 | COUNTRYLANGUAGE |         |
+      |   |   |   | country     | ref        | Country         | COUNTRY         |         | open
+      |   |   |   | language    | ref        | Language        | LANGUAGE        |         | open
         ''', 'example/Country', page_mapping={}) == '''
     SELECT
       "COUNTRY"."ID",
@@ -768,27 +749,25 @@ def test_array_intermediate_table_sqlite(db_dialect: str, rc: RawConfig, mocker)
     '''
 
 
-@pytest.mark.parametrize('db_dialect', ['postgresql'])
-def test_array_intermediate_table_postgresql(db_dialect: str, rc: RawConfig, mocker):
-    use_dialect_functions(mocker, db_dialect)
+def test_array_intermediate_table_postgresql(rc: RawConfig):
     assert _build(rc, '''
-    d | r | b | m | property    | type   | ref             | source          | prepare | access
-    example                     |        |                 |                 |         |
-      | data                    | sql    |                 |                 |         |
-      |   |                     |        |                 |                 |         |
-      |   |   | Language        |        | id              | LANGUAGE        |         |
-      |   |   |   | id          | string |                 | ID              |         | open
-      |   |   |   | code        | string |                 | CODE            |         | open
-      |   |                     |        |                 |                 |         |
-      |   |   | Country         |        | id              | COUNTRY         |         |
-      |   |   |   | id          | string |                 | ID              |         | open
-      |   |   |   | code        | string |                 | CODE            |         | open
-      |   |   |   | languages   | array  | CountryLanguage |                 |         | open
-      |   |   |   | languages[] | ref    | Language        |                 |         | open
-      |   |                     |        |                 |                 |         |
-      |   |   | CountryLanguage |        |                 | COUNTRYLANGUAGE |         |
-      |   |   |   | country     | ref    | Country         | COUNTRY         |         | open
-      |   |   |   | language    | ref    | Language        | LANGUAGE        |         | open
+    d | r | b | m | property    | type           | ref             | source          | prepare | access
+    example                     |                |                 |                 |         |
+      | data                    | sql/postgresql |                 |                 |         |
+      |   |                     |                |                 |                 |         |
+      |   |   | Language        |                | id              | LANGUAGE        |         |
+      |   |   |   | id          | string         |                 | ID              |         | open
+      |   |   |   | code        | string         |                 | CODE            |         | open
+      |   |                     |                |                 |                 |         |
+      |   |   | Country         |                | id              | COUNTRY         |         |
+      |   |   |   | id          | string         |                 | ID              |         | open
+      |   |   |   | code        | string         |                 | CODE            |         | open
+      |   |   |   | languages   | array          | CountryLanguage |                 |         | open
+      |   |   |   | languages[] | ref            | Language        |                 |         | open
+      |   |                     |                |                 |                 |         |
+      |   |   | CountryLanguage |                |                 | COUNTRYLANGUAGE |         |
+      |   |   |   | country     | ref            | Country         | COUNTRY         |         | open
+      |   |   |   | language    | ref            | Language        | LANGUAGE        |         | open
         ''', 'example/Country', page_mapping={}) == '''
     SELECT
       "COUNTRY"."ID",
@@ -799,27 +778,25 @@ def test_array_intermediate_table_postgresql(db_dialect: str, rc: RawConfig, moc
     '''
 
 
-@pytest.mark.parametrize('db_dialect', ['mysql', 'mariadb'])
-def test_array_intermediate_table_mysql(db_dialect: str, rc: RawConfig, mocker):
-    use_dialect_functions(mocker, db_dialect)
+def test_array_intermediate_table_mysql(rc: RawConfig):
     assert _build(rc, '''
-    d | r | b | m | property    | type   | ref             | source          | prepare | access
-    example                     |        |                 |                 |         |
-      | data                    | sql    |                 |                 |         |
-      |   |                     |        |                 |                 |         |
-      |   |   | Language        |        | id              | LANGUAGE        |         |
-      |   |   |   | id          | string |                 | ID              |         | open
-      |   |   |   | code        | string |                 | CODE            |         | open
-      |   |                     |        |                 |                 |         |
-      |   |   | Country         |        | id              | COUNTRY         |         |
-      |   |   |   | id          | string |                 | ID              |         | open
-      |   |   |   | code        | string |                 | CODE            |         | open
-      |   |   |   | languages   | array  | CountryLanguage |                 |         | open
-      |   |   |   | languages[] | ref    | Language        |                 |         | open
-      |   |                     |        |                 |                 |         |
-      |   |   | CountryLanguage |        |                 | COUNTRYLANGUAGE |         |
-      |   |   |   | country     | ref    | Country         | COUNTRY         |         | open
-      |   |   |   | language    | ref    | Language        | LANGUAGE        |         | open
+    d | r | b | m | property    | type      | ref             | source          | prepare | access
+    example                     |           |                 |                 |         |
+      | data                    | sql/mysql |                 |                 |         |
+      |   |                     |           |                 |                 |         |
+      |   |   | Language        |           | id              | LANGUAGE        |         |
+      |   |   |   | id          | string    |                 | ID              |         | open
+      |   |   |   | code        | string    |                 | CODE            |         | open
+      |   |                     |           |                 |                 |         |
+      |   |   | Country         |           | id              | COUNTRY         |         |
+      |   |   |   | id          | string    |                 | ID              |         | open
+      |   |   |   | code        | string    |                 | CODE            |         | open
+      |   |   |   | languages   | array     | CountryLanguage |                 |         | open
+      |   |   |   | languages[] | ref       | Language        |                 |         | open
+      |   |                     |           |                 |                 |         |
+      |   |   | CountryLanguage |           |                 | COUNTRYLANGUAGE |         |
+      |   |   |   | country     | ref       | Country         | COUNTRY         |         | open
+      |   |   |   | language    | ref       | Language        | LANGUAGE        |         | open
         ''', 'example/Country', page_mapping={}) == '''
     SELECT
       "COUNTRY"."ID",
@@ -830,27 +807,54 @@ def test_array_intermediate_table_mysql(db_dialect: str, rc: RawConfig, mocker):
     '''
 
 
-@pytest.mark.parametrize('db_dialect', ['mssql'])
-def test_array_intermediate_table_mssql(db_dialect: str, rc: RawConfig, mocker):
-    use_dialect_functions(mocker, db_dialect)
+def test_array_intermediate_table_mariadb(rc: RawConfig):
     assert _build(rc, '''
-    d | r | b | m | property    | type   | ref             | source          | prepare | access
-    example                     |        |                 |                 |         |
-      | data                    | sql    |                 |                 |         |
-      |   |                     |        |                 |                 |         |
-      |   |   | Language        |        | id              | LANGUAGE        |         |
-      |   |   |   | id          | string |                 | ID              |         | open
-      |   |   |   | code        | string |                 | CODE            |         | open
-      |   |                     |        |                 |                 |         |
-      |   |   | Country         |        | id              | COUNTRY         |         |
-      |   |   |   | id          | string |                 | ID              |         | open
-      |   |   |   | code        | string |                 | CODE            |         | open
-      |   |   |   | languages   | array  | CountryLanguage |                 |         | open
-      |   |   |   | languages[] | ref    | Language        |                 |         | open
-      |   |                     |        |                 |                 |         |
-      |   |   | CountryLanguage |        |                 | COUNTRYLANGUAGE |         |
-      |   |   |   | country     | ref    | Country         | COUNTRY         |         | open
-      |   |   |   | language    | ref    | Language        | LANGUAGE        |         | open
+    d | r | b | m | property    | type        | ref             | source          | prepare | access
+    example                     |             |                 |                 |         |
+      | data                    | sql/mariadb |                 |                 |         |
+      |   |                     |             |                 |                 |         |
+      |   |   | Language        |             | id              | LANGUAGE        |         |
+      |   |   |   | id          | string      |                 | ID              |         | open
+      |   |   |   | code        | string      |                 | CODE            |         | open
+      |   |                     |             |                 |                 |         |
+      |   |   | Country         |             | id              | COUNTRY         |         |
+      |   |   |   | id          | string      |                 | ID              |         | open
+      |   |   |   | code        | string      |                 | CODE            |         | open
+      |   |   |   | languages   | array       | CountryLanguage |                 |         | open
+      |   |   |   | languages[] | ref         | Language        |                 |         | open
+      |   |                     |             |                 |                 |         |
+      |   |   | CountryLanguage |             |                 | COUNTRYLANGUAGE |         |
+      |   |   |   | country     | ref         | Country         | COUNTRY         |         | open
+      |   |   |   | language    | ref         | Language        | LANGUAGE        |         | open
+        ''', 'example/Country', page_mapping={}) == '''
+    SELECT
+      "COUNTRY"."ID",
+      "COUNTRY"."CODE", json_arrayagg("COUNTRYLANGUAGE_1"."LANGUAGE") AS json_arrayagg_1
+    FROM "COUNTRY"
+    LEFT OUTER JOIN "COUNTRYLANGUAGE" AS "COUNTRYLANGUAGE_1" ON "COUNTRYLANGUAGE_1"."COUNTRY" = "COUNTRY"."ID" GROUP BY "COUNTRY"."ID",
+      "COUNTRY"."CODE"
+    '''
+
+
+def test_array_intermediate_table_mssql(rc: RawConfig):
+    assert _build(rc, '''
+    d | r | b | m | property    | type      | ref             | source          | prepare | access
+    example                     |           |                 |                 |         |
+      | data                    | sql/mssql |                 |                 |         |
+      |   |                     |           |                 |                 |         |
+      |   |   | Language        |           | id              | LANGUAGE        |         |
+      |   |   |   | id          | string    |                 | ID              |         | open
+      |   |   |   | code        | string    |                 | CODE            |         | open
+      |   |                     |           |                 |                 |         |
+      |   |   | Country         |           | id              | COUNTRY         |         |
+      |   |   |   | id          | string    |                 | ID              |         | open
+      |   |   |   | code        | string    |                 | CODE            |         | open
+      |   |   |   | languages   | array     | CountryLanguage |                 |         | open
+      |   |   |   | languages[] | ref       | Language        |                 |         | open
+      |   |                     |           |                 |                 |         |
+      |   |   | CountryLanguage |           |                 | COUNTRYLANGUAGE |         |
+      |   |   |   | country     | ref       | Country         | COUNTRY         |         | open
+      |   |   |   | language    | ref       | Language        | LANGUAGE        |         | open
         ''', 'example/Country', page_mapping={}) == '''
     SELECT
       "COUNTRY"."ID",
@@ -861,29 +865,27 @@ def test_array_intermediate_table_mssql(db_dialect: str, rc: RawConfig, mocker):
     '''
 
 
-@pytest.mark.parametrize('db_dialect', ['sqlite'])
-def test_array_intermediate_table_multi_column_sqlite(db_dialect: str, rc: RawConfig, mocker):
-    use_dialect_functions(mocker, db_dialect)
+def test_array_intermediate_table_multi_column_sqlite(rc: RawConfig):
     assert _build(rc, '''
-    d | r | b | m | property      | type   | ref             | source          | prepare                    | access | level
-    example                       |        |                 |                 |                            |        |
-      | data                      | sql    |                 |                 |                            |        |
-      |   |                       |        |                 |                 |                            |        |
-      |   |   | Language          |        | id, code        | LANGUAGE        |                            |        |
-      |   |   |   | id            | string |                 | ID              |                            | open   |    
-      |   |   |   | code          | string |                 | CODE            |                            | open   |    
-      |   |                       |        |                 |                 |                            |        |
-      |   |   | Country           |        | id              | COUNTRY         |                            |        |
-      |   |   |   | id            | string |                 | ID              |                            | open   |    
-      |   |   |   | code          | string |                 | CODE            |                            | open   |    
-      |   |   |   | languages     | array  | CountryLanguage |                 |                            | open   |    
-      |   |   |   | languages[]   | ref    | Language        |                 |                            | open   |    
-      |   |                       |        |                 |                 |                            |        |
-      |   |   | CountryLanguage   |        |                 | COUNTRYLANGUAGE |                            |        |
-      |   |   |   | language_id   | string |                 | LANGUAGEID      |                            | open   |    
-      |   |   |   | language_code | string |                 | LANGUAGECODE    |                            | open   |    
-      |   |   |   | country       | ref    | Country         | COUNTRY         |                            | open   |    
-      |   |   |   | language      | ref    | Language        |                 | language_id, language_code | open   | 3   
+    d | r | b | m | property      | type       | ref             | source          | prepare                    | access | level
+    example                       |            |                 |                 |                            |        |
+      | data                      | sql/sqlite |                 |                 |                            |        |
+      |   |                       |            |                 |                 |                            |        |
+      |   |   | Language          |            | id, code        | LANGUAGE        |                            |        |
+      |   |   |   | id            | string     |                 | ID              |                            | open   |    
+      |   |   |   | code          | string     |                 | CODE            |                            | open   |    
+      |   |                       |            |                 |                 |                            |        |
+      |   |   | Country           |            | id              | COUNTRY         |                            |        |
+      |   |   |   | id            | string     |                 | ID              |                            | open   |    
+      |   |   |   | code          | string     |                 | CODE            |                            | open   |    
+      |   |   |   | languages     | array      | CountryLanguage |                 |                            | open   |    
+      |   |   |   | languages[]   | ref        | Language        |                 |                            | open   |    
+      |   |                       |            |                 |                 |                            |        |
+      |   |   | CountryLanguage   |            |                 | COUNTRYLANGUAGE |                            |        |
+      |   |   |   | language_id   | string     |                 | LANGUAGEID      |                            | open   |    
+      |   |   |   | language_code | string     |                 | LANGUAGECODE    |                            | open   |    
+      |   |   |   | country       | ref        | Country         | COUNTRY         |                            | open   |    
+      |   |   |   | language      | ref        | Language        |                 | language_id, language_code | open   | 3   
         ''', 'example/Country', page_mapping={}) == '''
     SELECT
       "COUNTRY"."ID",
@@ -895,29 +897,27 @@ def test_array_intermediate_table_multi_column_sqlite(db_dialect: str, rc: RawCo
     '''
 
 
-@pytest.mark.parametrize('db_dialect', ['postgresql'])
-def test_array_intermediate_table_multi_column_postgresql(db_dialect: str, rc: RawConfig, mocker):
-    use_dialect_functions(mocker, db_dialect)
+def test_array_intermediate_table_multi_column_postgresql(rc: RawConfig):
     assert _build(rc, '''
-    d | r | b | m | property      | type   | ref             | source          | prepare                    | access | level
-    example                       |        |                 |                 |                            |        |
-      | data                      | sql    |                 |                 |                            |        |
-      |   |                       |        |                 |                 |                            |        |
-      |   |   | Language          |        | id, code        | LANGUAGE        |                            |        |
-      |   |   |   | id            | string |                 | ID              |                            | open   |    
-      |   |   |   | code          | string |                 | CODE            |                            | open   |    
-      |   |                       |        |                 |                 |                            |        |
-      |   |   | Country           |        | id              | COUNTRY         |                            |        |
-      |   |   |   | id            | string |                 | ID              |                            | open   |    
-      |   |   |   | code          | string |                 | CODE            |                            | open   |    
-      |   |   |   | languages     | array  | CountryLanguage |                 |                            | open   |    
-      |   |   |   | languages[]   | ref    | Language        |                 |                            | open   |    
-      |   |                       |        |                 |                 |                            |        |
-      |   |   | CountryLanguage   |        |                 | COUNTRYLANGUAGE |                            |        |
-      |   |   |   | language_id   | string |                 | LANGUAGEID      |                            | open   |    
-      |   |   |   | language_code | string |                 | LANGUAGECODE    |                            | open   |    
-      |   |   |   | country       | ref    | Country         | COUNTRY         |                            | open   |    
-      |   |   |   | language      | ref    | Language        |                 | language_id, language_code | open   | 3   
+    d | r | b | m | property      | type           | ref             | source          | prepare                    | access | level
+    example                       |                |                 |                 |                            |        |
+      | data                      | sql/postgresql |                 |                 |                            |        |
+      |   |                       |                |                 |                 |                            |        |
+      |   |   | Language          |                | id, code        | LANGUAGE        |                            |        |
+      |   |   |   | id            | string         |                 | ID              |                            | open   |    
+      |   |   |   | code          | string         |                 | CODE            |                            | open   |    
+      |   |                       |                |                 |                 |                            |        |
+      |   |   | Country           |                | id              | COUNTRY         |                            |        |
+      |   |   |   | id            | string         |                 | ID              |                            | open   |    
+      |   |   |   | code          | string         |                 | CODE            |                            | open   |    
+      |   |   |   | languages     | array          | CountryLanguage |                 |                            | open   |    
+      |   |   |   | languages[]   | ref            | Language        |                 |                            | open   |    
+      |   |                       |                |                 |                 |                            |        |
+      |   |   | CountryLanguage   |                |                 | COUNTRYLANGUAGE |                            |        |
+      |   |   |   | language_id   | string         |                 | LANGUAGEID      |                            | open   |    
+      |   |   |   | language_code | string         |                 | LANGUAGECODE    |                            | open   |    
+      |   |   |   | country       | ref            | Country         | COUNTRY         |                            | open   |    
+      |   |   |   | language      | ref            | Language        |                 | language_id, language_code | open   | 3   
         ''', 'example/Country', page_mapping={}) == '''
     SELECT
       "COUNTRY"."ID",
@@ -929,29 +929,27 @@ def test_array_intermediate_table_multi_column_postgresql(db_dialect: str, rc: R
     '''
 
 
-@pytest.mark.parametrize('db_dialect', ['mysql', 'mariadb'])
-def test_array_intermediate_table_multi_column_mysql(db_dialect: str, rc: RawConfig, mocker):
-    use_dialect_functions(mocker, db_dialect)
+def test_array_intermediate_table_multi_column_mysql(rc: RawConfig):
     assert _build(rc, '''
-    d | r | b | m | property      | type   | ref             | source          | prepare                    | access | level
-    example                       |        |                 |                 |                            |        |
-      | data                      | sql    |                 |                 |                            |        |
-      |   |                       |        |                 |                 |                            |        |
-      |   |   | Language          |        | id, code        | LANGUAGE        |                            |        |
-      |   |   |   | id            | string |                 | ID              |                            | open   |    
-      |   |   |   | code          | string |                 | CODE            |                            | open   |    
-      |   |                       |        |                 |                 |                            |        |
-      |   |   | Country           |        | id              | COUNTRY         |                            |        |
-      |   |   |   | id            | string |                 | ID              |                            | open   |    
-      |   |   |   | code          | string |                 | CODE            |                            | open   |    
-      |   |   |   | languages     | array  | CountryLanguage |                 |                            | open   |    
-      |   |   |   | languages[]   | ref    | Language        |                 |                            | open   |    
-      |   |                       |        |                 |                 |                            |        |
-      |   |   | CountryLanguage   |        |                 | COUNTRYLANGUAGE |                            |        |
-      |   |   |   | language_id   | string |                 | LANGUAGEID      |                            | open   |    
-      |   |   |   | language_code | string |                 | LANGUAGECODE    |                            | open   |    
-      |   |   |   | country       | ref    | Country         | COUNTRY         |                            | open   |    
-      |   |   |   | language      | ref    | Language        |                 | language_id, language_code | open   | 3   
+    d | r | b | m | property      | type      | ref             | source          | prepare                    | access | level
+    example                       |           |                 |                 |                            |        |
+      | data                      | sql/mysql |                 |                 |                            |        |
+      |   |                       |           |                 |                 |                            |        |
+      |   |   | Language          |           | id, code        | LANGUAGE        |                            |        |
+      |   |   |   | id            | string    |                 | ID              |                            | open   |    
+      |   |   |   | code          | string    |                 | CODE            |                            | open   |    
+      |   |                       |           |                 |                 |                            |        |
+      |   |   | Country           |           | id              | COUNTRY         |                            |        |
+      |   |   |   | id            | string    |                 | ID              |                            | open   |    
+      |   |   |   | code          | string    |                 | CODE            |                            | open   |    
+      |   |   |   | languages     | array     | CountryLanguage |                 |                            | open   |    
+      |   |   |   | languages[]   | ref       | Language        |                 |                            | open   |    
+      |   |                       |           |                 |                 |                            |        |
+      |   |   | CountryLanguage   |           |                 | COUNTRYLANGUAGE |                            |        |
+      |   |   |   | language_id   | string    |                 | LANGUAGEID      |                            | open   |    
+      |   |   |   | language_code | string    |                 | LANGUAGECODE    |                            | open   |    
+      |   |   |   | country       | ref       | Country         | COUNTRY         |                            | open   |    
+      |   |   |   | language      | ref       | Language        |                 | language_id, language_code | open   | 3   
         ''', 'example/Country', page_mapping={}) == '''
     SELECT
       "COUNTRY"."ID",
@@ -963,29 +961,59 @@ def test_array_intermediate_table_multi_column_mysql(db_dialect: str, rc: RawCon
     '''
 
 
-@pytest.mark.parametrize('db_dialect', ['mssql'])
-def test_array_intermediate_table_multi_column_mssql(db_dialect: str, rc: RawConfig, mocker):
-    use_dialect_functions(mocker, db_dialect)
+def test_array_intermediate_table_multi_column_mariadb(rc: RawConfig):
     assert _build(rc, '''
-    d | r | b | m | property      | type   | ref             | source          | prepare                    | access | level
-    example                       |        |                 |                 |                            |        |
-      | data                      | sql    |                 |                 |                            |        |
-      |   |                       |        |                 |                 |                            |        |
-      |   |   | Language          |        | id, code        | LANGUAGE        |                            |        |
-      |   |   |   | id            | string |                 | ID              |                            | open   |    
-      |   |   |   | code          | string |                 | CODE            |                            | open   |    
-      |   |                       |        |                 |                 |                            |        |
-      |   |   | Country           |        | id              | COUNTRY         |                            |        |
-      |   |   |   | id            | string |                 | ID              |                            | open   |    
-      |   |   |   | code          | string |                 | CODE            |                            | open   |    
-      |   |   |   | languages     | array  | CountryLanguage |                 |                            | open   |    
-      |   |   |   | languages[]   | ref    | Language        |                 |                            | open   |    
-      |   |                       |        |                 |                 |                            |        |
-      |   |   | CountryLanguage   |        |                 | COUNTRYLANGUAGE |                            |        |
-      |   |   |   | language_id   | string |                 | LANGUAGEID      |                            | open   |    
-      |   |   |   | language_code | string |                 | LANGUAGECODE    |                            | open   |    
-      |   |   |   | country       | ref    | Country         | COUNTRY         |                            | open   |    
-      |   |   |   | language      | ref    | Language        |                 | language_id, language_code | open   | 3   
+    d | r | b | m | property      | type        | ref             | source          | prepare                    | access | level
+    example                       |             |                 |                 |                            |        |
+      | data                      | sql/mariadb |                 |                 |                            |        |
+      |   |                       |             |                 |                 |                            |        |
+      |   |   | Language          |             | id, code        | LANGUAGE        |                            |        |
+      |   |   |   | id            | string      |                 | ID              |                            | open   |    
+      |   |   |   | code          | string      |                 | CODE            |                            | open   |    
+      |   |                       |             |                 |                 |                            |        |
+      |   |   | Country           |             | id              | COUNTRY         |                            |        |
+      |   |   |   | id            | string      |                 | ID              |                            | open   |    
+      |   |   |   | code          | string      |                 | CODE            |                            | open   |    
+      |   |   |   | languages     | array       | CountryLanguage |                 |                            | open   |    
+      |   |   |   | languages[]   | ref         | Language        |                 |                            | open   |    
+      |   |                       |             |                 |                 |                            |        |
+      |   |   | CountryLanguage   |             |                 | COUNTRYLANGUAGE |                            |        |
+      |   |   |   | language_id   | string      |                 | LANGUAGEID      |                            | open   |    
+      |   |   |   | language_code | string      |                 | LANGUAGECODE    |                            | open   |    
+      |   |   |   | country       | ref         | Country         | COUNTRY         |                            | open   |    
+      |   |   |   | language      | ref         | Language        |                 | language_id, language_code | open   | 3   
+        ''', 'example/Country', page_mapping={}) == '''
+    SELECT
+      "COUNTRY"."ID",
+      "COUNTRY"."CODE", json_arrayagg(json_array("COUNTRYLANGUAGE_1"."LANGUAGEID",
+      "COUNTRYLANGUAGE_1"."LANGUAGECODE")) AS json_arrayagg_1
+    FROM "COUNTRY"
+    LEFT OUTER JOIN "COUNTRYLANGUAGE" AS "COUNTRYLANGUAGE_1" ON "COUNTRYLANGUAGE_1"."COUNTRY" = "COUNTRY"."ID" GROUP BY "COUNTRY"."ID",
+      "COUNTRY"."CODE"
+    '''
+
+
+def test_array_intermediate_table_multi_column_mssql(rc: RawConfig):
+    assert _build(rc, '''
+    d | r | b | m | property      | type      | ref             | source          | prepare                    | access | level
+    example                       |           |                 |                 |                            |        |
+      | data                      | sql/mssql |                 |                 |                            |        |
+      |   |                       |           |                 |                 |                            |        |
+      |   |   | Language          |           | id, code        | LANGUAGE        |                            |        |
+      |   |   |   | id            | string    |                 | ID              |                            | open   |    
+      |   |   |   | code          | string    |                 | CODE            |                            | open   |    
+      |   |                       |           |                 |                 |                            |        |
+      |   |   | Country           |           | id              | COUNTRY         |                            |        |
+      |   |   |   | id            | string    |                 | ID              |                            | open   |    
+      |   |   |   | code          | string    |                 | CODE            |                            | open   |    
+      |   |   |   | languages     | array     | CountryLanguage |                 |                            | open   |    
+      |   |   |   | languages[]   | ref       | Language        |                 |                            | open   |    
+      |   |                       |           |                 |                 |                            |        |
+      |   |   | CountryLanguage   |           |                 | COUNTRYLANGUAGE |                            |        |
+      |   |   |   | language_id   | string    |                 | LANGUAGEID      |                            | open   |    
+      |   |   |   | language_code | string    |                 | LANGUAGECODE    |                            | open   |    
+      |   |   |   | country       | ref       | Country         | COUNTRY         |                            | open   |    
+      |   |   |   | language      | ref       | Language        |                 | language_id, language_code | open   | 3   
         ''', 'example/Country', page_mapping={}) == '''
     SELECT
       "COUNTRY"."ID",

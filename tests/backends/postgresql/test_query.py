@@ -1,17 +1,16 @@
 import textwrap
 import uuid
 
-import sqlparse
 import sqlalchemy as sa
+import sqlparse
 from sqlalchemy.sql import Select
 
-from spinta import spyna
 from spinta import commands
+from spinta import spyna
 from spinta.auth import AdminToken
-from spinta.backends.postgresql.ufuncs.query.components import PgQueryBuilder
+from spinta.backends.postgresql.components import PostgreSQL
 from spinta.core.config import RawConfig
 from spinta.core.ufuncs import asttoexpr
-from spinta.backends.postgresql.components import PostgreSQL
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.ufuncs.basequerybuilder.helpers import add_page_expr
 from spinta.ufuncs.loadbuilder.helpers import page_contains_unsupported_keys
@@ -44,7 +43,7 @@ def _build(rc: RawConfig, manifest: str, model_name: str, query: str, page_mappi
             if page_contains_unsupported_keys(page):
                 page.enabled = False
         query = add_page_expr(query, page)
-    builder = PgQueryBuilder(context)
+    builder = backend.query_builder_class(context)
     builder.update(model=model)
     env = builder.init(backend, backend.get_table(model))
     expr = env.resolve(query)

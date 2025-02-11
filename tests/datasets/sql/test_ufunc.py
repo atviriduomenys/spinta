@@ -1,19 +1,16 @@
 from decimal import Decimal
 
 import pytest
-
 import sqlalchemy as sa
 
 from spinta import commands
-from spinta.core.config import RawConfig
-from spinta.datasets.backends.sql.components import Sql
-from spinta.datasets.backends.sql.ufuncs.query.components import SqlQueryBuilder
-from spinta.datasets.backends.sql.ufuncs.result.components import SqlResultBuilder
-from spinta.testing.manifest import load_manifest_and_context
-from spinta.exceptions import UnableToCast
-from spinta.core.ufuncs import Expr
-from spinta.backends.postgresql.components import PostgreSQL
 from spinta.auth import AdminToken
+from spinta.core.config import RawConfig
+from spinta.core.ufuncs import Expr
+from spinta.datasets.backends.sql.components import Sql
+from spinta.datasets.backends.sql.ufuncs.result.components import SqlResultBuilder
+from spinta.exceptions import UnableToCast
+from spinta.testing.manifest import load_manifest_and_context
 from spinta.ufuncs.resultbuilder.helpers import get_row_value
 
 
@@ -67,12 +64,12 @@ def test_point(rc: RawConfig):
     model_name = 'example/Data'
     model = commands.get_model(context, manifest, model_name)
 
-    env = SqlQueryBuilder(context)
-    env.update(model=model)
-
     backend = Sql()
     backend.schema = sa.MetaData()
     backend.tables = {}
+
+    env = backend.query_builder_class(context)
+    env.update(model=model)
 
     table = backend.tables[model_name] = sa.Table(
         'data', backend.schema,

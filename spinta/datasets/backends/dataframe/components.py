@@ -1,10 +1,13 @@
 import contextlib
 
+from spinta.datasets.backends.dataframe.ufuncs.query.components import DaskDataFrameQueryBuilder
 from spinta.datasets.components import ExternalBackend
 
 
 class DaskBackend(ExternalBackend):
     type: str = 'dask'
+
+    query_builder_class = DaskDataFrameQueryBuilder
 
     @contextlib.contextmanager
     def begin(self):

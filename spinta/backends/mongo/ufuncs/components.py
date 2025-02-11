@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import dataclasses
 from typing import List, Union, Any
+from typing import TYPE_CHECKING
 
 import pymongo
 
-from spinta.backends.mongo.components import Mongo
 from spinta.components import Property
 from spinta.core.ufuncs import Expr
 from spinta.exceptions import UnknownMethod
@@ -13,6 +13,9 @@ from spinta.types.datatype import DataType
 from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage
 from spinta.ufuncs.basequerybuilder.helpers import merge_with_page_selected_list, merge_with_page_sort, \
     merge_with_page_limit
+
+if TYPE_CHECKING:
+    from spinta.backends.mongo.components import Mongo
 
 
 class MongoQueryBuilder(BaseQueryBuilder):

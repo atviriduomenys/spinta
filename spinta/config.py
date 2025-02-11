@@ -68,6 +68,12 @@ CONFIG = {
             # External backends
             # XXX: Probably these should be moved to components.resources?
             'sql': 'spinta.datasets.backends.sql.components:Sql',
+            'sql/sqlite': 'spinta.datasets.backends.sql.backends.sqlite.components:Sqlite',
+            'sql/postgresql': 'spinta.datasets.backends.sql.backends.postgresql.components:PostgreSQL',
+            'sql/mssql': 'spinta.datasets.backends.sql.backends.mssql.components:MSSQL',
+            'sql/mysql': 'spinta.datasets.backends.sql.backends.mysql.components:MySQL',
+            'sql/mariadb': 'spinta.datasets.backends.sql.backends.mariadb.components:MariaDB',
+            'sql/oracle': 'spinta.datasets.backends.sql.backends.oracle.components:Oracle',
             'sqldump': 'spinta.datasets.backends.sqldump.components:SqlDump',
             'csv': 'spinta.datasets.backends.dataframe.components:Csv',
             'xml': 'spinta.datasets.backends.dataframe.components:Xml',
