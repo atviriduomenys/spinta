@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 from typing import List, Union, Any, Tuple
+from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import array_agg
@@ -9,7 +10,7 @@ from sqlalchemy.sql.functions import Function
 
 from spinta.backends import get_property_base_model
 from spinta.backends.constants import TableType
-from spinta.backends.postgresql.components import PostgreSQL
+
 from spinta.components import Model, Property
 from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.sql.ufuncs.components import Selected
@@ -20,6 +21,9 @@ from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPag
 from spinta.ufuncs.basequerybuilder.helpers import merge_with_page_selected_list, merge_with_page_sort, \
     merge_with_page_limit
 from spinta.ufuncs.components import ForeignProperty
+
+if TYPE_CHECKING:
+    from spinta.backends.postgresql.components import PostgreSQL
 
 
 class PgQueryBuilder(BaseQueryBuilder):

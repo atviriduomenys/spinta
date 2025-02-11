@@ -1,10 +1,11 @@
 import contextlib
-from typing import Any
+from typing import Any, Type
 from typing import Dict
 from typing import Optional
 from typing import Set
 
 from spinta.backends.constants import BackendOrigin, BackendFeatures
+from spinta.core.ufuncs import Env
 
 
 class Backend:
@@ -22,6 +23,8 @@ class Backend:
     config: Dict[str, Any]
 
     available: bool = True
+
+    query_builder_class: Type[Env] = None
 
     def __repr__(self):
         return (

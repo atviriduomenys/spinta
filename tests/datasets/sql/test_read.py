@@ -1,19 +1,21 @@
+import pytest
+import sqlalchemy as sa
+
 from spinta import commands
 from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.datasets.backends.sql.components import Sql
 from spinta.exceptions import TooShortPageSize
 from spinta.manifests.tabular.helpers import striptable
-import pytest
 from spinta.testing.client import create_client
 from spinta.testing.data import listdata
-from spinta.testing.datasets import create_sqlite_db, use_default_dialect_functions
+from spinta.testing.datasets import create_sqlite_db
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.testing.tabular import create_tabular_manifest
-import sqlalchemy as sa
-
 from spinta.ufuncs.basequerybuilder.components import Selected
 from spinta.ufuncs.resultbuilder.helpers import get_row_value
+
+_DEFAULT_WITH_SQLITE_DIALECTS = ['sql', 'sql/sqlite']
 
 
 @pytest.fixture(scope='module')
@@ -154,21 +156,17 @@ def test__get_row_value_null(rc: RawConfig):
     assert get_row_value(context, Sql(), row, sel) is None
 
 
-@pytest.mark.parametrize("use_default_dialect", [True, False])
-def test_getall_paginate_invalid_type(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path,
-                                      geodb_null_check, mocker):
-    if use_default_dialect:
-        use_default_dialect_functions(mocker)
-
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
-    id | d | r | b | m | property | source          | type    | ref      | access | prepare
-       | external/paginate        |                 |         |          |        |
-       |   | data                 |                 | sql     |          |        |
-       |   |   |                  |                 |         |          |        |
-       |   |   |   | City         | cities          |         | id, test | open   |
-       |   |   |   |   | id       | id              | integer |          |        |
-       |   |   |   |   | name     | name            | string  |          |        | 
-       |   |   |   |   | test     | name            | object  |          |        | 
+@pytest.mark.parametrize("db_dialect", _DEFAULT_WITH_SQLITE_DIALECTS)
+def test_getall_paginate_invalid_type(db_dialect: str, context: Context, rc: RawConfig, tmp_path, geodb_null_check):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+    id | d | r | b | m | property | source | type         | ref      | access | prepare
+       | external/paginate        |        |              |          |        |
+       |   | data                 |        | {db_dialect} |          |        |
+       |   |   |                  |        |              |          |        |
+       |   |   |   | City         | cities |              | id, test | open   |
+       |   |   |   |   | id       | id     | integer      |          |        |
+       |   |   |   |   | name     | name   | string       |          |        | 
+       |   |   |   |   | test     | name   | object       |          |        | 
     '''))
 
     app = create_client(rc, tmp_path, geodb_null_check)
@@ -180,20 +178,16 @@ def test_getall_paginate_invalid_type(use_default_dialect: bool, context: Contex
     assert '_page' not in resp.json()
 
 
-@pytest.mark.parametrize("use_default_dialect", [True, False])
-def test_getall_paginate_null_check_value(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path,
-                                          geodb_null_check, mocker):
-    if use_default_dialect:
-        use_default_dialect_functions(mocker)
-
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
-    id | d | r | b | m | property | source          | type    | ref     | access | prepare
-       | external/paginate        |                 |         |         |        |
-       |   | data                 |                 | sql     |         |        |
-       |   |   |                  |                 |         |         |        |
-       |   |   |   | City         | cities          |         | id      | open   |
-       |   |   |   |   | id       | id              | integer |         |        |
-       |   |   |   |   | name     | name            | string  |         |        | 
+@pytest.mark.parametrize("db_dialect", _DEFAULT_WITH_SQLITE_DIALECTS)
+def test_getall_paginate_null_check_value(db_dialect: str, context: Context, rc: RawConfig, tmp_path, geodb_null_check):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+    id | d | r | b | m | property | source | type         | ref     | access | prepare
+       | external/paginate        |        |              |         |        |
+       |   | data                 |        | {db_dialect} |         |        |
+       |   |   |                  |        |              |         |        |
+       |   |   |   | City         | cities |              | id      | open   |
+       |   |   |   |   | id       | id     | integer      |         |        |
+       |   |   |   |   | name     | name   | string       |         |        | 
     '''))
 
     app = create_client(rc, tmp_path, geodb_null_check)
@@ -204,21 +198,17 @@ def test_getall_paginate_null_check_value(use_default_dialect: bool, context: Co
     ]
 
 
-@pytest.mark.parametrize("use_default_dialect", [True, False])
-def test_getall_paginate_with_nulls_page_too_small(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path,
-                                                   geodb_with_nulls, mocker):
-    if use_default_dialect:
-        use_default_dialect_functions(mocker)
-
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
-    id | d | r | b | m | property | source          | type    | ref     | access | prepare
-       | external/paginate        |                 |         |         |        |
-       |   | data                 |                 | sql     |         |        |
-       |   |   |                  |                 |         |         |        |
-       |   |   |   | City         | cities          |         | id      | open   |
-       |   |   |   |   | id       | id              | integer |         |        |
-       |   |   |   |   | name     | name            | string  |         |        | 
-       |   |   |   |   | code     | code            | string  |         |        | 
+@pytest.mark.parametrize("db_dialect", _DEFAULT_WITH_SQLITE_DIALECTS)
+def test_getall_paginate_with_nulls_page_too_small(db_dialect: str, context: Context, rc: RawConfig, tmp_path, geodb_with_nulls):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+    id | d | r | b | m | property | source | type         | ref     | access | prepare
+       | external/paginate        |        |              |         |        |
+       |   | data                 |        | {db_dialect} |         |        |
+       |   |   |                  |        |              |         |        |
+       |   |   |   | City         | cities |              | id      | open   |
+       |   |   |   |   | id       | id     | integer      |         |        |
+       |   |   |   |   | name     | name   | string       |         |        | 
+       |   |   |   |   | code     | code   | string       |         |        | 
     '''))
 
     app = create_client(rc, tmp_path, geodb_with_nulls)
@@ -230,21 +220,17 @@ def test_getall_paginate_with_nulls_page_too_small(use_default_dialect: bool, co
         assert isinstance(exceptions[0], TooShortPageSize)
 
 
-@pytest.mark.parametrize("use_default_dialect", [True, False])
-def test_getall_paginate_with_nulls(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path,
-                                    geodb_with_nulls, mocker):
-    if use_default_dialect:
-        use_default_dialect_functions(mocker)
-
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
-    id | d | r | b | m | property | source          | type    | ref     | access | prepare
-       | external/paginate/null0  |                 |         |         |        |
-       |   | data                 |                 | sql     |         |        |
-       |   |   |                  |                 |         |         |        |
-       |   |   |   | City         | cities          |         | id      | open   |
-       |   |   |   |   | id       | id              | integer |         |        |
-       |   |   |   |   | name     | name            | string  |         |        | 
-       |   |   |   |   | code     | code            | string  |         |        | 
+@pytest.mark.parametrize("db_dialect", _DEFAULT_WITH_SQLITE_DIALECTS)
+def test_getall_paginate_with_nulls(db_dialect: str, context: Context, rc: RawConfig, tmp_path, geodb_with_nulls):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+    id | d | r | b | m | property | source | type         | ref     | access | prepare
+       | external/paginate/null0  |        |              |         |        |
+       |   | data                 |        | {db_dialect} |         |        |
+       |   |   |                  |        |              |         |        |
+       |   |   |   | City         | cities |              | id      | open   |
+       |   |   |   |   | id       | id     | integer      |         |        |
+       |   |   |   |   | name     | name   | string       |         |        | 
+       |   |   |   |   | code     | code   | string       |         |        | 
     '''))
 
     app = create_client(rc, tmp_path, geodb_with_nulls)
@@ -265,21 +251,17 @@ def test_getall_paginate_with_nulls(use_default_dialect: bool, context: Context,
     ]
 
 
-@pytest.mark.parametrize("use_default_dialect", [True, False])
-def test_getall_paginate_with_nulls_multi_key(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path,
-                                              geodb_with_nulls, mocker):
-    if use_default_dialect:
-        use_default_dialect_functions(mocker)
-
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
-    id | d | r | b | m | property | source          | type    | ref      | access | prepare
-       | external/paginate/null1  |                 |         |          |        |
-       |   | data                 |                 | sql     |          |        |
-       |   |   |                  |                 |         |          |        |
-       |   |   |   | City         | cities          |         | id, code | open   |
-       |   |   |   |   | id       | id              | integer |          |        |
-       |   |   |   |   | name     | name            | string  |          |        | 
-       |   |   |   |   | code     | code            | string  |          |        | 
+@pytest.mark.parametrize("db_dialect", _DEFAULT_WITH_SQLITE_DIALECTS)
+def test_getall_paginate_with_nulls_multi_key(db_dialect: str, context: Context, rc: RawConfig, tmp_path, geodb_with_nulls):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+    id | d | r | b | m | property | source | type         | ref      | access | prepare
+       | external/paginate/null1  |        |              |          |        |
+       |   | data                 |        | {db_dialect} |          |        |
+       |   |   |                  |        |              |          |        |
+       |   |   |   | City         | cities |              | id, code | open   |
+       |   |   |   |   | id       | id     | integer      |          |        |
+       |   |   |   |   | name     | name   | string       |          |        | 
+       |   |   |   |   | code     | code   | string       |          |        | 
     '''))
 
     app = create_client(rc, tmp_path, geodb_with_nulls)
@@ -300,21 +282,17 @@ def test_getall_paginate_with_nulls_multi_key(use_default_dialect: bool, context
     ]
 
 
-@pytest.mark.parametrize("use_default_dialect", [True, False])
-def test_getall_paginate_with_nulls_all_keys(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path,
-                                             geodb_with_nulls, mocker):
-    if use_default_dialect:
-        use_default_dialect_functions(mocker)
-
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
-    id | d | r | b | m | property | source          | type    | ref      | access | prepare
-       | external/paginate/null1  |                 |         |          |        |
-       |   | data                 |                 | sql     |          |        |
-       |   |   |                  |                 |         |          |        |
-       |   |   |   | City         | cities          |         | id, name, code | open   |
-       |   |   |   |   | id       | id              | integer |          |        |
-       |   |   |   |   | name     | name            | string  |          |        | 
-       |   |   |   |   | code     | code            | string  |          |        | 
+@pytest.mark.parametrize("db_dialect", _DEFAULT_WITH_SQLITE_DIALECTS)
+def test_getall_paginate_with_nulls_all_keys(db_dialect: str, context: Context, rc: RawConfig, tmp_path, geodb_with_nulls):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+    id | d | r | b | m | property | source | type         | ref      | access | prepare
+       | external/paginate/null1  |        |              |          |        |
+       |   | data                 |        | {db_dialect} |          |        |
+       |   |   |                  |        |              |          |        |
+       |   |   |   | City         | cities |              | id, name, code | open   |
+       |   |   |   |   | id       | id     | integer      |          |        |
+       |   |   |   |   | name     | name   | string       |          |        | 
+       |   |   |   |   | code     | code   | string       |          |        | 
     '''))
 
     app = create_client(rc, tmp_path, geodb_with_nulls)
@@ -335,21 +313,17 @@ def test_getall_paginate_with_nulls_all_keys(use_default_dialect: bool, context:
     ]
 
 
-@pytest.mark.parametrize("use_default_dialect", [True, False])
-def test_getall_paginate_with_nulls_and_sort(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path,
-                                             geodb_with_nulls, mocker):
-    if use_default_dialect:
-        use_default_dialect_functions(mocker)
-
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
-    id | d | r | b | m | property | source          | type    | ref      | access | prepare
-       | external/paginate/null2        |                 |         |          |        |
-       |   | data                 |                 | sql     |          |        |
-       |   |   |                  |                 |         |          |        |
-       |   |   |   | City         | cities          |         | id       | open   |
-       |   |   |   |   | id       | id              | integer |          |        |
-       |   |   |   |   | name     | name            | string  |          |        | 
-       |   |   |   |   | code     | code            | string  |          |        | 
+@pytest.mark.parametrize("db_dialect", _DEFAULT_WITH_SQLITE_DIALECTS)
+def test_getall_paginate_with_nulls_and_sort(db_dialect: str, context: Context, rc: RawConfig, tmp_path, geodb_with_nulls):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+    id | d | r | b | m | property | source | type         | ref      | access | prepare
+       | external/paginate/null2  |        |              |          |        |
+       |   | data                 |        | {db_dialect} |          |        |
+       |   |   |                  |        |              |          |        |
+       |   |   |   | City         | cities |              | id       | open   |
+       |   |   |   |   | id       | id     | integer      |          |        |
+       |   |   |   |   | name     | name   | string       |          |        | 
+       |   |   |   |   | code     | code   | string       |          |        | 
     '''))
 
     app = create_client(rc, tmp_path, geodb_with_nulls)
@@ -370,22 +344,18 @@ def test_getall_paginate_with_nulls_and_sort(use_default_dialect: bool, context:
     ]
 
 
-@pytest.mark.parametrize("use_default_dialect", [True, False])
-def test_getall_paginate_with_nulls_unique(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path,
-                                           geodb_with_nulls, mocker):
-    if use_default_dialect:
-        use_default_dialect_functions(mocker)
-
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
-    id | d | r | b | m | property | source          | type    | ref      | access | prepare
-       | external/paginate/null3        |                 |         |          |        |
-       |   | data                 |                 | sql     |          |        |
-       |   |   |                  |                 |         |          |        |
-       |   |   |   | City         | cities          |         | name, unique | open   |
-       |   |   |   |   | id       | id              | integer |          |        |
-       |   |   |   |   | name     | name            | string  |          |        | 
-       |   |   |   |   | code     | code            | string  |          |        | 
-       |   |   |   |   | unique   | unique          | integer |          |        | 
+@pytest.mark.parametrize("db_dialect", _DEFAULT_WITH_SQLITE_DIALECTS)
+def test_getall_paginate_with_nulls_unique(db_dialect: str, context: Context, rc: RawConfig, tmp_path, geodb_with_nulls):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+    id | d | r | b | m | property | source | type         | ref      | access | prepare
+       | external/paginate/null3  |        |              |          |        |
+       |   | data                 |        | {db_dialect} |          |        |
+       |   |   |                  |        |              |          |        |
+       |   |   |   | City         | cities |              | name, unique | open   |
+       |   |   |   |   | id       | id     | integer      |          |        |
+       |   |   |   |   | name     | name   | string       |          |        | 
+       |   |   |   |   | code     | code   | string       |          |        | 
+       |   |   |   |   | unique   | unique | integer      |          |        | 
     '''))
 
     app = create_client(rc, tmp_path, geodb_with_nulls)

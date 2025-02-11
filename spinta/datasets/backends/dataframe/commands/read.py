@@ -383,7 +383,7 @@ def getall(
         resolved_params
     )
 
-    builder = DaskDataFrameQueryBuilder(context)
+    builder = backend.query_builder_class(context)
     builder.update(model=model)
     props = {}
     for prop in model.properties.values():
@@ -420,7 +420,7 @@ def getall(
         model.external.resource,
         resolved_params
     )
-    builder = DaskDataFrameQueryBuilder(context)
+    builder = backend.query_builder_class(context)
     builder.update(model=model)
     props = {}
     for prop in model.properties.values():
@@ -468,7 +468,7 @@ def getall(
         model.external.name
     )
 
-    builder = DaskDataFrameQueryBuilder(context)
+    builder = backend.query_builder_class(context)
     builder.update(model=model)
     df = dask.dataframe.read_csv(list(bases), sep=resource_builder.seperator)
     yield from _dask_get_all(context, query, df, backend, model, builder)
