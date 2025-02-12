@@ -14,6 +14,24 @@ Backwards incompatible:
 0.1.83 (unreleased)
 ===================
 
+Backwards incompatible:
+
+- `sql` backend no longer tries to automatically change it's query functions based on dsn dialect. Now in order to access
+  specific dialect's functionality, you need to specify it through type (`#1127`_).
+
+  Currently supported `sql` backend types:
+    - `sql` - generic default sql type (tries to use dialect indifferent functions).
+    - `sql/postgresql` - PostgreSQL dialect.
+    - `sql/mssql` - Microsoft SQL server dialect.
+    - `sql/mysql` - MySQL dialect.
+    - `sql/mariadb` - MariaDB dialect.
+    - `sql/sqlite` - Sqlite dialect.
+    - `sql/oracle` - Oracle database dialect.
+
+  It is recommended to specify dialects in the manifest or config, this will ensure better performance and can unlock
+  more functionality (in case some dialects support unique functions). Because system no longer tries to automatically
+  detect the dialect there is a possibility of errors or invalid values if you do not set the correct dialect.
+
 New features:
 
 - Added exposed intermediate table support for external `Sql` backend (`#663`_).
@@ -30,6 +48,10 @@ Improvements:
   if they are the same or higher level than given `access` (default is `private`, meaning everything is exported) (`#1130`_).
 
   .. _#1130: https://github.com/atviriduomenys/spinta/issues/1130
+
+- Separated `sql` `backend` dialects to their own separate backends (`#1127`_).
+
+  .. _#1127: https://github.com/atviriduomenys/spinta/issues/1127
 
 Bug fix:
 
