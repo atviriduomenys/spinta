@@ -477,30 +477,21 @@ def load(context: Context, dtype: Array, data: dict, manifest: Manifest) -> Data
 
 @load.register(Context, ArrayBackRef, dict, Manifest)
 def load(context: Context, dtype: ArrayBackRef, data: dict, manifest: Manifest) -> DataType:
-    if dtype.items:
-        assert isinstance(dtype.items, dict), type(dtype.items)
-        prop: Property = dtype.prop.__class__()
-        prop.name = dtype.prop.name
-        prop.place = dtype.prop.place
-        prop.parent = dtype.prop
-        prop.model = dtype.prop.model
-        commands.load(context, prop, dtype.items, manifest)
-        dtype.items = prop
-    else:
-        dtype.items = None
-    return dtype
+    return _load_array(context, dtype, manifest)
 
 
 def _load_array(context: Context, dtype: Array | ArrayBackRef, manifest: Manifest) -> DataType:
     if dtype.items:
         assert isinstance(dtype.items, dict), type(dtype.items)
+        place = f'{dtype.prop.place}[]'
         prop: Property = dtype.prop.__class__()
-        prop.list = dtype.prop
         prop.name = dtype.prop.name
-        prop.place = dtype.prop.place
+        prop.place = place
         prop.parent = dtype.prop
         prop.model = dtype.prop.model
+        prop.list = dtype.prop
         commands.load(context, prop, dtype.items, manifest)
+        dtype.prop.model.flatprops[place] = prop
         dtype.items = prop
     else:
         dtype.items = None

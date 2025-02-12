@@ -45,7 +45,7 @@ from spinta.manifests.tabular.components import PropertyRow
 from spinta.nodes import get_node
 from spinta.nodes import load_model_properties
 from spinta.nodes import load_node
-from spinta.types.helpers import check_model_name
+from spinta.types.helpers import check_model_name, check_model_primary_keys
 from spinta.types.helpers import check_property_name
 from spinta.types.namespace import load_namespace_from_name
 from spinta.ufuncs.loadbuilder.components import LoadBuilder
@@ -120,9 +120,9 @@ def load(
             for prop_name in unique_set:
                 if "." in prop_name:
                     prop_name = prop_name.split(".")[0]
-                if prop_name not in model.properties:
+                if not (model_property := model.get_from_flatprops(prop_name)):
                     raise PropertyNotFound(model, property=prop_name)
-                prop_set.append(model.properties[prop_name])
+                prop_set.append(model_property)
             if prop_set:
                 unique_properties.append(prop_set)
         model.unique = unique_properties
@@ -476,6 +476,8 @@ def check(context: Context, model: Model):
     check_model_name(context, model)
     if '_id' not in model.properties:
         raise exceptions.MissingRequiredProperty(model, prop='_id')
+
+    check_model_primary_keys(model)
 
     for prop in model.properties.values():
         commands.check(context, prop)

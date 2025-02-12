@@ -3,7 +3,8 @@ import pytest
 from spinta.exceptions import InvalidManifestFile, ReferencedPropertyNotFound, PartialTypeNotFound, \
     DataTypeCannotBeUsedForNesting, NestedDataTypeMismatch, SameModelIntermediateTableMapping, \
     InvalidIntermediateTableMappingRefCount, UnableToMapIntermediateTable, IntermediateTableMappingInvalidType, \
-    IntermediateTableValueTypeMissmatch, IntermediateTableRefPropertyModelMissmatch, IntermediateTableRefModelMissmatch
+    IntermediateTableValueTypeMissmatch, IntermediateTableRefPropertyModelMissmatch, IntermediateTableRefModelMissmatch, \
+    PrimaryKeyArrayTypeError
 from spinta.testing.manifest import load_manifest
 from spinta.manifests.tabular.helpers import TabularManifestError
 
@@ -1116,6 +1117,42 @@ def test_text_prop_as_reference(manifest_type, tmp_path, rc):
           |   |   | City         |      | name@en | 4     |
           |   |   |   | name@en  | text |         | 4     | open
           |   |   |   | country  | ref  | Country | 3     | open
+    ''', manifest_type)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_primary_key_can_not_be_an_array(manifest_type, tmp_path, rc):
+    with pytest.raises(PrimaryKeyArrayTypeError) as error:
+        check(tmp_path, rc, '''
+            d | r | b | m | property | type    | ref
+            example                  |         |
+                                     |         |
+              |   |   | Country      |         | cities[]
+              |   |   |   | cities[] | backref | City
+                                     |         |
+              |   |   | City         |         | name
+              |   |   |   | name     | string  |
+              |   |   |   | country  | ref     | Country
+        ''', manifest_type)
+
+    assert error.value.message == 'Array type object can not be used as a model primary key.'
+    assert error.value.context['model'] == 'example/Country'
+    assert error.value.context['name'] == 'cities[]'
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_primary_key_is_a_string_array_is_used_as_backref(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
+        d | r | b | m | property | type    | ref
+        example                  |         |
+                                 |         |
+          |   |   | Country      |         | id
+          |   |   |   | id       | string  |
+          |   |   |   | cities[] | backref | City
+                                 |         |
+          |   |   | City         |         | name
+          |   |   |   | name     | string  |
+          |   |   |   | country  | ref     | Country
     ''', manifest_type)
 
 

@@ -9,7 +9,7 @@ from spinta.components import Config
 from spinta.components import Context
 from spinta.components import Model
 from spinta.components import Property
-from spinta.exceptions import BackendNotFound
+from spinta.exceptions import BackendNotFound, PrimaryKeyArrayTypeError
 from spinta.exceptions import InvalidName
 
 if TYPE_CHECKING:
@@ -77,3 +77,12 @@ def check_property_name(context: Context, prop: Property):
             snake_case.match(name) is None
         ):
             raise InvalidName(prop, name=name, type='property')
+
+
+def check_model_primary_keys(model: Model) -> None:
+    if not model.external:
+        return
+
+    for primary_key in model.external.pkeys:
+        if primary_key.list:
+            raise PrimaryKeyArrayTypeError(model, name=primary_key.given_name)
