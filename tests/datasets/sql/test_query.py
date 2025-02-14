@@ -8,7 +8,6 @@ from sqlalchemy.sql.type_api import TypeEngine
 
 from spinta import commands
 from spinta.auth import AdminToken
-from spinta.backends.helpers import load_query_builder_class
 from spinta.components import Model, Mode, Context
 from spinta.core.config import RawConfig
 from spinta.datasets.backends.sql.components import Sql
@@ -16,12 +15,13 @@ from spinta.datasets.helpers import get_enum_filters
 from spinta.datasets.helpers import get_ref_filters
 from spinta.manifests.components import Manifest
 from spinta.testing.manifest import load_manifest_and_context
+from spinta.testing.utils import create_empty_backend
 from spinta.types.datatype import DataType, Integer, String, Boolean
 from spinta.types.datatype import Ref
 from spinta.types.geometry.components import Geometry
-from spinta.ufuncs.querybuilder.helpers import add_page_expr
 from spinta.ufuncs.helpers import merge_formulas
 from spinta.ufuncs.loadbuilder.helpers import page_contains_unsupported_keys
+from spinta.ufuncs.querybuilder.helpers import add_page_expr
 
 _SUPPORT_NULLS = ['sql/postgresql', 'sql/oracle', 'sql/sqlite']
 _DEFAULT_NULL_IMPL = ['sql', 'sql/mysql', 'sql/mariadb', 'sql/mssql']
@@ -85,8 +85,7 @@ def _build(rc: RawConfig, manifest: str, model_name: str, page_mapping: dict = N
     meta = _meta_from_manifest(context, manifest)
     backend = model.backend
     if not isinstance(backend, Sql):
-        backend = Sql()
-        load_query_builder_class(context, backend)
+        backend = create_empty_backend(context, 'sql')
 
     backend.schema = meta
     query = model.external.prepare

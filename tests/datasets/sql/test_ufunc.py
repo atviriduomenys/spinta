@@ -7,10 +7,10 @@ from spinta import commands
 from spinta.auth import AdminToken
 from spinta.core.config import RawConfig
 from spinta.core.ufuncs import Expr
-from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.backends.sql.ufuncs.result.components import SqlResultBuilder
 from spinta.exceptions import UnableToCast
 from spinta.testing.manifest import load_manifest_and_context
+from spinta.testing.utils import create_empty_backend
 from spinta.ufuncs.resultbuilder.helpers import get_row_value
 
 
@@ -64,7 +64,7 @@ def test_point(rc: RawConfig):
     model_name = 'example/Data'
     model = commands.get_model(context, manifest, model_name)
 
-    backend = Sql()
+    backend = create_empty_backend(context, 'sql')
     backend.schema = sa.MetaData()
     backend.tables = {}
 
@@ -89,7 +89,7 @@ def test_point(rc: RawConfig):
         2,  # y
     ]
     sel = env.selected['point']
-    val = get_row_value(context, Sql(), row, sel)
+    val = get_row_value(context, backend, row, sel)
 
     env = SqlResultBuilder(context).init(val, sel.prop, row)
     val = env.resolve(sel.prep)

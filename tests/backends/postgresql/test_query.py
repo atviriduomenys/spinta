@@ -8,13 +8,12 @@ from sqlalchemy.sql import Select
 from spinta import commands
 from spinta import spyna
 from spinta.auth import AdminToken
-from spinta.backends.helpers import load_backend, load_query_builder_class
-from spinta.backends.postgresql.components import PostgreSQL
 from spinta.core.config import RawConfig
 from spinta.core.ufuncs import asttoexpr
 from spinta.testing.manifest import load_manifest_and_context
-from spinta.ufuncs.querybuilder.helpers import add_page_expr
+from spinta.testing.utils import create_empty_backend
 from spinta.ufuncs.loadbuilder.helpers import page_contains_unsupported_keys
+from spinta.ufuncs.querybuilder.helpers import add_page_expr
 
 
 def _qry(qry: Select, indent: int = 4) -> str:
@@ -28,11 +27,9 @@ def _qry(qry: Select, indent: int = 4) -> str:
 def _build(rc: RawConfig, manifest: str, model_name: str, query: str, page_mapping: dict = None) -> str:
     context, manifest = load_manifest_and_context(rc, manifest)
     context.set('auth.token', AdminToken())
-    backend = PostgreSQL()
-    backend.name = 'default'
+    backend = create_empty_backend(context, 'postgresql', 'default')
     backend.schema = sa.MetaData()
     backend.tables = {}
-    load_query_builder_class(context, backend)
     commands.prepare(context, backend, manifest)
     model = commands.get_model(context, manifest, model_name)
     query = asttoexpr(spyna.parse(query))
