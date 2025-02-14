@@ -356,4 +356,4 @@ def load_result_builder_class(context: Context, backend: Backend):
         return
 
     config = context.get('config')
-    backend.query_builder_class = config.components.get('resultbuilders')[backend.result_builder_type]
+    backend.result_builder_class = config.components.get('resultbuilders')[backend.result_builder_type]
