@@ -5,7 +5,7 @@ from spinta.datasets.backends.sql.backends.postgresql.helpers import flip_geomet
 from spinta.datasets.backends.sql.backends.postgresql.ufuncs.query.components import PostgreSQLQueryBuilder
 from spinta.datasets.backends.sql.backends.helpers import nulls_last_asc, nulls_first_desc
 from spinta.types.geometry.components import Geometry
-from spinta.ufuncs.basequerybuilder.components import Flip, Selected
+from spinta.ufuncs.querybuilder.components import Flip, Selected
 
 import sqlalchemy as sa
 

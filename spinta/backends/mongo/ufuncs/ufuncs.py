@@ -25,7 +25,7 @@ from spinta.types.datatype import Number
 from spinta.types.datatype import Object
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import String
-from spinta.ufuncs.basequerybuilder.ufuncs import Star
+from spinta.ufuncs.querybuilder.ufuncs import Star
 from spinta.utils.data import take
 
 

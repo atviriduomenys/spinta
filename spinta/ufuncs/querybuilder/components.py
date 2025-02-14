@@ -89,7 +89,7 @@ class Selected:
             )
 
 
-class BaseQueryBuilder(Env):
+class QueryBuilder(Env):
     backend: Backend
     page: QueryPage
     expand: List[Property] = None

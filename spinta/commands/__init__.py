@@ -1347,11 +1347,6 @@ def reload_backend_metadata(context: Context, manifest: Manifest, backend: Backe
 
 
 @command()
-def get_result_builder(context: Context, backend: Backend):
-    """Returns backend specific result builder"""
-
-
-@command()
 def identifiable(node: Node) -> bool:
     """Check if node is identifiable"""
 

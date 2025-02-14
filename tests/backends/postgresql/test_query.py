@@ -12,7 +12,7 @@ from spinta.backends.postgresql.components import PostgreSQL
 from spinta.core.config import RawConfig
 from spinta.core.ufuncs import asttoexpr
 from spinta.testing.manifest import load_manifest_and_context
-from spinta.ufuncs.basequerybuilder.helpers import add_page_expr
+from spinta.ufuncs.querybuilder.helpers import add_page_expr
 from spinta.ufuncs.loadbuilder.helpers import page_contains_unsupported_keys
 
 

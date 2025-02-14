@@ -1,8 +1,7 @@
 import uuid
-from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
-from typing import overload, Optional, Iterator, List, Tuple, Callable
+from typing import overload, Iterator, List, Tuple, Callable
 
 from starlette.requests import Request
 from starlette.responses import FileResponse
@@ -16,8 +15,7 @@ from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
 from spinta.backends.nobackend.components import NoBackend
 from spinta.compat import urlparams_to_expr
-from spinta.components import Context, Node, Action, UrlParams, Page, PageBy, get_page_size, Config, \
-    pagination_enabled
+from spinta.components import Context, Node, Action, UrlParams, Page, get_page_size, pagination_enabled
 from spinta.components import Model
 from spinta.components import Property
 from spinta.core.ufuncs import Expr
@@ -28,9 +26,8 @@ from spinta.renderer import render
 from spinta.types.datatype import DataType
 from spinta.types.datatype import File
 from spinta.types.datatype import Object
-from spinta.typing import ObjectData
-from spinta.ufuncs.basequerybuilder.components import QueryParams, QueryPage
-from spinta.ufuncs.basequerybuilder.helpers import update_query_with_url_params, add_page_expr
+from spinta.ufuncs.querybuilder.components import QueryParams
+from spinta.ufuncs.querybuilder.helpers import update_query_with_url_params, add_page_expr
 from spinta.utils.data import take
 
 

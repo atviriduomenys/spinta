@@ -11,7 +11,7 @@ from spinta.exceptions import ItemDoesNotExist
 from spinta.types.datatype import File, Object
 from spinta.typing import FileObjectData
 from spinta.typing import ObjectData
-from spinta.ufuncs.basequerybuilder.helpers import get_page_values
+from spinta.ufuncs.querybuilder.helpers import get_page_values
 
 
 @overload

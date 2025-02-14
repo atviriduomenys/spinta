@@ -7,7 +7,6 @@ from spinta import commands
 from spinta.backends.constants import BackendFeatures
 from spinta.components import Model
 from spinta.components import Property
-from spinta.datasets.backends.sql.ufuncs.query.components import SqlQueryBuilder
 from spinta.datasets.components import ExternalBackend
 from spinta.exceptions import BackendUnavailable
 
@@ -22,7 +21,8 @@ class Sql(ExternalBackend):
         BackendFeatures.PAGINATION
     }
 
-    query_builder_class = SqlQueryBuilder
+    query_builder_type = 'sql'
+    result_builder_type = 'sql'
 
     @contextlib.contextmanager
     def transaction(self, write=False):

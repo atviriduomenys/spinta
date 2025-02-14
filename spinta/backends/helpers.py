@@ -70,6 +70,8 @@ def load_backend(
     backend.name = name
     backend.origin = origin
     backend.config = data
+    load_query_builder_class(context, backend)
+    load_result_builder_class(context, backend)
     commands.load(context, backend, data)
     return backend
 
@@ -339,3 +341,19 @@ def get_table_name(
     else:
         name = model.model_type() + ttype.value
     return name
+
+
+def load_query_builder_class(context: Context, backend: Backend):
+    if backend.query_builder_type is None:
+        return
+
+    config = context.get('config')
+    backend.query_builder_class = config.components.get('querybuilders')[backend.query_builder_type]
+
+
+def load_result_builder_class(context: Context, backend: Backend):
+    if backend.result_builder_type is None:
+        return
+
+    config = context.get('config')
+    backend.query_builder_class = config.components.get('resultbuilders')[backend.result_builder_type]

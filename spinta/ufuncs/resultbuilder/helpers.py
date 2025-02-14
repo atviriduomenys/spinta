@@ -1,15 +1,14 @@
 from collections import abc
-
-from multipledispatch import dispatch
 from typing import Any, Union
 
-from spinta import commands
+from multipledispatch import dispatch
+
 from spinta.backends import Backend
 from spinta.components import Context, Property
 from spinta.core.ufuncs import Expr
 from spinta.dimensions.enum.helpers import get_prop_enum
-from spinta.exceptions import ValueNotInEnum, PropertyNotFound
-from spinta.ufuncs.basequerybuilder.components import Selected
+from spinta.exceptions import ValueNotInEnum
+from spinta.ufuncs.querybuilder.components import Selected
 from spinta.ufuncs.resultbuilder.components import ResultBuilder
 from spinta.utils.schema import NA
 
@@ -131,7 +130,7 @@ def get_row_value(context: Context, backend: Backend, row: Any, sel: Any, check_
 
 
 def backend_result_builder_getter(context: Context, backend: Backend) -> ResultBuilderGetter:
-    return lambda: commands.get_result_builder(context, backend)
+    return lambda: backend.result_builder_class(backend)
 
 
 def _get_row_value(

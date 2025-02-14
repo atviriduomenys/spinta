@@ -23,7 +23,7 @@ from spinta.types.datatype import Inherit
 from spinta.types.datatype import Object
 from spinta.types.datatype import Ref
 from spinta.types.text.components import Text
-from spinta.ufuncs.basequerybuilder.ufuncs import Star
+from spinta.ufuncs.querybuilder.ufuncs import Star
 from spinta.utils.data import take
 from spinta.utils.nestedstruct import get_separated_name
 

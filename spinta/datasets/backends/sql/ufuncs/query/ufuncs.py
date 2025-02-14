@@ -29,9 +29,9 @@ from spinta.types.datatype import UUID
 from spinta.types.geometry.components import Geometry
 from spinta.types.text.components import Text
 from spinta.types.text.helpers import determine_language_property_for_text
-from spinta.ufuncs.basequerybuilder.components import LiteralProperty, Selected
-from spinta.ufuncs.basequerybuilder.helpers import get_language_column, process_literal_value
-from spinta.ufuncs.basequerybuilder.ufuncs import Star
+from spinta.ufuncs.querybuilder.components import LiteralProperty, Selected
+from spinta.ufuncs.querybuilder.helpers import get_language_column, process_literal_value
+from spinta.ufuncs.querybuilder.ufuncs import Star
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.data import take
 from spinta.utils.itertools import flatten

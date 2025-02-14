@@ -9,8 +9,8 @@ from spinta.core.ufuncs import Expr
 from spinta.exceptions import ItemDoesNotExist
 from spinta.exceptions import NotFoundError
 from spinta.typing import ObjectData
-from spinta.ufuncs.basequerybuilder.components import QueryParams
-from spinta.ufuncs.basequerybuilder.helpers import get_page_values
+from spinta.ufuncs.querybuilder.components import QueryParams
+from spinta.ufuncs.querybuilder.helpers import get_page_values
 from spinta.ufuncs.resultbuilder.helpers import get_row_value, backend_result_builder_getter
 from spinta.utils.nestedstruct import flat_dicts_to_nested, extract_list_property_names
 
