@@ -17,8 +17,8 @@ from spinta.datasets.backends.sql.ufuncs.components import Selected
 from spinta.exceptions import PropertyNotFound
 from spinta.exceptions import UnknownMethod
 from spinta.types.datatype import DataType, Denorm
-from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, QueryParams, Func
-from spinta.ufuncs.basequerybuilder.helpers import merge_with_page_selected_list, merge_with_page_sort, \
+from spinta.ufuncs.querybuilder.components import QueryBuilder, QueryPage, QueryParams, Func
+from spinta.ufuncs.querybuilder.helpers import merge_with_page_selected_list, merge_with_page_sort, \
     merge_with_page_limit
 from spinta.ufuncs.components import ForeignProperty
 
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from spinta.backends.postgresql.components import PostgreSQL
 
 
-class PgQueryBuilder(BaseQueryBuilder):
+class PgQueryBuilder(QueryBuilder):
     backend: PostgreSQL
     model: Model
     table: sa.Table

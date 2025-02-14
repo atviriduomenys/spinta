@@ -20,7 +20,7 @@ from spinta.commands.read import PaginationMetaData, get_paginated_values
 from spinta.components import Context, pagination_enabled
 from spinta.components import Model
 from spinta.components import Page, get_page_size
-from spinta.ufuncs.basequerybuilder.components import QueryParams
+from spinta.ufuncs.querybuilder.components import QueryParams
 
 
 def _iter_model_rows(

@@ -27,7 +27,7 @@ from spinta.manifests.components import Manifest
 from spinta.manifests.dict.helpers import is_list_of_dicts, is_blank_node
 from spinta.types.datatype import PrimaryKey, Ref, DataType, Boolean, Number, Integer, DateTime
 from spinta.typing import ObjectData
-from spinta.ufuncs.basequerybuilder.components import Selected
+from spinta.ufuncs.querybuilder.components import Selected
 from spinta.ufuncs.helpers import merge_formulas
 from spinta.ufuncs.resultbuilder.components import ResultBuilder
 from spinta.utils.data import take

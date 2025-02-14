@@ -5,7 +5,7 @@ import sqlalchemy as sa
 from sqlalchemy.engine.base import Engine as SaEngine
 
 from spinta.core.ufuncs import Env
-from spinta.ufuncs.basequerybuilder.components import Selected
+from spinta.ufuncs.querybuilder.components import Selected
 from spinta.utils.data import take
 from spinta.utils.schema import NA
 

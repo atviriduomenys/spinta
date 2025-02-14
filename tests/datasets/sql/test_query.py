@@ -18,7 +18,7 @@ from spinta.testing.manifest import load_manifest_and_context
 from spinta.types.datatype import DataType, Integer, String, Boolean
 from spinta.types.datatype import Ref
 from spinta.types.geometry.components import Geometry
-from spinta.ufuncs.basequerybuilder.helpers import add_page_expr
+from spinta.ufuncs.querybuilder.helpers import add_page_expr
 from spinta.ufuncs.helpers import merge_formulas
 from spinta.ufuncs.loadbuilder.helpers import page_contains_unsupported_keys
 

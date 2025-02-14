@@ -15,8 +15,8 @@ from spinta.datasets.utils import iterparams
 from spinta.types.datatype import PrimaryKey, Array
 from spinta.types.datatype import Ref
 from spinta.typing import ObjectData
-from spinta.ufuncs.basequerybuilder.components import QueryParams
-from spinta.ufuncs.basequerybuilder.helpers import get_page_values
+from spinta.ufuncs.querybuilder.components import QueryParams
+from spinta.ufuncs.querybuilder.helpers import get_page_values
 from spinta.ufuncs.helpers import merge_formulas
 from spinta.ufuncs.resultbuilder.helpers import get_row_value, backend_result_builder_getter
 from spinta.utils.nestedstruct import flat_dicts_to_nested, extract_list_property_names

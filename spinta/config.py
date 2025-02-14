@@ -81,6 +81,34 @@ CONFIG = {
             'geojson': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
             'html': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
         },
+        'querybuilders': {
+            # Default query builder
+            '': 'spinta.ufuncs.querybuilder.components:QueryBuilder',
+
+            # Internal query builders
+            'postgresql': 'spinta.backends.postgresql.ufuncs.query.components:PgQueryBuilder',
+            'mongo': 'spinta.backends.mongo.ufuncs.components:MongoQueryBuilder',
+
+            # External query builders
+            'sql': 'spinta.datasets.backends.sql.ufuncs.query.components:SqlQueryBuilder',
+            'sql/sqlite': 'spinta.datasets.backends.sql.backends.sqlite.ufuncs.query.components:SqliteQueryBuilder',
+            'sql/mssql': 'spinta.datasets.backends.sql.backends.mssql.ufuncs.query.components:MSSQLQueryBuilder',
+            'sql/postgresql': 'spinta.datasets.backends.sql.backends.postgresql.ufuncs.query.components:PostgreSQLQueryBuilder',
+            'sql/oracle': 'spinta.datasets.backends.sql.backends.oracle.ufuncs.query.components:OracleQueryBuilder',
+            'sql/mysql': 'spinta.datasets.backends.sql.backends.mysql.ufuncs.query.components:MySQLQueryBuilder',
+            'sql/mariadb': 'spinta.datasets.backends.sql.backends.mariadb.ufuncs.query.components:MariaDBQueryBuilder',
+            'dataframe': 'spinta.datasets.backends.dataframe.ufuncs.query.components:DaskDataFrameQueryBuilder'
+        },
+        'resultbuilders': {
+            # Default result builder
+            '': 'spinta.ufuncs.resultbuilder.components.ResultBuilder',
+
+            # Internal result builders
+            'postgresql': 'spinta.backends.postgresql.ufuncs.result.components.PgResultBuilder',
+
+            # External result builders
+            'sql': 'spinta.datasets.backends.sql.ufuncs.result.components.SqlResultBuilder',
+        },
         'migrations': {
             'alembic': 'spinta.migrations.schema.alembic:Alembic',
         },

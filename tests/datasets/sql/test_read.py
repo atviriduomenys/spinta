@@ -12,7 +12,7 @@ from spinta.testing.data import listdata
 from spinta.testing.datasets import create_sqlite_db
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.testing.tabular import create_tabular_manifest
-from spinta.ufuncs.basequerybuilder.components import Selected
+from spinta.ufuncs.querybuilder.components import Selected
 from spinta.ufuncs.resultbuilder.helpers import get_row_value
 
 _DEFAULT_WITH_SQLITE_BACKENDS = ['sql', 'sqlite']

@@ -15,8 +15,8 @@ from spinta.core.ufuncs import Expr
 
 from spinta.exceptions import UnknownMethod
 from spinta.types.datatype import Array
-from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, QueryParams
-from spinta.ufuncs.basequerybuilder.helpers import merge_with_page_selected_list, \
+from spinta.ufuncs.querybuilder.components import QueryBuilder, QueryPage, QueryParams
+from spinta.ufuncs.querybuilder.helpers import merge_with_page_selected_list, \
     merge_with_page_sort, merge_with_page_limit
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.itertools import ensure_list
@@ -130,7 +130,7 @@ class SqlFrom:
         return self.joins[table_name]
 
 
-class SqlQueryBuilder(BaseQueryBuilder):
+class SqlQueryBuilder(QueryBuilder):
     backend: Sql
     model: Model
     table: sa.Table
