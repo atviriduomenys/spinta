@@ -32,6 +32,33 @@ Backwards incompatible:
   more functionality (in case some dialects support unique functions). Because system no longer tries to automatically
   detect the dialect there is a possibility of errors or invalid values if you do not set the correct dialect.
 
+- `Backend` objects now store `result_builder_class` and `query_builder_class` properties, which can be used to initialize
+  their respective builders. This changes how `QueryBuilders` and `ResultBuilders` are now created. Each `Backend` now has
+  to specify their builder through `result_builder_type` and `query_builder_type`, which are strings, that map with
+  corresponding classes in `config.components` (`#1127`_).
+
+  All `QueryBuilder` classes are stored in `config.components.querybuilders` path.
+
+  Currently there are these builders, that can be used:
+    - '' - Empty default query builder.
+    - `postgresql` - Internal postgresql query builder.
+    - `mongo` - Internal mongo query builder.
+    - `sql`- External default sql query builder.
+    - `sql/sqlite` - External sqlite dialect query builder.
+    - `sql/mssql` - External microsoft sql dialect query builder.
+    - `sql/postgresql` - External postgresql dialect query builder.
+    - `sql/oracle` - External oracle dialect query builder.
+    - `sql/mysql` - External mysql dialect query builder.
+    - `sql/mariadb` - External mariadb dialect query builder.
+    - `dataframe` - External Dask dataframe query builder.
+
+  All `ResultBuilder` classes are stored in `config.components.resultbuilders` path.
+
+  Currently there are these builders, that can be used:
+    - '' - Empty default result builder.
+    - `postgresql` - Internal postgresql result builder.
+    - `sql`- External sql result builder.
+
 New features:
 
 - Added exposed intermediate table support for external `Sql` backend (`#663`_).
