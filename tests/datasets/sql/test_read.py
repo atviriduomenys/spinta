@@ -4,7 +4,6 @@ import sqlalchemy as sa
 from spinta import commands
 from spinta.components import Context
 from spinta.core.config import RawConfig
-from spinta.datasets.backends.sql.components import Sql
 from spinta.exceptions import TooShortPageSize
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.client import create_client
@@ -12,6 +11,7 @@ from spinta.testing.data import listdata
 from spinta.testing.datasets import create_sqlite_db
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.testing.tabular import create_tabular_manifest
+from spinta.testing.utils import create_empty_backend
 from spinta.ufuncs.querybuilder.components import Selected
 from spinta.ufuncs.resultbuilder.helpers import get_row_value
 
@@ -153,7 +153,8 @@ def test__get_row_value_null(rc: RawConfig):
     row = ["Vilnius", None]
     model = commands.get_model(context, manifest, 'example/City')
     sel = Selected(1, model.properties['rating'])
-    assert get_row_value(context, Sql(), row, sel) is None
+    backend = create_empty_backend(context, 'sql')
+    assert get_row_value(context, backend, row, sel) is None
 
 
 @pytest.mark.parametrize("db_dialect", _DEFAULT_WITH_SQLITE_BACKENDS)
