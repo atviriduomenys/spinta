@@ -101,13 +101,13 @@ CONFIG = {
         },
         'resultbuilders': {
             # Default result builder
-            '': 'spinta.ufuncs.resultbuilder.components.ResultBuilder',
+            '': 'spinta.ufuncs.resultbuilder.components:ResultBuilder',
 
             # Internal result builders
-            'postgresql': 'spinta.backends.postgresql.ufuncs.result.components.PgResultBuilder',
+            'postgresql': 'spinta.backends.postgresql.ufuncs.result.components:PgResultBuilder',
 
             # External result builders
-            'sql': 'spinta.datasets.backends.sql.ufuncs.result.components.SqlResultBuilder',
+            'sql': 'spinta.datasets.backends.sql.ufuncs.result.components:SqlResultBuilder',
         },
         'migrations': {
             'alembic': 'spinta.migrations.schema.alembic:Alembic',
