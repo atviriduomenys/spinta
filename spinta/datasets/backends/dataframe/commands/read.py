@@ -12,7 +12,10 @@ from lxml import etree
 from spinta import commands
 from spinta.components import Context, Property, Model
 from spinta.core.ufuncs import Expr
-from spinta.datasets.backends.dataframe.components import DaskBackend, Csv, Xml, Json
+from spinta.datasets.backends.dataframe.components import DaskBackend
+from spinta.datasets.backends.dataframe.backends.json.components import Json
+from spinta.datasets.backends.dataframe.backends.csv.components import Csv
+from spinta.datasets.backends.dataframe.backends.xml.components import Xml
 from spinta.datasets.backends.dataframe.ufuncs.components import TabularResource
 from spinta.datasets.backends.dataframe.ufuncs.query.components import DaskDataFrameQueryBuilder
 from spinta.datasets.backends.helpers import handle_ref_key_assignment

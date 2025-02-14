@@ -75,9 +75,10 @@ CONFIG = {
             'sql/mariadb': 'spinta.datasets.backends.sql.backends.mariadb.components:MariaDB',
             'sql/oracle': 'spinta.datasets.backends.sql.backends.oracle.components:Oracle',
             'sqldump': 'spinta.datasets.backends.sqldump.components:SqlDump',
-            'csv': 'spinta.datasets.backends.dataframe.components:Csv',
-            'xml': 'spinta.datasets.backends.dataframe.components:Xml',
-            'json': 'spinta.datasets.backends.dataframe.components:Json',
+            'dask': 'spinta.datasets.backends.dataframe.components:DaskBackend',
+            'dask/csv': 'spinta.datasets.backends.dataframe.backends.csv.components:Csv',
+            'dask/xml': 'spinta.datasets.backends.dataframe.backends.xml.components:Xml',
+            'dask/json': 'spinta.datasets.backends.dataframe.backends.json.components:Json',
             'xlsx': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
             'geojson': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
             'html': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
@@ -98,7 +99,7 @@ CONFIG = {
             'sql/oracle': 'spinta.datasets.backends.sql.backends.oracle.ufuncs.query.components:OracleQueryBuilder',
             'sql/mysql': 'spinta.datasets.backends.sql.backends.mysql.ufuncs.query.components:MySQLQueryBuilder',
             'sql/mariadb': 'spinta.datasets.backends.sql.backends.mariadb.ufuncs.query.components:MariaDBQueryBuilder',
-            'dataframe': 'spinta.datasets.backends.dataframe.ufuncs.query.components:DaskDataFrameQueryBuilder'
+            'dask': 'spinta.datasets.backends.dataframe.ufuncs.query.components:DaskDataFrameQueryBuilder'
         },
         'resultbuilders': {
             # Default result builder
