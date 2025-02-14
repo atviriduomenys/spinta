@@ -130,7 +130,7 @@ def get_row_value(context: Context, backend: Backend, row: Any, sel: Any, check_
 
 
 def backend_result_builder_getter(context: Context, backend: Backend) -> ResultBuilderGetter:
-    return lambda: backend.result_builder_class(backend)
+    return lambda: backend.result_builder_class(context)
 
 
 def _get_row_value(
