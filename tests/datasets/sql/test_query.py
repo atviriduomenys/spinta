@@ -8,6 +8,7 @@ from sqlalchemy.sql.type_api import TypeEngine
 
 from spinta import commands
 from spinta.auth import AdminToken
+from spinta.backends.helpers import load_query_builder_class
 from spinta.components import Model, Mode, Context
 from spinta.core.config import RawConfig
 from spinta.datasets.backends.sql.components import Sql
@@ -85,6 +86,7 @@ def _build(rc: RawConfig, manifest: str, model_name: str, page_mapping: dict = N
     backend = model.backend
     if not isinstance(backend, Sql):
         backend = Sql()
+        load_query_builder_class(context, backend)
 
     backend.schema = meta
     query = model.external.prepare
