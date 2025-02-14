@@ -8,6 +8,7 @@ from sqlalchemy.sql import Select
 from spinta import commands
 from spinta import spyna
 from spinta.auth import AdminToken
+from spinta.backends.helpers import load_backend, load_query_builder_class
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.core.config import RawConfig
 from spinta.core.ufuncs import asttoexpr
@@ -31,6 +32,7 @@ def _build(rc: RawConfig, manifest: str, model_name: str, query: str, page_mappi
     backend.name = 'default'
     backend.schema = sa.MetaData()
     backend.tables = {}
+    load_query_builder_class(context, backend)
     commands.prepare(context, backend, manifest)
     model = commands.get_model(context, manifest, model_name)
     query = asttoexpr(spyna.parse(query))
