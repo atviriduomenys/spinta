@@ -143,8 +143,8 @@ def create_empty_backend(context: Context, backend_type: str, name: str = '') ->
     Backend_ = config.components['backends'][backend_type]
     backend = Backend_()
     backend.name = name
-    load_query_builder_class(context, backend)
-    load_result_builder_class(context, backend)
+    load_query_builder_class(config, backend)
+    load_result_builder_class(config, backend)
     return backend
 
 

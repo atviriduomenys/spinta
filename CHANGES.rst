@@ -40,7 +40,7 @@ Backwards incompatible:
     - `sql/oracle` - External oracle dialect query builder.
     - `sql/mysql` - External mysql dialect query builder.
     - `sql/mariadb` - External mariadb dialect query builder.
-    - `dataframe` - External Dask dataframe query builder.
+    - `dask` - External Dask dataframe query builder.
 
   All `ResultBuilder` classes are stored in `config.components.resultbuilders` path.
 
@@ -48,6 +48,12 @@ Backwards incompatible:
     - '' - Empty default result builder.
     - `postgresql` - Internal postgresql result builder.
     - `sql`- External sql result builder.
+
+- In order to maintain cohesiveness in code and data structure, dask backends have gone through same treatment as `sql`
+  Before they worked similar to the new system (users had to manually specify their type), but now to make sure that
+  naming convention is same with all components `csv`, `json` and `xml` types have been renamed to `dask/csv`, `dask/json`,
+  `dask/xml`. If you used these backends before, you will now need to add `dask/` prefix to their types (`#1127`_).
+
 
 New features:
 

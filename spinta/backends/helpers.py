@@ -14,7 +14,7 @@ from spinta import spyna
 from spinta.auth import authorized
 from spinta.backends import Backend
 from spinta.backends.components import SelectTree
-from spinta.components import Action
+from spinta.components import Action, Config
 from spinta.components import Component
 from spinta.components import Context
 from spinta.components import Model
@@ -70,8 +70,8 @@ def load_backend(
     backend.name = name
     backend.origin = origin
     backend.config = data
-    load_query_builder_class(context, backend)
-    load_result_builder_class(context, backend)
+    load_query_builder_class(config, backend)
+    load_result_builder_class(config, backend)
     commands.load(context, backend, data)
     return backend
 
@@ -343,17 +343,15 @@ def get_table_name(
     return name
 
 
-def load_query_builder_class(context: Context, backend: Backend):
+def load_query_builder_class(config: Config, backend: Backend):
     if backend.query_builder_type is None:
         return
 
-    config = context.get('config')
     backend.query_builder_class = config.components.get('querybuilders')[backend.query_builder_type]
 
 
-def load_result_builder_class(context: Context, backend: Backend):
+def load_result_builder_class(config: Config, backend: Backend):
     if backend.result_builder_type is None:
         return
 
-    config = context.get('config')
     backend.result_builder_class = config.components.get('resultbuilders')[backend.result_builder_type]
