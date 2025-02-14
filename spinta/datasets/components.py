@@ -197,7 +197,7 @@ class Entity(External):
     resource: Optional[Resource]    # resource
     model: Model                    # model
     pkeys: List[Property]           # model.ref
-    # This is set to True if primary key is not given. Anf if primary key is not
+    # This is set to True if primary key is not given. And if primary key is not
     # given, then `pkeys` will be set to all properties.
     unknown_primary_key: bool = False
     name: str                       # model.source

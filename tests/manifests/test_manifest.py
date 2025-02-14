@@ -1141,6 +1141,22 @@ def test_primary_key_can_not_be_an_array(manifest_type, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
+def test_array_properties_not_inferred_as_pk_when_pk_not_explicitly_defined(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
+        d | r | b | m | property | type    | ref
+        example                  |         |
+                                 |         |
+          |   |   | Country      |         |
+          |   |   |   | id       | string  |
+          |   |   |   | cities[] | backref | City
+                                 |         |
+          |   |   | City         |         | name
+          |   |   |   | name     | string  |
+          |   |   |   | country  | ref     | Country
+    ''', manifest_type)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_primary_key_is_a_string_array_is_used_as_backref(manifest_type, tmp_path, rc):
     check(tmp_path, rc, '''
         d | r | b | m | property | type    | ref

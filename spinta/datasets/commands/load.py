@@ -130,7 +130,7 @@ def load(context: Context, entity: Entity, data: dict, manifest: Manifest):
     else:
         entity.unknown_primary_key = True
         entity.pkeys = sorted(
-            take(entity.model.flatprops).values(),
+            [pk for pk in take(entity.model.flatprops).values() if not pk.list],
             key=lambda p: p.place,
         )
 
