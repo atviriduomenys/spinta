@@ -365,6 +365,7 @@ class ResourceReader(TabularReader):
             'title': row['title'],
             'description': row['description'],
             'given_name': self.name,
+            'source_type': row['source.type']
         }
 
         dataset['resources'][self.name] = self.data
@@ -484,6 +485,7 @@ class ModelReader(TabularReader):
                     if row['ref'] else []
                 ),
                 'name': row['source'],
+                'type': row['source.type'],
                 'prepare': _parse_spyna(self, row[PREPARE]),
             },
             'given_name': name,
@@ -789,6 +791,7 @@ def _datatype_handler(reader: PropertyReader, row: dict, initial_data_loader: Ca
     if dataset or row['source']:
         new_data['external'] = {
             'name': row['source'],
+            'type': row['source.type'],
         }
 
     return new_data
@@ -834,6 +837,7 @@ def _string_datatype_handler(reader: PropertyReader, row: dict):
     if dataset or row['source']:
         new_data['external'] = {
             'name': row['source'],
+            'type': row['source.type']
         }
 
     return new_data
@@ -2350,6 +2354,7 @@ def _resource_to_tabular(
         'id': resource.id,
         'resource': resource.name,
         'source': resource.external if external else '',
+        'source.type': resource.source_type,
         'prepare': unparse(resource.prepare or NA) if external else '',
         'type': resource.type,
         'ref': (
@@ -2421,6 +2426,7 @@ def _property_to_tabular(
             )
         elif prop.external:
             data['source'] = prop.external.name
+            data['source.type'] = prop.external.type
             data['prepare'] = unparse(prop.external.prepare or NA)
 
     yield_rows = []
@@ -2537,6 +2543,7 @@ def _model_to_tabular(
     if external and model.external:
         data.update({
             'source': model.external.name,
+            'source.type': model.external.type,
             'prepare': unparse(model.external.prepare or NA),
         })
         if (
