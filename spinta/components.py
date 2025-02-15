@@ -23,7 +23,7 @@ from spinta.dimensions.lang.components import LangData
 from spinta.units.components import Unit
 from spinta.utils.encoding import encode_page_values
 from spinta.utils.schema import NA
-from spinta.core.enums import Access, Level
+from spinta.core.enums import Access, Level, Status, Visibility
 
 if TYPE_CHECKING:
     from spinta.backends.components import Backend
@@ -676,6 +676,11 @@ class Model(MetaData):
     uri_prop: Property = None
     page: PageInfo = None
     features: str = None
+    status: Status | None = None
+    visibility: Visibility | None = None
+    eli: str | None = None
+    count: int | None = None
+    origin: str | None = None
 
     required_keymap_properties = None
 
@@ -704,6 +709,19 @@ class Model(MetaData):
         'uri': {'type': 'string'},
         'given_name': {'type': 'string', 'default': None},
         'features': {},
+        'status': {
+            'type': 'string',
+            'choices': Status,
+            'default': 'develop'
+        },
+        'visibility': {
+            'type': 'string',
+            'choices': Visibility,
+            'default': 'private',
+        },
+        'eli': {'type': 'string'},
+        'count': {'type': 'integer'},
+        'origin': {'type': 'string'},
     }
 
     def __init__(self):
@@ -723,6 +741,11 @@ class Model(MetaData):
         self.required_keymap_properties = []
         self.page = PageInfo(self)
         self.uri_prop = None
+        self.status = None
+        self.visibility = None
+        self.eli = None
+        self.count = None
+        self.origin = None
 
     def model_type(self):
         return self.name
@@ -733,7 +756,6 @@ class Model(MetaData):
         return self.basename
 
         # return self.name.split('/')[-1]
-
 
     def add_keymap_property_combination(self, given_props: List[Property]):
         extract_names = list([prop.name for prop in given_props])
@@ -784,6 +806,11 @@ class Property(ExtraMetaData):
     lang: LangData = None
     unit: Unit = None       # Given in ref column.
     comments: List[Comment] = None
+    status: Status | None = None
+    visibility: Visibility | None = None
+    eli: str = None
+    count: int = None
+    origin: str = None
 
     schema = {
         'title': {},
@@ -811,6 +838,19 @@ class Property(ExtraMetaData):
         'given_name': {'type': 'string', 'default': None},
         'explicitly_given': {'type': 'boolean'},
         'prepare_given': {'required': False},
+        'status': {
+            'type': 'string',
+            'choices': Status,
+            'default': 'develop',
+        },
+        'visibility': {
+            'type': 'string',
+            'choices': Visibility,
+            'default': 'private',
+        },
+        'eli': {'type': 'string'},
+        'count': {'type': 'integer'},
+        'origin': {'type': 'string'},
     }
 
     def __init__(self):

@@ -10,12 +10,18 @@ DATASET = [
     'type',
     'ref',
     'source',
+    'source.type',
     'prepare',
     'level',
     'access',
     'uri',
     'title',
     'description',
+    'status',
+    'visibility',
+    'eli',
+    'count',
+    'origin'
 ]
 
 
@@ -30,5 +36,3 @@ class DataTypeEnum(Enum):
     _PARTIAL = 'partial'              # Internal type
     _ARRAY_BACKREF = 'array_backref'  # Internal type
     _PARTIAL_ARRAY = 'partial_array'  # Internal type
-
-    

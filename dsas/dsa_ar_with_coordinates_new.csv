@@ -1,0 +1,222 @@
+id,dataset,resource,base,model,property,type,ref,source,prepare,level,status,visibility,access,uri,eli,title,description
+,datasets/gov/rc/ar_ws/text_with_coordinates,,,,,,,,,,,,,,,Adresų duomenys su koordinatėmis,"Administracinių-teritorinių vienetų ir seniūnijų, gyvenamųjų vietovių, gatvių, adresų (žemės sklypų ir (ar) pastatų, patalpų) tekstinių duomenų su koordinatėmis rinkinys iš Lietuvos Respublikos adresų registro. Duomenų geografinė imtis — visa šalies teritorija."
+,,,,,,prefix,ldtype,,,,,,,http://inspire.ec.europa.eu/codelist/LocatorDesignatorTypeValue/,,,
+,,,,,,,cv,,,,,,,http://data.europa.eu/m8g/,,,
+,,,,,,,atutype,,,,,,,http://publications.europa.eu/resource/authority/atu-type/,,,
+,,,,,,,atu,,,,,,,http://publications.europa.eu/resource/authority/atu,,,
+,,,,,,,rdfs,,,,,,,http://www.w3.org/2000/01/rdf-schema#,,,
+,,,,,,,dct,,,,,,,http://purl.org/dc/terms/,,,
+,,,,,,,locn,,,,,,,http://www.w3.org/ns/locn#,,,
+,,,,,,,ad,,,,,,,http://inspire.ec.europa.eu/ont/ad#,,,
+,,,,,,,spinta,,,,,,,https://github.com/atviriduomenys/spinta/issues/,,,
+,,,,,,,skos,,,,,,,https://www.w3.org/2009/08/skos-reference/skos.html#,,,
+,,,,AdminUnitLevel,,,title@lt,/ADMINISTRACINIAI/ADMINISTRACINIS,,2,completed,public,,skos:Concept,https://e-seimas.lrs.lt/portal/legalAct/lt/TAD/TAIS.235119/asr#15.2.1.2.,Administracinio vieneto tipas,Administracinio vieneto tipas
+,,,,,_label@lt,string,,TIPAS,,5,completed,public,public,,,Pavadinimas,"Administracinio vieneto tipo pavadinimas (apskritis, savivaldybė, seniūnija)"
+,,,,,id,integer,,,,0,completed,package,public,,,Identifikatorius,Identifikatorius
+,,,,,title@lt,string  required,,TIPAS,,5,completed,public,public,,,Pavadinimas,"Administracinio vieneto tipo pavadinimas (apskritis, savivaldybė, seniūnija)"
+,,,,,abbreviation@lt,string,,TIPO_SANTRUMPA,,5,completed,package,public,,,Santrumpa,"Administracinio vieneto tipo santrumpa (apskritis - apskr., savivaldybė - sav., seniūnija - sen.)"
+,,,,AdminUnit,,,code,/ADMINISTRACINIAI/ADMINISTRACINIS,,5,completed,public,,cv:AdminUnit,https://e-seimas.lrs.lt/portal/legalAct/lt/TAD/TAIS.235119/asr#14.1.,Administracinis vienetas,Administracinis teritorinis vienetas
+,,,,,id,integer,,,,0,completed,package,public,,,Administracinio vieneto identifikatorius,Administracinio vieneto identifikatorius
+,,,,,code,integer required,,ADM_KODAS,,4,completed,package,public,cv:code,,Administracinio vieneto identifikacinis kodas,Administracinio vieneto identifikacinis kodas
+,,,,,,enum,,1,,,,,,atu:LTU_APS_AYS,,Alytaus apskritis,Alytaus apskritis
+,,,,,,,,2,,,,,,atu:LTU_APS_KUN,,Kauno apskritis,Kauno apskritis
+,,,,,,,,3,,,,,,atu:LTU_APS_KLA,,Klaipėdos apskritis,Klaipėdos apskritis
+,,,,,,,,4,,,,,,atu:LTU_APS_MJP,,Marijampolės apskritis,Marijampolės apskritis
+,,,,,,,,5,,,,,,atu:LTU_APS_PNV,,Panevėžio apskritis,Panevėžio apskritis
+,,,,,,,,6,,,,,,atu:LTU_APS_SQQ,,Šiaulių apskritis,Šiaulių apskritis
+,,,,,,,,7,,,,,,atu:LTU_APS_TAU,,Tauragės apskritis,Tauragės apskritis
+,,,,,,,,8,,,,,,atu:LTU_APS_TEL,,Telšių apskritis,Telšių apskritis
+,,,,,,,,9,,,,,,atu:LTU_APS_UTA,,Utenos apskritis,Utenos apskritis
+,,,,,,,,10,,,,,,atu:LTU_APS_VNO,,Vilniaus apskritis,Vilniaus apskritis
+,,,,,,,,11,,,,,,atu:LTU_MSV_AYS,,Alytaus miesto savivaldybė,Alytaus miesto savivaldybė
+,,,,,,,,12,,,,,,atu:LTU_MSV_BIR,,Birštono savivaldybė,Birštono savivaldybė
+,,,,,,,,13,,,,,,atu:LTU_MSV_VNO,,Vilniaus miesto savivaldybė,Vilniaus miesto savivaldybė
+,,,,,,,,15,,,,,,atu:LTU_MSV_DRU,,Druskininkų savivaldybė,Druskininkų savivaldybė
+,,,,,,,,18,,,,,,atu:LTU_MSV_MAR,,Marijampolės savivaldybė,Marijampolės savivaldybė
+,,,,,,,,19,,,,,,atu:LTU_MSV_KAU,,Kauno miesto savivaldybė,Kauno miesto savivaldybė
+,,,,,,,,21,,,,,,atu:LTU_MSV_KLP,,Klaipėdos miesto savivaldybė,Klaipėdos miesto savivaldybė
+,,,,,,,,23,,,,,,atu:LTU_MSV_NER,,Neringos savivaldybė,Neringos savivaldybė
+,,,,,,,,25,,,,,,atu:LTU_MSV_PAL,,Palangos miesto savivaldybė,Palangos miesto savivaldybė
+,,,,,,,,27,,,,,,atu:LTU_MSV_PNV,,Panevėžio miesto savivaldybė,Panevėžio miesto savivaldybė
+,,,,,,,,29,,,,,,atu:LTU_MSV_SIA,,Šiaulių miesto savivaldybė,Šiaulių miesto savivaldybė
+,,,,,,,,30,,,,,,atu:LTU_MSV_VIS,,Visagino savivaldybė,Visagino savivaldybė
+,,,,,,,,32,,,,,,atu:LTU_RSV_AKM,,Akmenės rajono savivaldybė,Akmenės rajono savivaldybė
+,,,,,,,,33,,,,,,atu:LTU_RSV_ALY,,Alytaus rajono savivaldybė,Alytaus rajono savivaldybė
+,,,,,,,,34,,,,,,atu:LTU_RSV_ANY,,Anykščių rajono savivaldybė,Anykščių rajono savivaldybė
+,,,,,,,,36,,,,,,atu:LTU_RSV_BIR,,Biržų rajono savivaldybė,Biržų rajono savivaldybė
+,,,,,,,,38,,,,,,atu:LTU_RSV_VAR,,Varėnos rajono savivaldybė,Varėnos rajono savivaldybė
+,,,,,,,,39,,,,,,atu:LTU_RSV_VIK,,Vilkaviškio rajono savivaldybė,Vilkaviškio rajono savivaldybė
+,,,,,,,,41,,,,,,atu:LTU_RSV_VIL,,Vilniaus rajono savivaldybė,Vilniaus rajono savivaldybė
+,,,,,,,,42,,,,,,atu:LTU_MSV_ELE,,Elektrėnų savivaldybė,Elektrėnų savivaldybė
+,,,,,,,,43,,,,,,atu:LTU_RSV_ZAR,,Zarasų rajono savivaldybė,Zarasų rajono savivaldybė
+,,,,,,,,45,,,,,,atu:LTU_RSV_IGN,,Ignalinos rajono savivaldybė,Ignalinos rajono savivaldybė
+,,,,,,,,46,,,,,,atu:LTU_RSV_JNA,,Jonavos rajono savivaldybė,Jonavos rajono savivaldybė
+,,,,,,,,47,,,,,,atu:LTU_RSV_JON,,Joniškio rajono savivaldybė,Joniškio rajono savivaldybė
+,,,,,,,,48,,,,,,atu:LTU_MSV_KAL,,Kalvarijos savivaldybė,Kalvarijos savivaldybė
+,,,,,,,,49,,,,,,atu:LTU_RSV_KAI,,Kaišiadorių rajono savivaldybė,Kaišiadorių rajono savivaldybė
+,,,,,,,,52,,,,,,atu:LTU_RSV_KAU,,Kauno rajono savivaldybė,Kauno rajono savivaldybė
+,,,,,,,,53,,,,,,atu:LTU_RSV_KED,,Kėdainių rajono savivaldybė,Kėdainių rajono savivaldybė
+,,,,,,,,54,,,,,,atu:LTU_RSV_KEL,,Kelmės rajono savivaldybė,Kelmės rajono savivaldybė
+,,,,,,,,55,,,,,,atu:LTU_RSV_KLP,,Klaipėdos rajono savivaldybė,Klaipėdos rajono savivaldybė
+,,,,,,,,56,,,,,,atu:LTU_RSV_KRE,,Kretingos rajono savivaldybė,Kretingos rajono savivaldybė
+,,,,,,,,57,,,,,,atu:LTU_RSV_KUP,,Kupiškio rajono savivaldybė,Kupiškio rajono savivaldybė
+,,,,,,,,58,,,,,,atu:LTU_MSV_KAZ,,Kazlų Rūdos savivaldybė,Kazlų Rūdos savivaldybė
+,,,,,,,,59,,,,,,atu:LTU_RSV_LAZ,,Lazdijų rajono savivaldybė,Lazdijų rajono savivaldybė
+,,,,,,,,61,,,,,,atu:LTU_RSV_MAZ,,Mažeikių rajono savivaldybė,Mažeikių rajono savivaldybė
+,,,,,,,,62,,,,,,atu:LTU_RSV_MOL,,Molėtų rajono savivaldybė,Molėtų rajono savivaldybė
+,,,,,,,,63,,,,,,atu:LTU_MSV_PAG,,Pagėgių savivaldybė,Pagėgių savivaldybė
+,,,,,,,,65,,,,,,atu:LTU_RSV_PAK,,Pakruojo rajono savivaldybė,Pakruojo rajono savivaldybė
+,,,,,,,,66,,,,,,atu:LTU_RSV_PNE,,Panevėžio rajono savivaldybė,Panevėžio rajono savivaldybė
+,,,,,,,,67,,,,,,atu:LTU_RSV_PAS,,Pasvalio rajono savivaldybė,Pasvalio rajono savivaldybė
+,,,,,,,,68,,,,,,atu:LTU_RSV_PLU,,Plungės rajono savivaldybė,Plungės rajono savivaldybė
+,,,,,,,,69,,,,,,atu:LTU_RSV_PRI,,Prienų rajono savivaldybė,Prienų rajono savivaldybė
+,,,,,,,,71,,,,,,atu:LTU_RSV_RAD,,Radviliškio rajono savivaldybė,Radviliškio rajono savivaldybė
+,,,,,,,,72,,,,,,atu:LTU_RSV_RAS,,Raseinių rajono savivaldybė,Raseinių rajono savivaldybė
+,,,,,,,,73,,,,,,atu:LTU_RSV_ROK,,Rokiškio rajono savivaldybė,Rokiškio rajono savivaldybė
+,,,,,,,,74,,,,,,atu:LTU_MSV_RIE,,Rietavo savivaldybė,Rietavo savivaldybė
+,,,,,,,,75,,,,,,atu:LTU_RSV_SKO,,Skuodo rajono savivaldybė,Skuodo rajono savivaldybė
+,,,,,,,,77,,,,,,atu:LTU_RSV_TAU,,Tauragės rajono savivaldybė,Tauragės rajono savivaldybė
+,,,,,,,,78,,,,,,atu:LTU_RSV_TEL,,Telšių rajono savivaldybė,Telšių rajono savivaldybė
+,,,,,,,,79,,,,,,atu:LTU_RSV_TRA,,Trakų rajono savivaldybė,Trakų rajono savivaldybė
+,,,,,,,,81,,,,,,atu:LTU_RSV_UKM,,Ukmergės rajono savivaldybė,Ukmergės rajono savivaldybė
+,,,,,,,,82,,,,,,atu:LTU_RSV_UTR,,Utenos rajono savivaldybė,Utenos rajono savivaldybė
+,,,,,,,,84,,,,,,atu:LTU_RSV_SHA,,Šakių rajono savivaldybė,Šakių rajono savivaldybė
+,,,,,,,,85,,,,,,atu:LTU_RSV_SAL,,Šalčininkų rajono savivaldybė,Šalčininkų rajono savivaldybė
+,,,,,,,,86,,,,,,atu:LTU_RSV_SVE,,Švenčionių rajono savivaldybė,Švenčionių rajono savivaldybė
+,,,,,,,,87,,,,,,atu:LTU_RSV_SIL,,Šilalės rajono savivaldybė,Šilalės rajono savivaldybė
+,,,,,,,,88,,,,,,atu:LTU_RSV_SHI,,Šilutės rajono savivaldybė,Šilutės rajono savivaldybė
+,,,,,,,,89,,,,,,atu:LTU_RSV_SIR,,Širvintų rajono savivaldybė,Širvintų rajono savivaldybė
+,,,,,,,,91,,,,,,atu:LTU_RSV_SIA,,Šiaulių rajono savivaldybė,Šiaulių rajono savivaldybė
+,,,,,,,,94,,,,,,atu:LTU_RSV_JUR,,Jurbarko rajono savivaldybė,Jurbarko rajono savivaldybė
+,,,,,,,,,add_values(),,,,,,,,
+,,,,,,,,,,,,,,,,,
+,,,,,level,ref,AdminUnitLevel,TIPAS,,2,completed,public,public,cv:level,,,
+,,,,,,enum,,apskritis,,5,completed,public,public,atutype:LTU_APS,,,
+,,,,,,,,savivaldybė,,5,completed,public,public,atutype:LTU_SV,,,
+,,,,,,,,seniūnija,,5,completed,public,public,atutype:LTU_SEN,,,
+,,,,,level.title@lt,string,,TIPAS,,5,completed,public,public,,,Pavadinimas,"Administracinio vieneto tipo pavadinimas (apskritis, savivaldybė, seniūnija)"
+,,,,,level.abbreviation@lt,string,,TIPO_SANTRUMPA,,5,completed,public,public,,,Santrumpa,"Administracinio vieneto tipo santrumpa (apskritis - apskr., savivaldybė - sav., seniūnija - sen.)"
+,,,,,name_gen@lt,string,,VARDAS_K,,5,completed,public,public,rdfs:label,,Vardas,Administracinio vieneto vardas kilmininko linksniu
+,,,,,_label@lt,string,,VARDAS_K,,5,completed,public,public,,,Vardas,Administracinio vieneto vardas kilmininko linksniu
+,,,,,name_gen_latin,string,,VARDAS_K_LOT,,4,completed,package,public,,,Vardas lotyniškomis raidėmis,Administracinio vieneto vardas kilmininko linksniu lotyniškomis raidėmis
+,,,,,belongs_to,ref,AdminUnit[code],PRIKLAUSO_KODAS,,5,completed,public,public,,,Priklausomybė administraciniam vienetui,Administracinio vieneto priklausomybė hierarchiškai aukštesniam vienetui
+,,,,,belongs_to.code,integer,,PRIKLAUSO_KODAS,,4,completed,package,public,,,Hierarchiškai aukštesnio administracinio vieneto kodas,Hierarchiškai aukštesnio administracinio vieneto kodas
+,,,,,center,ref,Location[code],GYV_KODAS,,5,completed,public,public,dct:identifier,,Gyvenvietė,Administracinio vieneto centras
+,,,,,center.code,integer,,GYV_KODAS,,5,completed,public,public,dct:identifier,,Gyvenvietė,Administracinio vieneto centras
+,,,,,_created,date,D,NUO,,5,completed,public,public,dct:created,,Objekto atributų rinkinio galiojimo pradžia,Administracinio vieneto objekto atributų rinkinio galiojimo pradžios data
+,,,,,_updated,date,D,IKI,,5,completed,public,public,dct:updated,,Objekto atributų rinkinio galiojimo pabaiga,Administracinio vieneto objekto atributų rinkinio galiojimo pabaigos data
+,,,,,registered,date,D,ADM_NUO,,4,completed,package,public,,,Objekto įregistravimo data,Administracinio vieneto objekto įregistravimo data
+,,,,,deregistered,date,D,ADM_IKI,,4,completed,package,public,,,Objekto išregistravimo data,Administracinio vieneto objekto išregistravimo data
+,,,,,,,,,,,,,,,,,
+,,,,LocationType,,,title@lt,/GYVENVIETES/GYVENVIETE,,2,completed,public,,skos:Concept,,Gyvenamosios vietovės tipas,Gyvenamosios vietovės tipas
+,,,,,id,integer,,,,0,completed,package,public,,,Identifikatorius,Identifikatorius
+,,,,,title@lt,string required,,TIPAS,,5,completed,package,public,,,Tipo pavadinimas,"Gyvenamosios vietovės tipas (miestas, miestelis, kaimas, viensėdis)"
+,,,,,_label@lt,string,,TIPAS,,5,completed,public,public,,,Tipo pavadinimas,"Gyvenamosios vietovės tipas (miestas, miestelis, kaimas, viensėdis)"
+,,,,,abbreviation@lt,string,,TIPO_SANTRUMPA,,5,completed,public,public,,,Tipo santrumpa,"Gyvenamosios vietovės tipo santrumpa (miestas - m., miestelis - mstl., kaimas - k., viensėdis - vs.)"
+,,,,,,,,,,,,,,,,,
+,,,,Location,,,code,/GYVENVIETES/GYVENVIETE,,5,completed,public,,dct:Location,,Gyvenamoji vietovė,Gyvenamoji vietovė
+,,,,,code,integer required,,GYV_KODAS,,5,completed,public,public,dct:identifier,,Identifikavimo kodas,Gyvenamosios vietovės identifikavimo kodas
+,,,,,id,integer,,GYV_ID,,5,completed,public,private,dct:identifier,,Techninis identifikatorius,Gyvenamosios vietovės techninis identifikatorius (planuojama neteikti)
+,,,,,type,ref,LocationType,TIPAS,,2,completed,package,public,,,,
+,,,,,type.title@lt,string,,TIPAS,,5,completed,package,public,,,,
+,,,,,type.abbreviation@lt,string,,TIPO_SANTRUMPA,,5,completed,package,public,,,,
+,,,,,name@lt,string,,VARDAS_V,,5,completed,public,public,locn:geographicName,,Vardas,Gyvenamosios vietovės vardas vardininko linksniu
+,,,,,_label@lt,string,,VARDAS_V,,5,completed,public,public,,,Vardas,Gyvenamosios vietovės vardas vardininko linksniu
+,,,,,name_latin,string,,VARDAS_V_LOT,,5,completed,public,public,locn:geographicName,,Vardas lotyniškomis raidėmis,Gyvenamosios vietovės vardas vardininko linksniu lotyniškomis raidėmis
+,,,,,name_gen@lt,string,,VARDAS_K,,5,completed,public,public,locn:geographicName,,Vardas kilmininko linksniu,Gyvenamosios vietovės vardas kilmininko linksniu
+,,,,,name_gen_latin,string,,VARDAS_K_LOT,,5,completed,public,public,locn:geographicName,,Vardas kilmininko linksniu lotyniškomis raidėmis,Gyvenamosios vietovės vardas kilmininko linksniu lotyniškomis raidėmis
+,,,,,admin_unit,ref,AdminUnit[code],ADM_KODAS,,5,completed,public,public,,,,
+,,,,,admin_unit.code,integer,,ADM_KODAS,,4,completed,package,public,,,"Gyvenamosios vietovės savivaldybės arba seniūnijos, kurios teritorijoje yra gyvenamoji vietovė, kodas","Gyvenamosios vietovės savivaldybės arba seniūnijos, kurios teritorijoje yra gyvenamoji vietovė, kodas"
+,,,,,_created,date,D,NUO,,5,completed,public,public,dct:created,,Objekto atributų rinkinio galiojimo pradžia,Gyvenamosios vietovės objekto atributų rinkinio galiojimo pradžios data
+,,,,,_updated,date,D,IKI,,5,completed,public,public,dct:updated,,Objekto atributų rinkinio galiojimo pabaiga,Gyvenamosios vietovės objekto atributų rinkinio galiojimo pabaigos data
+,,,,,registered,date,D,GYV_NUO,,4,completed,package,public,,,Objekto įregistravimo data,Gyvenamosios vietovės objekto įregistravimo data
+,,,,,deregistered,date,D,GYV_IKI,,4,completed,package,public,,,Objekto išregistravimo data,Gyvenamosios vietovės objekto išregistravimo data
+,,,,,,,,,,,,,,,,,
+,,,,StreetType,,,title@lt,/GATVES/GATVE,,2,completed,public,,skos:Concept,,Gatvės tipas,Gatvės tipas
+,,,,,id,integer,,,,0,completed,package,public,,,Identifikatorius,Identifikatorius
+,,,,,title@lt,string required,,TIPAS,,5,completed,public,public,,,Tipo pavadinimas,"Gatvės tipas (gatvė, skersgatvis, akligatvis, alėja, prospektas, takas, plentas, kelias, aplinkkelis, vieškelis, aikštė, bulvaras, skveras, krantinė)"
+,,,,,_label@lt,string,,TIPAS,,5,completed,public,public,,,Tipo pavadinimas,"Gatvės tipas (gatvė, skersgatvis, akligatvis, alėja, prospektas, takas, plentas, kelias, aplinkkelis, vieškelis, aikštė, bulvaras, skveras, krantinė)"
+,,,,,abbreviation@lt,string,,TIPO_SANTRUMPA,,5,completed,public,public,,,Tipo santrumpa,"Gatvės tipo santrumpa (gatvė - g., skersgatvis - skg., akligatvis - aklg., alėja - al., prospektas - pr., takas - tak., plentas - pl., kelias - kel., aplinkkelis - aplinkl., vieškelis - vieškl., aikštė - a., bulvaras - bul., skveras - skv., krantinė - krant.)"
+,,,,,,,,,,,,,,,,,
+,,,,Street,,,code,/GATVES/GATVE,,5,completed,public,,dct:Location,,Gatvė,Gatvė
+,,,,,code,integer required,,GAT_KODAS,,5,completed,public,public,dct:identifier,,Identifikavimo kodas,Gatvės identifikavimo kodas
+,,,,,id,integer,,GAT_ID,,5,completed,public,private,dct:identifier,,Techninis identifikatorius,Gatvės techninis identifikatorius (planuojama neteikti)
+,,,,,type,ref,StreetType,TIPAS,,2,completed,public,public,,,,
+,,,,,type.title@lt,string,,TIPAS,,5,completed,public,public,,,,
+,,,,,type.abbreviation@lt,string,,TIPO_SANTRUMPA,,5,completed,public,public,,,,
+,,,,,name_gen@lt,string,,VARDAS_K,,5,completed,public,public,locn:geographicName,,Vardas,Gatvės vardas kilmininko linksniu
+,,,,,name_gen_latin,string,,VARDAS_K_LOT,,5,completed,public,public,locn:geographicName,,Vardas lotyniškomis raidėmis,Gatvės vardas kilmininko linksniu lotyniškomis raidėmis
+,,,,,_label@lt,string,,VARDAS_K,,5,completed,public,public,,,Vardas,Gatvės vardas kilmininko linksniu
+,,,,,location,ref,Location[code],GYV_KODAS,,5,completed,public,public,,,Priklausomybė gyvenamajai vietovei,"Gyvenamosios vietovės, kurios teritorijoje yra gatvė, kodas"
+,,,,,location.code,integer,,GYV_KODAS,,5,completed,public,public,,,,
+,,,,,_created,date,D,NUO,,5,completed,public,public,dct:created,,Gatvės objekto atributų rinkinio galiojimo pradžia,Gatvės objekto atributų rinkinio galiojimo pradžios data
+,,,,,_updated,date,D,IKI,,5,completed,public,public,dct:updated,,Gatvės objekto atributų rinkinio galiojimo pabaiga,Gatvės objekto atributų rinkinio galiojimo pabaigos data
+,,,,,registered,date,D,GAT_NUO,,4,completed,package,public,,,Gatvės objekto įregistravimo data,Gatvės objekto įregistravimo data
+,,,,,deregistered,date,D,GAT_IKI,,4,completed,package,public,,,Gatvės objekto išregistravimo data,Gatvės objekto išregistravimo data
+,,,,,,,,,,,,,,,,,
+,,,,LocatorDesignator,,,"address, designator, type",,,0,completed,public,,ad:LocatorDesignator,,,
+,,,,,address,ref,Address,,,0,completed,public,public,,,,
+,,,,,designator,string,,,,0,completed,public,public,ad:LocatorDesignator.designator,,,
+,,,,,_label@lt,string,,,,0,completed,public,public,,,,
+,,,,,type,string,,,,0,completed,public,public,ad:LocatorDesignator.type,,,
+,,,,,,enum,,,"'buildingIdentifier'",0,completed,public,public,ldtype:buildingIdentifier,,,
+,,,,,,,,,"'housingIdentifier'",0,completed,protected,public,,,Korpuso identifikatorius,Korpuso identifikatorius
+,,,,,,,,,"'entranceDoorIdentifier'",0,completed,public,public,ldtype:entranceDoorIdentifier,,,
+,,,,Address,,,code,,,0,completed,public,,locn:Address,https://e-seimas.lrs.lt/portal/legalAct/lt/TAD/TAIS.235119/asr#14.6,"Adresas suteiktas žemės sklypui, pastatui arba patalpai","Adresas suteiktas žemės sklypui, pastatui arba patalpai"
+,,,,,code,integer required,,,,0,completed,public,public,locn:addressId,,,
+,,,,,id,integer,,,,0,completed,public,private,locn:addressId,,,
+,,,,,locator_designator[],backref,LocatorDesignator,,,0,completed,public,public,ad:LocatorDesignator,,,
+,,,,,location,ref,Location,,,0,completed,public,public,,,,
+,,,,,street,ref,Street,,,0,completed,public,public,,,,
+,,,,,geometry,ref,Geometry,,,0,completed,public,public,,,,
+,,,,,post_code,string,,,,0,completed,public,public,locn:postCode,,Adreso suteikto žemės sklypui ir/arba pastatui pašto kodas,Adreso suteikto žemės sklypui ir/arba pastatui universaliųjų pašto paslaugų teikėjo adresui priskirtas pašto kodas
+,,,,,registered,date,D,,,0,completed,package,public,,,Adreso objekto įregistravimo data,Adreso objekto įregistravimo data
+,,,,,deregistered,date,D,,,0,completed,package,public,,,Adreso objekto išregistravimo data,Adreso objekto išregistravimo data
+,,,,,,,,,,,,,,,,,
+,,,,Geometry,,,coordinates,/ADRESAI/ADRESAS,,5,completed,public,,locn:Geometry,,,
+,,,,,address,ref,Address,,,1,completed,public,public,,,,
+,,,,,coordinates,"geometry(point,3346)",,,"point(x_coordinate, y_coordinate)",5,completed,public,public,locn:geometry,,,
+,,,,,x_coordinate,integer,,X,,2,completed,public,public,cv:longitude,,Adreso vietos taško X koordinatė,Adreso vietos taško X koordinatė LKS94 koordinačių sistemoje
+,,,,,y_coordinate,integer,,Y,,2,completed,public,public,cv:latitude,,Adreso vietos taško Y koordinatė,Adreso vietos taško Y koordinatė LKS94 koordinačių sistemoje
+,,,,,,,,,,,,,,,,,
+,,,Address,,,,code,,,1,completed,public,,locn:Address,,,
+,,,,Building,,,code,/ADRESAI/ADRESAS,,5,completed,public,,locn:Address,,Adresas suteiktas žemės sklypui ir/arba pastatui,Adresas suteiktas žemės sklypui ir/arba pastatui
+,,,,,code,integer required,,AOB_KODAS,,5,completed,public,public,locn:addressId,,Adreso suteikto žemės sklypui ir/arba pastatui identifikavimo kodas,Adreso suteikto žemės sklypui ir/arba pastatui identifikavimo kodas
+,,,,,id,integer,,AOB_ID,,5,completed,public,private,locn:addressId,,Adreso suteikto žemės sklypui ir/arba pastatui techninis identifikatorius,Adreso suteikto žemės sklypui ir/arba pastatui techninis identifikatorius (planuojama neteikti)
+,,,,,location.admin_unit.code,integer,,ADM_KODAS,,5,completed,public,public,,,,
+,,,,,location.admin_unit,ref,AdminUnit[code],ADM_KODAS,,5,completed,public,public,,,,
+,,,,,location,ref,Location[code],GYV_KODAS,,5,completed,public,public,,,Adreso suteikto žemės sklypui ir/arba pastatui priklausomybė gyvenamajai vietovei,"Adreso suteikto žemės sklypui ir/arba pastatui gyvenamosios vietovės, kurios teritorijoje yra gatvė, kodas"
+,,,,,street,ref,Street[code],GAT_KODAS,,5,completed,public,public,,,Adreso suteikto žemės sklypui ir/arba pastatui priklausomybė gatvei,Adreso suteikto žemės sklypui ir/arba pastatui gatvės kodas
+,,,,,building_designator,string,,NR,,5,completed,public,public,locn:locatorDesignator,,Pastato numeris,Adreso suteikto žemės sklypui ir/arba pastatui numeris
+,,,,,has_building_designator,ref,LocatorDesignator,,"code,has_building_designator.designator, has_building_designator.type",1,completed,public,public,cv:hasLocatorDesignator,,,
+,,,,,has_building_designator.designator,string,,NR,,5,completed,public,public,cv:hasLocatorDesignator,,Pastato numeris,Adreso suteikto žemės sklypui ir/arba pastatui numeris
+,,,,,has_building_designator.type,string,,,"'buildingIdentifier'",5,completed,public,public,ad:LocatorDesignator.type,,,
+,,,,,housing_designator,string,,KORPUSO_NR,,5,completed,public,public,locn:locatorDesignator,,Korpuso numeris,Adreso suteikto korpusui numeris
+,,,,,has_housing_designator,ref,LocatorDesignator,,"code,has_housing_designator.designator, has_housing_designator.type",1,completed,public,public,cv:hasLocatorDesignator,,,
+,,,,,has_housing_designator.designator,string,,KORPUSO_NR,,5,completed,public,public,cv:hasLocatorDesignator,,Korpuso numeris,Adreso suteikto korpusui numeris
+,,,,,has_housing_designator.type,string,,,"'housingIdentifier'",5,completed,public,public,ad:LocatorDesignator.type,,,
+,,,,,post_code,string,,PASTO_KODAS,,5,completed,public,public,locn:postCode,,Adreso suteikto žemės sklypui ir/arba pastatui pašto kodas,Adreso suteikto žemės sklypui ir/arba pastatui universaliųjų pašto paslaugų teikėjo adresui priskirtas pašto kodas
+,,,,,geometry,ref,Geometry,,,5,completed,public,public,locn:geometry,,,
+,,,,,geometry.coordinates,"geometry(point,3346)",,,"point(x_coordinate, y_coordinate)",5,completed,public,public,locn:geometry,,,
+,,,,,geometry.x_coordinate,integer,,X,,2,completed,public,public,cv:longitude,,Adreso vietos taško X koordinatė,Adreso vietos taško X koordinatė LKS94 koordinačių sistemoje
+,,,,,geometry.y_coordinate,integer,,Y,,2,completed,public,public,cv:latitude,,Adreso vietos taško Y koordinatė,Adreso vietos taško Y koordinatė LKS94 koordinačių sistemoje
+,,,,,_created,date,D,NUO,,5,completed,public,public,dct:created,,Adreso suteikto žemės sklypui ir/arba pastatui objekto atributų rinkinio galiojimo pradžia,Adreso suteikto žemės sklypui ir/arba pastatui objekto atributų rinkinio galiojimo pradžios data
+,,,,,_updated,date,D,IKI,,5,completed,public,public,dct:updated,,Adreso suteikto žemės sklypui ir/arba pastatui objekto atributų rinkinio galiojimo pabaiga,Adreso suteikto žemės sklypui ir/arba pastatui objekto atributų rinkinio galiojimo pabaigos data
+,,,,,registered,date,D,AOB_NUO,,4,completed,package,public,,,Adreso suteikto žemės sklypui ir/arba pastatui objekto įregistravimo data,Adreso suteikto žemės sklypui ir/arba pastatui objekto įregistravimo data
+,,,,,deregistered,date,D,AOB_IKI,,4,completed,package,public,,,Adreso suteikto žemės sklypui ir/arba pastatui objekto išregistravimo data,Adreso suteikto žemės sklypui ir/arba pastatui objekto išregistravimo data
+,,,/,,,,,,,,,,,,,,
+,,,Address,,,,code,,,1,completed,public,,locn:Address,,,
+,,,,Premise,,,code,/PATALPOS/PATALPA,,5,completed,public,,locn:Address,,Adresas suteiktas gyvenamajai arba negyvenamajai patalpai,Adresas suteiktas gyvenamajai arba negyvenamajai patalpai
+,,,,,code,integer required,,PAT_KODAS,,5,completed,public,public,locn:addressId,,Adreso suteikto gyvenamajai arba negyvenamajai patalpai identifikavimo kodas,Adreso suteikto gyvenamajai arba negyvenamajai patalpai identifikavimo kodas
+,,,,,id,integer,,PAT_ID,,5,completed,public,private,locn:addressId,,Adreso suteikto gyvenamajai arba negyvenamajai patalpai techninis identifikatorius,Adreso suteikto gyvenamajai arba negyvenamajai patalpai techninis identifikatorius (planuojama neteikti)
+,,,,,building,ref,Building[code],AOB_KODAS,,5,completed,public,public,locn:addressId,,Adreso suteikto gyvenamajai arba negyvenamajai patalpai priklausomybė pastatui,"Adreso suteikto gyvenamajai arba negyvenamajai patalpai pastato, kuriam priklauso patalpa, identifikavimo kodas"
+,,,,,locator_designator,string,,PATALPOS_NR,,5,completed,public,public,locn:locatorDesignator,,Patalpos numeris,Adreso suteikto gyvenamajai arba negyvenamajai patalpai patalpos numeris pastate arba korpuse
+,,,,,_label,string,,PATALPOS_NR,,5,completed,public,public,,,Patalpos numeris,Adreso suteikto gyvenamajai arba negyvenamajai patalpai patalpos numeris pastate arba korpuse
+,,,,,has_locator_designator,ref,LocatorDesignator,PAT_KODAS,"code, has_locator_designator.designator, has_locator_designator.type",1,completed,public,public,cv:hasLocatorDesignator,,Adreso suteikto gyvenamajai arba negyvenamajai patalpai identifikavimo kodas,Adreso suteikto gyvenamajai arba negyvenamajai patalpai identifikavimo kodas
+,,,,,has_locator_designator.designator,string,,PATALPOS_NR,,5,completed,public,public,cv:hasLocatorDesignator,,Patalpos numeris,Adreso suteikto gyvenamajai arba negyvenamajai patalpai patalpos numeris pastate arba korpuse
+,,,,,has_locator_designator.type,string,,,"'entranceDoorIdentifier'",5,completed,public,public,ad:LocatorDesignator.type,,Patalpos numeris,Adreso suteikto gyvenamajai arba negyvenamajai patalpai patalpos numeris pastate arba korpuse
+,,,,,_created,date,D,NUO,,5,completed,public,public,dct:created,,Adreso suteikto gyvenamajai arba negyvenamajai patalpai objekto atributų rinkinio galiojimo pradžia,Adreso suteikto gyvenamajai arba negyvenamajai patalpai  objekto atributų rinkinio galiojimo pradžios data
+,,,,,_updated,date,D,IKI,,5,completed,public,public,dct:updated,,Adreso suteikto gyvenamajai arba negyvenamajai patalpai objekto atributų rinkinio galiojimo pabaiga,Adreso suteikto gyvenamajai arba negyvenamajai patalpai objekto atributų rinkinio galiojimo pabaigos data
+,,,,,registered,date,D,PAT_NUO,,4,completed,package,public,,,Adreso suteikto gyvenamajai arba negyvenamajai patalpai objekto įregistravimo data,Adreso suteikto gyvenamajai arba negyvenamajai patalpai objekto įregistravimo data
+,,,,,deregistered,date,D,PAT_IKI,,4,completed,package,public,,,Adreso suteikto gyvenamajai arba negyvenamajai patalpai objekto išregistravimo data,Adreso suteikto gyvenamajai arba negyvenamajai patalpai objekto išregistravimo data
+,,,/,,,,,,,,,,,,,,

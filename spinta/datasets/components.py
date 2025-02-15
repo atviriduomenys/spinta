@@ -118,6 +118,8 @@ class Resource(External):
     comments: List[Comment] = None
     params: List[Param]
     source_params: set
+    count: int
+    source_type: str
 
     schema = {
         'type': {'type': 'string'},
@@ -134,9 +136,8 @@ class Resource(External):
         # If `backend` is not given via `ref` column, then in `source` column,
         # explicit backend dsn can be given. Only one `ref` or `source` can be
         # given.
-        'external': {
-            'type': 'string'
-        },
+
+        'external': {'type': 'string'},
         'params': {'type': 'object'},
         'level': {
             'type': 'integer',
@@ -153,6 +154,8 @@ class Resource(External):
         'comments': {},
         'lang': {'type': 'object'},
         'given_name': {'type': 'string', 'default': None},
+        'count': {'type': 'integer'},
+        'source_type': {'type': "string"}
     }
 
     def __init__(self):
@@ -222,7 +225,8 @@ class Entity(External):
                 'type': 'ref',
                 'ref': 'model.properties',
             },
-        }
+        },
+        'type': {'type': 'string'},
     }
 
 
@@ -235,4 +239,5 @@ class Attribute(External):
         'prop': {'parent': True},
         'name': {'default': None},
         'prepare': {'type': 'spyna', 'default': NA},
+        'type': {'type': 'string'},
     }

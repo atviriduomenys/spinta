@@ -130,6 +130,7 @@ def load_manifest_nodes(
 ) -> None:
     to_link = []
     config = context.get('config')
+
     for eid, schema in schemas:
         if schema.get('type') == 'manifest':
             _load_manifest(context, manifest, schema, eid)
