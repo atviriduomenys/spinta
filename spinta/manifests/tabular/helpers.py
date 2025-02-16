@@ -917,10 +917,10 @@ def _partial_datatype_handler(reader: PropertyReader, row: dict):
 
 
 def _handle_datatype(reader: PropertyReader, row: dict):
-    if row['type'] in DATATYPE_HANDLERS:
-        handler = DATATYPE_HANDLERS[row['type']]
-    else:
-        handler = DATATYPE_HANDLERS['_default']
+    base_type = row["type"].replace("required", "").strip()
+
+    handler = DATATYPE_HANDLERS.get(base_type, DATATYPE_HANDLERS['_default'])
+    
     return handler(reader, row)
 
 
