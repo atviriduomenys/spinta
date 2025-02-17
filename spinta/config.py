@@ -81,6 +81,11 @@ CONFIG = {
             'xlsx': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
             'geojson': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
             'html': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
+
+            # This will be deprecated, when all datasources migrate to `dask` version
+            'csv': 'spinta.compat:CsvDeprecated',
+            'xml': 'spinta.compat:XmlDeprecated',
+            'json': 'spinta.compat:JsonDeprecated',
         },
         'querybuilders': {
             # Default query builder
