@@ -41,7 +41,7 @@ def test_xsd(rc: RawConfig, tmp_path: Path):
     table = """
  id | d | r | b | m | property        | type             | ref | source                            | prepare | level | access | uri | title | description
     | manifest                        |                  |     |                                   |         |       |        |     |       |
-    |   | resource1                   | xml              |     |                                   |         |       |        |     |       |
+    |   | resource1                   | dask/xml         |     |                                   |         |       |        |     |       |
     |                                 |                  |     |                                   |         |       |        |     |       |
     |   |   |   | Administracinis     |                  |     | /ADMINISTRACINIAI/ADMINISTRACINIS |         |       |        |     |       |
     |   |   |   |   | adm_id          | integer required |     | ADM_ID/text()                     |         |       |        |     |       |
@@ -89,7 +89,7 @@ def test_xsd_ref(rc: RawConfig, tmp_path: Path):
     table = """
  id | d | r | b | m | property     | type             | ref     | source         | prepare | level | access | uri | title | description
     | manifest                     |                  |         |                |         |       |        |     |       |
-    |   | resource1                | xml              |         |                |         |       |        |     |       |
+    |   | resource1                | dask/xml         |         |                |         |       |        |     |       |
     |                              |                  |         |                |         |       |        |     |       |
     |   |   |   | Asmenys          |                  |         | /asmenys       |         |       |        |     |       |
     |   |   |   |   | asmuo[]      | backref          | Asmuo   | asmuo          |         |       |        |     |       |
@@ -140,7 +140,7 @@ def test_xsd_resource_model(rc: RawConfig, tmp_path: Path):
     table = """
  id | d | r | b | m | property | type             | ref | source        | prepare | level | access | uri                                           | title | description
     | manifest                 |                  |     |               |         |       |        |                                               |       |
-    |   | resource1            | xml              |     |               |         |       |        |                                               |       |
+    |   | resource1            | dask/xml         |     |               |         |       |        |                                               |       |
     |                          |                  |     |               |         |       |        |                                               |       |
     |   |   |   | Asmenys      |                  |     | /asmenys      |         |       |        |                                               |       |
     |   |   |   |   | puslapis | integer required |     | @puslapis     |         |       |        |                                               |       | rezultatu puslapio numeris
@@ -198,7 +198,7 @@ def test_xsd_separate_type(rc: RawConfig, tmp_path: Path):
     table = """
 id | d | r | b | m | property            | type            | ref              | source                         | prepare | level | access | uri | title | description
    | manifest                            |                 |                  |                                |         |       |        |     |       |
-   |   | resource1                       | xml             |                  |                                |         |       |        |     |       |
+   |   | resource1                       | dask/xml        |                  |                                |         |       |        |     |       |
    |                                     |                 |                  |                                |         |       |        |     |       |
    |   |   |   | SkiepasEu               |                 |                  | /SKIEPAS_EU                    |         |       |        |     |       |
    |   |   |   |   | paciento_ak         | string          |                  | PACIENTO_AK/text()             |         |       |        |     |       | Paciento asmens kodas (LTU)
@@ -252,7 +252,7 @@ def test_xsd_choice(rc: RawConfig, tmp_path: Path):
     table = """
  id | d | r | b | m | property             | type             | ref | source                      | prepare | level | access | uri | title | description
     | manifest                             |                  |     |                             |         |       |        |     |       |
-    |   | resource1                        | xml              |     |                             |         |       |        |     |       |
+    |   | resource1                        | dask/xml         |     |                             |         |       |        |     |       |
     |                                      |                  |     |                             |         |       |        |     |       |
     |   |   |   | Parcel1                  |                  |     | /parcel                     |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
     |   |   |   |   | parcel_unique_number | integer required |     | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
@@ -311,16 +311,16 @@ def test_xsd_choice_max_occurs_unbounded(rc: RawConfig, tmp_path: Path):
     """
 
     table = """
- id | d | r | b | m | property               | type    | ref | source                      | prepare | level | access | uri | title | description
-    | manifest                               |         |     |                             |         |       |        |     |       |
-    |   | resource1                          | xml     |     |                             |         |       |        |     |       |
-    |                                        |         |     |                             |         |       |        |     |       |
-    |   |   |   | Parcel                     |         |     | /parcel                     |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
-    |   |   |   |   | parcel_unique_number[] | integer |     | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
-    |   |   |   |   | sign_of_change[]       | integer |     | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
-    |                                        | enum    |     | 1                           |         |       |        |     |       |
-    |                                        |         |     | 2                           |         |       |        |     |       |
-    |   |   |   |   | text                   | string  |     | text()                      |         |       |        |     |       |
+ id | d | r | b | m | property               | type     | ref | source                      | prepare | level | access | uri | title | description
+    | manifest                               |          |     |                             |         |       |        |     |       |
+    |   | resource1                          | dask/xml |     |                             |         |       |        |     |       |
+    |                                        |          |     |                             |         |       |        |     |       |
+    |   |   |   | Parcel                     |          |     | /parcel                     |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
+    |   |   |   |   | parcel_unique_number[] | integer  |     | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
+    |   |   |   |   | sign_of_change[]       | integer  |     | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
+    |                                        | enum     |     | 1                           |         |       |        |     |       |
+    |                                        |          |     | 2                           |         |       |        |     |       |
+    |   |   |   |   | text                   | string   |     | text()                      |         |       |        |     |       |
 
 """
 
@@ -350,7 +350,7 @@ def test_xsd_attributes(rc: RawConfig, tmp_path: Path):
     table = """
  id | d | r | b | m | property             | type            | ref     | source             | prepare | level | access | uri | title | description
     | manifest                             |                 |         |                    |         |       |        |     |       |
-    |   | resource1                        | xml             |         |                    |         |       |        |     |       |
+    |   | resource1                        | dask/xml        |         |                    |         |       |        |     |       |
     |                                      |                 |         |                    |         |       |        |     |       |
     |   |   |   | Salyga                   |                 |         | /SALYGA            |         |       |        |     |       |
     |   |   |   |   | kodas                | string          |         | @kodas             |         |       |        |     |       |
@@ -388,13 +388,13 @@ def test_xsd_model_one_property(rc: RawConfig, tmp_path: Path):
     """
 
     table = """
- id | d | r | b | m | property          | type   | ref | source                  | prepare | level | access | uri | title | description
-    | manifest                          |        |     |                         |         |       |        |     |       |
-    |   | resource1                     | xml    |     |                         |         |       |        |     |       |
-    |                                   |        |     |                         |         |       |        |     |       |
-    |   |   |   | Response              |        |     | /Response               |         |       |        |     |       |
-    |   |   |   |   | aprasymas         | string |     | klaida/Aprasymas/text() |         |       |        |     |       |
-    |   |   |   |   | search_parameters | string |     | searchParameters/text() |         |       |        |     |       |
+ id | d | r | b | m | property          | type     | ref | source                  | prepare | level | access | uri | title | description
+    | manifest                          |          |     |                         |         |       |        |     |       |
+    |   | resource1                     | dask/xml |     |                         |         |       |        |     |       |
+    |                                   |          |     |                         |         |       |        |     |       |
+    |   |   |   | Response              |          |     | /Response               |         |       |        |     |       |
+    |   |   |   |   | aprasymas         | string   |     | klaida/Aprasymas/text() |         |       |        |     |       |
+    |   |   |   |   | search_parameters | string   |     | searchParameters/text() |         |       |        |     |       |
 
 """
     path = tmp_path / 'manifest.xsd'
@@ -442,13 +442,13 @@ def test_xsd_separate_simple_type(rc: RawConfig, tmp_path: Path):
 """
 
     table = """
- id | d | r | b | m | property                | type   | ref | source                         | prepare | level | access | uri | title | description
-    | manifest                                |        |     |                                |         |       |        |     |       |
-    |   | resource1                           | xml    |     |                                |         |       |        |     |       |
-    |                                         |        |     |                                |         |       |        |     |       |
-    |   |   |   | Tyrimas                     |        |     | /TYRIMAS                       |         |       |        |     |       |
-    |   |   |   |   | ct_e200ats_duom_sukurti | string |     | CT_E200ATS_DUOM_SUKURTI/text() |         |       |        |     |       | E200-ats duomenų sukūrimo data ir laikas
-    |   |   |   |   | ct_paciento_spi         | string |     | CT_PACIENTO_SPI/text()         |         |       |        |     |       | Paciento prisirašymo įstaigos pavadinimas
+ id | d | r | b | m | property                | type     | ref | source                         | prepare | level | access | uri | title | description
+    | manifest                                |          |     |                                |         |       |        |     |       |
+    |   | resource1                           | dask/xml |     |                                |         |       |        |     |       |
+    |                                         |          |     |                                |         |       |        |     |       |
+    |   |   |   | Tyrimas                     |          |     | /TYRIMAS                       |         |       |        |     |       |
+    |   |   |   |   | ct_e200ats_duom_sukurti | string   |     | CT_E200ATS_DUOM_SUKURTI/text() |         |       |        |     |       | E200-ats duomenų sukūrimo data ir laikas
+    |   |   |   |   | ct_paciento_spi         | string   |     | CT_PACIENTO_SPI/text()         |         |       |        |     |       | Paciento prisirašymo įstaigos pavadinimas
 """
     path = tmp_path / 'manifest.xsd'
     with open(path, "w") as xsd_file:
@@ -482,18 +482,18 @@ def test_xsd_sequence_choice_sequence(rc: RawConfig, tmp_path: Path):
 """
 
     table = """
- id | d | r | b | m | property      | type   | ref | source              | prepare | level | access | uri | title | description
-    | manifest                      |        |     |                     |         |       |        |     |       |
-    |   | resource1                 | xml    |     |                     |         |       |        |     |       |
-    |                               |        |     |                     |         |       |        |     |       |
-    |   |   |   | Person1           |        |     | /person             |         |       |        |     |       |
-    |   |   |   |   | first_name    | string |     | firstName/text()    |         |       |        |     |       |
-    |   |   |   |   | iltu_code     | string |     | iltu_code/text()    |         |       |        |     |       |
-    |   |   |   |   | last_name     | string |     | lastName/text()     |         |       |        |     |       |
-    |                               |        |     |                     |         |       |        |     |       |
-    |   |   |   | Person2           |        |     | /person             |         |       |        |     |       |
-    |   |   |   |   | business_name | string |     | businessName/text() |         |       |        |     |       |
-    |   |   |   |   | iltu_code     | string |     | iltu_code/text()    |         |       |        |     |       |
+ id | d | r | b | m | property      | type     | ref | source              | prepare | level | access | uri | title | description
+    | manifest                      |          |     |                     |         |       |        |     |       |
+    |   | resource1                 | dask/xml |     |                     |         |       |        |     |       |
+    |                               |          |     |                     |         |       |        |     |       |
+    |   |   |   | Person1           |          |     | /person             |         |       |        |     |       |
+    |   |   |   |   | first_name    | string   |     | firstName/text()    |         |       |        |     |       |
+    |   |   |   |   | iltu_code     | string   |     | iltu_code/text()    |         |       |        |     |       |
+    |   |   |   |   | last_name     | string   |     | lastName/text()     |         |       |        |     |       |
+    |                               |          |     |                     |         |       |        |     |       |
+    |   |   |   | Person2           |          |     | /person             |         |       |        |     |       |
+    |   |   |   |   | business_name | string   |     | businessName/text() |         |       |        |     |       |
+    |   |   |   |   | iltu_code     | string   |     | iltu_code/text()    |         |       |        |     |       |
 
 """
     path = tmp_path / 'manifest.xsd'
@@ -522,13 +522,13 @@ def test_xsd_complex_ontent(rc: RawConfig, tmp_path: Path):
 """
 
     table = """
- id | d | r | b | m | property    | type   | ref | source             | prepare | level | access | uri | title | description
-    | manifest                    |        |     |                    |         |       |        |     |       |
-    |   | resource1               | xml    |     |                    |         |       |        |     |       |
-    |                             |        |     |                    |         |       |        |     |       |
-    |   |   |   | BeFull          |        |     | /BE_FULL           |         |       |        |     |       |
-    |   |   |   |   | printeddate | string |     | printeddate/text() |         |       |        |     |       |
-    |   |   |   |   | title1      | string |     | title1/text()      |         |       |        |     |       |
+ id | d | r | b | m | property    | type     | ref | source             | prepare | level | access | uri | title | description
+    | manifest                    |          |     |                    |         |       |        |     |       |
+    |   | resource1               | dask/xml |     |                    |         |       |        |     |       |
+    |                             |          |     |                    |         |       |        |     |       |
+    |   |   |   | BeFull          |          |     | /BE_FULL           |         |       |        |     |       |
+    |   |   |   |   | printeddate | string   |     | printeddate/text() |         |       |        |     |       |
+    |   |   |   |   | title1      | string   |     | title1/text()      |         |       |        |     |       |
 
 """
     path = tmp_path / 'manifest.xsd'
@@ -586,7 +586,7 @@ def test_xsd_recursion(rc: RawConfig, tmp_path: Path):
     table = """
  id | d | r | b | m | property               | type            | ref     | source                     | prepare | level | access | uri | title | description
     | manifest                               |                 |         |                            |         |       |        |     |       |
-    |   | resource1                          | xml             |         |                            |         |       |        |     |       |
+    |   | resource1                          | dask/xml        |         |                            |         |       |        |     |       |
     |                                        |                 |         |                            |         |       |        |     |       |
     |   |   |   | Actions                    |                 |         |                            |         |       |        |     |       |
     |   |   |   |   | code[]                 | string required |         | action/code/text()         |         |       |        |     |       | Paslaugos kodas (RC kodas)
@@ -637,7 +637,7 @@ def test_xsd_enumeration(rc: RawConfig, tmp_path: Path):
     table = """
  id | d | r | b | m | property          | type            | ref | source                                | prepare | level | access | uri | title | description
     | manifest                          |                 |     |                                       |         |       |        |     |       |
-    |   | resource1                     | xml             |     |                                       |         |       |        |     |       |
+    |   | resource1                     | dask/xml        |     |                                       |         |       |        |     |       |
     |                                   |                 |     |                                       |         |       |        |     |       |
     |   |   |   | Data                  |                 |     | /data                                 |         |       |        |     |       |
     |   |   |   |   | response_message  | string          |     | responseMessage/text()                |         |       |        |     |       |
@@ -687,7 +687,7 @@ def test_duplicate_removal(rc: RawConfig, tmp_path: Path):
     table = """
  id | d | r | b | m | property                         | type              | ref              | source                                        | prepare | level | access | uri | title | description
     | manifest                                         |                   |                  |                                               |         |       |        |     |       |
-    |   | resource1                                    | xml               |                  |                                               |         |       |        |     |       |
+    |   | resource1                                    | dask/xml          |                  |                                               |         |       |        |     |       |
     |                                                  |                   |                  |                                               |         |       |        |     |       |
     |   |   |   | Extract                              |                   |                  |                                               |         |       |        |     |       |
     |   |   |   |   | extract_preparation_time         | datetime required |                  | extractPreparationTime/text()                 |         |       |        |     |       |
@@ -756,7 +756,7 @@ def test_duplicate_removal_backref(rc: RawConfig, tmp_path: Path):
     table = """
  id | d | r | b | m | property                         | type              | ref              | source                                        | prepare | level | access | uri | title | description
     | manifest                                         |                   |                  |                                               |         |       |        |     |       |
-    |   | resource1                                    | xml               |                  |                                               |         |       |        |     |       |
+    |   | resource1                                    | dask/xml          |                  |                                               |         |       |        |     |       |
     |                                                  |                   |                  |                                               |         |       |        |     |       |
     |   |   |   | Extract                              |                   |                  |                                               |         |       |        |     |       |
     |   |   |   |   | extract_preparation_time         | datetime required |                  | extractPreparationTime/text()                 |         |       |        |     |       |
@@ -948,7 +948,7 @@ def test_duplicate_removal_two_level(rc: RawConfig, tmp_path: Path):
     table = """
  id | d | r | b | m | property                 | type            | ref           | source                              | prepare | level | access | uri | title | description
     | manifest                                 |                 |               |                                     |         |       |        |     |       |
-    |   | resource1                            | xml             |               |                                     |         |       |        |     |       |
+    |   | resource1                            | dask/xml        |               |                                     |         |       |        |     |       |
     |                                          |                 |               |                                     |         |       |        |     |       |
     |   |   |   | Car                          |                 |               | /Car                                |         |       |        |     |       |
     |   |   |   |   | colour                   | string required |               | colour/text()                       |         |       |        |     |       |
