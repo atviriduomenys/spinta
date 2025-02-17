@@ -1752,21 +1752,21 @@ def test_inspect_json_model_ref_change(
     context, manifest = load_manifest_and_context(rc_new, result_file_path)
     commands.get_dataset(context, manifest, 'datasets/json/inspect').resources['resource'].external = 'resource.json'
     a, b = compare_manifest(manifest, f'''
-d | r | model  | property       | type                   | ref    | source
-datasets/json/inspect           |                        |        |
-  | resource                    | dask/json              |        | resource.json
-                                |                        |        |
-  |   | Pos                     |                        | code   | .
-  |   |   | name                | string required unique |        | name
-  |   |   | code                | string required        |        | code
-  |   |   | location_latitude   | number unique          |        | location.latitude
-  |   |   | location_longitude  | number unique          |        | location.longitude
-                                |                        |        |
-  |   | Cities                  |                        |        | cities
-  |   |   | name                | string required unique |        | name
-  |   |   | weather_temperature | number unique          |        | weather.temperature
-  |   |   | weather_wind_speed  | number unique          |        | weather.wind_speed
-  |   |   | parent              | ref                    | Pos    | ..
+        d | r | m | property            | type                   | ref  | source
+        datasets/json/inspect           |                        |      |
+          | resource                    | dask/json              |      | resource.json
+                                        |                        |      |
+          |   | Pos                     |                        | code | .
+          |   |   | name                | string required unique |      | name
+          |   |   | code                | string required        |      | code
+          |   |   | location_latitude   | number unique          |      | location.latitude
+          |   |   | location_longitude  | number unique          |      | location.longitude
+                                        |                        |      |
+          |   | Cities                  |                        |      | cities
+          |   |   | name                | string required unique |      | name
+          |   |   | weather_temperature | number unique          |      | weather.temperature
+          |   |   | weather_wind_speed  | number unique          |      | weather.wind_speed
+          |   |   | parent              | ref                    | Pos  | ..
     ''', context)
     assert a == b
 
@@ -1805,20 +1805,20 @@ def test_inspect_xml_model_ref_change(
     result_file_path = tmp_path / 'result.csv'
     # Configure Spinta.
     rc = configure(context, rc, None, tmp_path / 'manifest.csv', f'''
-           d | r | m      | property             | type                   | ref    | source              
-           datasets/xml/inspect                  |                        |        |
-             | resource                          | dask/xml               |        | {path}
-                                                 |                        |        |
-             |   | Country |                     |                        | code   | /countries/country
-             |   |         | name                | string required unique |        | @name
-             |   |         | code                | string required unique |        | @code
-             |   |         | location_latitude   | number unique          |        | location/@latitude
-             |   |         | location_longitude  | number unique          |        | location/@longitude
-                                                 |                        |        |
-             |   | City    |                     |                        |        | /countries/country/city
-             |   |         | name                | string required unique |        | @name
-             |   |         | weather_temperature | number unique          |        | weather/temperature
-             |   |         | weather_wind_speed  | number unique          |        | weather/wind_speed
+           d | r | m | property            | type                   | ref    | source              
+           datasets/xml/inspect            |                        |        |
+             | resource                    | dask/xml               |        | {path}
+                                           |                        |        |
+             |   | Country                 |                        | code   | /countries/country
+             |   |   | name                | string required unique |        | @name
+             |   |   | code                | string required unique |        | @code
+             |   |   | location_latitude   | number unique          |        | location/@latitude
+             |   |   | location_longitude  | number unique          |        | location/@longitude
+                                           |                        |        |
+             |   | City                    |                        |        | /countries/country/city
+             |   |   | name                | string required unique |        | @name
+             |   |   | weather_temperature | number unique          |        | weather/temperature
+             |   |   | weather_wind_speed  | number unique          |        | weather/wind_speed
            ''')
 
     cli.invoke(rc, [
@@ -1830,21 +1830,21 @@ def test_inspect_xml_model_ref_change(
     context, manifest = load_manifest_and_context(rc, result_file_path)
     commands.get_dataset(context, manifest, 'datasets/xml/inspect').resources['resource'].external = 'resource.xml'
     a, b = compare_manifest(manifest, f'''
-d | r | model  | property       | type                   | ref    | source
-datasets/xml/inspect            |                        |        |
-  | resource                    | dask/xml               |        | resource.xml
-                                |                        |        |
-  |   | Country                 |                        | code   | /countries/country
-  |   |   | name                | string required unique |        | @name
-  |   |   | code                | string required        |        | @code
-  |   |   | location_latitude   | number unique          |        | location/@latitude
-  |   |   | location_longitude  | number unique          |        | location/@longitude
-                                |                        |        |
-  |   | City                    |                        |        | /countries/country/city
-  |   |   | name                | string required unique |        | @name
-  |   |   | weather_temperature | number unique          |        | weather/temperature
-  |   |   | weather_wind_speed  | number unique          |        | weather/wind_speed
-  |   |   | country             | ref                    | Country | ..
+        d | r | m | property            | type                   | ref     | source
+        datasets/xml/inspect            |                        |         |
+          | resource                    | dask/xml               |         | resource.xml
+                                        |                        |         |
+          |   | Country                 |                        | code    | /countries/country
+          |   |   | name                | string required unique |         | @name
+          |   |   | code                | string required        |         | @code
+          |   |   | location_latitude   | number unique          |         | location/@latitude
+          |   |   | location_longitude  | number unique          |         | location/@longitude
+                                        |                        |         |
+          |   | City                    |                        |         | /countries/country/city
+          |   |   | name                | string required unique |         | @name
+          |   |   | weather_temperature | number unique          |         | weather/temperature
+          |   |   | weather_wind_speed  | number unique          |         | weather/wind_speed
+          |   |   | country             | ref                    | Country | ..
     ''', context)
     assert a == b
 
