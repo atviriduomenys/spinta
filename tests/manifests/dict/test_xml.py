@@ -28,9 +28,9 @@ def test_xml_normal(rc: RawConfig, tmp_path: Path):
     context, manifest = load_manifest_and_context(rc, path)
     commands.get_dataset(context, manifest, "dataset").resources["resource"].external = "manifest.xml"
     a, b = compare_manifest(manifest, f'''
-d | r | model   | property     | type           | ref     | source
+d | r | model | property     | type           | ref     | source
 dataset                  |                |         |
-  | resource             | xml            |         | manifest.xml
+  | resource             | dask/xml       |         | manifest.xml
                          |                |         |
   |   | Country          |                |         | /countries/country
   |   |   | code         | string unique  |         | @code
@@ -76,7 +76,7 @@ def test_xml_single_entry_initial_model(rc: RawConfig, tmp_path: Path):
     a, b = compare_manifest(manifest, f'''
 d | r | model   | property                        | type                    | ref    | source
 dataset                                     |                         |        |
-  | resource                                | xml                     |        | manifest.xml
+  | resource                                | dask/xml                |        | manifest.xml
                                             |                         |        |
   |   | Galaxy                              |                         |        | /galaxy
   |   |   | name                            | string required unique  |        | @name
@@ -123,7 +123,7 @@ dataset                  |                |       |                        |
                          |                | new   |                        | http://www.example.com/xmlns/new
                          |                | test  |                        | http://www.example.com/xmlns/test
                          |                |       |                        |
-  | resource             | xml            |       | manifest.xml           |
+  | resource             | dask/xml       |       | manifest.xml           |
                          |                |       |                        |
   |   | Country          |                |       | /countries/new:country |
   |   |   | code         | string unique  |       | @xsi:code              |
@@ -163,7 +163,7 @@ dataset                   |                     |           |                   
                           |                     | new       |                        | http://www.example.com/xmlns/new
                           |                     | test      |                        | http://www.example.com/xmlns/test
                           |                     |           |                        |
-  | resource              | xml                 |           | manifest.xml           |
+  | resource              | dask/xml            |           | manifest.xml           |
                           |                     |           |                        |
   |   | Countries         |                     |           | /countries             |
   |   |   | xsi           | url required unique |           | @test:xsi              |
@@ -220,7 +220,7 @@ def test_xml_inherit_nested(rc: RawConfig, tmp_path: Path):
     a, b = compare_manifest(manifest, f'''
 d | r | model   | property        | type                    | ref     | source
 dataset                     |                         |         |
-  | resource                | xml                     |         | manifest.xml
+  | resource                | dask/xml                     |         | manifest.xml
                             |                         |         |
   |   | Country             |                         |         | /countries/country
   |   |   | name            | string required unique  |         | @name
