@@ -64,6 +64,9 @@ Backwards incompatible:
   naming convention is same with all components `csv`, `json` and `xml` types have been renamed to `dask/csv`, `dask/json`,
   `dask/xml`. If you used these backends before, you will now need to add `dask/` prefix to their types (`#1127`_).
 
+  Because so many datasets use `csv`, `json` and `xml` types, they will not be fully removed, but they will be deprecated
+  and eventually might be removed, so it's encouraged to change them to `dask` format.
+
 
 New features:
 
@@ -84,7 +87,10 @@ Improvements:
 
 - Separated `sql` `backend` dialects to their own separate backends (`#1127`_).
 
+- Added `dask/` prefix to `csv`, `xml` and `json` backends (`#1127`_).
+
   .. _#1127: https://github.com/atviriduomenys/spinta/issues/1127
+
 
 Bug fix:
 
