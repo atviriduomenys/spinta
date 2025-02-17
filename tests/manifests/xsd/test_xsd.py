@@ -846,7 +846,7 @@ def test_duplicate_removal_different_models(rc: RawConfig, tmp_path: Path):
     table = """
  id | d | r | b | m | property                         | type              | ref              | source                                                            | prepare | level | access | uri | title | description
     | manifest                                         |                   |                  |                                                                   |         |       |        |     |       |
-    |   | resource1                                    | xml               |                  |                                                                   |         |       |        |     |       |
+    |   | resource1                                    | dask/xml          |                  |                                                                   |         |       |        |     |       |
     |                                                  |                   |                  |                                                                   |         |       |        |     |       |
     |   |   |   | Extract                              |                   |                  |                                                                   |         |       |        |     |       |
     |   |   |   |   | extract_preparation_time         | datetime required |                  | extractPreparationTime/text()                                     |         |       |        |     |       |

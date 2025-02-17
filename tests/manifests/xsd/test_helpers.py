@@ -480,7 +480,7 @@ def test_set_dataset_and_resource_info():
         'name': "test",
         'resources': {
             "resource1": {
-                'type': 'xml',
+                'type': 'dask/xml',
             },
         },
         'given_name': "dataset_name"
@@ -495,7 +495,7 @@ def test_set_dataset_and_resource_info_url():
         'name': "test",
         'resources': {
             "resource1": {
-                'type': 'xml',
+                'type': 'dask/xml',
             },
         },
         'given_name': "dataset_name"
