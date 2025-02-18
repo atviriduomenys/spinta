@@ -3,5 +3,5 @@ type: dataset
 name: datasets/csv
 resources:
   countries:
-    type: csv
+    type: dask/csv
     external: http://example.com/

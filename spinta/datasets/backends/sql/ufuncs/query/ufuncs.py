@@ -18,11 +18,9 @@ from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import Negative
 from spinta.core.ufuncs import Unresolved
 from spinta.core.ufuncs import ufunc
-from spinta.datasets.backends.sql.helpers import dialect_specific_desc, dialect_specific_asc, \
-    contains_geometry_flip_function, dialect_specific_geometry_flip, dialect_specific_group_array
 from spinta.datasets.backends.sql.ufuncs.query.components import SqlQueryBuilder
 from spinta.dimensions.enum.helpers import prepare_enum_value
-from spinta.exceptions import PropertyNotFound, SourceCannotBeList, NoExternalName
+from spinta.exceptions import PropertyNotFound, SourceCannotBeList, NoExternalName, NotImplementedFeature
 from spinta.types.datatype import DataType, Denorm, Object, Array
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
@@ -31,9 +29,9 @@ from spinta.types.datatype import UUID
 from spinta.types.geometry.components import Geometry
 from spinta.types.text.components import Text
 from spinta.types.text.helpers import determine_language_property_for_text
-from spinta.ufuncs.basequerybuilder.components import LiteralProperty, Selected, Flip
-from spinta.ufuncs.basequerybuilder.helpers import get_language_column, process_literal_value
-from spinta.ufuncs.basequerybuilder.ufuncs import Star
+from spinta.ufuncs.querybuilder.components import LiteralProperty, Selected
+from spinta.ufuncs.querybuilder.helpers import get_language_column, process_literal_value
+from spinta.ufuncs.querybuilder.ufuncs import Star
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.data import take
 from spinta.utils.itertools import flatten
@@ -558,7 +556,7 @@ def select(env: SqlQueryBuilder, dtype: Array):
 
         columns = env(table=table, model=dtype.model).call('_resolve_unresolved', right)
 
-        column = dialect_specific_group_array(env.backend.engine, columns)
+        column = env.call('_group_array', columns)
 
         # Group by all (required for aggregation functions)
         env.add_to_group_by(list(env.table.columns))
@@ -631,19 +629,6 @@ def select(
         item=env.add_column(column),
         prop=right,
     )
-
-
-@ufunc.resolver(SqlQueryBuilder, Geometry, Flip)
-def select(env: SqlQueryBuilder, dtype: Geometry, func_: Flip):
-    table = env.backend.get_table(env.model)
-
-    if dtype.prop.list is None:
-        column = env.backend.get_column(table, dtype.prop, select=True)
-    else:
-        column = env.backend.get_column(table, dtype.prop.list, select=True)
-
-    column = dialect_specific_geometry_flip(env.backend.engine, column)
-    return Selected(env.add_column(column), prop=dtype.prop)
 
 
 @ufunc.resolver(SqlQueryBuilder, Property)
@@ -773,25 +758,57 @@ def sort(env, field):
 @ufunc.resolver(SqlQueryBuilder, DataType)
 def asc(env, dtype):
     column = env.backend.get_column(env.table, dtype.prop)
-    return dialect_specific_asc(env.backend.engine, column)
+    return env.call('asc', column)
 
 
 @ufunc.resolver(SqlQueryBuilder, Text)
 def asc(env, dtype):
     column = get_language_column(env, dtype)
-    return dialect_specific_asc(env.backend.engine, column)
+    return env.call('asc', column)
+
+
+# Reason for column == None is NULLS LAST, because
+# if it's NULL it will return 1 and if it's not NULL it will return 0
+# when ordering 0 takes priority over 1, so then it will sort first values that are not NULL
+@ufunc.resolver(SqlQueryBuilder, sa.sql.expression.ColumnElement)
+def asc(env, column):
+    return sa.case(
+        [
+            (
+                column == None,
+                sa.literal_column('1', type_=sa.Integer)
+            )
+        ],
+        else_=sa.literal_column('0', type_=sa.Integer)
+    ), column.asc()
 
 
 @ufunc.resolver(SqlQueryBuilder, DataType)
 def desc(env, dtype):
     column = env.backend.get_column(env.table, dtype.prop)
-    return dialect_specific_desc(env.backend.engine, column)
+    return env.call('desc', column)
 
 
 @ufunc.resolver(SqlQueryBuilder, Text)
 def desc(env, dtype):
     column = get_language_column(env, dtype)
-    return dialect_specific_desc(env.backend.engine, column)
+    return env.call('desc', column)
+
+
+# Reason for column != None is NULLS FIRST, because
+# if it's NULL it will return 0 and if it's not NULL it will return 1
+# when ordering 0 takes priority over 1, so then it will sort first values that are NULL
+@ufunc.resolver(SqlQueryBuilder, sa.sql.expression.ColumnElement)
+def desc(env, column):
+    return sa.case(
+        [
+            (
+                column != None,
+                sa.literal_column('1', type_=sa.Integer)
+            )
+        ],
+        else_=sa.literal_column('0', type_=sa.Integer)
+    ), column.desc()
 
 
 @ufunc.resolver(SqlQueryBuilder, DataType)
@@ -876,8 +893,9 @@ def select(
 
 @ufunc.resolver(SqlQueryBuilder, Geometry)
 def flip(env: SqlQueryBuilder, dtype: Geometry):
-    if contains_geometry_flip_function(env.backend.engine):
-        return Flip(dtype)
-
-    # Returning expr means, that it will be passed to ResultBuilder to handle it
     return Expr('flip')
+
+
+@ufunc.resolver(SqlQueryBuilder, object)
+def _group_array(env: SqlQueryBuilder, columns: Any):
+    raise NotImplementedFeature(env.backend, feature="Ability to group arrays using default `sql` type")

@@ -3,10 +3,10 @@ from typing import Dict, Any
 import sqlalchemy as sa
 
 from spinta import commands
-from spinta.backends.postgresql.helpers.name import PG_NAMING_CONVENTION
-from spinta.utils.sqlalchemy import get_metadata_naming_convention
-from spinta.components import Context
 from spinta.backends.postgresql.components import PostgreSQL
+from spinta.backends.postgresql.helpers.name import PG_NAMING_CONVENTION
+from spinta.components import Context
+from spinta.utils.sqlalchemy import get_metadata_naming_convention
 
 
 @commands.load.register(Context, PostgreSQL, dict)

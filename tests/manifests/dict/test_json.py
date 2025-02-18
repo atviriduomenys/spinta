@@ -42,7 +42,7 @@ def test_json_normal(rc: RawConfig, tmp_path: Path):
     a, b = compare_manifest(manifest, f'''
 id | d | r | b | m | property | type                   | ref     | source           | prepare | level | access | uri | title | description
    | dataset                  |                        |         |                  |         |       |        |     |       |
-   |   | resource             | json                   |         | manifest.json    |         |       |        |     |       |
+   |   | resource             | dask/json              |         | manifest.json    |         |       |        |     |       |
    |                          |                        |         |                  |         |       |        |     |       |
    |   |   |   | Country      |                        |         | country          |         |       |        |     |       |
    |   |   |   |   | name     | string required unique |         | name             |         |       |        |     |       |
@@ -87,7 +87,7 @@ def test_json_blank_node(rc: RawConfig, tmp_path: Path):
     a, b = compare_manifest(manifest, f'''
 id | d | r | b | m | property | type                   | ref     | source        | prepare | level | access | uri | title | description
    | dataset                  |                        |         |               |         |       |        |     |       |
-   |   | resource             | json                   |         | manifest.json |         |       |        |     |       |
+   |   | resource             | dask/json              |         | manifest.json |         |       |        |     |       |
    |                          |                        |         |               |         |       |        |     |       |
    |   |   |   | Model1       |                        |         | .             |         |       |        |     |       |
    |   |   |   |   | name     | string required unique |         | name          |         |       |        |     |       |
@@ -144,7 +144,7 @@ def test_json_blank_node_inherit(rc: RawConfig, tmp_path: Path):
     a, b = compare_manifest(manifest, f'''
 id | d | r | b | m | property            | type                   | ref     | source              | prepare | level | access | uri | title | description
    | dataset                             |                        |         |                     |         |       |        |     |       |
-   |   | resource                        | json                   |         | manifest.json       |         |       |        |     |       |
+   |   | resource                        | dask/json              |         | manifest.json       |         |       |        |     |       |
    |                                     |                        |         |                     |         |       |        |     |       |
    |   |   |   | Model1                  |                        |         | .                   |         |       |        |     |       |
    |   |   |   |   | name                | string required unique |         | name                |         |       |        |     |       |
@@ -212,7 +212,7 @@ def test_json_inherit_nested(rc: RawConfig, tmp_path: Path):
     a, b = compare_manifest(manifest, f'''
 id | d | r | b | m | property            | type                    | ref     | source                          | prepare | level | access | uri | title | description
    | dataset                             |                         |         |                                 |         |       |        |     |       |
-   |   | resource                        | json                    |         | manifest.json                   |         |       |        |     |       |
+   |   | resource                        | dask/json               |         | manifest.json                   |         |       |        |     |       |
    |                                     |                         |         |                                 |         |       |        |     |       |
    |   |   |   | Country                 |                         |         | country                         |         |       |        |     |       |
    |   |   |   |   | name                | string required unique  |         | name                            |         |       |        |     |       |

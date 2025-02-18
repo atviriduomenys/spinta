@@ -3,5 +3,5 @@ type: dataset
 name: datasets/generator
 resources:
   continents:
-    type: csv
+    type: dask/csv
     external: http://example.com/{year}/

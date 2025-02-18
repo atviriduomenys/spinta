@@ -3,15 +3,14 @@ from typing import overload
 
 from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.ufuncs.query.components import PgQueryBuilder
 from spinta.components import Context
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
 from spinta.exceptions import ItemDoesNotExist
 from spinta.exceptions import NotFoundError
 from spinta.typing import ObjectData
-from spinta.ufuncs.basequerybuilder.components import QueryParams
-from spinta.ufuncs.basequerybuilder.helpers import get_page_values
+from spinta.ufuncs.querybuilder.components import QueryParams
+from spinta.ufuncs.querybuilder.helpers import get_page_values
 from spinta.ufuncs.resultbuilder.helpers import get_row_value, backend_result_builder_getter
 from spinta.utils.nestedstruct import flat_dicts_to_nested, extract_list_property_names
 
@@ -55,7 +54,7 @@ def getall(
             params = QueryParams()
         params.default_expand = default_expand
 
-    builder = PgQueryBuilder(context)
+    builder = backend.query_builder_class(context)
     builder.update(model=model)
     table = backend.get_table(model)
     env = builder.init(backend, table, params)

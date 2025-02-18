@@ -303,7 +303,7 @@ class XSDDatasetResource:
             'name': self.dataset_name,
             'resources': {
                 self.resource_name: {
-                    'type': 'xml',
+                    'type': 'dask/xml'
                 },
             },
             'given_name': self.dataset_given_name

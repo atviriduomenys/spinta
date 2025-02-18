@@ -5,17 +5,17 @@ from typing import List, Union, Any
 
 import pymongo
 
-from spinta.backends.mongo.components import Mongo
 from spinta.components import Property
 from spinta.core.ufuncs import Expr
 from spinta.exceptions import UnknownMethod
 from spinta.types.datatype import DataType
-from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage
-from spinta.ufuncs.basequerybuilder.helpers import merge_with_page_selected_list, merge_with_page_sort, \
+from spinta.ufuncs.querybuilder.components import QueryBuilder, QueryPage
+from spinta.ufuncs.querybuilder.helpers import merge_with_page_selected_list, merge_with_page_sort, \
     merge_with_page_limit
+from spinta.backends.mongo.components import Mongo
 
 
-class MongoQueryBuilder(BaseQueryBuilder):
+class MongoQueryBuilder(QueryBuilder):
 
     def init(self, backend: Mongo, table: pymongo.collection.Collection):
         return self(

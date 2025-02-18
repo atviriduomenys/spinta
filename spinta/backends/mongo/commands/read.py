@@ -3,7 +3,6 @@ from typing import overload
 
 from spinta import commands
 from spinta.backends.mongo.components import Mongo
-from spinta.backends.mongo.ufuncs.components import MongoQueryBuilder
 from spinta.components import Context
 from spinta.components import Model
 from spinta.components import Property
@@ -12,7 +11,7 @@ from spinta.exceptions import ItemDoesNotExist
 from spinta.types.datatype import File, Object
 from spinta.typing import FileObjectData
 from spinta.typing import ObjectData
-from spinta.ufuncs.basequerybuilder.helpers import get_page_values
+from spinta.ufuncs.querybuilder.helpers import get_page_values
 
 
 @overload
@@ -109,7 +108,7 @@ def getall(
     query: Expr = None,
     **kwargs
 ) -> Iterator[ObjectData]:
-    builder = MongoQueryBuilder(context)
+    builder = backend.query_builder_class(context)
     builder.update(model=model)
     table = backend.db[model.model_type()]
     env = builder.init(backend, table)

@@ -12,7 +12,7 @@ from spinta.commands import build_data_patch_for_export
 from spinta.components import Context, Model, pagination_enabled, DataItem, Action
 from spinta.core.enums import Access
 from spinta.formats.components import Format
-from spinta.ufuncs.basequerybuilder.components import QueryParams
+from spinta.ufuncs.querybuilder.components import QueryParams
 from spinta.utils.schema import NA
 
 
