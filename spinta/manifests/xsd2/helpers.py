@@ -264,7 +264,7 @@ class XSDModel:
         }
 
         if self.is_partial:
-            model_data["given_params"] = "/:part"
+            model_data["url_params"] = "/:part"
 
         model_data["name"] = self.name
 

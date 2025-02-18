@@ -170,18 +170,18 @@ def load(
     source: Manifest = None,
 ) -> PartialModel:
     parent_model = load[Context, Model, dict, Manifest](context, model, data, manifest, source=source)
-    parent_model.given.params = data.get('given_params')
+    parent_model.given.url_params = data.get('given_url_params')
     
     url_params = UrlParams()
-    params = parent_model.given.params
+    given_url_params = parent_model.given.url_params
     
-    if params:
-        if '?' in params:
-            action_part, query = params.split('?', 1)
+    if given_url_params:
+        if '?' in given_url_params:
+            action_part, query = given_url_params.split('?', 1)
             action = action_part.strip(':') if action_part else None
             
             if action:
-                params.action = Action.by_value(action)
+                url_params.action = Action.by_value(action)
             
             parsed = parse(query)
             if parsed:
@@ -195,13 +195,13 @@ def load(
                     # For filters like continent.code="eu"
                     url_params.query = [parsed]
                 
-        elif params.startswith(':'):
-            # Action-only params like /:getall
-            action = params.strip(':')
+        elif given_url_params.startswith(':'):
+            # Action-only features like /:getall
+            action = given_url_params.strip(':')
             url_params.action = Action.by_value(action)
 
     model.parent_model = parent_model
-    model.url_params = params
+    model.url_params = url_params
     
     return model
 
@@ -260,13 +260,6 @@ def link(context: Context, model: Model):
         commands.link(context, prop)
 
     _link_model_page(model)
-
-
-# @overload
-# @commands.link.register(Context, PartialModel) 
-# def link(context: Context, model: PartialModel):
-#     if model.parent_model:
-#         link(context, model.parent_model)
 
 
 def _disable_page_in_model(model: Model):
@@ -535,7 +528,7 @@ def check(context: Context, model: Model):
 @check.register(Context, PartialModel)
 def check(context: Context, model: PartialModel):
     if not model.parent_model:
-        raise Exception(f"Partial model {model.name} has no parent model")
+        raise exceptions.ParentModelNotFound(model)
 
 
 @check.register(Context, Property)
