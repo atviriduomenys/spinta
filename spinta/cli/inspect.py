@@ -1,12 +1,5 @@
-from copy import copy
-from typing import Any, List
-from typing import Callable
-from typing import Dict
-from typing import Hashable
-from typing import Iterator
 from typing import Optional
 from typing import Tuple
-from typing import TypeVar
 
 from typer import Argument
 from typer import Context as TyperContext
@@ -15,12 +8,8 @@ from typer import echo
 
 from spinta import commands
 from spinta.cli.helpers.manifest import convert_str_to_manifest_path
-from spinta.components import Property, Node
-from spinta.datasets.components import Dataset, Resource, ExternalBackend
 from spinta.datasets.inspect.helpers import create_manifest_from_inspect
 from spinta.manifests.tabular.helpers import render_tabular_manifest
-from spinta.utils.schema import NA
-from spinta.components import Model
 
 
 def inspect(

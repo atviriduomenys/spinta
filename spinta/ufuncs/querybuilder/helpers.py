@@ -6,12 +6,12 @@ from spinta.core.ufuncs import Expr, asttoexpr
 from spinta.datasets.components import ExternalBackend
 from spinta.types.text.components import Text
 from spinta.types.text.helpers import determine_language_property_for_text
-from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryParams, QueryPage, LiteralProperty
+from spinta.ufuncs.querybuilder.components import QueryBuilder, QueryParams, QueryPage, LiteralProperty
 from spinta.ufuncs.helpers import merge_formulas
 from spinta.utils.types import is_value_literal
 
 
-def expandable_not_expanded(env: BaseQueryBuilder, prop: Property):
+def expandable_not_expanded(env: QueryBuilder, prop: Property):
     # If backend does not support expand, assume it is always expanded
     if not env.backend.supports(BackendFeatures.EXPAND):
         return False
@@ -19,20 +19,20 @@ def expandable_not_expanded(env: BaseQueryBuilder, prop: Property):
     return prop.dtype.expandable and (env.expand is None or (env.expand and prop not in env.expand))
 
 
-def get_language_column(env: BaseQueryBuilder, dtype: Text):
+def get_language_column(env: QueryBuilder, dtype: Text):
     default_langs = env.context.get('config').languages
     prop = determine_language_property_for_text(dtype, env.query_params.lang_priority, default_langs)
     column = env.backend.get_column(env.table, prop)
     return column
 
 
-def get_column_with_extra(env: BaseQueryBuilder, prop: Property):
+def get_column_with_extra(env: QueryBuilder, prop: Property):
     if isinstance(prop.dtype, Text):
         return get_language_column(env, prop.dtype)
     return env.backend.get_column(env.table, prop)
 
 
-def get_page_values(env: BaseQueryBuilder, row: dict):
+def get_page_values(env: QueryBuilder, row: dict):
     if not env.page.page_.filter_only:
         if isinstance(env.model.backend, ExternalBackend):
             return [row[item.prop.external.name] for item in env.page.page_.by.values()]

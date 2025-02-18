@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Type
 from typing import Dict
 from typing import Iterator
 from typing import List
@@ -1347,11 +1347,6 @@ def reload_backend_metadata(context: Context, manifest: Manifest, backend: Backe
 
 
 @command()
-def get_result_builder(context: Context, backend: Backend):
-    """Returns backend specific result builder"""
-
-
-@command()
 def identifiable(node: Node) -> bool:
     """Check if node is identifiable"""
 
@@ -1440,3 +1435,31 @@ def validate_export_output(
 def validate_export_output(**kwargs):
     """Validates given output for specified format"""
 
+
+@overload
+def backend_to_manifest_type(
+    context: Context,
+    backend: str
+) -> Type[Manifest]:
+    """
+        Attempts to convert backend type string to Backend and then
+        attempts to map backend to it's appropriate manifest type.
+    """
+
+
+@overload
+def backend_to_manifest_type(
+    context: Context,
+    backend: Backend
+) -> Type[Manifest]:
+    """
+        Attempts to map backend to it's appropriate manifest type.
+    """
+
+
+@command()
+def backend_to_manifest_type(**kwargs) -> Type[Manifest]:
+    """
+        Attempts to map backend to it's appropriate manifest type.
+        Mainly used for `inspect` mapping.
+    """

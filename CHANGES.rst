@@ -4,6 +4,60 @@ Changes
 0.1.83 (unreleased)
 ===================
 
+Backwards incompatible:
+
+- `sql` backend no longer tries to automatically change it's query functions based on dsn dialect. Now in order to access
+  specific dialect's functionality, you need to specify it through type (`#1127`_).
+
+  Currently supported `sql` backend types:
+    - `sql` - generic default sql type (tries to use dialect indifferent functions).
+    - `sql/postgresql` - PostgreSQL dialect.
+    - `sql/mssql` - Microsoft SQL server dialect.
+    - `sql/mysql` - MySQL dialect.
+    - `sql/mariadb` - MariaDB dialect.
+    - `sql/sqlite` - Sqlite dialect.
+    - `sql/oracle` - Oracle database dialect.
+
+  It is recommended to specify dialects in the manifest or config, this will ensure better performance and can unlock
+  more functionality (in case some dialects support unique functions). Because system no longer tries to automatically
+  detect the dialect there is a possibility of errors or invalid values if you do not set the correct dialect.
+
+- `Backend` objects now store `result_builder_class` and `query_builder_class` properties, which can be used to initialize
+  their respective builders. This changes how `QueryBuilders` and `ResultBuilders` are now created. Each `Backend` now has
+  to specify their builder through `result_builder_type` and `query_builder_type`, which are strings, that map with
+  corresponding classes in `config.components` (`#1127`_).
+
+  All `QueryBuilder` classes are stored in `config.components.querybuilders` path.
+
+  Currently there are these builders, that can be used:
+    - '' - Empty default query builder.
+    - `postgresql` - Internal postgresql query builder.
+    - `mongo` - Internal mongo query builder.
+    - `sql`- External default sql query builder.
+    - `sql/sqlite` - External sqlite dialect query builder.
+    - `sql/mssql` - External microsoft sql dialect query builder.
+    - `sql/postgresql` - External postgresql dialect query builder.
+    - `sql/oracle` - External oracle dialect query builder.
+    - `sql/mysql` - External mysql dialect query builder.
+    - `sql/mariadb` - External mariadb dialect query builder.
+    - `dask` - External Dask dataframe query builder.
+
+  All `ResultBuilder` classes are stored in `config.components.resultbuilders` path.
+
+  Currently there are these builders, that can be used:
+    - '' - Empty default result builder.
+    - `postgresql` - Internal postgresql result builder.
+    - `sql`- External sql result builder.
+
+- In order to maintain cohesiveness in code and data structure, dask backends have gone through same treatment as `sql`
+  Before they worked similar to the new system (users had to manually specify their type), but now to make sure that
+  naming convention is same with all components `csv`, `json` and `xml` types have been renamed to `dask/csv`, `dask/json`,
+  `dask/xml`. If you used these backends before, you will now need to add `dask/` prefix to their types (`#1127`_).
+
+  Because so many datasets use `csv`, `json` and `xml` types, they will not be fully removed, but they will be deprecated
+  and eventually might be removed, so it's encouraged to change them to `dask` format.
+
+
 New features:
 
 - Added exposed intermediate table support for external `Sql` backend (`#663`_).
@@ -20,6 +74,13 @@ Improvements:
   if they are the same or higher level than given `access` (default is `private`, meaning everything is exported) (`#1130`_).
 
   .. _#1130: https://github.com/atviriduomenys/spinta/issues/1130
+
+- Separated `sql` `backend` dialects to their own separate backends (`#1127`_).
+
+- Added `dask/` prefix to `csv`, `xml` and `json` backends (`#1127`_).
+
+  .. _#1127: https://github.com/atviriduomenys/spinta/issues/1127
+
 
 Bug fix:
 

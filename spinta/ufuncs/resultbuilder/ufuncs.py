@@ -1,5 +1,5 @@
 from spinta.core.ufuncs import ufunc
-from spinta.ufuncs.basequerybuilder.components import Selected
+from spinta.ufuncs.querybuilder.components import Selected
 from spinta.ufuncs.resultbuilder.components import ResultBuilder
 
 

@@ -12,7 +12,10 @@ from lxml import etree
 from spinta import commands
 from spinta.components import Context, Property, Model
 from spinta.core.ufuncs import Expr
-from spinta.datasets.backends.dataframe.components import DaskBackend, Csv, Xml, Json
+from spinta.datasets.backends.dataframe.components import DaskBackend
+from spinta.datasets.backends.dataframe.backends.json.components import Json
+from spinta.datasets.backends.dataframe.backends.csv.components import Csv
+from spinta.datasets.backends.dataframe.backends.xml.components import Xml
 from spinta.datasets.backends.dataframe.ufuncs.components import TabularResource
 from spinta.datasets.backends.dataframe.ufuncs.query.components import DaskDataFrameQueryBuilder
 from spinta.datasets.backends.helpers import handle_ref_key_assignment
@@ -27,7 +30,7 @@ from spinta.manifests.components import Manifest
 from spinta.manifests.dict.helpers import is_list_of_dicts, is_blank_node
 from spinta.types.datatype import PrimaryKey, Ref, DataType, Boolean, Number, Integer, DateTime
 from spinta.typing import ObjectData
-from spinta.ufuncs.basequerybuilder.components import Selected
+from spinta.ufuncs.querybuilder.components import Selected
 from spinta.ufuncs.helpers import merge_formulas
 from spinta.ufuncs.resultbuilder.components import ResultBuilder
 from spinta.utils.data import take
@@ -383,7 +386,7 @@ def getall(
         resolved_params
     )
 
-    builder = DaskDataFrameQueryBuilder(context)
+    builder = backend.query_builder_class(context)
     builder.update(model=model)
     props = {}
     for prop in model.properties.values():
@@ -420,7 +423,7 @@ def getall(
         model.external.resource,
         resolved_params
     )
-    builder = DaskDataFrameQueryBuilder(context)
+    builder = backend.query_builder_class(context)
     builder.update(model=model)
     props = {}
     for prop in model.properties.values():
@@ -468,7 +471,7 @@ def getall(
         model.external.name
     )
 
-    builder = DaskDataFrameQueryBuilder(context)
+    builder = backend.query_builder_class(context)
     builder.update(model=model)
     df = dask.dataframe.read_csv(list(bases), sep=resource_builder.seperator)
     yield from _dask_get_all(context, query, df, backend, model, builder)

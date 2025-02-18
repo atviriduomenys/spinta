@@ -3,5 +3,5 @@ name: datasets/xml
 type: dataset
 resources:
   data:
-    type: xml
+    type: dask/xml
     external: http://example.com/data.xml

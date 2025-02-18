@@ -28,9 +28,9 @@ def test_xml_normal(rc: RawConfig, tmp_path: Path):
     context, manifest = load_manifest_and_context(rc, path)
     commands.get_dataset(context, manifest, "dataset").resources["resource"].external = "manifest.xml"
     a, b = compare_manifest(manifest, f'''
-d | r | model   | property     | type           | ref     | source
+d | r | model | property     | type           | ref     | source
 dataset                  |                |         |
-  | resource             | xml            |         | manifest.xml
+  | resource             | dask/xml       |         | manifest.xml
                          |                |         |
   |   | Country          |                |         | /countries/country
   |   |   | code         | string unique  |         | @code
@@ -76,7 +76,7 @@ def test_xml_single_entry_initial_model(rc: RawConfig, tmp_path: Path):
     a, b = compare_manifest(manifest, f'''
 d | r | model   | property                        | type                    | ref    | source
 dataset                                     |                         |        |
-  | resource                                | xml                     |        | manifest.xml
+  | resource                                | dask/xml                |        | manifest.xml
                                             |                         |        |
   |   | Galaxy                              |                         |        | /galaxy
   |   |   | name                            | string required unique  |        | @name
@@ -123,7 +123,7 @@ dataset                  |                |       |                        |
                          |                | new   |                        | http://www.example.com/xmlns/new
                          |                | test  |                        | http://www.example.com/xmlns/test
                          |                |       |                        |
-  | resource             | xml            |       | manifest.xml           |
+  | resource             | dask/xml       |       | manifest.xml           |
                          |                |       |                        |
   |   | Country          |                |       | /countries/new:country |
   |   |   | code         | string unique  |       | @xsi:code              |
@@ -163,7 +163,7 @@ dataset                   |                     |           |                   
                           |                     | new       |                        | http://www.example.com/xmlns/new
                           |                     | test      |                        | http://www.example.com/xmlns/test
                           |                     |           |                        |
-  | resource              | xml                 |           | manifest.xml           |
+  | resource              | dask/xml            |           | manifest.xml           |
                           |                     |           |                        |
   |   | Countries         |                     |           | /countries             |
   |   |   | xsi           | url required unique |           | @test:xsi              |
@@ -218,27 +218,27 @@ def test_xml_inherit_nested(rc: RawConfig, tmp_path: Path):
     context, manifest = load_manifest_and_context(rc, path)
     commands.get_dataset(context, manifest, "dataset").resources["resource"].external = "manifest.xml"
     a, b = compare_manifest(manifest, f'''
-d | r | model   | property        | type                    | ref     | source
-dataset                     |                         |         |
-  | resource                | xml                     |         | manifest.xml
-                            |                         |         |
-  |   | Country             |                         |         | /countries/country
-  |   |   | name            | string required unique  |         | @name
-  |   |   | code            | string required unique  |         | @code
-  |   |   | location_test   | string unique           |         | location/@test
+d | r | m | property          | type                    | ref     | source
+dataset                       |                         |         |
+  | resource                  | dask/xml                |         | manifest.xml
+                              |                         |         |
+  |   | Country               |                         |         | /countries/country
+  |   |   | name              | string required unique  |         | @name
+  |   |   | code              | string required unique  |         | @code
+  |   |   | location_test     | string unique           |         | location/@test
   |   |   | location_coords[] | number                  |         | location/coords
-                            |                         |         |
-  |   | Geo                 |                         |         | /countries/country/location/geos/geo
-  |   |   | geo_test        | string required         |         | @geo_test
-  |   |   | country         | ref                     | Country | ../../..
-                            |                         |         |
-  |   | Geo1                |                         |         | /countries/country/cities/city/location/geos/geo
-  |   |   | geo_test        | integer required unique |         | @geo_test
-  |   |   | city            | ref                     | City    | ../../..
-                            |                         |         |
-  |   | City                |                         |         | /countries/country/cities/city
-  |   |   | name            | string required unique  |         | @name
+                              |                         |         |
+  |   | Geo                   |                         |         | /countries/country/location/geos/geo
+  |   |   | geo_test          | string required         |         | @geo_test
+  |   |   | country           | ref                     | Country | ../../..
+                              |                         |         |
+  |   | Geo1                  |                         |         | /countries/country/cities/city/location/geos/geo
+  |   |   | geo_test          | integer required unique |         | @geo_test
+  |   |   | city              | ref                     | City    | ../../..
+                              |                         |         |
+  |   | City                  |                         |         | /countries/country/cities/city
+  |   |   | name              | string required unique  |         | @name
   |   |   | location_coords[] | number                  |         | location/coords
-  |   |   | country         | ref                     | Country | ../..
+  |   |   | country           | ref                     | Country | ../..
 ''', context)
     assert a == b
