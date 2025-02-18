@@ -597,6 +597,14 @@ def _get_type_repr(dtype: List[DataType, str]):
         return f'{dtype}{args}{required}{unique}'
 
 
+def _resolve_dtype(reader: TabularReader, row: dict) -> dict:
+    dtype = _get_type_repr(row['type'])
+    dtype = _parse_dtype_string(dtype)
+    if dtype.get('error'):
+        reader.error(dtype['error'])
+    return dtype
+
+
 def combine_source_prepare(source, prepare):
     result = prepare
     if source:
@@ -729,6 +737,7 @@ def _initial_text_property_schema(given_name: str, dtype: dict, row: dict):
 
 
 def _datatype_handler(reader: PropertyReader, row: dict, initial_data_loader: Callable[[str, dict, dict], dict]):
+    dtype: dict = _resolve_dtype(reader, row)
     given_name = row['property']
     reader.name = _clean_up_prop_name(row['property'].split('.')[-1])
 
@@ -739,12 +748,6 @@ def _datatype_handler(reader: PropertyReader, row: dict, initial_data_loader: Ca
             f"Now it is defined in {context.name!r} {context.type} context."
         )
     _check_if_property_already_set(reader, row, given_name)
-    dtype = _get_type_repr(row['type'])
-    dtype = _parse_dtype_string(dtype)
-    if dtype['error']:
-        reader.error(
-            dtype['error']
-        )
 
     if reader.state.base and not dtype['type']:
         dtype['type'] = 'inherit'
@@ -795,6 +798,7 @@ def _datatype_handler(reader: PropertyReader, row: dict, initial_data_loader: Ca
 
 
 def _string_datatype_handler(reader: PropertyReader, row: dict):
+    dtype: dict = _resolve_dtype(reader, row)
     given_name = row['property']
     reader.name = _clean_up_prop_name(row['property'].split('.')[-1])
 
@@ -805,17 +809,10 @@ def _string_datatype_handler(reader: PropertyReader, row: dict):
             f"Now it is defined in {context.name!r} {context.type} context."
         )
     existing_data = _check_if_property_already_set(reader, row, given_name)
-    if row['type'] == DataTypeEnum.TEXT.value and existing_data:
+    if dtype['type'] == DataTypeEnum.TEXT.value and existing_data:
         reader.error(
             f"Property {reader.name!r} with the same name is already "
             f"defined for this {reader.state.model.name!r} model."
-        )
-
-    dtype = _get_type_repr(row['type'])
-    dtype = _parse_dtype_string(dtype)
-    if dtype['error']:
-        reader.error(
-            dtype['error']
         )
 
     new_data = _initial_normal_property_schema(given_name, dtype, row)
@@ -840,6 +837,7 @@ def _string_datatype_handler(reader: PropertyReader, row: dict):
 
 
 def _text_datatype_handler(reader: PropertyReader, row: dict):
+    dtype: dict = _resolve_dtype(reader, row)
     given_name = row['property']
     reader.name = _clean_up_prop_name(row['property'].split('.')[-1])
 
@@ -854,12 +852,6 @@ def _text_datatype_handler(reader: PropertyReader, row: dict):
         reader.error(
             f"Property {reader.name!r} with the same name is already "
             f"defined for this {reader.state.model.name!r} model."
-        )
-    dtype = _get_type_repr(row['type'])
-    dtype = _parse_dtype_string(dtype)
-    if dtype['error']:
-        reader.error(
-            dtype['error']
         )
 
     new_data = _initial_text_property_schema(given_name, dtype, row)
@@ -917,10 +909,8 @@ def _partial_datatype_handler(reader: PropertyReader, row: dict):
 
 
 def _handle_datatype(reader: PropertyReader, row: dict):
-    base_type = row["type"].replace("required", "").strip()
-
-    handler = DATATYPE_HANDLERS.get(base_type, DATATYPE_HANDLERS['_default'])
-    
+    dtype: dict = _resolve_dtype(reader, row)
+    handler = DATATYPE_HANDLERS.get(dtype['type'], DATATYPE_HANDLERS['_default'])
     return handler(reader, row)
 
 
