@@ -448,13 +448,13 @@ class ModelReader(TabularReader):
         )
 
         # Check for partial model syntax
-        given_params = None
+        given_url_params = None
 
         if "/:" in name or "?" in name:
             if "/:" in name:
-                given_params = name.rsplit("/:", 1)[1]
+                given_url_params = name.rsplit("/:", 1)[1]
             elif "?" in name:
-                given_params = "?" + name.split("?", 1)[1]
+                given_url_params = "?" + name.split("?", 1)[1]
 
 
         if self.state.rename_duplicates:
@@ -468,9 +468,10 @@ class ModelReader(TabularReader):
             self.error(f"Model {name!r} with the same name is already defined.")
 
         self.name = name
+        basename = _get_model_basename(name)
 
         self.data = {
-            'type': 'model' if given_params is None else 'partial_model',
+            'type': 'model' if given_url_params is None else 'partial_model',
             'id': row['id'],
             'name': name,
             'base': {
@@ -501,7 +502,6 @@ class ModelReader(TabularReader):
                 'prepare': _parse_spyna(self, row[PREPARE]),
             },
             'given_name': name,
-            'given_params': given_params,,
             'status': row.get(STATUS),
             'visibility': row.get(VISIBILITY),
             'eli': row.get(ELI),
@@ -1229,19 +1229,19 @@ def _check_if_property_already_set(reader: PropertyReader, given_row: dict, full
     root = True
     for name in split:
 
-        base_name = name
+        basename = name
 
         if not base and root:
             skip = True
             root = False
             if _name_complex(name):
                 skip = False
-                base_name = _clean_up_prop_name(name)
+                basename = _clean_up_prop_name(name)
 
-            if base_name not in properties:
+            if basename not in properties:
                 return
 
-            base = properties[base_name]
+            base = properties[basename]
 
             if skip:
                 continue
@@ -1990,34 +1990,34 @@ def load_ascii_tabular_manifest(
 
 
 def get_relative_model_name(dataset: [str, dict], name: str) -> str:
-    # First handle any feature parts
-    base_name = name
-    params = None
+    # First handle any url parameters
+    basename = name
+    url_params = None
     if "/:" in name:
-        base_name, params = name.rsplit("/:", 1)
+        basename, url_params = name.rsplit("/:", 1)
     elif "?" in name:
-        base_name, params = name.split("?", 1)
+        basename, url_params = name.split("?", 1)
         
     if isinstance(dataset, str):
-        result = base_name.replace(dataset, '')
-    elif base_name.startswith('/'):
-        result = base_name[1:]
-    elif '/' in base_name:
-        result = base_name
+        result = basename.replace(dataset, '')
+    elif basename.startswith('/'):
+        result = basename[1:]
+    elif '/' in basename:
+        result = basename
     elif dataset is None:
-        result = base_name
+        result = basename
     else:
         result = '/'.join([
             dataset['name'],
-            base_name,
+            basename,
         ])
         
-    # Add back any features
-    if params:
+    # Add back any url parameters
+    if url_params:
         if "?" in name:
-            result = f"{result}?{params}"
+            result = f"{result}?{url_params}"
         else:
-            result = f"{result}/:{params}"
+            result = f"{result}/:{url_params}"
             
     return result
 
@@ -2031,6 +2031,12 @@ def to_relative_model_name(model: Model, dataset: Dataset = None) -> str:
 
     return '/' + model.name
 
+def _get_model_basename(name: str) -> str:
+    if "/:" in name:
+        name, url_params = name.split("/:")
+        if name:
+            return name.split("/")[-1] + "/:" + url_params
+    return name.split("/")[-1]
 
 def _relative_referenced_model_name(
     relative_model: Model,
@@ -2587,8 +2593,8 @@ def _model_to_tabular(
             model,
             model.external.dataset,
         )
-    if model.given_params and not data['model'].endswith(model.given_params):
-        data['model'] = f"{data['model']}{model.given_params}"
+    if model.given.url_params and not data['model'].endswith(model.given.url_params):
+        data['model'] = f"{data['model']}{model.given.url_params}"
     if external and model.external:
         data.update({
             'source': model.external.name,
