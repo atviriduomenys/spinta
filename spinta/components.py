@@ -496,7 +496,7 @@ class ModelGiven:
     access: str = None
     pkeys: list[str] = None
     name: str = None
-    params: str = None
+    url_params: str = None
 
 
 class PageBy:
@@ -680,7 +680,6 @@ class Model(MetaData):
     uri: str = None
     uri_prop: Property = None
     page: PageInfo = None
-    given_params: str = None
     status: Status | None = None
     visibility: Visibility | None = None
     eli: str | None = None
@@ -713,7 +712,6 @@ class Model(MetaData):
         'comments': {},
         'uri': {'type': 'string'},
         'given_name': {'type': 'string', 'default': None},
-        'given_params': {},
         'status': {
             'type': 'string',
             'choices': Status,
@@ -771,12 +769,7 @@ class PartialModel(Model):
     """A partial variant of a model, e.g. 'City/:getone' or 'City/:getall'."""
 
     parent_model: Optional[Model] = None
-    url_params: UrlParams  # `City/:part` would be `params.part`
-    
-    def __init__(self):
-        super().__init__()
-        self.parent_model = None
-        self.url_params = None
+    url_params: UrlParams  # `City/:part` would be `url_params.part`
 
 
 class PropertyGiven:
