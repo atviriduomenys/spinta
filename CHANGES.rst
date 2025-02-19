@@ -14,6 +14,11 @@ Backwards incompatible:
 0.1.84 (unreleased)
 ===================
 
+Bug fixes:
+
+- Fixed `SqliteQueryBuilder` importing wrong `Sqlite` class (`#1174`_).
+
+  .. _#1174: https://github.com/atviriduomenys/spinta/issues/1174
 
 0.1.83 (2025-02-18)
 ===================
