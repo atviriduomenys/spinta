@@ -249,3 +249,38 @@ def test_check_enum_swap_param_validation_under_prepare(manifest_type , tmp_path
         commands.check(context, manifest)
         assert e.value.message == "Invalid value."
 
+
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_check_enum_no_operation_prepare_string(manifest_type , tmp_path, rc):
+    context, manifest = load_manifest_and_context(rc, '''
+        d | r | b | m | property | type    | ref | source       | prepare
+        dataset1                 |         |     |              |
+          | resource1            | sql     |     |              |
+          |   |   | City         |         | id  | CITIES       |
+          |   |   |   | id       | integer |     | ID           |
+          |   |   |   | country  | string  |     | COUNTRY_CODE |
+          |   |   |   |          | enum    |     | lt           |
+          |   |   |   |          |         |     | ee           |
+          |   |   |   |          |         |     | lv           |
+          |   |   |   |          |         |     |              | noop()
+        ''', manifest_type=manifest_type, tmp_path=tmp_path)
+    commands.check(context, manifest)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_check_enum_no_operation_prepare_integer(manifest_type , tmp_path, rc):
+    context, manifest = load_manifest_and_context(rc, '''
+        d | r | b | m | property | type    | ref | source       | prepare
+        dataset1                 |         |     |              |
+          | resource1            | sql     |     |              |
+          |   |   | City         |         | id  | CITIES       |
+          |   |   |   | id       | integer |     | ID           |
+          |   |   |   | country  | integer |     | CODE         |
+          |   |   |   |          | enum    |     | 1            | 1
+          |   |   |   |          |         |     | 2            | 2
+          |   |   |   |          |         |     | 3            | 3
+          |   |   |   |          |         |     |              | noop()
+        ''', manifest_type=manifest_type, tmp_path=tmp_path)
+    commands.check(context, manifest)
