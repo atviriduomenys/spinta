@@ -374,7 +374,11 @@ class Node(Component):
 
     @property
     def basename(self):
-        return self.name and self.name.split('/')[-1]
+        if "/:" in self.name:
+            name, params = self.name.split("/:")
+            if name:
+                return name.split("/")[-1] + "/:" + params
+        return self.name.split("/")[-1]
 
 
 # MetaData entry ID can be file path, uuid, table row id of a Model, Dataset,
@@ -492,6 +496,7 @@ class ModelGiven:
     access: str = None
     pkeys: list[str] = None
     name: str = None
+    url_params: str = None
 
 
 class PageBy:
@@ -675,7 +680,6 @@ class Model(MetaData):
     uri: str = None
     uri_prop: Property = None
     page: PageInfo = None
-    features: str = None
 
     required_keymap_properties = None
 
@@ -703,7 +707,6 @@ class Model(MetaData):
         'comments': {},
         'uri': {'type': 'string'},
         'given_name': {'type': 'string', 'default': None},
-        'features': {},
     }
 
     def __init__(self):
@@ -748,6 +751,14 @@ class Model(MetaData):
             return self.flatprops[prop]
         else:
             raise exceptions.FieldNotInResource(self, property=prop)
+
+
+
+class PartialModel(Model):
+    """A partial variant of a model, e.g. 'City/:getone' or 'City/:getall'."""
+
+    parent_model: Optional[Model] = None
+    url_params: UrlParams  # `City/:part` would be `url_params.part`
 
 
 class PropertyGiven:
