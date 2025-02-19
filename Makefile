@@ -21,8 +21,8 @@ test: env
 	@#      Could not found reason why this happens, bet if I remove `spinta`
 	@#      from test paths, then tests pass. Maybe this has something to do
 	@#      with py.test?
-	poetry run py.test -s --full-trace -vvxra --tb=native --log-level=debug --disable-warnings --doctest-modules spinta
-	poetry run py.test -vvxra --tb=native --log-level=debug --disable-warnings --cov=spinta --cov-report=term-missing tests
+	poetry run py.test -n auto -s --full-trace -vvxra --tb=native --log-level=debug --disable-warnings --doctest-modules spinta
+	poetry run py.test -n auto -vvxra --tb=native --log-level=debug --disable-warnings --cov=spinta --cov-report=term-missing tests
 
 .PHONY: run
 run: env
