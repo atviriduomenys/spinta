@@ -765,6 +765,10 @@ class NoReferencesFound(UserError):
     template = "Property {prop_name!r} of type 'Ref' was not found."
 
 
+class PrimaryKeyArrayTypeError(UserError):
+    template = "Array type object can not be used as a model primary key."
+
+
 class MultipleBackRefReferencesFound(UserError):
     template = "Model {model!r} contains multiple references to backref, please specify which one to use."
 
