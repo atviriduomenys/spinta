@@ -1,0 +1,22 @@
+@startuml
+package freeze <<Rectangle>> {
+
+    object freeze {
+        +context: Context,
+        +version: SchemaVersion,
+        +backend: PostgreSQL,
+        +freezed: type(None),
+        +current: Model,
+        +current: DataType
+    }
+
+
+
+}
+
+freeze *-- Context
+freeze *-- SchemaVersion
+freeze *-- Model
+freeze *-- PostgreSQL
+@enduml
+
