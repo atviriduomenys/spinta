@@ -11,7 +11,11 @@ Backwards incompatible:
   .. _#842: https://github.com/atviriduomenys/spinta/issues/842
   .. _#582: https://github.com/atviriduomenys/spinta/issues/582
 
-0.1.84 (unreleased)
+0.1.85 (unreleased)
+===================
+
+
+0.1.84 (2025-02-19)
 ===================
 
 Bug fixes:
