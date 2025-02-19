@@ -15,9 +15,9 @@ git checkout $RELEASE_VERSION
 git pull
 git tag -l -n1 | sort -h | tail -n5
 
-export CURRENT_PATCH=80
-export NEW_PATCH=81
-export FUTURE_PATCH=82
+export CURRENT_PATCH=83
+export NEW_PATCH=84
+export FUTURE_PATCH=85
 
 export CURRENT_VERSION=$RELEASE_VERSION.$CURRENT_PATCH
 export NEW_VERSION=$RELEASE_VERSION.$NEW_PATCH
@@ -44,9 +44,7 @@ git status
 #|   • Updating uvicorn (0.32.1 -> 0.33.0)
 
 # Run Makefile
-cd docs
-make upgrade
-cd ..
+(cd docs && make upgrade)
 
 # Check what was changed and update CHANGES.rst
 xdg-open https://github.com/atviriduomenys/spinta/compare/$CURRENT_VERSION...$RELEASE_VERSION
