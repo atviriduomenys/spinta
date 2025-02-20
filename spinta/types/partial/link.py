@@ -2,7 +2,7 @@ from copy import copy
 
 from spinta import commands
 from spinta.components import Context, Property
-from spinta.exceptions import PartialTypeNotFound
+from spinta.exceptions import PartialTypeNotFound, NestedPropertyDefinedWithoutReferencePropertyError
 from spinta.types.datatype import Partial, Ref
 
 
@@ -40,4 +40,9 @@ def link(context: Context, dtype: Partial):
         else:
             raise PartialTypeNotFound(dtype)
     else:
-        raise PartialTypeNotFound(dtype)
+        raise NestedPropertyDefinedWithoutReferencePropertyError(
+            model_name=prop.model.name,
+            property_names=','.join([f'{prop.name}.{i}' for i in dtype.properties.keys()]),
+            missing_property_name=prop.name,
+        )
+
