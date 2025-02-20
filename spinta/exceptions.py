@@ -1075,3 +1075,11 @@ class UnableToFindPrimaryKeysMultipleUniqueConstraints(UserError):
     Multiple `UniqueConstrains` were found (that do not match new model's primary keys):
     {unique_constraints}
     '''
+
+
+class NestedPropertyDefinedWithoutReferencePropertyError(UserError):
+    template = '''
+    Nested properties are defined in {model_name} model, without a property that references the parent model.
+    Nested properties: {property_names}.
+    Missing property name: '{missing_property_name}'.
+    '''
