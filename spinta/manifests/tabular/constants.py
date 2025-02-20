@@ -31,3 +31,4 @@ class DataTypeEnum(Enum):
     _PARTIAL = 'partial'              # Internal type
     _ARRAY_BACKREF = 'array_backref'  # Internal type
     _PARTIAL_ARRAY = 'partial_array'  # Internal type
+
