@@ -1047,7 +1047,7 @@ def func(env, name, field):
 
 @ufunc.resolver(PgQueryBuilder, GetAttr, names=FUNCS)
 def func(env, name, field):
-    resolved = env.resolve_property(field)
+    resolved = env.call('_resolve_getattr', field)
     return env.call(name, resolved)
 
 
