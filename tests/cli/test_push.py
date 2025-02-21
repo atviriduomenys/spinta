@@ -141,6 +141,53 @@ def text_geodb():
 
 
 @pytest.fixture(scope='function')
+def array_geodb():
+    with create_sqlite_db({
+        'country': [
+            sa.Column('id', sa.Integer, primary_key=True),
+            sa.Column('name', sa.Text),
+        ],
+        'countrysplit': [
+            sa.Column('id', sa.Integer, primary_key=True),
+            sa.Column('name', sa.Text),
+            sa.Column('languages', sa.Text),
+        ],
+        'language': [
+            sa.Column('id', sa.Integer, primary_key=True),
+            sa.Column('code', sa.Text),
+            sa.Column('name', sa.Text),
+        ],
+        'countrylanguage': [
+            sa.Column('country_id', sa.Integer),
+            sa.Column('language_id', sa.Integer),
+        ],
+    }) as db:
+        db.write('language', [
+            {'id': 0, 'code': 'lt', 'name': 'Lithuanian'},
+            {'id': 1, 'code': 'en', 'name': 'English'},
+            {'id': 2, 'code': 'pl', 'name': 'Polish'},
+        ])
+        db.write('country', [
+            {'id': 0, 'name': 'Lithuania'},
+            {'id': 1, 'name': 'England'},
+            {'id': 2, 'name': 'Poland'},
+        ])
+        db.write('countrylanguage', [
+            {'country_id': 0, 'language_id': 0},
+            {'country_id': 0, 'language_id': 1},
+            {'country_id': 1, 'language_id': 1},
+            {'country_id': 2, 'language_id': 1},
+            {'country_id': 2, 'language_id': 2},
+        ])
+        db.write('countrysplit', [
+            {'id': 0, 'name': 'Lithuania', 'languages': 'lt,en'},
+            {'id': 1, 'name': 'England', 'languages': 'en'},
+            {'id': 2, 'name': 'Poland', 'languages': 'en, pl'},
+        ])
+        yield db
+
+
+@pytest.fixture(scope='function')
 def geodb():
     with create_sqlite_db({
         'salis': [
@@ -3220,3 +3267,85 @@ def test_push_with_geometry_flip_invalid_bounding_box(
     assert result.status_code == 200
     assert listdata(result, 'id', 'geo', sort=True) == []
     remote.app.delete('https://example.com/datasets/push/geo/flip/Test/:wipe')
+
+
+def test_push_with_array_intermediate_table(
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    request,
+    array_geodb
+):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', '''
+        d | r | b | m | property    | type    | ref      | source | level | access | prepare
+        datasets/push/array/int     |         |          |        |       |        |
+          |   |   | Country         |         | id       |        |       | open   |
+          |   |   |   | id          | integer |          |        |       |        |    
+          |   |   |   | name        | string  |          |        |       |        | 
+          |   |   |   | languages[] | ref     | Language |        |       |        | 
+          |   |   | Language        |         | id       |        |       | open   |
+          |   |   |   | id          | integer |          |        |       |        |    
+          |   |   |   | code        | string  |          |        |       |        | 
+          |   |   |   | name        | string  |          |        |       |        |
+        ''')
+
+    create_tabular_manifest(context, tmp_path / 'manifest_push.csv', '''
+        d | r | b | m | property    | type    | ref             | source          | level | access  | prepare
+        datasets/push/array/int     |         |                 |                 |       |         |
+          | db                      |         | sqlite          |                 |       |         |
+          |   |   | Country         |         | id              | country         |       |         |
+          |   |   |   | id          | integer |                 | id              |       | open    |    
+          |   |   |   | name        | string  |                 | name            |       | open    | 
+          |   |   |   | languages   | array   | CountryLanguage |                 |       | open    | 
+          |   |   |   | languages[] | ref     | Language        |                 |       | open    | 
+          |   |   | Language        |         | id              | language        |       |         |
+          |   |   |   | id          | integer |                 | id              |       | open    |    
+          |   |   |   | code        | string  |                 | code            |       | open    | 
+          |   |   |   | name        | string  |                 | name            |       | open    |
+          |   |   | CountryLanguage |         |                 | countrylanguage |       | private |
+          |   |   |   | country     | ref     | Country         | country_id      |       |         |    
+          |   |   |   | language    | ref     | Language        | language_id     |       |         |
+        ''')
+
+    # Configure local server with SQL backend
+    rc = rc.fork({
+        'default_page_size': 2
+    })
+    localrc = create_rc(rc, tmp_path, array_geodb)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    remote.app.authorize(['spinta_set_meta_fields', 'spinta_patch', 'spinta_update', 'spinta_insert', 'spinta_getall', 'spinta_search', 'spinta_wipe'])
+    result = cli.invoke(localrc, [
+        'push',
+        tmp_path / 'manifest_push.csv',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+    ])
+    assert result.exit_code == 0
+
+    resp = remote.app.get(f'datasets/push/array/int/Language')
+    lang_data = resp.json()['_data']
+    lang_mapping = {lang['id']: lang for lang in lang_data}
+    result = remote.app.get('datasets/push/array/int/Country?expand(languages)')
+    assert result.status_code == 200
+    assert listdata(result, 'id', 'name', 'languages', sort=True) == [
+        (0, 'Lithuania', [
+            {'_id': lang_mapping[0]['_id']},
+            {'_id': lang_mapping[1]['_id']}
+        ]),
+        (1, 'England', [
+            {'_id': lang_mapping[1]['_id']},
+        ]),
+        (2, 'Poland', [
+            {'_id': lang_mapping[1]['_id']},
+            {'_id': lang_mapping[2]['_id']}
+        ])
+    ]

@@ -102,7 +102,7 @@ def _prepare_value(prop: Property, value: T) -> Union[T, List[T]]:
 
 @ufunc.resolver(SqlQueryBuilder, Bind, object, names=COMPARE)
 def compare(env: SqlQueryBuilder, op: str, field: Bind, value: Any):
-    prop = env.model.properties[field.name]
+    prop = env.resolve_property(field)
     value = _prepare_value(prop, value)
     return env.call(op, prop.dtype, value)
 
@@ -115,7 +115,7 @@ def compare(env: SqlQueryBuilder, op: str, attr: GetAttr, value: Any):
 
 @ufunc.resolver(SqlQueryBuilder, Bind, list, names=COMPARE)
 def compare(env: SqlQueryBuilder, op: str, field: Bind, value: List[Any]):
-    prop = env.model.properties[field.name]
+    prop = env.resolve_property(field)
     value = list(flatten(_prepare_value(prop, v) for v in value))
     return env.call(op, prop.dtype, value)
 
@@ -249,11 +249,8 @@ def _resolve_unresolved(env: SqlQueryBuilder, prop: Property) -> sa.Column:
 
 @ufunc.resolver(SqlQueryBuilder, Bind)
 def _resolve_unresolved(env: SqlQueryBuilder, field: Bind) -> sa.Column:
-    prop = env.model.flatprops.get(field.name)
-    if prop:
-        return env.call('_resolve_unresolved', prop)
-    else:
-        raise PropertyNotFound(env.model, property=field.name)
+    prop = env.resolve_property(field)
+    return env.call('_resolve_unresolved', prop)
 
 
 @ufunc.resolver(SqlQueryBuilder, GetAttr)
@@ -325,8 +322,8 @@ def _get_property_for_select(
     #       - item - an item of a dict or list
     #       - prop - a property
     #       Currently only `prop` is resolved.
-    prop = env.model.flatprops.get(name)
-    if prop and (
+    prop = env.resolve_property(name)
+    if (
         # Check authorization only for top level properties in select list.
         # XXX: Not sure if nested is the right property to user, probably better
         #      option is to check if this call comes from a prepare context. But
@@ -691,8 +688,8 @@ def join_table_on(
 
 @ufunc.resolver(SqlQueryBuilder, Bind)
 def join_table_on(env: SqlQueryBuilder, item: Bind):
-    prop = env.model.flatprops.get(item.name)
-    if not prop or not authorized(env.context, prop, Action.SEARCH):
+    prop = env.resolve_property(item)
+    if not authorized(env.context, prop, Action.SEARCH):
         raise PropertyNotFound(env.model, property=item.name)
     return env.call('join_table_on', prop)
 
@@ -709,14 +706,14 @@ def join_table_on(env: SqlQueryBuilder, dtype: DataType, item: LiteralProperty):
 
 @ufunc.resolver(SqlQueryBuilder, Bind, name='len')
 def len_(env: SqlQueryBuilder, bind: Bind):
-    prop = env.model.flatprops[bind.name]
+    prop = env.resolve_property(bind)
     return env.call('len', prop.dtype)
 
 
 @ufunc.resolver(SqlQueryBuilder, str, name='len')
 def len_(env: SqlQueryBuilder, bind: str):
     # XXX: Backwards compatible resolver, `str` arguments are deprecated.
-    prop = env.model.flatprops[bind]
+    prop = env.resolve_property(bind)
     return env.call('len', prop.dtype)
 
 
@@ -745,13 +742,13 @@ def sort(env, dtype):
 
 @ufunc.resolver(SqlQueryBuilder, Bind)
 def sort(env, field):
-    prop = env.model.get_from_flatprops(field.name)
+    prop = env.resolve_property(field)
     return env.call('asc', prop.dtype)
 
 
 @ufunc.resolver(SqlQueryBuilder, Negative)
 def sort(env, field):
-    prop = env.model.get_from_flatprops(field.name)
+    prop = env.resolve_property(field)
     return env.call('desc', prop.dtype)
 
 

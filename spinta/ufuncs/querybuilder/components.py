@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import dataclasses
 from typing import List, Any, Dict, Union
 
 from spinta.backends import Backend
-from spinta.components import Page, Property
+from spinta.components import Page, Property, Model
 from spinta.core.ufuncs import Env, Expr
 from spinta.types.datatype import DataType, Object
 from spinta.utils.schema import NA
@@ -14,7 +16,7 @@ class QueryPage:
     select: list
     sort: list
 
-    def __init__(self, size = None, select = None, sort = None, page = None):
+    def __init__(self, size=None, select=None, sort=None, page=None):
         self.size = size
         self.select = [] if select is None else select
         self.sort = [] if sort is None else sort
@@ -67,7 +69,7 @@ class Selected:
                 f'item={self.item}, '
                 f'prop={prop}, '
                 f'prep=...)\n'
-                   ) + self.prep.debug(indent + '  ')
+            ) + self.prep.debug(indent + '  ')
         elif isinstance(self.prep, (tuple, list)):
             return (
                 f'{indent}Selected('
@@ -89,10 +91,20 @@ class Selected:
             )
 
 
+class Star:
+    def __str__(self):
+        return '*'
+
+
 class QueryBuilder(Env):
     backend: Backend
+    model: Model
     page: QueryPage
-    expand: List[Property] = None
+    # `None`, nothing is expanded
+    # `Star()`, everything is expanded
+    # `[...]`, list of expanded properties
+    # ?expand() results in `Star()`, `?expand("name")` results in `["name"]`
+    expand: List[Property] | Star | None = None
     query_params: QueryParams = None
     # `resolved` is used to map which prop.place properties are already
     # resolved, usually it maps to Selected, but different DataType's can return
@@ -106,24 +118,18 @@ class QueryBuilder(Env):
         self.query_params = params
         self._set_expanded_properties(params)
 
-    # By default, when expand = None we think that nothing is expanded
-    # in case we allow default_expand then we set it to empty list
-    # if expand is empty list, we assume all are expanded
-    # ?expand() will result in [] and ?expand(name) will result in [name]
     def _set_expanded_properties(self, params: QueryParams):
         prop_expr = params.expand
         if prop_expr is None and not params.default_expand:
             self.expand = None
             return
 
-        self.expand = []
+        self.expand = Star()
         if prop_expr is not None:
             self.expand = self.resolve(prop_expr)
 
-
-class Star:
-    def __str__(self):
-        return '*'
+    def resolve_property(self, *args, **kwargs) -> Property:
+        return self.call('_resolve_property', *args, **kwargs)
 
 
 class Func:
