@@ -98,6 +98,23 @@ def _resolve_property(
     return prop
 
 
+@ufunc.resolver(DaskDataFrameQueryBuilder, object)
+def _resolve_unresolved(env: DaskDataFrameQueryBuilder, value: Any) -> Any:
+    if isinstance(value, Unresolved):
+        raise ValueError(f"Unresolved value {value!r}.")
+    else:
+        return value
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Bind)
+def _resolve_unresolved(env: DaskDataFrameQueryBuilder, field: Bind) -> str:
+    prop = env.model.flatprops.get(field.name)
+    if prop:
+        return prop.external.name
+    else:
+        raise PropertyNotFound(env.model, property=field.name)
+
+
 @ufunc.resolver(DaskDataFrameQueryBuilder)
 def count(env: DaskDataFrameQueryBuilder):
     return len(env.dataframe.index)
