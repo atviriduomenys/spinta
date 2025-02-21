@@ -63,21 +63,39 @@ def offset(env: DaskDataFrameQueryBuilder, n: int):
     env.offset = n
 
 
-@ufunc.resolver(DaskDataFrameQueryBuilder, object)
-def _resolve_unresolved(env: DaskDataFrameQueryBuilder, value: Any) -> Any:
-    if isinstance(value, Unresolved):
-        raise ValueError(f"Unresolved value {value!r}.")
-    else:
-        return value
+@ufunc.resolver(DaskDataFrameQueryBuilder, GetAttr)
+def _resolve_property(
+    env: DaskDataFrameQueryBuilder,
+    attr: GetAttr
+):
+    return env.call('_resolve_property', attr.obj)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Bind)
-def _resolve_unresolved(env: DaskDataFrameQueryBuilder, field: Bind) -> str:
-    prop = env.model.flatprops.get(field.name)
-    if prop:
-        return prop.external.name
-    else:
-        raise PropertyNotFound(env.model, property=field.name)
+def _resolve_property(
+    env: DaskDataFrameQueryBuilder,
+    bind: Bind
+):
+    return env.call('_resolve_property', bind.name)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, str)
+def _resolve_property(
+    env: DaskDataFrameQueryBuilder,
+    prop: str
+):
+    if prop in env.model.flatprops:
+        return env.model.flatprops.get(prop)
+
+    raise PropertyNotFound(env.model, property=prop)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Property)
+def _resolve_property(
+    env: DaskDataFrameQueryBuilder,
+    prop: Property
+):
+    return prop
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder)
@@ -122,8 +140,8 @@ def _get_property_for_select(
     #       - item - an item of a dict or list
     #       - prop - a property
     #       Currently only `prop` is resolved.
-    prop = env.model.flatprops.get(name)
-    if prop and (
+    prop = env.call('_resolve_property', name)
+    if (
         # Check authorization only for top level properties in select list.
         # XXX: Not sure if nested is the right property to user, probably better
         #      option is to check if this call comes from a prepare context. But
@@ -336,8 +354,8 @@ def select(
 @ufunc.resolver(DaskDataFrameQueryBuilder, ForeignProperty, Bind)
 def select(env: DaskDataFrameQueryBuilder, fpr: ForeignProperty, item: Bind):
     model = fpr.right.prop.model
-    prop = model.flatprops.get(item.name)
-    if prop and authorized(env.context, prop, Action.SEARCH):
+    prop = env.call('_resolve_property', item)
+    if authorized(env.context, prop, Action.SEARCH):
         return env.call('select', fpr, prop)
     else:
         raise PropertyNotFound(model, property=item.name)
@@ -426,7 +444,7 @@ COMPARE = [
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, Bind, object, names=COMPARE)
 def compare(env, op, field, value):
-    prop = env.model.get_from_flatprops(field.name)
+    prop = env.call('_resolve_property', field)
     return env.call(op, prop.dtype, value)
 
 
@@ -434,3 +452,5 @@ def compare(env, op, field, value):
 def eq_(env: DaskDataFrameQueryBuilder, dtype: DataType, obj: object):
     name = dtype.prop.external.name
     return env.dataframe[name] == str(obj)
+
+
