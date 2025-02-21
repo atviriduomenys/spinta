@@ -125,7 +125,7 @@ class QueryBuilder(Env):
             return
 
         self.expand = Star()
-        if prop_expr is not None:
+        if prop_expr:
             self.expand = self.resolve(prop_expr)
 
     def resolve_property(self, *args, **kwargs) -> Property:
