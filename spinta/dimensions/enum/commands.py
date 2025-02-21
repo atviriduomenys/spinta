@@ -19,7 +19,12 @@ NO_OPERATION = 'noop'
 
 @overload
 @commands.check.register(Context, EnumItem, DataType, object)
-def check(context: Context, item: EnumItem, dtype: DataType, value: Any) -> None:
+def check(
+    context: Context,
+    item: EnumItem,
+    dtype: DataType,
+    value: Any,
+) -> None:
     raise InvalidValue(dtype, error=(
         f"Given enum value {value} of {type(value)} type does not match "
         f"property type, which is {dtype.name!r}."
@@ -28,7 +33,12 @@ def check(context: Context, item: EnumItem, dtype: DataType, value: Any) -> None
 
 @overload
 @commands.check.register(Context, EnumItem, DataType, Expr)
-def check(context: Context, item: EnumItem, dtype: DataType, value: Expr) -> None:
+def check(
+    context: Context,
+    item: EnumItem,
+    dtype: DataType,
+    value: Expr,
+) -> None:
     if value.name == NO_OPERATION and dtype.name in {'string', 'integer'}:
         return
 
@@ -50,29 +60,54 @@ def check(
 
 @overload
 @commands.check.register(Context, EnumItem, DataType, type(None))
-def check(context: Context, item: EnumItem, dtype: DataType, value: None) -> None:
+def check(
+    context: Context,
+    item: EnumItem,
+    dtype: DataType,
+    value: None,
+) -> None:
     pass
 
 
 @overload
 @commands.check.register(Context, EnumItem, DataType, NotAvailable)
-def check(context: Context, item: EnumItem, dtype: DataType, value: NotAvailable) -> None:
+def check(
+    context: Context,
+    item: EnumItem,
+    dtype: DataType,
+    value: NotAvailable,
+) -> None:
     pass
 
 
 @overload
 @commands.check.register(Context, EnumItem, Integer, int)
-def check(context: Context, item: EnumItem, dtype: Integer, value: int) -> None:
+def check(
+    context: Context,
+    item: EnumItem,
+    dtype: Integer,
+    value: int,
+) -> None:
     pass
 
 
 @overload
 @commands.check.register(Context, EnumItem, Boolean, bool)
-def check(context: Context, item: EnumItem, dtype: Boolean, value: bool) -> None:
+def check(
+    context: Context,
+    item: EnumItem,
+    dtype: Boolean,
+    value: bool
+) -> None:
     pass
 
 
 @overload
 @commands.check.register(Context, EnumItem, String, str)
-def check(context: Context, item: EnumItem, dtype: String, value: str) -> None:
+def check(
+    context: Context,
+    item: EnumItem,
+    dtype: String,
+    value: str,
+) -> None:
     pass
