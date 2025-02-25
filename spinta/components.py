@@ -734,7 +734,6 @@ class Model(MetaData):
 
         # return self.name.split('/')[-1]
 
-
     def add_keymap_property_combination(self, given_props: List[Property]):
         extract_names = list([prop.name for prop in given_props])
         if extract_names not in self.required_keymap_properties:
@@ -742,12 +741,6 @@ class Model(MetaData):
 
     def get_given_properties(self):
         return {prop_name: prop for prop_name, prop in self.properties.items() if not prop_name.startswith('_')}
-
-    def get_from_flatprops(self, prop: str) -> Property:
-        if prop in self.flatprops:
-            return self.flatprops[prop]
-        else:
-            raise exceptions.FieldNotInResource(self, property=prop)
 
 
 class PropertyGiven:

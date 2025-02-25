@@ -5,7 +5,7 @@ from spinta.core.ufuncs import ufunc, Expr, Negative, Bind, GetAttr
 from spinta.datasets.backends.sql.ufuncs.components import Selected
 from spinta.datasets.components import ExternalBackend
 from spinta.exceptions import InvalidArgumentInExpression, CannotSelectTextAndSpecifiedLang, \
-    LangNotDeclared, FieldNotInResource
+    LangNotDeclared, FieldNotInResource, PropertyNotFound
 from spinta.types.datatype import DataType, String, Ref, Object, Array, File, BackRef, PrimaryKey, ExternalRef
 from spinta.types.text.components import Text
 from spinta.ufuncs.querybuilder.components import QueryBuilder, Star, ReservedProperty, NestedProperty, \
@@ -68,11 +68,46 @@ def getattr_(
 
 
 @ufunc.resolver(QueryBuilder, GetAttr)
+def _resolve_property(
+    env: QueryBuilder,
+    attr: GetAttr
+):
+    return env.call('_resolve_property', attr.obj)
+
+
+@ufunc.resolver(QueryBuilder, Bind)
+def _resolve_property(
+    env: QueryBuilder,
+    bind: Bind
+):
+    return env.call('_resolve_property', bind.name)
+
+
+@ufunc.resolver(QueryBuilder, str)
+def _resolve_property(
+    env: QueryBuilder,
+    prop: str
+):
+    if prop in env.model.flatprops:
+        return env.model.flatprops.get(prop)
+
+    raise PropertyNotFound(env.model, property=prop)
+
+
+@ufunc.resolver(QueryBuilder, Property)
+def _resolve_property(
+    env: QueryBuilder,
+    prop: Property
+):
+    return prop
+
+
+@ufunc.resolver(QueryBuilder, GetAttr)
 def _resolve_getattr(
     env: QueryBuilder,
     attr: GetAttr,
 ) -> ForeignProperty:
-    prop = env.model.properties[attr.obj]
+    prop = env.resolve_property(attr)
     return env.call('_resolve_getattr', prop.dtype, attr.name)
 
 
@@ -440,7 +475,8 @@ def expand(env, expr):
     if expr.args:
         for arg in expr.args:
             resolved = env.resolve(arg)
-            result.append(resolved)
+            prop = env.resolve_property(resolved)
+            result.append(prop)
         return result
     return None
 
@@ -486,7 +522,7 @@ def compare(env: QueryBuilder, op: str, nested: NestedProperty, value: object):
 
 @ufunc.resolver(QueryBuilder, Bind, object, names=COMPARE)
 def compare(env, op, field, value):
-    prop = env.model.get_from_flatprops(field.name)
+    prop = env.resolve_property(field)
     return env.call(op, prop.dtype, value)
 
 

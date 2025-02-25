@@ -29,7 +29,7 @@ from spinta.components import UrlParams
 from spinta.exceptions import InvalidName
 from spinta.manifests.components import Manifest
 from spinta.nodes import load_node
-from spinta.types.datatype import Ref
+from spinta.types.datatype import Ref, Array
 
 namespace_is_lowercase = re.compile(r'^([a-z][a-z0-9]*)+(/[a-z][a-z0-9]*)+|([a-z][a-z0-9]*)$')
 
@@ -357,6 +357,9 @@ def iter_model_base(model: Model) -> Iterator[Model]:
 
 
 def iter_model_refs(model: Model) -> Iterator[Ref]:
-    for prop in model.properties.values():
-        if prop.dtype.name == 'ref':
+    for prop in model.flatprops.values():
+        if isinstance(prop.dtype, Array):
+            prop = prop.dtype.items
+        if isinstance(prop.dtype, Ref):
             yield prop.dtype
+

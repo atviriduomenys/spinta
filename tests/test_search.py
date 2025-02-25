@@ -136,8 +136,8 @@ def test_search_exact_non_string(model, context, app):
 
     # single non-existing field search
     resp = app.get(f'/{model}?state="o"')
-    assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["FieldNotInResource"]
+    assert resp.status_code == 404
+    assert get_error_codes(resp.json()) == ["PropertyNotFound"]
 
 
 @pytest.mark.models(
