@@ -625,6 +625,13 @@ class PropertyReader(TabularReader):
             parent_structure,
             complete_structure
         )
+
+        # Edge case where there is no nesting, need to couple `prop_data` with `complete_structure`
+        # This ensures that `self.data` is coupled with `self.state.mode.data`
+        # Any changes done to `self.data` will also be reflected there
+        if prop_data == complete_structure:
+            prop_data = complete_structure
+
         self.data = prop_data
         self.name = prop_name
         self.state.model.data['properties'][prop_name] = complete_structure
