@@ -625,9 +625,9 @@ class PropertyReader(TabularReader):
             parent_structure,
             complete_structure
         )
-        self.data = complete_structure
+        self.data = prop_data
         self.name = prop_name
-        self.state.model.data['properties'][prop_name] = self.data
+        self.state.model.data['properties'][prop_name] = complete_structure
 
     def append(self, row: Dict[str, str]) -> None:
         if not row['property']:

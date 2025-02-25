@@ -100,10 +100,6 @@ class QueryBuilder(Env):
     backend: Backend
     model: Model
     page: QueryPage
-    # `None`, nothing is expanded
-    # `Star()`, everything is expanded
-    # `[...]`, list of expanded properties
-    # ?expand() results in `Star()`, `?expand("name")` results in `["name"]`
     expand: List[Property] | Star | None = None
     query_params: QueryParams = None
     # `resolved` is used to map which prop.place properties are already
@@ -119,6 +115,11 @@ class QueryBuilder(Env):
         self._set_expanded_properties(params)
 
     def _set_expanded_properties(self, params: QueryParams):
+        # `None`, nothing is expanded
+        # `Star()`, everything is expanded
+        # `[...]`, list of expanded properties
+        # ?expand() results in `Star()`, `?expand("name")` results in `["name"]`
+
         prop_expr = params.expand
         if prop_expr is None and not params.default_expand:
             self.expand = None
