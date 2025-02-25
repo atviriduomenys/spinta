@@ -566,6 +566,11 @@ def select(env: SqlQueryBuilder, dtype: Array):
             )
         )
 
+    return Selected(
+        prop=dtype.prop,
+        prep=env.call('select', dtype.items)
+    )
+
 
 @ufunc.resolver(SqlQueryBuilder, Page)
 def select(env: SqlQueryBuilder, page: Page) -> List[sa.Column]:
@@ -896,3 +901,9 @@ def flip(env: SqlQueryBuilder, dtype: Geometry):
 @ufunc.resolver(SqlQueryBuilder, object)
 def _group_array(env: SqlQueryBuilder, columns: Any):
     raise NotImplementedFeature(env.backend, feature="Ability to group arrays using default `sql` type")
+
+
+@ufunc.resolver(SqlQueryBuilder, Expr)
+def split(env: SqlQueryBuilder, expr: Expr):
+    args, kwargs = expr.resolve(env)
+    return Expr('split', *args, **kwargs)
