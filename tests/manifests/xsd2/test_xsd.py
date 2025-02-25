@@ -570,7 +570,6 @@ def test_xsd_sequence_choice_sequence(rc: RawConfig, tmp_path: Path):
     assert manifest == table
 
 
-@pytest.mark.skip(reason='waiting for #942')
 def test_xsd_complex_content(rc: RawConfig, tmp_path: Path):
     xsd = """
         <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
@@ -590,13 +589,15 @@ def test_xsd_complex_content(rc: RawConfig, tmp_path: Path):
     """
 
     table = """
-        id | d | r | b | m | property    | type       | ref | source             | prepare | level | access | uri | title | description
-           | manifest                    |            |     |                    |         |       |        |     |       |
-           |   | resource1               | dask/xml   |     |                    |         |       |        |     |       |
-           |                             |            |     |                    |         |       |        |     |       |
-           |   |   |   | BeFull          |            |     | /BE_FULL           |         |       |        |     |       |
-           |   |   |   |   | printeddate | string     |     | printeddate/text() |         |       |        |     |       |
-           |   |   |   |   | title1      | string     |     | title1/text()      |         |       |        |     |       |
+        id | d | r | b | m | property                 | type       | ref | source             | prepare | level | access | uri | title | description
+           | manifest                                 |            |     |                    |         |       |        |     |       |
+           |   | resource1                            | dask/xml   |     |                    |         |       |        |     |       |
+           |                                          |            |     |                    |         |       |        |     |       |
+           |   |   |   | BeFull                       |            |     | /BE_FULL           |         |       |        |     |       |
+           |   |   |   |   | printeddate              | string     |     | printeddate/text() |         |       |        |     |       |
+           |   |   |   |   | title1                   | string     |     | title1/text()      |         |       |        |     |       |
+           |                                          |            |     |                    |         |       |        |     |       |
+           |   |   |   | BusinessEntityOfBEFULL/:part |            |     |                    |         |       |        |     |       |
     """
     path = tmp_path / 'manifest.xsd'
     path_xsd2 = f"xsd2+file://{path}"
@@ -711,56 +712,120 @@ def test_xsd_enumeration(rc: RawConfig, tmp_path: Path):
     assert manifest == table
 
 
-@pytest.mark.skip(reason='waiting for 942')
 def test_duplicate_removal(rc: RawConfig, tmp_path: Path):
-    xsd = """
-        <xs:schema xmlns="http://countriesCities.ServiceContracts/2024/11/Messages" elementFormDefault="qualified" targetNamespace="http://countriesCities.ServiceContracts/2024/11/Messages" xmlns:xs="http://www.w3.org/2001/XMLSchema">
-            <xs:element name="getCitiesByCountry">
-                <xs:complexType>
-                    <xs:sequence>
-                        <xs:element name="queryParameters" />
-                        <xs:choice>
-                            <xs:element minOccurs="0" name="error" type="Error" />
-                            <xs:element minOccurs="0" name="cityList" type="CityList" />
-                        </xs:choice>
-                    </xs:sequence>
-                </xs:complexType>
-            </xs:element>
-        
-            <xs:complexType name="Error">
+    xsd = '''
+        <xs:schema xmlns="http://example" elementFormDefault="qualified" targetNamespace="http://example" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            <xs:element name="Wagon" type="Wagon" />
+            <xs:complexType name="Wagon">
                 <xs:sequence>
-                    <xs:element minOccurs="0" maxOccurs="1" name="description" type="xs:string" />
+                    <xs:element name="searchParameters" type="xs:string" />
+                    <xs:choice>
+                        <xs:element minOccurs="0" name="klaida" type="Klaida" />
+                        <xs:element minOccurs="0" name="extract" type="Extract" />
+                    </xs:choice>
                 </xs:sequence>
             </xs:complexType>
-        
-            <xs:complexType name="CityList">
+            <xs:complexType name="Klaida">
                 <xs:sequence>
-                    <xs:element name="retrievalTime" type="xs:dateTime" />
+                    <xs:element name="Aprasymas" type="xs:string" />
+                </xs:sequence>
+            </xs:complexType>
+            <xs:complexType name="Extract">
+                <xs:sequence>
+                    <xs:element name="extractPreparationTime" type="xs:dateTime" />
                     <xs:element name="lastUpdateTime" type="xs:dateTime" />
                 </xs:sequence>
+            </xs:complexType>
+        </xs:schema>
+        '''
+
+    table = '''
+        id | d | r | b | m | property                 | type              | ref     | source                        | prepare  | level | access | uri | title | description
+           | manifest                                 |                   |         |                               |          |       |        |     |       |
+           |   | resource1                            | dask/xml          |         |                               |          |       |        |     |       |
+           |                                          |                   |         |                               |          |       |        |     |       |
+           |   |   |   | Extract/:part                |                   |         |                               |          |       |        |     |       |
+           |   |   |   |   | extract_preparation_time | datetime required |         | extractPreparationTime/text() |          |       |        |     |       |
+           |   |   |   |   | last_update_time         | datetime required |         | lastUpdateTime/text()         |          |       |        |     |       |
+           |                                          |                   |         |                               |          |       |        |     |       |
+           |   |   |   | Klaida/:part                 |                   |         |                               |          |       |        |     |       |
+           |   |   |   |   | aprasymas                | string required   |         | Aprasymas/text()              |          |       |        |     |       |
+           |                                          |                   |         |                               |          |       |        |     |       |
+           |   |   |   | Wagon                        |                   |         | /Wagon                        |          |       |        |     |       |
+           |   |   |   |   | klaida                   | ref               | Klaida  | klaida                        | expand() |       |        |     |       |
+           |   |   |   |   | search_parameters        | string required   |         | searchParameters/text()       |          |       |        |     |       |
+           |                                          |                   |         |                               |          |       |        |     |       |
+           |   |   |   | Wagon1                       |                   |         | /Wagon                        |          |       |        |     |       |
+           |   |   |   |   | extract                  | ref               | Extract | extract                       | expand() |       |        |     |       |
+           |   |   |   |   | search_parameters        | string required   |         | searchParameters/text()       |          |       |        |     |       |
+    '''
+
+    path = tmp_path / 'manifest.xsd'
+    path_xsd2 = f"xsd2+file://{path}"
+    with open(path, "w") as xsd_file:
+        xsd_file.write(xsd)
+    manifest = load_manifest(rc, path_xsd2)
+    assert manifest == table
+
+
+def test_duplicate_removal_backref(rc: RawConfig, tmp_path: Path):
+    xsd = """
+        <xs:schema xmlns="http://eTaarPlat.ServiceContracts/2007/08/Messages" elementFormDefault="qualified" targetNamespace="http://eTaarPlat.ServiceContracts/2007/08/Messages" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            <xs:element name="getDocumentsByWagonResponse" nillable="true" type="getDocumentsByWagonResponse" />
+            <xs:complexType name="getDocumentsByWagonResponse">
+                <xs:sequence>
+                    <xs:element minOccurs="0" maxOccurs="unbounded" name="searchParameters" type="getDocumentsByWagonSearchParams" />
+                    <xs:choice minOccurs="1" maxOccurs="1">
+                        <xs:element minOccurs="0" maxOccurs="1" name="klaida" type="Klaida" />
+                        <xs:element minOccurs="0" maxOccurs="1" name="extract" type="Extract" />
+                    </xs:choice>
+                </xs:sequence>
+            </xs:complexType>
+            <xs:complexType name="getDocumentsByWagonSearchParams">
+                <xs:sequence>
+                    <xs:element minOccurs="0" maxOccurs="1" name="searchType" type="xs:string" />
+                    <xs:element minOccurs="0" maxOccurs="1" name="code" type="xs:string" />
+                </xs:sequence>
+            </xs:complexType>
+            <xs:complexType name="Klaida">
+                        <xs:sequence>
+                            <xs:element minOccurs="0" maxOccurs="1" name="Aprasymas" type="xs:string" />
+                        </xs:sequence>
+            </xs:complexType>
+            <xs:complexType name="Extract">
+                        <xs:sequence>
+                            <xs:element minOccurs="1" maxOccurs="1" name="extractPreparationTime" type="xs:dateTime" />
+                            <xs:element minOccurs="1" maxOccurs="1" name="lastUpdateTime" type="xs:dateTime" />
+                        </xs:sequence>
             </xs:complexType>
         </xs:schema>
     """
 
     table = """
-        id | d | r | b | m | property                         | type              | ref              | source                                        | prepare  | level | access | uri | title | description
-           | manifest                                         |                   |                  |                                               |          |       |        |     |       |
-           |   | resource1                                    | dask/xml          |                  |                                               |          |       |        |     |       |
-           |                                                  |                   |                  |                                               |          |       |        |     |       |
-           |   |   |   | Extract/:part                        |                   |                  |                                               |          |       |        |     |       |
-           |   |   |   |   | extract_preparation_time         | datetime required |                  | extractPreparationTime/text()                 |          |       |        |     |       |
-           |   |   |   |   | last_update_time                 | datetime required |                  | lastUpdateTime/text()                         |          |       |        |     |       |
-           |                                                  |                   |                  |                                               |          |       |        |     |       |
-           |   |   |   | GetDocumentsByWagonResponse          |                   |                  | /getDocumentsByWagonResponse                  |          |       |        |     |       |
-           |   |   |   |   | aprasymas                        | string            |                  | klaida/Aprasymas/text()                       |          |       |        |     |       |
-           |   |   |   |   | search_parameters                | ref               | SearchParameters | searchParameters                              | expand() |       |        |     |       |
-           |                                                  |                   |                  |                                               |          |       |        |     |       |
-           |   |   |   | GetDocumentsByWagonResponse1         |                   |                  | /getDocumentsByWagonResponse                  |          |       |        |     |       |
-           |   |   |   |   | extract                          | ref               | Extract          | extract                                       |          |       |        |     |       |
-           |                                                  |                   |                  |                                               |          |       |        |     |       |
-           |   |   |   | SearchParameters                     |                   |                  |                                               |          |       |        |     |       |
-           |   |   |   |   | code                             | string            |                  | code/text()                                   |          |       |        |     |       |
-           |   |   |   |   | search_type                      | string            |                  | searchType/text()                             |          |       |        |     |       |
+        id | d | r | b | m | property                          | type              | ref                             | source                                        | prepare  | level | access | uri | title | description
+           | manifest                                          |                   |                                 |                                               |          |       |        |     |       |
+           |   | resource1                                     | dask/xml          |                                 |                                               |          |       |        |     |       |
+           |                                                   |                   |                                 |                                               |          |       |        |     |       |
+           |   |   |   | Extract/:part                         |                   |                                 |                                               |          |       |        |     |       |
+           |   |   |   |   | extract_preparation_time          | datetime required |                                 | extractPreparationTime/text()                 |          |       |        |     |       |
+           |   |   |   |   | last_update_time                  | datetime required |                                 | lastUpdateTime/text()                         |          |       |        |     |       |
+           |                                                   |                   |                                 |                                               |          |       |        |     |       |
+           |   |   |   | GetDocumentsByWagonResponse           |                   |                                 | /getDocumentsByWagonResponse                  |          |       |        |     |       |
+           |   |   |   |   | klaida                            | ref               | Klaida                          | klaida                                        | expand() |       |        |     |       |
+           |   |   |   |   | search_parameters[]               | backref           | GetDocumentsByWagonSearchParams | searchParameters                              | expand() |       |        |     |       |
+           |                                                   |                   |                                 |                                               |          |       |        |     |       |
+           |   |   |   | GetDocumentsByWagonResponse1          |                   |                                 | /getDocumentsByWagonResponse                  |          |       |        |     |       |
+           |   |   |   |   | extract                           | ref               | Extract                         | extract                                       | expand() |       |        |     |       |
+           |   |   |   |   | search_parameters[]               | backref           | GetDocumentsByWagonSearchParams | searchParameters                              | expand() |       |        |     |       |
+           |                                                   |                   |                                 |                                               |          |       |        |     |       |
+           |   |   |   | GetDocumentsByWagonSearchParams/:part |                   |                                 |                                               |          |       |        |     |       |
+           |   |   |   |   | code                              | string            |                                 | code/text()                                   |          |       |        |     |       |
+           |   |   |   |   | get_documents_by_wagon_response   | ref               | GetDocumentsByWagonResponse     |                                               |          |       |        |     |       |
+           |   |   |   |   | get_documents_by_wagon_response1  | ref               | GetDocumentsByWagonResponse1    |                                               |          |       |        |     |       |
+           |   |   |   |   | search_type                       | string            |                                 | searchType/text()                             |          |       |        |     |       |
+           |                                                   |                   |                                 |                                               |          |       |        |     |       |
+           |   |   |   | Klaida/:part                          |                   |                                 |                                               |          |       |        |     |       |
+           |   |   |   |   | aprasymas                         | string            |                                 | Aprasymas/text()                              |          |       |        |     |       |
     """
 
     path = tmp_path / 'manifest.xsd'
@@ -771,85 +836,8 @@ def test_duplicate_removal(rc: RawConfig, tmp_path: Path):
     assert manifest == table
 
 
-@pytest.mark.skip(reason='waiting for #942')
-def test_duplicate_removal_backref(rc: RawConfig, tmp_path: Path):
-    xsd = """
-    <xs:schema xmlns="http://eTaarPlat.ServiceContracts/2007/08/Messages" elementFormDefault="qualified" targetNamespace="http://eTaarPlat.ServiceContracts/2007/08/Messages" xmlns:xs="http://www.w3.org/2001/XMLSchema">
-        <xs:element name="getDocumentsByWagonResponse" nillable="true" type="getDocumentsByWagonResponse" />
-        <xs:complexType name="getDocumentsByWagonResponse">
-            <xs:sequence>
-                <xs:element minOccurs="0" maxOccurs="unbounded" name="searchParameters" type="getDocumentsByWagonSearchParams" />
-                <xs:choice minOccurs="1" maxOccurs="1">
-                    <xs:element minOccurs="0" maxOccurs="1" name="klaida" type="Klaida" />
-                    <xs:element minOccurs="0" maxOccurs="1" name="extract" type="Extract" />
-                </xs:choice>
-            </xs:sequence>
-        </xs:complexType>
-        <xs:complexType name="getDocumentsByWagonSearchParams">
-            <xs:sequence>
-                <xs:element minOccurs="0" maxOccurs="1" name="searchType" type="xs:string" />
-                <xs:element minOccurs="0" maxOccurs="1" name="code" type="xs:string" />
-            </xs:sequence>
-        </xs:complexType>
-        <xs:complexType name="Klaida">
-                    <xs:sequence>
-                        <xs:element minOccurs="0" maxOccurs="1" name="Aprasymas" type="xs:string" />
-                    </xs:sequence>
-        </xs:complexType>
-        <xs:complexType name="Extract">
-                    <xs:sequence>
-                        <xs:element minOccurs="1" maxOccurs="1" name="extractPreparationTime" type="xs:dateTime" />
-                        <xs:element minOccurs="1" maxOccurs="1" name="lastUpdateTime" type="xs:dateTime" />
-                    </xs:sequence>
-        </xs:complexType>
-    </xs:schema>
-"""
-
-    table = """
- id | d | r | b | m | property                         | type              | ref              | source                                        | prepare | level | access | uri | title | description
-    | manifest                                         |                   |                  |                                               |         |       |        |     |       |
-    |   | resource1                                    | dask/xml          |                  |                                               |         |       |        |     |       |
-    |                                                  |                   |                  |                                               |         |       |        |     |       |
-    |   |   |   | Extract                              |                   |                  |                                               |         |       |        |     |       |
-    |   |   |   |   | extract_preparation_time         | datetime required |                  | extractPreparationTime/text()                 |         |       |        |     |       |
-    |   |   |   |   | last_update_time                 | datetime required |                  | lastUpdateTime/text()                         |         |       |        |     |       |
-    |                                                  |                   |                  |                                               |         |       |        |     |       |
-    |   |   |   | GetDocumentsByWagonResponse1         |                   |                  | /getDocumentsByWagonResponse                  |         |       |        |     |       |
-    |   |   |   |   | aprasymas                        | string            |                  | klaida/Aprasymas/text()                       |         |       |        |     |       |
-    |   |   |   |   | search_parameters[]              | backref           | SearchParameters | searchParameters                              |         |       |        |     |       |
-    |   |   |   |   | search_parameters[].code         | string            |                  | code/text()                                   |         |       |        |     |       |
-    |   |   |   |   | search_parameters[].search_type  | string            |                  | searchType/text()                             |         |       |        |     |       |
-    |                                                  |                   |                  |                                               |         |       |        |     |       |
-    |   |   |   | GetDocumentsByWagonResponse2         |                   |                  | /getDocumentsByWagonResponse                  |         |       |        |     |       |
-    |   |   |   |   | extract                          | ref               | Extract          | extract                                       |         |       |        |     |       |
-    |   |   |   |   | extract.extract_preparation_time | datetime required |                  | extract/extractPreparationTime/text()         |         |       |        |     |       |
-    |   |   |   |   | extract.last_update_time         | datetime required |                  | extract/lastUpdateTime/text()                 |         |       |        |     |       |
-    |   |   |   |   | search_parameters[]              | backref           | SearchParameters | searchParameters                              |         |       |        |     |       |
-    |   |   |   |   | search_parameters[].code         | string            |                  | code/text()                                   |         |       |        |     |       |
-    |   |   |   |   | search_parameters[].search_type  | string            |                  | searchType/text()                             |         |       |        |     |       |
-    |                                                  |                   |                  |                                               |         |       |        |     |       |
-    |   |   |   | SearchParameters                     |                   |                  |                                               |         |       |        |     |       |
-    |   |   |   |   | code                             | string            |                  | code/text()                                   |         |       |        |     |       |
-    |   |   |   |   | get_documents_by_wagon_response1 | ref               | GetDocumentsByWagonResponse1 |                                               |         |       |        |     |       |
-    |   |   |   |   | get_documents_by_wagon_response2 | ref               | GetDocumentsByWagonResponse2 |                                               |         |       |        |     |       |
-    |   |   |   |   | search_type                      | string            |                  | searchType/text()                             |         |       |        |     |       |
-
-  """
-
-    path = tmp_path / 'manifest.xsd'
-    path_xsd2 = f"xsd2+file://{path}"
-    with open(path, "w") as xsd_file:
-        xsd_file.write(xsd)
-    manifest = load_manifest(rc, path_xsd2)
-    assert manifest == table
-
-
-@pytest.mark.skip(reason='waiting for #942')
-def test_duplicate_removal_different_models(rc: RawConfig, tmp_path: Path):
-    """
-    in this situation, "Extract" model has to be only once
-    """
-    xsd = """
+def test_duplicate_removal_multiple_models(rc: RawConfig, tmp_path: Path):
+    xsd = '''
         <xs:schema xmlns="http://eTaarPlat.ServiceContracts/2007/08/Messages" elementFormDefault="qualified" targetNamespace="http://eTaarPlat.ServiceContracts/2007/08/Messages" xmlns:xs="http://www.w3.org/2001/XMLSchema">
             <xs:element name="Wagon" type="Wagon" />
             <xs:complexType name="Wagon">
@@ -872,61 +860,47 @@ def test_duplicate_removal_different_models(rc: RawConfig, tmp_path: Path):
                 </xs:sequence>
             </xs:complexType>
             <xs:complexType name="Klaida">
-                <xs:sequence>
-                    <xs:element name="Aprasymas" type="xs:string" />
-                </xs:sequence>
+                        <xs:sequence>
+                            <xs:element name="Aprasymas" type="xs:string" />
+                        </xs:sequence>
             </xs:complexType>
             <xs:complexType name="Extract">
-                <xs:sequence>
-                    <xs:element name="extractPreparationTime" type="xs:dateTime" />
-                    <xs:element name="lastUpdateTime" type="xs:dateTime" />
-                </xs:sequence>
+                        <xs:sequence>
+                            <xs:element name="extractPreparationTime" type="xs:dateTime" />
+                            <xs:element name="lastUpdateTime" type="xs:dateTime" />
+                        </xs:sequence>
             </xs:complexType>
         </xs:schema>
-"""
+    '''
 
-    table = """
- id | d | r | b | m | property                         | type              | ref              | source                                                            | prepare | level | access | uri | title | description
-    | manifest                                         |                   |                  |                                                                   |         |       |        |     |       |
-    |   | resource1                                    | dask/xml          |                  |                                                                   |         |       |        |     |       |
-    |                                                  |                   |                  |                                                                   |         |       |        |     |       |
-    |   |   |   | Extract                              |                   |                  |                                                                   |         |       |        |     |       |
-    |   |   |   |   | extract_preparation_time         | datetime required |                  | extractPreparationTime/text()                                     |         |       |        |     |       |
-    |   |   |   |   | last_update_time                 | datetime required |                  | lastUpdateTime/text()                                             |         |       |        |     |       |
-    |                                                  |                   |                  |                                                                   |         |       |        |     |       |
-    |   |   |   | GetDocumentsByAirCraftResponse       |                   |                  | /getDocumentsByAirCraftResponse                                   |         |       |        |     |       |
-    |   |   |   |   | aprasymas                        | string            |                  | klaida/Aprasymas/text()                                           |         |       |        |     |       |
-    |   |   |   |   | search_parameters                | ref               | SearchParameters | searchParameters                                                  |         |       |        |     |       |
-    |   |   |   |   | search_parameters.code           | string            |                  | getDocumentsByWagonResponse/searchParameters/code/text()          |         |       |        |     |       |
-    |   |   |   |   | search_parameters.search_type    | string            |                  | getDocumentsByWagonResponse/searchParameters/searchType/text()    |         |       |        |     |       |
-    |                                                  |                   |                  |                                                                   |         |       |        |     |       |
-    |   |   |   | GetDocumentsByAirCraftResponse1      |                   |                  | /getDocumentsByAirCraftResponse                                   |         |       |        |     |       |
-    |   |   |   |   | extract                          | ref               | Extract          | extract                                                           |         |       |        |     |       |
-    |   |   |   |   | extract.extract_preparation_time | datetime required |                  | getDocumentsByWagonResponse/extract/extractPreparationTime/text() |         |       |        |     |       |
-    |   |   |   |   | extract.last_update_time         | datetime required |                  | getDocumentsByWagonResponse/extract/lastUpdateTime/text()         |         |       |        |     |       |
-    |   |   |   |   | search_parameters                | ref               | SearchParameters | searchParameters                                                  |         |       |        |     |       |
-    |   |   |   |   | search_parameters.code           | string            |                  | getDocumentsByWagonResponse/searchParameters/code/text()          |         |       |        |     |       |
-    |   |   |   |   | search_parameters.search_type    | string            |                  | getDocumentsByWagonResponse/searchParameters/searchType/text()    |         |       |        |     |       |
-    |                                                  |                   |                  |                                                                   |         |       |        |     |       |
-    |   |   |   | GetDocumentsByWagonResponse          |                   |                  | /getDocumentsByWagonResponse                                      |         |       |        |     |       |
-    |   |   |   |   | aprasymas                        | string            |                  | klaida/Aprasymas/text()                                           |         |       |        |     |       |
-    |   |   |   |   | search_parameters                | ref               | SearchParameters | searchParameters                                                  |         |       |        |     |       |
-    |   |   |   |   | search_parameters.code           | string            |                  | searchParameters/code/text()                                      |         |       |        |     |       |
-    |   |   |   |   | search_parameters.search_type    | string            |                  | searchParameters/searchType/text()                                |         |       |        |     |       |
-    |                                                  |                   |                  |                                                                   |         |       |        |     |       |
-    |   |   |   | GetDocumentsByWagonResponse1         |                   |                  | /getDocumentsByWagonResponse                                      |         |       |        |     |       |
-    |   |   |   |   | extract                          | ref               | Extract          | extract                                                           |         |       |        |     |       |
-    |   |   |   |   | extract.extract_preparation_time | datetime required |                  | extract/extractPreparationTime/text()                             |         |       |        |     |       |
-    |   |   |   |   | extract.last_update_time         | datetime required |                  | extract/lastUpdateTime/text()                                     |         |       |        |     |       |
-    |   |   |   |   | search_parameters                | ref               | SearchParameters | searchParameters                                                  |         |       |        |     |       |
-    |   |   |   |   | search_parameters.code           | string            |                  | searchParameters/code/text()                                      |         |       |        |     |       |
-    |   |   |   |   | search_parameters.search_type    | string            |                  | searchParameters/searchType/text()                                |         |       |        |     |       |
-    |                                                  |                   |                  |                                                                   |         |       |        |     |       |
-    |   |   |   | SearchParameters                     |                   |                  |                                                                   |         |       |        |     |       |
-    |   |   |   |   | code                             | string            |                  | code/text()                                                       |         |       |        |     |       |
-    |   |   |   |   | search_type                      | string            |                  | searchType/text()                                                 |         |       |        |     |       |
-
-  """
+    table = '''
+        id | d | r | b | m | property                 | type              | ref     | source                        | prepare  | level | access | uri | title | description
+           | manifest                                 |                   |         |                               |          |       |        |     |       |
+           |   | resource1                            | dask/xml          |         |                               |          |       |        |     |       |
+           |                                          |                   |         |                               |          |       |        |     |       |
+           |   |   |   | AirCraft                     |                   |         | /AirCraft                     |          |       |        |     |       |
+           |   |   |   |   | klaida                   | ref               | Klaida  | klaida                        | expand() |       |        |     |       |
+           |   |   |   |   | search_parameters        | string required   |         | searchParameters/text()       |          |       |        |     |       |
+           |                                          |                   |         |                               |          |       |        |     |       |
+           |   |   |   | AirCraft1                    |                   |         | /AirCraft                     |          |       |        |     |       |
+           |   |   |   |   | extract                  | ref               | Extract | extract                       | expand() |       |        |     |       |
+           |   |   |   |   | search_parameters        | string required   |         | searchParameters/text()       |          |       |        |     |       |
+           |                                          |                   |         |                               |          |       |        |     |       |
+           |   |   |   | Extract/:part                |                   |         |                               |          |       |        |     |       |
+           |   |   |   |   | extract_preparation_time | datetime required |         | extractPreparationTime/text() |          |       |        |     |       |
+           |   |   |   |   | last_update_time         | datetime required |         | lastUpdateTime/text()         |          |       |        |     |       |
+           |                                          |                   |         |                               |          |       |        |     |       |
+           |   |   |   | Klaida/:part                 |                   |         |                               |          |       |        |     |       |
+           |   |   |   |   | aprasymas                | string required   |         | Aprasymas/text()              |          |       |        |     |       |
+           |                                          |                   |         |                               |          |       |        |     |       |
+           |   |   |   | Wagon                        |                   |         | /Wagon                        |          |       |        |     |       |
+           |   |   |   |   | klaida                   | ref               | Klaida  | klaida                        | expand() |       |        |     |       |
+           |   |   |   |   | search_parameters        | string required   |         | searchParameters/text()       |          |       |        |     |       |
+           |                                          |                   |         |                               |          |       |        |     |       |
+           |   |   |   | Wagon1                       |                   |         | /Wagon                        |          |       |        |     |       |
+           |   |   |   |   | extract                  | ref               | Extract | extract                       | expand() |       |        |     |       |
+           |   |   |   |   | search_parameters        | string required   |         | searchParameters/text()       |          |       |        |     |       |
+    '''
 
     path = tmp_path / 'manifest.xsd'
     path_xsd2 = f"xsd2+file://{path}"
@@ -1080,80 +1054,6 @@ def test_xsd_different_elements_same_complex_type(rc: RawConfig, tmp_path: Path)
            |   |   |   |   | size       | string required |      | Size/text()       |          |       |        |     |       |
            |   |   |   |   | sub_area   | ref required    | Area | SubArea           | expand() |       |        |     |       |
     """
-    path = tmp_path / 'manifest.xsd'
-    path_xsd2 = f"xsd2+file://{path}"
-    with open(path, "w") as xsd_file:
-        xsd_file.write(xsd)
-    manifest = load_manifest(rc, path_xsd2)
-    assert manifest == table
-
-
-def test_duplicate_removal_multiple_models(rc: RawConfig, tmp_path: Path):
-    xsd = '''
-        <xs:schema xmlns="http://eTaarPlat.ServiceContracts/2007/08/Messages" elementFormDefault="qualified" targetNamespace="http://eTaarPlat.ServiceContracts/2007/08/Messages" xmlns:xs="http://www.w3.org/2001/XMLSchema">
-            <xs:element name="Wagon" type="Wagon" />
-            <xs:complexType name="Wagon">
-                <xs:sequence>
-                    <xs:element name="searchParameters" type="xs:string" />
-                    <xs:choice>
-                        <xs:element minOccurs="0" name="klaida" type="Klaida" />
-                        <xs:element minOccurs="0" name="extract" type="Extract" />
-                    </xs:choice>
-                </xs:sequence>
-            </xs:complexType>
-            <xs:element name="AirCraft" type="AirCraft" />
-            <xs:complexType name="AirCraft">
-                <xs:sequence>
-                    <xs:element name="searchParameters" type="xs:string" />
-                    <xs:choice>
-                        <xs:element minOccurs="0" name="klaida" type="Klaida" />
-                        <xs:element minOccurs="0" name="extract" type="Extract" />
-                    </xs:choice>
-                </xs:sequence>
-            </xs:complexType>
-            <xs:complexType name="Klaida">
-                        <xs:sequence>
-                            <xs:element name="Aprasymas" type="xs:string" />
-                        </xs:sequence>
-            </xs:complexType>
-            <xs:complexType name="Extract">
-                        <xs:sequence>
-                            <xs:element name="extractPreparationTime" type="xs:dateTime" />
-                            <xs:element name="lastUpdateTime" type="xs:dateTime" />
-                        </xs:sequence>
-            </xs:complexType>
-        </xs:schema>
-    '''
-
-    table = '''
-        id | d | r | b | m | property                 | type              | ref     | source                        | prepare  | level | access | uri | title | description
-           | manifest                                 |                   |         |                               |          |       |        |     |       |
-           |   | resource1                            | dask/xml          |         |                               |          |       |        |     |       |
-           |                                          |                   |         |                               |          |       |        |     |       |
-           |   |   |   | AirCraft                     |                   |         | /AirCraft                     |          |       |        |     |       |
-           |   |   |   |   | klaida                   | ref               | Klaida  | klaida                        | expand() |       |        |     |       |
-           |   |   |   |   | search_parameters        | string required   |         | searchParameters/text()       |          |       |        |     |       |
-           |                                          |                   |         |                               |          |       |        |     |       |
-           |   |   |   | AirCraft1                    |                   |         | /AirCraft                     |          |       |        |     |       |
-           |   |   |   |   | extract                  | ref               | Extract | extract                       | expand() |       |        |     |       |
-           |   |   |   |   | search_parameters        | string required   |         | searchParameters/text()       |          |       |        |     |       |
-           |                                          |                   |         |                               |          |       |        |     |       |
-           |   |   |   | Extract/:part                |                   |         |                               |          |       |        |     |       |
-           |   |   |   |   | extract_preparation_time | datetime required |         | extractPreparationTime/text() |          |       |        |     |       |
-           |   |   |   |   | last_update_time         | datetime required |         | lastUpdateTime/text()         |          |       |        |     |       |
-           |                                          |                   |         |                               |          |       |        |     |       |
-           |   |   |   | Klaida/:part                 |                   |         |                               |          |       |        |     |       |
-           |   |   |   |   | aprasymas                | string required   |         | Aprasymas/text()              |          |       |        |     |       |
-           |                                          |                   |         |                               |          |       |        |     |       |
-           |   |   |   | Wagon                        |                   |         | /Wagon                        |          |       |        |     |       |
-           |   |   |   |   | klaida                   | ref               | Klaida  | klaida                        | expand() |       |        |     |       |
-           |   |   |   |   | search_parameters        | string required   |         | searchParameters/text()       |          |       |        |     |       |
-           |                                          |                   |         |                               |          |       |        |     |       |
-           |   |   |   | Wagon1                       |                   |         | /Wagon                        |          |       |        |     |       |
-           |   |   |   |   | extract                  | ref               | Extract | extract                       | expand() |       |        |     |       |
-           |   |   |   |   | search_parameters        | string required   |         | searchParameters/text()       |          |       |        |     |       |
-    '''
-
     path = tmp_path / 'manifest.xsd'
     path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
