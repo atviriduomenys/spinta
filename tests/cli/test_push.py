@@ -146,10 +146,6 @@ def array_geodb():
         'country': [
             sa.Column('id', sa.Integer, primary_key=True),
             sa.Column('name', sa.Text),
-        ],
-        'countrysplit': [
-            sa.Column('id', sa.Integer, primary_key=True),
-            sa.Column('name', sa.Text),
             sa.Column('languages', sa.Text),
         ],
         'language': [
@@ -168,9 +164,9 @@ def array_geodb():
             {'id': 2, 'code': 'pl', 'name': 'Polish'},
         ])
         db.write('country', [
-            {'id': 0, 'name': 'Lithuania'},
-            {'id': 1, 'name': 'England'},
-            {'id': 2, 'name': 'Poland'},
+            {'id': 0, 'name': 'Lithuania', 'languages': 'lt,en'},
+            {'id': 1, 'name': 'England', 'languages': 'en'},
+            {'id': 2, 'name': 'Poland', 'languages': 'en,pl'},
         ])
         db.write('countrylanguage', [
             {'country_id': 0, 'language_id': 0},
@@ -178,11 +174,6 @@ def array_geodb():
             {'country_id': 1, 'language_id': 1},
             {'country_id': 2, 'language_id': 1},
             {'country_id': 2, 'language_id': 2},
-        ])
-        db.write('countrysplit', [
-            {'id': 0, 'name': 'Lithuania', 'languages': 'lt,en'},
-            {'id': 1, 'name': 'England', 'languages': 'en'},
-            {'id': 2, 'name': 'Poland', 'languages': 'en, pl'},
         ])
         yield db
 
@@ -3308,6 +3299,84 @@ def test_push_with_array_intermediate_table(
           |   |   | CountryLanguage |         |                 | countrylanguage |       | private |
           |   |   |   | country     | ref     | Country         | country_id      |       |         |    
           |   |   |   | language    | ref     | Language        | language_id     |       |         |
+        ''')
+
+    # Configure local server with SQL backend
+    rc = rc.fork({
+        'default_page_size': 2
+    })
+    localrc = create_rc(rc, tmp_path, array_geodb)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    remote.app.authorize(['spinta_set_meta_fields', 'spinta_patch', 'spinta_update', 'spinta_insert', 'spinta_getall', 'spinta_search', 'spinta_wipe'])
+    result = cli.invoke(localrc, [
+        'push',
+        tmp_path / 'manifest_push.csv',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+    ])
+    assert result.exit_code == 0
+
+    resp = remote.app.get(f'datasets/push/array/int/Language')
+    lang_data = resp.json()['_data']
+    lang_mapping = {lang['id']: lang for lang in lang_data}
+    result = remote.app.get('datasets/push/array/int/Country?expand(languages)')
+    assert result.status_code == 200
+    assert listdata(result, 'id', 'name', 'languages', sort=True) == [
+        (0, 'Lithuania', [
+            {'_id': lang_mapping[0]['_id']},
+            {'_id': lang_mapping[1]['_id']}
+        ]),
+        (1, 'England', [
+            {'_id': lang_mapping[1]['_id']},
+        ]),
+        (2, 'Poland', [
+            {'_id': lang_mapping[1]['_id']},
+            {'_id': lang_mapping[2]['_id']}
+        ])
+    ]
+
+
+def test_push_with_array_split(
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    request,
+    array_geodb
+):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', '''
+        d | r | b | m | property    | type    | ref            | source | level | access | prepare
+        datasets/push/array/int     |         |                |        |       |        |
+          |   |   | Country         |         | id             |        |       | open   |
+          |   |   |   | id          | integer |                |        |       |        |    
+          |   |   |   | name        | string  |                |        |       |        | 
+          |   |   |   | languages[] | ref     | Language[code] |        |       |        | 
+          |   |   | Language        |         | id             |        |       | open   |
+          |   |   |   | id          | integer |                |        |       |        |    
+          |   |   |   | code        | string  |                |        |       |        | 
+          |   |   |   | name        | string  |                |        |       |        |
+        ''')
+
+    create_tabular_manifest(context, tmp_path / 'manifest_push.csv', '''
+        d | r | b | m | property    | type    | ref             | source          | level | access  | prepare
+        datasets/push/array/int     |         |                 |                 |       |         |
+          | db                      |         | sqlite          |                 |       |         |
+          |   |   | Country         |         | id              | country         |       |         |
+          |   |   |   | id          | integer |                 | id              |       | open    |    
+          |   |   |   | name        | string  |                 | name            |       | open    | 
+          |   |   |   | languages[] | ref     | Language[code]  | languages       |       | open    | split(',') 
+          |   |   | Language        |         | id              | language        |       |         |
+          |   |   |   | id          | integer |                 | id              |       | open    |    
+          |   |   |   | code        | string  |                 | code            |       | open    | 
+          |   |   |   | name        | string  |                 | name            |       | open    |
         ''')
 
     # Configure local server with SQL backend

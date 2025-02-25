@@ -615,7 +615,6 @@ class PropertyReader(TabularReader):
     enums: Set[str]
 
     def read(self, row: Dict[str, str]) -> None:
-        self.path_to_current_prop = self._path_to_current_prop(row['property'])
         complete_structure, parent_structure, prop_name = _extract_and_create_parent_data(self, row, row['property'])
 
         prop_data = _handle_datatype(self, row)
@@ -628,7 +627,7 @@ class PropertyReader(TabularReader):
 
         # Edge case where there is no nesting, need to couple `prop_data` with `complete_structure`
         # This ensures that `self.data` is coupled with `self.state.mode.data`
-        # Any changes done to `self.data` will also be reflected there
+        # Any changes done to `self.data` will also be reflected there (enum, etc.)
         if prop_data == complete_structure:
             prop_data = complete_structure
 
@@ -679,15 +678,6 @@ class PropertyReader(TabularReader):
                 prepare=row['prepare']
             )
         )
-
-    def _path_to_current_prop(self, prop_given_name: str) -> str:
-        STR_PROPERTIES = 'properties'
-        parts = prop_given_name.split('.')[1:]
-        result = '.'.join(
-            part + ('.' + STR_PROPERTIES if i < len(parts) - 1 else '')
-            for i, part in enumerate(parts)
-        )
-        return STR_PROPERTIES + '.' + result if result else ''
 
 
 def _initial_normal_property_schema(given_name: str, dtype: dict, row: dict):
@@ -1499,7 +1489,7 @@ class EnumReader(TabularReader):
             'level': row[LEVEL],
         }
 
-        node_data: PropertyRow = self._get_node_data(row)
+        node_data: PropertyRow = self._get_node_data()
 
         if 'enums' not in node_data:
             node_data['enums'] = {}
@@ -1528,7 +1518,7 @@ class EnumReader(TabularReader):
     def leave(self) -> None:
         pass
 
-    def _get_node_data(self, row: ManifestRow) -> PropertyRow:
+    def _get_node_data(self) -> PropertyRow:
         node: TabularReader = (
             self.state.prop
             or self.state.model
@@ -1537,10 +1527,7 @@ class EnumReader(TabularReader):
             or self.state.dataset
             or self.state.manifest
         )
-
-        node_data: PropertyRow = node.data
-
-        return node_data
+        return node.data
 
 
 class LangReader(TabularReader):

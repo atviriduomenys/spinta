@@ -18,9 +18,9 @@ def point(env: ResultBuilder, x: Selected, y: Selected) -> str:
 @ufunc.resolver(ResultBuilder, Expr)
 def split(env: ResultBuilder, expr: Expr):
     args, kwargs = expr.resolve(env)
+    return env.call('split', *args, **kwargs)
 
-    if len(args) != 1:
-        raise Exception("SPLIT REQUIRES ONLY 1 ARGUMENT")
 
-    separator = args[0]
+@ufunc.resolver(ResultBuilder, str)
+def split(env: ResultBuilder, separator: str):
     return env.this.split(separator)
