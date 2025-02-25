@@ -1540,11 +1540,6 @@ class EnumReader(TabularReader):
 
         node_data: PropertyRow = node.data
 
-        if isinstance(node, PropertyReader):
-            if node.path_to_current_prop:
-                for key in node.path_to_current_prop.split('.'):
-                    node_data = node_data[key]
-
         return node_data
 
 
