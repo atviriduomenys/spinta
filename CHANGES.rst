@@ -4,6 +4,15 @@ Changes
 0.1.85 (unreleased)
 ===================
 
+New Features:
+
+- Added `split('...')` function support to `sql` backend (`#760`_).
+
+Improvements:
+
+- Added `Array` push support for `sql` backend (`#760`_).
+
+  .. _#760: https://github.com/atviriduomenys/spinta/issues/760
 
 0.1.84 (2025-02-19)
 ===================
