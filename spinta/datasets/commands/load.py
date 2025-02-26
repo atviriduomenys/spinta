@@ -125,12 +125,12 @@ def load(context: Context, entity: Entity, data: dict, manifest: Manifest):
     # XXX: https://gitlab.com/atviriduomenys/spinta/-/issues/44
     pkeys: List[str] = entity.pkeys or []
     if pkeys:
-        _check_unknown_keys(entity.model, pkeys, entity.model.properties)
-        entity.pkeys = [entity.model.properties[k] for k in pkeys]
+        _check_unknown_keys(entity.model, pkeys, entity.model.flatprops)
+        entity.pkeys = [entity.model.flatprops[k] for k in pkeys]
     else:
         entity.unknown_primary_key = True
         entity.pkeys = sorted(
-            take(entity.model.properties).values(),
+            take(entity.model.flatprops).values(),
             key=lambda p: p.place,
         )
 
