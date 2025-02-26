@@ -12,6 +12,13 @@ from spinta.core.ufuncs import ufunc
 def swap(env: Env, old: Any, new: Any) -> Any:
     return env.call('swap', env.this, old, new)
 
+@overload
+@ufunc.resolver(Env, object, Expr, object)
+def swap(env: Env, this: Any, old: Expr, new: Any) -> Any:
+    if this == str(old):
+        return new
+    else:
+        return this
 
 @overload
 @ufunc.resolver(Env, object, object, object)
@@ -21,6 +28,11 @@ def swap(env: Env, this: Any, old: Any, new: Any) -> Any:
     else:
         return this
 
+
+@overload
+@ufunc.resolver(Env, Expr)
+def swap(env: Env, expr: Expr) -> Any:
+    return expr
 
 @overload
 @ufunc.resolver(Env, Expr)

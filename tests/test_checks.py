@@ -223,3 +223,16 @@ def test_check_enum_null_under_prepare(manifest_type , tmp_path, rc):
       |   |   |   |            | enum    |     |            | null
         ''', manifest_type=manifest_type, tmp_path=tmp_path)
     commands.check(context, manifest)
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_check_enum_swap_null_under_prepare(manifest_type , tmp_path, rc):
+    context, manifest = load_manifest_and_context(rc, '''
+    d | r | b | m | property   | type    | ref | source     | prepare
+    test_dataset               |         |     |            |        
+      | resource1              | xml     |     |            |         
+      |   |   | Country        |         |     | Country    |        
+      |   |   |   | driving    | string  |     |            |             
+      |   |   |   |            | enum    |     |            | swap(null, '-')
+        ''', manifest_type=manifest_type, tmp_path=tmp_path)
+    commands.check(context, manifest)
+
