@@ -1721,3 +1721,39 @@ def test_json_keymap_ref_keys_invalid_order(context, rc, tmp_path, sqlite):
             'planet_name._id': id_mapping['MS'],
         }
     ]
+
+
+def test_swap_ufunc(rc: RawConfig, fs: AbstractFileSystem):
+    fs.pipe('cities.csv', (
+        'id,name\n'
+        '1,test\n'
+        '2,\n'
+        '3,''\n'
+        '4,null'
+    ).encode('utf-8'))
+
+    context, manifest = prepare_manifest(rc, '''
+    d | r | b | m | property | type     | ref  | source              | prepare            | access
+    example/csv              |          |      |                     |                    |
+      | csv                  | dask/csv |      | memory://cities.csv |                    |
+      |   |   | City         |          | name |                     |                    |
+      |   |   |   | id       | string   |      | id                  |                    | open
+      |   |   |   | name     | string   |      | name                |                    | open
+      |   |   |   |          | enum     |      |                     |                    | open
+      |   |   |   |          |          |      |                     |  swap('nan', '---')  | open
+      |   |   |   |          |          |      |                     |  swap(null, '---') | open
+      |   |   |   |          |          |      |                     |  swap('', '---')   | open
+      |   |   |   |          |          |      |                     |  '---'             | open
+      |   |   |   |          |          |      |                     |  'test'            | open
+    ''', mode=Mode.external)
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel('example/csv/City', ['getall'])
+
+    resp = app.get('/example/csv/City')
+    assert listdata(resp) == [
+        (1, 'test'),
+        (2, '---'),
+        (3, '---'),
+        (4, '---'),
+    ]
