@@ -3,6 +3,7 @@ from typing import overload
 
 from spinta import commands
 from spinta.components import Context
+from spinta.core.ufuncs import Expr
 from spinta.types.datatype import DataType
 from spinta.types.datatype import Integer
 from spinta.types.datatype import String
@@ -25,6 +26,18 @@ def check(
         f"property type, which is {dtype.name!r}."
     ))
 
+
+@overload
+@commands.check.register(Context, EnumItem, DataType, Expr)
+def check(
+    context: Context,
+    item: EnumItem,
+    dtype: DataType,
+    value: Expr,
+):
+    output_value = value.args[-1] # TODO not sure if its good approach for the future expressions.
+    if output_value:
+        dtype.load(output_value)
 
 @overload
 @commands.check.register(Context, EnumItem, DataType, type(None))

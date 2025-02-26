@@ -1324,3 +1324,52 @@ def test_filter_lithuanian_letters(
             'name': 'Šilutė',
         },
     ]
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_swap_ufunc(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property   | type     | ref | prepare                 | access | level
+    datasets/geometry/point    |          |     |                         |        |
+      |   |   | Country        |          | id  |                         |        |
+      |   |   |   | id         | integer  |     |                         | open   |
+      |   |   |   | name       | string   |     |                         | open   |
+      |   |   |   |            | enum     |     | swap('nan', '---')      | open   |
+      |   |   |   |            |          |     | swap(null, '---')       | open   |
+      |   |   |   |            |          |     | swap('', '---')         | open   |
+      |   |   |   |            |          |     | swap('---', '--')       | open   |
+      |   |   |   |            |          |     | '---'                   | open   |
+      |   |   |   |            |          |     | '--'                    | open   |
+      |   |   |   |            |          |     | 'test'                  | open   |
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+
+    app = create_test_client(context)
+    app.authorize(['spinta_insert', 'spinta_getall', 'spinta_wipe', 'spinta_search', 'spinta_set_meta_fields'])
+
+    for _id, name in enumerate(('nan', 'test', '', None)):
+        resp = app.post('/datasets/geometry/point/Country', json={
+            'id': _id,
+            'name': name
+        })
+        assert resp.status_code == 201, resp.text
+
+    resp = app.get('/datasets/geometry/point/Country')
+    assert resp.status_code == 200, resp.text
+    assert listdata(resp, "id", "name", full=True) == [
+        {"id": 0, "name": "---"},
+        {"id": 1, "name": "test"},
+        {"id": 2, "name": "---"},
+        {"id": 3, "name": "---"},
+    ]
