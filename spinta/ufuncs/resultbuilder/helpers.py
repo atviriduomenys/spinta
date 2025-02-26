@@ -5,11 +5,11 @@ from multipledispatch import dispatch
 
 from spinta.backends import Backend
 from spinta.components import Context, Property
-from spinta.core.ufuncs import Expr
+from spinta.core.ufuncs import Expr, Env
 from spinta.dimensions.enum.helpers import get_prop_enum
 from spinta.exceptions import ValueNotInEnum
 from spinta.ufuncs.querybuilder.components import Selected
-from spinta.ufuncs.resultbuilder.components import ResultBuilder
+from spinta.ufuncs.resultbuilder.components import ResultBuilder, EnumResultBuilder
 from spinta.utils.schema import NA
 
 ResultBuilderGetter = abc.Callable[[], ResultBuilder]
@@ -138,7 +138,7 @@ def _get_row_value(
     row: Any,
     sel: Any,
     check_enums: bool,
-    result_builder_getter: Union[ResultBuilderGetter, ResultBuilder]
+    result_builder_getter: Union[ResultBuilderGetter, ResultBuilder],
 ):
     if isinstance(sel, Selected):
         if isinstance(sel.prep, Expr):
@@ -153,7 +153,16 @@ def _get_row_value(
                     val = _aggregate_values(val, prop)
             else:
                 val = None
-
+        if enum_options := get_prop_enum(sel.prop):
+            for enum_option in enum_options.values():
+                if isinstance(enum_option.prepare, Expr):
+                    env = EnumResultBuilder(context).init(val)
+                    val = env.resolve(enum_option.prepare)
+                    if env.has_value_changed:
+                        break
+                elif enum_option.source and enum_option.prepare and enum_option.source == val:
+                    val = enum_option.prepare
+                    break
         if check_enums:
             if enum := get_prop_enum(sel.prop):
                 if val is None:
