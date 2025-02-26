@@ -107,6 +107,7 @@ pyproj = "*"
 xmltodict = "*"
 sqlean-py = "*"
 cachetools = "*"
+pytest-xdist = {extras = ["psutil"], version = "^3.6.1"}
 
 
 [tool.poetry.group.dev.dependencies]
