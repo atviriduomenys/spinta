@@ -5,7 +5,7 @@ from multipledispatch import dispatch
 
 from spinta.backends import Backend
 from spinta.components import Context, Property
-from spinta.core.ufuncs import Expr
+from spinta.core.ufuncs import Expr, Env
 from spinta.dimensions.enum.helpers import get_prop_enum
 from spinta.exceptions import ValueNotInEnum
 from spinta.ufuncs.querybuilder.components import Selected
@@ -138,7 +138,7 @@ def _get_row_value(
     row: Any,
     sel: Any,
     check_enums: bool,
-    result_builder_getter: Union[ResultBuilderGetter, ResultBuilder]
+    result_builder_getter: Union[ResultBuilderGetter, ResultBuilder],
 ):
     if isinstance(sel, Selected):
         if isinstance(sel.prep, Expr):
@@ -155,13 +155,19 @@ def _get_row_value(
                 val = None
 
         if check_enums:
-            if enum := get_prop_enum(sel.prop):
+            if enum_options := get_prop_enum(sel.prop):
+                env = Env(context)(this=sel.prop)
+                for enum_option in enum_options.values():
+                    if isinstance(enum_option.prepare, Expr):
+                        val = env.call(enum_option.prepare.name, val, *enum_option.prepare.args)
+                        if val:
+                            break
                 if val is None:
                     pass
-                elif str(val) in enum:
-                    item = enum[str(val)]
-                    if item.prepare is not NA:
-                        val = item.prepare
+                elif str(val) in enum_options:
+                    enum_option = enum_options[str(val)]
+                    if enum_option.prepare is not NA:
+                        val = enum_option.prepare
                 else:
                     raise ValueNotInEnum(sel.prop, value=val)
 
