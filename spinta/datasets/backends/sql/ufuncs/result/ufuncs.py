@@ -84,9 +84,9 @@ def flip(env: SqlResultBuilder):
 @ufunc.resolver(SqlResultBuilder, Geometry, str)
 def flip(env: SqlResultBuilder, dtype: Geometry, value: str):
     values = value.split(';', 1)
-    shape: BaseGeometry = shapely.from_wkt(values[-1])
+    shape: BaseGeometry = shapely.wkt.loads(values[-1])
     inverted: BaseGeometry = shapely.ops.transform(lambda x, y: (y, x), shape)
-    inverted: str = shapely.to_wkt(inverted)
+    inverted: str = shapely.wkt.dumps(inverted)
     if len(values) > 1:
         return ';'.join([*values[:-1], inverted])
     return inverted
