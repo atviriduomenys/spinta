@@ -1006,3 +1006,68 @@ class InvalidClientFileFormat(UserError):
 
 class MissingRefModel(UserError):
     template = 'Property "{property_name}" of type "{property_type}" in the model "{model_name}" should have a model name in the `ref` column, to which it refers.'
+
+
+class UnableToMapIntermediateTable(UserError):
+    template = 'Unable to map intermediate table to `Array` property.'
+
+
+class InvalidIntermediateTableMappingRefCount(UserError):
+    template = 'Intermediate table can only be mapped with 2 properties (left and right), but were given {ref_count}.'
+
+
+class SameModelIntermediateTableMapping(UserError):
+    template = '''
+    Intermediate table is referencing same model, need to explicitly give the mapping order.
+    Set it as intermediate table's model primary key, or by explicitly setting reference properties.
+    First is left property (source), second is right property (targeted value).
+    '''
+
+
+class IntermediateTableMappingInvalidType(UserError):
+    template = '''
+    Intermediate table requires `Ref` type columns for it's mapping.
+    {property_name!r} property is of type {property_type!r}.
+    '''
+
+
+class IntermediateTableValueTypeMissmatch(UserError):
+    template = '''
+    Array item type needs to match intermediate table's right property type.
+    Given array type: {array_type!r}, intermediate table's type: {intermediate_type!r}.
+    '''
+
+
+class IntermediateTableRefModelMissmatch(UserError):
+    template = '''
+    Intermediate table's left property `Ref` model needs to be the same as array's model.
+    Array's model: {array_model!r}, intermediate table's left property `Ref` model: {left_model!r}.
+    '''
+
+
+class IntermediateTableRefPropertyModelMissmatch(UserError):
+    template = '''
+    Array's `Ref` property model does not match intermediate table's right `Ref` property model.
+    Array's `Ref` model: {array_ref_model!r}, intermediate table's right property `Ref` model: {right_model!r}.
+    '''
+
+
+class IntermediateTableMissingMappingProperty(UserError):
+    template = '''
+    Intermediate table's {side} property cannot be None.
+    '''
+
+
+class UnableToFindPrimaryKeysNoUniqueConstraints(UserError):
+    template = '''
+    Unable to find primary keys for table: {table_name!r}.
+    It does not contain any `UniqueConstraints` (primary keys are part of `UniqueConstraint`).
+    '''
+
+
+class UnableToFindPrimaryKeysMultipleUniqueConstraints(UserError):
+    template = '''
+    Unable to find primary keys for table: {table_name!r}.
+    Multiple `UniqueConstrains` were found (that do not match new model's primary keys):
+    {unique_constraints}
+    '''

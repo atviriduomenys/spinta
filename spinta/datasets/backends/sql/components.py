@@ -21,6 +21,9 @@ class Sql(ExternalBackend):
         BackendFeatures.PAGINATION
     }
 
+    query_builder_type = 'sql'
+    result_builder_type = 'sql'
+
     @contextlib.contextmanager
     def transaction(self, write=False):
         raise NotImplementedError

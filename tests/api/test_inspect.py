@@ -241,7 +241,7 @@ def test_inspect_resource_file(
     app.authorize(["spinta_inspect"])
     with open(tmp_path / 'manifest.json', "rb") as f:
         form_data = {
-            "resource.type": "json",
+            "resource.type": "dask/json",
             "dataset": "datasets/gov/aaa/atlieku_tvarkymas"
         }
         files = {
@@ -255,7 +255,7 @@ def test_inspect_resource_file(
     assert "text/csv" in resp.headers["Content-Type"]
     assert ('id,dataset,resource,base,model,property,type,ref,source,source.type,prepare,level,access,uri,title,description,status,visibility,eli,count,origin\r\n'
             ',datasets/gov/aaa/atlieku_tvarkymas,,,,,,,,,,,,,,,,,,,\r\n'
-            ',,resource,,,,json,,https://get.data.gov.lt/datasets/gov/aaa/atlieku_tvarkymas,,,,,,,,,,,,\r\n'
+            ',,resource,,,,dask/json,,https://get.data.gov.lt/datasets/gov/aaa/atlieku_tvarkymas,,,,,,,,,,,,\r\n'
             ',,,,,,,,,,,,,,,,,,,,\r\n'
              ',,,,Model1,,,,.,,,,,,,,develop,private,,,\r\n'
             ',,,,,name,string required unique,,name,,,,,,,,develop,private,,,\r\n'
@@ -316,7 +316,7 @@ def test_inspect_resource_file_format_xlsx(
     app.authorize(["spinta_inspect"])
     with open(tmp_path / 'manifest.json', "rb") as f:
         form_data = {
-            "resource.type": "json",
+            "resource.type": "dask/json",
             "dataset": "new/dataset"
         }
         files = {

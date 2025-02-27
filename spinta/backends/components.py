@@ -1,10 +1,14 @@
+from __future__ import annotations
+
 import contextlib
-from typing import Any
+from typing import Any, Type
 from typing import Dict
 from typing import Optional
 from typing import Set
 
 from spinta.backends.constants import BackendOrigin, BackendFeatures
+from spinta.core.ufuncs import Env
+from spinta.ufuncs.resultbuilder.components import ResultBuilder
 
 
 class Backend:
@@ -22,6 +26,17 @@ class Backend:
     config: Dict[str, Any]
 
     available: bool = True
+
+    # Query builder's type in config.components['querybuilders']
+    # by default, '' is QueryBuilder
+    query_builder_type: str = ''
+    # Later on type should be changed to `QueryBuilder`
+    query_builder_class: Type[Env]
+
+    # Result builder's type in config.components['resultbuilders']
+    # by default, '' is ResultBuilder
+    result_builder_type: str = ''
+    result_builder_class: Type[ResultBuilder]
 
     def __repr__(self):
         return (

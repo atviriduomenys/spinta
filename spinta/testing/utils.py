@@ -8,6 +8,9 @@ import httpx
 
 from ruamel.yaml import YAML
 
+from spinta.backends import Backend
+from spinta.backends.helpers import load_query_builder_class, load_result_builder_class
+from spinta.components import Context, Config
 from spinta.utils.schema import NA
 
 yaml = YAML(typ='safe')
@@ -133,6 +136,16 @@ def get_error_context(response, error_code, ctx_keys: List[str] = None):
                 return {k: v for k, v in err["context"].items() if k in ctx_keys}
     else:
         assert False
+
+
+def create_empty_backend(context: Context, backend_type: str, name: str = '') -> Backend:
+    config: Config = context.get('config')
+    Backend_ = config.components['backends'][backend_type]
+    backend = Backend_()
+    backend.name = name
+    load_query_builder_class(config, backend)
+    load_result_builder_class(config, backend)
+    return backend
 
 
 class RowIds:

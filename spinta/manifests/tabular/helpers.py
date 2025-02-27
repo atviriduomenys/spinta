@@ -631,7 +631,6 @@ class PropertyReader(TabularReader):
     enums: Set[str]
 
     def read(self, row: Dict[str, str]) -> None:
-        self.path_to_current_prop = self._path_to_current_prop(row['property'])
         complete_structure, parent_structure, prop_name = _extract_and_create_parent_data(self, row, row['property'])
 
         prop_data = _handle_datatype(self, row)
@@ -641,9 +640,16 @@ class PropertyReader(TabularReader):
             parent_structure,
             complete_structure
         )
-        self.data = complete_structure
+
+        # Edge case where there is no nesting, need to couple `prop_data` with `complete_structure`
+        # This ensures that `self.data` is coupled with `self.state.mode.data`
+        # Any changes done to `self.data` will also be reflected there (enum, etc.)
+        if prop_data == complete_structure:
+            prop_data = complete_structure
+
+        self.data = prop_data
         self.name = prop_name
-        self.state.model.data['properties'][prop_name] = self.data
+        self.state.model.data['properties'][prop_name] = complete_structure
 
     def append(self, row: Dict[str, str]) -> None:
         if not row['property']:
@@ -688,15 +694,6 @@ class PropertyReader(TabularReader):
                 prepare=row['prepare']
             )
         )
-
-    def _path_to_current_prop(self, prop_given_name: str) -> str:
-        STR_PROPERTIES = 'properties'
-        parts = prop_given_name.split('.')[1:]
-        result = '.'.join(
-            part.split('@')[0] + ('.' + STR_PROPERTIES if i < len(parts) - 1 else '')
-            for i, part in enumerate(parts)
-        )
-        return STR_PROPERTIES + '.' + result if result else ''
 
 
 def _initial_normal_property_schema(given_name: str, dtype: dict, row: dict):
@@ -777,7 +774,12 @@ def _datatype_handler(reader: PropertyReader, row: dict, initial_data_loader: Ca
         )
 
     if row['ref']:
-        if dtype['type'] in (DataTypeEnum.REF.value, DataTypeEnum.GENERIC.value, DataTypeEnum.BACKREF.value):
+        if dtype['type'] in (
+            DataTypeEnum.REF.value,
+            DataTypeEnum.GENERIC.value,
+            DataTypeEnum.BACKREF.value,
+            DataTypeEnum.ARRAY.value
+        ):
             ref_model, ref_props = _parse_property_ref(row['ref'])
             new_data['model'] = get_relative_model_name(dataset, ref_model)
 
@@ -1513,7 +1515,7 @@ class EnumReader(TabularReader):
             'count': row[COUNT],
         }
 
-        node_data: PropertyRow = self._get_node_data(row)
+        node_data: PropertyRow = self._get_node_data()
 
         if 'enums' not in node_data:
             node_data['enums'] = {}
@@ -1542,7 +1544,7 @@ class EnumReader(TabularReader):
     def leave(self) -> None:
         pass
 
-    def _get_node_data(self, row: ManifestRow) -> PropertyRow:
+    def _get_node_data(self) -> PropertyRow:
         node: TabularReader = (
             self.state.prop
             or self.state.model
@@ -1551,15 +1553,7 @@ class EnumReader(TabularReader):
             or self.state.dataset
             or self.state.manifest
         )
-
-        node_data: PropertyRow = node.data
-
-        if isinstance(node, PropertyReader):
-            if node.path_to_current_prop:
-                for key in node.path_to_current_prop.split('.'):
-                    node_data = node_data[key]
-
-        return node_data
+        return node.data
 
 
 class LangReader(TabularReader):
@@ -2007,6 +2001,56 @@ def to_relative_model_name(model: Model, dataset: Dataset = None) -> str:
         return '/' + model.name
 
 
+def _relative_referenced_model_name(
+    relative_model: Model,
+    referenced_model: Model,
+    refprops: list[Property],
+    explicit: bool = False,
+    explicit_only: bool = False,
+) -> str:
+    relative_model_name = None
+    if relative_model.external and relative_model.external.dataset:
+        relative_model_name = to_relative_model_name(
+            referenced_model,
+            relative_model.external.dataset,
+        )
+
+    return referenced_model_name(
+        referenced_model=referenced_model,
+        refprops=refprops,
+        explicit=explicit,
+        relative_model_name=relative_model_name,
+        explicit_only=explicit_only
+    )
+
+
+def referenced_model_name(
+    referenced_model: Model,
+    refprops: list[Property],
+    explicit: bool = False,
+    explicit_only: bool = False,
+    relative_model_name: Optional[str] = None
+) -> str:
+    model_name = relative_model_name
+    if model_name is None:
+        model_name = referenced_model.name
+
+    pkeys = referenced_model.external.pkeys
+    keys = []
+    if explicit_only and explicit:
+        keys = refprops
+    elif not explicit_only and (
+        (refprops and pkeys != refprops) or explicit
+    ):
+        keys = refprops
+
+    if keys:
+        rkeys = ', '.join([p.place for p in keys])
+        model_name += f'[{rkeys}]'
+
+    return model_name
+
+
 def tabular_eid(model: Model):
     if isinstance(model.eid, int):
         return model.eid
@@ -2400,33 +2444,42 @@ def _property_to_tabular(
 
     yield_rows = []
 
-    if isinstance(prop.dtype, (Array, ArrayBackRef)):
+    model = prop.model
+    if isinstance(prop.dtype, Array):
+        if prop.dtype.model:
+            data['ref'] = _relative_referenced_model_name(
+                relative_model=model,
+                referenced_model=prop.dtype.model,
+                refprops=prop.dtype.refprops,
+                explicit=prop.dtype.explicit
+            )
         yield_array_row = prop.dtype.items
         yield_rows.append(yield_array_row)
 
-    elif isinstance(prop.dtype, (Ref, BackRef)):
-        model = prop.model
+    elif isinstance(prop.dtype, ArrayBackRef):
+        yield_array_row = prop.dtype.items
+        yield_rows.append(yield_array_row)
 
-        if model.external and model.external.dataset:
-            data['ref'] = to_relative_model_name(
-                prop.dtype.model,
-                model.external.dataset,
-            )
+    elif isinstance(prop.dtype, Ref):
+        data['ref'] = _relative_referenced_model_name(
+            relative_model=model,
+            referenced_model=prop.dtype.model,
+            refprops=prop.dtype.refprops,
+            explicit=prop.dtype.explicit
+        )
 
-            if isinstance(prop.dtype, Ref):
-                pkeys = prop.dtype.model.external.pkeys
-                rkeys = prop.dtype.refprops
+        if prop.dtype.properties:
+            for obj_prop in prop.dtype.properties.values():
+                yield_rows.append(obj_prop)
 
-                if rkeys and pkeys != rkeys:
-                    rkeys = ', '.join([p.place for p in rkeys])
-                    data['ref'] += f'[{rkeys}]'
-            else:
-                rkey = prop.dtype.refprop.place
-                if prop.dtype.explicit:
-                    data['ref'] += f'[{rkey}]'
-
-        else:
-            data['ref'] = prop.dtype.model.name
+    elif isinstance(prop.dtype, BackRef):
+        data['ref'] = _relative_referenced_model_name(
+            relative_model=model,
+            referenced_model=prop.dtype.model,
+            refprops=[prop.dtype.refprop],
+            explicit=prop.dtype.explicit,
+            explicit_only=True
+        )
 
         if prop.dtype.properties:
             for obj_prop in prop.dtype.properties.values():

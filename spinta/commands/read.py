@@ -1,8 +1,7 @@
 import uuid
-from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
-from typing import overload, Optional, Iterator, List, Tuple, Callable
+from typing import overload, Iterator, List, Tuple, Callable
 
 from starlette.requests import Request
 from starlette.responses import FileResponse
@@ -16,8 +15,7 @@ from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
 from spinta.backends.nobackend.components import NoBackend
 from spinta.compat import urlparams_to_expr
-from spinta.components import Context, Node, Action, UrlParams, Page, PageBy, get_page_size, Config, \
-    pagination_enabled
+from spinta.components import Context, Node, Action, UrlParams, Page, get_page_size, pagination_enabled
 from spinta.components import Model
 from spinta.components import Property
 from spinta.core.ufuncs import Expr
@@ -28,9 +26,8 @@ from spinta.renderer import render
 from spinta.types.datatype import DataType
 from spinta.types.datatype import File
 from spinta.types.datatype import Object
-from spinta.typing import ObjectData
-from spinta.ufuncs.basequerybuilder.components import QueryParams, QueryPage
-from spinta.ufuncs.basequerybuilder.helpers import update_query_with_url_params, add_page_expr
+from spinta.ufuncs.querybuilder.components import QueryParams
+from spinta.ufuncs.querybuilder.helpers import update_query_with_url_params, add_page_expr
 from spinta.utils.data import take
 
 
@@ -67,9 +64,24 @@ async def getall(
         rows = []
     else:
         if is_page_enabled:
-            rows = get_page(context, model, backend, copy_page, expr, params.limit, default_expand=False, params=query_params)
+            rows = commands.getall(
+                context,
+                model,
+                copy_page,
+                query=expr,
+                limit=params.limit,
+                default_expand=False,
+                params=query_params
+            )
         else:
-            rows = commands.getall(context, model, backend, params=query_params, query=expr, default_expand=False)
+            rows = commands.getall(
+                context,
+                model,
+                backend,
+                params=query_params,
+                query=expr,
+                default_expand=False
+            )
 
     rows = prepare_data_for_response(
         context,
@@ -82,6 +94,40 @@ async def getall(
     rows = log_response(context, rows)
 
     return render(context, request, model, params, rows, action=action)
+
+
+@commands.getall.register(Context, Model, Page)
+def getall(
+    context: Context,
+    model: Model,
+    page: Page,
+    *,
+    query: Expr = None,
+    limit: int = None,
+    default_expand: bool = True,
+    params: QueryParams = None,
+    **kwargs
+) -> Iterator:
+    backend = model.backend
+    if isinstance(backend, NoBackend):
+        raise BackendNotGiven(model)
+
+    config = context.get('config')
+    size = get_page_size(config, model, page)
+
+    # Add 1 to see future value (to see if it finished, check for infinite loops and page size miss matches).
+    page.size = size + 1
+
+    page_meta = PaginationMetaData(
+        page_size=size,
+        limit=limit
+    )
+    while not page_meta.is_finished:
+        page_meta.is_finished = True
+        query = add_page_expr(query, page)
+        rows = commands.getall(context, model, backend, params=params, query=query, default_expand=default_expand, **kwargs)
+
+        yield from get_paginated_values(page, page_meta, rows, extract_source_page_keys)
 
 
 def prepare_data_for_response(
@@ -148,34 +194,6 @@ def _is_iter_last_real_value(it: int, total: int, added_size: int = 1):
 
 def _is_iter_last_potential_value(it: int, total: int):
     return it > (total - 1)
-
-
-def get_page(
-    context: Context,
-    model: Model,
-    backend: Backend,
-    model_page: Page,
-    expr: Expr,
-    limit: Optional[int] = None,
-    default_expand: bool = True,
-    params: QueryParams = None,
-) -> Iterator[ObjectData]:
-    config = context.get('config')
-    size = get_page_size(config, model, model_page)
-
-    # Add 1 to see future value (to see if it finished, check for infinite loops and page size miss matches).
-    model_page.size = size + 1
-
-    page_meta = PaginationMetaData(
-        page_size=size,
-        limit=limit
-    )
-    while not page_meta.is_finished:
-        page_meta.is_finished = True
-        query = add_page_expr(expr, model_page)
-        rows = commands.getall(context, model, backend, params=params, query=query, default_expand=default_expand)
-
-        yield from get_paginated_values(model_page, page_meta, rows, extract_source_page_keys)
 
 
 def extract_source_page_keys(row: dict):

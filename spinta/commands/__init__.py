@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Type
 from typing import Dict
 from typing import Iterator
 from typing import List
@@ -678,6 +678,20 @@ def getall(
 def getall(
     context: Context,
     model: Model,
+    page: Page,
+    *,
+    query: Expr = None,
+    limit: int = None,
+    default_expand: bool = True,
+    **kwargs
+) -> Iterator[ObjectData]:
+    pass
+
+
+@overload
+def getall(
+    context: Context,
+    model: Model,
     backend: Backend,
     *,
     query: Expr = None,
@@ -885,6 +899,21 @@ def build_data_patch_for_write():
     In the end, this command produces partial patch, with only those values
     which has been changed.
 
+    """
+
+
+@command()
+def build_data_patch_for_export():
+    """Builds data patch dict for backend consumption on export.
+
+    Purpose of this command is to generate a patch, that satisfies export
+    command's requirements.
+
+    Idea behind is to generate patch data similar to `build_data_patch_for_write`,
+    but instead of generating differences, it would always assume its insert action.
+
+    This patch is then used by other write commands (that process the data further
+    to fit for specific formats).
     """
 
 
@@ -1318,11 +1347,6 @@ def reload_backend_metadata(context: Context, manifest: Manifest, backend: Backe
 
 
 @command()
-def get_result_builder(context: Context, backend: Backend):
-    """Returns backend specific result builder"""
-
-
-@command()
 def identifiable(node: Node) -> bool:
     """Check if node is identifiable"""
 
@@ -1411,3 +1435,31 @@ def validate_export_output(
 def validate_export_output(**kwargs):
     """Validates given output for specified format"""
 
+
+@overload
+def backend_to_manifest_type(
+    context: Context,
+    backend: str
+) -> Type[Manifest]:
+    """
+        Attempts to convert backend type string to Backend and then
+        attempts to map backend to it's appropriate manifest type.
+    """
+
+
+@overload
+def backend_to_manifest_type(
+    context: Context,
+    backend: Backend
+) -> Type[Manifest]:
+    """
+        Attempts to map backend to it's appropriate manifest type.
+    """
+
+
+@command()
+def backend_to_manifest_type(**kwargs) -> Type[Manifest]:
+    """
+        Attempts to map backend to it's appropriate manifest type.
+        Mainly used for `inspect` mapping.
+    """

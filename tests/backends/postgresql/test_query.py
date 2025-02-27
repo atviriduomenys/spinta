@@ -1,20 +1,19 @@
 import textwrap
 import uuid
 
-import sqlparse
 import sqlalchemy as sa
+import sqlparse
 from sqlalchemy.sql import Select
 
-from spinta import spyna
 from spinta import commands
+from spinta import spyna
 from spinta.auth import AdminToken
-from spinta.backends.postgresql.ufuncs.query.components import PgQueryBuilder
 from spinta.core.config import RawConfig
 from spinta.core.ufuncs import asttoexpr
-from spinta.backends.postgresql.components import PostgreSQL
 from spinta.testing.manifest import load_manifest_and_context
-from spinta.ufuncs.basequerybuilder.helpers import add_page_expr
+from spinta.testing.utils import create_empty_backend
 from spinta.ufuncs.loadbuilder.helpers import page_contains_unsupported_keys
+from spinta.ufuncs.querybuilder.helpers import add_page_expr
 
 
 def _qry(qry: Select, indent: int = 4) -> str:
@@ -28,8 +27,7 @@ def _qry(qry: Select, indent: int = 4) -> str:
 def _build(rc: RawConfig, manifest: str, model_name: str, query: str, page_mapping: dict = None) -> str:
     context, manifest = load_manifest_and_context(rc, manifest)
     context.set('auth.token', AdminToken())
-    backend = PostgreSQL()
-    backend.name = 'default'
+    backend = create_empty_backend(context, 'postgresql', 'default')
     backend.schema = sa.MetaData()
     backend.tables = {}
     commands.prepare(context, backend, manifest)
@@ -44,7 +42,7 @@ def _build(rc: RawConfig, manifest: str, model_name: str, query: str, page_mappi
             if page_contains_unsupported_keys(page):
                 page.enabled = False
         query = add_page_expr(query, page)
-    builder = PgQueryBuilder(context)
+    builder = backend.query_builder_class(context)
     builder.update(model=model)
     env = builder.init(backend, backend.get_table(model))
     expr = env.resolve(query)

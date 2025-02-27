@@ -5,19 +5,24 @@ from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Union
+from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
 from sqlalchemy.sql.functions import Function
 
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
-from spinta.datasets.backends.sql.components import Sql
+
 from spinta.exceptions import UnknownMethod
-from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, QueryParams
-from spinta.ufuncs.basequerybuilder.helpers import merge_with_page_selected_list, \
+from spinta.types.datatype import Array
+from spinta.ufuncs.querybuilder.components import QueryBuilder, QueryPage, QueryParams
+from spinta.ufuncs.querybuilder.helpers import merge_with_page_selected_list, \
     merge_with_page_sort, merge_with_page_limit
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.itertools import ensure_list
+
+if TYPE_CHECKING:
+    from spinta.datasets.backends.sql.components import Sql
 
 
 class SqlFrom:
@@ -80,8 +85,52 @@ class SqlFrom:
 
         return self.joins[fpr.name]
 
+    def get_intermediate_table(self,
+        env: SqlQueryBuilder,
+        dtype: Array,
+    ) -> sa.Table:
+        table_name = dtype.model.name
+        if table_name in self.joins:
+            return self.joins[table_name]
 
-class SqlQueryBuilder(BaseQueryBuilder):
+        lmodel = dtype.left_prop.model
+        ltable = self.backend.get_table(lmodel).alias()
+        lenv = env(model=lmodel, table=ltable)
+
+        lfkeys = lenv.call('join_table_on', dtype.left_prop)
+        lfkeys = ensure_list(lfkeys)
+
+        rpkeys = []
+        rmodel = dtype.prop.model
+        # This should be main table model, so there is no need for alias
+        rtable = self.backend.get_table(rmodel)
+        renv = env(model=rmodel, table=rtable)
+
+        for rpk in dtype.left_prop.dtype.refprops:
+            rpkeys += ensure_list(
+                renv.call('join_table_on', rpk)
+            )
+
+        # Number of keys on both left and right must be equal.
+        assert len(lfkeys) == len(rpkeys), (lfkeys, rpkeys)
+        condition = []
+        for lfk, rpk in zip(lfkeys, rpkeys):
+            condition += [lfk == rpk]
+
+        # Build `JOIN rtable ON (condition)`.
+        assert len(condition) > 0
+        if len(condition) == 1:
+            condition = condition[0]
+        else:
+            condition = sa.and_(*condition)
+
+        self.joins[table_name] = ltable
+        self.from_ = self.from_.outerjoin(ltable, condition)
+
+        return self.joins[table_name]
+
+
+class SqlQueryBuilder(QueryBuilder):
     backend: Sql
     model: Model
     table: sa.Table
@@ -100,7 +149,7 @@ class SqlQueryBuilder(BaseQueryBuilder):
             limit=None,
             offset=None,
             distinct=False,
-            group_by=None,
+            group_by=[],
             page=QueryPage(),
         )
         result.init_query_params(params)
@@ -150,3 +199,13 @@ class SqlQueryBuilder(BaseQueryBuilder):
         if column not in self.columns:
             self.columns.append(column)
         return self.columns.index(column)
+
+    def add_to_group_by(self, columns: [List[sa.Column], sa.Column]):
+        columns = ensure_list(columns)
+
+        if self.group_by is None:
+            self.group_by = []
+
+        for column in columns:
+            if column not in self.group_by:
+                self.group_by.append(column)

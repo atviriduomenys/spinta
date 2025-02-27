@@ -1,11 +1,13 @@
 import json
 from pathlib import Path
 
+import pytest
 import sqlalchemy as sa
 from sqlalchemy.engine.url import URL
 
 from spinta.core.config import RawConfig
-from spinta.exceptions import MigrateScalarToRefTooManyKeys, MigrateScalarToRefTypeMissmatch
+from spinta.exceptions import MigrateScalarToRefTooManyKeys, MigrateScalarToRefTypeMissmatch, \
+    UnableToFindPrimaryKeysNoUniqueConstraints, UnableToFindPrimaryKeysMultipleUniqueConstraints
 from spinta.testing.cli import SpintaCliRunner
 from tests.backends.postgresql.commands.migrate.test_migrations import cleanup_tables, override_manifest, \
     cleanup_table_list, configure_migrate, get_table_unique_constraint_columns, get_table_foreign_key_constraint_columns
@@ -2251,6 +2253,160 @@ def test_migrate_ref_to_scalar_level_4_error(
             'migrate/example/Country/:changelog'
         ])
 
+
+def test_migrate_ref_to_scalar_no_unique_constraints_error(
+    postgresql_migration: URL,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    cleanup_tables(postgresql_migration)
+    initial_manifest = '''
+     d               | r | b    | m       | property       | type     | ref      | level
+     migrate/example |   |      |         |                |          |          |
+                     |   |      | City    |                |          | id       |
+                     |   |      |         | id             | integer  |          |
+                     |   |      |         | country        | ref      | Country  | 4
+                     |   |      | Country |                |          | id       |
+                     |   |      |         | id             | integer  |          |
+    '''
+    context, rc = configure_migrate(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {
+            'migrate/example/City',
+            'migrate/example/City/:changelog',
+            'migrate/example/Country',
+            'migrate/example/Country/:changelog'
+        }.issubset(
+            tables.keys())
+        city = tables["migrate/example/City"]
+        country = tables["migrate/example/Country"]
+        assert {'id', 'country._id'}.issubset(city.columns.keys())
+        assert {'id'}.issubset(country.columns.keys())
+        conn.execute(country.insert().values({
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7a",
+            "id": 0,
+        }))
+        conn.execute(city.insert().values({
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7e",
+            "id": 0,
+            "country._id": "197109d9-add8-49a5-ab19-3ddc7589ce7a"
+        }))
+
+        # Corrupt data by deleting `UniqueConstraints`
+        conn.execute('ALTER TABLE "migrate/example/Country" DROP CONSTRAINT "uq_migrate/example/Country_id"')
+
+        override_manifest(context, tmp_path, '''
+         d               | r | b    | m       | property       | type     | ref      | level
+         migrate/example |   |      |         |                |          |          |
+                         |   |      | City    |                |          | id       |
+                         |   |      |         | id             | integer  |          |
+                         |   |      |         | country        | integer  |          |  
+                         |   |      | Country |                |          | id       |
+                         |   |      |         | id             | integer  |          |
+        ''')
+
+        with pytest.raises(UnableToFindPrimaryKeysNoUniqueConstraints):
+            result = cli.invoke(rc, [
+                'migrate', f'{tmp_path}/manifest.csv', '-p'
+            ], fail=False)
+            assert result.exit_code != 0
+            raise result.exception
+
+        cleanup_table_list(meta, [
+            'migrate/example/City',
+            'migrate/example/City/:changelog',
+            'migrate/example/Country',
+            'migrate/example/Country/:changelog'
+        ])
+
+
+def test_migrate_ref_to_scalar_too_many_unique_constraints_error(
+    postgresql_migration: URL,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    cleanup_tables(postgresql_migration)
+    initial_manifest = '''
+     d               | r | b    | m       | property       | type     | ref      | level
+     migrate/example |   |      |         |                |          |          |
+                     |   |      | City    |                |          | id       |
+                     |   |      |         | id             | integer  |          |
+                     |   |      |         | country        | ref      | Country  | 4
+                     |   |      | Country |                |          | id       |
+                     |   |      |         |                | unique   | name     |
+                     |   |      |         |                | unique   | code     |
+                     |   |      |         | id             | integer  |          |
+                     |   |      |         | name           | string   |          |
+                     |   |      |         | code           | string   |          |
+    '''
+    context, rc = configure_migrate(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {
+            'migrate/example/City',
+            'migrate/example/City/:changelog',
+            'migrate/example/Country',
+            'migrate/example/Country/:changelog'
+        }.issubset(
+            tables.keys())
+        city = tables["migrate/example/City"]
+        country = tables["migrate/example/Country"]
+        assert {'id', 'country._id'}.issubset(city.columns.keys())
+        assert {'id'}.issubset(country.columns.keys())
+        conn.execute(country.insert().values({
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7a",
+            "id": 0,
+        }))
+        conn.execute(city.insert().values({
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7e",
+            "id": 0,
+            "country._id": "197109d9-add8-49a5-ab19-3ddc7589ce7a"
+        }))
+
+        override_manifest(context, tmp_path, '''
+        d               | r | b    | m       | property       | type     | ref      | level
+        migrate/example |   |      |         |                |          |          |
+                        |   |      | City    |                |          | id       |
+                        |   |      |         | id             | integer  |          |
+                        |   |      |         | country        | integer  |          |
+                        |   |      | Country |                |          |          |
+                        |   |      |         |                | unique   | name     |
+                        |   |      |         |                | unique   | code     |
+                        |   |      |         | id             | integer  |          |
+                        |   |      |         | name           | string   |          |
+                        |   |      |         | code           | string   |          |
+        ''')
+
+        with pytest.raises(UnableToFindPrimaryKeysMultipleUniqueConstraints):
+            result = cli.invoke(rc, [
+                'migrate', f'{tmp_path}/manifest.csv', '-p'
+            ], fail=False)
+            assert result.exit_code != 0
+            raise result.exception
+
+        cleanup_table_list(meta, [
+            'migrate/example/City',
+            'migrate/example/City/:changelog',
+            'migrate/example/Country',
+            'migrate/example/Country/:changelog'
+        ])
 
 def test_migrate_ref_level_3_no_pkey_ignore(
     postgresql_migration: URL,

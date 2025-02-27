@@ -41,25 +41,25 @@ def test_xsd(rc: RawConfig, tmp_path: Path):
     """
 
     table = """
- id | d | r | b | m | property          | type             | ref              | source            | source.type | prepare  | level | access | uri | title | description | status  | visibility | eli | count | origin
-    | manifest                          |                  |                  |                   |             |          |       |        |     |       |             |         |            |     |       |
-    |   | resource1                     | xml              |                  |                   |             |          |       |        |     |       |             |         |            |     |       |
-    |                                   |                  |                  |                   |             |          |       |        |     |       |             |         |            |     |       |
-    |   |   |   | Administraciniai      |                  |                  | /ADMINISTRACINIAI |             |          |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | administracinis[] | backref          | Administracinis  | ADMINISTRACINIS   |             | expand() |       |        |     |       |             | develop | private    |     |       |
-    |                                   |                  |                  |                   |             |          |       |        |     |       |             |         |            |     |       |
-    |   |   |   | Administracinis/:part |                  |                  |                   |             |          |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | adm_id            | integer required |                  | ADM_ID/text()     |             |          |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | adm_kodas         | integer required |                  | ADM_KODAS/text()  |             |          |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | administraciniai  | ref              | Administraciniai |                   |             |          |       |        |     |       |             | develop | private    |     |       |
-    |                                   |                  |                  |                   |             |          |       |        |     |       |             |         |            |     |       |
-    |   |   |   | Gyvenviete/:part      |                  |                  |                   |             |          |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | gyv_id            | integer required |                  | GYV_ID/text()     |             |          |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | gyv_kodas         | integer required |                  | GYV_KODAS/text()  |             |          |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | gyvenvietes       | ref              | Gyvenvietes      |                   |             |          |       |        |     |       |             | develop | private    |     |       |
-    |                                   |                  |                  |                   |             |          |       |        |     |       |             |         |            |     |       |
-    |   |   |   | Gyvenvietes           |                  |                  | /GYVENVIETES      |             |          |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | gyvenviete[]      | backref          | Gyvenviete       | GYVENVIETE        |             | expand() |       |        |     |       |             | develop | private    |     |       |
+ id | d | r | b | m | property          | type             | ref              | source            | prepare  | level | access | uri | title | description
+    | manifest                          |                  |                  |                   |          |       |        |     |       |
+    |   | resource1                     | dask/xml         |                  |                   |          |       |        |     |       |
+    |                                   |                  |                  |                   |          |       |        |     |       |
+    |   |   |   | Administraciniai      |                  |                  | /ADMINISTRACINIAI |          |       |        |     |       |
+    |   |   |   |   | administracinis[] | backref          | Administracinis  | ADMINISTRACINIS   | expand() |       |        |     |       |
+    |                                   |                  |                  |                   |          |       |        |     |       |
+    |   |   |   | Administracinis/:part |                  |                  |                   |          |       |        |     |       |
+    |   |   |   |   | adm_id            | integer required |                  | ADM_ID/text()     |          |       |        |     |       |
+    |   |   |   |   | adm_kodas         | integer required |                  | ADM_KODAS/text()  |          |       |        |     |       |
+    |   |   |   |   | administraciniai  | ref              | Administraciniai |                   |          |       |        |     |       |
+    |                                   |                  |                  |                   |          |       |        |     |       |
+    |   |   |   | Gyvenviete/:part      |                  |                  |                   |          |       |        |     |       |
+    |   |   |   |   | gyv_id            | integer required |                  | GYV_ID/text()     |          |       |        |     |       |
+    |   |   |   |   | gyv_kodas         | integer required |                  | GYV_KODAS/text()  |          |       |        |     |       |
+    |   |   |   |   | gyvenvietes       | ref              | Gyvenvietes      |                   |          |       |        |     |       |
+    |                                   |                  |                  |                   |          |       |        |     |       |
+    |   |   |   | Gyvenvietes           |                  |                  | /GYVENVIETES      |          |       |        |     |       |
+    |   |   |   |   | gyvenviete[]      | backref          | Gyvenviete       | GYVENVIETE        | expand() |       |        |     |       |
 
 """
     path = tmp_path / 'manifest.xsd'
@@ -93,18 +93,19 @@ def test_xsd_backref(rc: RawConfig, tmp_path: Path):
     """
 
     table = """
- id | d | r | b | m | property    | type             | ref     | source    | prepare  | level | access | uri | title | description  | status  | visibility | eli | count | origin
-    | manifest                    |                  |         |           |          |       |        |     |       |              |         |            |     |       |
-    |   | resource1               | xml              |         |           |          |       |        |     |       |              |         |            |     |       |
-    |                             |                  |         |           |          |       |        |     |       |              |         |            |     |       |
-    |   |   |   | Asmenys         |                  |         | /asmenys  |          |       |        |     |       |              | develop | private    |     |       |
-    |   |   |   |   | asmuo[]     | backref required | Asmuo   | asmuo     | expand() |       |        |     |       |              | develop | private    |     |       |
-    |   |   |   |   | puslapis    | integer          |         | @puslapis |          |       |        |     |       |              | develop | private    |     |       |
-    |                             |                  |         |           |          |       |        |     |       |              |         |            |     |       |
-    |   |   |   | Asmuo/:part     |                  |         |           |          |       |        |     |       |              | develop | private    |     |       |
-    |   |   |   |   | ak          | string           |         | @ak       |          |       |        |     |       |              | develop | private    |     |       |
-    |   |   |   |   | asmenys     | ref              | Asmenys |           |          |       |        |     |       |              | develop | private    |     |       |
-    |   |   |   |   | id          | string           |         | @id       |          |       |        |     |       |              | develop | private    |     |       |
+ id | d | r | b | m | property    | type             | ref     | source    | prepare  | level | access | uri | title | description
+    | manifest                    |                  |         |           |          |       |        |     |       |
+    |   | resource1               | dask/xml         |         |           |          |       |        |     |       |
+    |                             |                  |         |           |          |       |        |     |       |
+    |   |   |   | Asmenys         |                  |         | /asmenys  |          |       |        |     |       |
+    |   |   |   |   | asmuo[]     | backref required | Asmuo   | asmuo     | expand() |       |        |     |       |
+    |   |   |   |   | puslapis    | integer          |         | @puslapis |          |       |        |     |       |
+    |                             |                  |         |           |          |       |        |     |       |
+    |   |   |   | Asmuo/:part     |                  |         |           |          |       |        |     |       |
+    |   |   |   |   | ak          | string           |         | @ak       |          |       |        |     |       |
+    |   |   |   |   | asmenys     | ref              | Asmenys |           |          |       |        |     |       |
+    |   |   |   |   | id          | string           |         | @id       |          |       |        |     |       |
+
 """
 
     path = tmp_path / 'manifest.xsd'
@@ -145,19 +146,20 @@ def test_xsd_ref(rc: RawConfig, tmp_path: Path):
     """
 
     table = """
- id | d | r | b | m | property    | type             | ref   | source    | prepare  | level | access | uri | title | description                | status  | visibility | eli | count | origin
-    | manifest                    |                  |       |           |          |       |        |     |       |                            |         |            |     |       |
-    |   | resource1               | xml              |       |           |          |       |        |     |       |                            |         |            |     |       |
-    |                             |                  |       |           |          |       |        |     |       |                            |         |            |     |       |
-    |   |   |   | Asmenys         |                  |       | /asmenys  |          |       |        |     |       |                            | develop | private    |     |       |
-    |   |   |   |   | asmuo       | ref              | Asmuo | asmuo     | expand() |       |        |     |       |                            | develop | private    |     |       |
-    |   |   |   |   | puslapis    | integer required |       | @puslapis |          |       |        |     |       | rezultatu puslapio numeris | develop | private    |     |       |
-    |   |   |   |   | text        | string           |       | text()    |          |       |        |     |       |                            | develop | private    |     |       |
-    |                             |                  |       |           |          |       |        |     |       |                            |         |            |     |       |
-    |   |   |   | Asmuo/:part     |                  |       |           |          |       |        |     |       |                            | develop | private    |     |       |
-    |   |   |   |   | ak          | string required  |       | @ak       |          |       |        |     |       |                            | develop | private    |     |       |
-    |   |   |   |   | id          | string required  |       | @id       |          |       |        |     |       |                            | develop | private    |     |       |
-    |   |   |   |   | text        | string           |       | text()    |          |       |        |     |       |                            | develop | private    |     |       |
+ id | d | r | b | m | property    | type             | ref   | source    | prepare  | level | access | uri | title | description
+    | manifest                    |                  |       |           |          |       |        |     |       |
+    |   | resource1               | dask/xml         |       |           |          |       |        |     |       |
+    |                             |                  |       |           |          |       |        |     |       |
+    |   |   |   | Asmenys         |                  |       | /asmenys  |          |       |        |     |       |
+    |   |   |   |   | asmuo       | ref              | Asmuo | asmuo     | expand() |       |        |     |       |
+    |   |   |   |   | puslapis    | integer required |       | @puslapis |          |       |        |     |       | rezultatu puslapio numeris
+    |   |   |   |   | text        | string           |       | text()    |          |       |        |     |       |
+    |                             |                  |       |           |          |       |        |     |       |
+    |   |   |   | Asmuo/:part     |                  |       |           |          |       |        |     |       |
+    |   |   |   |   | ak          | string required  |       | @ak       |          |       |        |     |       |
+    |   |   |   |   | id          | string required  |       | @id       |          |       |        |     |       |
+    |   |   |   |   | text        | string           |       | text()    |          |       |        |     |       |
+
 """
 
     path = tmp_path / 'manifest.xsd'
@@ -192,16 +194,17 @@ def test_xsd_resource_model(rc: RawConfig, tmp_path: Path):
     """
 
     table = """
- id | d | r | b | m | property   | type             | ref | source        | prepare | level | access | uri                                           | title | description                         | status  | visibility | eli | count | origin
-    | manifest                   |                  |     |               |         |       |        |                                               |       |                                     |         |            |     |       |
-    |   | resource1              | xml              |     |               |         |       |        |                                               |       |                                     |         |            |     |       |
-    |                            |                  |     |               |         |       |        |                                               |       |                                     |         |            |     |       |
-    |   |   |   | Asmenys        |                  |     | /asmenys      |         |       |        |                                               |       |                                     | develop | private    |     |       |
-    |   |   |   |   | puslapis   | integer required |     | @puslapis     |         |       |        |                                               |       | rezultatu puslapio numeris          | develop | private    |     |       |
-    |   |   |   |   | text       | string           |     | text()        |         |       |        |                                               |       |                                     | develop | private    |     |       |
-    |                            |                  |     |               |         |       |        |                                               |       |                                     |         |            |     |       |
-    |   |   |   | Resource       |                  |     | /             |         |       |        | http://www.w3.org/2000/01/rdf-schema#Resource |       | Įvairūs duomenys                    | develop | private    |     |       |
-    |   |   |   |   | klaida     | string required  |     | klaida/text() |         |       |        |                                               |       | Klaidos atveju - klaidos pranešimas | develop | private    |     |       |
+ id | d | r | b | m | property   | type             | ref | source        | prepare | level | access | uri                                           | title | description
+    | manifest                   |                  |     |               |         |       |        |                                               |       |
+    |   | resource1              | dask/xml         |     |               |         |       |        |                                               |       |
+    |                            |                  |     |               |         |       |        |                                               |       |
+    |   |   |   | Asmenys        |                  |     | /asmenys      |         |       |        |                                               |       |
+    |   |   |   |   | puslapis   | integer required |     | @puslapis     |         |       |        |                                               |       | rezultatu puslapio numeris
+    |   |   |   |   | text       | string           |     | text()        |         |       |        |                                               |       |
+    |                            |                  |     |               |         |       |        |                                               |       |
+    |   |   |   | Resource       |                  |     | /             |         |       |        | http://www.w3.org/2000/01/rdf-schema#Resource |       | Įvairūs duomenys
+    |   |   |   |   | klaida     | string required  |     | klaida/text() |         |       |        |                                               |       | Klaidos atveju - klaidos pranešimas
+
 """
 
     path = tmp_path / 'manifest.xsd'
@@ -250,16 +253,16 @@ def test_xsd_separate_type(rc: RawConfig, tmp_path: Path):
     """
 
     table = """
-id | d | r | b | m | property            | type            | ref              | source                         | prepare | level | access | uri | title | description                 | status  | visibility | eli | count | origin
-   | manifest                            |                 |                  |                                |         |       |        |     |       |                             |         |            |     |       |
-   |   | resource1                       | xml             |                  |                                |         |       |        |     |       |                             |         |            |     |       |
-   |                                     |                 |                  |                                |         |       |        |     |       |                             |         |            |     |       |
-   |   |   |   | SkiepasEu               |                 |                  | /SKIEPAS_EU                    |         |       |        |     |       |                             | develop | private    |     |       |
-   |   |   |   |   | paciento_ak         | string          |                  | PACIENTO_AK/text()             |         |       |        |     |       | Paciento asmens kodas (LTU) | develop | private    |     |       |
-   |   |   |   |   | skiepijimo_data     | string required |                  | SKIEPIJIMO_DATA/text()         |         |       |        |     |       | Skiepijimo data - Data      | develop | private    |     |       |
+id | d | r | b | m | property            | type            | ref              | source                         | prepare | level | access | uri | title | description
+   | manifest                            |                 |                  |                                |         |       |        |     |       |
+   |   | resource1                       | dask/xml        |                  |                                |         |       |        |     |       |
+   |                                     |                 |                  |                                |         |       |        |     |       |
+   |   |   |   | SkiepasEu               |                 |                  | /SKIEPAS_EU                    |         |       |        |     |       |
+   |   |   |   |   | paciento_ak         | string          |                  | PACIENTO_AK/text()             |         |       |        |     |       | Paciento asmens kodas (LTU)
+   |   |   |   |   | skiepijimo_data     | string required |                  | SKIEPIJIMO_DATA/text()         |         |       |        |     |       | Skiepijimo data - Data
 """
 
-    path = tmp_path / 'manifest.xsd'                                                                                                                                                  
+    path = tmp_path / 'manifest.xsd'
     path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
@@ -305,19 +308,20 @@ def test_xsd_choice(rc: RawConfig, tmp_path: Path):
     """
 
     table = """
- id | d | r | b | m | property             | type             | ref | source                      | prepare | level | access | uri | title | description                          | status  | visibility | eli | count | origin
-    | manifest                             |                  |     |                             |         |       |        |     |       |                                      |         |            |     |       |
-    |   | resource1                        | xml              |     |                             |         |       |        |     |       |                                      |         |            |     |       |
-    |                                      |                  |     |                             |         |       |        |     |       |                                      |         |            |     |       |
-    |   |   |   | Parcel                   |                  |     | /parcel                     |         |       |        |     |       | Žemės sklypo pasikeitimo informacija | develop | private    |     |       |
-    |   |   |   |   | parcel_unique_number | integer required |     | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris        | develop | private    |     |       |
-    |   |   |   |   | text                 | string           |     | text()                      |         |       |        |     |       |                                      | develop | private    |     |       |
-    |                                      |                  |     |                             |         |       |        |     |       |                                      |         |            |     |       |
-    |   |   |   | Parcel1                  |                  |     | /parcel                     |         |       |        |     |       | Žemės sklypo pasikeitimo informacija | develop | private    |     |       |
-    |   |   |   |   | sign_of_change       | integer required |     | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis     | develop | private    |     |       |
-    |                                      | enum             |     | 1                           |         |       |        |     |       |                                      | develop | private    |     |       |
-    |                                      |                  |     | 2                           |         |       |        |     |       |                                      | develop | private    |     |       |
-    |   |   |   |   | text                 | string           |     | text()                      |         |       |        |     |       |                                      | develop | private    |     |       |
+ id | d | r | b | m | property             | type             | ref | source                      | prepare | level | access | uri | title | description
+    | manifest                             |                  |     |                             |         |       |        |     |       |
+    |   | resource1                        | dask/xml         |     |                             |         |       |        |     |       |
+    |                                      |                  |     |                             |         |       |        |     |       |
+    |   |   |   | Parcel                   |                  |     | /parcel                     |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
+    |   |   |   |   | parcel_unique_number | integer required |     | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
+    |   |   |   |   | text                 | string           |     | text()                      |         |       |        |     |       |
+    |                                      |                  |     |                             |         |       |        |     |       |
+    |   |   |   | Parcel1                  |                  |     | /parcel                     |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
+    |   |   |   |   | sign_of_change       | integer required |     | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
+    |                                      | enum             |     | 1                           |         |       |        |     |       |
+    |                                      |                  |     | 2                           |         |       |        |     |       |
+    |   |   |   |   | text                 | string           |     | text()                      |         |       |        |     |       |
+
 """
 
     path = tmp_path / 'manifest.xsd'
@@ -366,16 +370,17 @@ def test_xsd_choice_max_occurs_unbounded(rc: RawConfig, tmp_path: Path):
     """
 
     table = """
- id | d | r | b | m | property               | type             | ref | source                      | prepare | level | access | uri | title | description                          | status  | visibility | eli | count | origin
-    | manifest                               |                  |     |                             |         |       |        |     |       |                                      |         |            |     |       |
-    |   | resource1                          | xml              |     |                             |         |       |        |     |       |                                      |         |            |     |       |
-    |                                        |                  |     |                             |         |       |        |     |       |                                      |         |            |     |       |
-    |   |   |   | Parcel                     |                  |     | /parcel                     |         |       |        |     |       | Žemės sklypo pasikeitimo informacija | develop | private    |     |       |
-    |   |   |   |   | parcel_unique_number[] | integer required |     | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris        | develop | private    |     |       |
-    |   |   |   |   | sign_of_change[]       | integer required |     | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis     | develop | private    |     |       |
-    |                                        | enum             |     | 1                           |         |       |        |     |       |                                      | develop | private    |     |       |
-    |                                        |                  |     | 2                           |         |       |        |     |       |                                      | develop | private    |     |       |
-    |   |   |   |   | text                   | string           |     | text()                      |         |       |        |     |       |                                      | develop | private    |     |       |
+ id | d | r | b | m | property               | type             | ref | source                      | prepare | level | access | uri | title | description
+    | manifest                               |                  |     |                             |         |       |        |     |       |
+    |   | resource1                          | dask/xml         |     |                             |         |       |        |     |       |
+    |                                        |                  |     |                             |         |       |        |     |       |
+    |   |   |   | Parcel                     |                  |     | /parcel                     |         |       |        |     |       | Žemės sklypo pasikeitimo informacija
+    |   |   |   |   | parcel_unique_number[] | integer required |     | parcel_unique_number/text() |         |       |        |     |       | Žemės sklypo unikalus numeris
+    |   |   |   |   | sign_of_change[]       | integer required |     | sign_of_change/text()       |         |       |        |     |       | Žemės sklypo pasikeitimo požymis
+    |                                        | enum             |     | 1                           |         |       |        |     |       |
+    |                                        |                  |     | 2                           |         |       |        |     |       |
+    |   |   |   |   | text                   | string           |     | text()                      |         |       |        |     |       |
+
 """
 
     path = tmp_path / 'manifest.xsd'
@@ -403,13 +408,13 @@ def test_xsd_attributes(rc: RawConfig, tmp_path: Path):
     """
 
     table = """
- id | d | r | b | m | property             | type            | ref     | source             | prepare | level | access | uri | title | description | status  | visibility | eli | count | origin
-    | manifest                             |                 |         |                    |         |       |        |     |       |             |         |            |     |       |
-    |   | resource1                        | xml             |         |                    |         |       |        |     |       |             |         |            |     |       |
-    |                                      |                 |         |                    |         |       |        |     |       |             |         |            |     |       |
-    |   |   |   | Salyga                   |                 |         | /SALYGA            |         |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | kodas                | string          |         | @kodas             |         |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | pavadinimas          | string          |         | @pavadinimas       |         |       |        |     |       |             | develop | private    |     |       |
+ id | d | r | b | m | property             | type            | ref     | source             | prepare | level | access | uri | title | description
+    | manifest                             |                 |         |                    |         |       |        |     |       |
+    |   | resource1                        | dask/xml        |         |                    |         |       |        |     |       |
+    |                                      |                 |         |                    |         |       |        |     |       |
+    |   |   |   | Salyga                   |                 |         | /SALYGA            |         |       |        |     |       |
+    |   |   |   |   | kodas                | string          |         | @kodas             |         |       |        |     |       |
+    |   |   |   |   | pavadinimas          | string          |         | @pavadinimas       |         |       |        |     |       |
 """
 
     path = tmp_path / 'manifest.xsd'
@@ -444,16 +449,16 @@ def test_xsd_model_one_property(rc: RawConfig, tmp_path: Path):
     """
 
     table = """
- id | d | r | b | m | property          | type   | ref    | source                  | prepare  | level | access | uri | title | description | status  | visibility | eli | count | origin
-    | manifest                          |        |        |                         |          |       |        |     |       |             |         |            |     |       |
-    |   | resource1                     | xml    |        |                         |          |       |        |     |       |             |         |            |     |       |
-    |                                   |        |        |                         |          |       |        |     |       |             |         |            |     |       |
-    |   |   |   | Klaida/:part          |        |        |                         |          |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | aprasymas         | string |        | Aprasymas/text()        |          |       |        |     |       |             | develop | private    |     |       |
-    |                                   |        |        |                         |          |       |        |     |       |             |         |            |     |       |
-    |   |   |   | Response              |        |        | /Response               |          |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | klaida            | ref    | Klaida | klaida                  | expand() |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | search_parameters | string |        | searchParameters/text() |          |       |        |     |       |             | develop | private    |     |       |
+ id | d | r | b | m | property          | type     | ref    | source                  | prepare  | level | access | uri | title | description
+    | manifest                          |          |        |                         |          |       |        |     |       |
+    |   | resource1                     | dask/xml |        |                         |          |       |        |     |       |
+    |                                   |          |        |                         |          |       |        |     |       |
+    |   |   |   | Klaida/:part          |          |        |                         |          |       |        |     |       |
+    |   |   |   |   | aprasymas         | string   |        | Aprasymas/text()        |          |       |        |     |       |
+    |                                   |          |        |                         |          |       |        |     |       |
+    |   |   |   | Response              |          |        | /Response               |          |       |        |     |       |
+    |   |   |   |   | klaida            | ref      | Klaida | klaida                  | expand() |       |        |     |       |
+    |   |   |   |   | search_parameters | string   |        | searchParameters/text() |          |       |        |     |       |
 """
     path = tmp_path / 'manifest.xsd'
     path_xsd2 = f"xsd2+file://{path}"
@@ -502,13 +507,13 @@ def test_xsd_separate_simple_type(rc: RawConfig, tmp_path: Path):
 """
 
     table = """
- id | d | r | b | m | property                | type   | ref | source                         | prepare | level | access | uri | title | description                               | status  | visibility | eli | count | origin
-    | manifest                                |        |     |                                |         |       |        |     |       |                                           |         |            |     |       |
-    |   | resource1                           | xml    |     |                                |         |       |        |     |       |                                           |         |            |     |       |
-    |                                         |        |     |                                |         |       |        |     |       |                                           |         |            |     |       |
-    |   |   |   | Tyrimas                     |        |     | /TYRIMAS                       |         |       |        |     |       |                                           | develop | private    |     |       |
-    |   |   |   |   | ct_e200ats_duom_sukurti | string |     | CT_E200ATS_DUOM_SUKURTI/text() |         |       |        |     |       | E200-ats duomenų sukūrimo data ir laikas  | develop | private    |     |       |
-    |   |   |   |   | ct_paciento_spi         | string |     | CT_PACIENTO_SPI/text()         |         |       |        |     |       | Paciento prisirašymo įstaigos pavadinimas | develop | private    |     |       |
+ id | d | r | b | m | property                | type     | ref | source                         | prepare | level | access | uri | title | description
+    | manifest                                |          |     |                                |         |       |        |     |       |
+    |   | resource1                           | dask/xml |     |                                |         |       |        |     |       |
+    |                                         |          |     |                                |         |       |        |     |       |
+    |   |   |   | Tyrimas                     |          |     | /TYRIMAS                       |         |       |        |     |       |
+    |   |   |   |   | ct_e200ats_duom_sukurti | string   |     | CT_E200ATS_DUOM_SUKURTI/text() |         |       |        |     |       | E200-ats duomenų sukūrimo data ir laikas
+    |   |   |   |   | ct_paciento_spi         | string   |     | CT_PACIENTO_SPI/text()         |         |       |        |     |       | Paciento prisirašymo įstaigos pavadinimas
 """
     path = tmp_path / 'manifest.xsd'
     path_xsd2 = f"xsd2+file://{path}"
@@ -543,18 +548,19 @@ def test_xsd_sequence_choice_sequence(rc: RawConfig, tmp_path: Path):
 """
 
     table = """
- id | d | r | b | m | property      | type   | ref | source              | prepare | level | access | uri | title | description | status  | visibility | eli | count | origin
-    | manifest                      |        |     |                     |         |       |        |     |       |             |         |            |     |       |
-    |   | resource1                 | xml    |     |                     |         |       |        |     |       |             |         |            |     |       |
-    |                               |        |     |                     |         |       |        |     |       |             |         |            |     |       |
-    |   |   |   | Person            |        |     | /person             |         |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | first_name    | string |     | firstName/text()    |         |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | iltu_code     | string |     | iltu_code/text()    |         |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | last_name     | string |     | lastName/text()     |         |       |        |     |       |             | develop | private    |     |       |
-    |                               |        |     |                     |         |       |        |     |       |             |         |            |     |       |
-    |   |   |   | Person1           |        |     | /person             |         |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | business_name | string |     | businessName/text() |         |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | iltu_code     | string |     | iltu_code/text()    |         |       |        |     |       |             | develop | private    |     |       |
+ id | d | r | b | m | property      | type     | ref | source              | prepare | level | access | uri | title | description
+    | manifest                      |          |     |                     |         |       |        |     |       |
+    |   | resource1                 | dask/xml |     |                     |         |       |        |     |       |
+    |                               |          |     |                     |         |       |        |     |       |
+    |   |   |   | Person            |          |     | /person             |         |       |        |     |       |
+    |   |   |   |   | first_name    | string   |     | firstName/text()    |         |       |        |     |       |
+    |   |   |   |   | iltu_code     | string   |     | iltu_code/text()    |         |       |        |     |       |
+    |   |   |   |   | last_name     | string   |     | lastName/text()     |         |       |        |     |       |
+    |                               |          |     |                     |         |       |        |     |       |
+    |   |   |   | Person1           |          |     | /person             |         |       |        |     |       |
+    |   |   |   |   | business_name | string   |     | businessName/text() |         |       |        |     |       |
+    |   |   |   |   | iltu_code     | string   |     | iltu_code/text()    |         |       |        |     |       |
+
 """
     path = tmp_path / 'manifest.xsd'
     path_xsd2 = f"xsd2+file://{path}"
@@ -584,13 +590,14 @@ def test_xsd_complex_content(rc: RawConfig, tmp_path: Path):
 """
 
     table = """
- id | d | r | b | m | property    | type   | ref | source             | prepare | level | access | uri | title | description | status  | visibility | eli | count | origin |
-    | manifest                    |        |     |                    |         |       |        |     |       |             |         |            |     |       |        |
-    |   | resource1               | xml    |     |                    |         |       |        |     |       |             |         |            |     |       |        |
-    |                             |        |     |                    |         |       |        |     |       |             |         |            |     |       |        |
-    |   |   |   | BeFull          |        |     | /BE_FULL           |         |       |        |     |       |             | develop | private    |     |       |        |
-    |   |   |   |   | printeddate | string |     | printeddate/text() |         |       |        |     |       |             | develop | private    |     |       |        |
-    |   |   |   |   | title1      | string |     | title1/text()      |         |       |        |     |       |             | develop | private    |     |       |        |
+ id | d | r | b | m | property    | type     | ref | source             | prepare | level | access | uri | title | description
+    | manifest                    |          |     |                    |         |       |        |     |       |
+    |   | resource1               | dask/xml |     |                    |         |       |        |     |       |
+    |                             |          |     |                    |         |       |        |     |       |
+    |   |   |   | BeFull          |          |     | /BE_FULL           |         |       |        |     |       |
+    |   |   |   |   | printeddate | string   |     | printeddate/text() |         |       |        |     |       |
+    |   |   |   |   | title1      | string   |     | title1/text()      |         |       |        |     |       |
+
 """
     path = tmp_path / 'manifest.xsd'
     path_xsd2 = f"xsd2+file://{path}"
@@ -629,22 +636,22 @@ def test_xsd_recursion(rc: RawConfig, tmp_path: Path):
 """
 
     table = """
- id | d | r | b | m | property       | type             | ref          | source        | prepare  | level | access | uri | title | description | status  | visibility | eli | count | origin
-    | manifest                       |                  |              |               |          |       |        |     |       |             |         |            |     |       |
-    |   | resource1                  | xml              |              |               |          |       |        |     |       |             |         |            |     |       |
-    |                                |                  |              |               |          |       |        |     |       |             |         |            |     |       |
-    |   |   |   | Action/:part       |                  |              |               |          |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | children[]     | backref required | Children     | children      | expand() |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | children1      | ref              | Children     |               |          |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | code           | string required  |              | code/text()   |          |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | response_data  | ref              | ResponseData |               |          |       |        |     |       |             | develop | private    |     |       |
-    |                                |                  |              |               |          |       |        |     |       |             |         |            |     |       |
-    |   |   |   | Children/:part     |                  |              |               |          |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | action[]       | backref          | Action       | action        | expand() |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | action1        | ref              | Action       |               |          |       |        |     |       |             | develop | private    |     |       |
-    |                                |                  |              |               |          |       |        |     |       |             |         |            |     |       |
-    |   |   |   | ResponseData       |                  |              | /responseData |          |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | action[]       | backref          | Action       | action        | expand() |       |        |     |       |             | develop | private    |     |       |
+ id | d | r | b | m | property       | type             | ref          | source        | prepare  | level | access | uri | title | description
+    | manifest                       |                  |              |               |          |       |        |     |       |
+    |   | resource1                  | dask/xml         |              |               |          |       |        |     |       |
+    |                                |                  |              |               |          |       |        |     |       |
+    |   |   |   | Action/:part       |                  |              |               |          |       |        |     |       |
+    |   |   |   |   | children[]     | backref required | Children     | children      | expand() |       |        |     |       |
+    |   |   |   |   | children1      | ref              | Children     |               |          |       |        |     |       |
+    |   |   |   |   | code           | string required  |              | code/text()   |          |       |        |     |       |
+    |   |   |   |   | response_data  | ref              | ResponseData |               |          |       |        |     |       |
+    |                                |                  |              |               |          |       |        |     |       |
+    |   |   |   | Children/:part     |                  |              |               |          |       |        |     |       |
+    |   |   |   |   | action[]       | backref          | Action       | action        | expand() |       |        |     |       |
+    |   |   |   |   | action1        | ref              | Action       |               |          |       |        |     |       |
+    |                                |                  |              |               |          |       |        |     |       |
+    |   |   |   | ResponseData       |                  |              | /responseData |          |       |        |     |       |
+    |   |   |   |   | action[]       | backref          | Action       | action        | expand() |       |        |     |       |
 """
     path = tmp_path / 'manifest.xsd'
     path_xsd2 = f"xsd2+file://{path}"
@@ -684,18 +691,18 @@ def test_xsd_enumeration(rc: RawConfig, tmp_path: Path):
 """
 
     table = """
- id | d | r | b | m | property           | type            | ref    | source                    | prepare  | level | access | uri | title | description | status  | visibility | eli | count | origin
-    | manifest                           |                 |        |                           |          |       |        |     |       |             |         |            |     |       |
-    |   | resource1                      | xml             |        |                           |          |       |        |     |       |             |         |            |     |       |
-    |                                    |                 |        |                           |          |       |        |     |       |             |         |            |     |       |
-    |   |   |   | Action/:part           |                 |        |                           |          |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | who_may_constitute | string required |        | who_may_constitute/text() |          |       |        |     |       |             | develop | private    |     |       |
-    |                                    | enum            |        | fiz                       |          |       |        |     |       |             | develop | private    |     |       |
-    |                                    |                 |        | fiz-notarial              |          |       |        |     |       |             | develop | private    |     |       |
-    |                                    |                 |        |                           |          |       |        |     |       |             |         |            |     |       |
-    |   |   |   | Data                   |                 |        | /data                     |          |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | response_data      | ref             | Action | responseData              | expand() |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | response_message   | string          |        | responseMessage/text()    |          |       |        |     |       |             | develop | private    |     |       |
+ id | d | r | b | m | property           | type            | ref    | source                    | prepare  | level | access | uri | title | description
+    | manifest                           |                 |        |                           |          |       |        |     |       |
+    |   | resource1                      | dask/xml        |        |                           |          |       |        |     |       |
+    |                                    |                 |        |                           |          |       |        |     |       |
+    |   |   |   | Action/:part           |                 |        |                           |          |       |        |     |       |
+    |   |   |   |   | who_may_constitute | string required |        | who_may_constitute/text() |          |       |        |     |       |
+    |                                    | enum            |        | fiz                       |          |       |        |     |       |
+    |                                    |                 |        | fiz-notarial              |          |       |        |     |       |
+    |                                    |                 |        |                           |          |       |        |     |       |
+    |   |   |   | Data                   |                 |        | /data                     |          |       |        |     |       |
+    |   |   |   |   | response_data      | ref             | Action | responseData              | expand() |       |        |     |       |
+    |   |   |   |   | response_message   | string          |        | responseMessage/text()    |          |       |        |     |       |
 """
     path = tmp_path / 'manifest.xsd'
     path_xsd2 = f"xsd2+file://{path}"
@@ -738,24 +745,25 @@ def test_duplicate_removal(rc: RawConfig, tmp_path: Path):
 """
 
     table = """
- id | d | r | b | m | property                         | type              | ref              | source                                        | prepare  | level | access | uri | title | description | status  | visibility | eli | count | origin |
-    | manifest                                         |                   |                  |                                               |          |       |        |     |       |             |         |            |     |       |        |
-    |   | resource1                                    | xml               |                  |                                               |          |       |        |     |       |             |         |            |     |       |        |
-    |                                                  |                   |                  |                                               |          |       |        |     |       |             |         |            |     |       |        |
-    |   |   |   | Extract/:part                        |                   |                  |                                               |          |       |        |     |       |             | develop | private    |     |       |        |
-    |   |   |   |   | extract_preparation_time         | datetime required |                  | extractPreparationTime/text()                 |          |       |        |     |       |             | develop | private    |     |       |        |
-    |   |   |   |   | last_update_time                 | datetime required |                  | lastUpdateTime/text()                         |          |       |        |     |       |             | develop | private    |     |       |        |
-    |                                                  |                   |                  |                                               |          |       |        |     |       |             |         |            |     |       |        |
-    |   |   |   | GetDocumentsByWagonResponse1         |                   |                  | /getDocumentsByWagonResponse                  |          |       |        |     |       |             | develop | private    |     |       |        |
-    |   |   |   |   | aprasymas                        | string            |                  | klaida/Aprasymas/text()                       |          |       |        |     |       |             | develop | private    |     |       |        |
-    |   |   |   |   | search_parameters                | ref               | SearchParameters | searchParameters                              | expand() |       |        |     |       |             | develop | private    |     |       |        |
-    |                                                  |                   |                  |                                               |          |       |        |     |       |             |         |            |     |       |        |
-    |   |   |   | GetDocumentsByWagonResponse2         |                   |                  | /getDocumentsByWagonResponse                  |          |       |        |     |       |             | develop | private    |     |       |        |
-    |   |   |   |   | extract                          | ref               | Extract          | extract                                       |          |       |        |     |       |             | develop | private    |     |       |        |   
-    |                                                  |                   |                  |                                               |          |       |        |     |       |             |         |            |     |       |        |   
-    |   |   |   | SearchParameters                     |                   |                  |                                               |          |       |        |     |       |             | develop | private    |     |       |        |   
-    |   |   |   |   | code                             | string            |                  | code/text()                                   |          |       |        |     |       |             | develop | private    |     |       |        |   
-    |   |   |   |   | search_type                      | string            |                  | searchType/text()                             |          |       |        |     |       |             | develop | private    |     |       |        |   
+ id | d | r | b | m | property                         | type              | ref              | source                                        | prepare  | level | access | uri | title | description
+    | manifest                                         |                   |                  |                                               |          |       |        |     |       |
+    |   | resource1                                    | dask/xml          |                  |                                               |          |       |        |     |       |
+    |                                                  |                   |                  |                                               |          |       |        |     |       |
+    |   |   |   | Extract/:part                        |                   |                  |                                               |          |       |        |     |       |
+    |   |   |   |   | extract_preparation_time         | datetime required |                  | extractPreparationTime/text()                 |          |       |        |     |       |
+    |   |   |   |   | last_update_time                 | datetime required |                  | lastUpdateTime/text()                         |          |       |        |     |       |
+    |                                                  |                   |                  |                                               |          |       |        |     |       |
+    |   |   |   | GetDocumentsByWagonResponse1         |                   |                  | /getDocumentsByWagonResponse                  |          |       |        |     |       |
+    |   |   |   |   | aprasymas                        | string            |                  | klaida/Aprasymas/text()                       |          |       |        |     |       |
+    |   |   |   |   | search_parameters                | ref               | SearchParameters | searchParameters                              | expand() |       |        |     |       |      |     |       |
+    |                                                  |                   |                  |                                               |          |       |        |     |       |
+    |   |   |   | GetDocumentsByWagonResponse2         |                   |                  | /getDocumentsByWagonResponse                  |          |       |        |     |       |
+    |   |   |   |   | extract                          | ref               | Extract          | extract                                       |          |       |        |     |       |
+    |                                                  |                   |                  |                                               |          |       |        |     |       |
+    |   |   |   | SearchParameters                     |                   |                  |                                               |          |       |        |     |       |
+    |   |   |   |   | code                             | string            |                  | code/text()                                   |          |       |        |     |       |
+    |   |   |   |   | search_type                      | string            |                  | searchType/text()                             |          |       |        |     |       |
+
   """
 
     path = tmp_path / 'manifest.xsd'
@@ -801,33 +809,34 @@ def test_duplicate_removal_backref(rc: RawConfig, tmp_path: Path):
 """
 
     table = """
- id | d | r | b | m | property                         | type              | ref              | source                                        | prepare | level | access | uri | title | description | status  | visibility | eli | count | origin |
-    | manifest                                         |                   |                  |                                               |         |       |        |     |       |             |         |            |     |       |        |
-    |   | resource1                                    | xml               |                  |                                               |         |       |        |     |       |             |         |            |     |       |        |
-    |                                                  |                   |                  |                                               |         |       |        |     |       |             |         |            |     |       |        |
-    |   |   |   | Extract                              |                   |                  |                                               |         |       |        |     |       |             | develop | private    |     |       |        |
-    |   |   |   |   | extract_preparation_time         | datetime required |                  | extractPreparationTime/text()                 |         |       |        |     |       |             | develop | private    |     |       |        |
-    |   |   |   |   | last_update_time                 | datetime required |                  | lastUpdateTime/text()                         |         |       |        |     |       |             | develop | private    |     |       |        |
-    |                                                  |                   |                  |                                               |         |       |        |     |       |             |         |            |     |       |        |
-    |   |   |   | GetDocumentsByWagonResponse1         |                   |                  | /getDocumentsByWagonResponse                  |         |       |        |     |       |             | develop | private    |     |       |        |
-    |   |   |   |   | aprasymas                        | string            |                  | klaida/Aprasymas/text()                       |         |       |        |     |       |             | develop | private    |     |       |        |
-    |   |   |   |   | search_parameters[]              | backref           | SearchParameters | searchParameters                              |         |       |        |     |       |             | develop | private    |     |       |        |
-    |   |   |   |   | search_parameters[].code         | string            |                  | code/text()                                   |         |       |        |     |       |             | develop | private    |     |       |        |
-    |   |   |   |   | search_parameters[].search_type  | string            |                  | searchType/text()                             |         |       |        |     |       |             | develop | private    |     |       |        |
-    |                                                  |                   |                  |                                               |         |       |        |     |       |             |         |            |     |       |        |   
-    |   |   |   | GetDocumentsByWagonResponse2         |                   |                  | /getDocumentsByWagonResponse                  |         |       |        |     |       |             | develop | private    |     |       |        |   
-    |   |   |   |   | extract                          | ref               | Extract          | extract                                       |         |       |        |     |       |             | develop | private    |     |       |        |   
-    |   |   |   |   | extract.extract_preparation_time | datetime required |                  | extract/extractPreparationTime/text()         |         |       |        |     |       |             | develop | private    |     |       |        |   
-    |   |   |   |   | extract.last_update_time         | datetime required |                  | extract/lastUpdateTime/text()                 |         |       |        |     |       |             | develop | private    |     |       |        |   
-    |   |   |   |   | search_parameters[]              | backref           | SearchParameters | searchParameters                              |         |       |        |     |       |             | develop | private    |     |       |        |   
-    |   |   |   |   | search_parameters[].code         | string            |                  | code/text()                                   |         |       |        |     |       |             | develop | private    |     |       |        |   
-    |   |   |   |   | search_parameters[].search_type  | string            |                  | searchType/text()                             |         |       |        |     |       |             | develop | private    |     |       |        |   
-    |                                                  |                   |                  |                                               |         |       |        |     |       |             |         |            |     |       |        |   
-    |   |   |   | SearchParameters                     |                   |                  |                                               |         |       |        |     |       |             | develop | private    |     |       |        |   
-    |   |   |   |   | code                             | string            |                  | code/text()                                   |         |       |        |     |       |             | develop | private    |     |       |        |   
-    |   |   |   |   | get_documents_by_wagon_response1 | ref               | GetDocumentsByWagonResponse1 |                                               |         |       |        |     |       | | develop | private    |     |       |        |   
-    |   |   |   |   | get_documents_by_wagon_response2 | ref               | GetDocumentsByWagonResponse2 |                                               |         |       |        |     |       | | develop | private    |     |       |        |   
-    |   |   |   |   | search_type                      | string            |                  | searchType/text()                             |         |       |        |     |       |             | develop | private    |     |       |        |                                                                                                                                                                                              | develop | private    |     |       |        |   
+ id | d | r | b | m | property                         | type              | ref              | source                                        | prepare | level | access | uri | title | description
+    | manifest                                         |                   |                  |                                               |         |       |        |     |       |
+    |   | resource1                                    | dask/xml          |                  |                                               |         |       |        |     |       |
+    |                                                  |                   |                  |                                               |         |       |        |     |       |
+    |   |   |   | Extract                              |                   |                  |                                               |         |       |        |     |       |
+    |   |   |   |   | extract_preparation_time         | datetime required |                  | extractPreparationTime/text()                 |         |       |        |     |       |
+    |   |   |   |   | last_update_time                 | datetime required |                  | lastUpdateTime/text()                         |         |       |        |     |       |
+    |                                                  |                   |                  |                                               |         |       |        |     |       |
+    |   |   |   | GetDocumentsByWagonResponse1         |                   |                  | /getDocumentsByWagonResponse                  |         |       |        |     |       |
+    |   |   |   |   | aprasymas                        | string            |                  | klaida/Aprasymas/text()                       |         |       |        |     |       |
+    |   |   |   |   | search_parameters[]              | backref           | SearchParameters | searchParameters                              |         |       |        |     |       |
+    |   |   |   |   | search_parameters[].code         | string            |                  | code/text()                                   |         |       |        |     |       |
+    |   |   |   |   | search_parameters[].search_type  | string            |                  | searchType/text()                             |         |       |        |     |       |
+    |                                                  |                   |                  |                                               |         |       |        |     |       |
+    |   |   |   | GetDocumentsByWagonResponse2         |                   |                  | /getDocumentsByWagonResponse                  |         |       |        |     |       |
+    |   |   |   |   | extract                          | ref               | Extract          | extract                                       |         |       |        |     |       |
+    |   |   |   |   | extract.extract_preparation_time | datetime required |                  | extract/extractPreparationTime/text()         |         |       |        |     |       |
+    |   |   |   |   | extract.last_update_time         | datetime required |                  | extract/lastUpdateTime/text()                 |         |       |        |     |       |
+    |   |   |   |   | search_parameters[]              | backref           | SearchParameters | searchParameters                              |         |       |        |     |       |
+    |   |   |   |   | search_parameters[].code         | string            |                  | code/text()                                   |         |       |        |     |       |
+    |   |   |   |   | search_parameters[].search_type  | string            |                  | searchType/text()                             |         |       |        |     |       |
+    |                                                  |                   |                  |                                               |         |       |        |     |       |
+    |   |   |   | SearchParameters                     |                   |                  |                                               |         |       |        |     |       |
+    |   |   |   |   | code                             | string            |                  | code/text()                                   |         |       |        |     |       |
+    |   |   |   |   | get_documents_by_wagon_response1 | ref               | GetDocumentsByWagonResponse1 |                                               |         |       |        |     |       |
+    |   |   |   |   | get_documents_by_wagon_response2 | ref               | GetDocumentsByWagonResponse2 |                                               |         |       |        |     |       |
+    |   |   |   |   | search_type                      | string            |                  | searchType/text()                             |         |       |        |     |       |
+
   """
 
     path = tmp_path / 'manifest.xsd'
@@ -880,32 +889,46 @@ def test_duplicate_removal_different_models(rc: RawConfig, tmp_path: Path):
 """
 
     table = """
-id | d | r | b | m | property                 | type              | ref     | source                        | source.type | prepare  | level | access | uri | title | description | status  | visibility | eli | count | origin
-   | manifest                                 |                   |         |                               |             |          |       |        |     |       |             |         |            |     |       |
-   |   | resource1                            | xml               |         |                               |             |          |       |        |     |       |             |         |            |     |       |
-   |                                          |                   |         |                               |             |          |       |        |     |       |             |         |            |     |       |
-   |   |   |   | AirCraft                     |                   |         | /AirCraft                     |             |          |       |        |     |       |             | develop | private    |     |       |
-   |   |   |   |   | klaida                   | ref               | Klaida  | klaida                        |             | expand() |       |        |     |       |             | develop | private    |     |       |
-   |   |   |   |   | search_parameters        | string required   |         | searchParameters/text()       |             |          |       |        |     |       |             | develop | private    |     |       |
-   |                                          |                   |         |                               |             |          |       |        |     |       |             |         |            |     |       |
-   |   |   |   | AirCraft1                    |                   |         | /AirCraft                     |             |          |       |        |     |       |             | develop | private    |     |       |
-   |   |   |   |   | extract                  | ref               | Extract | extract                       |             | expand() |       |        |     |       |             | develop | private    |     |       |
-   |   |   |   |   | search_parameters        | string required   |         | searchParameters/text()       |             |          |       |        |     |       |             | develop | private    |     |       |
-   |                                          |                   |         |                               |             |          |       |        |     |       |             |         |            |     |       |
-   |   |   |   | Extract/:part                |                   |         |                               |             |          |       |        |     |       |             | develop | private    |     |       |
-   |   |   |   |   | extract_preparation_time | datetime required |         | extractPreparationTime/text() |             |          |       |        |     |       |             | develop | private    |     |       |
-   |   |   |   |   | last_update_time         | datetime required |         | lastUpdateTime/text()         |             |          |       |        |     |       |             | develop | private    |     |       |
-   |                                          |                   |         |                               |             |          |       |        |     |       |             |         |            |     |       |
-   |   |   |   | Klaida/:part                 |                   |         |                               |             |          |       |        |     |       |             | develop | private    |     |       |
-   |   |   |   |   | aprasymas                | string required   |         | Aprasymas/text()              |             |          |       |        |     |       |             | develop | private    |     |       |
-   |                                          |                   |         |                               |             |          |       |        |     |       |             |         |            |     |       |
-   |   |   |   | Wagon                        |                   |         | /Wagon                        |             |          |       |        |     |       |             | develop | private    |     |       |
-   |   |   |   |   | klaida                   | ref               | Klaida  | klaida                        |             | expand() |       |        |     |       |             | develop | private    |     |       |
-   |   |   |   |   | search_parameters        | string required   |         | searchParameters/text()       |             |          |       |        |     |       |             | develop | private    |     |       |
-   |                                          |                   |         |                               |             |          |       |        |     |       |             |         |            |     |       |
-   |   |   |   | Wagon1                       |                   |         | /Wagon                        |             |          |       |        |     |       |             | develop | private    |     |       |
-   |   |   |   |   | extract                  | ref               | Extract | extract                       |             | expand() |       |        |     |       |             | develop | private    |     |       |
-   |   |   |   |   | search_parameters        | string required   |         | searchParameters/text()       |             |          |       |        |     |       |             | develop | private    |     |       |
+ id | d | r | b | m | property                         | type              | ref              | source                                                            | prepare | level | access | uri | title | description
+    | manifest                                         |                   |                  |                                                                   |         |       |        |     |       |
+    |   | resource1                                    | dask/xml          |                  |                                                                   |         |       |        |     |       |
+    |                                                  |                   |                  |                                                                   |         |       |        |     |       |
+    |   |   |   | Extract                              |                   |                  |                                                                   |         |       |        |     |       |
+    |   |   |   |   | extract_preparation_time         | datetime required |                  | extractPreparationTime/text()                                     |         |       |        |     |       |
+    |   |   |   |   | last_update_time                 | datetime required |                  | lastUpdateTime/text()                                             |         |       |        |     |       |
+    |                                                  |                   |                  |                                                                   |         |       |        |     |       |
+    |   |   |   | GetDocumentsByAirCraftResponse1      |                   |                  | /getDocumentsByAirCraftResponse                                   |         |       |        |     |       |
+    |   |   |   |   | aprasymas                        | string            |                  | klaida/Aprasymas/text()                                           |         |       |        |     |       |
+    |   |   |   |   | search_parameters                | ref               | SearchParameters | searchParameters                                                  |         |       |        |     |       |
+    |   |   |   |   | search_parameters.code           | string            |                  | getDocumentsByWagonResponse/searchParameters/code/text()          |         |       |        |     |       |
+    |   |   |   |   | search_parameters.search_type    | string            |                  | getDocumentsByWagonResponse/searchParameters/searchType/text()    |         |       |        |     |       |
+    |                                                  |                   |                  |                                                                   |         |       |        |     |       |
+    |   |   |   | GetDocumentsByAirCraftResponse2      |                   |                  | /getDocumentsByAirCraftResponse                                   |         |       |        |     |       |
+    |   |   |   |   | extract                          | ref               | Extract          | extract                                                           |         |       |        |     |       |
+    |   |   |   |   | extract.extract_preparation_time | datetime required |                  | getDocumentsByWagonResponse/extract/extractPreparationTime/text() |         |       |        |     |       |
+    |   |   |   |   | extract.last_update_time         | datetime required |                  | getDocumentsByWagonResponse/extract/lastUpdateTime/text()         |         |       |        |     |       |
+    |   |   |   |   | search_parameters                | ref               | SearchParameters | searchParameters                                                  |         |       |        |     |       |
+    |   |   |   |   | search_parameters.code           | string            |                  | getDocumentsByWagonResponse/searchParameters/code/text()          |         |       |        |     |       |
+    |   |   |   |   | search_parameters.search_type    | string            |                  | getDocumentsByWagonResponse/searchParameters/searchType/text()    |         |       |        |     |       |
+    |                                                  |                   |                  |                                                                   |         |       |        |     |       |
+    |   |   |   | GetDocumentsByWagonResponse1         |                   |                  | /getDocumentsByWagonResponse                                      |         |       |        |     |       |
+    |   |   |   |   | aprasymas                        | string            |                  | klaida/Aprasymas/text()                                           |         |       |        |     |       |
+    |   |   |   |   | search_parameters                | ref               | SearchParameters | searchParameters                                                  |         |       |        |     |       |
+    |   |   |   |   | search_parameters.code           | string            |                  | searchParameters/code/text()                                      |         |       |        |     |       |
+    |   |   |   |   | search_parameters.search_type    | string            |                  | searchParameters/searchType/text()                                |         |       |        |     |       |
+    |                                                  |                   |                  |                                                                   |         |       |        |     |       |
+    |   |   |   | GetDocumentsByWagonResponse2         |                   |                  | /getDocumentsByWagonResponse                                      |         |       |        |     |       |
+    |   |   |   |   | extract                          | ref               | Extract          | extract                                                           |         |       |        |     |       |
+    |   |   |   |   | extract.extract_preparation_time | datetime required |                  | extract/extractPreparationTime/text()                             |         |       |        |     |       |
+    |   |   |   |   | extract.last_update_time         | datetime required |                  | extract/lastUpdateTime/text()                                     |         |       |        |     |       |
+    |   |   |   |   | search_parameters                | ref               | SearchParameters | searchParameters                                                  |         |       |        |     |       |
+    |   |   |   |   | search_parameters.code           | string            |                  | searchParameters/code/text()                                      |         |       |        |     |       |
+    |   |   |   |   | search_parameters.search_type    | string            |                  | searchParameters/searchType/text()                                |         |       |        |     |       |
+    |                                                  |                   |                  |                                                                   |         |       |        |     |       |
+    |   |   |   | SearchParameters                     |                   |                  |                                                                   |         |       |        |     |       |
+    |   |   |   |   | code                             | string            |                  | code/text()                                                       |         |       |        |     |       |
+    |   |   |   |   | search_type                      | string            |                  | searchType/text()                                                 |         |       |        |     |       |
+
   """
 
     path = tmp_path / 'manifest.xsd'
@@ -969,27 +992,27 @@ def test_duplicate_removal_two_level(rc: RawConfig, tmp_path: Path):
 """
 
     table = """
- id | d | r | b | m | property                 | type            | ref           | source                              | prepare  | level | access | uri | title | description | status  | visibility | eli | count | origin
-    | manifest                                 |                 |               |                                     |          |       |        |     |       |             |         |            |     |       |
-    |   | resource1                            | xml             |               |                                     |          |       |        |     |       |             |         |            |     |       |
-    |                                          |                 |               |                                     |          |       |        |     |       |             |         |            |     |       |
-    |   |   |   | Car                          |                 |               | /Car                                |          |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | colour                   | string required |               | colour/text()                       |          |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | documentation            | ref required    | Documentation | Documentation                       | expand() |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | make                     | string required |               | make/text()                         |          |       |        |     |       |             | develop | private    |     |       |
-    |                                          |                 |               |                                     |          |       |        |     |       |             |         |            |     |       |
-    |   |   |   | Documentation/:part          |                 |               |                                     |          |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | country                  | string required |               | country/text()                      |          |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | maker                    | ref required    | Maker         | Maker                               | expand() |       |        |     |       |             | develop | private    |     |       |
-    |                                          |                 |               |                                     |          |       |        |     |       |             |         |            |     |       |
-    |   |   |   | Maker/:part                  |                 |               |                                     |          |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | code                     | string required |               | code/text()                         |          |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | name                     | string required |               | name/text()                         |          |       |        |     |       |             | develop | private    |     |       |
-    |                                          |                 |               |                                     |          |       |        |     |       |             |         |            |     |       |
-    |   |   |   | Ship                         |                 |               | /Ship                               |          |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | colour                   | string required |               | colour/text()                       |          |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | documentation            | ref required    | Documentation | Documentation                       | expand() |       |        |     |       |             | develop | private    |     |       |
-    |   |   |   |   | make                     | string required |               | make/text()                         |          |       |        |     |       |             | develop | private    |     |       |
+ id | d | r | b | m | property                 | type            | ref           | source                              | prepare  | level | access | uri | title | description
+    | manifest                                 |                 |               |                                     |          |       |        |     |       |
+    |   | resource1                            | dask/xml        |               |                                     |          |       |        |     |       |
+    |                                          |                 |               |                                     |          |       |        |     |       |
+    |   |   |   | Car                          |                 |               | /Car                                |          |       |        |     |       |
+    |   |   |   |   | colour                   | string required |               | colour/text()                       |          |       |        |     |       |
+    |   |   |   |   | documentation            | ref required    | Documentation | Documentation                       | expand() |       |        |     |       |
+    |   |   |   |   | make                     | string required |               | make/text()                         |          |       |        |     |       |
+    |                                          |                 |               |                                     |          |       |        |     |       |
+    |   |   |   | Documentation/:part          |                 |               |                                     |          |       |        |     |       |
+    |   |   |   |   | country                  | string required |               | country/text()                      |          |       |        |     |       |
+    |   |   |   |   | maker                    | ref required    | Maker         | Maker                               | expand() |       |        |     |       |
+    |                                          |                 |               |                                     |          |       |        |     |       |
+    |   |   |   | Maker/:part                  |                 |               |                                     |          |       |        |     |       |
+    |   |   |   |   | code                     | string required |               | code/text()                         |          |       |        |     |       |
+    |   |   |   |   | name                     | string required |               | name/text()                         |          |       |        |     |       |
+    |                                          |                 |               |                                     |          |       |        |     |       |
+    |   |   |   | Ship                         |                 |               | /Ship                               |          |       |        |     |       |
+    |   |   |   |   | colour                   | string required |               | colour/text()                       |          |       |        |     |       |
+    |   |   |   |   | documentation            | ref required    | Documentation | Documentation                       | expand() |       |        |     |       |
+    |   |   |   |   | make                     | string required |               | make/text()                         |          |       |        |     |       |
 
   """
 
@@ -1010,13 +1033,13 @@ def test_xsd_resource_model_only(rc: RawConfig, tmp_path: Path):
 """
 
     table = """
-id | d | r | b | m | property   | type             | ref | source            | prepare | level | access | uri                                           | title | description      | status  | visibility | eli | count | origin
-   | manifest                   |                  |     |                   |         |       |        |                                               |       |                  |         |            |     |       |
-   |   | resource1              | xml              |     |                   |         |       |        |                                               |       |                  |         |            |     |       |
-   |                            |                  |     |                   |         |       |        |                                               |       |                  |         |            |     |       |
-   |   |   |   | Resource       |                  |     | /                 |         |       |        | http://www.w3.org/2000/01/rdf-schema#Resource |       | Įvairūs duomenys | develop | private    |     |       |
-   |   |   |   |   | name       | string required  |     | name/text()       |         |       |        |                                               |       |                  | develop | private    |     |       |
-   |   |   |   |   | population | integer required |     | population/text() |         |       |        |                                               |       |                  | develop | private    |     |       |
+id | d | r | b | m | property   | type             | ref | source            | prepare | level | access | uri                                           | title | description
+   | manifest                   |                  |     |                   |         |       |        |                                               |       |
+   |   | resource1              | dask/xml         |     |                   |         |       |        |                                               |       |
+   |                            |                  |     |                   |         |       |        |                                               |       |
+   |   |   |   | Resource       |                  |     | /                 |         |       |        | http://www.w3.org/2000/01/rdf-schema#Resource |       | Įvairūs duomenys
+   |   |   |   |   | name       | string required  |     | name/text()       |         |       |        |                                               |       |
+   |   |   |   |   | population | integer required |     | population/text() |         |       |        |                                               |       |
 """
     path = tmp_path / 'manifest.xsd'
     path_xsd2 = f"xsd2+file://{path}"

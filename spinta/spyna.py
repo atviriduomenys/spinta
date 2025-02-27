@@ -163,7 +163,12 @@ class Visitor:
 
     def value(self, node, token):
         if token.type == 'STRING':
-            return token.value[1:-1].encode().decode("unicode_escape")
+            # Escape characters like "\"", etc
+            escaped = token.value[1:-1].encode('utf-8').decode('unicode-escape')
+            # When we escape, we get back Unicode encoding which does not support special characters (like 'ą')
+            # We need to bridge it to another encoding, which can restore bytes (like `latin1`, it directly maps first 256
+            # characters to Unicode code points) and decode it back to `utf-8`.
+            return escaped.encode('latin1').decode('utf-8')
         if token.type == 'INT':
             return int(token.value)
         if token.type == 'FLOAT':
