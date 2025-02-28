@@ -1120,6 +1120,22 @@ def test_text_prop_as_reference(manifest_type, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
+def test_not_primary_key_text_property_as_reference(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
+        d | r | b | m | property               | type    | ref              | access | title
+        example                                |         |                  |        |
+                                               |         |                  |        |
+          |   |   | Country                    |         | name@lt          |        |
+          |   |   |   | name@lt                | text    |                  | open   |
+          |   |   |   | name@en                | text    |                  | open   |
+                                               |         |                  |        |
+          |   |   | City                       |         | name@en          |        |
+          |   |   |   | name@en                | text    |                  | open   |
+          |   |   |   | country                | ref     | Country[name@en] | open   |
+        ''', manifest_type)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_prop_multi_nested_exposed_text(manifest_type, tmp_path, rc):
     check(tmp_path, rc, '''
         d | r | b | m | property               | type    | ref       | access | title

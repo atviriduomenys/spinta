@@ -29,9 +29,9 @@ def link(context: Context, dtype: Ref) -> None:
         # XXX: https://github.com/atviriduomenys/spinta/issues/44
         raw_refprops: List[str] = dtype.refprops
         for rprop in raw_refprops:
-            if rprop not in dtype.model.properties:
+            if not (prop := dtype.model.get_from_flatprops(rprop)):
                 raise ModelReferenceKeyNotFound(dtype, ref=rprop, model=dtype.model)
-            refprops.append(dtype.model.properties[rprop])
+            refprops.append(prop)
         dtype.refprops = refprops
         dtype.explicit = True
     elif dtype.model.external:
