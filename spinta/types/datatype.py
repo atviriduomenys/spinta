@@ -479,12 +479,15 @@ def load(context: Context, dtype: Array, data: dict, manifest: Manifest) -> Data
 def load(context: Context, dtype: ArrayBackRef, data: dict, manifest: Manifest) -> DataType:
     if dtype.items:
         assert isinstance(dtype.items, dict), type(dtype.items)
+        place = f'{dtype.prop.place}[]'
         prop: Property = dtype.prop.__class__()
         prop.name = dtype.prop.name
-        prop.place = dtype.prop.place
+        prop.place = place
         prop.parent = dtype.prop
         prop.model = dtype.prop.model
+        prop.list = dtype.prop
         commands.load(context, prop, dtype.items, manifest)
+        dtype.prop.model.flatprops[place] = prop
         dtype.items = prop
     else:
         dtype.items = None

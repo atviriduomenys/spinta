@@ -64,8 +64,8 @@ class LoadBuilder(Env):
                     args.remove('_id')
             for arg in args:
                 key = arg
-                if arg in self.model.properties:
-                    prop = self.model.properties[arg]
+                if arg in self.model.flatprops:
+                    prop = self.model.flatprops[arg]
                     page.keys.update({
                         key: prop
                     })
