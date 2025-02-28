@@ -14,6 +14,8 @@
 /var/
 /.idea/
 ruff.toml
+config.yml
+manifest.csv
 
 # pyenv
 .python-version

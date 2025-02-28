@@ -1,27 +1,23 @@
 version: "3"
 
 services:
-  db:
+  db-${BRANCH_NAME}:
     image: postgis/postgis:16-3.4
-    ports:
-      - "54321:5432"
     environment:
       - POSTGRES_DB=spinta
       - POSTGRES_USER=admin
       - POSTGRES_PASSWORD=admin123
     volumes:
-      - postgres:/var/lib/postgresql/data
+      - postgres-${BRANCH_NAME}:/var/lib/postgresql/data
   mongo:
     image: mongo:4.0.9-xenial
-    ports:
-      - "27017:27017"
     environment:
       - MONGO_INITDB_DATABASE=spinta
       - MONGO_INITDB_ROOT_USERNAME=admin
       - MONGO_INITDB_ROOT_PASSWORD=admin123
     volumes:
-      - mongo:/data/db
-  app:
+      - mongo-${BRANCH_NAME}:/data/db
+  ${BRANCH_NAME}:
     volumes:
       - ./entrypoint.sh:/app/entrypoint.sh
     build:
@@ -31,12 +27,10 @@ services:
       - ./entrypoint.sh
     environment:
       - SPINTA_CONFIG=config.yml  # TODO update actual keymap, using notes/spinta/server.sh keymap for now.
-    ports:
-      - "8000:8000"
     depends_on:
-      - db
-      - mongo
+      - db-${BRANCH_NAME}
+      - mongo-${BRANCH_NAME}
 
 volumes:
-  postgres:
-  mongo:
+  postgres-${BRANCH_NAME}:
+  mongo-${BRANCH_NAME}:
