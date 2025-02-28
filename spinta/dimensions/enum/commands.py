@@ -2,9 +2,9 @@ from typing import Any
 from typing import overload
 
 from spinta import commands
-from spinta.core.ufuncs import Expr
 from spinta.components import Context
 from spinta.core.ufuncs import Expr
+from spinta.core.ufuncs import NoOp
 from spinta.types.datatype import DataType
 from spinta.types.datatype import Integer
 from spinta.types.datatype import String
@@ -12,9 +12,6 @@ from spinta.types.datatype import Boolean
 from spinta.dimensions.enum.components import EnumItem
 from spinta.exceptions import InvalidValue
 from spinta.utils.schema import NotAvailable
-
-
-NO_OPERATION = 'noop'
 
 
 @overload
@@ -32,20 +29,14 @@ def check(
 
 
 @overload
-@commands.check.register(Context, EnumItem, DataType, Expr)
+@commands.check.register(Context, EnumItem, DataType, NoOp)
 def check(
     context: Context,
     item: EnumItem,
     dtype: DataType,
-    value: Expr,
+    value: NoOp,
 ) -> None:
-    if value.name == NO_OPERATION and dtype.name in {'string', 'integer'}:
-        return
-
-    raise InvalidValue(dtype, error=(
-        f"Given enum value {value} of {type(value)} type does not match "
-        f"property type, which is {dtype.name!r}."
-    ))
+    pass
 
 
 @overload

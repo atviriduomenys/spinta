@@ -1,6 +1,6 @@
 from typing import Any, Tuple, overload
 
-from spinta.core.ufuncs import Env, Expr, ufunc
+from spinta.core.ufuncs import Env, Expr, ufunc, NoOp
 
 
 @overload
@@ -40,3 +40,9 @@ def negative(env: Env, arg: int):
 @ufunc.resolver(Env, float)
 def negative(env: Env, arg: int):
     return -arg
+
+
+@overload
+@ufunc.resolver(Env)
+def noop(env):
+    return NoOp()

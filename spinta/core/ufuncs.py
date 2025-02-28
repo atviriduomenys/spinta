@@ -224,7 +224,6 @@ class Env:
 
         if expr.name in self._resolvers:
             ufunc = self._resolvers[expr.name]
-
         else:
             args, kwargs = expr.resolve(self)
             return self.default_resolver(expr, *args, **kwargs)
@@ -317,3 +316,12 @@ class GetAttr(Unresolved):
 
 
 bind = functools.partial(Expr, 'bind')
+
+
+class NoOp:
+    def __init__(self):
+        self.name = 'noop'
+
+    def __repr__(self):
+        return self.name
+
