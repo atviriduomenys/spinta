@@ -1,9 +1,20 @@
 import pytest
 
-from spinta.exceptions import InvalidManifestFile, ReferencedPropertyNotFound, PartialTypeNotFound, \
-    DataTypeCannotBeUsedForNesting, NestedDataTypeMismatch, SameModelIntermediateTableMapping, \
-    InvalidIntermediateTableMappingRefCount, UnableToMapIntermediateTable, IntermediateTableMappingInvalidType, \
-    IntermediateTableValueTypeMissmatch, IntermediateTableRefPropertyModelMissmatch, IntermediateTableRefModelMissmatch
+from spinta.exceptions import (
+    InvalidManifestFile,
+    ReferencedPropertyNotFound,
+    PartialTypeNotFound,
+    DataTypeCannotBeUsedForNesting,
+    NestedDataTypeMismatch,
+    SameModelIntermediateTableMapping,
+    InvalidIntermediateTableMappingRefCount,
+    UnableToMapIntermediateTable,
+    IntermediateTableMappingInvalidType,
+    IntermediateTableValueTypeMissmatch,
+    IntermediateTableRefPropertyModelMissmatch,
+    IntermediateTableRefModelMissmatch,
+    ParentNodeNotFound
+)
 from spinta.testing.manifest import load_manifest
 from spinta.manifests.tabular.helpers import TabularManifestError
 
@@ -482,7 +493,7 @@ def test_with_denormalized_data(manifest_type, tmp_path, rc):
 
 @pytest.mark.manifests('internal_sql', 'csv')
 def test_with_denormalized_data_ref_error(manifest_type, tmp_path, rc):
-    with pytest.raises(PartialTypeNotFound) as e:
+    with pytest.raises(ParentNodeNotFound) as e:
         check(tmp_path, rc, '''
         d | r | b | m | property               | type   | ref       | access
         example                                |        |           |
@@ -494,6 +505,21 @@ def test_with_denormalized_data_ref_error(manifest_type, tmp_path, rc):
           |   |   |   | name                   | string |           | open
           |   |   |   | country.name           |        |           | open
         ''', manifest_type)
+
+    assert e.value.context == {
+        'component': 'spinta.types.datatype.Partial',
+        'manifest': 'default',
+        'schema': '7',
+        'dataset': 'example',
+        'model': 'example/City',
+        'entity': '',
+        'property': 'country',
+        'attribute': None,
+        'type': 'partial',
+        'model_name': 'example/City',
+        'property_names': 'country.name',
+        'missing_property_name': 'country'
+    }
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
