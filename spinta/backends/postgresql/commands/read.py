@@ -73,7 +73,7 @@ def getall(
     for row in result:
         res = {}
         for key, sel in env_selected.items():
-            res[key] = get_row_value(context, result_builder_getter, row, sel, False)
+            res[key] = get_row_value(context, result_builder_getter, row, sel, True)
 
         if is_page_enabled:
             res['_page'] = get_page_values(env, row)
