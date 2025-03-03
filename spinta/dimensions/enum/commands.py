@@ -77,7 +77,7 @@ def check(
     context: Context,
     item: EnumItem,
     dtype: Boolean,
-    value: bool
+    value: bool,
 ) -> None:
     pass
 
