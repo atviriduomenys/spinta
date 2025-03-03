@@ -323,5 +323,13 @@ class NoOp:
         self.name = 'noop'
 
     def __repr__(self):
-        return self.name
+        return str(spyna.unparse(self.todict(), raw=True))
 
+    def __str__(self):
+        return str(spyna.unparse(self.todict()))
+
+    def todict(self) -> dict:
+        return {
+            'name': self.name,
+            'args': []
+        }
