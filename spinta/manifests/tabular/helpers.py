@@ -46,8 +46,7 @@ from spinta.dimensions.enum.components import Enums
 from spinta.dimensions.lang.components import LangData
 from spinta.dimensions.prefix.components import UriPrefix
 from spinta.exceptions import MultipleErrors, InvalidBackRefReferenceAmount, DataTypeCannotBeUsedForNesting, \
-    NestedDataTypeMismatch
-from spinta.exceptions import PropertyNotFound
+    NestedDataTypeMismatch, NoModelDefined, PropertyNotFound
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
 from spinta.manifests.tabular.components import ACCESS, URI
@@ -928,6 +927,8 @@ DATATYPE_HANDLERS = {
 
 
 def _get_root_prop(reader: PropertyReader, name: str):
+    if reader.state.model is None:
+        raise NoModelDefined(property=name)
     if name in reader.state.model.data['properties']:
         return reader.state.model.data['properties'][name]
     return None
