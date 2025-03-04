@@ -1551,3 +1551,20 @@ def test_intermediate_table_invalid_mapping_left_property_model_missmatch(manife
                   |   |   |   | country     | ref     | Extra           | open   |
                   |   |   |   | language    | ref     | Language        | open   |
             ''', manifest_type)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_property_error(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
+        d | r | b | m | property   | type         | ref     | access | title
+        example                    |              |         |        |
+                                   |              |         |        |
+          |   |   | City           |              |         |        |
+          |   |   |   | id         | integer      |         | open   |
+          |   |   |   | country    | ref required | Country | open   |
+          |   |   |   | country.id | integer      |         | open   |
+                                   |              |         |        |
+          |   |   | Country        |              |         |        |
+          |   |   |   | id         | integer      |         | open   |
+          |   |   |   | name       | string       |         | open   |
+        ''', manifest_type)
