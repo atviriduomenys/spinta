@@ -293,7 +293,7 @@ def test_property_type_undefined(manifest_type, tmp_path, rc):
               |   |   |   | population   | integer |           |        |
         ''', manifest_type)
 
-    assert e.value.message == 'Parameter "type" must be defined for property "code"'
+    assert e.value.message == 'Parameter "type" must be defined for property "code", because it is not defined in base model or there is no base model.'
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
