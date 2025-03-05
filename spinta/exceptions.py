@@ -397,10 +397,6 @@ class InvalidLevel(UserError):
     template = "Invalid level value \"{level}\"."
 
 
-class InvalidStatus(UserError):
-    template = "Invalid status value \"{status}\"."
-
-
 class InvalidParameterValue(BaseError):
     template = "Invalid parameter {parameter!r} value."
 

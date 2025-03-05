@@ -46,11 +46,11 @@ class Level(enum.IntEnum):
     linked = 5
 
 
-class Status(enum.IntEnum):
+class Status(enum.Enum):
     """Status of the data record"""
 
     # Status isn't given
-    absent = 0
+    absent = None
 
     # The data of this element is being updated. This field can be changed without any warning
     develop = 1
@@ -91,7 +91,7 @@ class Visibility(enum.IntEnum):
 def load_level(
     component: 'spinta.components.Component',
     given_level: Level | int | str
-):
+) -> None:
     if given_level:
         if isinstance(given_level, Level):
             level = given_level
@@ -111,24 +111,20 @@ def load_level(
 def load_status(
     component: 'spinta.components.Component',
     given_status: Status | str
-):
-    if not isinstance(given_status, Status):
-        status = given_status or component.status
-        status = enum_by_name(component, 'status', Status, status)
+) -> None:
+    if isinstance(given_status, Status):
+        component.status = given_status
     else:
-        status = given_status
-    component.status = status
+        component.status = enum_by_name(component, 'status', Status, given_status or component.status)
     component.given.status = given_status
 
 
 def load_visibility(
     component: 'spinta.components.Component',
     given_visibility: Visibility | str
-):
-    if not isinstance(given_visibility, Status):
-        visibility = given_visibility or component.visibility
-        visibility = enum_by_name(component, 'visibility', Visibility, visibility)
+) -> None:
+    if isinstance(given_visibility, Visibility):
+        component.visibility = given_visibility
     else:
-        visibility = given_visibility
-    component.visibility = visibility
+        component.visibility = enum_by_name(component, 'visibility', Visibility, given_visibility or component.visibility)
     component.given.visibility = given_visibility

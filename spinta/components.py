@@ -741,11 +741,6 @@ class Model(MetaData):
         self.required_keymap_properties = []
         self.page = PageInfo(self)
         self.uri_prop = None
-        self.status = None
-        self.visibility = None
-        self.eli = None
-        self.count = None
-        self.origin = None
 
     def model_type(self):
         return self.name
@@ -802,9 +797,9 @@ class Property(ExtraMetaData):
     comments: List[Comment] = None
     status: Status | None = None
     visibility: Visibility | None = None
-    eli: str = None
-    count: int = None
-    origin: str = None
+    eli: str | None = None
+    count: int | None = None
+    origin: str | None = None
 
     schema = {
         'title': {},
