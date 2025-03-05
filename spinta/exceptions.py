@@ -251,7 +251,7 @@ class InvalidPropertyType(UserError):
 
 
 class UndefinedPropertyType(UserError):
-    template = 'Parameter "type" must be defined for property "{property}"'
+    template = 'Parameter "type" must be defined for property "{property}", because it is not defined in base model or there is no base model.'
 
 
 class ValueNotInEnum(UserError):
