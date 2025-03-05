@@ -3,7 +3,8 @@ import pytest
 from spinta.exceptions import InvalidManifestFile, ReferencedPropertyNotFound, PartialTypeNotFound, \
     DataTypeCannotBeUsedForNesting, NestedDataTypeMismatch, SameModelIntermediateTableMapping, \
     InvalidIntermediateTableMappingRefCount, UnableToMapIntermediateTable, IntermediateTableMappingInvalidType, \
-    IntermediateTableValueTypeMissmatch, IntermediateTableRefPropertyModelMissmatch, IntermediateTableRefModelMissmatch
+    IntermediateTableValueTypeMissmatch, IntermediateTableRefPropertyModelMissmatch, IntermediateTableRefModelMissmatch, \
+    ModelReferenceKeyNotFound
 from spinta.testing.manifest import load_manifest
 from spinta.manifests.tabular.helpers import TabularManifestError
 
@@ -1133,6 +1134,30 @@ def test_not_primary_key_text_property_as_reference(manifest_type, tmp_path, rc)
           |   |   |   | name@en                | text    |                  | open   |
           |   |   |   | country                | ref     | Country[name@en] | open   |
         ''', manifest_type)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_reference_primary_key_is_not_in_referenced_model(manifest_type, tmp_path, rc):
+    with pytest.raises(ModelReferenceKeyNotFound) as e:
+        check(tmp_path, rc, '''
+            d | r | b | m | property               | type    | ref               | access | title
+            example                                |         |                   |        |
+                                                   |         |                   |        |
+              |   |   | Country                    |         | name@lt           |        |
+              |   |   |   | name@lt                | text    |                   | open   |
+              |   |   |   | name@en                | text    |                   | open   |
+                                                   |         |                   |        |
+              |   |   | City                       |         | name@en           |        |
+              |   |   |   | name@en                | text    |                   | open   |
+              |   |   |   | country                | ref     | Country[name2@en] | open   |
+        ''', manifest_type)
+
+    assert e.value.message == 'Model reference key \'name2@en\' not found in model that is being referenced \'example/Country\'.'
+
+    assert e.value.context['model'] == 'example/City'
+    assert e.value.context['referenced_model'] == 'example/Country'
+    assert e.value.context['property'] == 'country'
+    assert e.value.context['ref'] == 'name2@en'
 
 
 @pytest.mark.manifests('internal_sql', 'csv')

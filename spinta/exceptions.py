@@ -303,7 +303,7 @@ class ModelReferenceNotFound(BaseError):
 
 
 class ModelReferenceKeyNotFound(BaseError):
-    template = "Model reference key {ref!r} not found in {model!r}."
+    template = "Model reference key {ref!r} not found in model that is being referenced {referenced_model!r}."
 
 
 class SourceNotSet(UserError):
