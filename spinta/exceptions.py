@@ -106,7 +106,7 @@ class BaseError(Exception):
             this = args[0]
         else:
             this = None
-            log.error("Only one positional argument is alowed, but %d was given.", len(args), stack_info=True)
+            log.error("Only one positional argument is allowed, but %d was given.", len(args), stack_info=True)
 
         self.type = this.type if this and hasattr(this, 'type') else 'system'
 
@@ -247,7 +247,11 @@ class InvalidValue(UserError):
 
 
 class InvalidPropertyType(UserError):
-    template = "Invalid property type, expected {expected}, got {type}.."
+    template = "Invalid property type, expected {expected}, got {type}."
+
+
+class UndefinedPropertyType(UserError):
+    template = 'Parameter "type" must be defined for property "{property}", because it is not defined in base model or there is no base model.'
 
 
 class ValueNotInEnum(UserError):

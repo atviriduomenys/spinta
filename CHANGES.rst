@@ -29,6 +29,12 @@ Improvements:
 
   .. _#1186: https://github.com/atviriduomenys/spinta/issues/1186
 
+Bug fixes:
+
+- Added an additional check for properties that are not given a `type` and the `type` can not be inherited from the base model (`#1019`_).
+
+  .. _#1019: https://github.com/atviriduomenys/spinta/issues/1019
+
 0.1.84 (2025-02-19)
 ===================
 
