@@ -14,7 +14,6 @@ from spinta.exceptions import (
     IntermediateTableValueTypeMissmatch,
     IntermediateTableRefPropertyModelMissmatch,
     IntermediateTableRefModelMissmatch,
-    NestedPropertyDefinedWithoutReferencePropertyError,
     UndefinedPropertyType,
     ParentNodeNotFound
 )

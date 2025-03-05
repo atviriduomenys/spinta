@@ -35,6 +35,10 @@ Bug fixes:
 
   .. _#1019: https://github.com/atviriduomenys/spinta/issues/1019
 
+- Adjusted error message for users, for when a DSA has a model with nested properties and the parent node is not defined (`#1005`_)
+
+  .. _#1005: https://github.com/atviriduomenys/spinta/issues/1005
+
 0.1.84 (2025-02-19)
 ===================
 
