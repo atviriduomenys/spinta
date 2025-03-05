@@ -35,7 +35,7 @@ def link(context: Context, dtype: Array) -> None:
         raw_refprops: List[str] = dtype.refprops
         for rprop in raw_refprops:
             if rprop not in dtype.model.properties:
-                raise ModelReferenceKeyNotFound(dtype, ref=rprop, model=dtype.model)
+                raise ModelReferenceKeyNotFound(dtype, ref=rprop, referenced_model=dtype.model.name, model=dtype.prop.model.name)
             refprops.append(dtype.model.properties[rprop])
         dtype.refprops = refprops
         dtype.explicit = True
