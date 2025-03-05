@@ -1,7 +1,6 @@
 import pytest
 
 from spinta.exceptions import (
-    NoModelDefined,
     SameModelIntermediateTableMapping,
     InvalidIntermediateTableMappingRefCount,
     UnableToMapIntermediateTable,
