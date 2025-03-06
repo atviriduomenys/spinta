@@ -190,3 +190,7 @@ def test_escale_quotes_both():
 
 def test_normal_text():
     check("'TEST'")
+
+
+def test_noop():
+    check('noop()')
