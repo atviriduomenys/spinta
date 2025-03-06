@@ -1,6 +1,6 @@
 import pytest
 
-from spinta.exceptions import InvalidManifestFile, ReferencedPropertyNotFound, PartialTypeNotFound, \
+from spinta.exceptions import InvalidManifestFile, NoModelDefined, ReferencedPropertyNotFound, PartialTypeNotFound, \
     DataTypeCannotBeUsedForNesting, NestedDataTypeMismatch, SameModelIntermediateTableMapping, \
     InvalidIntermediateTableMappingRefCount, UnableToMapIntermediateTable, IntermediateTableMappingInvalidType, \
     IntermediateTableValueTypeMissmatch, IntermediateTableRefPropertyModelMissmatch, IntermediateTableRefModelMissmatch
@@ -1551,3 +1551,19 @@ def test_intermediate_table_invalid_mapping_left_property_model_missmatch(manife
                   |   |   |   | country     | ref     | Extra           | open   |
                   |   |   |   | language    | ref     | Language        | open   |
             ''', manifest_type)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_no_model_defined_error(manifest_type, tmp_path, rc):
+    with pytest.raises(NoModelDefined):
+        check(tmp_path, rc, '''
+            d | r | b | m | property | type    | ref | access | title
+            example                  |         |     |        |
+                                     |         |     |        |
+              |   |   | City         |         | id  |        |
+              |   |   |   | id       | integer |     | open   |
+              |   |   |   | name     | string  |     | open   |
+            second_example           |         |     |        |
+                                     |         |     |        |
+              |   |   |   | id       | integer |     | open   |
+        ''')
