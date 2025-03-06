@@ -1,9 +1,20 @@
 import pytest
 
-from spinta.exceptions import InvalidManifestFile, ReferencedPropertyNotFound, PartialTypeNotFound, \
-    DataTypeCannotBeUsedForNesting, NestedDataTypeMismatch, SameModelIntermediateTableMapping, \
-    InvalidIntermediateTableMappingRefCount, UnableToMapIntermediateTable, IntermediateTableMappingInvalidType, \
-    IntermediateTableValueTypeMissmatch, IntermediateTableRefPropertyModelMissmatch, IntermediateTableRefModelMissmatch
+from spinta.exceptions import (
+    SameModelIntermediateTableMapping,
+    InvalidIntermediateTableMappingRefCount,
+    UnableToMapIntermediateTable,
+    IntermediateTableMappingInvalidType,
+    IntermediateTableValueTypeMissmatch,
+    IntermediateTableRefPropertyModelMissmatch,
+    IntermediateTableRefModelMissmatch,
+    InvalidManifestFile,
+    ReferencedPropertyNotFound,
+    PartialTypeNotFound,
+    DataTypeCannotBeUsedForNesting,
+    NestedDataTypeMismatch,
+    UndefinedPropertyType
+)
 from spinta.testing.manifest import load_manifest
 from spinta.manifests.tabular.helpers import TabularManifestError
 
@@ -245,17 +256,61 @@ def test_comment(manifest_type, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_prop_type_not_given(manifest_type, tmp_path, rc):
+def test_property_type_defined_in_base_model(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
+        d | r | b | m | property     | type    | ref       | access | title
+        example                      |         |           |        |
+                                     |         |           |        |
+          |   |   | Area             |         |           |        |
+          |   |   |   | name         | string  |           |        |
+          |   |   |   | population   | integer |           |        |
+                                     |         |           |        |
+          |   | Area                 |         |           |        |
+          |   |   | Country          |         |           |        |
+          |   |   |   | name         |         |           |        |
+          |   |   |   | code         | string  |           |        |
+          |   |   |   | population   | integer |           |        |
+    ''', manifest_type)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_property_type_undefined(manifest_type, tmp_path, rc):
+    """Property 'type' is undefined in the model and not present in the base model."""
+    with pytest.raises(UndefinedPropertyType) as e:
+        check(tmp_path, rc, '''
+            d | r | b | m | property     | type    | ref       | access | title
+            example                      |         |           |        |
+                                         |         |           |        |
+              |   |   | Area             |         |           |        |
+              |   |   |   | name         | string  |           |        |
+              |   |   |   | population   | integer |           |        |
+                                         |         |           |        |
+              |   | Area                 |         |           |        |
+              |   |   | Country          |         |           |        |
+              |   |   |   | name         |         |           |        |
+              |   |   |   | code         |         |           |        |
+              |   |   |   | population   | integer |           |        |
+        ''', manifest_type)
+
+    assert e.value.message == 'Parameter "type" must be defined for property "code", because it is not defined in base model or there is no base model.'
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_property_type_undefined_no_base_model(manifest_type, tmp_path, rc):
+    """Property 'type' is undefined in the model and the model does not have a base to inherit from"""
     with pytest.raises(InvalidManifestFile) as e:
         check(tmp_path, rc, '''
-        d | r | b | m | property | type
-        datasets/gov/example     |
-          |   |   | Bool         |
-          |   |   |   | value    |
+            d | r | b | m | property     | type    | ref       | access | title
+            example                      |         |           |        |
+                                         |         |           |        |
+              |   |   | Country          |         |           |        |
+              |   |   |   | name         | string  |           |        |
+              |   |   |   | code         |         |           |        |
+              |   |   |   | population   | integer |           |        |
         ''', manifest_type)
-    assert e.value.context['error'] == (
-        "Type is not given for 'value' property in "
-        "'datasets/gov/example/Bool' model."
+
+    assert e.value.message == (
+        "Error while parsing '4' manifest entry: Type is not given for 'code' property in 'example/Country' model."
     )
 
 
@@ -520,6 +575,28 @@ def test_with_denormalized_data_undefined_error(manifest_type, tmp_path, rc):
         "Property 'country.continent.size' not found."
     )
     assert e.value.context['ref'] == "{'property': 'size', 'model': 'example/Continent'}"
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_denormalized_field(manifest_type, tmp_path, rc):
+    """country.continent.size is a denormalized field and has a type directly in City model."""
+    check(tmp_path, rc, '''
+    d | r | b | m | property               | type    | ref       | access
+    example                                |         |           |
+                                           |         |           |
+      |   |   | Continent                  |         |           |
+      |   |   |   | name                   | string  |           | open
+                                           |         |           |
+      |   |   | Country                    |         |           |
+      |   |   |   | name                   | string  |           | open
+      |   |   |   | continent              | ref     | Continent | open
+                                           |         |           |
+      |   |   | City                       |         |           |
+      |   |   |   | name                   | string  |           | open
+      |   |   |   | country                | ref     | Country   | open
+      |   |   |   | country.name           |         |           | open
+      |   |   |   | country.continent.size | integer |           | open
+    ''', manifest_type)
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
