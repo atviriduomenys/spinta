@@ -26,13 +26,12 @@ from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.types.datatype import String
 from spinta.types.datatype import UUID
-from spinta.types.geometry.components import Geometry
 from spinta.types.text.components import Text
 from spinta.types.text.helpers import determine_language_property_for_text
+from spinta.ufuncs.components import ForeignProperty
 from spinta.ufuncs.querybuilder.components import LiteralProperty, Selected
 from spinta.ufuncs.querybuilder.helpers import get_language_column, process_literal_value
 from spinta.ufuncs.querybuilder.ufuncs import Star
-from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.data import take
 from spinta.utils.itertools import flatten
 from spinta.utils.schema import NA
@@ -109,7 +108,7 @@ def compare(env: SqlQueryBuilder, op: str, field: Bind, value: Any):
 
 @ufunc.resolver(SqlQueryBuilder, GetAttr, object, names=COMPARE)
 def compare(env: SqlQueryBuilder, op: str, attr: GetAttr, value: Any):
-    resolved = env.call('_resolve_getattr', attr)
+    resolved = env.resolve_property(attr)
     return env.call(op, resolved, value)
 
 
@@ -350,8 +349,7 @@ def select(env: SqlQueryBuilder, expr: Expr):
         for key, arg in args:
             selected = env.call('select', arg)
             if selected is not None:
-                if selected.prop is None or selected.prop is not None and not selected.prop.dtype.inherited:
-                    env.selected[key] = selected
+                env.selected[key] = selected
     else:
         for prop in take(['_id', all], env.model.properties).values():
             if authorized(env.context, prop, Action.GETALL):
@@ -619,20 +617,6 @@ def select(
     )
 
 
-@ufunc.resolver(SqlQueryBuilder, ForeignProperty)
-def select(
-    env: SqlQueryBuilder,
-    fpr: ForeignProperty,
-) -> Selected:
-    table = env.joins.get_table(env, fpr)
-    right = fpr.right.prop
-    column = env.backend.get_column(table, right, select=True)
-    return Selected(
-        item=env.add_column(column),
-        prop=right,
-    )
-
-
 @ufunc.resolver(SqlQueryBuilder, Property)
 def join_table_on(env: SqlQueryBuilder, prop: Property) -> Any:
     if prop.external.prepare is not NA:
@@ -820,7 +804,7 @@ def negative(env: SqlQueryBuilder, dtype: DataType):
 
 @ufunc.resolver(SqlQueryBuilder, GetAttr)
 def negative(env: SqlQueryBuilder, attr: GetAttr):
-    resolved = env.call('_resolve_getattr', attr)
+    resolved = env.resolve_property(attr)
     return env.call('negative', resolved)
 
 
@@ -877,12 +861,6 @@ def distinct(env: SqlQueryBuilder):
         env.distinct = True
 
 
-@ufunc.resolver(SqlQueryBuilder, Expr)
-def swap(env: SqlQueryBuilder, expr: Expr):
-    args, kwargs = expr.resolve(env)
-    return Expr('swap', *args, **kwargs)
-
-
 @ufunc.resolver(SqlQueryBuilder, ForeignProperty, PrimaryKey)
 def select(
     env: SqlQueryBuilder,
@@ -893,17 +871,6 @@ def select(
     return super_(env, fpr, dtype)
 
 
-@ufunc.resolver(SqlQueryBuilder, Geometry)
-def flip(env: SqlQueryBuilder, dtype: Geometry):
-    return Expr('flip')
-
-
 @ufunc.resolver(SqlQueryBuilder, object)
 def _group_array(env: SqlQueryBuilder, columns: Any):
     raise NotImplementedFeature(env.backend, feature="Ability to group arrays using default `sql` type")
-
-
-@ufunc.resolver(SqlQueryBuilder, Expr)
-def split(env: SqlQueryBuilder, expr: Expr):
-    args, kwargs = expr.resolve(env)
-    return Expr('split', *args, **kwargs)
