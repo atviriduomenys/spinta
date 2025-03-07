@@ -1432,9 +1432,10 @@ class ParamReader(TabularReader):
             self._check_param_name(node, self.name)
             self._ensure_params_list(node, self.name)
         params  = node.data['params']
-        if not self.name in params:
+        if self.name not in params:
             params[self.name] = self._get_data(self.name, row)
-        # self._get_and_append_data(params[self.name], row)
+        else:
+            self._get_and_append_data(params[self.name], row)
 
     def release(self, reader: TabularReader = None) -> bool:
         return not isinstance(reader, (AppendReader, LangReader))
