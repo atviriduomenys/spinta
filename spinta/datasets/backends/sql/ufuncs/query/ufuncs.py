@@ -254,7 +254,7 @@ def _resolve_unresolved(env: SqlQueryBuilder, field: Bind) -> sa.Column:
 
 @ufunc.resolver(SqlQueryBuilder, GetAttr)
 def _resolve_unresolved(env: SqlQueryBuilder, attr: GetAttr) -> sa.Column:
-    fpr = env.call('_resolve_getattr', attr)
+    fpr = env.resolve_property(attr)
     table = env.joins.get_table(env, fpr)
     dtype = fpr.right
     return env.backend.get_column(table, dtype.prop)
