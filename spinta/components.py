@@ -848,7 +848,7 @@ class CommandList:
 
 @dataclasses.dataclass
 class FuncProperty:
-    func: Expr
+    func: Expr | None
     prop: Property
 
 

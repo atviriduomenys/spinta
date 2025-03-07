@@ -968,8 +968,54 @@ def get_model_scopes():
     """
 
 
+@overload
+def cast_backend_to_python(
+    context: Context,
+    model: DataType,
+    backend: Backend,
+    data: object,
+    **kwargs
+):
+    """Convert backend native types to python native types"""
+
+
+@overload
+def cast_backend_to_python(
+    context: Context,
+    model: Property,
+    backend: Backend,
+    data: object,
+    **kwargs
+):
+    """Convert backend native types to python native types"""
+
+
+@overload
+def cast_backend_to_python(
+    context: Context,
+    model: Model,
+    backend: Backend,
+    data: object,
+    **kwargs
+):
+    """Convert backend native types to python native types using Model"""
+
+
+@overload
+def cast_backend_to_python(
+    context: Context,
+    model: Model,
+    backend: Backend,
+    data: object,
+    *,
+    extra_properties: dict[str, Property],
+    **kwargs
+):
+    """Convert backend native types to python native types using Model and optionally with additional properties"""
+
+
 @command()
-def cast_backend_to_python():
+def cast_backend_to_python(*args, **kwargs):
     """Convert backend native types to python native types."""
 
 
