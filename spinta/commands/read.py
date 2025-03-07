@@ -60,6 +60,10 @@ async def getall(
         action=action.value,
     )
 
+    func_properties = None
+    if params.select_funcs:
+        func_properties = {key: func.prop for key, func in params.select_funcs.items()}
+
     if params.head:
         rows = []
     else:
@@ -71,7 +75,8 @@ async def getall(
                 query=expr,
                 limit=params.limit,
                 default_expand=False,
-                params=query_params
+                params=query_params,
+                extra_properties=func_properties
             )
         else:
             rows = commands.getall(
@@ -80,7 +85,8 @@ async def getall(
                 backend,
                 params=query_params,
                 query=expr,
-                default_expand=False
+                default_expand=False,
+                extra_properties=func_properties
             )
 
     rows = prepare_data_for_response(
@@ -104,8 +110,6 @@ def getall(
     *,
     query: Expr = None,
     limit: int = None,
-    default_expand: bool = True,
-    params: QueryParams = None,
     **kwargs
 ) -> Iterator:
     backend = model.backend
@@ -125,7 +129,13 @@ def getall(
     while not page_meta.is_finished:
         page_meta.is_finished = True
         query = add_page_expr(query, page)
-        rows = commands.getall(context, model, backend, params=params, query=query, default_expand=default_expand, **kwargs)
+        rows = commands.getall(
+            context,
+            model,
+            backend,
+            query=query,
+            **kwargs
+        )
 
         yield from get_paginated_values(page, page_meta, rows, extract_source_page_keys)
 

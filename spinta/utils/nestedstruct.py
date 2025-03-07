@@ -203,9 +203,46 @@ def flat_dicts_to_nested(value, list_keys: list = None):
                 res_[key] = data
 
     for k, v in dict(value).items():
-        names = k.split('.')
+        names = split_excluding_parentheses(k, '.')
         recursive_nesting(v, res, names, 0)
     return res
+
+
+def split_excluding_parentheses(string: str, separator: str = '.') -> list[str]:
+    """Split string value while excluding data in parentheses
+
+    Example:
+        - 'value.test' -> ['value', 'test']
+        - 'process(value.test)' -> ['process(value.test)']
+        - 'process(value.test).first' -> ['process(value.test)', 'first']
+    """
+
+    values = string.split(separator)
+
+    # Optimization, skip looping if there is no need
+    if '(' not in string or ')' not in string or len(values) == 1:
+        return values
+
+    result = []
+    starting_i = 0
+    ending_i = 0
+    count = 0
+    for i, value in enumerate(values):
+        if '(' in value:
+            if count <= 0:
+                starting_i = i
+            count += value.count('(')
+        if ')' in value:
+            count -= value.count(')')
+            if count <= 0:
+                ending_i = i
+
+        if count <= 0:
+            result.append(separator.join(values[starting_i:ending_i + 1]))
+
+    if count > 0:
+        result.append(separator.join(values[starting_i:]))
+    return result
 
 
 def flatten_value(value, parent: Property, sep=".", key=""):

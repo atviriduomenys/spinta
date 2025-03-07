@@ -3,7 +3,7 @@ from typing import Iterator
 
 from spinta import commands
 from spinta.backends.helpers import validate_and_return_begin
-from spinta.components import Context
+from spinta.components import Context, Property
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.helpers import handle_ref_key_assignment, generate_pk_for_row, handle_external_array_type
@@ -32,6 +32,7 @@ def getall(
     *,
     query: Expr = None,
     params: QueryParams = None,
+    extra_properties: dict[str, Property] = None,
     **kwargs
 ) -> Iterator[ObjectData]:
     conn = context.get(f'transaction.{backend.name}')
@@ -76,7 +77,7 @@ def getall(
 
             res['_type'] = model.model_type()
             res = flat_dicts_to_nested(res, list_keys=list_keys)
-            res = commands.cast_backend_to_python(context, model, backend, res)
+            res = commands.cast_backend_to_python(context, model, backend, res, extra_properties=extra_properties)
             yield res
 
 

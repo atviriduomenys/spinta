@@ -60,6 +60,41 @@ def geodb_with_nulls():
 
 
 @pytest.fixture(scope='module')
+def geodb_geometry():
+    with create_sqlite_db({
+        'cities': [
+            sa.Column('name', sa.Text),
+            sa.Column('id', sa.Integer),
+            sa.Column('geo_id', sa.Integer),
+            sa.Column('poly', sa.Text),
+            sa.Column('geo_lt', sa.Text)
+        ],
+        'geodata': [
+            sa.Column('id', sa.Integer),
+            sa.Column('geo_poly', sa.Text),
+            sa.Column('geo_point', sa.Text)
+        ]
+    }) as db:
+        db.write('cities', [
+            {
+                'name': 'Vilnius',
+                'id': 0,
+                'poly': 'POLYGON ((80 50, 50 50, 50 80, 80 80, 80 50))',
+                'geo_lt': 'POINT (5980000 200000)',
+                'geo_id': 0
+            },
+        ])
+        db.write('geodata', [
+            {
+                'id': 0,
+                'geo_poly': 'POLYGON ((80 50, 50 50, 50 80, 80 80, 80 50))',
+                'geo_point': 'POINT (5980000 200000)'
+            },
+        ])
+        yield db
+
+
+@pytest.fixture(scope='module')
 def geodb_array():
     with create_sqlite_db({
         'language': [
@@ -532,82 +567,169 @@ def test_get_one_compound_pk(context, rc, tmp_path):
         }
 
 
-def test_getall_geometry_manifest_flip_select(context, rc, tmp_path):
-    with create_sqlite_db({
-        'cities': [
-            sa.Column('name', sa.Text),
-            sa.Column('id', sa.Integer),
-            sa.Column('poly', sa.Text),
-            sa.Column('geo_lt', sa.Text)
-        ]
-    }) as db:
-        db.write('cities', [
-            {
-                'name': 'Vilnius',
-                'id': 0,
-                'poly': 'POLYGON ((80 50, 50 50, 50 80, 80 80, 80 50))',
-                'geo_lt': 'POINT (5980000 200000)'
-            },
-        ])
-        create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
-        id | d | r | b | m | property     | type              | ref | level | source  | access | prepare
-           | example                      |                   |     |       |         |        |
-           |   |   |   | City             |                   | id  |       | cities  |        |
-           |   |   |   |   | id           | integer           |     | 4     | id      | open   |
-           |   |   |   |   | name         | string            |     | 4     | name    | open   |
-           |   |   |   |   | poly         | geometry(polygon) |     | 4     | poly    | open   | flip()
-           |   |   |   |   | geo_lt       | geometry(3346)    |     | 4     | geo_lt  | open   | flip()
-        '''))
-        app = create_client(rc, tmp_path, db)
-        resp = app.get(f'/example/City?select(id, name, poly, geo_lt)')
-        assert resp.status_code == 200
-        assert listdata(resp, 'id', 'name', 'poly', 'geo_lt', full=True) == [
-            {
-                'id': 0,
-                'name': 'Vilnius',
-                'poly': 'POLYGON ((50 80, 50 50, 80 50, 80 80, 50 80))',
-                'geo_lt': 'POINT (200000 5980000)'
-            },
-        ]
+def test_getall_geometry_manifest_flip_select(context, rc, tmp_path, geodb_geometry):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+    id | d | r | b | m | property     | type              | ref | level | source  | access | prepare
+       | example                      |                   |     |       |         |        |
+       |   |   |   | City             |                   | id  |       | cities  |        |
+       |   |   |   |   | id           | integer           |     | 4     | id      | open   |
+       |   |   |   |   | name         | string            |     | 4     | name    | open   |
+       |   |   |   |   | poly         | geometry(polygon) |     | 4     | poly    | open   | flip()
+       |   |   |   |   | geo_lt       | geometry(3346)    |     | 4     | geo_lt  | open   | flip()
+    '''))
+    app = create_client(rc, tmp_path, geodb_geometry)
+    resp = app.get(f'/example/City?select(id, name, poly, geo_lt)')
+    assert resp.status_code == 200
+    assert listdata(resp, 'id', 'name', 'poly', 'geo_lt', full=True) == [
+        {
+            'id': 0,
+            'name': 'Vilnius',
+            'poly': 'POLYGON ((50 80, 50 50, 80 50, 80 80, 50 80))',
+            'geo_lt': 'POINT (200000 5980000)'
+        },
+    ]
 
 
-def test_getall_geometry_manifest_flip(context, rc, tmp_path):
-    with create_sqlite_db({
-        'cities': [
-            sa.Column('name', sa.Text),
-            sa.Column('id', sa.Integer),
-            sa.Column('poly', sa.Text),
-            sa.Column('geo_lt', sa.Text)
-        ]
-    }) as db:
-        db.write('cities', [
-            {
-                'name': 'Vilnius',
-                'id': 0,
-                'poly': 'POLYGON ((80 50, 50 50, 50 80, 80 80, 80 50))',
-                'geo_lt': 'POINT (5980000 200000)'
-            },
-        ])
-        create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
-        id | d | r | b | m | property     | type              | ref | level | source  | access | prepare
-           | example                      |                   |     |       |         |        |
-           |   |   |   | City             |                   | id  |       | cities  |        |
-           |   |   |   |   | id           | integer           |     | 4     | id      | open   |
-           |   |   |   |   | name         | string            |     | 4     | name    | open   |
-           |   |   |   |   | poly         | geometry(polygon) |     | 4     | poly    | open   | flip()
-           |   |   |   |   | geo_lt       | geometry(3346)    |     | 4     | geo_lt  | open   | flip()
-        '''))
-        app = create_client(rc, tmp_path, db)
-        resp = app.get(f'/example/City')
-        assert resp.status_code == 200
-        assert listdata(resp, 'id', 'name', 'poly', 'geo_lt', full=True) == [
-            {
-                'id': 0,
-                'name': 'Vilnius',
-                'poly': 'POLYGON ((50 80, 50 50, 80 50, 80 80, 50 80))',
-                'geo_lt': 'POINT (200000 5980000)'
-            },
-        ]
+def test_getall_geometry_manifest_flip(context, rc, tmp_path, geodb_geometry):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+    id | d | r | b | m | property     | type              | ref | level | source  | access | prepare
+       | example                      |                   |     |       |         |        |
+       |   |   |   | City             |                   | id  |       | cities  |        |
+       |   |   |   |   | id           | integer           |     | 4     | id      | open   |
+       |   |   |   |   | name         | string            |     | 4     | name    | open   |
+       |   |   |   |   | poly         | geometry(polygon) |     | 4     | poly    | open   | flip()
+       |   |   |   |   | geo_lt       | geometry(3346)    |     | 4     | geo_lt  | open   | flip()
+    '''))
+    app = create_client(rc, tmp_path, geodb_geometry)
+    resp = app.get(f'/example/City')
+    assert resp.status_code == 200
+    assert listdata(resp, 'id', 'name', 'poly', 'geo_lt', full=True) == [
+        {
+            'id': 0,
+            'name': 'Vilnius',
+            'poly': 'POLYGON ((50 80, 50 50, 80 50, 80 80, 50 80))',
+            'geo_lt': 'POINT (200000 5980000)'
+        },
+    ]
+
+
+def test_getall_geometry_select_flip(context, rc, tmp_path, geodb_geometry):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+    id | d | r | b | m | property     | type              | ref | level | source  | access | prepare
+       | example                      |                   |     |       |         |        |
+       |   |   |   | City             |                   | id  |       | cities  |        |
+       |   |   |   |   | id           | integer           |     | 4     | id      | open   |
+       |   |   |   |   | name         | string            |     | 4     | name    | open   |
+       |   |   |   |   | poly         | geometry(polygon) |     | 4     | poly    | open   |
+       |   |   |   |   | geo_lt       | geometry(3346)    |     | 4     | geo_lt  | open   |
+    '''))
+    app = create_client(rc, tmp_path, geodb_geometry)
+    resp = app.get(f'/example/City?select(id,name,flip(poly),flip(geo_lt))')
+    assert resp.status_code == 200
+    assert listdata(resp, 'id', 'name', 'flip(poly)', 'flip(geo_lt)', full=True) == [
+        {
+            'id': 0,
+            'name': 'Vilnius',
+            'flip(poly)': 'POLYGON ((50 80, 50 50, 80 50, 80 80, 50 80))',
+            'flip(geo_lt)': 'POINT (200000 5980000)'
+        },
+    ]
+
+
+def test_getall_geometry_select_and_manifest_flip(context, rc, tmp_path, geodb_geometry):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+    id | d | r | b | m | property     | type              | ref | level | source  | access | prepare
+       | example                      |                   |     |       |         |        |
+       |   |   |   | City             |                   | id  |       | cities  |        |
+       |   |   |   |   | id           | integer           |     | 4     | id      | open   |
+       |   |   |   |   | name         | string            |     | 4     | name    | open   |
+       |   |   |   |   | poly         | geometry(polygon) |     | 4     | poly    | open   | flip()
+       |   |   |   |   | geo_lt       | geometry(3346)    |     | 4     | geo_lt  | open   | flip()
+    '''))
+    app = create_client(rc, tmp_path, geodb_geometry)
+    resp = app.get(f'/example/City?select(poly,flip(poly),flip(flip(poly)),geo_lt,flip(geo_lt),flip(flip(geo_lt)))')
+    assert resp.status_code == 200
+    assert listdata(resp, full=True) == [
+        {
+            'poly': 'POLYGON ((50 80, 50 50, 80 50, 80 80, 50 80))',
+            'flip(poly)': 'POLYGON ((80 50, 50 50, 50 80, 80 80, 80 50))',
+            'flip(flip(poly))': 'POLYGON ((50 80, 50 50, 80 50, 80 80, 50 80))',
+            'geo_lt': 'POINT (200000 5980000)',
+            'flip(geo_lt)': 'POINT (5980000 200000)',
+            'flip(flip(geo_lt))': 'POINT (200000 5980000)',
+        },
+    ]
+
+
+def test_getall_ref_geometry_manifest_flip(context, rc, tmp_path, geodb_geometry):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+    id | d | r | b | m | property         | type              | ref      | level | source    | access | prepare
+       | example                          |                   |          |       |           |        |
+       |   |   |   | CityMeta             |                   | id       |       | geodata   |        |
+       |   |   |   |   | id               | integer           |          | 4     | id        | open   |
+       |   |   |   |   | geo              | geometry(3346)    |          | 4     | geo_point | open   |
+       |   |   |   |   | geo_flipped      | geometry(3346)    |          | 4     | geo_point | open   | flip()
+       |   |   |   | City                 |                   | id       |       | cities    |        |
+       |   |   |   |   | id               | integer           |          | 4     | id        | open   |
+       |   |   |   |   | name             | string            |          | 4     | name      | open   |
+       |   |   |   |   | meta             | ref               | CityMeta | 4     | geo_id    | open   |
+       |   |   |   |   | meta.poly        | geometry(polygon) |          | 4     | poly      | open   |
+       |   |   |   |   | meta.geo_flipped |                   |          | 4     |           | open   |
+    '''))
+    app = create_client(rc, tmp_path, geodb_geometry)
+    resp = app.get(f'/example/City')
+    assert resp.status_code == 200
+    assert listdata(resp, 'id', 'name', 'meta.poly', 'meta.geo_flipped', full=True) == [
+        {
+            'id': 0,
+            'name': 'Vilnius',
+            'meta.poly': 'POLYGON ((80 50, 50 50, 50 80, 80 80, 80 50))',
+            'meta.geo_flipped': 'POINT (200000 5980000)'
+        },
+    ]
+
+
+def test_getall_ref_geometry_select_and_manifest_flip(context, rc, tmp_path, geodb_geometry):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+    id | d | r | b | m | property         | type              | ref      | level | source    | access | prepare
+       | example                          |                   |          |       |           |        |
+       |   |   |   | CityMeta             |                   | id       |       | geodata   |        |
+       |   |   |   |   | id               | integer           |          | 4     | id        | open   |
+       |   |   |   |   | geo              | geometry(3346)    |          | 4     | geo_point | open   |
+       |   |   |   |   | geo_flipped      | geometry(3346)    |          | 4     | geo_point | open   | flip()
+       |   |   |   | City                 |                   | id       |       | cities    |        |
+       |   |   |   |   | id               | integer           |          | 4     | id        | open   |
+       |   |   |   |   | name             | string            |          | 4     | name      | open   |
+       |   |   |   |   | meta             | ref               | CityMeta | 4     | geo_id    | open   |
+       |   |   |   |   | meta.poly        | geometry(polygon) |          | 4     | poly      | open   |
+       |   |   |   |   | meta.geo_flipped |                   |          | 4     |           | open   |
+    '''))
+    app = create_client(rc, tmp_path, geodb_geometry)
+    resp = app.get(f'/example/City?select('
+                   f'meta.poly,'
+                   f'flip(meta.poly),'
+                   f'flip(flip(meta.poly)),'
+                   f'meta.geo_flipped,'
+                   f'flip(meta.geo_flipped),'
+                   f'flip(flip(meta.geo_flipped)),'
+                   f'meta.geo,'
+                   f'flip(meta.geo),'
+                   f'flip(flip(meta.geo))'
+                   f')')
+    assert resp.status_code == 200
+    assert listdata(resp, full=True) == [
+        {
+            'meta.poly': 'POLYGON ((80 50, 50 50, 50 80, 80 80, 80 50))',
+            'flip(meta.poly)': 'POLYGON ((50 80, 50 50, 80 50, 80 80, 50 80))',
+            'flip(flip(meta.poly))': 'POLYGON ((80 50, 50 50, 50 80, 80 80, 80 50))',
+            'meta.geo_flipped': 'POINT (200000 5980000)',
+            'flip(meta.geo_flipped)': 'POINT (5980000 200000)',
+            'flip(flip(meta.geo_flipped))': 'POINT (200000 5980000)',
+            'meta.geo': 'POINT (5980000 200000)',
+            'flip(meta.geo)': 'POINT (200000 5980000)',
+            'flip(flip(meta.geo))': 'POINT (5980000 200000)',
+        },
+    ]
 
 
 def test_getall_array_intermediate_single_pkey_sqlite(context, rc, tmp_path, geodb_array):

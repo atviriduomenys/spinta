@@ -61,11 +61,6 @@ def _get_property_for_select(env: PgQueryBuilder, name: str):
         raise FieldNotInResource(env.model, property=name)
 
 
-@ufunc.resolver(PgQueryBuilder, Inherit, Bind)
-def _resolve_getattr(env, dtype, attr):
-    return InheritForeignProperty(dtype.prop.model, attr.name, dtype.prop)
-
-
 @ufunc.resolver(PgQueryBuilder, Expr)
 def select(env, expr):
     keys = [str(k) for k in expr.args]
@@ -344,17 +339,6 @@ def _select_backref(env, dtype, is_array=False):
     return Selected(prop=fpr.left.prop, prep=prep)
 
 
-@ufunc.resolver(PgQueryBuilder, ForeignProperty)
-def select(env: PgQueryBuilder, fpr: ForeignProperty):
-    table = env.get_joined_table(fpr)
-    fixed_name = fpr.right.prop.place
-    if fixed_name.startswith(f'{fpr.left.prop.place}.'):
-        fixed_name = fixed_name.replace(f'{fpr.left.prop.place}.', '', 1)
-    column = table.c[fixed_name]
-    column = column.label(fpr.place)
-    return Selected(env.add_column(column), fpr.right.prop)
-
-
 @ufunc.resolver(PgQueryBuilder, ForeignProperty, Inherit)
 def select(
     env: PgQueryBuilder,
@@ -446,6 +430,19 @@ def select(env: PgQueryBuilder, dtype: Geometry, func_: Flip):
     return Selected(env.add_column(column), prop=dtype.prop)
 
 
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, Geometry, Flip)
+def select(env: PgQueryBuilder, fpr: ForeignProperty, dtype: Geometry, func_: Flip):
+    table = env.get_joined_table(fpr)
+
+    if dtype.prop.list is None:
+        column = env.backend.get_column(table, dtype.prop, select=True)
+    else:
+        column = env.backend.get_column(table, dtype.prop.list, select=True)
+
+    column = geoalchemy2.functions.ST_FlipCoordinates(column)
+    return Selected(env.add_column(column), prop=dtype.prop)
+
+
 @ufunc.resolver(PgQueryBuilder, int)
 def limit(env, n):
     env.limit = n
@@ -516,7 +513,7 @@ COMPARE_STRING = [
 
 @ufunc.resolver(PgQueryBuilder, GetAttr, object, names=COMPARE)
 def compare(env: PgQueryBuilder, op: str, attr: GetAttr, value: Any):
-    resolved = env.call('_resolve_getattr', attr)
+    resolved = env.resolve_property(attr)
     return env.call(op, resolved, value)
 
 
@@ -1047,7 +1044,7 @@ def func(env, name, field):
 
 @ufunc.resolver(PgQueryBuilder, GetAttr, names=FUNCS)
 def func(env, name, field):
-    resolved = env.call('_resolve_getattr', field)
+    resolved = env.resolve_property(field)
     return env.call(name, resolved)
 
 
@@ -1198,13 +1195,13 @@ def _get_sort_column(env: PgQueryBuilder, prop: Property):
 
 @ufunc.resolver(PgQueryBuilder, GetAttr)
 def negative(env, field) -> Negative:
-    resolved = env.call('_resolve_getattr', field)
+    resolved = env.resolve_property(field)
     return Negative(resolved)
 
 
 @ufunc.resolver(PgQueryBuilder, GetAttr)
 def positive(env, field) -> Positive:
-    resolved = env.call('_resolve_getattr', field)
+    resolved = env.resolve_property(field)
     return Positive(resolved)
 
 
@@ -1253,11 +1250,6 @@ def checksum(env: PgQueryBuilder, expr: Expr):
     return ResultProperty(
         Expr('checksum', *args)
     )
-
-
-@ufunc.resolver(PgQueryBuilder, Geometry)
-def flip(env: PgQueryBuilder, dtype: Geometry):
-    return Flip(dtype)
 
 
 @ufunc.resolver(PgQueryBuilder, Expr)

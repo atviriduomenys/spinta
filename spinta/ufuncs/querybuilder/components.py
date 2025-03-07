@@ -7,6 +7,8 @@ from spinta.backends import Backend
 from spinta.components import Page, Property, Model
 from spinta.core.ufuncs import Env, Expr
 from spinta.types.datatype import DataType, Object
+from spinta.ufuncs.components import ForeignProperty
+from spinta.ufuncs.propertyresolver.components import PropertyResolver
 from spinta.utils.schema import NA
 
 
@@ -108,6 +110,8 @@ class QueryBuilder(Env):
     resolved: Dict[str, Selected]
     selected: Dict[str, Selected] = None
 
+    property_resolver: PropertyResolver = None
+
     def init_query_params(self, params: QueryParams):
         if params is None:
             params = QueryParams()
@@ -130,7 +134,12 @@ class QueryBuilder(Env):
             self.expand = self.resolve(prop_expr)
 
     def resolve_property(self, *args, **kwargs) -> Property:
-        return self.call('_resolve_property', *args, **kwargs)
+        if self.property_resolver is None:
+            resolver = PropertyResolver(self.context)
+            resolver = resolver.init(model=self.model, ufunc_types=True)
+            self.property_resolver = resolver
+        result = self.property_resolver.resolve_property(*args, **kwargs)
+        return result
 
 
 class Func:
@@ -167,4 +176,10 @@ class LiteralProperty(Func):
 
 @dataclasses.dataclass
 class Flip(Func):
-    dtype: DataType
+    prop: Property | Func | ForeignProperty
+    # If multiple flips are called, we can ignore it if count is even
+    count: int = 1
+
+    @property
+    def required(self) -> bool:
+        return self.count % 2 != 0

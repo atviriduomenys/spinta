@@ -24,7 +24,14 @@ def _qry(qry: Select, indent: int = 4) -> str:
     return ln + textwrap.indent(sql, indent_) + ln + indent_
 
 
-def _build(rc: RawConfig, manifest: str, model_name: str, query: str, page_mapping: dict = None) -> str:
+def _build(
+    rc: RawConfig,
+    manifest: str,
+    model_name: str,
+    *,
+    query: str = "",
+    page_mapping: dict = None,
+) -> str:
     context, manifest = load_manifest_and_context(rc, manifest)
     context.set('auth.token', AdminToken())
     backend = create_empty_backend(context, 'postgresql', 'default')
@@ -57,7 +64,7 @@ def test_select_id(rc: RawConfig):
     example                    |         |         |
       |   |   | City           |         |         |
       |   |   |   | name       | string  |         | open
-    ''', 'example/City', 'select(_id)') == '''
+    ''', 'example/City', query='select(_id)') == '''
     SELECT "example/City"._id,
            "example/City"._revision
     FROM "example/City"
@@ -73,7 +80,7 @@ def test_filter_by_ref_id(rc: RawConfig):
       |   |   | City           |         |         |
       |   |   |   | name       | string  |         | open
       |   |   |   | country    | ref     | Country | open
-    ''', 'example/City', 'country._id="ba1f89f1-066c-4a8b-bfb4-1b65627e79bb"') == '''
+    ''', 'example/City', query='country._id="ba1f89f1-066c-4a8b-bfb4-1b65627e79bb"') == '''
     SELECT "example/City".name,
            "example/City"."country._id",
            "example/City"._id,
@@ -92,7 +99,7 @@ def test_join(rc: RawConfig):
       |   |   | City           |         |         |
       |   |   |   | name       | string  |         | open
       |   |   |   | country    | ref     | Country | open
-    ''', 'example/City', 'select(name, country.name)') == '''
+    ''', 'example/City', query='select(name, country.name)') == '''
     SELECT "example/City".name,
            "example/Country_1".name AS "country.name",
            "example/City"._id,
@@ -111,7 +118,7 @@ def test_join_and_id(rc: RawConfig):
       |   |   | City           |         |         |
       |   |   |   | name       | string  |         | open
       |   |   |   | country    | ref     | Country | open
-    ''', 'example/City', 'select(_id, country.name)') == '''
+    ''', 'example/City', query='select(_id, country.name)') == '''
     SELECT "example/City"._id,
            "example/Country_1".name AS "country.name",
            "example/City"._revision
@@ -132,7 +139,7 @@ def test_join_two_refs(rc: RawConfig):
       |   |   |   | planet2    | ref     | Planet  | open
       |   |   | City           |         |         |
       |   |   |   | country    | ref     | Country | open
-    ''', 'example/City', 'select(_id, country.name)') == '''
+    ''', 'example/City', query='select(_id, country.name)') == '''
     SELECT "example/City"._id,
            "example/Country_1".name AS "country.name",
            "example/City"._revision
@@ -151,7 +158,7 @@ def test_join_two_refs_same_model(rc: RawConfig):
       |   |   |   | name       | string  |         | open
       |   |   |   | planet1    | ref     | Planet  | open
       |   |   |   | planet2    | ref     | Planet  | open
-    ''', 'example/Country', 'select(planet1.name, planet2.name)') == '''
+    ''', 'example/Country', query='select(planet1.name, planet2.name)') == '''
     SELECT "example/Planet_1".name AS "planet1.name",
            "example/Planet_2".name AS "planet2.name",
            "example/Country"._id,
@@ -169,7 +176,7 @@ def test_paginate_all_none_values(rc: RawConfig):
           |   |   | Planet         |         | name    |
           |   |   |   | name       | string  |         | open
           |   |   |   | code       | integer |         | open
-        ''', 'example/Planet', '', {
+        ''', 'example/Planet', page_mapping={
         'name': None
     }) == '''
     SELECT "example/Planet".name,
@@ -190,7 +197,7 @@ def test_paginate_half_none_values(rc: RawConfig):
           |   |   | Planet         |         | name    |
           |   |   |   | name       | string  |         | open
           |   |   |   | code       | integer |         | open
-        ''', 'example/Planet', '', {
+        ''', 'example/Planet', page_mapping={
         'name': None,
         'code': 0
     }) == '''
@@ -217,7 +224,7 @@ def test_paginate_half_none_values_desc(rc: RawConfig):
           |   |   | Planet         |         | name    |
           |   |   |   | name       | string  |         | open
           |   |   |   | code       | integer |         | open
-        ''', 'example/Planet', '', {
+        ''', 'example/Planet', page_mapping={
         '-name': None,
         '-code': 0
     }) == '''
@@ -244,7 +251,7 @@ def test_paginate_given_values_page_and_ref_not_given(rc: RawConfig):
           |   |   | Planet         |         |         |
           |   |   |   | name       | string  |         | open
           |   |   |   | code       | integer |         | open
-        ''', 'example/Planet', '', {
+        ''', 'example/Planet', page_mapping={
         '_id': uuid.uuid4()
     }) == '''
     SELECT "example/Planet"._id,
@@ -266,7 +273,7 @@ def test_paginate_given_values_page_not_given(rc: RawConfig):
           |   |   | Planet         |         | name    |
           |   |   |   | name       | string  |         | open
           |   |   |   | code       | integer |         | open
-        ''', 'example/Planet', '', {
+        ''', 'example/Planet', page_mapping={
         'name': 'test',
         '_id': uuid.uuid4()
     }) == '''
@@ -293,7 +300,7 @@ def test_paginate_given_values_size_given(rc: RawConfig):
           |   |   | Planet         |         | name    |        | page(name, size: 2)
           |   |   |   | name       | string  |         | open   |
           |   |   |   | code       | integer |         | open   |
-        ''', 'example/Planet', '', {
+        ''', 'example/Planet', page_mapping={
         'name': 'test',
         '_id': uuid.uuid4()
     }) == '''
@@ -320,7 +327,7 @@ def test_paginate_given_values_private(rc: RawConfig):
           |   |   | Planet         |         | name    |         | page(name, code)
           |   |   |   | name       | string  |         | open    |
           |   |   |   | code       | integer |         | private |
-        ''', 'example/Planet', '', {
+        ''', 'example/Planet', page_mapping={
         'name': 'test',
         'code': 5,
         '_id': uuid.uuid4()
@@ -353,7 +360,7 @@ def test_paginate_given_values_two_keys(rc: RawConfig):
           |   |   | Planet         |         | name    |        | page(name, code)
           |   |   |   | name       | string  |         | open   |
           |   |   |   | code       | integer |         | open   |
-        ''', 'example/Planet', '', {
+        ''', 'example/Planet', page_mapping={
         'name': 'test',
         'code': 5,
         '_id': uuid.uuid4()
@@ -389,7 +396,7 @@ def test_paginate_given_values_five_keys(rc: RawConfig):
           |   |   |   | float      | number  |         | open   |
           |   |   |   | user       | string  |         | open   |
           |   |   |   | pass       | string  |         | open   |
-        ''', 'example/Planet', '', {
+        ''', 'example/Planet', page_mapping={
         'name': 'test',
         'code': 5,
         'float': 1.5,
@@ -449,7 +456,7 @@ def test_paginate_desc(rc: RawConfig):
           |   |   | Planet         |         | name    |        | page(name, -code)
           |   |   |   | name       | string  |         | open   |
           |   |   |   | code       | integer |         | open   |
-        ''', 'example/Planet', '', {
+        ''', 'example/Planet', page_mapping={
         'name': 'test',
         '-code': 5,
         '_id': uuid.uuid4()
@@ -481,7 +488,7 @@ def test_paginate_disabled(rc: RawConfig):
           |   |   | Planet         |         | name    |        | page()
           |   |   |   | name       | string  |         | open   |
           |   |   |   | code       | integer |         | open   |
-        ''', 'example/Planet', '', {
+        ''', 'example/Planet', page_mapping={
         'name': 'test'
     }) == '''
     SELECT "example/Planet".name,
@@ -504,7 +511,7 @@ def test_paginate_invalid_types(rc: RawConfig):
       |   |   | Country        |         |         |        | page(planet)
       |   |   |   | name       | string  |         | open   |
       |   |   |   | planet     | ref     | Planet  | open   |
-        ''', 'example/Country', '', {
+        ''', 'example/Country', page_mapping={
         'planet': 'test'
     }) == '''
     SELECT "example/Country".name,
@@ -520,7 +527,7 @@ def test_paginate_invalid_types(rc: RawConfig):
       |   |   | Country        |          |         |        | page(geo)
       |   |   |   | name       | string   |         | open   |
       |   |   |   | geo        | geometry |         | open   |
-        ''', 'example/Country', '', {
+        ''', 'example/Country', page_mapping={
         'geo': 'test'
     }) == '''
     SELECT "example/Country".name,
@@ -536,7 +543,7 @@ def test_paginate_invalid_types(rc: RawConfig):
       |   |   | Country        |          |         |        | page(fl)
       |   |   |   | name       | string   |         | open   |
       |   |   |   | fl         | file     |         | open   |
-        ''', 'example/Country', '', {
+        ''', 'example/Country', page_mapping={
         'fl': 'test'
     }) == '''
     SELECT "example/Country".name,
@@ -556,7 +563,7 @@ def test_paginate_invalid_types(rc: RawConfig):
       |   |   | Country        |          |         |        | page(bool)
       |   |   |   | name       | string   |         | open   |
       |   |   |   | bool       | boolean  |         | open   |
-        ''', 'example/Country', '', {
+        ''', 'example/Country', page_mapping={
         'bool': 'test'
     }) == '''
     SELECT "example/Country".name,
@@ -575,7 +582,7 @@ def test_flip(rc: RawConfig):
           |   |   |   | id       | string   |         | open   |
           |   |   |   | code     | string   |         | open   |
           |   |   |   | geo      | geometry |         | open   | flip()
-        ''', 'example/Planet', '', ) == '''
+        ''', 'example/Planet') == '''
     SELECT "example/Planet".id,
            "example/Planet".code,
            ST_AsEWKB(ST_FlipCoordinates("example/Planet".geo)) AS "ST_FlipCoordinates_1",
