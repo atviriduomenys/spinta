@@ -457,3 +457,9 @@ def _resolve_flip(env: QueryBuilder, prop: ForeignProperty):
 def swap(env: QueryBuilder, expr: Expr):
     args, kwargs = expr.resolve(env)
     return Expr('swap', *args, **kwargs)
+
+
+@ufunc.resolver(QueryBuilder, Expr)
+def split(env: QueryBuilder, expr: Expr):
+    args, kwargs = expr.resolve(env)
+    return Expr('split', *args, **kwargs)
