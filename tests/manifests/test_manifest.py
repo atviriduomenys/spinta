@@ -806,6 +806,22 @@ def test_resource_param_multiple(manifest_type, tmp_path, rc):
     ''', manifest_type)
 
 
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_resource_param_multiple_prepare_body(manifest_type, tmp_path, rc):
+    check(tmp_path, rc,'''
+    d | r | b | m | property  | type    | ref    | source      | prepare
+    test_dataset              |         |        |             |
+      | resource1             | xml     |        |             |
+                              | param   | param1 | param1      | body()
+                              | param   | param2 | param2      | body()
+                              | param   | param3 | param3      | body()
+                              |         |        |             |
+      |   |   | Continent     |         |        |             |
+      |   |   |   | name      | string  |        | name/text() |
+      |   |   |   | id        | integer |        | name/text() |
+    ''', manifest_type)
+
+
 def test_multiline_prepare(tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property   | type    | ref     | source   | prepare
