@@ -828,12 +828,6 @@ def _string_datatype_handler(reader: PropertyReader, row: dict):
             f"defined for this {reader.state.model.name!r} model."
         )
 
-    dtype = _get_type_repr(row['type'])
-    dtype = _parse_dtype_string(dtype)
-    if dtype['error']:
-        reader.error(
-            dtype['error']
-        )
     new_data = _initial_normal_property_schema(given_name, dtype, row)
     dataset = reader.state.dataset.data if reader.state.dataset else None
 
