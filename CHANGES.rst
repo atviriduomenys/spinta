@@ -24,6 +24,21 @@ Improvements:
 
   .. _#760: https://github.com/atviriduomenys/spinta/issues/760
 
+- Replaced `from_wkt` and `to_wkt`, to `wkt.loads` and `wkt.dumps`. This will ensure, that older versions of `shapely`
+  will still be supported (`#1186`_).
+
+  .. _#1186: https://github.com/atviriduomenys/spinta/issues/1186
+
+Bug fixes:
+
+- Added an additional check for properties that are not given a `type` and the `type` can not be inherited from the base model (`#1019`_).
+
+  .. _#1019: https://github.com/atviriduomenys/spinta/issues/1019
+
+- Adjusted error message for users, for when a DSA has a model with nested properties and the parent node is not defined (`#1005`_)
+
+  .. _#1005: https://github.com/atviriduomenys/spinta/issues/1005
+
 0.1.84 (2025-02-19)
 ===================
 

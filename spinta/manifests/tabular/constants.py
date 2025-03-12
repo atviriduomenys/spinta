@@ -32,6 +32,7 @@ class DataTypeEnum(Enum):
     BACKREF = 'backref'
     ARRAY = 'array'
     GENERIC = 'generic'
+    INHERIT = 'inherit'
     _OBJECT = 'object'                # Internal type
     _PARTIAL = 'partial'              # Internal type
     _ARRAY_BACKREF = 'array_backref'  # Internal type

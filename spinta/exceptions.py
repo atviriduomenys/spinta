@@ -106,7 +106,7 @@ class BaseError(Exception):
             this = args[0]
         else:
             this = None
-            log.error("Only one positional argument is alowed, but %d was given.", len(args), stack_info=True)
+            log.error("Only one positional argument is allowed, but %d was given.", len(args), stack_info=True)
 
         self.type = this.type if this and hasattr(this, 'type') else 'system'
 
@@ -225,6 +225,10 @@ class ModelNotFound(UserError):
     template = "Model {model!r} not found."
 
 
+class NoModelDefined(UserError):
+    template = "Property {property!r} must be defined on a concrete model."
+
+
 class PropertyNotFound(UserError):
     status_code = 404
     template = "Property {property!r} not found."
@@ -243,7 +247,11 @@ class InvalidValue(UserError):
 
 
 class InvalidPropertyType(UserError):
-    template = "Invalid property type, expected {expected}, got {type}.."
+    template = "Invalid property type, expected {expected}, got {type}."
+
+
+class UndefinedPropertyType(UserError):
+    template = 'Parameter "type" must be defined for property "{property}", because it is not defined in base model or there is no base model.'
 
 
 class ValueNotInEnum(UserError):
@@ -1066,4 +1074,12 @@ class UnableToFindPrimaryKeysMultipleUniqueConstraints(UserError):
     Unable to find primary keys for table: {table_name!r}.
     Multiple `UniqueConstrains` were found (that do not match new model's primary keys):
     {unique_constraints}
+    '''
+
+
+class ParentNodeNotFound(UserError):
+    template = '''
+    Nested properties are defined in '{model_name}' model, without a property that references the parent model.
+    Nested properties: '{property_names}'.
+    Missing property name: '{missing_property_name}'.
     '''
