@@ -276,8 +276,7 @@ def _resolve_property(
     model = env.model
     place = str(attr)
 
-    # Skip mapping if we don't need custom types
-    if place in model.flatprops and not env.ufunc_types:
+    if place in model.flatprops:
         return model.flatprops[place]
 
     prop = env.call('_resolve_property', attr.obj)
