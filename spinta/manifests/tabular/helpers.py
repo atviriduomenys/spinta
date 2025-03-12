@@ -1388,6 +1388,7 @@ class ParamReader(TabularReader):
     def _get_data(self, name: str, row: ManifestRow):
         return {
             'name': name,
+            'type': row['type'],
             'source': [row[SOURCE]],
             'prepare': [_parse_spyna(self, row[PREPARE])],
             'title': row[TITLE],
@@ -2286,7 +2287,7 @@ def _params_to_tabular(params: List[Param]) -> Iterator[ManifestRow]:
                 prepare = spyna.unparse(prepare)
             if i == 0:
                 yield torow(DATASET, {
-                    'type': 'param',
+                    'type': param.type,
                     'ref': param.name,
                     'source': source,
                     'prepare': prepare,

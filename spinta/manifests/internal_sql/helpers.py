@@ -872,7 +872,7 @@ def _params_to_sql(
                     'mpath': new_mpath,
                     'dim': 'param',
                     'name': param.name,
-                    'type': 'param',
+                    'type': param.type,
                     'ref': param.name,
                     'source': source,
                     'title': param.title,
@@ -1390,7 +1390,7 @@ def _convert_param(row: InternalManifestRow, param_data: InternalManifestRow, fi
         new["title"] = ''
         new["description"] = ''
     else:
-        new["type"] = 'param'
+        new["type"] = _value_or_empty(param_data["type"])
         new["ref"] = _value_or_empty(param_data["ref"])
         new["title"] = _value_or_empty(param_data["title"])
         new["description"] = _value_or_empty(param_data["description"])

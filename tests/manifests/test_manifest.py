@@ -807,14 +807,14 @@ def test_resource_param_multiple(manifest_type, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_resource_param_multiple_prepare_body(manifest_type, tmp_path, rc):
+def test_resource_param_multiple_prepare_type_is_empty(manifest_type, tmp_path, rc):
     check(tmp_path, rc,'''
     d | r | b | m | property  | type    | ref    | source      | prepare
     test_dataset              |         |        |             |
       | resource1             | xml     |        |             |
                               | param   | param1 | param1      | body()
-                              | param   | param2 | param2      | body()
-                              | param   | param3 | param3      | body()
+                              |         | param2 | param2      | body()
+                              |         | param3 | param3      | body()
                               |         |        |             |
       |   |   | Continent     |         |        |             |
       |   |   |   | name      | string  |        | name/text() |
