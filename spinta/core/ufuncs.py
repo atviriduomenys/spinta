@@ -318,15 +318,9 @@ class GetAttr(Unresolved):
 bind = functools.partial(Expr, 'bind')
 
 
-class NoOp:
+class NoOp(Expr):
     def __init__(self):
         self.name = 'noop'
-
-    def __repr__(self):
-        return str(spyna.unparse(self.todict(), raw=True))
-
-    def __str__(self):
-        return str(spyna.unparse(self.todict()))
 
     def todict(self) -> dict:
         return {
