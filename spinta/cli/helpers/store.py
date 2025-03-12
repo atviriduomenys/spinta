@@ -132,7 +132,6 @@ def load_manifest(
         load_internal=load_internal,
         full_load=full_load
     )
-
     commands.link(context, store.manifest)
     commands.check(context, store.manifest)
     return store

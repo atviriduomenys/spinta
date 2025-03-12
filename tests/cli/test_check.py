@@ -141,7 +141,6 @@ def test_check_level(context: Context, rc, cli: SpintaCliRunner, tmp_path):
       |   |   |   | name     | string |         | pavadinimas |         | open   |
     '''))
 
-    # with pytest.raises(Exception, match='No level specified'):
     result = cli.invoke(rc, [
         'check',
         tmp_path / 'manifest.csv',

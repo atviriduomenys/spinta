@@ -41,6 +41,7 @@ class Dataset(MetaData):
     source: Optional[str] = None  # metadata source
     title: str
     description: str
+    count: int | None = None
     given: DatasetGiven
     lang: LangData = None
     ns: Namespace = None
@@ -81,6 +82,7 @@ class Dataset(MetaData):
         },
         'source': {'type': 'string'},
         'given_name': {'type': 'string', 'default': None},
+        'count': {'type': 'integer', 'default': None},
     }
 
     def __init__(self):
@@ -118,7 +120,6 @@ class Resource(External):
     comments: List[Comment] = None
     params: List[Param]
     source_params: set
-    count: int
     source_type: str
 
     schema = {
@@ -154,7 +155,6 @@ class Resource(External):
         'comments': {},
         'lang': {'type': 'object'},
         'given_name': {'type': 'string', 'default': None},
-        'count': {'type': 'integer'},
         'source_type': {'type': "string"}
     }
 

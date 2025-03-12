@@ -290,6 +290,7 @@ class DatasetReader(TabularReader):
                 'description': row['description'],
                 'given_name': row['dataset'],
                 'resources': {},
+                'count': row['count'],
             }
 
     def release(self, reader: TabularReader = None) -> bool:
@@ -365,7 +366,6 @@ class ResourceReader(TabularReader):
             'title': row['title'],
             'description': row['description'],
             'given_name': self.name,
-            'count': row.get('count'),
             'source_type': row['source.type']
         }
 
@@ -2339,6 +2339,7 @@ def _dataset_to_tabular(
         'access': dataset.given.access,
         'title': dataset.title,
         'description': dataset.description,
+        'count': dataset.count,
     })
     yield from _lang_to_tabular(dataset.lang)
     yield from _prefixes_to_tabular(dataset.prefixes, separator=True)
@@ -2377,7 +2378,6 @@ def _resource_to_tabular(
         'access': resource.given.access,
         'title': resource.title,
         'description': resource.description,
-        'count': resource.count
     })
     yield from _params_to_tabular(resource.params)
     yield from _comments_to_tabular(resource.comments, access=access)
@@ -2438,9 +2438,11 @@ def _property_to_tabular(
                 "Source can't be a list, use prepare instead."
             )
         elif prop.external:
-            data['source'] = prop.external.name
-            data['source.type'] = prop.external.type
-            data['prepare'] = unparse(prop.external.prepare or NA)
+            data.update({
+                'source': prop.external.name,
+                'source.type': prop.external.type,
+                'prepare': unparse(prop.external.prepare or NA),
+            })
 
     yield_rows = []
 
