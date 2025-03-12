@@ -2,7 +2,7 @@ from spinta.backends.postgresql.ufuncs.query.components import InheritForeignPro
 from spinta.components import Property, FuncProperty
 from spinta.core.ufuncs import ufunc, Bind, GetAttr
 from spinta.exceptions import PropertyNotFound, FieldNotInResource, LangNotDeclared
-from spinta.types.datatype import DataType, Ref, BackRef, Object, Array, ExternalRef, File, Inherit
+from spinta.types.datatype import DataType, Ref, BackRef, Object, Array, ExternalRef, File, Inherit, Denorm
 from spinta.types.text.components import Text
 from spinta.ufuncs.components import ForeignProperty
 from spinta.ufuncs.propertyresolver.components import PropertyResolver
@@ -53,13 +53,17 @@ def _resolve_property(
     dtype: Ref,
     attr: Bind
 ):
-    if attr.name in dtype.properties and not dtype.properties[attr.name].dtype.inherited:
-        return dtype.properties[attr.name]
+    prop = None
+    if attr.name in dtype.properties:
+        prop = dtype.properties[attr.name]
+        if not prop.dtype.inherited:
+            return dtype.properties[attr.name]
 
-    if attr.name not in dtype.model.properties:
-        raise FieldNotInResource(dtype, property=attr.name)
+    if not prop:
+        if attr.name not in dtype.model.properties:
+            raise FieldNotInResource(dtype, property=attr.name)
+        prop = dtype.model.properties[attr.name]
 
-    prop = dtype.model.properties[attr.name]
     if env.ufunc_types:
         # Check for self reference, no need to do joins if table already contains the value
         if attr.name == '_id':
@@ -76,13 +80,17 @@ def _resolve_property(
     dtype: Ref,
     attr: Bind
 ):
+    prop = None
     if attr.name in dtype.properties:
-        return dtype.properties[attr.name]
+        prop = dtype.properties[attr.name]
+        if not prop.dtype.inherited:
+            return dtype.properties[attr.name]
 
-    if attr.name not in dtype.model.properties:
-        raise FieldNotInResource(dtype, property=attr.name)
+    if not prop:
+        if attr.name not in dtype.model.properties:
+            raise FieldNotInResource(dtype, property=attr.name)
+        prop = dtype.model.properties[attr.name]
 
-    prop = dtype.model.properties[attr.name]
     if env.ufunc_types:
         # Check for self reference, no need to do joins if table already contains the value
         for refprop in dtype.refprops:
@@ -276,7 +284,8 @@ def _resolve_property(
     model = env.model
     place = str(attr)
 
-    if place in model.flatprops:
+    # Skip mapping if we don't need custom types
+    if place in model.flatprops and not env.ufunc_types:
         return model.flatprops[place]
 
     prop = env.call('_resolve_property', attr.obj)

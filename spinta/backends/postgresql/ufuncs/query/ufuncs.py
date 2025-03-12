@@ -122,6 +122,44 @@ def select(
     )
 
 
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, Ref)
+def select(
+    env: PgQueryBuilder,
+    fpr: ForeignProperty,
+    dtype: Ref,
+) -> Selected:
+    table = env.get_joined_table_from_ref(fpr)
+
+    uri = dtype.model.uri_prop
+    prep = {}
+    if not dtype.inherited:
+        name = '_id'
+        if env.query_params.prioritize_uri and uri is not None:
+            column = table.c[uri.place]
+            name = '_uri'
+            column = column.label(dtype.prop.place + '._uri')
+        else:
+            column = table.c[dtype.prop.place + '._id']
+        column = env.add_column(column)
+        prep[name] = Selected(column, dtype.prop)
+    for prop in dtype.properties.values():
+        sel = env.call('select', fpr.push(prop))
+        prep[prop.name] = sel
+    return Selected(prop=dtype.prop, prep=prep)
+
+
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, ExternalRef)
+def select(
+    env: PgQueryBuilder,
+    fpr: ForeignProperty,
+    dtype: Ref,
+) -> Selected:
+    # FIXME
+    # Currently there are issues with resolving joins with Foreign properties
+    # so we just skip it, this can cause issues with nested joins
+    return env.call('select', dtype)
+
+
 @ufunc.resolver(PgQueryBuilder, Property)
 def select(env, prop):
     if prop.place not in env.resolved:
@@ -352,6 +390,15 @@ def select(
     column = table.c[fixed_name]
     column = column.label(fpr.place)
     return Selected(env.add_column(column), dtype.prop)
+
+
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, Denorm)
+def select(
+    env: PgQueryBuilder,
+    fpr: ForeignProperty,
+    dtype: Denorm,
+) -> Selected:
+    return env.call('select', fpr.swap(dtype.rel_prop))
 
 
 @ufunc.resolver(PgQueryBuilder, Inherit)

@@ -4,14 +4,13 @@ from spinta.components import Page, Property
 from spinta.core.ufuncs import ufunc, Expr, Negative, Bind, GetAttr
 from spinta.datasets.backends.sql.ufuncs.components import Selected
 from spinta.datasets.components import ExternalBackend
-from spinta.exceptions import InvalidArgumentInExpression, CannotSelectTextAndSpecifiedLang, \
-    LangNotDeclared, FieldNotInResource, PropertyNotFound
-from spinta.types.datatype import DataType, String, Ref, Object, Array, File, BackRef, PrimaryKey, ExternalRef
+from spinta.exceptions import InvalidArgumentInExpression, CannotSelectTextAndSpecifiedLang
+from spinta.types.datatype import DataType, String, PrimaryKey
 from spinta.types.text.components import Text
+from spinta.ufuncs.components import ForeignProperty
 from spinta.ufuncs.querybuilder.components import QueryBuilder, Star, ReservedProperty, NestedProperty, \
     ResultProperty, LiteralProperty, Flip, Func
 from spinta.ufuncs.querybuilder.helpers import get_pagination_compare_query, process_literal_value
-from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.schema import NA
 
 # This file contains reusable resolvers, that should be backend independent
