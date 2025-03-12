@@ -5,7 +5,7 @@ Changes
 ====================
 
 Backwards incompatible:
-- added `status`, `visibility`, `eli`, `origin`, `count` and source.type columns. (`#1032`_)
+- added `status`, `visibility`, `eli`, `origin`, `count` and `source.type` columns. (`#1032`_)
 
   .. _#1032: https://github.com/atviriduomenys/spinta/issues/1032
 
