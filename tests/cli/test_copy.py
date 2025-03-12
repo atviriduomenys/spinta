@@ -574,8 +574,8 @@ def test_copy_eli(context: Context, rc, cli: SpintaCliRunner, tmp_path):
 def test_copy_count(context: Context, rc, cli: SpintaCliRunner, tmp_path):
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | type   | ref     | source      | prepare | access | count
-    datasets/gov/example     |        |         |             |         |        |
-      | data                 | sql    |         |             |         |        | 4
+    datasets/gov/example     |        |         |             |         |        | 4
+      | data                 | sql    |         |             |         |        |
                              |        |         |             |         |        |
       |   |   | Country      |        | code    | salis       |         |        | 5 
       |   |   |   | code     | string |         | kodas       |         | public | 6
@@ -594,8 +594,8 @@ def test_copy_count(context: Context, rc, cli: SpintaCliRunner, tmp_path):
     manifest = load_manifest(rc, tmp_path / 'result.csv')
     assert manifest == '''
     d | r | b | m | property | type   | ref     | source      | prepare | access | count
-    datasets/gov/example     |        |         |             |         |        |
-      | data                 | sql    |         |             |         |        | 4
+    datasets/gov/example     |        |         |             |         |        | 4
+      | data                 | sql    |         |             |         |        |
                              |        |         |             |         |        |
       |   |   | Country      |        | code    | salis       |         |        | 5
       |   |   |   | code     | string |         | kodas       |         | public | 6
@@ -780,6 +780,7 @@ def test_copy_source_type_property(context: Context, rc, cli, tmp_path):
       |   |   |   | name     | string  |         | pavadinimas | varchar(255)
       |   |   |   | country  | ref     | Country | salis       | test
     '''
+
 
 def test_copy_source_type_resource_model_property(context: Context, rc, cli, tmp_path):
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''

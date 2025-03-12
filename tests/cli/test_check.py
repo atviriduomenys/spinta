@@ -78,8 +78,8 @@ def test_check_eli(context: Context, rc, cli: SpintaCliRunner, tmp_path):
 def test_check_count(context: Context, rc, cli: SpintaCliRunner, tmp_path):
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | type   | ref     | source      | prepare | access | count
-    datasets/gov/example     |        |         |             |         |        |
-      | data                 | sql    |         |             |         |        | 4
+    datasets/gov/example     |        |         |             |         |        | 4
+      | data                 | sql    |         |             |         |        |
                              |        |         |             |         |        |
       |   |   | Country      |        | code    | salis       |         |        | 5 
       |   |   |   | code     | string |         | kodas       |         | public | 6
