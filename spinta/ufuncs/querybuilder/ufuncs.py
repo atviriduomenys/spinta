@@ -441,7 +441,7 @@ def flip(env: QueryBuilder, expr: Expr):
 @ufunc.resolver(QueryBuilder, (GetAttr, Bind))
 def flip(env: QueryBuilder, bind: Bind):
     prop = env.resolve_property(bind)
-    prop = env.call('_resolve_inherited_flip', prop.dtype)
+    prop = env.call('_resolve_inherited_flip', prop)
     flip_ = env.call('_resolve_flip', prop)
     flip_.prop = prop
     return flip_
@@ -459,6 +459,16 @@ def _resolve_flip(env: QueryBuilder, prop: Property):
         resolved = env(this=prop).resolve(prop.external.prepare)
     resolved = env.call('_resolve_flip', prop.dtype, resolved)
     return env.call('flip', resolved)
+
+
+@ufunc.resolver(QueryBuilder, Property)
+def _resolve_inherited_flip(env: QueryBuilder, prop: Property):
+    return env.call('_resolve_inherited_flip', prop.dtype)
+
+
+@ufunc.resolver(QueryBuilder, ForeignProperty)
+def _resolve_inherited_flip(env: QueryBuilder, prop: ForeignProperty):
+    return prop
 
 
 @ufunc.resolver(QueryBuilder, DataType)
