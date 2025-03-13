@@ -53,16 +53,13 @@ def _resolve_property(
     dtype: Ref,
     attr: Bind
 ):
-    prop = None
     if attr.name in dtype.properties:
         prop = dtype.properties[attr.name]
-        if not prop.dtype.inherited:
-            return dtype.properties[attr.name]
+        return prop
 
-    if not prop:
-        if attr.name not in dtype.model.properties:
-            raise FieldNotInResource(dtype, property=attr.name)
-        prop = dtype.model.properties[attr.name]
+    if attr.name not in dtype.model.properties:
+        raise FieldNotInResource(dtype, property=attr.name)
+    prop = dtype.model.properties[attr.name]
 
     if env.ufunc_types:
         # Check for self reference, no need to do joins if table already contains the value
@@ -80,16 +77,13 @@ def _resolve_property(
     dtype: Ref,
     attr: Bind
 ):
-    prop = None
     if attr.name in dtype.properties:
         prop = dtype.properties[attr.name]
-        if not prop.dtype.inherited:
-            return dtype.properties[attr.name]
+        return prop
 
-    if not prop:
-        if attr.name not in dtype.model.properties:
-            raise FieldNotInResource(dtype, property=attr.name)
-        prop = dtype.model.properties[attr.name]
+    if attr.name not in dtype.model.properties:
+        raise FieldNotInResource(dtype, property=attr.name)
+    prop = dtype.model.properties[attr.name]
 
     if env.ufunc_types:
         # Check for self reference, no need to do joins if table already contains the value

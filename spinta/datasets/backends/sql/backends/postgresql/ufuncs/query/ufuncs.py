@@ -30,7 +30,6 @@ def select(env: PostgreSQLQueryBuilder, dtype: Geometry, func_: Flip):
 @ufunc.resolver(PostgreSQLQueryBuilder, ForeignProperty, Geometry, Flip)
 def select(env: PostgreSQLQueryBuilder, fpr: ForeignProperty, dtype: Geometry, func_: Flip):
     table = env.joins.get_table(env, fpr)
-    print("FPR GEO FLIP", fpr, dtype.prop)
     if dtype.prop.list is None:
         column = env.backend.get_column(table, dtype.prop, select=True)
     else:

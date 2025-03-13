@@ -35,12 +35,12 @@ from spinta.types.datatype import UUID as UUID_dtype
 from spinta.types.geometry.components import Geometry
 from spinta.types.text.components import Text
 from spinta.types.text.helpers import determine_language_property_for_text
+from spinta.ufuncs.components import ForeignProperty
 from spinta.ufuncs.querybuilder.components import ReservedProperty, \
     NestedProperty, ResultProperty, Flip
 from spinta.ufuncs.querybuilder.helpers import get_column_with_extra, get_language_column, \
     expanded
 from spinta.ufuncs.querybuilder.ufuncs import Star
-from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.data import take
 
 
