@@ -21,7 +21,7 @@ from spinta.core.ufuncs import ufunc
 from spinta.datasets.backends.sql.ufuncs.query.components import SqlQueryBuilder
 from spinta.dimensions.enum.helpers import prepare_enum_value
 from spinta.exceptions import PropertyNotFound, SourceCannotBeList, NoExternalName, NotImplementedFeature
-from spinta.types.datatype import DataType, Denorm, Object, Array
+from spinta.types.datatype import DataType, Denorm, Object, Array, BackRef
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.types.datatype import String
@@ -30,7 +30,7 @@ from spinta.types.text.components import Text
 from spinta.types.text.helpers import determine_language_property_for_text
 from spinta.ufuncs.components import ForeignProperty
 from spinta.ufuncs.querybuilder.components import LiteralProperty, Selected
-from spinta.ufuncs.querybuilder.helpers import get_language_column, process_literal_value
+from spinta.ufuncs.querybuilder.helpers import get_language_column, process_literal_value, denorm_to_foreign_property
 from spinta.ufuncs.querybuilder.ufuncs import Star
 from spinta.utils.data import take
 from spinta.utils.itertools import flatten
@@ -514,31 +514,8 @@ def select(env, dtype):
 
 @ufunc.resolver(SqlQueryBuilder, Denorm)
 def select(env, dtype: Denorm):
-    ref = dtype.prop.parent
-    root_parent = ref
-    if isinstance(ref, Property) and isinstance(ref.dtype, Ref):
-        fpr = None
-        if ref.dtype.inherited:
-            parent_list = []
-            root_ref_parent = ref
-            while root_ref_parent and isinstance(root_ref_parent, Property) and isinstance(root_ref_parent.dtype, Ref):
-                parent_list.append(root_ref_parent)
-                if not root_ref_parent.dtype.inherited:
-                    break
-                root_ref_parent = root_ref_parent.parent
-
-            if parent_list:
-                parent_list = list(reversed(parent_list))
-                root_parent = parent_list.pop(0)
-                for parent in parent_list:
-                    if parent.place.startswith(f'{root_parent.place}.'):
-                        fixed_name = parent.place.replace(f'{root_parent.place}.', '', 1)
-                        if fixed_name in root_parent.dtype.model.properties:
-                            parent = root_parent.dtype.model.properties[fixed_name]
-                    fpr = ForeignProperty(fpr, root_parent.dtype, parent.dtype)
-                    root_parent = parent
-        fpr = ForeignProperty(fpr, root_parent.dtype, dtype.rel_prop.dtype)
-        return env.call("select", fpr)
+    fpr = env.call('_denorm_to_foreign_property', dtype)
+    return env.call("select", fpr)
 
 
 @ufunc.resolver(SqlQueryBuilder, Array)

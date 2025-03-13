@@ -5,12 +5,13 @@ from spinta.core.ufuncs import ufunc, Expr, Negative, Bind, GetAttr
 from spinta.datasets.backends.sql.ufuncs.components import Selected
 from spinta.datasets.components import ExternalBackend
 from spinta.exceptions import InvalidArgumentInExpression, CannotSelectTextAndSpecifiedLang
-from spinta.types.datatype import DataType, String, PrimaryKey
+from spinta.types.datatype import DataType, String, PrimaryKey, Denorm
 from spinta.types.text.components import Text
 from spinta.ufuncs.components import ForeignProperty
 from spinta.ufuncs.querybuilder.components import QueryBuilder, Star, ReservedProperty, NestedProperty, \
     ResultProperty, LiteralProperty, Flip, Func
-from spinta.ufuncs.querybuilder.helpers import get_pagination_compare_query, process_literal_value
+from spinta.ufuncs.querybuilder.helpers import get_pagination_compare_query, process_literal_value, \
+    denorm_to_foreign_property
 from spinta.utils.schema import NA
 
 # This file contains reusable resolvers, that should be backend independent
@@ -36,6 +37,14 @@ COMPARE = [
     'startswith',
     'contains',
 ]
+
+
+@ufunc.resolver(QueryBuilder, Denorm)
+def _denorm_to_foreign_property(
+    env: QueryBuilder,
+    dtype: Denorm
+):
+    return denorm_to_foreign_property(dtype)
 
 
 @ufunc.resolver(QueryBuilder, Bind, Bind, name='getattr')
@@ -161,7 +170,7 @@ def select(
         # If `prepare` expression returns another expression, then this means,
         # it must be processed on values returned by query.
         prop = dtype.prop
-        if not isinstance(env.backend, ExternalBackend) or (prop.external and prop.external.name):
+        if not isinstance(env.backend, ExternalBackend) or (prop.external and prop.external.name) or prop.dtype.inherited:
             sel = env.call('select', fpr, dtype)
             return Selected(item=sel.item, prop=sel.prop, prep=prep)
         else:
@@ -301,6 +310,12 @@ def select(env: QueryBuilder, dtype: DataType, flip_: Flip):
     return env.call('select', dtype, Expr('flip'))
 
 
+@ufunc.resolver(QueryBuilder, Denorm, Flip)
+def select(env: QueryBuilder, dtype: Denorm, flip_: Flip):
+    fpr = env.call('_denorm_to_foreign_property', dtype)
+    return env.call('select', fpr, flip_)
+
+
 @ufunc.resolver(QueryBuilder, ForeignProperty, DataType, Flip)
 def select(env: QueryBuilder, fpr: ForeignProperty, dtype: DataType, flip_: Flip):
     return env.call('select', fpr, dtype, Expr('flip'))
@@ -426,7 +441,10 @@ def flip(env: QueryBuilder, expr: Expr):
 @ufunc.resolver(QueryBuilder, (GetAttr, Bind))
 def flip(env: QueryBuilder, bind: Bind):
     prop = env.resolve_property(bind)
-    return env.call('_resolve_flip', prop)
+    prop = env.call('_resolve_inherited_flip', prop.dtype)
+    flip_ = env.call('_resolve_flip', prop)
+    flip_.prop = prop
+    return flip_
 
 
 @ufunc.resolver(QueryBuilder, Flip)
@@ -439,7 +457,45 @@ def _resolve_flip(env: QueryBuilder, prop: Property):
     resolved = prop
     if prop.external and prop.external.prepare:
         resolved = env(this=prop).resolve(prop.external.prepare)
+    resolved = env.call('_resolve_flip', prop.dtype, resolved)
     return env.call('flip', resolved)
+
+
+@ufunc.resolver(QueryBuilder, DataType)
+def _resolve_inherited_flip(env: QueryBuilder, dtype: DataType):
+    return dtype.prop
+
+
+@ufunc.resolver(QueryBuilder, Denorm)
+def _resolve_inherited_flip(env: QueryBuilder, dtype: Denorm):
+    return env.call('_denorm_to_foreign_property', dtype)
+
+
+@ufunc.resolver(QueryBuilder, DataType, object)
+def _resolve_flip(env: QueryBuilder, dtype: DataType, obj: object):
+    return obj
+
+
+@ufunc.resolver(QueryBuilder, Denorm, object)
+def _resolve_flip(env: QueryBuilder, dtype: Denorm, obj: object):
+    resolved = obj
+    prop = dtype.rel_prop
+    if prop.external and prop.external.prepare:
+        resolved = env(this=prop).resolve(prop.external.prepare)
+
+    return resolved
+
+
+@ufunc.resolver(QueryBuilder, Denorm, Flip)
+def _resolve_flip(env: QueryBuilder, dtype: Denorm, flip_: Flip):
+    resolved = flip_
+    prop = dtype.rel_prop
+    if prop.external and prop.external.prepare:
+        resolved = env(this=prop).resolve(prop.external.prepare)
+
+        if isinstance(resolved, Flip):
+            return Flip(dtype.prop, flip_.count + resolved.count)
+    return resolved
 
 
 @ufunc.resolver(QueryBuilder, ForeignProperty)

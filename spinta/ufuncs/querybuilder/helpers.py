@@ -1,11 +1,15 @@
+from __future__ import annotations
+
 from typing import Union, Any
 
 from spinta.backends.constants import BackendFeatures
 from spinta.components import Property, Page, UrlParams
 from spinta.core.ufuncs import Expr, asttoexpr
 from spinta.datasets.components import ExternalBackend
+from spinta.types.datatype import Denorm, Ref, BackRef
 from spinta.types.text.components import Text
 from spinta.types.text.helpers import determine_language_property_for_text
+from spinta.ufuncs.components import ForeignProperty
 from spinta.ufuncs.querybuilder.components import QueryBuilder, QueryParams, QueryPage, LiteralProperty, Star
 from spinta.ufuncs.helpers import merge_formulas
 from spinta.utils.types import is_value_literal
@@ -198,3 +202,31 @@ def process_literal_value(value: Any) -> Any:
     if is_value_literal(value):
         return LiteralProperty(value)
     return value
+
+
+def denorm_to_foreign_property(dtype: Denorm) -> ForeignProperty | Property:
+    ref = dtype.prop.parent
+    root_parent = ref
+    if isinstance(ref, Property) and isinstance(ref.dtype, (Ref, BackRef)):
+        fpr = None
+        if ref.dtype.inherited:
+            parent_list = []
+            root_ref_parent = ref
+            while root_ref_parent and isinstance(root_ref_parent, Property) and isinstance(root_ref_parent.dtype, (Ref, BackRef)):
+                parent_list.append(root_ref_parent)
+                if not root_ref_parent.dtype.inherited:
+                    break
+                root_ref_parent = root_ref_parent.parent
+
+            if parent_list:
+                parent_list = list(reversed(parent_list))
+                root_parent = parent_list.pop(0)
+                for parent in parent_list:
+                    if parent.name in root_parent.dtype.model.properties:
+                        parent = root_parent.dtype.model.properties[parent.name]
+
+                    fpr = ForeignProperty(fpr, root_parent.dtype, parent.dtype)
+                    root_parent = parent
+
+        return ForeignProperty(fpr, root_parent.dtype, dtype.rel_prop.dtype)
+    return dtype.rel_prop
