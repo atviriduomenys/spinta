@@ -26,10 +26,11 @@ def load(
             store = context.get('store')
             commands.load(context, store.internal, into=target, full_load=full_load)
 
-    if manifest.path is None:
+    if (path := manifest.path) is None:
         return
 
-    schemas = read_open_api_manifest(manifest.path)
+    path = path.split("://")[-1]  # FIXME: Temporary, because OpenAPI files are prefixed with 'openapi+file://'.
+    schemas = read_open_api_manifest(path)
 
     if into:
         load_manifest_nodes(context, into, schemas, source=manifest)
