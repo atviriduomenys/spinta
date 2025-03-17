@@ -643,6 +643,44 @@ def join_table_on(env: SqlQueryBuilder, dtype: DataType) -> Any:
     return result
 
 
+@ufunc.resolver(SqlQueryBuilder, Ref)
+def join_table_on(
+    env: SqlQueryBuilder,
+    dtype: Ref,
+) -> Tuple[Any]:
+    original_model = dtype.prop.model
+    original_table = env.backend.get_table(original_model)
+
+    prop_name = dtype.prop.name
+    parent_ref = None
+    if dtype.inherited:
+        parent: Property = dtype.prop.parent
+        parent_ref = parent.dtype.model.properties.get(prop_name)
+    filtered_properties = {prop.name: prop for prop in dtype.properties.values() if not prop.dtype.inherited}
+    ref_properties = {}
+    # Gather overwritten properties
+    # missing ref properties are None
+    for prop in dtype.refprops:
+        prop_name = prop.name
+        value = filtered_properties.get(prop_name, None)
+        if value is not None:
+            value = env(table=original_table, model=original_model).call('join_table_on', value)
+        ref_properties[prop_name] = value
+
+    # Fill missing None values using parent reference (from which it was inherited from)
+    if any(value is None for value in ref_properties.values()):
+        if parent_ref is None:
+            table = env.table
+            column = env.backend.get_column(table, dtype.prop)
+            return column
+
+        parent_joined_columns = env(model=parent_ref.model).call('join_table_on', parent_ref)
+        for i, (key, value) in enumerate(ref_properties.items()):
+            if value is None:
+                ref_properties[key] = parent_joined_columns[i]
+    return tuple(value for value in ref_properties.values())
+
+
 @ufunc.resolver(SqlQueryBuilder, DataType, tuple)
 def join_table_on(
     env: SqlQueryBuilder,

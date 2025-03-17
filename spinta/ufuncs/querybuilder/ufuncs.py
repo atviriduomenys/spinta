@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import List, Any, Tuple, Dict
 
 from spinta.components import Page, Property
@@ -439,7 +441,7 @@ def flip(env: QueryBuilder, expr: Expr):
 
 
 @ufunc.resolver(QueryBuilder, (GetAttr, Bind))
-def flip(env: QueryBuilder, bind: Bind):
+def flip(env: QueryBuilder, bind: GetAttr | Bind):
     prop = env.resolve_property(bind)
     prop = env.call('_resolve_inherited_flip', prop)
     flip_ = env.call('_resolve_flip', prop)

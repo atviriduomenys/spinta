@@ -418,25 +418,31 @@ def select(env, dtype):
 
 
 @ufunc.resolver(PgQueryBuilder, Denorm)
-def select(env, dtype):
+def _denorm_to_foreign_property(
+    env: PgQueryBuilder,
+    dtype: Denorm
+):
     ref = dtype.prop.parent
-    if isinstance(ref, Property) and isinstance(ref.dtype, Ref):
+    if isinstance(ref, Property) and isinstance(ref.dtype, (Ref, BackRef)):
         fpr = None
         if ref.dtype.inherited:
             root_ref_parent = ref.parent
 
-            while root_ref_parent and isinstance(root_ref_parent, Property) and isinstance(root_ref_parent.dtype, Ref):
+            while root_ref_parent and isinstance(root_ref_parent, Property) and isinstance(root_ref_parent.dtype, (Ref, BackRef)):
                 fpr = ForeignProperty(fpr, root_ref_parent.dtype, root_ref_parent.dtype.model.properties['_id'].dtype)
 
                 if not root_ref_parent.dtype.inherited:
                     break
                 root_ref_parent = root_ref_parent.parent
+        return ForeignProperty(fpr, ref.dtype, dtype.rel_prop.dtype)
+    return dtype.rel_prop
 
-        fpr = ForeignProperty(fpr, ref.dtype, ref.dtype.model.properties['_id'].dtype)
-        table = env.get_joined_table_from_ref(fpr)
-        column = table.c[dtype.rel_prop.place]
-        column = column.label(dtype.prop.place)
-        return Selected(env.add_column(column), prop=dtype.prop)
+
+@ufunc.resolver(PgQueryBuilder, Denorm)
+def select(env, dtype):
+    fpr = env.call('_denorm_to_foreign_property', dtype)
+    result = env.call('select', fpr)
+    return result
 
 
 @ufunc.resolver(PgQueryBuilder, Page)
@@ -1079,7 +1085,6 @@ def _ne_compare(env: PgQueryBuilder, prop: Property, column, value):
 FUNCS = [
     'lower',
     'upper',
-    'flip'
 ]
 
 

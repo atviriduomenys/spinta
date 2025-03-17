@@ -222,9 +222,6 @@ def denorm_to_foreign_property(dtype: Denorm) -> ForeignProperty | Property:
                 parent_list = list(reversed(parent_list))
                 root_parent = parent_list.pop(0)
                 for parent in parent_list:
-                    if parent.name in root_parent.dtype.model.properties:
-                        parent = root_parent.dtype.model.properties[parent.name]
-
                     fpr = ForeignProperty(fpr, root_parent.dtype, parent.dtype)
                     root_parent = parent
 
