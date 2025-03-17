@@ -762,7 +762,7 @@ def test_denorm_nested_advanced(rc: RawConfig):
             ''', 'example/City') == '''
     SELECT "example/City".name,
            "example/City"."country._id",
-           "example/City"."country.id"
+           "example/City"."country.id",
            "example/Country_1".name AS "country.name",
            "example/Planet_1".name AS "country.planet.name",
            "example/City"."country.planet.misc",
