@@ -3150,7 +3150,6 @@ def test_advanced_denorm_lvl_3_multi(context, rc, tmp_path, geodb_denorm):
     }]
 
     resp = app.get('/datasets/denorm/lvl3/Country')
-    pp(resp.json())
     assert listdata(resp, 'code', 'name', sort='code', full=True) == [{
         'code': 'EE',
         'name': 'Estonia',
@@ -3164,7 +3163,6 @@ def test_advanced_denorm_lvl_3_multi(context, rc, tmp_path, geodb_denorm):
     }]
 
     resp = app.get('/datasets/denorm/lvl3/City')
-    pp(resp.json())
     assert listdata(
         resp,
         'code',

@@ -702,24 +702,24 @@ def test_denorm_ref_level_3_mixed_mapping(rc: RawConfig):
     # `country.planet` is mapped using `id` and `name`, so joins should be from `Country.planet.id` and `Planet.country.planet.name`
     assert _build(rc, '''
         d | r | b | m | property            | type    | ref      | source | level | access
-    example                             |         |          |        |       |
-      |   |   | Planet                  |         | id, name |        |       |
-      |   |   |   | id                  | integer |          |        |       | open
-      |   |   |   | name                | string  |          |        |       | open
-      |   |   |   | code                | string  |          |        |       | open
-      |   |   |   |                     |         |          |        |       |           
-      |   |   | Country                 |         | id       |        |       |
-      |   |   |   | id                  | integer |          |        |       | open
-      |   |   |   | name                | string  |          |        |       | open
-      |   |   |   | planet              | ref     | Planet   |        | 3     | open
-      |   |   |   |                     |         |          |        |       |              
-      |   |   | City                    |         |          |        |       |
-      |   |   |   | name                | string  |          |        |       | open
-      |   |   |   | country             | ref     | Country  |        | 3     | open
-      |   |   |   | country.id          | integer |          |        |       | open
-      |   |   |   | country.name        |         |          |        |       | open
-      |   |   |   | country.planet.name | string  |          |        |       | open
-      |   |   |   | country.planet.code |         |          |        |       | open
+        example                             |         |          |        |       |
+          |   |   | Planet                  |         | id, name |        |       |
+          |   |   |   | id                  | integer |          |        |       | open
+          |   |   |   | name                | string  |          |        |       | open
+          |   |   |   | code                | string  |          |        |       | open
+          |   |   |   |                     |         |          |        |       |           
+          |   |   | Country                 |         | id       |        |       |
+          |   |   |   | id                  | integer |          |        |       | open
+          |   |   |   | name                | string  |          |        |       | open
+          |   |   |   | planet              | ref     | Planet   |        | 3     | open
+          |   |   |   |                     |         |          |        |       |              
+          |   |   | City                    |         |          |        |       |
+          |   |   |   | name                | string  |          |        |       | open
+          |   |   |   | country             | ref     | Country  |        | 3     | open
+          |   |   |   | country.id          | integer |          |        |       | open
+          |   |   |   | country.name        |         |          |        |       | open
+          |   |   |   | country.planet.name | string  |          |        |       | open
+          |   |   |   | country.planet.code |         |          |        |       | open
             ''', 'example/City') == '''
     SELECT "example/City".name,
            "example/City"."country.id",
@@ -732,6 +732,44 @@ def test_denorm_ref_level_3_mixed_mapping(rc: RawConfig):
     LEFT OUTER JOIN "example/Country" AS "example/Country_1" ON "example/City"."country.id" = "example/Country_1".id
     LEFT OUTER JOIN "example/Planet" AS "example/Planet_1" ON "example/Country_1"."planet.id" = "example/Planet_1".id
     AND "example/City"."country.planet.name" = "example/Planet_1".name
+    '''
+
+
+def test_denorm_ref_level_4_mixed_mapping(rc: RawConfig):
+    # Core concept is that City inherits `country`, but `country.planet.name` is overwritten
+    # since ref level is 4 and over, changing these values should not affect mapping
+    assert _build(rc, '''
+        d | r | b | m | property            | type    | ref      | source | level | access
+        example                             |         |          |        |       |
+          |   |   | Planet                  |         | id, name |        |       |
+          |   |   |   | id                  | integer |          |        |       | open
+          |   |   |   | name                | string  |          |        |       | open
+          |   |   |   | code                | string  |          |        |       | open
+          |   |   |   |                     |         |          |        |       |           
+          |   |   | Country                 |         | id       |        |       |
+          |   |   |   | id                  | integer |          |        |       | open
+          |   |   |   | name                | string  |          |        |       | open
+          |   |   |   | planet              | ref     | Planet   |        |       | open
+          |   |   |   |                     |         |          |        |       |              
+          |   |   | City                    |         |          |        |       |
+          |   |   |   | name                | string  |          |        |       | open
+          |   |   |   | country             | ref     | Country  |        |       | open
+          |   |   |   | country.id          | integer |          |        |       | open
+          |   |   |   | country.name        |         |          |        |       | open
+          |   |   |   | country.planet.name | string  |          |        |       | open
+          |   |   |   | country.planet.code |         |          |        |       | open
+            ''', 'example/City') == '''
+    SELECT "example/City".name,
+           "example/City"."country._id",
+           "example/City"."country.id",
+           "example/Country_1".name AS "country.name",
+           "example/City"."country.planet.name",
+           "example/Planet_1".code AS "country.planet.code",
+           "example/City"._id,
+           "example/City"._revision
+    FROM "example/City"
+    LEFT OUTER JOIN "example/Country" AS "example/Country_1" ON "example/City"."country._id" = "example/Country_1"._id
+    LEFT OUTER JOIN "example/Planet" AS "example/Planet_1" ON "example/Country_1"."planet._id" = "example/Planet_1"._id
     '''
 
 
