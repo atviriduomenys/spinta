@@ -4,6 +4,7 @@
 CONFIG_FILE="config.yml"
 
 if [ ! -f "$CONFIG_FILE" ]; then
+    export SPINTA_CONFIG=config.yml
     cat > "$CONFIG_FILE" <<EOF
 env: test
 data_path: $PWD/$BASEDIR
@@ -17,7 +18,7 @@ keymaps:
 backends:
   default:
     type: postgresql
-    dsn: postgresql://admin:admin123@localhost:54321/spinta
+    dsn: postgresql://admin:admin123@${DB_HOST:=localhost}:${DB_PORT:=54321}/spinta
 
 manifest: default
 manifests:
@@ -26,11 +27,11 @@ manifests:
     path: $PWD/$BASEDIR/manifest.csv
     backend: default
     keymap: default
-    mode: internal
+    mode: external
 
 accesslog:
   type: file
-  file: $PWD/$BASEDIR/accesslog.json
+  file: stdout
 EOF
     echo "Created config.yml."
 else
@@ -41,5 +42,5 @@ echo "Touch manifest.csv"
 touch manifest.csv
 
 poetry install spinta
-
+spinta upgrade
 make run

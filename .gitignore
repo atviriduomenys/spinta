@@ -15,7 +15,7 @@
 /.idea/
 ruff.toml
 config.yml
-manifest.csv
+manifest.*
 
 # pyenv
 .python-version
