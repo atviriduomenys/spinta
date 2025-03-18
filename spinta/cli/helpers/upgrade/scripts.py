@@ -2,8 +2,9 @@ from typing import List, Dict
 from typer import echo
 
 from spinta.cli.helpers.upgrade.clients import migrate_clients, cli_requires_clients_migration
-from spinta.cli.helpers.upgrade.components import UpgradeComponent, UPGRADE_CLIENTS_SCRIPT
+from spinta.cli.helpers.upgrade.components import UpgradeComponent, UPGRADE_CLIENTS_SCRIPT, UPGRADE_NEW_COLUMNS
 from spinta.cli.helpers.upgrade.helpers import script_check_status_message
+from spinta.cli.helpers.upgrade.new_columns import migrate_columns
 from spinta.components import Context
 
 # Global upgrade script mapper
@@ -13,7 +14,11 @@ __upgrade_scripts: Dict[str, UpgradeComponent] = {
     UPGRADE_CLIENTS_SCRIPT: UpgradeComponent(
         upgrade=migrate_clients,
         check=cli_requires_clients_migration
+    ),
+    UPGRADE_NEW_COLUMNS: UpgradeComponent(
+        upgrade=migrate_columns,
     )
+    #temp add check - check if directory for DSA manifests exists and run `check` on all it's files
 }
 
 UPGRADE_CHECK_STATUS_PASSED = "PASSED"

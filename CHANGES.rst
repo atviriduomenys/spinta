@@ -6,8 +6,14 @@ Changes
 
 Backwards incompatible:
 - added `status`, `visibility`, `eli`, `origin`, `count` and `source.type` columns. (`#1032`_)
+- added migrations for those columns. (`#1217`_) If you want to add the new empty columns to your DSA manifests,
+you can run this command:
+
+`spinta upgrade --run new_columns --files_path dsa.csv` where you can replace `dsa.csv` with your DSA manifest file or
+a directory where DSA manifest files are stored.
 
   .. _#1032: https://github.com/atviriduomenys/spinta/issues/1032
+  .. _#1217: https://github.com/atviriduomenys/spinta/issues/1217
 
 0.2dev1
 =======

@@ -11,10 +11,13 @@ from spinta.cli.helpers.upgrade.helpers import script_check_status_message
 from spinta.cli.helpers.upgrade.scripts import UPGRADE_CHECK_STATUS_REQUIRED, UPGRADE_CHECK_STATUS_PASSED, \
     UPGRADE_CHECK_STATUS_FORCED
 from spinta.exceptions import UpgradeScriptNotFound
+from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 import pytest
 
 from spinta.testing.client import create_old_client_file, get_yaml_data
+from spinta.testing.manifest import load_manifest
+from spinta.testing.tabular import create_tabular_manifest
 from spinta.utils.config import get_clients_path, get_keymap_path, get_id_path
 from spinta.utils.types import is_str_uuid
 
@@ -691,3 +694,53 @@ def test_upgrade_clients_force_upgrade_destructive(context,
             'spinta_update'
         ]
     }
+
+
+def test_upgrade_new_columns(
+    context,
+    rc,
+    cli: SpintaCliRunner,
+    tmp_path: pathlib.Path,
+):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    d | r | b | m | property | type    | ref     | source      | source.type
+    datasets/gov/example     |         |         |             |
+      | data                 | sql     |         | sqlite://   | sqlite
+                             |         |         |             |
+      |   |   | Country      |         | code    | salis       | table
+      |   |   |   | code     | integer |         | kodas       | test
+      |   |   |   | name     | string  |         | pavadinimas | varchar(255)
+      |   |   |   | driving  | string  |         | vairavimas  | varchar(1)
+      |   |   |   |          | enum    |         | l           |
+      |   |   |   |          |         |         | r           |  
+                             |         |         |             |
+      |   |   | City         |         | name    | miestas     | view materialized
+      |   |   |   | name     | string  |         | pavadinimas | varchar(255)
+      |   |   |   | country  | ref     | Country | salis       | integer
+    '''))
+
+    cli.invoke(rc, [
+        'upgrade',
+        '--run',
+        'new_columns',
+        # '-o', tmp_path / 'result.csv',
+        tmp_path / 'manifest.csv',
+    ])
+
+    manifest = load_manifest(rc, tmp_path / 'manifest.csv')
+    assert manifest == '''
+    d | r | b | m            | property | type    | ref         | source            | source.type  | prepare | level | access | uri | title | description | status | visibility | eli | count | origin
+    datasets/gov/example     |          |         |             |                   |              |         |       |        |     |       |             |        |            |     |       | 
+      | data                 | sql      |         | sqlite://   | sqlite            |              |         |       |        |     |       |             |        |            |     |       |
+                             |          |         |             |                   |              |         |       |        |     |       |             |        |            |     |       |
+      |   |   | Country      |          | code    | salis       | table             |              |         |       |        |     |       |             |        |            |     |       |
+      |   |   |   | code     | integer  |         | kodas       | test              |              |         |       |        |     |       |             |        |            |     |       |
+      |   |   |   | name     | string   |         | pavadinimas | varchar(255)      |              |         |       |        |     |       |             |        |            |     |       |
+      |   |   |   | driving  | string   |         | vairavimas  | varchar(1)        |              |         |       |        |     |       |             |        |            |     |       |
+                             | enum     |         | l           |                   |              |         |       |        |     |       |             |        |            |     |       |
+                             |          |         | r           |                   |              |         |       |        |     |       |             |        |            |     |       |
+                             |          |         |             |                   |              |         |       |        |     |       |             |        |            |     |       |
+      |   |   | City         |          | name    | miestas     | view materialized |              |         |       |        |     |       |             |        |            |     |       |
+      |   |   |   | name     | string   |         | pavadinimas | varchar(255)      |              |         |       |        |     |       |             |        |            |     |       |
+      |   |   |   | country  | ref      | Country | salis       | integer           |              |         |       |        |     |       |             |        |            |     |       |
+    '''

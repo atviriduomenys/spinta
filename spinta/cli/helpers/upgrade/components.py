@@ -30,3 +30,4 @@ class UpgradeComponent:
 
 
 UPGRADE_CLIENTS_SCRIPT = "clients"
+UPGRADE_NEW_COLUMNS = "new_columns"
