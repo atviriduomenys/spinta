@@ -20,3 +20,5 @@ ruff.toml
 /keymaps.db
 /.vscode/
 /reports/
+/config.yml
+/manifest.csv
