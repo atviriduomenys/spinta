@@ -377,6 +377,7 @@ def getall(
     *,
     query: Expr = None,
     resolved_params: ResolvedParams = None,
+    extra_properties: dict[str, Property] = None,
     **kwargs
 ) -> Iterator[ObjectData]:
     bases = parametrize_bases(
@@ -404,7 +405,7 @@ def getall(
         source=model.external.name,
         model_props=props
     ).flatten().to_dataframe(meta=meta)
-    yield from _dask_get_all(context, query, df, backend, model, builder)
+    yield from _dask_get_all(context, query, df, backend, model, builder, extra_properties)
 
 
 @commands.getall.register(Context, Model, Xml)
@@ -415,6 +416,7 @@ def getall(
     *,
     query: Expr = None,
     resolved_params: ResolvedParams = None,
+    extra_properties: dict[str, Property] = None,
     **kwargs
 ) -> Iterator[ObjectData]:
     bases = parametrize_bases(
@@ -440,7 +442,7 @@ def getall(
         source=model.external.name,
         model_props=props
     ).flatten().to_dataframe(meta=meta)
-    yield from _dask_get_all(context, query, df, backend, model, builder)
+    yield from _dask_get_all(context, query, df, backend, model, builder, extra_properties)
 
 
 def _gather_namespaces_from_model(context: Context, model: Model):
@@ -459,6 +461,7 @@ def getall(
     *,
     query: Expr = None,
     resolved_params: ResolvedParams = None,
+    extra_properties: dict[str, Property] = None,
     **kwargs
 ) -> Iterator[ObjectData]:
     resource_builder = TabularResource(context)
@@ -474,7 +477,7 @@ def getall(
     builder = backend.query_builder_class(context)
     builder.update(model=model)
     df = dask.dataframe.read_csv(list(bases), sep=resource_builder.seperator)
-    yield from _dask_get_all(context, query, df, backend, model, builder)
+    yield from _dask_get_all(context, query, df, backend, model, builder, extra_properties)
 
 
 def parametrize_bases(
@@ -499,7 +502,15 @@ def parametrize_bases(
         yield base
 
 
-def _dask_get_all(context: Context, query: Expr, df: dask.dataframe, backend: DaskBackend, model: Model, env: DaskDataFrameQueryBuilder):
+def _dask_get_all(
+    context: Context,
+    query: Expr,
+    df: dask.dataframe,
+    backend: DaskBackend,
+    model: Model,
+    env: DaskDataFrameQueryBuilder,
+    extra_properties: dict
+):
     keymap: KeyMap = context.get(f'keymap.{model.keymap.name}')
 
     query = merge_formulas(model.external.prepare, query)
@@ -523,7 +534,7 @@ def _dask_get_all(context: Context, query: Expr, df: dask.dataframe, backend: Da
                 elif isinstance(sel.prop.dtype, Ref):
                     val = handle_ref_key_assignment(context, keymap, env, val, sel.prop.dtype)
             res[key] = val
-        res = commands.cast_backend_to_python(context, model, backend, res)
+        res = commands.cast_backend_to_python(context, model, backend, res, extra_properties=extra_properties)
         yield res
 
 
