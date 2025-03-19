@@ -1,17 +1,19 @@
+from __future__ import annotations
+
 from typing import List, Any, Tuple, Dict
 
 from spinta.components import Page, Property
 from spinta.core.ufuncs import ufunc, Expr, Negative, Bind, GetAttr
 from spinta.datasets.backends.sql.ufuncs.components import Selected
 from spinta.datasets.components import ExternalBackend
-from spinta.exceptions import InvalidArgumentInExpression, CannotSelectTextAndSpecifiedLang, \
-    LangNotDeclared, FieldNotInResource, PropertyNotFound
-from spinta.types.datatype import DataType, String, Ref, Object, Array, File, BackRef, PrimaryKey, ExternalRef
+from spinta.exceptions import InvalidArgumentInExpression, CannotSelectTextAndSpecifiedLang
+from spinta.types.datatype import DataType, String, PrimaryKey, Denorm
 from spinta.types.text.components import Text
-from spinta.ufuncs.querybuilder.components import QueryBuilder, Star, ReservedProperty, NestedProperty, \
-    ResultProperty, LiteralProperty, Flip
-from spinta.ufuncs.querybuilder.helpers import get_pagination_compare_query, process_literal_value
 from spinta.ufuncs.components import ForeignProperty
+from spinta.ufuncs.querybuilder.components import QueryBuilder, Star, ReservedProperty, NestedProperty, \
+    ResultProperty, LiteralProperty, Flip, Func
+from spinta.ufuncs.querybuilder.helpers import get_pagination_compare_query, process_literal_value, \
+    denorm_to_foreign_property
 from spinta.utils.schema import NA
 
 # This file contains reusable resolvers, that should be backend independent
@@ -37,6 +39,14 @@ COMPARE = [
     'startswith',
     'contains',
 ]
+
+
+@ufunc.resolver(QueryBuilder, Denorm)
+def _denorm_to_foreign_property(
+    env: QueryBuilder,
+    dtype: Denorm
+):
+    return denorm_to_foreign_property(dtype)
 
 
 @ufunc.resolver(QueryBuilder, Bind, Bind, name='getattr')
@@ -68,216 +78,8 @@ def getattr_(
 
 
 @ufunc.resolver(QueryBuilder, GetAttr)
-def _resolve_property(
-    env: QueryBuilder,
-    attr: GetAttr
-):
-    return env.call('_resolve_property', attr.obj)
-
-
-@ufunc.resolver(QueryBuilder, Bind)
-def _resolve_property(
-    env: QueryBuilder,
-    bind: Bind
-):
-    return env.call('_resolve_property', bind.name)
-
-
-@ufunc.resolver(QueryBuilder, str)
-def _resolve_property(
-    env: QueryBuilder,
-    prop: str
-):
-    if prop in env.model.flatprops:
-        return env.model.flatprops.get(prop)
-
-    raise PropertyNotFound(env.model, property=prop)
-
-
-@ufunc.resolver(QueryBuilder, Property)
-def _resolve_property(
-    env: QueryBuilder,
-    prop: Property
-):
-    return prop
-
-
-@ufunc.resolver(QueryBuilder, GetAttr)
-def _resolve_getattr(
-    env: QueryBuilder,
-    attr: GetAttr,
-) -> ForeignProperty:
-    prop = env.resolve_property(attr)
-    return env.call('_resolve_getattr', prop.dtype, attr.name)
-
-
-@ufunc.resolver(QueryBuilder, ForeignProperty, Ref, GetAttr)
-def _resolve_getattr(
-    env: QueryBuilder,
-    fpr: ForeignProperty,
-    dtype: Ref,
-    attr: GetAttr,
-) -> ForeignProperty:
-    prop = dtype.model.properties[attr.obj]
-    fpr = fpr.push(prop)
-    return env.call('_resolve_getattr', fpr, prop.dtype, attr.name)
-
-
-@ufunc.resolver(QueryBuilder, ForeignProperty, Ref, Bind)
-def _resolve_getattr(
-    env: QueryBuilder,
-    fpr: ForeignProperty,
-    dtype: Ref,
-    attr: Bind,
-) -> ForeignProperty:
-    prop = dtype.model.properties[attr.name]
-    return fpr.push(prop)
-
-
-@ufunc.resolver(QueryBuilder, Ref, GetAttr)
-def _resolve_getattr(
-    env: QueryBuilder,
-    dtype: Ref,
-    attr: GetAttr,
-):
-    if attr.obj in dtype.properties:
-        return dtype.properties[attr.obj].dtype
-    prop = dtype.model.properties[attr.obj]
-    fpr = ForeignProperty(None, dtype, prop.dtype)
-    return env.call('_resolve_getattr', fpr, prop.dtype, attr.name)
-
-
-@ufunc.resolver(QueryBuilder, Ref, Bind)
-def _resolve_getattr(
-    env: QueryBuilder,
-    dtype: Ref,
-    attr: Bind,
-):
-    if attr.name in dtype.properties:
-        return dtype.properties[attr.name].dtype
-
-    # Check for self reference, no need to do joins if table already contains the value
-    if attr.name == '_id':
-        return ReservedProperty(dtype, attr.name)
-
-    prop = dtype.model.properties[attr.name]
-    return ForeignProperty(None, dtype, prop.dtype)
-
-
-@ufunc.resolver(QueryBuilder, ExternalRef, Bind)
-def _resolve_getattr(
-    env: QueryBuilder,
-    dtype: ExternalRef,
-    attr: Bind,
-):
-    if attr.name in dtype.properties:
-        return dtype.properties[attr.name].dtype
-
-    # Check for self reference, no need to do joins if table already contains the value
-    for refprop in dtype.refprops:
-        if refprop.name == attr.name:
-            return ReservedProperty(dtype, attr.name)
-
-    prop = dtype.model.properties[attr.name]
-    return ForeignProperty(None, dtype, prop.dtype)
-
-
-@ufunc.resolver(QueryBuilder, BackRef, GetAttr)
-def _resolve_getattr(
-    env: QueryBuilder,
-    dtype: BackRef,
-    attr: GetAttr,
-):
-    prop = dtype.model.properties[attr.obj]
-    fpr = ForeignProperty(None, dtype, prop.dtype)
-    return env.call('_resolve_getattr', fpr, prop.dtype, attr.name)
-
-
-@ufunc.resolver(QueryBuilder, BackRef, Bind)
-def _resolve_getattr(env, dtype, attr):
-    prop = dtype.model.properties[attr.name]
-    return ForeignProperty(None, dtype, prop.dtype)
-
-
-@ufunc.resolver(QueryBuilder, ForeignProperty, BackRef, GetAttr)
-def _resolve_getattr(
-    env: QueryBuilder,
-    fpr: ForeignProperty,
-    dtype: BackRef,
-    attr: GetAttr,
-) -> ForeignProperty:
-    prop = dtype.model.properties[attr.obj]
-    fpr = fpr.push(prop)
-    return env.call('_resolve_getattr', fpr, prop.dtype, attr.name)
-
-
-@ufunc.resolver(QueryBuilder, ForeignProperty, BackRef, Bind)
-def _resolve_getattr(
-    env: QueryBuilder,
-    fpr: ForeignProperty,
-    dtype: BackRef,
-    attr: Bind,
-) -> ForeignProperty:
-    prop = dtype.model.properties[attr.name]
-    return fpr.push(prop)
-
-
-@ufunc.resolver(QueryBuilder, Text, Bind)
-def _resolve_getattr(
-    env: QueryBuilder,
-    dtype: Text,
-    bind: Bind
-):
-    if dtype.prop.name in env.model.properties:
-        prop = env.model.properties[dtype.prop.name]
-        if bind.name in prop.dtype.langs:
-            return prop.dtype.langs[bind.name].dtype
-        raise LangNotDeclared(dtype, lang=bind.name)
-
-
-@ufunc.resolver(QueryBuilder, Object, GetAttr)
-def _resolve_getattr(
-    env: QueryBuilder,
-    dtype: Object,
-    attr: GetAttr,
-):
-    if attr.obj in dtype.properties:
-        prop = dtype.properties[attr.obj]
-
-        return NestedProperty(
-            left=dtype,
-            right=env.call('_resolve_getattr', prop.dtype, attr.name)
-        )
-    raise FieldNotInResource(dtype, property=attr.obj)
-
-
-@ufunc.resolver(QueryBuilder, Object, Bind)
-def _resolve_getattr(env, dtype, attr):
-    if attr.name in dtype.properties:
-        return NestedProperty(
-            left=dtype,
-            right=dtype.properties[attr.name].dtype
-        )
-    else:
-        raise FieldNotInResource(dtype, property=attr.name)
-
-
-@ufunc.resolver(QueryBuilder, Array, (Bind, GetAttr))
-def _resolve_getattr(env, dtype, attr):
-    return NestedProperty(
-        left=dtype,
-        right=env.call('_resolve_getattr', dtype.items.dtype, attr)
-    )
-
-
-@ufunc.resolver(QueryBuilder, File, Bind)
-def _resolve_getattr(env, dtype, attr):
-    return ReservedProperty(dtype, attr.name)
-
-
-@ufunc.resolver(QueryBuilder, GetAttr)
 def select(env: QueryBuilder, attr: GetAttr) -> Selected:
-    resolved = env.call('_resolve_getattr', attr)
+    resolved = env.resolve_property(attr)
     return env.call('select', resolved)
 
 
@@ -307,6 +109,25 @@ def select(
     fpr: ForeignProperty,
 ) -> Selected:
     return env.call('select', fpr, fpr.right.prop)
+
+
+@ufunc.resolver(QueryBuilder, ForeignProperty, Func)
+def select(
+    env: QueryBuilder,
+    fpr: ForeignProperty,
+    func: Func
+) -> Selected:
+    return env.call('select', fpr, fpr.right.prop, func)
+
+
+@ufunc.resolver(QueryBuilder, ForeignProperty, Property, Func)
+def select(
+    env: QueryBuilder,
+    fpr: ForeignProperty,
+    prop: Property,
+    func: Func
+) -> Selected:
+    return env.call('select', fpr, prop.dtype, func)
 
 
 @ufunc.resolver(QueryBuilder, ForeignProperty, Property)
@@ -339,8 +160,26 @@ def select(
     dtype: DataType,
     prep: Any,
 ) -> Selected:
-    result = env.call('select', fpr, prep)
-    return Selected(prop=dtype.prop, prep=result)
+    if isinstance(prep, str):
+        # XXX: Backwards compatibility thing.
+        #      str values are interpreted as Bind values and Bind values are
+        #      assumed to be properties. So here we skip
+        #      `env.call('select', prep)` and return `prep` as is.
+        #      This should be eventually removed, once backwards compatibility
+        #      for resolving strings as properties is removed.
+        return Selected(prop=dtype.prop, prep=prep)
+    elif isinstance(prep, Expr):
+        # If `prepare` expression returns another expression, then this means,
+        # it must be processed on values returned by query.
+        prop = dtype.prop
+        if not isinstance(env.backend, ExternalBackend) or (prop.external and prop.external.name) or prop.dtype.inherited:
+            sel = env.call('select', fpr, dtype)
+            return Selected(item=sel.item, prop=sel.prop, prep=prep)
+        else:
+            return Selected(item=None, prop=prop, prep=prep)
+    else:
+        result = env.call('select', fpr, prep)
+        return Selected(prop=dtype.prop, prep=result)
 
 
 @ufunc.resolver(QueryBuilder, ForeignProperty, tuple)
@@ -434,14 +273,59 @@ def select(env: QueryBuilder, dtype: DataType, prep: Any) -> Selected:
         return Selected(prop=dtype.prop, prep=result)
 
 
+@ufunc.resolver(QueryBuilder, Property, Func)
+def select(
+    env: QueryBuilder,
+    prop: Property,
+    func: Func
+) -> Selected:
+    return env.call('select', prop.dtype, func)
+
+
 @ufunc.resolver(QueryBuilder, Flip)
 def select(env: QueryBuilder, flip_: Flip):
-    return env.call('select', flip_.dtype, flip_)
+    return env.call('select', flip_.prop, flip_)
+
+
+@ufunc.resolver(QueryBuilder, Property, Flip)
+def select(env: QueryBuilder, prop: Property, flip_: Flip) -> Selected:
+    if flip_.required:
+        return env.call('select', prop.dtype, flip_)
+    # Skip `Property`, no need to resolve `external.prepare`, since `flip(...)` resolves it
+    return env.call('select', prop.dtype)
+
+
+@ufunc.resolver(QueryBuilder, ForeignProperty, Flip)
+def select(
+    env: QueryBuilder,
+    fpr: ForeignProperty,
+    flip_: Flip
+) -> Selected:
+    if flip_.required:
+        return env.call('select', fpr, fpr.right.prop, flip_)
+    # Skip `Property`, no need to resolve `external.prepare`, since `flip(...)` resolves it
+    return env.call('select', fpr, fpr.right.prop.dtype)
+
+
+@ufunc.resolver(QueryBuilder, DataType, Flip)
+def select(env: QueryBuilder, dtype: DataType, flip_: Flip):
+    return env.call('select', dtype, Expr('flip'))
+
+
+@ufunc.resolver(QueryBuilder, Denorm, Flip)
+def select(env: QueryBuilder, dtype: Denorm, flip_: Flip):
+    fpr = env.call('_denorm_to_foreign_property', dtype)
+    return env.call('select', fpr, flip_)
+
+
+@ufunc.resolver(QueryBuilder, ForeignProperty, DataType, Flip)
+def select(env: QueryBuilder, fpr: ForeignProperty, dtype: DataType, flip_: Flip):
+    return env.call('select', fpr, dtype, Expr('flip'))
 
 
 @ufunc.resolver(QueryBuilder, GetAttr)
 def sort(env, field):
-    dtype = env.call('_resolve_getattr', field)
+    dtype = env.resolve_property(field)
     return env.call('sort', dtype)
 
 
@@ -547,4 +431,102 @@ def flip(env: QueryBuilder, prop: Property):
 
 @ufunc.resolver(QueryBuilder, DataType)
 def flip(env: QueryBuilder, dtype: DataType):
-    return Expr('flip')
+    return Flip(dtype.prop)
+
+
+@ufunc.resolver(QueryBuilder, Expr)
+def flip(env: QueryBuilder, expr: Expr):
+    args, kwargs = expr.resolve(env)
+    return env.call('flip', *args, **kwargs)
+
+
+@ufunc.resolver(QueryBuilder, (GetAttr, Bind))
+def flip(env: QueryBuilder, bind: GetAttr | Bind):
+    prop = env.resolve_property(bind)
+    prop = env.call('_resolve_inherited_flip', prop)
+    flip_ = env.call('_resolve_flip', prop)
+    flip_.prop = prop
+    return flip_
+
+
+@ufunc.resolver(QueryBuilder, Flip)
+def flip(env: QueryBuilder, flip_: Flip):
+    return Flip(flip_.prop, flip_.count + 1)
+
+
+@ufunc.resolver(QueryBuilder, Property)
+def _resolve_flip(env: QueryBuilder, prop: Property):
+    resolved = prop
+    if prop.external and prop.external.prepare:
+        resolved = env(this=prop).resolve(prop.external.prepare)
+    resolved = env.call('_resolve_flip', prop.dtype, resolved)
+    return env.call('flip', resolved)
+
+
+@ufunc.resolver(QueryBuilder, Property)
+def _resolve_inherited_flip(env: QueryBuilder, prop: Property):
+    return env.call('_resolve_inherited_flip', prop.dtype)
+
+
+@ufunc.resolver(QueryBuilder, ForeignProperty)
+def _resolve_inherited_flip(env: QueryBuilder, prop: ForeignProperty):
+    return prop
+
+
+@ufunc.resolver(QueryBuilder, DataType)
+def _resolve_inherited_flip(env: QueryBuilder, dtype: DataType):
+    return dtype.prop
+
+
+@ufunc.resolver(QueryBuilder, Denorm)
+def _resolve_inherited_flip(env: QueryBuilder, dtype: Denorm):
+    return env.call('_denorm_to_foreign_property', dtype)
+
+
+@ufunc.resolver(QueryBuilder, DataType, object)
+def _resolve_flip(env: QueryBuilder, dtype: DataType, obj: object):
+    return obj
+
+
+@ufunc.resolver(QueryBuilder, Denorm, object)
+def _resolve_flip(env: QueryBuilder, dtype: Denorm, obj: object):
+    resolved = obj
+    prop = dtype.rel_prop
+    if prop.external and prop.external.prepare:
+        resolved = env(this=prop).resolve(prop.external.prepare)
+
+    return resolved
+
+
+@ufunc.resolver(QueryBuilder, Denorm, Flip)
+def _resolve_flip(env: QueryBuilder, dtype: Denorm, flip_: Flip):
+    resolved = flip_
+    prop = dtype.rel_prop
+    if prop.external and prop.external.prepare:
+        resolved = env(this=prop).resolve(prop.external.prepare)
+
+        if isinstance(resolved, Flip):
+            return Flip(dtype.prop, flip_.count + resolved.count)
+    return resolved
+
+
+@ufunc.resolver(QueryBuilder, ForeignProperty)
+def _resolve_flip(env: QueryBuilder, prop: ForeignProperty):
+    resolved = prop.right.prop
+    if resolved.external and resolved.external.prepare:
+        resolved = env(this=resolved).resolve(resolved.external.prepare)
+    result: Flip = env.call('flip', resolved)
+    result.prop = prop
+    return result
+
+
+@ufunc.resolver(QueryBuilder, Expr)
+def swap(env: QueryBuilder, expr: Expr):
+    args, kwargs = expr.resolve(env)
+    return Expr('swap', *args, **kwargs)
+
+
+@ufunc.resolver(QueryBuilder, Expr)
+def split(env: QueryBuilder, expr: Expr):
+    args, kwargs = expr.resolve(env)
+    return Expr('split', *args, **kwargs)

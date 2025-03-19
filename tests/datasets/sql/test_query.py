@@ -6,10 +6,11 @@ import sqlalchemy as sa
 from sqlalchemy.sql import Select
 from sqlalchemy.sql.type_api import TypeEngine
 
-from spinta import commands
+from spinta import commands, spyna
 from spinta.auth import AdminToken
 from spinta.components import Model, Mode, Context
 from spinta.core.config import RawConfig
+from spinta.core.ufuncs import asttoexpr
 from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.helpers import get_enum_filters
 from spinta.datasets.helpers import get_ref_filters
@@ -78,7 +79,14 @@ def _meta_from_manifest(context: Context, manifest: Manifest) -> sa.MetaData:
     return meta
 
 
-def _build(rc: RawConfig, manifest: str, model_name: str, page_mapping: dict = None) -> str:
+def _build(
+    rc: RawConfig,
+    manifest: str,
+    model_name: str,
+    *,
+    query: str = "",
+    page_mapping: dict = None,
+) -> str:
     context, manifest = load_manifest_and_context(rc, manifest, mode=Mode.external)
     context.set('auth.token', AdminToken())
     model = commands.get_model(context, manifest, model_name)
@@ -88,7 +96,8 @@ def _build(rc: RawConfig, manifest: str, model_name: str, page_mapping: dict = N
         backend = create_empty_backend(context, 'sql')
 
     backend.schema = meta
-    query = model.external.prepare
+    query = asttoexpr(spyna.parse(query))
+    query = merge_formulas(query, model.external.prepare)
     if page_mapping:
         page = commands.create_page(model.page)
         if page.enabled:
@@ -268,7 +277,7 @@ def test_paginate_none_values(db_dialect: str, rc: RawConfig):
       |   |   |   | id       | string       |         | ID         |         | open
       |   |   |   | code     | string       |         | CODE       |         | open
       |   |   |   | name     | string       |         | NAME       |         | open
-        ''', 'example/Planet', {
+        ''', 'example/Planet', page_mapping={
         'id': None
     }) == '''
     SELECT
@@ -291,7 +300,7 @@ def test_paginate_none_values(db_dialect: str, rc: RawConfig):
       |   |   |   | id       | string       |         | ID         |         | open
       |   |   |   | code     | string       |         | CODE       |         | open
       |   |   |   | name     | string       |         | NAME       |         | open
-        ''', 'example/Planet', {
+        ''', 'example/Planet', page_mapping={
         'id': None
     }) == '''
     SELECT
@@ -313,7 +322,7 @@ def test_paginate_given_values_page_and_ref_not_given(rc: RawConfig):
       |   |   |   | id       | string |         | ID         |         | open
       |   |   |   | code     | string |         | CODE       |         | open
       |   |   |   | name     | string |         | NAME       |         | open
-        ''', 'example/Planet', {
+        ''', 'example/Planet', page_mapping={
     }) == '''
     SELECT
       "PLANET"."CODE",
@@ -334,7 +343,7 @@ def test_paginate_given_values_page_not_given(db_dialect: str, rc: RawConfig):
       |   |   |   | id       | string       |         | ID         |         | open
       |   |   |   | code     | string       |         | CODE       |         | open
       |   |   |   | name     | string       |         | NAME       |         | open
-        ''', 'example/Planet', {
+        ''', 'example/Planet', page_mapping={
         'name': 'test'
     }) == '''
     SELECT
@@ -358,7 +367,7 @@ def test_paginate_given_values_page_not_given(db_dialect: str, rc: RawConfig):
       |   |   |   | id       | string       |         | ID         |         | open
       |   |   |   | code     | string       |         | CODE       |         | open
       |   |   |   | name     | string       |         | NAME       |         | open
-        ''', 'example/Planet', {
+        ''', 'example/Planet', page_mapping={
         'name': 'test'
     }) == '''
     SELECT
@@ -382,7 +391,7 @@ def test_paginate_given_values_size_given(db_dialect: str, rc: RawConfig):
       |   |   |   | id       | string       |         | ID         |                     | open
       |   |   |   | code     | string       |         | CODE       |                     | open
       |   |   |   | name     | string       |         | NAME       |                     | open
-        ''', 'example/Planet', {
+        ''', 'example/Planet', page_mapping={
         'name': 'test'
     }) == '''
     SELECT
@@ -406,7 +415,7 @@ def test_paginate_given_values_size_given(db_dialect: str, rc: RawConfig):
       |   |   |   | id       | string       |         | ID         |                     | open
       |   |   |   | code     | string       |         | CODE       |                     | open
       |   |   |   | name     | string       |         | NAME       |                     | open
-        ''', 'example/Planet', {
+        ''', 'example/Planet', page_mapping={
         'name': 'test'
     }) == '''
     SELECT
@@ -430,7 +439,7 @@ def test_paginate_given_values_private(db_dialect: str, rc: RawConfig):
       |   |   |   | id       | string       |         | ID         |                  | open
       |   |   |   | code     | string       |         | CODE       |                  | private
       |   |   |   | name     | string       |         | NAME       |                  | open
-        ''', 'example/Planet', {
+        ''', 'example/Planet', page_mapping={
         'name': 'test',
         'code': 5,
     }) == '''
@@ -456,7 +465,7 @@ def test_paginate_given_values_private(db_dialect: str, rc: RawConfig):
       |   |   |   | id       | string       |         | ID         |                  | open
       |   |   |   | code     | string       |         | CODE       |                  | private
       |   |   |   | name     | string       |         | NAME       |                  | open
-        ''', 'example/Planet', {
+        ''', 'example/Planet', page_mapping={
         'name': 'test',
         'code': 5,
     }) == '''
@@ -482,7 +491,7 @@ def test_paginate_given_values_two_keys(db_dialect: str, rc: RawConfig):
       |   |   |   | id       | string       |         | ID         |                  | open
       |   |   |   | code     | string       |         | CODE       |                  | open
       |   |   |   | name     | string       |         | NAME       |                  | open
-        ''', 'example/Planet', {
+        ''', 'example/Planet', page_mapping={
         'name': 'test',
         'code': 5,
     }) == '''
@@ -508,7 +517,7 @@ def test_paginate_given_values_two_keys(db_dialect: str, rc: RawConfig):
       |   |   |   | id       | string       |         | ID         |                  | open
       |   |   |   | code     | string       |         | CODE       |                  | open
       |   |   |   | name     | string       |         | NAME       |                  | open
-        ''', 'example/Planet', {
+        ''', 'example/Planet', page_mapping={
         'name': 'test',
         'code': 5,
     }) == '''
@@ -534,7 +543,7 @@ def test_paginate_given_values_two_keys_ref_not_given(db_dialect: str, rc: RawCo
       |   |   |   | id       | string       |         | ID         |                  | open
       |   |   |   | code     | string       |         | CODE       |                  | open
       |   |   |   | name     | string       |         | NAME       |                  | open
-        ''', 'example/Planet', {
+        ''', 'example/Planet', page_mapping={
         'name': 'test',
         'code': 5,
     }) == '''
@@ -560,7 +569,7 @@ def test_paginate_given_values_two_keys_ref_not_given(db_dialect: str, rc: RawCo
       |   |   |   | id       | string       |         | ID         |                  | open
       |   |   |   | code     | string       |         | CODE       |                  | open
       |   |   |   | name     | string       |         | NAME       |                  | open
-        ''', 'example/Planet', {
+        ''', 'example/Planet', page_mapping={
         'name': 'test',
         'code': 5,
     }) == '''
@@ -586,7 +595,7 @@ def test_paginate_desc(db_dialect: str, rc: RawConfig):
       |   |   |   | id       | string       |         | ID         |                  | open
       |   |   |   | code     | string       |         | CODE       |                  | open
       |   |   |   | name     | string       |         | NAME       |                  | open
-        ''', 'example/Planet', {
+        ''', 'example/Planet', page_mapping={
         'name': 'test',
         '-code': 5,
     }) == '''
@@ -612,7 +621,7 @@ def test_paginate_desc(db_dialect: str, rc: RawConfig):
       |   |   |   | id       | string       |         | ID         |                  | open
       |   |   |   | code     | string       |         | CODE       |                  | open
       |   |   |   | name     | string       |         | NAME       |                  | open
-        ''', 'example/Planet', {
+        ''', 'example/Planet', page_mapping={
         'name': 'test',
         '-code': 5,
     }) == '''
@@ -637,7 +646,7 @@ def test_paginate_disabled(rc: RawConfig):
       |   |   |   | id       | string |         | ID         |                  | open
       |   |   |   | code     | string |         | CODE       |                  | open
       |   |   |   | name     | string |         | NAME       |                  | open
-        ''', 'example/Planet', {
+        ''', 'example/Planet', page_mapping={
         'name': 'test'
     }) == '''
     SELECT
@@ -688,7 +697,7 @@ def test_flip_result_builder(db_dialect: str, rc: RawConfig):
       |   |   |   | id       | string       |         | ID         |                  | open
       |   |   |   | code     | string       |         | CODE       |                  | open
       |   |   |   | geo      | geometry     |         | GEO        | flip()           | open
-        ''', 'example/Planet', {
+        ''', 'example/Planet', page_mapping={
         'name': 'test',
         '-code': 5,
     }) == '''
@@ -710,7 +719,7 @@ def test_flip_postgresql(rc: RawConfig):
       |   |   |   | id       | string         |         | ID         |                  | open
       |   |   |   | code     | string         |         | CODE       |                  | open
       |   |   |   | geo      | geometry       |         | GEO        | flip()           | open
-        ''', 'example/Planet', {
+        ''', 'example/Planet', page_mapping={
         'name': 'test',
         '-code': 5,
     }) == '''
@@ -718,6 +727,109 @@ def test_flip_postgresql(rc: RawConfig):
       "PLANET"."CODE", ST_AsEWKB(ST_FlipCoordinates("PLANET"."GEO")) AS "ST_FlipCoordinates_1",
       "PLANET"."ID"
     FROM "PLANET"
+    '''
+
+
+def test_flip_postgresql_select(rc: RawConfig):
+    assert _build(rc, '''
+    d | r | b | m | property | type           | ref     | source     | prepare | access
+    example                  |                |         |            |         |
+      | data                 | sql/postgresql |         |            |         |
+      |   |                  |                |         |            |         |
+      |   |   | Planet       |                |         | PLANET     |         |
+      |   |   |   | id       | string         |         | ID         |         | open
+      |   |   |   | code     | string         |         | CODE       |         | open
+      |   |   |   | geo      | geometry       |         | GEO        |         | open
+        ''', 'example/Planet', query='select(flip(geo))') == '''
+    SELECT
+      ST_AsEWKB(ST_FlipCoordinates("PLANET"."GEO")) AS "ST_FlipCoordinates_1"
+    FROM "PLANET"
+    '''
+
+
+def test_flip_postgresql_combined(rc: RawConfig):
+    assert _build(rc, '''
+    d | r | b | m | property | type           | ref     | source     | prepare | access
+    example                  |                |         |            |         |
+      | data                 | sql/postgresql |         |            |         |
+      |   |                  |                |         |            |         |
+      |   |   | Planet       |                |         | PLANET     |         |
+      |   |   |   | id       | string         |         | ID         |         | open
+      |   |   |   | code     | string         |         | CODE       |         | open
+      |   |   |   | geo      | geometry       |         | GEO        | flip()  | open
+        ''', 'example/Planet', query='select(flip(geo))') == '''
+    SELECT
+      "PLANET"."GEO"
+    FROM "PLANET"
+    '''
+
+
+def test_flip_postgresql_geometry_denorm(rc: RawConfig):
+    assert _build(rc, '''
+    d | r | b | m | property    | type           | ref     | source     | prepare | access
+    example                     |                |         |            |         |
+      | data                    | sql/postgresql |         |            |         |
+      |   |                     |                |         |            |         |
+      |   |   | Geodata         |                | id      | GEODATA    |         |
+      |   |   |   | id          | string         |         | ID         |         | open
+      |   |   |   | geo         | geometry       |         | GEO        | flip()  | open
+      |   |   | Planet          |                |         | PLANET     |         |
+      |   |   |   | id          | string         |         | ID         |         | open
+      |   |   |   | code        | string         |         | CODE       |         | open
+      |   |   |   | geodata     | ref            | Geodata | GEO_ID     |         | open
+      |   |   |   | geodata.geo |                |         |            |         | open
+        ''', 'example/Planet') == '''
+    SELECT
+      "PLANET"."CODE", ST_AsEWKB(ST_FlipCoordinates("GEODATA_1"."GEO")) AS "ST_FlipCoordinates_1",
+      "PLANET"."GEO_ID",
+      "PLANET"."ID"
+    FROM "PLANET"
+    LEFT OUTER JOIN "GEODATA" AS "GEODATA_1" ON "PLANET"."GEO_ID" = "GEODATA_1"."ID"
+    '''
+
+
+def test_flip_postgresql_geometry_select_denorm_flip(rc: RawConfig):
+    assert _build(rc, '''
+    d | r | b | m | property    | type           | ref     | source     | prepare | access
+    example                     |                |         |            |         |
+      | data                    | sql/postgresql |         |            |         |
+      |   |                     |                |         |            |         |
+      |   |   | Geodata         |                | id      | GEODATA    |         |
+      |   |   |   | id          | string         |         | ID         |         | open
+      |   |   |   | geo         | geometry       |         | GEO        |         | open
+      |   |   | Planet          |                |         | PLANET     |         |
+      |   |   |   | id          | string         |         | ID         |         | open
+      |   |   |   | code        | string         |         | CODE       |         | open
+      |   |   |   | geodata     | ref            | Geodata | GEO_ID     |         | open
+      |   |   |   | geodata.geo |                |         |            |         | open
+        ''', 'example/Planet', query='select(flip(geodata.geo))') == '''
+    SELECT
+      ST_AsEWKB(ST_FlipCoordinates("GEODATA_1"."GEO")) AS "ST_FlipCoordinates_1"
+    FROM "PLANET"
+    LEFT OUTER JOIN "GEODATA" AS "GEODATA_1" ON "PLANET"."GEO_ID" = "GEODATA_1"."ID"
+    '''
+
+
+def test_flip_postgresql_geometry_combined_denorm_flip(rc: RawConfig):
+    assert _build(rc, '''
+    d | r | b | m | property    | type           | ref     | source     | prepare | access
+    example                     |                |         |            |         |
+      | data                    | sql/postgresql |         |            |         |
+      |   |                     |                |         |            |         |
+      |   |   | Geodata         |                | id      | GEODATA    |         |
+      |   |   |   | id          | string         |         | ID         |         | open
+      |   |   |   | geo         | geometry       |         | GEO        | flip()  | open
+      |   |   | Planet          |                |         | PLANET     |         |
+      |   |   |   | id          | string         |         | ID         |         | open
+      |   |   |   | code        | string         |         | CODE       |         | open
+      |   |   |   | geodata     | ref            | Geodata | GEO_ID     |         | open
+      |   |   |   | geodata.geo |                |         |            |         | open
+        ''', 'example/Planet', query='select(geodata.geo,flip(geodata.geo),flip(flip(geodata.geo)))') == '''
+    SELECT
+      ST_AsEWKB(ST_FlipCoordinates("GEODATA_1"."GEO")) AS "ST_FlipCoordinates_1",
+      "GEODATA_1"."GEO", ST_AsEWKB(ST_FlipCoordinates("GEODATA_1"."GEO")) AS "ST_FlipCoordinates_2"
+    FROM "PLANET"
+    LEFT OUTER JOIN "GEODATA" AS "GEODATA_1" ON "PLANET"."GEO_ID" = "GEODATA_1"."ID"
     '''
 
 
@@ -740,7 +852,7 @@ def test_array_intermediate_table_sqlite(rc: RawConfig):
       |   |   | CountryLanguage |            |                 | COUNTRYLANGUAGE |         |
       |   |   |   | country     | ref        | Country         | COUNTRY         |         | open
       |   |   |   | language    | ref        | Language        | LANGUAGE        |         | open
-        ''', 'example/Country', page_mapping={}) == '''
+        ''', 'example/Country') == '''
     SELECT
       "COUNTRY"."ID",
       "COUNTRY"."CODE", json_group_array("COUNTRYLANGUAGE_1"."LANGUAGE") AS json_group_array_1
@@ -769,7 +881,7 @@ def test_array_intermediate_table_postgresql(rc: RawConfig):
       |   |   | CountryLanguage |                |                 | COUNTRYLANGUAGE |         |
       |   |   |   | country     | ref            | Country         | COUNTRY         |         | open
       |   |   |   | language    | ref            | Language        | LANGUAGE        |         | open
-        ''', 'example/Country', page_mapping={}) == '''
+        ''', 'example/Country') == '''
     SELECT
       "COUNTRY"."ID",
       "COUNTRY"."CODE", jsonb_agg("COUNTRYLANGUAGE_1"."LANGUAGE") AS jsonb_agg_1
@@ -798,7 +910,7 @@ def test_array_intermediate_table_mysql(rc: RawConfig):
       |   |   | CountryLanguage |           |                 | COUNTRYLANGUAGE |         |
       |   |   |   | country     | ref       | Country         | COUNTRY         |         | open
       |   |   |   | language    | ref       | Language        | LANGUAGE        |         | open
-        ''', 'example/Country', page_mapping={}) == '''
+        ''', 'example/Country') == '''
     SELECT
       "COUNTRY"."ID",
       "COUNTRY"."CODE", json_arrayagg("COUNTRYLANGUAGE_1"."LANGUAGE") AS json_arrayagg_1
@@ -827,7 +939,7 @@ def test_array_intermediate_table_mariadb(rc: RawConfig):
       |   |   | CountryLanguage |             |                 | COUNTRYLANGUAGE |         |
       |   |   |   | country     | ref         | Country         | COUNTRY         |         | open
       |   |   |   | language    | ref         | Language        | LANGUAGE        |         | open
-        ''', 'example/Country', page_mapping={}) == '''
+        ''', 'example/Country') == '''
     SELECT
       "COUNTRY"."ID",
       "COUNTRY"."CODE", json_arrayagg("COUNTRYLANGUAGE_1"."LANGUAGE") AS json_arrayagg_1
@@ -856,7 +968,7 @@ def test_array_intermediate_table_mssql(rc: RawConfig):
       |   |   | CountryLanguage |           |                 | COUNTRYLANGUAGE |         |
       |   |   |   | country     | ref       | Country         | COUNTRY         |         | open
       |   |   |   | language    | ref       | Language        | LANGUAGE        |         | open
-        ''', 'example/Country', page_mapping={}) == '''
+        ''', 'example/Country') == '''
     SELECT
       "COUNTRY"."ID",
       "COUNTRY"."CODE", concat(:concat_2, "COUNTRYLANGUAGE_1"."LANGUAGE", :concat_3) AS concat_1
@@ -887,7 +999,7 @@ def test_array_intermediate_table_multi_column_sqlite(rc: RawConfig):
       |   |   |   | language_code | string     |                 | LANGUAGECODE    |                            | open   |    
       |   |   |   | country       | ref        | Country         | COUNTRY         |                            | open   |    
       |   |   |   | language      | ref        | Language        |                 | language_id, language_code | open   | 3   
-        ''', 'example/Country', page_mapping={}) == '''
+        ''', 'example/Country') == '''
     SELECT
       "COUNTRY"."ID",
       "COUNTRY"."CODE", json_group_array(json_array("COUNTRYLANGUAGE_1"."LANGUAGEID",
@@ -919,7 +1031,7 @@ def test_array_intermediate_table_multi_column_postgresql(rc: RawConfig):
       |   |   |   | language_code | string         |                 | LANGUAGECODE    |                            | open   |    
       |   |   |   | country       | ref            | Country         | COUNTRY         |                            | open   |    
       |   |   |   | language      | ref            | Language        |                 | language_id, language_code | open   | 3   
-        ''', 'example/Country', page_mapping={}) == '''
+        ''', 'example/Country') == '''
     SELECT
       "COUNTRY"."ID",
       "COUNTRY"."CODE", jsonb_agg(jsonb_build_array("COUNTRYLANGUAGE_1"."LANGUAGEID",
@@ -951,7 +1063,7 @@ def test_array_intermediate_table_multi_column_mysql(rc: RawConfig):
       |   |   |   | language_code | string    |                 | LANGUAGECODE    |                            | open   |    
       |   |   |   | country       | ref       | Country         | COUNTRY         |                            | open   |    
       |   |   |   | language      | ref       | Language        |                 | language_id, language_code | open   | 3   
-        ''', 'example/Country', page_mapping={}) == '''
+        ''', 'example/Country') == '''
     SELECT
       "COUNTRY"."ID",
       "COUNTRY"."CODE", json_arrayagg(json_array("COUNTRYLANGUAGE_1"."LANGUAGEID",
@@ -983,7 +1095,7 @@ def test_array_intermediate_table_multi_column_mariadb(rc: RawConfig):
       |   |   |   | language_code | string      |                 | LANGUAGECODE    |                            | open   |    
       |   |   |   | country       | ref         | Country         | COUNTRY         |                            | open   |    
       |   |   |   | language      | ref         | Language        |                 | language_id, language_code | open   | 3   
-        ''', 'example/Country', page_mapping={}) == '''
+        ''', 'example/Country') == '''
     SELECT
       "COUNTRY"."ID",
       "COUNTRY"."CODE", json_arrayagg(json_array("COUNTRYLANGUAGE_1"."LANGUAGEID",
@@ -1015,7 +1127,7 @@ def test_array_intermediate_table_multi_column_mssql(rc: RawConfig):
       |   |   |   | language_code | string    |                 | LANGUAGECODE    |                            | open   |    
       |   |   |   | country       | ref       | Country         | COUNTRY         |                            | open   |    
       |   |   |   | language      | ref       | Language        |                 | language_id, language_code | open   | 3   
-        ''', 'example/Country', page_mapping={}) == '''
+        ''', 'example/Country') == '''
     SELECT
       "COUNTRY"."ID",
       "COUNTRY"."CODE", concat(:concat_2, json_array("COUNTRYLANGUAGE_1"."LANGUAGEID",
