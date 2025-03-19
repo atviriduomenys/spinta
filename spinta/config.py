@@ -55,6 +55,7 @@ CONFIG = {
             'internal': 'spinta.manifests.internal_sql.components:InternalSQLManifest',
             'xsd': 'spinta.manifests.xsd.components:XsdManifest',
             'xsd2': 'spinta.manifests.xsd2.components:XsdManifest2',
+            'openapi': 'spinta.manifests.open_api.components:OpenAPIManifest'
         },
         'backends': {
             # In memory backends mostly usable in tests
