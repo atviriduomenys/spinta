@@ -1,26 +1,22 @@
 import base64
 import datetime
-
 from decimal import Decimal
 from typing import Any, Union, Tuple
 from typing import Dict
 from typing import List
 from typing import Optional
 
+from geoalchemy2.elements import WKBElement
 from lxml import etree
 from lxml.etree import Element, QName
+from shapely.geometry.base import BaseGeometry
 from starlette.requests import Request
 from starlette.responses import StreamingResponse
-
-from shapely.geometry.base import BaseGeometry
-
-from geoalchemy2.elements import WKBElement
 
 from spinta import commands
 from spinta.backends.components import SelectTree
 from spinta.backends.helpers import get_model_reserved_props
 from spinta.backends.helpers import select_model_props
-from spinta.backends.helpers import get_select_prop_names, select_props
 from spinta.components import Action, Namespace, page_in_data
 from spinta.components import Context
 from spinta.components import Model
@@ -30,14 +26,14 @@ from spinta.exceptions import DuplicateRdfPrefixMissmatch
 from spinta.formats.components import Format
 from spinta.formats.html.helpers import get_model_link
 from spinta.formats.rdf.components import Rdf
-from spinta.types.datatype import DataType, PageType
-from spinta.types.datatype import File
-from spinta.types.datatype import Ref
+from spinta.types.datatype import DataType, PageType, Denorm
 from spinta.types.datatype import Date
-from spinta.types.datatype import Time
 from spinta.types.datatype import DateTime
-from spinta.types.datatype import Number
 from spinta.types.datatype import ExternalRef, Array, BackRef, ArrayBackRef, Inherit, JSON, UUID, Object, Binary
+from spinta.types.datatype import File
+from spinta.types.datatype import Number
+from spinta.types.datatype import Ref
+from spinta.types.datatype import Time
 from spinta.types.geometry.components import Geometry
 from spinta.types.text.components import Text
 from spinta.utils.encoding import encode_page_values
@@ -1021,4 +1017,26 @@ def prepare_dtype_for_response(
     return _create_element(
         name=data['_elem_name'],
         text=str(value)
+    )
+
+
+@commands.prepare_dtype_for_response.register(Context, Rdf, Denorm, (object, type(None), NotAvailable))
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Rdf,
+    dtype: Denorm,
+    value: Any,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    return commands.prepare_dtype_for_response(
+        context,
+        fmt,
+        dtype.rel_prop,
+        value,
+        data=data,
+        action=action,
+        select=select
     )

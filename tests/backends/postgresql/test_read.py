@@ -1173,6 +1173,110 @@ def test_geometry_manifest_flip(
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
+def test_geometry_select_flip(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property      | type                 | ref | prepare | access | level
+    datasets/geometry/flip/normal |                      |     |         |        |
+      |   |   | Country           |                      | id  |         |        |
+      |   |   |   | id            | integer              |     |         | open   |
+      |   |   |   | name          | string               |     |         | open   |
+      |   |   |   | poly          | geometry(polygon)    |     |         | open   |
+      |   |   |   | geo_lt        | geometry(3346)       |     |         | open   |
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+
+    app = create_test_client(context)
+    app.authorize(['spinta_insert', 'spinta_getall', 'spinta_wipe', 'spinta_search', 'spinta_set_meta_fields'])
+    lt_id = str(uuid.uuid4())
+
+    resp = app.post('/datasets/geometry/flip/normal/Country', json={
+        '_id': lt_id,
+        'id': 0,
+        'name': 'Lithuania',
+        'poly': 'POLYGON ((80 50, 50 50, 50 80, 80 80, 80 50))',
+        'geo_lt': 'POINT (5980000 200000)'
+    })
+    assert resp.status_code == 201
+
+    resp = app.get('/datasets/geometry/flip/normal/Country?select(id, name, flip(poly), flip(geo_lt), flip(flip(poly)), flip(flip(flip(poly))))')
+    assert resp.status_code == 200
+    assert listdata(resp, full=True) == [
+        {
+            'id': 0,
+            'name': 'Lithuania',
+            'flip(poly)': 'POLYGON ((50 80, 50 50, 80 50, 80 80, 50 80))',
+            'flip(flip(poly))': 'POLYGON ((80 50, 50 50, 50 80, 80 80, 80 50))',
+            'flip(flip(flip(poly)))': 'POLYGON ((50 80, 50 50, 80 50, 80 80, 50 80))',
+            'flip(geo_lt)': 'POINT (200000 5980000)',
+        },
+    ]
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_geometry_combined_flip(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property      | type                 | ref | prepare | access | level
+    datasets/geometry/flip        |                      |     |         |        |
+      |   |   | Country           |                      | id  |         |        |
+      |   |   |   | id            | integer              |     |         | open   |
+      |   |   |   | name          | string               |     |         | open   |
+      |   |   |   | poly          | geometry(polygon)    |     | flip()  | open   |
+      |   |   |   | geo_lt        | geometry(3346)       |     | flip()  | open   |
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+
+    app = create_test_client(context)
+    app.authorize(['spinta_insert', 'spinta_getall', 'spinta_wipe', 'spinta_search', 'spinta_set_meta_fields'])
+    lt_id = str(uuid.uuid4())
+
+    resp = app.post('/datasets/geometry/flip/Country', json={
+        '_id': lt_id,
+        'id': 0,
+        'name': 'Lithuania',
+        'poly': 'POLYGON ((80 50, 50 50, 50 80, 80 80, 80 50))',
+        'geo_lt': 'POINT (5980000 200000)'
+    })
+    assert resp.status_code == 201
+
+    resp = app.get('/datasets/geometry/flip/Country?select(poly, flip(poly), flip(flip(poly)), geo_lt, flip(geo_lt), flip(flip(geo_lt)))')
+    assert resp.status_code == 200
+    assert listdata(resp, full=True) == [
+        {
+            'poly': 'POLYGON ((50 80, 50 50, 80 50, 80 80, 50 80))',
+            'flip(poly)': 'POLYGON ((80 50, 50 50, 50 80, 80 80, 80 50))',
+            'flip(flip(poly))': 'POLYGON ((50 80, 50 50, 80 50, 80 80, 50 80))',
+            'geo_lt': 'POINT (200000 5980000)',
+            'flip(geo_lt)': 'POINT (5980000 200000)',
+            'flip(flip(geo_lt))': 'POINT (200000 5980000)',
+        },
+    ]
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
 def test_geometry_manifest_flip_invalid_bbox(
     manifest_type: str,
     tmp_path: Path,
