@@ -18,6 +18,10 @@ New Features:
 
 - Added `split('...')` function support to `sql` backend (`#760`_).
 
+- Added `flip('...')` function support in `select` query to `postgresql` and `sql` backends (`#1052`_).
+
+  .. _#1052: https://github.com/atviriduomenys/spinta/issues/1052
+
 Improvements:
 
 - Added `Array` push support for `sql` backend (`#760`_).
@@ -28,6 +32,17 @@ Improvements:
   will still be supported (`#1186`_).
 
   .. _#1186: https://github.com/atviriduomenys/spinta/issues/1186
+
+- `cast_backend_to_python` now allows extra properties to be passed (custom `select` functions that create new temporary
+  properties can now be properly cast to python types) (`#1052`_).
+
+Bug fixes:
+
+- Fixed `sql` backend not using overwritten `ref` mapping values when joining tables (`#1052`_).
+
+- `cast_backend_to_python` did not propagate casting to `Ref` children (`#1052`_).
+
+- `cast_backend_to_python` did not cast `Denorm` values with required type (`#1052`_).
 
 0.1.84 (2025-02-19)
 ===================
