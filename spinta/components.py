@@ -744,12 +744,13 @@ class Model(MetaData):
 
 
 class PropertyGiven:
-    access: str = None
-    enum: str = None
-    unit: str = None
-    name: str = None
+    access: str | None = None
+    enum: str | None = None
+    unit: str | None = None
+    name: str | None = None
     explicit: bool = True
-    prepare: List[PrepareGiven] = []
+    type: str | None = None
+    prepare: list[PrepareGiven] = []
 
 
 class PrepareGiven(TypedDict):

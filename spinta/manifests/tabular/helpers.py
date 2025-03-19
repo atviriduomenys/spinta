@@ -46,8 +46,7 @@ from spinta.dimensions.enum.components import Enums
 from spinta.dimensions.lang.components import LangData
 from spinta.dimensions.prefix.components import UriPrefix
 from spinta.exceptions import MultipleErrors, InvalidBackRefReferenceAmount, DataTypeCannotBeUsedForNesting, \
-    NestedDataTypeMismatch
-from spinta.exceptions import PropertyNotFound
+    NestedDataTypeMismatch, NoModelDefined, PropertyNotFound
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
 from spinta.manifests.tabular.components import ACCESS, URI
@@ -557,7 +556,10 @@ def _parse_dtype_string(dtype: str) -> dict:
     }
 
 
-def _get_type_repr(dtype: List[DataType, str]):
+def _get_type_repr(dtype: DataType | str | None) -> str:
+    if dtype is None:
+        return DataTypeEnum.INHERIT.value
+
     if isinstance(dtype, DataType):
         args = ''
         required = ' required' if dtype.required else ''
@@ -595,6 +597,14 @@ def _get_type_repr(dtype: List[DataType, str]):
                 required.strip(' '), unique.strip(' ')]]:
                 raise TabularManifestError
         return f'{dtype}{args}{required}{unique}'
+
+
+def _resolve_dtype(reader: TabularReader, row: dict) -> dict:
+    dtype = _get_type_repr(row['type'])
+    dtype = _parse_dtype_string(dtype)
+    if dtype.get('error'):
+        reader.error(dtype['error'])
+    return dtype
 
 
 def combine_source_prepare(source, prepare):
@@ -726,6 +736,7 @@ def _initial_text_property_schema(given_name: str, dtype: dict, row: dict):
 
 
 def _datatype_handler(reader: PropertyReader, row: dict, initial_data_loader: Callable[[str, dict, dict], dict]):
+    dtype: dict = _resolve_dtype(reader, row)
     given_name = row['property']
     reader.name = _clean_up_prop_name(row['property'].split('.')[-1])
 
@@ -736,12 +747,6 @@ def _datatype_handler(reader: PropertyReader, row: dict, initial_data_loader: Ca
             f"Now it is defined in {context.name!r} {context.type} context."
         )
     _check_if_property_already_set(reader, row, given_name)
-    dtype = _get_type_repr(row['type'])
-    dtype = _parse_dtype_string(dtype)
-    if dtype['error']:
-        reader.error(
-            dtype['error']
-        )
 
     if reader.state.base and not dtype['type']:
         dtype['type'] = 'inherit'
@@ -792,6 +797,7 @@ def _datatype_handler(reader: PropertyReader, row: dict, initial_data_loader: Ca
 
 
 def _string_datatype_handler(reader: PropertyReader, row: dict):
+    dtype: dict = _resolve_dtype(reader, row)
     given_name = row['property']
     reader.name = _clean_up_prop_name(row['property'].split('.')[-1])
 
@@ -802,17 +808,10 @@ def _string_datatype_handler(reader: PropertyReader, row: dict):
             f"Now it is defined in {context.name!r} {context.type} context."
         )
     existing_data = _check_if_property_already_set(reader, row, given_name)
-    if row['type'] == DataTypeEnum.TEXT.value and existing_data:
+    if dtype['type'] == DataTypeEnum.TEXT.value and existing_data:
         reader.error(
             f"Property {reader.name!r} with the same name is already "
             f"defined for this {reader.state.model.name!r} model."
-        )
-
-    dtype = _get_type_repr(row['type'])
-    dtype = _parse_dtype_string(dtype)
-    if dtype['error']:
-        reader.error(
-            dtype['error']
         )
 
     new_data = _initial_normal_property_schema(given_name, dtype, row)
@@ -837,6 +836,7 @@ def _string_datatype_handler(reader: PropertyReader, row: dict):
 
 
 def _text_datatype_handler(reader: PropertyReader, row: dict):
+    dtype: dict = _resolve_dtype(reader, row)
     given_name = row['property']
     reader.name = _clean_up_prop_name(row['property'].split('.')[-1])
 
@@ -851,12 +851,6 @@ def _text_datatype_handler(reader: PropertyReader, row: dict):
         reader.error(
             f"Property {reader.name!r} with the same name is already "
             f"defined for this {reader.state.model.name!r} model."
-        )
-    dtype = _get_type_repr(row['type'])
-    dtype = _parse_dtype_string(dtype)
-    if dtype['error']:
-        reader.error(
-            dtype['error']
         )
 
     new_data = _initial_text_property_schema(given_name, dtype, row)
@@ -914,10 +908,8 @@ def _partial_datatype_handler(reader: PropertyReader, row: dict):
 
 
 def _handle_datatype(reader: PropertyReader, row: dict):
-    if row['type'] in DATATYPE_HANDLERS:
-        handler = DATATYPE_HANDLERS[row['type']]
-    else:
-        handler = DATATYPE_HANDLERS['_default']
+    dtype: dict = _resolve_dtype(reader, row)
+    handler = DATATYPE_HANDLERS.get(dtype['type'], DATATYPE_HANDLERS['_default'])
     return handler(reader, row)
 
 
@@ -936,6 +928,8 @@ DATATYPE_HANDLERS = {
 
 
 def _get_root_prop(reader: PropertyReader, name: str):
+    if reader.state.model is None:
+        raise NoModelDefined(property=name)
     if name in reader.state.model.data['properties']:
         return reader.state.model.data['properties'][name]
     return None
