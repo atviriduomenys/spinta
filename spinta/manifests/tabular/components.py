@@ -100,11 +100,13 @@ ManifestColumn = Literal[
     'source.type',
     'prepare',
     'level',
+    'status',
     'access',
+    #     todo sutvarkyti eiliškumą
     'uri',
     'title',
     'description',
-    'status',
+
     'visibility',
     'eli',
     'count',

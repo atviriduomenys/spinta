@@ -40,6 +40,7 @@ def upgrade(
     )),
 
 ):
+    # todo kaip show komandoj paimt manifestus
     context = configure_context(ctx.obj)
     try:
         load_config(

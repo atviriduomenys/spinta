@@ -14,6 +14,9 @@ def migrate_columns(context: Context, destructive: bool, **kwargs: Any):
     files_path_str = kwargs.get('files_path')
     files_path = pathlib.Path(files_path_str)
     print(files_path_str)
+    # rašymas ir skaitymas manifests tabular/helpers - write_tabular_manifest
+    # sukurti backupus
+    # tabular
     with tempfile.TemporaryDirectory(dir="/tmp") as tmp_dir:
         if files_path.is_file():
             temp_file_str = os.path.join(tmp_dir, os.path.basename(files_path_str))
