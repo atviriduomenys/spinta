@@ -99,18 +99,16 @@ ManifestColumn = Literal[
     'source',
     'source.type',
     'prepare',
+    'origin',
+    'count',
     'level',
     'status',
+    'visibility',
     'access',
-    #     todo sutvarkyti eiliškumą
     'uri',
+    'eli',
     'title',
     'description',
-
-    'visibility',
-    'eli',
-    'count',
-    'origin',
 ]
 MANIFEST_COLUMNS: List[ManifestColumn] = [
     ID,
@@ -124,16 +122,16 @@ MANIFEST_COLUMNS: List[ManifestColumn] = [
     SOURCE,
     SOURCE_TYPE,
     PREPARE,
+    ORIGIN,
+    COUNT,
     LEVEL,
-    ACCESS,
-    URI,
-    TITLE,
-    DESCRIPTION,
     STATUS,
     VISIBILITY,
+    ACCESS,
+    URI,
     ELI,
-    COUNT,
-    ORIGIN
+    TITLE,
+    DESCRIPTION,
 ]
 
 ManifestRow = Dict[ManifestColumn, str]
