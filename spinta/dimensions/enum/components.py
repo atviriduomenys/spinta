@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Dict
 
 from spinta.components import Model, ExtraMetaData
-from spinta.core.enums import Access
+from spinta.core.enums import Access, Status, Visibility
 from spinta.core.ufuncs import Env
 from spinta.core.ufuncs import Expr
 from spinta.dimensions.lang.components import LangData
@@ -27,6 +27,10 @@ class EnumItem(ExtraMetaData):
     given: EnumValueGiven
     lang: LangData
     level: str
+    status: Status | None = None
+    visibility: Visibility | None = None
+    eli: str | None = None
+    count: int | None = None
 
     schema = {
         'name': {'type': 'string'},
@@ -42,6 +46,18 @@ class EnumItem(ExtraMetaData):
         'description': {'type': 'string'},
         'lang': {'type': 'object'},
         'level': {'type': 'string'},
+        'status': {
+            'type': 'string',
+            'choices': Status,
+            'default': 'develop',
+        },
+        'visibility': {
+            'type': 'string',
+            'choices': Visibility,
+            'default': 'private'
+        },
+        'eli': {'type': 'string'},
+        'count': {'type': 'integer'},
     }
 
     def __init__(self):

@@ -241,7 +241,7 @@ def test_inspect_resource_file(
     app.authorize(["spinta_inspect"])
     with open(tmp_path / 'manifest.json', "rb") as f:
         form_data = {
-            "resource.type": "dask/json",
+            "resource.type": "json",
             "dataset": "datasets/gov/aaa/atlieku_tvarkymas"
         }
         files = {
@@ -253,21 +253,21 @@ def test_inspect_resource_file(
             files=files)
     assert resp.status_code == 200
     assert "text/csv" in resp.headers["Content-Type"]
-    assert ('id,dataset,resource,base,model,property,type,ref,source,prepare,level,access,uri,title,description\r\n'
-            ',datasets/gov/aaa/atlieku_tvarkymas,,,,,,,,,,,,,\r\n'
-            ',,resource,,,,dask/json,,https://get.data.gov.lt/datasets/gov/aaa/atlieku_tvarkymas,,,,,,\r\n'
-            ',,,,,,,,,,,,,,\r\n'
-            ',,,,Model1,,,,.,,,,,,\r\n'
-            ',,,,,name,string required unique,,name,,,,,,\r\n'
-            ',,,,,code,string required unique,,code,,,,,,\r\n'
-            ',,,,,location_latitude,number unique,,location.latitude,,,,,,\r\n'
-            ',,,,,location_longitude,number unique,,location.longitude,,,,,,\r\n'
-            ',,,,,,,,,,,,,,\r\n'
-            ',,,,Cities,,,,cities,,,,,,\r\n'
-            ',,,,,name,string required unique,,name,,,,,,\r\n'
-            ',,,,,weather_temperature,number unique,,weather.temperature,,,,,,\r\n'
-            ',,,,,weather_wind_speed,number unique,,weather.wind_speed,,,,,,\r\n'
-            ',,,,,parent,ref,Model1,..,,,,,,\r\n') in resp.text
+    assert ('id,dataset,resource,base,model,property,type,ref,source,source.type,prepare,origin,count,level,status,visibility,access,uri,eli,title,description\r\n'
+            ',datasets/gov/aaa/atlieku_tvarkymas,,,,,,,,,,,,,,,,,,,\r\n'
+            ',,resource,,,,dask/json,,https://get.data.gov.lt/datasets/gov/aaa/atlieku_tvarkymas,,,,,,,,,,,,\r\n'
+            ',,,,,,,,,,,,,,,,,,,,\r\n'
+             ',,,,Model1,,,,.,,,,,,develop,private,,,,,\r\n'
+            ',,,,,name,string required unique,,name,,,,,,develop,private,,,,,\r\n'
+            ',,,,,code,string required unique,,code,,,,,,develop,private,,,,,\r\n'
+            ',,,,,location_latitude,number unique,,location.latitude,,,,,,develop,private,,,,,\r\n'
+            ',,,,,location_longitude,number unique,,location.longitude,,,,,,develop,private,,,,,\r\n'
+            ',,,,,,,,,,,,,,,,,,,,\r\n'
+            ',,,,Cities,,,,cities,,,,,,develop,private,,,,,\r\n'
+            ',,,,,name,string required unique,,name,,,,,,develop,private,,,,,\r\n'
+            ',,,,,weather_temperature,number unique,,weather.temperature,,,,,,develop,private,,,,,\r\n'
+            ',,,,,weather_wind_speed,number unique,,weather.wind_speed,,,,,,develop,private,,,,,\r\n'
+            ',,,,,parent,ref,Model1,..,,,,,,develop,private,,,,,\r\n') in resp.text
 
 
 def test_inspect_resource_file_format_xlsx(
@@ -316,7 +316,7 @@ def test_inspect_resource_file_format_xlsx(
     app.authorize(["spinta_inspect"])
     with open(tmp_path / 'manifest.json', "rb") as f:
         form_data = {
-            "resource.type": "dask/json",
+            "resource.type": "json",
             "dataset": "new/dataset"
         }
         files = {

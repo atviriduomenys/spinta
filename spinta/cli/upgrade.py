@@ -31,7 +31,16 @@ def upgrade(
         Available scripts: {get_all_upgrade_script_names()}
         """
     )),
+    files_path: str = Option(None, '-p', '--files_path', help=(
+        """
+        Optional: Specify a directory or file path as data input for the upgrade script.
+        Example usage:
+        - `spinta upgrade --run new_columns --path path_to_dir`
+        """
+    )),
+
 ):
+    # todo kaip show komandoj paimt manifestus
     context = configure_context(ctx.obj)
     try:
         load_config(
@@ -53,7 +62,8 @@ def upgrade(
             context=context,
             destructive=destructive,
             force=force,
-            script_name=run
+            script_name=run,
+            files_path=files_path
         )
         return
 
