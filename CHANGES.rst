@@ -1,6 +1,14 @@
 Changes
 #######
 
+0.2dev2 (unreleased)
+====================
+
+Backwards incompatible:
+- added `status`, `visibility`, `eli`, `origin`, `count` and `source.type` columns. (`#1032`_)
+
+  .. _#1032: https://github.com/atviriduomenys/spinta/issues/1032
+
 0.2dev1
 =======
 

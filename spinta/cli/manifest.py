@@ -180,7 +180,6 @@ def _read_and_return_rows(
         verbose=verbose,
         full_load=True
     )
-
     if format_names:
         reformat_names(context, store.manifest)
 

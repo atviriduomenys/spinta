@@ -23,7 +23,7 @@ from spinta.dimensions.lang.components import LangData
 from spinta.units.components import Unit
 from spinta.utils.encoding import encode_page_values
 from spinta.utils.schema import NA
-from spinta.core.enums import Access, Level
+from spinta.core.enums import Access, Level, Status, Visibility
 
 if TYPE_CHECKING:
     from spinta.backends.components import Backend
@@ -676,6 +676,11 @@ class Model(MetaData):
     uri_prop: Property = None
     page: PageInfo = None
     features: str = None
+    status: Status | None = None
+    visibility: Visibility | None = None
+    eli: str | None = None
+    count: int | None = None
+    origin: str | None = None
 
     required_keymap_properties = None
 
@@ -704,6 +709,19 @@ class Model(MetaData):
         'uri': {'type': 'string'},
         'given_name': {'type': 'string', 'default': None},
         'features': {},
+        'status': {
+            'type': 'string',
+            'choices': Status,
+            'default': 'develop'
+        },
+        'visibility': {
+            'type': 'string',
+            'choices': Visibility,
+            'default': 'private',
+        },
+        'eli': {'type': 'string'},
+        'count': {'type': 'integer'},
+        'origin': {'type': 'string'},
     }
 
     def __init__(self):
@@ -778,6 +796,11 @@ class Property(ExtraMetaData):
     lang: LangData = None
     unit: Unit = None       # Given in ref column.
     comments: List[Comment] = None
+    status: Status | None = None
+    visibility: Visibility | None = None
+    eli: str | None = None
+    count: int | None = None
+    origin: str | None = None
 
     schema = {
         'title': {},
@@ -805,6 +828,19 @@ class Property(ExtraMetaData):
         'given_name': {'type': 'string', 'default': None},
         'explicitly_given': {'type': 'boolean'},
         'prepare_given': {'required': False},
+        'status': {
+            'type': 'string',
+            'choices': Status,
+            'default': 'develop',
+        },
+        'visibility': {
+            'type': 'string',
+            'choices': Visibility,
+            'default': 'private',
+        },
+        'eli': {'type': 'string'},
+        'count': {'type': 'integer'},
+        'origin': {'type': 'string'},
     }
 
     def __init__(self):

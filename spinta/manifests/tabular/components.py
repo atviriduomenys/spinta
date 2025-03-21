@@ -74,12 +74,19 @@ PROPERTY: Final = 'property'
 TYPE: Final = 'type'
 REF: Final = 'ref'
 SOURCE: Final = 'source'
+SOURCE_TYPE: Final = 'source.type'
 PREPARE: Final = 'prepare'
 LEVEL: Final = 'level'
 ACCESS: Final = 'access'
 URI: Final = 'uri'
 TITLE: Final = 'title'
 DESCRIPTION: Final = 'description'
+STATUS: Final = 'status'
+VISIBILITY: Final = 'visibility'
+ELI: Final = 'eli'
+COUNT: Final = 'count'
+ORIGIN: Final = 'origin'
+
 ManifestColumn = Literal[
     'id',
     'dataset',
@@ -90,10 +97,16 @@ ManifestColumn = Literal[
     'type',
     'ref',
     'source',
+    'source.type',
     'prepare',
+    'origin',
+    'count',
     'level',
+    'status',
+    'visibility',
     'access',
     'uri',
+    'eli',
     'title',
     'description',
 ]
@@ -107,10 +120,16 @@ MANIFEST_COLUMNS: List[ManifestColumn] = [
     TYPE,
     REF,
     SOURCE,
+    SOURCE_TYPE,
     PREPARE,
+    ORIGIN,
+    COUNT,
     LEVEL,
+    STATUS,
+    VISIBILITY,
     ACCESS,
     URI,
+    ELI,
     TITLE,
     DESCRIPTION,
 ]
@@ -143,6 +162,8 @@ class ResourceRow(ManifestRow):
     external: str
     lang: LangData
     given_name: str
+    count: int
+    source_type: str
 
 
 class BackendRow(TypedDict, total=False):
@@ -191,6 +212,11 @@ class ModelRow(TypedDict, total=False):
     lang: LangData
     data: ModelExtraData
     given_name: str
+    status: str
+    visibility: str
+    eli: str
+    count: int
+    origin: str
 
 
 class ModelExternalRow(TypedDict, total=False):
@@ -199,6 +225,7 @@ class ModelExternalRow(TypedDict, total=False):
     pk: List[str]
     name: str
     prepare: Dict[str, Any]
+    type: str
 
 
 class EnumRow(TypedDict, total=False):
@@ -211,6 +238,10 @@ class EnumRow(TypedDict, total=False):
     description: str
     lang: LangData
     level: str
+    status: str
+    visibility: str
+    eli: str
+    count: int
 
 
 class PropertyRow(TypedDict, total=False):
@@ -235,11 +266,17 @@ class PropertyRow(TypedDict, total=False):
     given_name: str
     prepare_given: List[PrepareGiven]
     explicitly_given: bool
+    status: str
+    visibility: str
+    eli: str
+    count: int
+    origin: str
 
 
 class PropertyExternalRow(TypedDict, total=False):
     name: str
     prepare: Optional[Dict[str, Any]]
+    type: str
 
 
 class PrefixRow(TypedDict, total=False):
