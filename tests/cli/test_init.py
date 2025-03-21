@@ -4,9 +4,9 @@ from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.manifest import load_manifest, load_manifest_and_context
 
 
-def test_show(rc, cli: SpintaCliRunner, tmp_path):
+def test_init(rc, cli: SpintaCliRunner, tmp_path):
     cli.invoke(rc, ['init', tmp_path / 'manifest.csv'])
     context, manifest = load_manifest_and_context(rc, tmp_path / 'manifest.csv')
     assert render_tabular_manifest(context, manifest) == striptable('''
-    id | d | r | b | m | property | type | ref | source | source.type | prepare | level | access | uri | title | description | status | visibility | eli | count | origin
+       id | d | r | b | m | property | type | ref | source | source.type | prepare | origin | count | level | status | visibility | access | uri | eli | title | description
     ''')
