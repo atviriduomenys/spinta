@@ -20,8 +20,8 @@ from spinta.components import UrlParams, Version
 from spinta.core.ufuncs import Bind, Expr, asttoexpr
 from spinta.exceptions import ModelNotFound, InvalidPageParameterCount, InvalidPageKey
 from spinta.manifests.components import Manifest
-from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder
-from spinta.ufuncs.basequerybuilder.ufuncs import Star
+from spinta.ufuncs.querybuilder.components import QueryBuilder
+from spinta.ufuncs.querybuilder.ufuncs import Star
 from spinta.ufuncs.requestparamsbuilder.components import RequestParamsBuilder
 from spinta.utils import url as urlutil
 from spinta.utils.config import asbool
@@ -449,7 +449,7 @@ def parse_accept_lang_header(lang_string):
 
 
 def get_required_lang(context: Context, params: UrlParams):
-    env = BaseQueryBuilder(context)
+    env = QueryBuilder(context)
     langs = []
     if params.lang:
         stared = False

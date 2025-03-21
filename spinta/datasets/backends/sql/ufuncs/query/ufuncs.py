@@ -18,11 +18,9 @@ from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import Negative
 from spinta.core.ufuncs import Unresolved
 from spinta.core.ufuncs import ufunc
-from spinta.datasets.backends.sql.helpers import dialect_specific_desc, dialect_specific_asc, \
-    contains_geometry_flip_function, dialect_specific_geometry_flip, dialect_specific_group_array
 from spinta.datasets.backends.sql.ufuncs.query.components import SqlQueryBuilder
 from spinta.dimensions.enum.helpers import prepare_enum_value
-from spinta.exceptions import PropertyNotFound, SourceCannotBeList, NoExternalName
+from spinta.exceptions import PropertyNotFound, SourceCannotBeList, NoExternalName, NotImplementedFeature
 from spinta.types.datatype import DataType, Denorm, Object, Array
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
@@ -31,9 +29,9 @@ from spinta.types.datatype import UUID
 from spinta.types.geometry.components import Geometry
 from spinta.types.text.components import Text
 from spinta.types.text.helpers import determine_language_property_for_text
-from spinta.ufuncs.basequerybuilder.components import LiteralProperty, Selected, Flip
-from spinta.ufuncs.basequerybuilder.helpers import get_language_column, process_literal_value
-from spinta.ufuncs.basequerybuilder.ufuncs import Star
+from spinta.ufuncs.querybuilder.components import LiteralProperty, Selected
+from spinta.ufuncs.querybuilder.helpers import get_language_column, process_literal_value
+from spinta.ufuncs.querybuilder.ufuncs import Star
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.data import take
 from spinta.utils.itertools import flatten
@@ -104,7 +102,7 @@ def _prepare_value(prop: Property, value: T) -> Union[T, List[T]]:
 
 @ufunc.resolver(SqlQueryBuilder, Bind, object, names=COMPARE)
 def compare(env: SqlQueryBuilder, op: str, field: Bind, value: Any):
-    prop = env.model.properties[field.name]
+    prop = env.resolve_property(field)
     value = _prepare_value(prop, value)
     return env.call(op, prop.dtype, value)
 
@@ -117,7 +115,7 @@ def compare(env: SqlQueryBuilder, op: str, attr: GetAttr, value: Any):
 
 @ufunc.resolver(SqlQueryBuilder, Bind, list, names=COMPARE)
 def compare(env: SqlQueryBuilder, op: str, field: Bind, value: List[Any]):
-    prop = env.model.properties[field.name]
+    prop = env.resolve_property(field)
     value = list(flatten(_prepare_value(prop, v) for v in value))
     return env.call(op, prop.dtype, value)
 
@@ -251,11 +249,8 @@ def _resolve_unresolved(env: SqlQueryBuilder, prop: Property) -> sa.Column:
 
 @ufunc.resolver(SqlQueryBuilder, Bind)
 def _resolve_unresolved(env: SqlQueryBuilder, field: Bind) -> sa.Column:
-    prop = env.model.flatprops.get(field.name)
-    if prop:
-        return env.call('_resolve_unresolved', prop)
-    else:
-        raise PropertyNotFound(env.model, property=field.name)
+    prop = env.resolve_property(field)
+    return env.call('_resolve_unresolved', prop)
 
 
 @ufunc.resolver(SqlQueryBuilder, GetAttr)
@@ -327,8 +322,8 @@ def _get_property_for_select(
     #       - item - an item of a dict or list
     #       - prop - a property
     #       Currently only `prop` is resolved.
-    prop = env.model.flatprops.get(name)
-    if prop and (
+    prop = env.resolve_property(name)
+    if (
         # Check authorization only for top level properties in select list.
         # XXX: Not sure if nested is the right property to user, probably better
         #      option is to check if this call comes from a prepare context. But
@@ -558,7 +553,7 @@ def select(env: SqlQueryBuilder, dtype: Array):
 
         columns = env(table=table, model=dtype.model).call('_resolve_unresolved', right)
 
-        column = dialect_specific_group_array(env.backend.engine, columns)
+        column = env.call('_group_array', columns)
 
         # Group by all (required for aggregation functions)
         env.add_to_group_by(list(env.table.columns))
@@ -570,6 +565,11 @@ def select(env: SqlQueryBuilder, dtype: Array):
                 prop=dtype.right_prop
             )
         )
+
+    return Selected(
+        prop=dtype.prop,
+        prep=env.call('select', dtype.items)
+    )
 
 
 @ufunc.resolver(SqlQueryBuilder, Page)
@@ -633,19 +633,6 @@ def select(
     )
 
 
-@ufunc.resolver(SqlQueryBuilder, Geometry, Flip)
-def select(env: SqlQueryBuilder, dtype: Geometry, func_: Flip):
-    table = env.backend.get_table(env.model)
-
-    if dtype.prop.list is None:
-        column = env.backend.get_column(table, dtype.prop, select=True)
-    else:
-        column = env.backend.get_column(table, dtype.prop.list, select=True)
-
-    column = dialect_specific_geometry_flip(env.backend.engine, column)
-    return Selected(env.add_column(column), prop=dtype.prop)
-
-
 @ufunc.resolver(SqlQueryBuilder, Property)
 def join_table_on(env: SqlQueryBuilder, prop: Property) -> Any:
     if prop.external.prepare is not NA:
@@ -706,8 +693,8 @@ def join_table_on(
 
 @ufunc.resolver(SqlQueryBuilder, Bind)
 def join_table_on(env: SqlQueryBuilder, item: Bind):
-    prop = env.model.flatprops.get(item.name)
-    if not prop or not authorized(env.context, prop, Action.SEARCH):
+    prop = env.resolve_property(item)
+    if not authorized(env.context, prop, Action.SEARCH):
         raise PropertyNotFound(env.model, property=item.name)
     return env.call('join_table_on', prop)
 
@@ -724,14 +711,14 @@ def join_table_on(env: SqlQueryBuilder, dtype: DataType, item: LiteralProperty):
 
 @ufunc.resolver(SqlQueryBuilder, Bind, name='len')
 def len_(env: SqlQueryBuilder, bind: Bind):
-    prop = env.model.flatprops[bind.name]
+    prop = env.resolve_property(bind)
     return env.call('len', prop.dtype)
 
 
 @ufunc.resolver(SqlQueryBuilder, str, name='len')
 def len_(env: SqlQueryBuilder, bind: str):
     # XXX: Backwards compatible resolver, `str` arguments are deprecated.
-    prop = env.model.flatprops[bind]
+    prop = env.resolve_property(bind)
     return env.call('len', prop.dtype)
 
 
@@ -760,38 +747,70 @@ def sort(env, dtype):
 
 @ufunc.resolver(SqlQueryBuilder, Bind)
 def sort(env, field):
-    prop = env.model.get_from_flatprops(field.name)
+    prop = env.resolve_property(field)
     return env.call('asc', prop.dtype)
 
 
 @ufunc.resolver(SqlQueryBuilder, Negative)
 def sort(env, field):
-    prop = env.model.get_from_flatprops(field.name)
+    prop = env.resolve_property(field)
     return env.call('desc', prop.dtype)
 
 
 @ufunc.resolver(SqlQueryBuilder, DataType)
 def asc(env, dtype):
     column = env.backend.get_column(env.table, dtype.prop)
-    return dialect_specific_asc(env.backend.engine, column)
+    return env.call('asc', column)
 
 
 @ufunc.resolver(SqlQueryBuilder, Text)
 def asc(env, dtype):
     column = get_language_column(env, dtype)
-    return dialect_specific_asc(env.backend.engine, column)
+    return env.call('asc', column)
+
+
+# Reason for column == None is NULLS LAST, because
+# if it's NULL it will return 1 and if it's not NULL it will return 0
+# when ordering 0 takes priority over 1, so then it will sort first values that are not NULL
+@ufunc.resolver(SqlQueryBuilder, sa.sql.expression.ColumnElement)
+def asc(env, column):
+    return sa.case(
+        [
+            (
+                column == None,
+                sa.literal_column('1', type_=sa.Integer)
+            )
+        ],
+        else_=sa.literal_column('0', type_=sa.Integer)
+    ), column.asc()
 
 
 @ufunc.resolver(SqlQueryBuilder, DataType)
 def desc(env, dtype):
     column = env.backend.get_column(env.table, dtype.prop)
-    return dialect_specific_desc(env.backend.engine, column)
+    return env.call('desc', column)
 
 
 @ufunc.resolver(SqlQueryBuilder, Text)
 def desc(env, dtype):
     column = get_language_column(env, dtype)
-    return dialect_specific_desc(env.backend.engine, column)
+    return env.call('desc', column)
+
+
+# Reason for column != None is NULLS FIRST, because
+# if it's NULL it will return 0 and if it's not NULL it will return 1
+# when ordering 0 takes priority over 1, so then it will sort first values that are NULL
+@ufunc.resolver(SqlQueryBuilder, sa.sql.expression.ColumnElement)
+def desc(env, column):
+    return sa.case(
+        [
+            (
+                column != None,
+                sa.literal_column('1', type_=sa.Integer)
+            )
+        ],
+        else_=sa.literal_column('0', type_=sa.Integer)
+    ), column.desc()
 
 
 @ufunc.resolver(SqlQueryBuilder, DataType)
@@ -876,8 +895,15 @@ def select(
 
 @ufunc.resolver(SqlQueryBuilder, Geometry)
 def flip(env: SqlQueryBuilder, dtype: Geometry):
-    if contains_geometry_flip_function(env.backend.engine):
-        return Flip(dtype)
-
-    # Returning expr means, that it will be passed to ResultBuilder to handle it
     return Expr('flip')
+
+
+@ufunc.resolver(SqlQueryBuilder, object)
+def _group_array(env: SqlQueryBuilder, columns: Any):
+    raise NotImplementedFeature(env.backend, feature="Ability to group arrays using default `sql` type")
+
+
+@ufunc.resolver(SqlQueryBuilder, Expr)
+def split(env: SqlQueryBuilder, expr: Expr):
+    args, kwargs = expr.resolve(env)
+    return Expr('split', *args, **kwargs)

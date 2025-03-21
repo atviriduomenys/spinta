@@ -1,19 +1,21 @@
+import pytest
+import sqlalchemy as sa
+
 from spinta import commands
 from spinta.components import Context
 from spinta.core.config import RawConfig
-from spinta.datasets.backends.sql.components import Sql
 from spinta.exceptions import TooShortPageSize
 from spinta.manifests.tabular.helpers import striptable
-import pytest
 from spinta.testing.client import create_client
 from spinta.testing.data import listdata
-from spinta.testing.datasets import create_sqlite_db, use_default_dialect_functions
+from spinta.testing.datasets import create_sqlite_db
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.testing.tabular import create_tabular_manifest
-import sqlalchemy as sa
-
-from spinta.ufuncs.basequerybuilder.components import Selected
+from spinta.testing.utils import create_empty_backend
+from spinta.ufuncs.querybuilder.components import Selected
 from spinta.ufuncs.resultbuilder.helpers import get_row_value
+
+_DEFAULT_WITH_SQLITE_BACKENDS = ['sql', 'sqlite']
 
 
 @pytest.fixture(scope='module')
@@ -67,6 +69,7 @@ def geodb_array():
         'country': [
             sa.Column('name', sa.Text),
             sa.Column('id', sa.Integer),
+            sa.Column('languages', sa.Text)
         ],
         'country_language': [
             sa.Column('country_id', sa.Integer),
@@ -92,15 +95,18 @@ def geodb_array():
         db.write('country', [
             {
                 'id': 0,
-                'name': 'United Kingdoms'
+                'name': 'United Kingdoms',
+                'languages': 'English'
             },
             {
                 'id': 1,
-                'name': 'Lithuania'
+                'name': 'Lithuania',
+                'languages': 'English,Lithuanian'
             },
             {
                 'id': 2,
-                'name': 'Poland'
+                'name': 'Poland',
+                'languages': 'English,Polish'
             }
         ])
         db.write('country_language', [
@@ -151,27 +157,24 @@ def test__get_row_value_null(rc: RawConfig):
     row = ["Vilnius", None]
     model = commands.get_model(context, manifest, 'example/City')
     sel = Selected(1, model.properties['rating'])
-    assert get_row_value(context, Sql(), row, sel) is None
+    backend = create_empty_backend(context, 'sql')
+    assert get_row_value(context, backend, row, sel) is None
 
 
-@pytest.mark.parametrize("use_default_dialect", [True, False])
-def test_getall_paginate_invalid_type(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path,
-                                      geodb_null_check, mocker):
-    if use_default_dialect:
-        use_default_dialect_functions(mocker)
-
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
-    id | d | r | b | m | property | source          | type    | ref      | access | prepare
-       | external/paginate        |                 |         |          |        |
-       |   | data                 |                 | sql     |          |        |
-       |   |   |                  |                 |         |          |        |
-       |   |   |   | City         | cities          |         | id, test | open   |
-       |   |   |   |   | id       | id              | integer |          |        |
-       |   |   |   |   | name     | name            | string  |          |        | 
-       |   |   |   |   | test     | name            | object  |          |        | 
+@pytest.mark.parametrize("db_dialect", _DEFAULT_WITH_SQLITE_BACKENDS)
+def test_getall_paginate_invalid_type(db_dialect: str, context: Context, rc: RawConfig, tmp_path, geodb_null_check):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+    id | d | r | b | m | property | source | type    | ref          | access | prepare
+       | external/paginate        |        |         |              |        |
+       |   | data                 |        |         | {db_dialect} |        |
+       |   |   |                  |        |         |              |        |
+       |   |   |   | City         | cities |         | id, test     | open   |
+       |   |   |   |   | id       | id     | integer |              |        |
+       |   |   |   |   | name     | name   | string  |              |        | 
+       |   |   |   |   | test     | name   | object  |              |        | 
     '''))
 
-    app = create_client(rc, tmp_path, geodb_null_check)
+    app = create_client(rc, tmp_path, geodb_null_check, mode='external')
 
     resp = app.get('/external/paginate/City')
     assert listdata(resp, 'id', 'name') == [
@@ -180,23 +183,19 @@ def test_getall_paginate_invalid_type(use_default_dialect: bool, context: Contex
     assert '_page' not in resp.json()
 
 
-@pytest.mark.parametrize("use_default_dialect", [True, False])
-def test_getall_paginate_null_check_value(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path,
-                                          geodb_null_check, mocker):
-    if use_default_dialect:
-        use_default_dialect_functions(mocker)
-
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
-    id | d | r | b | m | property | source          | type    | ref     | access | prepare
-       | external/paginate        |                 |         |         |        |
-       |   | data                 |                 | sql     |         |        |
-       |   |   |                  |                 |         |         |        |
-       |   |   |   | City         | cities          |         | id      | open   |
-       |   |   |   |   | id       | id              | integer |         |        |
-       |   |   |   |   | name     | name            | string  |         |        | 
+@pytest.mark.parametrize("db_dialect", _DEFAULT_WITH_SQLITE_BACKENDS)
+def test_getall_paginate_null_check_value(db_dialect: str, context: Context, rc: RawConfig, tmp_path, geodb_null_check):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+    id | d | r | b | m | property | source | type    | ref          | access | prepare
+       | external/paginate        |        |         |              |        |
+       |   | data                 |        |         | {db_dialect} |        |
+       |   |   |                  |        |         |              |        |
+       |   |   |   | City         | cities |         | id           | open   |
+       |   |   |   |   | id       | id     | integer |              |        |
+       |   |   |   |   | name     | name   | string  |              |        | 
     '''))
 
-    app = create_client(rc, tmp_path, geodb_null_check)
+    app = create_client(rc, tmp_path, geodb_null_check, mode='external')
 
     resp = app.get('/external/paginate/City')
     assert listdata(resp, 'id', 'name') == [
@@ -204,24 +203,20 @@ def test_getall_paginate_null_check_value(use_default_dialect: bool, context: Co
     ]
 
 
-@pytest.mark.parametrize("use_default_dialect", [True, False])
-def test_getall_paginate_with_nulls_page_too_small(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path,
-                                                   geodb_with_nulls, mocker):
-    if use_default_dialect:
-        use_default_dialect_functions(mocker)
-
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
-    id | d | r | b | m | property | source          | type    | ref     | access | prepare
-       | external/paginate        |                 |         |         |        |
-       |   | data                 |                 | sql     |         |        |
-       |   |   |                  |                 |         |         |        |
-       |   |   |   | City         | cities          |         | id      | open   |
-       |   |   |   |   | id       | id              | integer |         |        |
-       |   |   |   |   | name     | name            | string  |         |        | 
-       |   |   |   |   | code     | code            | string  |         |        | 
+@pytest.mark.parametrize("db_dialect", _DEFAULT_WITH_SQLITE_BACKENDS)
+def test_getall_paginate_with_nulls_page_too_small(db_dialect: str, context: Context, rc: RawConfig, tmp_path, geodb_with_nulls):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+    id | d | r | b | m | property | source | type    | ref          | access | prepare
+       | external/paginate        |        |         |              |        |
+       |   | data                 |        |         | {db_dialect} |        |
+       |   |   |                  |        |         |              |        |
+       |   |   |   | City         | cities |         | id           | open   |
+       |   |   |   |   | id       | id     | integer |              |        |
+       |   |   |   |   | name     | name   | string  |              |        | 
+       |   |   |   |   | code     | code   | string  |              |        | 
     '''))
 
-    app = create_client(rc, tmp_path, geodb_with_nulls)
+    app = create_client(rc, tmp_path, geodb_with_nulls, mode='external')
 
     with pytest.raises(BaseException) as e:
         app.get('/external/paginate/City?page(size:2)')
@@ -230,24 +225,20 @@ def test_getall_paginate_with_nulls_page_too_small(use_default_dialect: bool, co
         assert isinstance(exceptions[0], TooShortPageSize)
 
 
-@pytest.mark.parametrize("use_default_dialect", [True, False])
-def test_getall_paginate_with_nulls(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path,
-                                    geodb_with_nulls, mocker):
-    if use_default_dialect:
-        use_default_dialect_functions(mocker)
-
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
-    id | d | r | b | m | property | source          | type    | ref     | access | prepare
-       | external/paginate/null0  |                 |         |         |        |
-       |   | data                 |                 | sql     |         |        |
-       |   |   |                  |                 |         |         |        |
-       |   |   |   | City         | cities          |         | id      | open   |
-       |   |   |   |   | id       | id              | integer |         |        |
-       |   |   |   |   | name     | name            | string  |         |        | 
-       |   |   |   |   | code     | code            | string  |         |        | 
+@pytest.mark.parametrize("db_dialect", _DEFAULT_WITH_SQLITE_BACKENDS)
+def test_getall_paginate_with_nulls(db_dialect: str, context: Context, rc: RawConfig, tmp_path, geodb_with_nulls):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+    id | d | r | b | m | property | source | type    | ref          | access | prepare
+       | external/paginate/null0  |        |         |              |        |
+       |   | data                 |        |         | {db_dialect} |        |
+       |   |   |                  |        |         |              |        |
+       |   |   |   | City         | cities |         | id           | open   |
+       |   |   |   |   | id       | id     | integer |              |        |
+       |   |   |   |   | name     | name   | string  |              |        | 
+       |   |   |   |   | code     | code   | string  |              |        | 
     '''))
 
-    app = create_client(rc, tmp_path, geodb_with_nulls)
+    app = create_client(rc, tmp_path, geodb_with_nulls, mode='external')
     resp = app.get('/external/paginate/null0/City?page(size:6)')
     assert listdata(resp, 'id', 'name', 'code') == [
         (0, 'Vilnius', 'V'),
@@ -265,24 +256,20 @@ def test_getall_paginate_with_nulls(use_default_dialect: bool, context: Context,
     ]
 
 
-@pytest.mark.parametrize("use_default_dialect", [True, False])
-def test_getall_paginate_with_nulls_multi_key(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path,
-                                              geodb_with_nulls, mocker):
-    if use_default_dialect:
-        use_default_dialect_functions(mocker)
-
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
-    id | d | r | b | m | property | source          | type    | ref      | access | prepare
-       | external/paginate/null1  |                 |         |          |        |
-       |   | data                 |                 | sql     |          |        |
-       |   |   |                  |                 |         |          |        |
-       |   |   |   | City         | cities          |         | id, code | open   |
-       |   |   |   |   | id       | id              | integer |          |        |
-       |   |   |   |   | name     | name            | string  |          |        | 
-       |   |   |   |   | code     | code            | string  |          |        | 
+@pytest.mark.parametrize("db_dialect", _DEFAULT_WITH_SQLITE_BACKENDS)
+def test_getall_paginate_with_nulls_multi_key(db_dialect: str, context: Context, rc: RawConfig, tmp_path, geodb_with_nulls):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+    id | d | r | b | m | property | source | type    | ref          | access | prepare
+       | external/paginate/null1  |        |         |              |        |
+       |   | data                 |        |         | {db_dialect} |        |
+       |   |   |                  |        |         |              |        |
+       |   |   |   | City         | cities |         | id, code     | open   |
+       |   |   |   |   | id       | id     | integer |              |        |
+       |   |   |   |   | name     | name   | string  |              |        | 
+       |   |   |   |   | code     | code   | string  |              |        | 
     '''))
 
-    app = create_client(rc, tmp_path, geodb_with_nulls)
+    app = create_client(rc, tmp_path, geodb_with_nulls, mode='external')
     resp = app.get('/external/paginate/null1/City?page(size:6)')
     assert listdata(resp, 'id', 'name', 'code') == [
         (0, 'Vilnius', 'V'),
@@ -300,24 +287,20 @@ def test_getall_paginate_with_nulls_multi_key(use_default_dialect: bool, context
     ]
 
 
-@pytest.mark.parametrize("use_default_dialect", [True, False])
-def test_getall_paginate_with_nulls_all_keys(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path,
-                                             geodb_with_nulls, mocker):
-    if use_default_dialect:
-        use_default_dialect_functions(mocker)
-
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
-    id | d | r | b | m | property | source          | type    | ref      | access | prepare
-       | external/paginate/null1  |                 |         |          |        |
-       |   | data                 |                 | sql     |          |        |
-       |   |   |                  |                 |         |          |        |
-       |   |   |   | City         | cities          |         | id, name, code | open   |
-       |   |   |   |   | id       | id              | integer |          |        |
-       |   |   |   |   | name     | name            | string  |          |        | 
-       |   |   |   |   | code     | code            | string  |          |        | 
+@pytest.mark.parametrize("db_dialect", _DEFAULT_WITH_SQLITE_BACKENDS)
+def test_getall_paginate_with_nulls_all_keys(db_dialect: str, context: Context, rc: RawConfig, tmp_path, geodb_with_nulls):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+    id | d | r | b | m | property | source | type    | ref            | access | prepare
+       | external/paginate/null1  |        |         |                |        |
+       |   | data                 |        |         | {db_dialect}   |        |
+       |   |   |                  |        |         |                |        |
+       |   |   |   | City         | cities |         | id, name, code | open   |
+       |   |   |   |   | id       | id     | integer |                |        |
+       |   |   |   |   | name     | name   | string  |                |        | 
+       |   |   |   |   | code     | code   | string  |                |        | 
     '''))
 
-    app = create_client(rc, tmp_path, geodb_with_nulls)
+    app = create_client(rc, tmp_path, geodb_with_nulls, mode='external')
     resp = app.get('/external/paginate/null1/City?page(size:3)')
     assert listdata(resp, 'id', 'name', 'code') == [
         (0, 'Vilnius', 'V'),
@@ -335,24 +318,20 @@ def test_getall_paginate_with_nulls_all_keys(use_default_dialect: bool, context:
     ]
 
 
-@pytest.mark.parametrize("use_default_dialect", [True, False])
-def test_getall_paginate_with_nulls_and_sort(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path,
-                                             geodb_with_nulls, mocker):
-    if use_default_dialect:
-        use_default_dialect_functions(mocker)
-
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
-    id | d | r | b | m | property | source          | type    | ref      | access | prepare
-       | external/paginate/null2        |                 |         |          |        |
-       |   | data                 |                 | sql     |          |        |
-       |   |   |                  |                 |         |          |        |
-       |   |   |   | City         | cities          |         | id       | open   |
-       |   |   |   |   | id       | id              | integer |          |        |
-       |   |   |   |   | name     | name            | string  |          |        | 
-       |   |   |   |   | code     | code            | string  |          |        | 
+@pytest.mark.parametrize("db_dialect", _DEFAULT_WITH_SQLITE_BACKENDS)
+def test_getall_paginate_with_nulls_and_sort(db_dialect: str, context: Context, rc: RawConfig, tmp_path, geodb_with_nulls):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+    id | d | r | b | m | property | source | type    | ref          | access | prepare
+       | external/paginate/null2  |        |         |              |        |
+       |   | data                 |        |         | {db_dialect} |        |
+       |   |   |                  |        |         |              |        |
+       |   |   |   | City         | cities |         | id           | open   |
+       |   |   |   |   | id       | id     | integer |              |        |
+       |   |   |   |   | name     | name   | string  |              |        | 
+       |   |   |   |   | code     | code   | string  |              |        | 
     '''))
 
-    app = create_client(rc, tmp_path, geodb_with_nulls)
+    app = create_client(rc, tmp_path, geodb_with_nulls, mode='external')
     resp = app.get('/external/paginate/null2/City?sort(name)&page(size:6)')
     assert listdata(resp, 'id', 'name', 'code') == [
         (0, 'Vilnius', 'V'),
@@ -370,25 +349,21 @@ def test_getall_paginate_with_nulls_and_sort(use_default_dialect: bool, context:
     ]
 
 
-@pytest.mark.parametrize("use_default_dialect", [True, False])
-def test_getall_paginate_with_nulls_unique(use_default_dialect: bool, context: Context, rc: RawConfig, tmp_path,
-                                           geodb_with_nulls, mocker):
-    if use_default_dialect:
-        use_default_dialect_functions(mocker)
-
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
-    id | d | r | b | m | property | source          | type    | ref      | access | prepare
-       | external/paginate/null3        |                 |         |          |        |
-       |   | data                 |                 | sql     |          |        |
-       |   |   |                  |                 |         |          |        |
-       |   |   |   | City         | cities          |         | name, unique | open   |
-       |   |   |   |   | id       | id              | integer |          |        |
-       |   |   |   |   | name     | name            | string  |          |        | 
-       |   |   |   |   | code     | code            | string  |          |        | 
-       |   |   |   |   | unique   | unique          | integer |          |        | 
+@pytest.mark.parametrize("db_dialect", _DEFAULT_WITH_SQLITE_BACKENDS)
+def test_getall_paginate_with_nulls_unique(db_dialect: str, context: Context, rc: RawConfig, tmp_path, geodb_with_nulls):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+    id | d | r | b | m | property | source | type    | ref          | access | prepare
+       | external/paginate/null3  |        |         |              |        |
+       |   | data                 |        |         | {db_dialect} |        |
+       |   |   |                  |        |         |              |        |
+       |   |   |   | City         | cities |         | name, unique | open   |
+       |   |   |   |   | id       | id     | integer |              |        |
+       |   |   |   |   | name     | name   | string  |              |        | 
+       |   |   |   |   | code     | code   | string  |              |        | 
+       |   |   |   |   | unique   | unique | integer |              |        | 
     '''))
 
-    app = create_client(rc, tmp_path, geodb_with_nulls)
+    app = create_client(rc, tmp_path, geodb_with_nulls, mode='external')
     resp = app.get('/external/paginate/null3/City?sort(name, -unique)&page(size:1)')
     assert listdata(resp, 'name', 'unique', 'id', 'code') == [
         ('EMPTY', 10, None, 'ERROR'),
@@ -436,25 +411,24 @@ def test_getall_distinct(context, rc, tmp_path):
             {'name': 'Siauliai', 'country': 'Lietuva', 'id': 1},
         ])
         create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
-        id | d | r | b | m | property    | source          | type    | ref      | access | prepare    | level
-           | external/distinct           |                 |         |          |        |            |
-           |   | data                    |                 | sql     |          |        |            |
-           |   |   |                     |                 |         |          |        |            |
-           |   |   |   | City            | cities          |         | name     | open   |            |
-           |   |   |   |   | name        | name            | string  |          |        |            |
-           |   |   |   |   | country     | country         | ref     | Country  |        |            | 3
-           |   |   |   | Country         | cities          |         | name     | open   |            |
-           |   |   |   |   | name        | country         | string  |          |        |            |
-           |   |   |   |   | id          | id              | integer |          |        |            |     
-           |   |   |   | CountryDistinct | cities          |         | name     | open   | distinct() |
-           |   |   |   |   | name        | country         | string  |          |        |            |
-           |   |   |   |   | id          | id              | integer |          |        |            |        
-           |   |   |   | CountryMultiDistinct | cities          |         | name, id | open   | distinct() |
-           |   |   |   |   | name        | country         | string  |          |        |            |
-           |   |   |   |   | id          | id              | integer |          |        |            |       
-           |   |   |   | CountryAllDistinct | cities          |         |        | open   | distinct() |
-           |   |   |   |   | name        | country         | string  |          |        |            |
-           |   |   |   |   | id          | id              | integer |          |        |            |   
+        id | d | r | b | m | property         | source  | type    | ref      | access | prepare    | level
+           | external/distinct                |         |         |          |        |            |
+           |   |   |                          |         |         |          |        |            |
+           |   |   |   | City                 | cities  |         | name     | open   |            |
+           |   |   |   |   | name             | name    | string  |          |        |            |
+           |   |   |   |   | country          | country | ref     | Country  |        |            | 3
+           |   |   |   | Country              | cities  |         | name     | open   |            |
+           |   |   |   |   | name             | country | string  |          |        |            |
+           |   |   |   |   | id               | id      | integer |          |        |            |     
+           |   |   |   | CountryDistinct      | cities  |         | name     | open   | distinct() |
+           |   |   |   |   | name             | country | string  |          |        |            |
+           |   |   |   |   | id               | id      | integer |          |        |            |        
+           |   |   |   | CountryMultiDistinct | cities  |         | name, id | open   | distinct() |
+           |   |   |   |   | name             | country | string  |          |        |            |
+           |   |   |   |   | id               | id      | integer |          |        |            |       
+           |   |   |   | CountryAllDistinct   | cities  |         |          | open   | distinct() |
+           |   |   |   |   | name             | country | string  |          |        |            |
+           |   |   |   |   | id               | id      | integer |          |        |            |   
         '''))
 
         app = create_client(rc, tmp_path, db)
@@ -504,7 +478,6 @@ def test_get_one(context, rc, tmp_path):
         create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
         id | d | r | b | m | property     | type    | ref | level | source  | access
            | example                      |         |     |       |         |
-           |   | db                       | sql     |     |       |         |
            |   |   |   | City             |         | id  |       | cities  |
            |   |   |   |   | id           | integer |     | 4     | id      | open
            |   |   |   |   | name         | string  |     | 4     | name    | open
@@ -537,13 +510,12 @@ def test_get_one_compound_pk(context, rc, tmp_path):
             {'name': 'Kaunas', 'id': 2, "code": "city"},
         ])
         create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
-        id | d | r | b | m | property     | type    | ref | level | source  | access
-           | example                      |         |     |       |         |
-           |   | db                       | sql     |     |       |         |
+        id | d | r | b | m | property     | type    | ref       | level | source  | access
+           | example                      |         |           |       |         |
            |   |   |   | City             |         | id, code  |       | cities  |
-           |   |   |   |   | id           | integer |     | 4     | id      | open
-           |   |   |   |   | name         | string  |     | 4     | name    | open
-           |   |   |   |   | code         | string  |     | 4     | code    | open
+           |   |   |   |   | id           | integer |           | 4     | id      | open
+           |   |   |   |   | name         | string  |           | 4     | name    | open
+           |   |   |   |   | code         | string  |           | 4     | code    | open
         '''))
         app = create_client(rc, tmp_path, db)
         response = app.get('/example/City')
@@ -580,7 +552,6 @@ def test_getall_geometry_manifest_flip_select(context, rc, tmp_path):
         create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
         id | d | r | b | m | property     | type              | ref | level | source  | access | prepare
            | example                      |                   |     |       |         |        |
-           |   | db                       | sql               |     |       |         |        |
            |   |   |   | City             |                   | id  |       | cities  |        |
            |   |   |   |   | id           | integer           |     | 4     | id      | open   |
            |   |   |   |   | name         | string            |     | 4     | name    | open   |
@@ -620,7 +591,6 @@ def test_getall_geometry_manifest_flip(context, rc, tmp_path):
         create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
         id | d | r | b | m | property     | type              | ref | level | source  | access | prepare
            | example                      |                   |     |       |         |        |
-           |   | db                       | sql               |     |       |         |        |
            |   |   |   | City             |                   | id  |       | cities  |        |
            |   |   |   |   | id           | integer           |     | 4     | id      | open   |
            |   |   |   |   | name         | string            |     | 4     | name    | open   |
@@ -642,25 +612,25 @@ def test_getall_geometry_manifest_flip(context, rc, tmp_path):
 
 def test_getall_array_intermediate_single_pkey_sqlite(context, rc, tmp_path, geodb_array):
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
-    d | r | b | m | property    | type   | ref             | source           | level   | access
-    example                     |        |                 |                  |         |        
-      | db                      | sql    |                 |                  |         |        
-      |                         |        |                 |                  |         |
-      |   |   | Language        |        | id              | language         |         |
-      |   |   |   | id          | string |                 | id               |         | open
-      |   |   |   | name        | string |                 | name             |         | open
-      |   |                     |        |                 |                  |         |
-      |   |   | Country         |        | id              | country          |         |
-      |   |   |   | id          | string |                 | id               |         | open
-      |   |   |   | name        | string |                 | name             |         | open
-      |   |   |   | languages   | array  | CountryLanguage |                  |         | open
-      |   |   |   | languages[] | ref    | Language        |                  |         | open
-      |   |                     |        |                 |                  |         |
-      |   |   | CountryLanguage |        |                 | country_language |         |
-      |   |   |   | country     | ref    | Country         | country_id       |         | open
-      |   |   |   | language    | ref    | Language        | language_id      |         | open
+    d | r | b | m | property    | type       | ref             | source           | level   | access
+    example                     |            |                 |                  |         |        
+      | db                      |            | sqlite          |                  |         |        
+      |                         |            |                 |                  |         |
+      |   |   | Language        |            | id              | language         |         |
+      |   |   |   | id          | string     |                 | id               |         | open
+      |   |   |   | name        | string     |                 | name             |         | open
+      |   |                     |            |                 |                  |         |
+      |   |   | Country         |            | id              | country          |         |
+      |   |   |   | id          | string     |                 | id               |         | open
+      |   |   |   | name        | string     |                 | name             |         | open
+      |   |   |   | languages   | array      | CountryLanguage |                  |         | open
+      |   |   |   | languages[] | ref        | Language        |                  |         | open
+      |   |                     |            |                 |                  |         |
+      |   |   | CountryLanguage |            |                 | country_language |         |
+      |   |   |   | country     | ref        | Country         | country_id       |         | open
+      |   |   |   | language    | ref        | Language        | language_id      |         | open
     '''))
-    app = create_client(rc, tmp_path, geodb_array)
+    app = create_client(rc, tmp_path, geodb_array, mode='external')
     resp = app.get(f'/example/Language')
     lang_data = resp.json()['_data']
     lang_mapping = {lang['id']: lang for lang in lang_data}
@@ -696,27 +666,27 @@ def test_getall_array_intermediate_single_pkey_sqlite(context, rc, tmp_path, geo
 
 def test_getall_array_intermediate_multi_pkey_sqlite(context, rc, tmp_path, geodb_array):
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
-    d | r | b | m | property     | type    | ref             | source           | level   | access | prepare  
-    example                      |         |                 |                  |         |        |        
-      | db                       | sql     |                 |                  |         |        |        
-      |                          |         |                 |                  |         |        |
-      |   |   | Language         |         | id              | language         |         |        |
-      |   |   |   | id           | integer |                 | id               |         | open   |    
-      |   |   |   | name         | string  |                 | name             |         | open   |    
-      |   |                      |         |                 |                  |         |        |
-      |   |   | Country          |         | id, name        | country          |         |        |
-      |   |   |   | id           | integer |                 | id               |         | open   |    
-      |   |   |   | name         | string  |                 | name             |         | open   |    
-      |   |   |   | languages    | array   | CountryLanguage |                  |         | open   |    
-      |   |   |   | languages[]  | ref     | Language        |                  |         | open   |    
-      |   |                      |         |                 |                  |         |        |
-      |   |   | CountryLanguage  |         |                 | country_language |         |        |
-      |   |   |   | country_id   | integer |                 | country_id       |         | open   |    
-      |   |   |   | country_name | string  |                 | country_name     |         | open   |    
-      |   |   |   | country      | ref     | Country         |                  |         | open   | country_id, country_name   
-      |   |   |   | language     | ref     | Language        | language_id      |         | open   |    
+    d | r | b | m | property     | type       | ref             | source           | level   | access | prepare  
+    example                      |            |                 |                  |         |        |        
+      | db                       |            | sqlite          |                  |         |        |        
+      |                          |            |                 |                  |         |        |
+      |   |   | Language         |            | id              | language         |         |        |
+      |   |   |   | id           | integer    |                 | id               |         | open   |    
+      |   |   |   | name         | string     |                 | name             |         | open   |    
+      |   |                      |            |                 |                  |         |        |
+      |   |   | Country          |            | id, name        | country          |         |        |
+      |   |   |   | id           | integer    |                 | id               |         | open   |    
+      |   |   |   | name         | string     |                 | name             |         | open   |    
+      |   |   |   | languages    | array      | CountryLanguage |                  |         | open   |    
+      |   |   |   | languages[]  | ref        | Language        |                  |         | open   |    
+      |   |                      |            |                 |                  |         |        |
+      |   |   | CountryLanguage  |            |                 | country_language |         |        |
+      |   |   |   | country_id   | integer    |                 | country_id       |         | open   |    
+      |   |   |   | country_name | string     |                 | country_name     |         | open   |    
+      |   |   |   | country      | ref        | Country         |                  |         | open   | country_id, country_name   
+      |   |   |   | language     | ref        | Language        | language_id      |         | open   |    
     '''))
-    app = create_client(rc, tmp_path, geodb_array)
+    app = create_client(rc, tmp_path, geodb_array, mode='external')
     resp = app.get(f'/example/Language')
     lang_data = resp.json()['_data']
     lang_mapping = {lang['id']: lang for lang in lang_data}
@@ -752,26 +722,26 @@ def test_getall_array_intermediate_multi_pkey_sqlite(context, rc, tmp_path, geod
 
 def test_getall_array_intermediate_ref_single_pkey_sqlite(context, rc, tmp_path, geodb_array):
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
-    d | r | b | m | property      | type    | ref             | source           | level   | access | prepare  
-    example                       |         |                 |                  |         |        |        
-      | db                        | sql     |                 |                  |         |        |        
-      |                           |         |                 |                  |         |        |
-      |   |   | Language          |         | id              | language         |         |        |
-      |   |   |   | id            | integer |                 | id               |         | open   |    
-      |   |   |   | name          | string  |                 | name             |         | open   |    
-      |   |                       |         |                 |                  |         |        |
-      |   |   | Country           |         | id              | country          |         |        |
-      |   |   |   | id            | integer |                 | id               |         | open   |    
-      |   |   |   | name          | string  |                 | name             |         | open   |    
-      |   |   |   | languages     | array   | CountryLanguage |                  |         | open   |    
-      |   |   |   | languages[]   | ref     | Language        |                  |         | open   |    
-      |   |                       |         |                 |                  |         |        |
-      |   |   | CountryLanguage   |         |                 | country_language |         |        |  
-      |   |   |   | country       | ref     | Country         | country_id       |         | open   |
-      |   |   |   | language_id   | integer |                 | language_id      |         | open   |    
-      |   |   |   | language      | ref     | Language        |                  |         | open   | language_id   
+    d | r | b | m | property      | type       | ref             | source           | level   | access | prepare  
+    example                       |            |                 |                  |         |        |        
+      | db                        |            | sqlite          |                  |         |        |        
+      |                           |            |                 |                  |         |        |
+      |   |   | Language          |            | id              | language         |         |        |
+      |   |   |   | id            | integer    |                 | id               |         | open   |    
+      |   |   |   | name          | string     |                 | name             |         | open   |    
+      |   |                       |            |                 |                  |         |        |
+      |   |   | Country           |            | id              | country          |         |        |
+      |   |   |   | id            | integer    |                 | id               |         | open   |    
+      |   |   |   | name          | string     |                 | name             |         | open   |    
+      |   |   |   | languages     | array      | CountryLanguage |                  |         | open   |    
+      |   |   |   | languages[]   | ref        | Language        |                  |         | open   |    
+      |   |                       |            |                 |                  |         |        |
+      |   |   | CountryLanguage   |            |                 | country_language |         |        |  
+      |   |   |   | country       | ref        | Country         | country_id       |         | open   |
+      |   |   |   | language_id   | integer    |                 | language_id      |         | open   |    
+      |   |   |   | language      | ref        | Language        |                  |         | open   | language_id   
     '''))
-    app = create_client(rc, tmp_path, geodb_array)
+    app = create_client(rc, tmp_path, geodb_array, mode='external')
     resp = app.get(f'/example/Language')
     lang_data = resp.json()['_data']
     lang_mapping = {lang['id']: lang for lang in lang_data}
@@ -807,27 +777,27 @@ def test_getall_array_intermediate_ref_single_pkey_sqlite(context, rc, tmp_path,
 
 def test_getall_array_intermediate_ref_multi_pkey_sqlite(context, rc, tmp_path, geodb_array):
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
-    d | r | b | m | property      | type    | ref             | source           | level   | access | prepare  
-    example                       |         |                 |                  |         |        |        
-      | db                        | sql     |                 |                  |         |        |        
-      |                           |         |                 |                  |         |        |
-      |   |   | Language          |         | id, name        | language         |         |        |
-      |   |   |   | id            | integer |                 | id               |         | open   |    
-      |   |   |   | name          | string  |                 | name             |         | open   |    
-      |   |                       |         |                 |                  |         |        |
-      |   |   | Country           |         | id              | country          |         |        |
-      |   |   |   | id            | integer |                 | id               |         | open   |    
-      |   |   |   | name          | string  |                 | name             |         | open   |    
-      |   |   |   | languages     | array   | CountryLanguage |                  |         | open   |    
-      |   |   |   | languages[]   | ref     | Language        |                  |         | open   |    
-      |   |                       |         |                 |                  |         |        |
-      |   |   | CountryLanguage   |         |                 | country_language |         |        |  
-      |   |   |   | country       | ref     | Country         | country_id       |         | open   |
-      |   |   |   | language_id   | integer |                 | language_id      |         | open   |    
-      |   |   |   | language_name | string  |                 | language_name    |         | open   |  
-      |   |   |   | language      | ref     | Language        |                  |         | open   | language_id, language_name   
+    d | r | b | m | property      | type       | ref             | source           | level   | access | prepare  
+    example                       |            |                 |                  |         |        |        
+      | db                        |            | sqlite          |                  |         |        |        
+      |                           |            |                 |                  |         |        |
+      |   |   | Language          |            | id, name        | language         |         |        |
+      |   |   |   | id            | integer    |                 | id               |         | open   |    
+      |   |   |   | name          | string     |                 | name             |         | open   |    
+      |   |                       |            |                 |                  |         |        |
+      |   |   | Country           |            | id              | country          |         |        |
+      |   |   |   | id            | integer    |                 | id               |         | open   |    
+      |   |   |   | name          | string     |                 | name             |         | open   |    
+      |   |   |   | languages     | array      | CountryLanguage |                  |         | open   |    
+      |   |   |   | languages[]   | ref        | Language        |                  |         | open   |    
+      |   |                       |            |                 |                  |         |        |
+      |   |   | CountryLanguage   |            |                 | country_language |         |        |  
+      |   |   |   | country       | ref        | Country         | country_id       |         | open   |
+      |   |   |   | language_id   | integer    |                 | language_id      |         | open   |    
+      |   |   |   | language_name | string     |                 | language_name    |         | open   |  
+      |   |   |   | language      | ref        | Language        |                  |         | open   | language_id, language_name   
     '''))
-    app = create_client(rc, tmp_path, geodb_array)
+    app = create_client(rc, tmp_path, geodb_array, mode='external')
     resp = app.get(f'/example/Language')
     lang_data = resp.json()['_data']
     lang_mapping = {lang['id']: lang for lang in lang_data}
@@ -863,27 +833,27 @@ def test_getall_array_intermediate_ref_multi_pkey_sqlite(context, rc, tmp_path, 
 
 def test_getall_array_intermediate_ref_level_3_sqlite(context, rc, tmp_path, geodb_array):
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
-    d | r | b | m | property      | type    | ref             | source           | level   | access | prepare  
-    example                       |         |                 |                  |         |        |        
-      | db                        | sql     |                 |                  |         |        |        
-      |                           |         |                 |                  |         |        |
-      |   |   | Language          |         | id, name        | language         |         |        |
-      |   |   |   | id            | integer |                 | id               |         | open   |    
-      |   |   |   | name          | string  |                 | name             |         | open   |    
-      |   |                       |         |                 |                  |         |        |
-      |   |   | Country           |         | id              | country          |         |        |
-      |   |   |   | id            | integer |                 | id               |         | open   |    
-      |   |   |   | name          | string  |                 | name             |         | open   |    
-      |   |   |   | languages     | array   | CountryLanguage |                  |         | open   |    
-      |   |   |   | languages[]   | ref     | Language        |                  | 3       | open   |    
-      |   |                       |         |                 |                  |         |        |
-      |   |   | CountryLanguage   |         |                 | country_language |         |        |  
-      |   |   |   | country       | ref     | Country         | country_id       |         | open   |
-      |   |   |   | language_id   | integer |                 | language_id      |         | open   |    
-      |   |   |   | language_name | string  |                 | language_name    |         | open   |  
-      |   |   |   | language      | ref     | Language        |                  |         | open   | language_id, language_name   
+    d | r | b | m | property      | type       | ref             | source           | level   | access | prepare  
+    example                       |            |                 |                  |         |        |        
+      | db                        |            | sqlite          |                  |         |        |        
+      |                           |            |                 |                  |         |        |
+      |   |   | Language          |            | id, name        | language         |         |        |
+      |   |   |   | id            | integer    |                 | id               |         | open   |    
+      |   |   |   | name          | string     |                 | name             |         | open   |    
+      |   |                       |            |                 |                  |         |        |
+      |   |   | Country           |            | id              | country          |         |        |
+      |   |   |   | id            | integer    |                 | id               |         | open   |    
+      |   |   |   | name          | string     |                 | name             |         | open   |    
+      |   |   |   | languages     | array      | CountryLanguage |                  |         | open   |    
+      |   |   |   | languages[]   | ref        | Language        |                  | 3       | open   |    
+      |   |                       |            |                 |                  |         |        |
+      |   |   | CountryLanguage   |            |                 | country_language |         |        |  
+      |   |   |   | country       | ref        | Country         | country_id       |         | open   |
+      |   |   |   | language_id   | integer    |                 | language_id      |         | open   |    
+      |   |   |   | language_name | string     |                 | language_name    |         | open   |  
+      |   |   |   | language      | ref        | Language        |                  |         | open   | language_id, language_name   
     '''))
-    app = create_client(rc, tmp_path, geodb_array)
+    app = create_client(rc, tmp_path, geodb_array, mode='external')
     resp = app.get(f'/example/Country')
 
     assert resp.status_code == 200
@@ -916,26 +886,75 @@ def test_getall_array_intermediate_ref_level_3_sqlite(context, rc, tmp_path, geo
 
 def test_getall_array_intermediate_ref_refprop_sqlite(context, rc, tmp_path, geodb_array):
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
-    d | r | b | m | property      | type    | ref             | source           | level   | access | prepare  
-    example                       |         |                 |                  |         |        |        
-      | db                        | sql     |                 |                  |         |        |        
-      |                           |         |                 |                  |         |        |
-      |   |   | Language          |         | id, name        | language         |         |        |
-      |   |   |   | id            | integer |                 | id               |         | open   |    
-      |   |   |   | name          | string  |                 | name             |         | open   |    
-      |   |                       |         |                 |                  |         |        |
-      |   |   | Country           |         | id              | country          |         |        |
-      |   |   |   | id            | integer |                 | id               |         | open   |    
-      |   |   |   | name          | string  |                 | name             |         | open   |    
-      |   |   |   | languages     | array   | CountryLanguage |                  |         | open   |    
-      |   |   |   | languages[]   | ref     | Language[id]    |                  |         | open   |    
-      |   |                       |         |                 |                  |         |        |
-      |   |   | CountryLanguage   |         |                 | country_language |         |        |  
-      |   |   |   | country       | ref     | Country         | country_id       |         | open   |
-      |   |   |   | language_id   | integer |                 | language_id      |         | open   |    
-      |   |   |   | language      | ref     | Language[id]    |                  |         | open   | language_id   
+    d | r | b | m | property      | type       | ref             | source           | level   | access | prepare  
+    example                       |            |                 |                  |         |        |        
+      | db                        |            | sqlite          |                  |         |        |        
+      |                           |            |                 |                  |         |        |
+      |   |   | Language          |            | id, name        | language         |         |        |
+      |   |   |   | id            | integer    |                 | id               |         | open   |    
+      |   |   |   | name          | string     |                 | name             |         | open   |    
+      |   |                       |            |                 |                  |         |        |
+      |   |   | Country           |            | id              | country          |         |        |
+      |   |   |   | id            | integer    |                 | id               |         | open   |    
+      |   |   |   | name          | string     |                 | name             |         | open   |    
+      |   |   |   | languages     | array      | CountryLanguage |                  |         | open   |    
+      |   |   |   | languages[]   | ref        | Language[id]    |                  |         | open   |    
+      |   |                       |            |                 |                  |         |        |
+      |   |   | CountryLanguage   |            |                 | country_language |         |        |  
+      |   |   |   | country       | ref        | Country         | country_id       |         | open   |
+      |   |   |   | language_id   | integer    |                 | language_id      |         | open   |    
+      |   |   |   | language      | ref        | Language[id]    |                  |         | open   | language_id   
     '''))
-    app = create_client(rc, tmp_path, geodb_array)
+    app = create_client(rc, tmp_path, geodb_array, mode='external')
+    resp = app.get(f'/example/Language')
+    lang_data = resp.json()['_data']
+    lang_mapping = {lang['id']: lang for lang in lang_data}
+    resp = app.get(f'/example/Country')
+
+    assert resp.status_code == 200
+    assert listdata(resp, 'id', 'name', 'languages', full=True) == [
+        {
+            'id': 0,
+            'name': 'United Kingdoms',
+            'languages': [
+                {'_id': lang_mapping[0]['_id']}
+            ]
+        },
+        {
+            'id': 1,
+            'name': 'Lithuania',
+            'languages': [
+                {'_id': lang_mapping[0]['_id']},
+                {'_id': lang_mapping[1]['_id']}
+            ]
+        },
+        {
+            'id': 2,
+            'name': 'Poland',
+            'languages': [
+                {'_id': lang_mapping[0]['_id']},
+                {'_id': lang_mapping[2]['_id']}
+            ]
+        },
+    ]
+
+
+def test_getall_array_prepare_split(context, rc, tmp_path, geodb_array):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+    d | r | b | m | property      | type       | ref             | source           | level   | access | prepare  
+    example                       |            |                 |                  |         |        |        
+      | db                        |            | sqlite          |                  |         |        |        
+      |                           |            |                 |                  |         |        |
+      |   |   | Language          |            | id              | language         |         |        |
+      |   |   |   | id            | integer    |                 | id               |         | open   |    
+      |   |   |   | name          | string     |                 | name             |         | open   |    
+      |   |                       |            |                 |                  |         |        |
+      |   |   | Country           |            | id              | country          |         |        |
+      |   |   |   | id            | integer    |                 | id               |         | open   |    
+      |   |   |   | name          | string     |                 | name             |         | open   |        
+      |   |   |   | languages[]   | ref        | Language[name]  | languages        |         | open   | split(',')    
+    '''))
+    app = create_client(rc, tmp_path, geodb_array, mode='external')
     resp = app.get(f'/example/Language')
     lang_data = resp.json()['_data']
     lang_mapping = {lang['id']: lang for lang in lang_data}

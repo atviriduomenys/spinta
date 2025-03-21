@@ -5,12 +5,12 @@ from spinta.core.ufuncs import ufunc, Expr, Negative, Bind, GetAttr
 from spinta.datasets.backends.sql.ufuncs.components import Selected
 from spinta.datasets.components import ExternalBackend
 from spinta.exceptions import InvalidArgumentInExpression, CannotSelectTextAndSpecifiedLang, \
-    LangNotDeclared, FieldNotInResource
+    LangNotDeclared, FieldNotInResource, PropertyNotFound
 from spinta.types.datatype import DataType, String, Ref, Object, Array, File, BackRef, PrimaryKey, ExternalRef
 from spinta.types.text.components import Text
-from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, Star, ReservedProperty, NestedProperty, \
+from spinta.ufuncs.querybuilder.components import QueryBuilder, Star, ReservedProperty, NestedProperty, \
     ResultProperty, LiteralProperty, Flip
-from spinta.ufuncs.basequerybuilder.helpers import get_pagination_compare_query, process_literal_value
+from spinta.ufuncs.querybuilder.helpers import get_pagination_compare_query, process_literal_value
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.schema import NA
 
@@ -39,27 +39,27 @@ COMPARE = [
 ]
 
 
-@ufunc.resolver(BaseQueryBuilder, Bind, Bind, name='getattr')
+@ufunc.resolver(QueryBuilder, Bind, Bind, name='getattr')
 def getattr_(
-    env: BaseQueryBuilder,
+    env: QueryBuilder,
     field: Bind,
     attr: Bind
 ):
     return GetAttr(field.name, attr)
 
 
-@ufunc.resolver(BaseQueryBuilder, Bind, GetAttr, name='getattr')
+@ufunc.resolver(QueryBuilder, Bind, GetAttr, name='getattr')
 def getattr_(
-    env: BaseQueryBuilder,
+    env: QueryBuilder,
     obj: Bind,
     attr: GetAttr
 ):
     return GetAttr(obj.name, attr)
 
 
-@ufunc.resolver(BaseQueryBuilder, GetAttr, Bind, name='getattr')
+@ufunc.resolver(QueryBuilder, GetAttr, Bind, name='getattr')
 def getattr_(
-    env: BaseQueryBuilder,
+    env: QueryBuilder,
     obj: GetAttr,
     attr: Bind
 ):
@@ -67,18 +67,53 @@ def getattr_(
     return GetAttr(obj.obj, leaf)
 
 
-@ufunc.resolver(BaseQueryBuilder, GetAttr)
+@ufunc.resolver(QueryBuilder, GetAttr)
+def _resolve_property(
+    env: QueryBuilder,
+    attr: GetAttr
+):
+    return env.call('_resolve_property', attr.obj)
+
+
+@ufunc.resolver(QueryBuilder, Bind)
+def _resolve_property(
+    env: QueryBuilder,
+    bind: Bind
+):
+    return env.call('_resolve_property', bind.name)
+
+
+@ufunc.resolver(QueryBuilder, str)
+def _resolve_property(
+    env: QueryBuilder,
+    prop: str
+):
+    if prop in env.model.flatprops:
+        return env.model.flatprops.get(prop)
+
+    raise PropertyNotFound(env.model, property=prop)
+
+
+@ufunc.resolver(QueryBuilder, Property)
+def _resolve_property(
+    env: QueryBuilder,
+    prop: Property
+):
+    return prop
+
+
+@ufunc.resolver(QueryBuilder, GetAttr)
 def _resolve_getattr(
-    env: BaseQueryBuilder,
+    env: QueryBuilder,
     attr: GetAttr,
 ) -> ForeignProperty:
-    prop = env.model.properties[attr.obj]
+    prop = env.resolve_property(attr)
     return env.call('_resolve_getattr', prop.dtype, attr.name)
 
 
-@ufunc.resolver(BaseQueryBuilder, ForeignProperty, Ref, GetAttr)
+@ufunc.resolver(QueryBuilder, ForeignProperty, Ref, GetAttr)
 def _resolve_getattr(
-    env: BaseQueryBuilder,
+    env: QueryBuilder,
     fpr: ForeignProperty,
     dtype: Ref,
     attr: GetAttr,
@@ -88,9 +123,9 @@ def _resolve_getattr(
     return env.call('_resolve_getattr', fpr, prop.dtype, attr.name)
 
 
-@ufunc.resolver(BaseQueryBuilder, ForeignProperty, Ref, Bind)
+@ufunc.resolver(QueryBuilder, ForeignProperty, Ref, Bind)
 def _resolve_getattr(
-    env: BaseQueryBuilder,
+    env: QueryBuilder,
     fpr: ForeignProperty,
     dtype: Ref,
     attr: Bind,
@@ -99,9 +134,9 @@ def _resolve_getattr(
     return fpr.push(prop)
 
 
-@ufunc.resolver(BaseQueryBuilder, Ref, GetAttr)
+@ufunc.resolver(QueryBuilder, Ref, GetAttr)
 def _resolve_getattr(
-    env: BaseQueryBuilder,
+    env: QueryBuilder,
     dtype: Ref,
     attr: GetAttr,
 ):
@@ -112,9 +147,9 @@ def _resolve_getattr(
     return env.call('_resolve_getattr', fpr, prop.dtype, attr.name)
 
 
-@ufunc.resolver(BaseQueryBuilder, Ref, Bind)
+@ufunc.resolver(QueryBuilder, Ref, Bind)
 def _resolve_getattr(
-    env: BaseQueryBuilder,
+    env: QueryBuilder,
     dtype: Ref,
     attr: Bind,
 ):
@@ -129,9 +164,9 @@ def _resolve_getattr(
     return ForeignProperty(None, dtype, prop.dtype)
 
 
-@ufunc.resolver(BaseQueryBuilder, ExternalRef, Bind)
+@ufunc.resolver(QueryBuilder, ExternalRef, Bind)
 def _resolve_getattr(
-    env: BaseQueryBuilder,
+    env: QueryBuilder,
     dtype: ExternalRef,
     attr: Bind,
 ):
@@ -147,9 +182,9 @@ def _resolve_getattr(
     return ForeignProperty(None, dtype, prop.dtype)
 
 
-@ufunc.resolver(BaseQueryBuilder, BackRef, GetAttr)
+@ufunc.resolver(QueryBuilder, BackRef, GetAttr)
 def _resolve_getattr(
-    env: BaseQueryBuilder,
+    env: QueryBuilder,
     dtype: BackRef,
     attr: GetAttr,
 ):
@@ -158,15 +193,15 @@ def _resolve_getattr(
     return env.call('_resolve_getattr', fpr, prop.dtype, attr.name)
 
 
-@ufunc.resolver(BaseQueryBuilder, BackRef, Bind)
+@ufunc.resolver(QueryBuilder, BackRef, Bind)
 def _resolve_getattr(env, dtype, attr):
     prop = dtype.model.properties[attr.name]
     return ForeignProperty(None, dtype, prop.dtype)
 
 
-@ufunc.resolver(BaseQueryBuilder, ForeignProperty, BackRef, GetAttr)
+@ufunc.resolver(QueryBuilder, ForeignProperty, BackRef, GetAttr)
 def _resolve_getattr(
-    env: BaseQueryBuilder,
+    env: QueryBuilder,
     fpr: ForeignProperty,
     dtype: BackRef,
     attr: GetAttr,
@@ -176,9 +211,9 @@ def _resolve_getattr(
     return env.call('_resolve_getattr', fpr, prop.dtype, attr.name)
 
 
-@ufunc.resolver(BaseQueryBuilder, ForeignProperty, BackRef, Bind)
+@ufunc.resolver(QueryBuilder, ForeignProperty, BackRef, Bind)
 def _resolve_getattr(
-    env: BaseQueryBuilder,
+    env: QueryBuilder,
     fpr: ForeignProperty,
     dtype: BackRef,
     attr: Bind,
@@ -187,9 +222,9 @@ def _resolve_getattr(
     return fpr.push(prop)
 
 
-@ufunc.resolver(BaseQueryBuilder, Text, Bind)
+@ufunc.resolver(QueryBuilder, Text, Bind)
 def _resolve_getattr(
-    env: BaseQueryBuilder,
+    env: QueryBuilder,
     dtype: Text,
     bind: Bind
 ):
@@ -200,9 +235,9 @@ def _resolve_getattr(
         raise LangNotDeclared(dtype, lang=bind.name)
 
 
-@ufunc.resolver(BaseQueryBuilder, Object, GetAttr)
+@ufunc.resolver(QueryBuilder, Object, GetAttr)
 def _resolve_getattr(
-    env: BaseQueryBuilder,
+    env: QueryBuilder,
     dtype: Object,
     attr: GetAttr,
 ):
@@ -216,7 +251,7 @@ def _resolve_getattr(
     raise FieldNotInResource(dtype, property=attr.obj)
 
 
-@ufunc.resolver(BaseQueryBuilder, Object, Bind)
+@ufunc.resolver(QueryBuilder, Object, Bind)
 def _resolve_getattr(env, dtype, attr):
     if attr.name in dtype.properties:
         return NestedProperty(
@@ -227,7 +262,7 @@ def _resolve_getattr(env, dtype, attr):
         raise FieldNotInResource(dtype, property=attr.name)
 
 
-@ufunc.resolver(BaseQueryBuilder, Array, (Bind, GetAttr))
+@ufunc.resolver(QueryBuilder, Array, (Bind, GetAttr))
 def _resolve_getattr(env, dtype, attr):
     return NestedProperty(
         left=dtype,
@@ -235,48 +270,48 @@ def _resolve_getattr(env, dtype, attr):
     )
 
 
-@ufunc.resolver(BaseQueryBuilder, File, Bind)
+@ufunc.resolver(QueryBuilder, File, Bind)
 def _resolve_getattr(env, dtype, attr):
     return ReservedProperty(dtype, attr.name)
 
 
-@ufunc.resolver(BaseQueryBuilder, GetAttr)
-def select(env: BaseQueryBuilder, attr: GetAttr) -> Selected:
+@ufunc.resolver(QueryBuilder, GetAttr)
+def select(env: QueryBuilder, attr: GetAttr) -> Selected:
     resolved = env.call('_resolve_getattr', attr)
     return env.call('select', resolved)
 
 
-@ufunc.resolver(BaseQueryBuilder, NestedProperty)
-def select(env: BaseQueryBuilder, nested: NestedProperty) -> Selected:
+@ufunc.resolver(QueryBuilder, NestedProperty)
+def select(env: QueryBuilder, nested: NestedProperty) -> Selected:
     return Selected(
         prop=nested.left.prop,
         prep=env.call('select', nested.right),
     )
 
 
-@ufunc.resolver(BaseQueryBuilder, ReservedProperty)
+@ufunc.resolver(QueryBuilder, ReservedProperty)
 def select(env, prop):
     return env.call('select', prop.dtype, prop.param)
 
 
-@ufunc.resolver(BaseQueryBuilder, ResultProperty)
-def select(env: BaseQueryBuilder, prop: ResultProperty):
+@ufunc.resolver(QueryBuilder, ResultProperty)
+def select(env: QueryBuilder, prop: ResultProperty):
     return Selected(
         prep=prop.expr
     )
 
 
-@ufunc.resolver(BaseQueryBuilder, ForeignProperty)
+@ufunc.resolver(QueryBuilder, ForeignProperty)
 def select(
-    env: BaseQueryBuilder,
+    env: QueryBuilder,
     fpr: ForeignProperty,
 ) -> Selected:
     return env.call('select', fpr, fpr.right.prop)
 
 
-@ufunc.resolver(BaseQueryBuilder, ForeignProperty, Property)
+@ufunc.resolver(QueryBuilder, ForeignProperty, Property)
 def select(
-    env: BaseQueryBuilder,
+    env: QueryBuilder,
     fpr: ForeignProperty,
     prop: Property,
 ) -> Selected:
@@ -297,9 +332,9 @@ def select(
     return env.resolved[resolved_key]
 
 
-@ufunc.resolver(BaseQueryBuilder, ForeignProperty, DataType, object)
+@ufunc.resolver(QueryBuilder, ForeignProperty, DataType, object)
 def select(
-    env: BaseQueryBuilder,
+    env: QueryBuilder,
     fpr: ForeignProperty,
     dtype: DataType,
     prep: Any,
@@ -308,18 +343,18 @@ def select(
     return Selected(prop=dtype.prop, prep=result)
 
 
-@ufunc.resolver(BaseQueryBuilder, ForeignProperty, tuple)
+@ufunc.resolver(QueryBuilder, ForeignProperty, tuple)
 def select(
-    env: BaseQueryBuilder,
+    env: QueryBuilder,
     fpr: ForeignProperty,
     prep: Tuple[Any],
 ) -> Tuple[Any]:
     return tuple(env.call('select', fpr, v) for v in prep)
 
 
-@ufunc.resolver(BaseQueryBuilder, ForeignProperty, PrimaryKey)
+@ufunc.resolver(QueryBuilder, ForeignProperty, PrimaryKey)
 def select(
-    env: BaseQueryBuilder,
+    env: QueryBuilder,
     fpr: ForeignProperty,
     dtype: PrimaryKey,
 ) -> Selected:
@@ -342,41 +377,41 @@ def select(
     return Selected(prop=dtype.prop, prep=result)
 
 
-@ufunc.resolver(BaseQueryBuilder, list)
+@ufunc.resolver(QueryBuilder, list)
 def select(
-    env: BaseQueryBuilder,
+    env: QueryBuilder,
     prep: List[Any],
 ) -> List[Any]:
     return [env.call('select', v) for v in prep]
 
 
-@ufunc.resolver(BaseQueryBuilder, tuple)
+@ufunc.resolver(QueryBuilder, tuple)
 def select(
-    env: BaseQueryBuilder,
+    env: QueryBuilder,
     prep: Tuple[Any],
 ) -> Tuple[Any]:
     return tuple(env.call('select', v) for v in prep)
 
 
-@ufunc.resolver(BaseQueryBuilder, dict)
+@ufunc.resolver(QueryBuilder, dict)
 def select(
-    env: BaseQueryBuilder,
+    env: QueryBuilder,
     prep: Dict[str, Any],
 ) -> Dict[str, Any]:
     # TODO: Add tests.
     return {k: env.call('select', v) for k, v in prep.items()}
 
 
-@ufunc.resolver(BaseQueryBuilder, LiteralProperty)
+@ufunc.resolver(QueryBuilder, LiteralProperty)
 def select(
-    env: BaseQueryBuilder,
+    env: QueryBuilder,
     prep: LiteralProperty,
 ) -> Selected:
     return Selected(prep=prep.value)
 
 
-@ufunc.resolver(BaseQueryBuilder, DataType, object)
-def select(env: BaseQueryBuilder, dtype: DataType, prep: Any) -> Selected:
+@ufunc.resolver(QueryBuilder, DataType, object)
+def select(env: QueryBuilder, dtype: DataType, prep: Any) -> Selected:
     if isinstance(prep, str):
         # XXX: Backwards compatibility thing.
         #      str values are interpreted as Bind values and Bind values are
@@ -399,18 +434,18 @@ def select(env: BaseQueryBuilder, dtype: DataType, prep: Any) -> Selected:
         return Selected(prop=dtype.prop, prep=result)
 
 
-@ufunc.resolver(BaseQueryBuilder, Flip)
-def select(env: BaseQueryBuilder, flip_: Flip):
+@ufunc.resolver(QueryBuilder, Flip)
+def select(env: QueryBuilder, flip_: Flip):
     return env.call('select', flip_.dtype, flip_)
 
 
-@ufunc.resolver(BaseQueryBuilder, GetAttr)
+@ufunc.resolver(QueryBuilder, GetAttr)
 def sort(env, field):
     dtype = env.call('_resolve_getattr', field)
     return env.call('sort', dtype)
 
 
-@ufunc.resolver(BaseQueryBuilder, Expr, name='paginate')
+@ufunc.resolver(QueryBuilder, Expr, name='paginate')
 def paginate(env, expr):
     if len(expr.args) != 1:
         raise InvalidArgumentInExpression(arguments=expr.args, expr='paginate')
@@ -434,18 +469,19 @@ def paginate(env, expr):
         raise InvalidArgumentInExpression(arguments=expr.args, expr='paginate')
 
 
-@ufunc.resolver(BaseQueryBuilder, Expr, name='expand')
+@ufunc.resolver(QueryBuilder, Expr, name='expand')
 def expand(env, expr):
     result = []
     if expr.args:
         for arg in expr.args:
             resolved = env.resolve(arg)
-            result.append(resolved)
+            prop = env.resolve_property(resolved)
+            result.append(prop)
         return result
     return None
 
 
-@ufunc.resolver(BaseQueryBuilder, str, name='op')
+@ufunc.resolver(QueryBuilder, str, name='op')
 def op_(env, arg: str):
     if arg == '*':
         return Star()
@@ -453,24 +489,24 @@ def op_(env, arg: str):
         raise NotImplementedError
 
 
-@ufunc.resolver(BaseQueryBuilder, Expr, name='page')
+@ufunc.resolver(QueryBuilder, Expr, name='page')
 def page_(env, expr):
     pass
 
 
-@ufunc.resolver(BaseQueryBuilder, DataType, list)
+@ufunc.resolver(QueryBuilder, DataType, list)
 def validate_dtype_for_select(env, dtype: DataType, selected_props: List[Property]):
     raise NotImplemented(f"validate_dtype_for_select with {dtype.name} is not implemented")
 
 
-@ufunc.resolver(BaseQueryBuilder, Text, list)
+@ufunc.resolver(QueryBuilder, Text, list)
 def validate_dtype_for_select(env, dtype: Text, selected_props: List[Property]):
     for prop in selected_props:
         if dtype.prop.name == prop.name or prop.parent == dtype.prop:
             raise CannotSelectTextAndSpecifiedLang(dtype)
 
 
-@ufunc.resolver(BaseQueryBuilder, String, list)
+@ufunc.resolver(QueryBuilder, String, list)
 def validate_dtype_for_select(env, dtype: String, selected_props: List[Property]):
     if dtype.prop.parent and isinstance(dtype.prop.parent.dtype, Text):
         parent = dtype.prop.parent
@@ -479,19 +515,19 @@ def validate_dtype_for_select(env, dtype: String, selected_props: List[Property]
                 raise CannotSelectTextAndSpecifiedLang(parent.dtype)
 
 
-@ufunc.resolver(BaseQueryBuilder, NestedProperty, object, names=COMPARE)
-def compare(env: BaseQueryBuilder, op: str, nested: NestedProperty, value: object):
+@ufunc.resolver(QueryBuilder, NestedProperty, object, names=COMPARE)
+def compare(env: QueryBuilder, op: str, nested: NestedProperty, value: object):
     return env.call(op, nested.right, value)
 
 
-@ufunc.resolver(BaseQueryBuilder, Bind, object, names=COMPARE)
+@ufunc.resolver(QueryBuilder, Bind, object, names=COMPARE)
 def compare(env, op, field, value):
-    prop = env.model.get_from_flatprops(field.name)
+    prop = env.resolve_property(field)
     return env.call(op, prop.dtype, value)
 
 
-@ufunc.resolver(BaseQueryBuilder, Expr)
-def testlist(env: BaseQueryBuilder, expr: Expr) -> tuple:
+@ufunc.resolver(QueryBuilder, Expr)
+def testlist(env: QueryBuilder, expr: Expr) -> tuple:
     args, kwargs = expr.resolve(env)
     result = []
     for arg in args:
@@ -499,16 +535,16 @@ def testlist(env: BaseQueryBuilder, expr: Expr) -> tuple:
     return tuple(result)
 
 
-@ufunc.resolver(BaseQueryBuilder)
-def flip(env: BaseQueryBuilder):
+@ufunc.resolver(QueryBuilder)
+def flip(env: QueryBuilder):
     return env.call('flip', env.this)
 
 
-@ufunc.resolver(BaseQueryBuilder, Property)
-def flip(env: BaseQueryBuilder, prop: Property):
+@ufunc.resolver(QueryBuilder, Property)
+def flip(env: QueryBuilder, prop: Property):
     return env.call('flip', prop.dtype)
 
 
-@ufunc.resolver(BaseQueryBuilder, DataType)
-def flip(env: BaseQueryBuilder, dtype: DataType):
+@ufunc.resolver(QueryBuilder, DataType)
+def flip(env: QueryBuilder, dtype: DataType):
     return Expr('flip')

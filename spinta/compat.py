@@ -1,8 +1,14 @@
 from __future__ import annotations
 
+import contextlib
+import warnings
+
 from typing import TYPE_CHECKING
 
 from spinta.core.ufuncs import asttoexpr
+from spinta.datasets.backends.dataframe.backends.csv.components import Csv
+from spinta.datasets.backends.dataframe.backends.json.components import Json
+from spinta.datasets.backends.dataframe.backends.xml.components import Xml
 
 if TYPE_CHECKING:
     from spinta.components import UrlParams
@@ -57,3 +63,45 @@ def urlparams_to_expr(
         ast = {'name': 'and', 'args': ast}
 
     return asttoexpr(ast)
+
+
+# Backwards compatibility `xml` backend class.
+# It will eventually be deprecated fully.
+class XmlDeprecated(Xml):
+    type: str = 'xml'
+
+    @contextlib.contextmanager
+    def begin(self):
+        yield
+
+    def __init__(self):
+        super().__init__()
+        warnings.warn("'xml' backend type is deprecated, use 'dask/xml'.", FutureWarning)
+
+
+# Backwards compatibility `json` backend class.
+# It will eventually be deprecated fully.
+class JsonDeprecated(Json):
+    type: str = 'json'
+
+    @contextlib.contextmanager
+    def begin(self):
+        yield
+
+    def __init__(self):
+        super().__init__()
+        warnings.warn("'json' backend type is deprecated, use 'dask/json'.", FutureWarning)
+
+
+# Backwards compatibility `csv` backend class.
+# It will eventually be deprecated fully.
+class CsvDeprecated(Csv):
+    type: str = 'csv'
+
+    @contextlib.contextmanager
+    def begin(self):
+        yield
+
+    def __init__(self):
+        super().__init__()
+        warnings.warn("'csv' backend type is deprecated, use 'dask/csv'.", FutureWarning)

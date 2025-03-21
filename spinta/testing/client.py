@@ -264,13 +264,19 @@ def configure_remote_server(
     )
 
 
-def create_rc(rc: RawConfig, tmp_path: pathlib.Path, db: Sqlite, mode: str = 'internal') -> RawConfig:
+def create_rc(
+    rc: RawConfig,
+    tmp_path: pathlib.Path,
+    db: Sqlite,
+    mode: str = 'internal',
+    backend: str = 'sql'
+) -> RawConfig:
     return rc.fork({
         'manifests': {
             'default': {
                 'type': 'tabular',
                 'path': str(tmp_path / 'manifest.csv'),
-                'backend': 'sql',
+                'backend': backend,
                 'keymap': 'default',
                 'mode': mode
             },
@@ -280,14 +286,24 @@ def create_rc(rc: RawConfig, tmp_path: pathlib.Path, db: Sqlite, mode: str = 'in
                 'type': 'sql',
                 'dsn': db.dsn,
             },
+            'sqlite': {
+                'type': 'sql/sqlite',
+                'dsn': db.dsn
+            }
         },
         # tests/config/clients/3388ea36-4a4f-4821-900a-b574c8829d52.yml
         'default_auth_client': '3388ea36-4a4f-4821-900a-b574c8829d52',
     })
 
 
-def create_client(rc: RawConfig, tmp_path: pathlib.Path, geodb: Sqlite):
-    rc = create_rc(rc, tmp_path, geodb)
+def create_client(
+    rc: RawConfig,
+    tmp_path: pathlib.Path,
+    geodb: Sqlite,
+    mode: str = 'internal',
+    backend: str = 'sql'
+):
+    rc = create_rc(rc, tmp_path, geodb, mode=mode, backend=backend)
     context = create_test_context(rc)
     return create_test_client(context)
 

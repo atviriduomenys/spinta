@@ -3,5 +3,5 @@ type: dataset
 name: datasets/denorm
 resources:
   orgs:
-    type: csv
+    type: dask/csv
     external: http://example.com/

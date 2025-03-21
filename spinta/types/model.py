@@ -26,7 +26,7 @@ from spinta.components import Model
 from spinta.components import Property
 from spinta.core.access import link_access_param
 from spinta.core.access import load_access_param
-from spinta.core.enums import Level
+from spinta.core.enums import Level, load_level, load_status, load_visibility
 from spinta.datasets.components import ExternalBackend
 from spinta.dimensions.comments.helpers import load_comments
 from spinta.dimensions.enum.components import EnumValue
@@ -35,7 +35,7 @@ from spinta.dimensions.enum.helpers import link_enums
 from spinta.dimensions.enum.helpers import load_enums
 from spinta.dimensions.lang.helpers import load_lang_data
 from spinta.dimensions.param.helpers import load_params
-from spinta.exceptions import KeymapNotSet, InvalidLevel
+from spinta.exceptions import KeymapNotSet
 from spinta.exceptions import PropertyNotFound
 from spinta.exceptions import UndefinedEnum
 from spinta.exceptions import UnknownPropertyType
@@ -52,7 +52,6 @@ from spinta.types.namespace import load_namespace_from_name
 from spinta.ufuncs.loadbuilder.components import LoadBuilder
 from spinta.ufuncs.loadbuilder.helpers import page_contains_unsupported_keys, get_allowed_page_property_types
 from spinta.units.helpers import is_unit
-from spinta.utils.enums import enum_by_value
 from spinta.utils.schema import NA
 
 if TYPE_CHECKING:
@@ -92,6 +91,9 @@ def load(
         model.ns.parents(),
     ))
     load_level(model, model.level)
+    load_status(model, model.status)
+    load_visibility(model, model.visibility)
+
     load_model_properties(context, model, Property, data.get('properties'))
 
     # XXX: Maybe it is worth to leave possibility to override _id access?
@@ -171,30 +173,30 @@ def load(
 ) -> PartialModel:
     parent_model = load[Context, Model, dict, Manifest](context, model, data, manifest, source=source)
     parent_model.given.url_params = data.get('given_url_params')
-    
+
     url_params = UrlParams()
     given_url_params = parent_model.given.url_params
-    
+
     if given_url_params:
         if '?' in given_url_params:
             action_part, query = given_url_params.split('?', 1)
             action = action_part.strip(':') if action_part else None
-            
+
             if action:
                 url_params.action = Action.by_value(action)
-            
+
             parsed = parse(query)
             if parsed:
                 if parsed['name'] == 'select':
                     # For select(id,name)
                     url_params.select = [
-                        arg['args'][0] for arg in parsed['args'] 
+                        arg['args'][0] for arg in parsed['args']
                         if arg['name'] == 'bind'
                     ]
                 else:
                     # For filters like continent.code="eu"
                     url_params.query = [parsed]
-                
+
         elif given_url_params.startswith(':'):
             # Action-only features like /:getall
             action = given_url_params.strip(':')
@@ -202,7 +204,7 @@ def load(
 
     model.parent_model = parent_model
     model.url_params = url_params
-    
+
     return model
 
 
@@ -318,7 +320,8 @@ def load(
     prop.type = 'property'
     prop, data = load_node(context, prop, data, mixed=True)
     prop = cast(Property, prop)
-
+    if not (prop.model.basename.startswith('_') or prop.model.name.startswith('_') or prop.name.startswith('_')) and prop.model.ns.name == "datasets/gov/example":
+        print()
     parents = list(itertools.chain(
         [prop.model, prop.model.ns],
         prop.model.ns.parents(),
@@ -330,6 +333,15 @@ def load(
     if prop.prepare_given:
         prop.given.prepare = prop.prepare_given
     load_level(prop, prop.level)
+
+    # todo properties should inherit those from model OR have a default. They shouldn't be empty
+    #  Now they are empty in cases when model gets a default value, for example in inspect - tests/apie/test_inspect.py
+
+    #  todo the bug is probably in the place where the models and properties are written
+    # prop.given.status = prop.status
+    # prop.status = load_enum_type_item(prop, prop.status, Status)
+    load_status(prop, prop.status)
+    load_visibility(prop, prop.visibility)
 
     if data['type'] is None:
         raise UnknownPropertyType(prop, type=data['type'])
@@ -373,25 +385,6 @@ def load(
     prop.given.explicit = prop.explicitly_given if prop.explicitly_given is not None else True
     prop.given.name = prop.given_name
     return prop
-
-
-def load_level(
-    component: Component,
-    given_level: Union[Level, int, str],
-):
-    if given_level:
-        if isinstance(given_level, Level):
-            level = given_level
-        else:
-            if isinstance(given_level, str) and given_level.isdigit():
-                given_level = int(given_level)
-            if not isinstance(given_level, int):
-                raise InvalidLevel(component, level=given_level)
-            level = enum_by_value(component, 'level', Level, given_level)
-    else:
-        level = None
-    component.level = level
-
 
 def _link_prop_enum(
     prop: Property,

@@ -35,11 +35,11 @@ from spinta.types.datatype import UUID as UUID_dtype
 from spinta.types.geometry.components import Geometry
 from spinta.types.text.components import Text
 from spinta.types.text.helpers import determine_language_property_for_text
-from spinta.ufuncs.basequerybuilder.components import ReservedProperty, \
+from spinta.ufuncs.querybuilder.components import ReservedProperty, \
     NestedProperty, ResultProperty, Flip
-from spinta.ufuncs.basequerybuilder.helpers import get_column_with_extra, get_language_column, \
-    expandable_not_expanded
-from spinta.ufuncs.basequerybuilder.ufuncs import Star
+from spinta.ufuncs.querybuilder.helpers import get_column_with_extra, get_language_column, \
+    expanded
+from spinta.ufuncs.querybuilder.ufuncs import Star
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.data import take
 
@@ -94,7 +94,7 @@ def select(env, arg: Star) -> None:
         #       writes.
 
         # Check if prop is expanded or not
-        if expandable_not_expanded(env, prop):
+        if not expanded(env, prop):
             continue
         env.selected[prop.place] = env.call('select', prop)
 
@@ -106,7 +106,7 @@ def select(env, arg):
     if arg.name == '_page':
         return None
     prop = _get_property_for_select(env, arg.name)
-    if expandable_not_expanded(env, prop):
+    if not expanded(env, prop):
         return Selected(None, prop, prep=[])
     return env.call('select', prop)
 
@@ -1041,7 +1041,7 @@ FUNCS = [
 
 @ufunc.resolver(PgQueryBuilder, Bind, names=FUNCS)
 def func(env, name, field):
-    prop = env.model.flatprops[field.name]
+    prop = env.resolve_property(field)
     return env.call(name, prop.dtype)
 
 
@@ -1094,7 +1094,7 @@ def sort(env, expr):
 
 @ufunc.resolver(PgQueryBuilder, Bind)
 def sort(env, field):
-    prop = env.model.get_from_flatprops(field.name)
+    prop = env.resolve_property(field)
     return env.call('asc', prop.dtype)
 
 
@@ -1105,7 +1105,7 @@ def sort(env, dtype):
 
 @ufunc.resolver(PgQueryBuilder, Negative_)
 def sort(env, field):
-    prop = env.model.get_from_flatprops(field.name)
+    prop = env.resolve_property(field)
     return env.call('desc', prop.dtype)
 
 
@@ -1210,19 +1210,13 @@ def positive(env, field) -> Positive:
 
 @ufunc.resolver(PgQueryBuilder, Bind)
 def negative(env, field) -> Negative:
-    if field.name in env.model.properties:
-        prop = env.model.properties[field.name]
-    else:
-        raise FieldNotInResource(env.model, property=field.name)
+    prop = env.resolve_property(field)
     return Negative(prop.dtype)
 
 
 @ufunc.resolver(PgQueryBuilder, Bind)
 def positive(env, field) -> Positive:
-    if field.name in env.model.properties:
-        prop = env.model.properties[field.name]
-    else:
-        raise FieldNotInResource(env.model, property=field.name)
+    prop = env.resolve_property(field)
     return Positive(prop.dtype)
 
 

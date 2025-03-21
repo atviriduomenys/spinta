@@ -19,9 +19,9 @@ from spinta.components import Context, pagination_enabled, Page
 from spinta.components import DataStream
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
-from spinta.ufuncs.basequerybuilder.components import QueryParams
+from spinta.ufuncs.querybuilder.components import QueryParams
 from spinta.types.datatype import Inherit
-from spinta.ufuncs.basequerybuilder.helpers import add_page_expr
+from spinta.ufuncs.querybuilder.helpers import add_page_expr
 from spinta.ufuncs.helpers import merge_formulas
 from spinta.utils.aiotools import alist
 from spinta.utils.itertools import peek

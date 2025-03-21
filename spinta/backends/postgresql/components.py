@@ -37,6 +37,9 @@ class PostgreSQL(Backend):
     schema: sa.MetaData = None
     tables: Dict[str, sa.Table] = None
 
+    query_builder_type = 'postgresql'
+    result_builder_type = 'postgresql'
+
     @contextlib.contextmanager
     def transaction(self, write=False):
         try:

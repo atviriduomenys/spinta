@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -11,6 +13,7 @@ from spinta.components import Namespace
 from spinta.components import Property
 from spinta.core.access import link_access_param
 from spinta.core.access import load_access_param
+from spinta.core.enums import load_level, load_status, load_visibility
 from spinta.core.ufuncs import asttoexpr
 from spinta.dimensions.enum.components import EnumFormula
 from spinta.dimensions.enum.components import EnumItem
@@ -42,6 +45,9 @@ def _load_enum_item(
         item.prepare = env.resolve(expr)
 
     load_access_param(item, data.get('access'), parents)
+    load_level(item, data.get('level'))
+    load_status(item, data.get('status'))
+    load_visibility(item, data.get('visibility'))
     return item
 
 

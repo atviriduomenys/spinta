@@ -23,7 +23,7 @@ from spinta.dimensions.lang.components import LangData
 from spinta.units.components import Unit
 from spinta.utils.encoding import encode_page_values
 from spinta.utils.schema import NA
-from spinta.core.enums import Access, Level
+from spinta.core.enums import Access, Level, Status, Visibility
 
 if TYPE_CHECKING:
     from spinta.backends.components import Backend
@@ -680,6 +680,12 @@ class Model(MetaData):
     uri: str = None
     uri_prop: Property = None
     page: PageInfo = None
+    features: str = None
+    status: Status | None = None
+    visibility: Visibility | None = None
+    eli: str | None = None
+    count: int | None = None
+    origin: str | None = None
 
     required_keymap_properties = None
 
@@ -707,6 +713,20 @@ class Model(MetaData):
         'comments': {},
         'uri': {'type': 'string'},
         'given_name': {'type': 'string', 'default': None},
+        'features': {},
+        'status': {
+            'type': 'string',
+            'choices': Status,
+            'default': 'develop'
+        },
+        'visibility': {
+            'type': 'string',
+            'choices': Visibility,
+            'default': 'private',
+        },
+        'eli': {'type': 'string'},
+        'count': {'type': 'integer'},
+        'origin': {'type': 'string'},
     }
 
     def __init__(self):
@@ -737,7 +757,6 @@ class Model(MetaData):
 
         # return self.name.split('/')[-1]
 
-
     def add_keymap_property_combination(self, given_props: List[Property]):
         extract_names = list([prop.name for prop in given_props])
         if extract_names not in self.required_keymap_properties:
@@ -745,12 +764,6 @@ class Model(MetaData):
 
     def get_given_properties(self):
         return {prop_name: prop for prop_name, prop in self.properties.items() if not prop_name.startswith('_')}
-
-    def get_from_flatprops(self, prop: str) -> Property:
-        if prop in self.flatprops:
-            return self.flatprops[prop]
-        else:
-            raise exceptions.FieldNotInResource(self, property=prop)
 
 
 
@@ -762,12 +775,13 @@ class PartialModel(Model):
 
 
 class PropertyGiven:
-    access: str = None
-    enum: str = None
-    unit: str = None
-    name: str = None
+    access: str | None = None
+    enum: str | None = None
+    unit: str | None = None
+    name: str | None = None
     explicit: bool = True
-    prepare: List[PrepareGiven] = []
+    type: str | None = None
+    prepare: list[PrepareGiven] = []
 
 
 class PrepareGiven(TypedDict):
@@ -795,6 +809,11 @@ class Property(ExtraMetaData):
     lang: LangData = None
     unit: Unit = None       # Given in ref column.
     comments: List[Comment] = None
+    status: Status | None = None
+    visibility: Visibility | None = None
+    eli: str | None = None
+    count: int | None = None
+    origin: str | None = None
 
     schema = {
         'title': {},
@@ -822,6 +841,19 @@ class Property(ExtraMetaData):
         'given_name': {'type': 'string', 'default': None},
         'explicitly_given': {'type': 'boolean'},
         'prepare_given': {'required': False},
+        'status': {
+            'type': 'string',
+            'choices': Status,
+            'default': 'develop',
+        },
+        'visibility': {
+            'type': 'string',
+            'choices': Visibility,
+            'default': 'private',
+        },
+        'eli': {'type': 'string'},
+        'count': {'type': 'integer'},
+        'origin': {'type': 'string'},
     }
 
     def __init__(self):
