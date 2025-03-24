@@ -49,7 +49,7 @@ from spinta.exceptions import MultipleErrors, InvalidBackRefReferenceAmount, Dat
     NestedDataTypeMismatch, NoModelDefined, PropertyNotFound
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
-from spinta.manifests.tabular.components import ACCESS, URI
+from spinta.manifests.tabular.components import ACCESS, URI, STATUS, VISIBILITY, ELI, COUNT, ORIGIN
 from spinta.manifests.tabular.components import BackendRow
 from spinta.manifests.tabular.components import BaseRow
 from spinta.manifests.tabular.components import CommentData
@@ -289,6 +289,7 @@ class DatasetReader(TabularReader):
                 'description': row['description'],
                 'given_name': row['dataset'],
                 'resources': {},
+                'count': row['count'],
             }
 
     def release(self, reader: TabularReader = None) -> bool:
@@ -364,6 +365,7 @@ class ResourceReader(TabularReader):
             'title': row['title'],
             'description': row['description'],
             'given_name': self.name,
+            'source_type': row['source.type']
         }
 
         dataset['resources'][self.name] = self.data
@@ -483,10 +485,16 @@ class ModelReader(TabularReader):
                     if row['ref'] else []
                 ),
                 'name': row['source'],
+                'type': row['source.type'],
                 'prepare': _parse_spyna(self, row[PREPARE]),
             },
             'given_name': name,
-            'features': features
+            'features': features,
+            'status': row.get(STATUS),
+            'visibility': row.get(VISIBILITY),
+            'eli': row.get(ELI),
+            'count': row.get(COUNT),
+            'origin': row.get(ORIGIN),
         }
         if resource and not dataset:
             self.data['backend'] = resource.name
@@ -713,7 +721,12 @@ def _initial_normal_property_schema(given_name: str, dtype: dict, row: dict):
         'unique': dtype['unique'],
         'given_name': given_name,
         'prepare_given': [],
-        'explicitly_given': True
+        'explicitly_given': True,
+        'status': row.get(STATUS),
+        'visibility': row.get(VISIBILITY),
+        'eli': row.get(ELI),
+        'count': row.get(COUNT),
+        'origin': row.get(ORIGIN),
     }
 
 
@@ -791,6 +804,7 @@ def _datatype_handler(reader: PropertyReader, row: dict, initial_data_loader: Ca
     if dataset or row['source']:
         new_data['external'] = {
             'name': row['source'],
+            'type': row['source.type'],
         }
 
     return new_data
@@ -830,6 +844,7 @@ def _string_datatype_handler(reader: PropertyReader, row: dict):
     if dataset or row['source']:
         new_data['external'] = {
             'name': row['source'],
+            'type': row['source.type']
         }
 
     return new_data
@@ -1493,6 +1508,10 @@ class EnumReader(TabularReader):
             'title': row[TITLE],
             'description': row[DESCRIPTION],
             'level': row[LEVEL],
+            'status': row[STATUS],
+            'visibility': row[VISIBILITY],
+            'eli': row[ELI],
+            'count': row[COUNT],
         }
 
         node_data: PropertyRow = self._get_node_data()
@@ -2198,7 +2217,11 @@ def _enums_to_tabular(
                 'access': item.given.access,
                 'title': item.title,
                 'description': item.description,
-                'level': item.level,
+                'level': item.level.value if item.level else "",
+                'status': item.status.name if item.status else "",
+                'visibility': item.visibility.name if item.visibility else "",
+                'eli': item.eli,
+                'count': item.count,
             })
             if lang := list(_lang_to_tabular(item.lang)):
                 first = True
@@ -2315,6 +2338,7 @@ def _dataset_to_tabular(
         'access': dataset.given.access,
         'title': dataset.title,
         'description': dataset.description,
+        'count': dataset.count,
     })
     yield from _lang_to_tabular(dataset.lang)
     yield from _prefixes_to_tabular(dataset.prefixes, separator=True)
@@ -2337,6 +2361,7 @@ def _resource_to_tabular(
         'id': resource.id,
         'resource': resource.name,
         'source': resource.external if external else '',
+        'source.type': resource.source_type,
         'prepare': unparse(resource.prepare or NA) if external else '',
         'type': resource.type,
         'ref': (
@@ -2394,6 +2419,11 @@ def _property_to_tabular(
         'uri': prop.uri,
         'title': prop.title,
         'description': prop.description,
+        'status': prop.status.name if prop.status else "",
+        'visibility': prop.visibility.name if prop.visibility else "",
+        'eli': prop.eli,
+        'count': prop.count,
+        'origin': prop.origin,
     }
 
     if external and prop.external:
@@ -2407,8 +2437,11 @@ def _property_to_tabular(
                 "Source can't be a list, use prepare instead."
             )
         elif prop.external:
-            data['source'] = prop.external.name
-            data['prepare'] = unparse(prop.external.prepare or NA)
+            data.update({
+                'source': prop.external.name,
+                'source.type': prop.external.type,
+                'prepare': unparse(prop.external.prepare or NA),
+            })
 
     yield_rows = []
 
@@ -2513,6 +2546,11 @@ def _model_to_tabular(
         'title': model.title,
         'description': model.description,
         'uri': model.uri if model.uri else "",
+        'status': model.status.name if model.status else "",
+        'visibility': model.visibility.name if model.visibility else "",
+        'eli': model.eli,
+        'count': model.count,
+        'origin': model.origin,
     }
     if model.external and model.external.dataset:
         data['model'] = to_relative_model_name(
@@ -2524,6 +2562,7 @@ def _model_to_tabular(
     if external and model.external:
         data.update({
             'source': model.external.name,
+            'source.type': model.external.type,
             'prepare': unparse(model.external.prepare or NA),
         })
         if (
@@ -2574,7 +2613,6 @@ def datasets_to_tabular(
         order_by=order_by,
         separator=True,
     )
-
     seen_datasets = set()
     dataset = None
     resource = None
