@@ -273,8 +273,7 @@ def load(
     prop.type = 'property'
     prop, data = load_node(context, prop, data, mixed=True)
     prop = cast(Property, prop)
-    if not (prop.model.basename.startswith('_') or prop.model.name.startswith('_') or prop.name.startswith('_')) and prop.model.ns.name == "datasets/gov/example":
-        print()
+
     parents = list(itertools.chain(
         [prop.model, prop.model.ns],
         prop.model.ns.parents(),
