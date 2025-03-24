@@ -12,7 +12,7 @@ from spinta.manifests.yaml.components import YamlManifest
 @commands.load.register(Context, OpenAPIManifest)
 def load(
     context: Context,
-    manifest: YamlManifest,
+    manifest: OpenAPIManifest,
     *,
     into: Manifest | None = None,
     freezed: bool = False,
