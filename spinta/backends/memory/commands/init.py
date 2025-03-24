@@ -11,3 +11,11 @@ def prepare(context: Context, backend: Memory, manifest: Manifest, **kwargs):
     for model in commands.get_models(context, manifest).values():
         backend.create(get_table_name(model))
         backend.create(get_table_name(model, TableType.CHANGELOG))
+
+    if context.has("yaml_content"):
+        content = context.get("yaml_content")
+        if isinstance(content, list):
+            for record in content:
+                backend.insert(record)
+        else:
+            backend.insert(content)
