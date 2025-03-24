@@ -4,7 +4,6 @@ from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
 from spinta.manifests.tabular.helpers import striptable
-from spinta.testing.context import create_test_context
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.manifest import load_manifest
 
@@ -449,3 +448,27 @@ def test_enum_ref(context: Context, rc: RawConfig, cli: SpintaCliRunner, tmp_pat
       |   |   |   | sex      | integer | sex     | SEX         |         | open   |
       |   |   |   | name     | string  |         | NAME        |         | open   |
     '''
+
+
+def test_enum_function_noop_copy(context: Context, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
+    primary_manifest = '''
+    d | r | b | m | property | type    | ref | source       | prepare
+    dataset1                 |         |     |              |
+      | resource1            | sql     |     |              |
+                             |         |     |              |
+      |   |   | City         |         | id  | CITIES       |
+      |   |   |   | id       | integer |     | ID           |
+      |   |   |   | country  | string  |     | COUNTRY_CODE |
+                             | enum    |     | lt           |
+                             |         |     | ee           |
+                             |         |     | lv           |
+                             |         |     |              | noop()
+    '''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', primary_manifest)
+
+    cli.invoke(rc, [
+        'copy', tmp_path / 'manifest.csv', '-o', tmp_path / 'result.csv',
+    ])
+    manifest = load_manifest(rc, tmp_path / 'result.csv')
+
+    assert manifest == primary_manifest
