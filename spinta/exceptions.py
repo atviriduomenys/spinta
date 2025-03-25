@@ -371,10 +371,6 @@ class MultipleModelsInDependencies(BaseError):
     template = "Dependencies are allowed only from single model, but more than one model found: {models}."
 
 
-class MultipleCallsOrModelsInDependencies(BaseError):
-    template = "Only one command call or one model is allowed in dependencies."
-
-
 class InvalidSource(BaseError):
     template = "Invalid source. {error}"
     context = {
