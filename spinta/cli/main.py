@@ -11,7 +11,7 @@ from typer import Typer
 from typer import echo
 
 import spinta
-from spinta.cli import auth
+from spinta.cli import auth, get
 from spinta.cli import config
 from spinta.cli import data
 from spinta.cli import inspect
@@ -66,6 +66,8 @@ add(app, 'wait', server.wait, short_help="Wait while all backends are up")
 add(app, 'upgrade', upgrade, short_help="Run upgrade scripts")
 
 add(app, 'keymap', keymap, short_help="Manage keymap database")
+add(app, 'getall', get.getall, short_help="Returns all data from as JSON from yaml data source")
+add(app, 'getone', get.getone, short_help="Returns data from as JSON from yaml data source from id")
 
 
 @app.callback(invoke_without_command=True)

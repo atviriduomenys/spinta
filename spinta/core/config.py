@@ -591,6 +591,7 @@ def configure_rc(
     mode: Mode = Mode.internal,
     check_names: Optional[bool] = None,
     backend: str | None = None,
+    dsn: str | None = None,
     resources: List[ResourceTuple] = None,
     dataset: str = None,
     manifest_type: str = 'inline'
@@ -605,6 +606,8 @@ def configure_rc(
             config['backends.default'] = {
                 'type': 'memory',
             }
+            if dsn:
+                config['backends.default']['dsn'] = dsn
         else:
             config['backends.default'] = {
                 'type': 'postgresql',

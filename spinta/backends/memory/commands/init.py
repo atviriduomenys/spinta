@@ -4,18 +4,15 @@ from spinta.manifests.components import Manifest
 from spinta.backends.constants import TableType
 from spinta.backends.helpers import get_table_name
 from spinta.backends.memory.components import Memory
-
+import yaml
 
 @commands.prepare.register(Context, Memory, Manifest)
 def prepare(context: Context, backend: Memory, manifest: Manifest, **kwargs):
     for model in commands.get_models(context, manifest).values():
         backend.create(get_table_name(model))
         backend.create(get_table_name(model, TableType.CHANGELOG))
+    with open(backend.dsn, 'r') as file:
+        data = yaml.safe_load(file)
 
-    if context.has("yaml_content"):
-        content = context.get("yaml_content")
-        if isinstance(content, list):
-            for record in content:
-                backend.insert(record)
-        else:
-            backend.insert(content)
+    for record in data:
+        backend.insert(record)
