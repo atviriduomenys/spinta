@@ -5,8 +5,8 @@ import spinta.commands  # noqa
 import spinta.manifests.commands.error  # noqa
 from spinta import commands
 
-from spinta.exceptions import BaseError, error_response, JSONError, MultipleRowsFound, ManagedProperty
-from spinta.components import Node
+from spinta.exceptions import BaseError, error_response, JSONError, MultipleRowsFound, ManagedProperty, RequiredProperty
+from spinta.components import Node, Property
 
 
 class Error(BaseError):
@@ -232,6 +232,11 @@ def test_json_error_message(context):
             ManagedProperty,
             {"this": commands.get_model, "property": "_revision"},
             "Value of (_revision) property under (<model name='datasets/backends/postgres/dataset/Report'>) is managed automatically and cannot be set manually."
+        ],
+        [
+            RequiredProperty,
+            {"this": Property()},
+            "Property ([UNKNOWN]) is required."
         ],
     ],
 )
