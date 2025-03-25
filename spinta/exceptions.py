@@ -995,7 +995,7 @@ class MissingRefModel(UserError):
 
 
 class UnableToMapIntermediateTable(UserError):
-    template = 'Unable to map intermediate table to `Array` property.'
+    template = 'Unable to map intermediate table ({model}) to `Array` property.'
 
 
 class InvalidIntermediateTableMappingRefCount(UserError):
