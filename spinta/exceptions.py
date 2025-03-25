@@ -732,11 +732,6 @@ class DuplicateRowWhilePaginating(BaseError):
     template = "Encountered a duplicate row with page key: '{key}'"
 
 
-class UnauthorizedPropertyPush(UserError):
-    code = 403
-    template = "You do not have permission to push this property."
-
-
 class InvalidArgumentInExpression(BaseError):
     template = "Invalid {arguments} arguments given to {expr} expression."
 
