@@ -194,7 +194,7 @@ class ConflictingValue(UserError):
 
 
 class UniqueConstraint(UserError):
-    template = "Given value already exists."
+    template = "Given value ({value}) already exists."
 
 
 class InvalidOperandValue(UserError):
