@@ -286,7 +286,7 @@ class AuthorizedClientsOnly(UserError):
 
 
 class MultipleRowsFound(BaseError):
-    template = "Multiple rows were found."
+    template = "Multiple ({number_of_rows}) rows were found under {this}."
 
 
 class ManagedProperty(UserError):
