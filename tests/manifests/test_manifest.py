@@ -14,8 +14,10 @@ from spinta.exceptions import (
     IntermediateTableRefPropertyModelMissmatch,
     IntermediateTableRefModelMissmatch,
     UndefinedPropertyType,
-    ParentNodeNotFound
+    ParentNodeNotFound,
+    NoModelDefined,
 )
+
 from spinta.testing.manifest import load_manifest
 from spinta.manifests.tabular.helpers import TabularManifestError
 
@@ -1645,6 +1647,21 @@ def test_intermediate_table_invalid_mapping_left_property_model_missmatch(manife
                   |   |   |   | language    | ref     | Language        | open   |
             ''', manifest_type)
 
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_no_model_defined_error(manifest_type, tmp_path, rc):
+    with pytest.raises(NoModelDefined):
+        check(tmp_path, rc, '''
+            d | r | b | m | property | type    | ref | access | title
+            example                  |         |     |        |
+                                     |         |     |        |
+              |   |   | City         |         | id  |        |
+              |   |   |   | id       | integer |     | open   |
+              |   |   |   | name     | string  |     | open   |
+            second_example           |         |     |        |
+                                     |         |     |        |
+              |   |   |   | id       | integer |     | open   |
+        ''')
 
 @pytest.mark.manifests('internal_sql', 'csv')
 def test_property_error(manifest_type, tmp_path, rc):

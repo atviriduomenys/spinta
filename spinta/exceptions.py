@@ -225,6 +225,10 @@ class ModelNotFound(UserError):
     template = "Model {model!r} not found."
 
 
+class NoModelDefined(UserError):
+    template = "Property {property!r} must be defined on a concrete model."
+
+
 class PropertyNotFound(UserError):
     status_code = 404
     template = "Property {property!r} not found."
