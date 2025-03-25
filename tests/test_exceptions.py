@@ -3,7 +3,7 @@ import spinta.commands  # noqa
 import spinta.manifests.commands.error  # noqa
 from spinta import commands
 
-from spinta.exceptions import BaseError, error_response
+from spinta.exceptions import BaseError, error_response, JSONError
 from spinta.components import Node
 
 
@@ -207,3 +207,12 @@ def test_this_dataset_model_property(context):
         '    attribute: None\n'
         '    resource.backend: datasets/backends/postgres/dataset/sql\n'
     )
+
+
+def test_json_error_message(context):
+    exception = JSONError(Node(), error="Expecting value: line 1 column 1 (char 0)")
+    assert exception.message == (
+        "Invalid JSON for <spinta.components.Node(name=None)>. "
+        "Original error - Expecting value: line 1 column 1 (char 0)."
+    )
+

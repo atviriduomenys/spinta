@@ -239,7 +239,7 @@ class NoItemRevision(UserError):
 
 
 class JSONError(UserError):
-    template = "Invalid JSON."
+    template = "Invalid JSON for {this}. Original error - {error}."
 
 
 class InvalidValue(UserError):
