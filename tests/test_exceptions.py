@@ -1,10 +1,12 @@
 # Register get_error_context commands.
+import pytest
+
 import spinta.commands  # noqa
 import spinta.manifests.commands.error  # noqa
 from spinta import commands
 
-from spinta.exceptions import BaseError, error_response, JSONError
-from spinta.components import Node
+from spinta.exceptions import BaseError, error_response, JSONError, MultipleRowsFound
+from spinta.components import Node, Property
 
 
 class Error(BaseError):
@@ -216,3 +218,18 @@ def test_json_error_message(context):
         "Original error - Expecting value: line 1 column 1 (char 0)."
     )
 
+
+
+@pytest.mark.parametrize(
+    argnames=["error", "params", "expected_message"],
+    argvalues=[
+        [
+            MultipleRowsFound,
+            {"this": "datasets/gov/push/file/Country", "number_of_rows": 3},
+            "Multiple (3) rows were found under datasets/gov/push/file/Country."
+        ],
+    ],
+)
+def test_error_messages(error: type[BaseError], params: dict, expected_message: str, context):
+    exception = error(params.pop("this"), **params)
+    assert exception.message == expected_message
