@@ -740,11 +740,6 @@ class BackendNotGiven(UserError):
     template = "Model ({this}) is operating in external mode, yet it does not have an assigned backend to it."
 
 
-class UnauthorizedKeymapSync(UserError):
-    code = 403
-    template = "You do not have permission to sync this model's keymap."
-
-
 class GivenValueCountMissmatch(BaseError):
     template = '''
     While assigning ref values {given_count} were given, but {expected_count} were expected.
