@@ -8,19 +8,33 @@ from spinta.testing.manifest import load_manifest
 def test_open_api_manifest(rc: RawConfig, tmp_path: Path):
     # TODO: Update everytime a new part is supported
     data = json.dumps({
-            'openapi': '3.0.0',
-            'info': {
-                'title': 'Example API',
-                'version': '1.0.0',
-                'summary': 'Example of an API',
-                'description': 'Intricate description'
+        'openapi': '3.0.0',
+        'info': {
+            'title': 'Example API',
+            'version': '1.0.0',
+            'summary': 'Example of an API',
+            'description': 'Intricate description'
+        },
+        'tags': [
+            {
+                'name': 'List of Countries',
+                'description': 'A list of world countries'
+            }
+        ],
+        'paths': {
+            '/api/countries': {
+                'get': {
+                    'tags': ['List of Countries']
+                }
             },
-        'paths': {}
+        }
     })
 
     table = '''
-        id | d | r | b | m | property | type | ref | source | prepare | level | access | uri | title             | description
-           | example_api              |      |     |        |         |       |        |     | Example of an API | Intricate description
+    id | d | r | b | m | property               | type | ref | source | prepare | level | access | uri | title             | description
+       | services/example_api                   | ns   |     |        |         |       |        |     | Example of an API | Intricate description
+       |                                        |      |     |        |         |       |        |     |                   |
+       | services/example_api/list_of_countries |      |     |        |         |       |        |     | List of Countries | A list of world countries
     '''
 
     path = tmp_path / 'manifest.json'
