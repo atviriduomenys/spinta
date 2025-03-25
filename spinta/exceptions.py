@@ -589,7 +589,7 @@ class DupicateProperty(UserError):
 
 
 class RequiredProperty(UserError):
-    template = "Property is required."
+    template = "Property ({this}) is required."
 
 
 class UnableToCast(UserError):
