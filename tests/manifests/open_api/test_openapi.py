@@ -8,17 +8,19 @@ from spinta.testing.manifest import load_manifest
 def test_open_api_manifest(rc: RawConfig, tmp_path: Path):
     # TODO: Temporary test, will be adjusted once actual logic is implemented.
     data = json.dumps({
-            "openapi": "3.0.0",
-            "info": {
-            "title": "openapi",
-            "version": "1.0.0"
+        'openapi': '3.0.0',
+        'info': {
+            'title': 'Countries API',
+            'version': '1.0.0',
+            'summary': 'Country data',
+            'description': 'Intricate description'
         },
-        "paths": {}
+        'paths': {}
     })
 
     table = '''
-        id | d | r | b | m | property | type | ref | source | prepare | level | access | uri | title | description
-           | openapi                  |      |     |        |         |       |        |     |       |
+        id | d | r | b | m | property | type | ref | source | prepare | level | access | uri | title        | description
+           | services/countries_api   |      |     |        |         |       |        |     | Country data | Intricate description
     '''
 
     path = tmp_path / 'manifest.json'
