@@ -737,7 +737,7 @@ class InvalidArgumentInExpression(BaseError):
 
 
 class BackendNotGiven(UserError):
-    template = "Model is operating in external mode, yet it does not have assigned backend to it."
+    template = "Model ({this}) is operating in external mode, yet it does not have an assigned backend to it."
 
 
 class UnauthorizedKeymapSync(UserError):

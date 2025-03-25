@@ -5,7 +5,8 @@ import spinta.commands  # noqa
 import spinta.manifests.commands.error  # noqa
 from spinta import commands
 
-from spinta.exceptions import BaseError, error_response, JSONError, MultipleRowsFound, ManagedProperty, RequiredProperty
+from spinta.exceptions import BaseError, error_response, JSONError, MultipleRowsFound, ManagedProperty, \
+    RequiredProperty, BackendNotGiven
 from spinta.components import Node, Property
 
 
@@ -239,6 +240,12 @@ def test_json_error_message(context):
             RequiredProperty,
             {"this": Property()},
             "Property ([UNKNOWN]) is required."
+        ],
+        [
+            BackendNotGiven,
+            {"this": commands.get_model},
+            "Model (<model name='datasets/backends/postgres/dataset/Report'>) is operating in external mode, "
+            "yet it does not have an assigned backend to it."
         ],
     ],
 )
