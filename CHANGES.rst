@@ -28,7 +28,10 @@ New Features:
 
 - Added `flip('...')` function support in `select` query to `postgresql` and `sql` backends (`#1052`_).
 
+- Added OpenAPI Schema manifest (`#1211`_)
+
   .. _#1052: https://github.com/atviriduomenys/spinta/issues/1052
+  .. _#1211: https://github.com/atviriduomenys/spinta/issues/1211
 
 Improvements:
 
