@@ -860,7 +860,10 @@ class DatasetNameMissmatch(UserError):
 
 
 class DatasetSchemaRequiresIds(UserError):
-    template = "All given schema rows require UUID to be set in the id field."
+    template = """
+     All given schema rows require UUID to be set in the id field.
+     Schema: {this}
+    """
 
 
 class ModifySchemaRequiresFile(UserError):
