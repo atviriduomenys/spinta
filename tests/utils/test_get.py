@@ -16,20 +16,19 @@ def manifest_file(tmp_path: Path):
         None,
         manifest_path,
         striptable("""
-        d | r | b | m | property | type    | ref     |
-        datasets/gov/example     |         |         |           
-          | data                 | memory  |         |           
-                                 |         |         |             
-          |   |   | City         |         | name    |             
-          |   |   |   | id       | integer |         |             
-          |   |   |   | name     | string  |         |             
-          |   |   |   | country  | ref     | Country |
-                                 |         |         |
-          |                      |         |         |
-          |   |   | Country      |         |         |
-          |   |   |   | id       | integer |         |
-          |   |   |   | name     | string  |         |   
-    """),
+     d | r | b | m  | property         | type    | ref     | source     | access
+     datasets/gov/example              |         |         |            |
+       | data                          | memory  |         |            |
+       |   |                           |         |         |            |
+       |   |   | Country               |         | id      |            | open
+       |   |   |    | id               | integer |         |            |
+       |   |   |    | name             | string  |         |            |
+       |   |   |    |                  |         |         |            |
+       |   |   | City                  |         | id      |            | open
+       |   |   |    | id               | integer |         |            |
+       |   |   |    | name             | string  |         |            |
+       |   |   |    | country          | ref     | Country |            |
+        """),
     )
     return manifest_path
 
@@ -52,7 +51,7 @@ def test_get_json_content_from_yaml_success(context: Context, manifest_file: Pat
     json_content = get_json_content_from_yaml(yaml_content(), [str(manifest_file)])
     assert (
         json_content
-        == """{"datasets/gov/example/City": [{"_type": "datasets/gov/example/City", "_id": "ca117a8a-fdd0-4c66-9565-093d4d493e6b", "name": "Vilnius", "country": {"_id": "dac60010-9a29-4201-8da9-e624023eb626", "name": "Lietuva"}}], "datasets/gov/example/Country": [{"_type": "datasets/gov/example/Country", "_id": "dac60010-9a29-4201-8da9-e624023eb626", "name": "Lietuva"}]}"""
+        == """{"datasets/gov/example/Country": [{"_type": "datasets/gov/example/Country", "_id": "dac60010-9a29-4201-8da9-e624023eb626", "name": "Lietuva"}], "datasets/gov/example/City": [{"_type": "datasets/gov/example/City", "_id": "ca117a8a-fdd0-4c66-9565-093d4d493e6b", "name": "Vilnius", "country": {"_id": "dac60010-9a29-4201-8da9-e624023eb626", "name": "Lietuva"}}]}"""
     )
 
 
