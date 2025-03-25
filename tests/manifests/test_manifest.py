@@ -14,7 +14,8 @@ from spinta.exceptions import (
     IntermediateTableRefPropertyModelMissmatch,
     IntermediateTableRefModelMissmatch,
     UndefinedPropertyType,
-    ParentNodeNotFound
+    ParentNodeNotFound,
+    NoModelDefined,
 )
 
 from spinta.testing.manifest import load_manifest
