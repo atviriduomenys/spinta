@@ -290,7 +290,7 @@ class MultipleRowsFound(BaseError):
 
 
 class ManagedProperty(UserError):
-    template = "Value of this property is managed automatically and cannot be set manually."
+    template = "Value of property ({property}) under {this} is managed automatically and cannot be set manually."
 
 
 class InvalidManagedPropertyName(UserError):

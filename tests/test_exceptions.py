@@ -5,8 +5,8 @@ import spinta.commands  # noqa
 import spinta.manifests.commands.error  # noqa
 from spinta import commands
 
-from spinta.exceptions import BaseError, error_response, JSONError, MultipleRowsFound
-from spinta.components import Node, Property
+from spinta.exceptions import BaseError, error_response, JSONError, MultipleRowsFound, ManagedProperty
+from spinta.components import Node
 
 
 class Error(BaseError):
@@ -228,8 +228,18 @@ def test_json_error_message(context):
             {"this": "datasets/gov/push/file/Country", "number_of_rows": 3},
             "Multiple (3) rows were found under datasets/gov/push/file/Country."
         ],
+        [
+            ManagedProperty,
+            {"this": commands.get_model, "property": "_revision"},
+            "Value of property (_revision) under <model "
+             "name='datasets/backends/postgres/dataset/Report'> is managed automatically "
+             "and cannot be set manually."
+        ],
     ],
 )
 def test_error_messages(error: type[BaseError], params: dict, expected_message: str, context):
-    exception = error(params.pop("this"), **params)
+    this = params.pop("this")
+    if callable(this):
+        this = this(context, context.get('store').manifest, 'datasets/backends/postgres/dataset/Report')
+    exception = error(this, **params)
     assert exception.message == expected_message
