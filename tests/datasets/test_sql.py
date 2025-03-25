@@ -102,6 +102,7 @@ def geodb():
 def geodb_denorm():
     with create_sqlite_db({
         'PLANET': [
+            sa.Column('id', sa.Integer),
             sa.Column('code', sa.Text, primary_key=True),
             sa.Column('name', sa.Text),
         ],
@@ -109,6 +110,7 @@ def geodb_denorm():
             sa.Column('code', sa.Text, primary_key=True),
             sa.Column('name', sa.Text),
             sa.Column('planet', sa.Text),
+            sa.Column('planet_name', sa.Text),
         ],
         'CITY': [
             sa.Column('code', sa.Text, primary_key=True),
@@ -120,9 +122,9 @@ def geodb_denorm():
         ],
     }) as db:
         db.write('PLANET', [
-            {'code': 'ER', 'name': 'Earth'},
-            {'code': 'MR', 'name': 'Mars'},
-            {'code': 'JP', 'name': 'Jupyter'},
+            {'id': 0, 'code': 'ER', 'name': 'Earth'},
+            {'id': 0, 'code': 'MR', 'name': 'Mars'},
+            {'id': 0, 'code': 'JP', 'name': 'Jupyter'},
         ])
         db.write('COUNTRY', [
             {'code': 'LT', 'name': 'Lithuania', 'planet': 'ER'},
@@ -2942,11 +2944,11 @@ def test_advanced_denorm(context, rc, tmp_path, geodb_denorm):
       |   |   | code                | string  |         | code         |         |
       |   |   | name                | string  |         | name         |         |
       |   |   | country             | ref     | Country | country      |         |
-      |   |   | country.code        | string  |         | countryName  |         |
-      |   |   | country.name        |         |         |              |         |
+      |   |   | country.code        |         |         |              |         |
+      |   |   | country.name        | string  |         | countryName  |         |
       |   |   | country.year        | integer |         | countryYear  |         |
       |   |   | country.planet.name |         |         |              |         |
-      |   |   | country.planet.code | string  |         | planetName   |         |
+      |   |   | country.planet.code | string  |         |              | 'ER'    |
       '''))
 
     app = create_client(rc, tmp_path, geodb_denorm)
@@ -2995,26 +2997,26 @@ def test_advanced_denorm(context, rc, tmp_path, geodb_denorm):
         'code': 'RYG',
         'name': 'Ryga',
         'country.name': 'Latvia',
-        'country.code': 'Latvia',
+        'country.code': 'LV',
         'country.year': 1408,
-        'country.planet.name': 'Mars',
-        'country.planet.code': 'Marsas'
+        'country.planet.name': 'Earth',
+        'country.planet.code': 'ER'
     }, {
         'code': 'TLN',
         'name': 'Talin',
-        'country.name': 'Estonia',
-        'country.code': 'Estija',
+        'country.name': 'Estija',
+        'country.code': 'EE',
         'country.year': 1784,
-        'country.planet.name': 'Jupyter',
-        'country.planet.code': 'Jupiteris'
+        'country.planet.name': 'Earth',
+        'country.planet.code': 'ER'
     }, {
         'code': 'VLN',
         'name': 'Vilnius',
-        'country.name': 'Lithuania',
-        'country.code': 'Lietuva',
+        'country.name': 'Lietuva',
+        'country.code': 'LT',
         'country.year': 1204,
         'country.planet.name': 'Earth',
-        'country.planet.code': 'Zeme'
+        'country.planet.code': 'ER'
     }]
 
 
@@ -3103,6 +3105,99 @@ def test_advanced_denorm_lvl_3(context, rc, tmp_path, geodb_denorm):
         'country.code': 'LT',
         'country.year': 1204,
         'country.planet.name': 'Zeme',
+    }]
+
+
+def test_advanced_denorm_lvl_3_multi(context, rc, tmp_path, geodb_denorm):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    d | r | m | property            | type    | ref        | source      | prepare        | access | level
+    datasets/denorm/lvl3            |         |            |             |                |        |
+      | rs                          | sql     |            |             |                |        |
+      |   | Planet                  |         | id, code   | PLANET      |                | open   |
+      |   |   | id                  | integer |            | id          |                |        |
+      |   |   | code                | string  |            | code        |                |        |
+      |   |   | name                | string  |            | name        |                |        |
+      |   | Country                 |         | code       | COUNTRY     |                | open   |
+      |   |   | code                | string  |            | code        |                |        |
+      |   |   | name                | string  |            | name        |                |        |
+      |   |   | planet_code         | string  |            | planet      |                |        |
+      |   |   | planet              | ref     | Planet     |             | 0, planet_code |        | 3
+      |   | City                    |         | code       | CITY        |                | open   |
+      |   |   | code                | string  |            | code        |                |        |
+      |   |   | name                | string  |            | name        |                |        |
+      |   |   | country             | ref     | Country    | country     |                |        | 3
+      |   |   | country.name        |         |            | countryName |                |        |
+      |   |   | country.year        | integer |            | countryYear |                |        |
+      |   |   | country.planet.name |         |            |             |                |        |
+      |   |   | country.planet.code | string  |            |             | 'ER'           |        |
+    '''))
+
+    app = create_client(rc, tmp_path, geodb_denorm)
+
+    resp = app.get('/datasets/denorm/lvl3/Planet')
+    assert listdata(resp, sort='code', full=True) == [{
+        'id': 0,
+        'code': 'ER',
+        'name': 'Earth'
+    }, {
+        'id': 0,
+        'code': 'JP',
+        'name': 'Jupyter'
+    }, {
+        'id': 0,
+        'code': 'MR',
+        'name': 'Mars'
+    }]
+
+    resp = app.get('/datasets/denorm/lvl3/Country')
+    assert listdata(resp, 'code', 'name', sort='code', full=True) == [{
+        'code': 'EE',
+        'name': 'Estonia',
+    }, {
+        'code': 'LT',
+        'name': 'Lithuania',
+
+    }, {
+        'code': 'LV',
+        'name': 'Latvia',
+    }]
+
+    resp = app.get('/datasets/denorm/lvl3/City')
+    assert listdata(
+        resp,
+        'code',
+        'name',
+        'country.name',
+        'country.code',
+        'country.year',
+        'country.planet.name',
+        'country.planet.code',
+        sort='code',
+        full=True
+    ) == [{
+        'code': 'RYG',
+        'name': 'Ryga',
+        'country.name': 'Latvia',
+        'country.code': 'LV',
+        'country.year': 1408,
+        'country.planet.name': 'Earth',
+        'country.planet.code': 'ER',
+    }, {
+        'code': 'TLN',
+        'name': 'Talin',
+        'country.name': 'Estonia',
+        'country.code': 'EE',
+        'country.year': 1784,
+        'country.planet.name': 'Earth',
+        'country.planet.code': 'ER',
+    }, {
+        'code': 'VLN',
+        'name': 'Vilnius',
+        'country.name': 'Lithuania',
+        'country.code': 'LT',
+        'country.year': 1204,
+        'country.planet.name': 'Earth',
+        'country.planet.code': 'ER',
     }]
 
 

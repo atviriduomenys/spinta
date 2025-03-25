@@ -106,6 +106,7 @@ def getall(
     backend: Mongo,
     *,
     query: Expr = None,
+    extra_properties: dict[str, Property] = None,
     **kwargs
 ) -> Iterator[ObjectData]:
     builder = backend.query_builder_class(context)
@@ -121,4 +122,4 @@ def getall(
         row['_type'] = model.model_type()
         if env.page.page_.enabled:
             row['_page'] = get_page_values(env, row)
-        yield commands.cast_backend_to_python(context, model, backend, row)
+        yield commands.cast_backend_to_python(context, model, backend, row, extra_properties=extra_properties)

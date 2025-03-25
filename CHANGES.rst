@@ -8,6 +8,10 @@ New Features:
 
 - Added `split('...')` function support to `sql` backend (`#760`_).
 
+- Added `flip('...')` function support in `select` query to `postgresql` and `sql` backends (`#1052`_).
+
+  .. _#1052: https://github.com/atviriduomenys/spinta/issues/1052
+
 Improvements:
 
 - Added `Array` push support for `sql` backend (`#760`_).
@@ -18,6 +22,25 @@ Improvements:
   will still be supported (`#1186`_).
 
   .. _#1186: https://github.com/atviriduomenys/spinta/issues/1186
+
+- `cast_backend_to_python` now allows extra properties to be passed (custom `select` functions that create new temporary
+  properties can now be properly cast to python types) (`#1052`_).
+
+Bug fixes:
+
+- Fixed `sql` backend not using overwritten `ref` mapping values when joining tables (`#1052`_).
+
+- Fixed `cast_backend_to_python` not propagating casting to `Ref` children (`#1052`_).
+
+- Fixed `cast_backend_to_python` not casting `Denorm` values with required type (`#1052`_).
+
+- Added an additional check for properties that are not given a `type` and the `type` can not be inherited from the base model (`#1019`_).
+
+  .. _#1019: https://github.com/atviriduomenys/spinta/issues/1019
+
+- Adjusted error message for users, for when a DSA has a model with nested properties and the parent node is not defined (`#1005`_)
+
+  .. _#1005: https://github.com/atviriduomenys/spinta/issues/1005
 
 0.1.84 (2025-02-19)
 ===================

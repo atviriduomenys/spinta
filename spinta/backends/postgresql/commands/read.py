@@ -3,7 +3,7 @@ from typing import overload
 
 from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.components import Context
+from spinta.components import Context, Property
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
 from spinta.exceptions import ItemDoesNotExist
@@ -44,6 +44,7 @@ def getall(
     query: Expr = None,
     default_expand: bool = True,
     params: QueryParams = None,
+    extra_properties: dict[str, Property] = None,
     **kwargs
 ) -> Iterator[ObjectData]:
     assert isinstance(query, (Expr, type(None))), query
@@ -81,5 +82,5 @@ def getall(
         res['_type'] = model.model_type()
 
         res = flat_dicts_to_nested(res, list_keys=list_keys)
-        res = commands.cast_backend_to_python(context, model, backend, res)
+        res = commands.cast_backend_to_python(context, model, backend, res, extra_properties=extra_properties)
         yield res

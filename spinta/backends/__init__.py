@@ -46,7 +46,7 @@ from spinta.exceptions import ConflictingValue, RequiredProperty, LangNotDeclare
 from spinta.exceptions import NoItemRevision
 from spinta.formats.components import Format
 from spinta.manifests.components import Manifest
-from spinta.types.datatype import Array, ExternalRef, Inherit, PageType, BackRef, ArrayBackRef, Integer, Boolean
+from spinta.types.datatype import Array, ExternalRef, Inherit, PageType, BackRef, ArrayBackRef, Integer, Boolean, Denorm
 from spinta.types.datatype import Binary
 from spinta.types.datatype import DataType
 from spinta.types.datatype import Date
@@ -822,6 +822,29 @@ def _select_prop_props(
             select,
         )
 
+
+@commands.prepare_dtype_for_response.register(Context, Format, Property, object)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    prop: Property,
+    value: Any,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    return commands.prepare_dtype_for_response(
+        context,
+        fmt,
+        prop.dtype,
+        value,
+        data=data,
+        action=action,
+        select=select
+    )
+
+
 @commands.prepare_dtype_for_response.register(Context, Format, DataType, object)
 def prepare_dtype_for_response(
     context: Context,
@@ -1408,6 +1431,28 @@ def prepare_dtype_for_response(
     return None
 
 
+@commands.prepare_dtype_for_response.register(Context, Format, Denorm, (object, NotAvailable))
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: Denorm,
+    value: Any,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    return commands.prepare_dtype_for_response(
+        context,
+        fmt,
+        dtype.rel_prop,
+        value,
+        data=data,
+        action=action,
+        select=select
+    )
+
+
 @commands.prepare_dtype_for_response.register(Context, Format, ArrayBackRef, (list, tuple))
 def prepare_dtype_for_response(
     context: Context,
@@ -1677,14 +1722,21 @@ def cast_backend_to_python(
     model: Model,
     backend: Backend,
     data: dict,
+    *,
+    extra_properties: dict[str, Property] = None
 ) -> dict:
+    properties = model.properties
+    if extra_properties is not None:
+        properties = properties.copy()
+        properties.update(extra_properties)
+
     return {
         k: commands.cast_backend_to_python(
             context,
-            model.properties[k].dtype,
+            properties[k].dtype,
             backend,
             v,
-        ) if k in model.properties else v
+        ) if k in properties else v
         for k, v in data.items()
     }
 
@@ -1907,29 +1959,35 @@ def cast_backend_to_python(
     backend: Backend,
     data: Dict[str, Any],
 ) -> Any:
-    if data:
-        result = {}
-        for key, value in data.items():
-            converted = value
-            new_type = None
+    if not data:
+        return data
+
+    result = {}
+    for key, value in data.items():
+        converted = value
+        if key in dtype.properties:
+            converted = commands.cast_backend_to_python(
+                context,
+                dtype.properties[key],
+                backend,
+                value
+            )
+        else:
             for item in dtype.refprops:
                 if item.name == key:
-                    new_type = item.dtype
+                    converted = commands.cast_backend_to_python(
+                        context,
+                        item.dtype,
+                        backend,
+                        value
+                    )
                     break
-            if new_type:
-                converted = commands.cast_backend_to_python(
-                    context,
-                    new_type,
-                    backend,
-                    value
-                )
-            result[key] = converted
+        result[key] = converted
 
-        if not result or all(value is None for value in result.values()):
-            return None
+    if not result or all(value is None for value in result.values()):
+        return None
 
-        return result
-    return data
+    return result
 
 
 @commands.cast_backend_to_python.register(Context, Object, Backend, dict)
@@ -1970,6 +2028,16 @@ def cast_backend_to_python(
             for v in data
         ]
     return data
+
+
+@commands.cast_backend_to_python.register(Context, Denorm, Backend, object)
+def cast_backend_to_python(
+    context: Context,
+    dtype: Denorm,
+    backend: Backend,
+    data: Any,
+) -> Any:
+    return commands.cast_backend_to_python(context, dtype.rel_prop, backend, data)
 
 
 @commands.reload_backend_metadata.register(Context, Manifest, Backend)
