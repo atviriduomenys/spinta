@@ -780,8 +780,8 @@ def test_flip_postgresql_geometry_denorm(rc: RawConfig):
       |   |   |   | geodata.geo |                |         |            |         | open
         ''', 'example/Planet') == '''
     SELECT
-      "PLANET"."CODE", ST_AsEWKB(ST_FlipCoordinates("GEODATA_1"."GEO")) AS "ST_FlipCoordinates_1",
-      "PLANET"."GEO_ID",
+      "PLANET"."CODE",
+      "PLANET"."GEO_ID", ST_AsEWKB(ST_FlipCoordinates("GEODATA_1"."GEO")) AS "ST_FlipCoordinates_1",
       "PLANET"."ID"
     FROM "PLANET"
     LEFT OUTER JOIN "GEODATA" AS "GEODATA_1" ON "PLANET"."GEO_ID" = "GEODATA_1"."ID"

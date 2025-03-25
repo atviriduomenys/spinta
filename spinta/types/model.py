@@ -620,3 +620,38 @@ def create_page(page_info: PageInfo, data: Union[list, set, tuple]) -> Page:
 @commands.create_page.register(PageInfo, object)
 def create_page(page_info: PageInfo, data: Any) -> Page:
     return commands.create_page(page_info)
+
+
+@commands.resolve_property.register(Property, str)
+def resolve_property(parent_prop: Property, prop: str) -> Property | None:
+    return commands.resolve_property(parent_prop.dtype, prop)
+
+
+@commands.resolve_property.register(Base, str)
+def resolve_property(base: Base, prop: str) -> Property | None:
+    return commands.resolve_property(base.parent, prop)
+
+
+@commands.resolve_property.register(Model, str)
+def resolve_property(model: Model, prop: str) -> Property | None:
+    if prop in model.flatprops:
+        return model.flatprops[prop]
+
+    if model.base is not None:
+        resolved_base = commands.resolve_property(model.base, prop)
+        if resolved_base is not None:
+            return resolved_base
+
+    if '.' in prop:
+        split = prop.split('.')
+        resolved_prop = None
+        for i in range(len(split)):
+            parent_prop = '.'.join(split[:-i])
+            parent_resolved_prop = commands.resolve_property(model, parent_prop)
+            if parent_resolved_prop is not None:
+                resolved_prop = commands.resolve_property(parent_resolved_prop, '.'.join(split[i:]))
+
+            if resolved_prop is not None:
+                return resolved_prop
+
+    return None

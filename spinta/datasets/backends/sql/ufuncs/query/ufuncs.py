@@ -447,19 +447,23 @@ def select(env: SqlQueryBuilder, dtype: Object) -> Selected:
 
 @ufunc.resolver(SqlQueryBuilder, Ref)
 def select(env: SqlQueryBuilder, dtype: Ref) -> Selected:
-    table = env.backend.get_table(env.model)
-    column = env.backend.get_column(table, dtype.prop, select=True)
+    prep = {}
+    if not dtype.inherited:
+        table = env.backend.get_table(env.model)
+        column = env.backend.get_column(table, dtype.prop, select=True)
+
+        if len(dtype.refprops) != 1:
+            raise Exception("Unable to map source with ref type", dtype.prop, dtype.refprops)
+        prep[dtype.refprops[0].name] = Selected(item=env.add_column(column), prop=dtype.prop)
 
     for prop in dtype.properties.values():
-        processed = env.call("select", prop)
-        if not prop.dtype.inherited or processed.prep is not None:
-            env.selected[prop.place] = processed
+        sel = env.call('select', prop)
+        prep[prop.name] = sel
 
-    if column is not None and not dtype.inherited:
-        return Selected(
-            item=env.add_column(column),
-            prop=dtype.prop,
-        )
+    return Selected(
+        prop=dtype.prop,
+        prep=prep
+    )
 
 
 @ufunc.resolver(SqlQueryBuilder, Ref, str)
@@ -532,13 +536,21 @@ def select(env: SqlQueryBuilder, dtype: Array):
 
         # Group by all (required for aggregation functions)
         env.add_to_group_by(list(env.table.columns))
-
         return Selected(
             prop=dtype.prop,
             prep=Selected(
                 item=env.add_column(column),
                 prop=dtype.right_prop
             )
+        )
+
+    if dtype.prop.external.name and dtype.prop.external.prepare:
+        table = env.backend.get_table(dtype.prop.model)
+        column = env.backend.get_column(table, dtype.prop)
+        return Selected(
+            item=env.add_column(column),
+            prop=dtype.prop,
+            prep=env.call('select', dtype.items)
         )
 
     return Selected(

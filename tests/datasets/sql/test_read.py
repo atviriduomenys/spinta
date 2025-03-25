@@ -1074,7 +1074,8 @@ def test_getall_array_prepare_split(context, rc, tmp_path, geodb_array):
       |   |   | Country           |            | id              | country          |         |        |
       |   |   |   | id            | integer    |                 | id               |         | open   |    
       |   |   |   | name          | string     |                 | name             |         | open   |        
-      |   |   |   | languages[]   | ref        | Language[name]  | languages        |         | open   | split(',')    
+      |   |   |   | languages     | array      |                 | languages        |         | open   | split(',')    
+      |   |   |   | languages[]   | ref        | Language[name]  |                  |         | open   |    
     '''))
     app = create_client(rc, tmp_path, geodb_array, mode='external')
     resp = app.get(f'/example/Language')
