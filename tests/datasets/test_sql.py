@@ -3201,6 +3201,69 @@ def test_advanced_denorm_lvl_3_multi(context, rc, tmp_path, geodb_denorm):
     }]
 
 
+def test_denorm_lvl_3_multi(context, rc, tmp_path, geodb_denorm):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    d | r | m | property            | type    | ref        | source      | prepare        | access | level
+    datasets/denorm/lvl3            |         |            |             |                |        |
+      | rs                          | sql     |            |             |                |        |
+      |   | Planet                  |         | id, code   | PLANET      |                | open   |
+      |   |   | id                  | integer |            | id          |                |        |
+      |   |   | code                | string  |            | code        |                |        |
+      |   |   | name                | string  |            | name        |                |        |
+      |   | Country                 |         | code       | COUNTRY     |                | open   |
+      |   |   | code                | string  |            | code        |                |        |
+      |   |   | name                | string  |            | name        |                |        |
+      |   |   | planet_code         | string  |            | planet      |                |        |
+      |   |   | planet              | ref     | Planet     |             | 0, planet_code |        | 3
+      |   |   | planet.name         |         |            |             |                |        |
+    '''))
+
+    app = create_client(rc, tmp_path, geodb_denorm)
+
+    resp = app.get('/datasets/denorm/lvl3/Planet')
+    assert listdata(resp, sort='code', full=True) == [{
+        'id': 0,
+        'code': 'ER',
+        'name': 'Earth'
+    }, {
+        'id': 0,
+        'code': 'JP',
+        'name': 'Jupyter'
+    }, {
+        'id': 0,
+        'code': 'MR',
+        'name': 'Mars'
+    }]
+
+    resp = app.get('/datasets/denorm/lvl3/Country')
+    assert listdata(resp, 'code', 'name', 'planet', sort='code', full=True) == [{
+        'code': 'EE',
+        'name': 'Estonia',
+        'planet': {
+            'code': 'JP',
+            'id': 0,
+            'name': 'Jupyter'
+        }
+    }, {
+        'code': 'LT',
+        'name': 'Lithuania',
+        'planet': {
+            'code': 'ER',
+            'id': 0,
+            'name': 'Earth'
+        }
+
+    }, {
+        'code': 'LV',
+        'name': 'Latvia',
+        'planet': {
+            'code': 'MR',
+            'id': 0,
+            'name': 'Mars'
+        }
+    }]
+
+
 def test_keymap_ref_keys_valid_order(context, rc, tmp_path, sqlite):
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''                   
         d | r | m | property        | type    | ref                | source       | prepare             | access

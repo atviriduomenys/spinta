@@ -623,3 +623,8 @@ def load(context: Context, dtype: Partial, data: dict):
     #         for name, prop in value.get('properties', {}).items()
     #     }
     return loaded_obj
+
+
+@commands.resolve_property.register(DataType, str)
+def resolve_property(dtype: DataType, prop: str) -> Property | None:
+    return None
