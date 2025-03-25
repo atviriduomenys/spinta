@@ -1530,7 +1530,7 @@ def test_intermediate_table_same_model_unknown_mapping(manifest_type, tmp_path, 
 
 @pytest.mark.manifests('internal_sql', 'csv')
 def test_intermediate_table_invalid_mapping_multiple_references(manifest_type, tmp_path, rc):
-    with pytest.raises(UnableToMapIntermediateTable):
+    with pytest.raises(UnableToMapIntermediateTable) as e:
         check(tmp_path, rc, '''
                 d | r | b | m | property    | type    | ref             | access | title
                 example                     |         |                 |        |
@@ -1550,6 +1550,7 @@ def test_intermediate_table_invalid_mapping_multiple_references(manifest_type, t
                   |   |   |   | language    | ref     | Language        | open   |
                   |   |   |   | lang        | ref     | Language        | open   |
             ''', manifest_type)
+    assert e.value.message == 'Unable to map intermediate table (example/CountryLanguage) to `Array` property.'
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
