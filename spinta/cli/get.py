@@ -24,7 +24,7 @@ def getall(
     prepare_manifest(context, ensure_config_dir=True, verbose=False)
     response_dict = {}
     store = context.get("store")
-    model = commands.get_model(context, store.manifest, dataset)
+    model = commands.get_model(context, store.manifest, model)
     response_dict["_data"] = list(
         commands.getall(context, model, store.manifest.backend)
     )
@@ -42,7 +42,7 @@ def getone(
     context = configure_context(ctx.obj, manifests, backend="memory", dsn=dsn)
     prepare_manifest(context, ensure_config_dir=True, verbose=False)
     store = context.get("store")
-    model = commands.get_model(context, store.manifest, dataset)
+    model = commands.get_model(context, store.manifest, model)
     result = {}
     try:
         echo(commands.getone(context, model, store.manifest.backend, id_=id_))
