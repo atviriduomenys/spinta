@@ -475,7 +475,7 @@ def simple_data_check(
         srid = dtype.srid
 
         if srid is None:
-            raise SRIDNotSetForGeometry(dtype)
+            raise SRIDNotSetForGeometry(dtype, property=prop)
 
         bounding_area = get_crs_bounding_area(srid)
 

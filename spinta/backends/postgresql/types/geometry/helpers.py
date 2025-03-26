@@ -17,7 +17,7 @@ from spinta.types.geometry.constants import WGS84
 def get_osm_link(value: BaseGeometry, srid: Optional[Union[int, Geometry]]) -> Optional[str]:
     if isinstance(srid, Geometry):
         if srid.srid is None:
-            raise SRIDNotSetForGeometry(srid)
+            raise SRIDNotSetForGeometry(srid, property=srid.prop)
         srid = srid.srid
 
     if srid and srid != WGS84:

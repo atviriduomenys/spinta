@@ -6,8 +6,10 @@ import spinta.manifests.commands.error  # noqa
 from spinta import commands
 
 from spinta.exceptions import BaseError, error_response, JSONError, MultipleRowsFound, ManagedProperty, \
-    RequiredProperty, BackendNotGiven
+    RequiredProperty, BackendNotGiven, SRIDNotSetForGeometry
 from spinta.components import Node, Property
+from spinta.types.datatype import DataType
+from spinta.types.geometry.components import Geometry
 
 
 class Error(BaseError):
@@ -219,7 +221,13 @@ def test_json_error_message(context):
         "Original error - Expecting value: line 1 column 1 (char 0)."
     )
 
-
+def test_geometry_error_message(context):
+    model = commands.get_model(context, context.get('store').manifest, 'Org')
+    property = model.properties['title']
+    error = SRIDNotSetForGeometry(property.dtype, property=property)
+    assert error.message == (
+        "<spinta.components.Property(name='title', type='string', model='Org')> Geometry SRID is required, but was given None."
+    )
 
 @pytest.mark.parametrize(
     argnames=["error", "params", "expected_message"],
