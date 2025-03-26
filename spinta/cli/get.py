@@ -17,7 +17,7 @@ def getall(
     ctx: TyperContext,
     manifests: Optional[List[str]] = Argument(help=("Manifest files to load")),
     dsn: str = Argument(help=("Data Source Name path")),
-    dataset: str = Argument(help=("Dataset name")),
+    model: str = Argument(help=("Model path")),
 ):
     manifests = convert_str_to_manifest_path(manifests)
     context = configure_context(ctx.obj, manifests, backend="memory", dsn=dsn)
