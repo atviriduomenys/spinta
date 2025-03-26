@@ -875,7 +875,7 @@ class FileSizeTooLarge(UserError):
 
 
 class SRIDNotSetForGeometry(BaseError):
-    template = "Geometry SRID is required, but was given None."
+    template = "{property} Geometry SRID is required, but was given None."
 
 
 class KeyNotFound(UserError):
