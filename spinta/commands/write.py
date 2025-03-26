@@ -550,11 +550,16 @@ async def read_existing_data(
         # When updating by id only, there must be exactly one existing record.
         if data.action == Action.UPSERT or _has_id_in_where(data.given):
             rows = list(itertools.islice(rows, 2))
-            if len(rows) == 1:
+            number_of_rows = len(rows)
+            if number_of_rows == 1:
                 data.saved = rows[0]
                 data.saved['_type'] = data.model.model_type()
-            elif len(rows) > 1:
-                data.error = exceptions.MultipleRowsFound(data.model, _id=rows[0]['_id'])
+            elif number_of_rows > 1:
+                data.error = exceptions.MultipleRowsFound(
+                    data.model,
+                    _id=rows[0]['_id'],
+                    number_of_rows=number_of_rows
+                )
                 report_error(data.error, data.given, stop_on_error=stop_on_error)
             elif data.action != Action.UPSERT:
                 data.error = exceptions.ItemDoesNotExist(data.model, id=data.given['_where']['args'][1])
