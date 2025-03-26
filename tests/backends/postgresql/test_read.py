@@ -1428,3 +1428,156 @@ def test_filter_lithuanian_letters(
             'name': 'Šilutė',
         },
     ]
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_swap_ufunc(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property   | type     | ref | prepare                 | access | level
+    datasets/geometry/point    |          |     |                         |        |
+      |   |   | Country        |          | id  |                         |        |
+      |   |   |   | id         | integer  |     |                         | open   |
+      |   |   |   | name       | string   |     |                         | open   |
+      |   |   |   |            | enum     |     | swap('nan', '---')      | open   |
+      |   |   |   |            |          |     | swap(null, '---')       | open   |
+      |   |   |   |            |          |     | swap('', '---')         | open   |
+      |   |   |   |            |          |     | swap('---', '--')       | open   |
+      |   |   |   |            |          |     | '---'                   | open   |
+      |   |   |   |            |          |     | '--'                    | open   |
+      |   |   |   |            |          |     | 'test'                  | open   |
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+
+    app = create_test_client(context)
+    app.authorize(['spinta_insert', 'spinta_getall', 'spinta_wipe', 'spinta_search', 'spinta_set_meta_fields'])
+
+    for _id, name in enumerate(('nan', 'test', '', None)):
+        resp = app.post('/datasets/geometry/point/Country', json={
+            'id': _id,
+            'name': name
+        })
+        assert resp.status_code == 201, resp.text
+
+    resp = app.get('/datasets/geometry/point/Country')
+    assert resp.status_code == 200, resp.text
+    assert listdata(resp, "id", "name", full=True) == [
+        {"id": 0, "name": "---"},
+        {"id": 1, "name": "test"},
+        {"id": 2, "name": "---"},
+        {"id": 3, "name": "---"},
+    ]
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_replace_source_with_prepare(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property   | type     | ref | source | prepare | access | level
+    datasets/geometry/point    |          |     |        |         |        |
+      |   |   | Country        |          | id  |        |         |        |
+      |   |   |   | id         | integer  |     |        |         | open   |
+      |   |   |   | name       | string   |     |        |         | open   |
+      |   |   |   |            | enum     |     |  1     | 'x1'    | open   |
+      |   |   |   |            |          |     |  2     | 'x2'    | open   |
+      |   |   |   |            |          |     |  3     | 'x3'    | open   |
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+
+    app = create_test_client(context)
+    app.authorize(['spinta_insert', 'spinta_getall', 'spinta_wipe', 'spinta_search', 'spinta_set_meta_fields'])
+
+    for _id in range(1, 5):
+        resp = app.post('/datasets/geometry/point/Country', json={
+            'id': _id,
+            'name': str(_id)
+        })
+        assert resp.status_code == 201, resp.text
+
+    resp = app.post('/datasets/geometry/point/Country', json={
+        'id': 6,
+        'name': None
+    })
+    assert resp.status_code == 201, resp.text
+    resp = app.post('/datasets/geometry/point/Country', json={
+        'id': 7,
+        'name': ''
+    })
+    assert resp.status_code == 201, resp.text
+
+    resp = app.get('/datasets/geometry/point/Country')
+    assert resp.status_code == 200, resp.text
+    assert listdata(resp, "id", "name", full=True) == [
+        {"id": 1, "name": "x1"},
+        {"id": 2, "name": "x2"},
+        {"id": 3, "name": "x3"},
+        {"id": 4, "name": "4"},
+        {'id': 6, 'name': None},
+        {'id': 7, 'name': ''},
+    ]
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_null_under_prepare(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property   | type     | ref | source | prepare | access | level
+    datasets/geometry/point    |          |     |        |         |        |
+      |   |   | Country        |          | id  |        |         |        |
+      |   |   |   | id         | integer  |     |        |         | open   |
+      |   |   |   | name       | string   |     |        |         | open   |
+      |   |   |   |            | enum     |     |        | null    | open   |
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+
+    app = create_test_client(context)
+    app.authorize(['spinta_insert', 'spinta_getall', 'spinta_wipe', 'spinta_search', 'spinta_set_meta_fields'])
+
+    resp = app.post('/datasets/geometry/point/Country', json={
+        'id': 1,
+        'name': None
+    })
+    assert resp.status_code == 201, resp.text
+    resp = app.post('/datasets/geometry/point/Country', json={
+        'id': 2,
+        'name': ''
+    })
+    assert resp.status_code == 201, resp.text
+
+    resp = app.get('/datasets/geometry/point/Country')
+    assert resp.status_code == 200, resp.text
+    assert listdata(resp, "id", "name", full=True) == [
+        {"id": 1, "name": None},
+        {"id": 2, "name": ""},
+    ]
