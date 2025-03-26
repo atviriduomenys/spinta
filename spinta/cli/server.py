@@ -29,6 +29,7 @@ def run(
     backend: Optional[str] = Option(None, '-b', '--backend', help=(
         "Backend connection string"
     )),
+    dsn: Optional[str] = Option(None, '-dsn', '--dsn', help=("Data Source Name")),
 ):
     """Run development server"""
     import os
@@ -38,7 +39,7 @@ def run(
     os.environ['AUTHLIB_INSECURE_TRANSPORT'] = '1'
 
     manifests = convert_str_to_manifest_path(manifests)
-    context = configure_context(ctx.obj, manifests, mode=mode, backend=backend)
+    context = configure_context(ctx.obj, manifests, mode=mode, backend=backend, dsn=dsn)
     prepare_manifest(context, ensure_config_dir=True)
     app = spinta.api.init(context)
 
