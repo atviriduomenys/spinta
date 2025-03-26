@@ -35,7 +35,7 @@ def getone(
     ctx: TyperContext,
     manifests: Optional[List[str]] = Argument(help=("Manifest files to load")),
     dsn: str = Argument(help=("Data Source Name path")),
-    dataset: str = Argument(help=("Dataset name")),
+    model: str = Argument(help=("Model path")),
     id_: str = Argument(help=("Dataset model id")),
 ):
     manifests = convert_str_to_manifest_path(manifests)
