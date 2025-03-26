@@ -1408,6 +1408,7 @@ class ParamReader(TabularReader):
     def _get_data(self, name: str, row: ManifestRow):
         return {
             'name': name,
+            'type': row['type'],
             'source': [row[SOURCE]],
             'prepare': [_parse_spyna(self, row[PREPARE])],
             'title': row[TITLE],
@@ -1451,8 +1452,11 @@ class ParamReader(TabularReader):
             self.name = row[REF]
             self._check_param_name(node, self.name)
             self._ensure_params_list(node, self.name)
-
-        self._get_and_append_data(node.data['params'][self.name], row)
+        params  = node.data['params']
+        if self.name not in params:
+            params[self.name] = self._get_data(self.name, row)
+        else:
+            self._get_and_append_data(params[self.name], row)
 
     def release(self, reader: TabularReader = None) -> bool:
         return not isinstance(reader, (AppendReader, LangReader))
@@ -1485,7 +1489,8 @@ class EnumReader(TabularReader):
             return
 
         # FIXME AST should be handled by Env
-        source = str(row[SOURCE])
+        source = row[SOURCE]
+        source = str(source) if source else None
         if not source:
             prepare = _parse_spyna(self, row[PREPARE])
             if isinstance(prepare, dict):
@@ -1876,7 +1881,7 @@ def _read_xlsx_manifest(path: str) -> Iterator[Tuple[str, List[str]]]:
 
         empty_rows = _empty_rows_counter()
         for i, row in enumerate(rows, 2):
-            row = [row[c] if c is not None else None for c in cols]
+            row = [row[c] or "" if c is not None else None for c in cols]
             yield f'{sheet.title}:{i}', row
 
             if empty_rows(row) > 100:
@@ -2334,7 +2339,7 @@ def _params_to_tabular(params: List[Param]) -> Iterator[ManifestRow]:
                 prepare = spyna.unparse(prepare)
             if i == 0:
                 yield torow(DATASET, {
-                    'type': 'param',
+                    'type': param.type,
                     'ref': param.name,
                     'source': source,
                     'prepare': prepare,

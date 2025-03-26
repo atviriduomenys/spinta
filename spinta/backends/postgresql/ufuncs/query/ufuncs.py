@@ -35,12 +35,12 @@ from spinta.types.datatype import UUID as UUID_dtype
 from spinta.types.geometry.components import Geometry
 from spinta.types.text.components import Text
 from spinta.types.text.helpers import determine_language_property_for_text
+from spinta.ufuncs.components import ForeignProperty
 from spinta.ufuncs.querybuilder.components import ReservedProperty, \
     NestedProperty, ResultProperty, Flip
 from spinta.ufuncs.querybuilder.helpers import get_column_with_extra, get_language_column, \
     expanded
 from spinta.ufuncs.querybuilder.ufuncs import Star
-from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.data import take
 
 
@@ -59,11 +59,6 @@ def _get_property_for_select(env: PgQueryBuilder, name: str):
         return prop
     else:
         raise FieldNotInResource(env.model, property=name)
-
-
-@ufunc.resolver(PgQueryBuilder, Inherit, Bind)
-def _resolve_getattr(env, dtype, attr):
-    return InheritForeignProperty(dtype.prop.model, attr.name, dtype.prop)
 
 
 @ufunc.resolver(PgQueryBuilder, Expr)
@@ -125,6 +120,44 @@ def select(
         item=env.add_column(column),
         prop=dtype.prop,
     )
+
+
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, Ref)
+def select(
+    env: PgQueryBuilder,
+    fpr: ForeignProperty,
+    dtype: Ref,
+) -> Selected:
+    table = env.get_joined_table_from_ref(fpr)
+
+    uri = dtype.model.uri_prop
+    prep = {}
+    if not dtype.inherited:
+        name = '_id'
+        if env.query_params.prioritize_uri and uri is not None:
+            column = table.c[uri.place]
+            name = '_uri'
+            column = column.label(dtype.prop.place + '._uri')
+        else:
+            column = table.c[dtype.prop.place + '._id']
+        column = env.add_column(column)
+        prep[name] = Selected(column, dtype.prop)
+    for prop in dtype.properties.values():
+        sel = env.call('select', fpr.push(prop))
+        prep[prop.name] = sel
+    return Selected(prop=dtype.prop, prep=prep)
+
+
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, ExternalRef)
+def select(
+    env: PgQueryBuilder,
+    fpr: ForeignProperty,
+    dtype: Ref,
+) -> Selected:
+    # FIXME
+    # Currently there are issues with resolving joins with Foreign properties
+    # so we just skip it, this can cause issues with nested joins
+    return env.call('select', dtype)
 
 
 @ufunc.resolver(PgQueryBuilder, Property)
@@ -344,17 +377,6 @@ def _select_backref(env, dtype, is_array=False):
     return Selected(prop=fpr.left.prop, prep=prep)
 
 
-@ufunc.resolver(PgQueryBuilder, ForeignProperty)
-def select(env: PgQueryBuilder, fpr: ForeignProperty):
-    table = env.get_joined_table(fpr)
-    fixed_name = fpr.right.prop.place
-    if fixed_name.startswith(f'{fpr.left.prop.place}.'):
-        fixed_name = fixed_name.replace(f'{fpr.left.prop.place}.', '', 1)
-    column = table.c[fixed_name]
-    column = column.label(fpr.place)
-    return Selected(env.add_column(column), fpr.right.prop)
-
-
 @ufunc.resolver(PgQueryBuilder, ForeignProperty, Inherit)
 def select(
     env: PgQueryBuilder,
@@ -368,6 +390,15 @@ def select(
     column = table.c[fixed_name]
     column = column.label(fpr.place)
     return Selected(env.add_column(column), dtype.prop)
+
+
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, Denorm)
+def select(
+    env: PgQueryBuilder,
+    fpr: ForeignProperty,
+    dtype: Denorm,
+) -> Selected:
+    return env.call('select', fpr.swap(dtype.rel_prop))
 
 
 @ufunc.resolver(PgQueryBuilder, Inherit)
@@ -387,25 +418,31 @@ def select(env, dtype):
 
 
 @ufunc.resolver(PgQueryBuilder, Denorm)
-def select(env, dtype):
+def _denorm_to_foreign_property(
+    env: PgQueryBuilder,
+    dtype: Denorm
+):
     ref = dtype.prop.parent
-    if isinstance(ref, Property) and isinstance(ref.dtype, Ref):
+    if isinstance(ref, Property) and isinstance(ref.dtype, (Ref, BackRef)):
         fpr = None
         if ref.dtype.inherited:
             root_ref_parent = ref.parent
 
-            while root_ref_parent and isinstance(root_ref_parent, Property) and isinstance(root_ref_parent.dtype, Ref):
+            while root_ref_parent and isinstance(root_ref_parent, Property) and isinstance(root_ref_parent.dtype, (Ref, BackRef)):
                 fpr = ForeignProperty(fpr, root_ref_parent.dtype, root_ref_parent.dtype.model.properties['_id'].dtype)
 
                 if not root_ref_parent.dtype.inherited:
                     break
                 root_ref_parent = root_ref_parent.parent
+        return ForeignProperty(fpr, ref.dtype, dtype.rel_prop.dtype)
+    return dtype.rel_prop
 
-        fpr = ForeignProperty(fpr, ref.dtype, ref.dtype.model.properties['_id'].dtype)
-        table = env.get_joined_table_from_ref(fpr)
-        column = table.c[dtype.rel_prop.place]
-        column = column.label(dtype.prop.place)
-        return Selected(env.add_column(column), prop=dtype.prop)
+
+@ufunc.resolver(PgQueryBuilder, Denorm)
+def select(env, dtype):
+    fpr = env.call('_denorm_to_foreign_property', dtype)
+    result = env.call('select', fpr)
+    return result
 
 
 @ufunc.resolver(PgQueryBuilder, Page)
@@ -436,6 +473,19 @@ def select(
 @ufunc.resolver(PgQueryBuilder, Geometry, Flip)
 def select(env: PgQueryBuilder, dtype: Geometry, func_: Flip):
     table = env.backend.get_table(env.model)
+
+    if dtype.prop.list is None:
+        column = env.backend.get_column(table, dtype.prop, select=True)
+    else:
+        column = env.backend.get_column(table, dtype.prop.list, select=True)
+
+    column = geoalchemy2.functions.ST_FlipCoordinates(column)
+    return Selected(env.add_column(column), prop=dtype.prop)
+
+
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, Geometry, Flip)
+def select(env: PgQueryBuilder, fpr: ForeignProperty, dtype: Geometry, func_: Flip):
+    table = env.get_joined_table(fpr)
 
     if dtype.prop.list is None:
         column = env.backend.get_column(table, dtype.prop, select=True)
@@ -516,7 +566,7 @@ COMPARE_STRING = [
 
 @ufunc.resolver(PgQueryBuilder, GetAttr, object, names=COMPARE)
 def compare(env: PgQueryBuilder, op: str, attr: GetAttr, value: Any):
-    resolved = env.call('_resolve_getattr', attr)
+    resolved = env.resolve_property(attr)
     return env.call(op, resolved, value)
 
 
@@ -1035,7 +1085,6 @@ def _ne_compare(env: PgQueryBuilder, prop: Property, column, value):
 FUNCS = [
     'lower',
     'upper',
-    'flip'
 ]
 
 
@@ -1047,7 +1096,7 @@ def func(env, name, field):
 
 @ufunc.resolver(PgQueryBuilder, GetAttr, names=FUNCS)
 def func(env, name, field):
-    resolved = env.call('_resolve_getattr', field)
+    resolved = env.resolve_property(field)
     return env.call(name, resolved)
 
 
@@ -1198,13 +1247,13 @@ def _get_sort_column(env: PgQueryBuilder, prop: Property):
 
 @ufunc.resolver(PgQueryBuilder, GetAttr)
 def negative(env, field) -> Negative:
-    resolved = env.call('_resolve_getattr', field)
+    resolved = env.resolve_property(field)
     return Negative(resolved)
 
 
 @ufunc.resolver(PgQueryBuilder, GetAttr)
 def positive(env, field) -> Positive:
-    resolved = env.call('_resolve_getattr', field)
+    resolved = env.resolve_property(field)
     return Positive(resolved)
 
 
@@ -1253,11 +1302,6 @@ def checksum(env: PgQueryBuilder, expr: Expr):
     return ResultProperty(
         Expr('checksum', *args)
     )
-
-
-@ufunc.resolver(PgQueryBuilder, Geometry)
-def flip(env: PgQueryBuilder, dtype: Geometry):
-    return Flip(dtype)
 
 
 @ufunc.resolver(PgQueryBuilder, Expr)

@@ -38,7 +38,7 @@ from spinta.formats.html.helpers import get_model_link
 from spinta.formats.html.helpers import get_output_formats
 from spinta.formats.html.helpers import get_template_context
 from spinta.formats.html.helpers import short_id
-from spinta.types.datatype import Array, ExternalRef, PageType, BackRef, ArrayBackRef
+from spinta.types.datatype import Array, ExternalRef, PageType, BackRef, ArrayBackRef, Denorm
 from spinta.types.datatype import DataType
 from spinta.types.datatype import File
 from spinta.types.datatype import Object
@@ -913,6 +913,28 @@ def prepare_dtype_for_response(
     display_value = get_display_value(value)
     osm_link = get_osm_link(value, dtype)
     return Cell(display_value, link=osm_link)
+
+
+@commands.prepare_dtype_for_response.register(Context, Html, Denorm, (object, type(None), NotAvailable))
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: Denorm,
+    value: Any,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    return commands.prepare_dtype_for_response(
+        context,
+        fmt,
+        dtype.rel_prop,
+        value,
+        data=data,
+        action=action,
+        select=select
+    )
 
 
 def _value_or_null(value):
