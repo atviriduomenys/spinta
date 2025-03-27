@@ -153,6 +153,27 @@ def cast_backend_to_python(
     return commands.cast_backend_to_python(
         context,
         dtype,
+        backend, {'_id': {
+            dtype.refprops[0].name: data
+        }},
+        **kwargs
+    )
+
+
+@commands.cast_backend_to_python.register(Context, ExternalRef, Sql, object)
+def cast_backend_to_python(
+    context: Context,
+    dtype: Ref,
+    backend: Sql,
+    data: object,
+    **kwargs
+):
+    if len(dtype.refprops) != 1:
+        raise Exception("CANNOT MAP UNKNOWN VALUE", dtype.refprops, data)
+
+    return commands.cast_backend_to_python(
+        context,
+        dtype,
         backend, {
             dtype.refprops[0].name: data
         },

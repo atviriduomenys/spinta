@@ -590,7 +590,6 @@ def select(env: SqlQueryBuilder, dtype: Array):
             raise NoExternalName(right)
 
         columns = env(table=table, model=dtype.model).call('_resolve_unresolved', right)
-        columns = ensure_list(columns)
         column = env.call('_group_array', columns)
 
         # Group by all (required for aggregation functions)
