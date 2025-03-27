@@ -7,7 +7,7 @@ from spinta.core.ufuncs import ufunc, Expr, Negative, Bind, GetAttr
 from spinta.datasets.backends.sql.ufuncs.components import Selected
 from spinta.datasets.components import ExternalBackend
 from spinta.exceptions import InvalidArgumentInExpression, CannotSelectTextAndSpecifiedLang
-from spinta.types.datatype import DataType, String, PrimaryKey, Denorm, Ref
+from spinta.types.datatype import DataType, String, PrimaryKey, Denorm
 from spinta.types.text.components import Text
 from spinta.ufuncs.components import ForeignProperty
 from spinta.ufuncs.querybuilder.components import QueryBuilder, Star, ReservedProperty, NestedProperty, \
@@ -93,7 +93,12 @@ def select(env: QueryBuilder, nested: NestedProperty) -> Selected:
 
 @ufunc.resolver(QueryBuilder, ReservedProperty)
 def select(env, prop):
-    return env.call('select', prop.dtype, prop.param)
+    return env.call('select', prop.dtype, prop)
+
+
+@ufunc.resolver(QueryBuilder, DataType, ReservedProperty)
+def select(env, dtype, reserved):
+    return env.call('select', dtype, reserved.param)
 
 
 @ufunc.resolver(QueryBuilder, ResultProperty)
@@ -271,29 +276,6 @@ def select(env: QueryBuilder, dtype: DataType, prep: Any) -> Selected:
     else:
         result = env.call('select', prep)
         return Selected(prop=dtype.prop, prep=result)
-
-
-@ufunc.resolver(QueryBuilder, Ref, (list, tuple))
-def select(env: QueryBuilder, dtype: Ref, data: list | tuple) -> Selected:
-    prep = {}
-    if not dtype.inherited:
-        if len(data) != len(dtype.refprops):
-            raise Exception("CANNOT MAP LIST WITH REFPROPS", data, dtype.refprops)
-
-        for i, prop in enumerate(dtype.refprops):
-            sel = env.call('select', data[i])
-            if sel.prop is None:
-                sel.prop = prop
-            prep[prop.name] = sel
-
-    for prop in dtype.properties.values():
-        sel = env.call('select', prop)
-        prep[prop.name] = sel
-
-    return Selected(
-        prop=dtype.prop,
-        prep=prep
-    )
 
 
 @ufunc.resolver(QueryBuilder, Property, Func)

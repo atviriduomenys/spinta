@@ -41,14 +41,18 @@ def cast_backend_to_python(
     if keymap is None:
         keymap = context.get(f'keymap.{dtype.prop.model.keymap.name}')
 
-    for key in data:
+    for key, value in data.items():
+        # Skip '_id', it will be processed below, since it needs to be converted to uuid type
+        if key == '_id':
+            continue
+
         prop = commands.resolve_property(dtype.prop.model, f'{dtype.prop.place}.{key}')
         if prop is not None:
             processed_data[key] = commands.cast_backend_to_python(
                 context,
                 prop,
                 backend,
-                data[key],
+                value,
                 keymap=keymap,
                 **kwargs
             )
@@ -59,11 +63,15 @@ def cast_backend_to_python(
         keymap_name = f'{keymap_name}.{"_".join(prop.name for prop in dtype.refprops)}'
 
     values = {}
+    id_data = data.get('_id')
+    if not id_data:
+        return processed_data
+
     for prop in dtype.refprops:
-        if prop.name not in data:
+        if prop.name not in id_data:
             # Skip trying to create _id, since not all refprop are given
             return processed_data
-        values[prop.name] = (data[prop.name])
+        values[prop.name] = (id_data[prop.name])
 
     encoding_values = list(values.values())
     if len(encoding_values) == 1:
@@ -104,14 +112,14 @@ def cast_backend_to_python(
     **kwargs
 ):
     processed_data = {}
-    for key in data:
+    for key, value in data.items():
         prop = commands.resolve_property(dtype.prop.model, f'{dtype.prop.place}.{key}')
         if prop is not None:
             processed_data[key] = commands.cast_backend_to_python(
                 context,
                 prop,
                 backend,
-                data[key],
+                value,
                 **kwargs
             )
 
@@ -160,6 +168,35 @@ def cast_backend_to_python(
     data: list | tuple,
     **kwargs
 ):
+    # This kinda of convertion is not preferred (dict values are better), but it's kept to support
+    # dialects that cannot cast to json objects.
+    # It will only attempt to map dtype.refprops to given values, meaning Denorm mapping is lost
+    if len(data) != len(dtype.refprops):
+        raise Exception("CANNOT MAP UNKNOWN VALUE", dtype.refprops, data)
+
+    return commands.cast_backend_to_python(
+        context,
+        dtype,
+        backend, {
+            '_id': {
+                prop.name: data[i] for i, prop in enumerate(dtype.refprops)
+            },
+        },
+        **kwargs
+    )
+
+
+@commands.cast_backend_to_python.register(Context, ExternalRef, Sql, (list, tuple))
+def cast_backend_to_python(
+    context: Context,
+    dtype: ExternalRef,
+    backend: Sql,
+    data: list | tuple,
+    **kwargs
+):
+    # This kinda of convertion is not preferred (dict values are better), but it's kept to support
+    # dialects that cannot cast to json objects.
+    # It will only attempt to map dtype.refprops to given values, meaning Denorm mapping is lost
     if len(data) != len(dtype.refprops):
         raise Exception("CANNOT MAP UNKNOWN VALUE", dtype.refprops, data)
 

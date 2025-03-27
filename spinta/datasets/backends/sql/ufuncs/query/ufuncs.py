@@ -19,9 +19,11 @@ from spinta.core.ufuncs import Negative
 from spinta.core.ufuncs import Unresolved
 from spinta.core.ufuncs import ufunc
 from spinta.datasets.backends.sql.ufuncs.query.components import SqlQueryBuilder
+from spinta.datasets.backends.sql.ufuncs.query.helpers import select_ref_foreign_key_properties, \
+    select_external_ref_foreign_key_properties
 from spinta.dimensions.enum.helpers import prepare_enum_value
 from spinta.exceptions import PropertyNotFound, SourceCannotBeList, NoExternalName, NotImplementedFeature
-from spinta.types.datatype import DataType, Denorm, Object, Array, BackRef
+from spinta.types.datatype import DataType, Denorm, Object, Array, ExternalRef
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.types.datatype import String
@@ -29,11 +31,11 @@ from spinta.types.datatype import UUID
 from spinta.types.text.components import Text
 from spinta.types.text.helpers import determine_language_property_for_text
 from spinta.ufuncs.components import ForeignProperty
-from spinta.ufuncs.querybuilder.components import LiteralProperty, Selected
-from spinta.ufuncs.querybuilder.helpers import get_language_column, process_literal_value, denorm_to_foreign_property
+from spinta.ufuncs.querybuilder.components import LiteralProperty, Selected, ReservedProperty
+from spinta.ufuncs.querybuilder.helpers import get_language_column, process_literal_value
 from spinta.ufuncs.querybuilder.ufuncs import Star
 from spinta.utils.data import take
-from spinta.utils.itertools import flatten
+from spinta.utils.itertools import flatten, ensure_list
 from spinta.utils.schema import NA
 
 
@@ -449,12 +451,7 @@ def select(env: SqlQueryBuilder, dtype: Object) -> Selected:
 def select(env: SqlQueryBuilder, dtype: Ref) -> Selected:
     prep = {}
     if not dtype.inherited:
-        table = env.backend.get_table(env.model)
-        column = env.backend.get_column(table, dtype.prop, select=True)
-
-        if len(dtype.refprops) != 1:
-            raise Exception("Unable to map source with ref type", dtype.prop, dtype.refprops)
-        prep[dtype.refprops[0].name] = Selected(item=env.add_column(column), prop=dtype.prop)
+        prep['_id'] = Selected(prop=dtype.prop, prep=select_ref_foreign_key_properties(env, dtype))
 
     for prop in dtype.properties.values():
         sel = env.call('select', prop)
@@ -466,6 +463,33 @@ def select(env: SqlQueryBuilder, dtype: Ref) -> Selected:
     )
 
 
+@ufunc.resolver(SqlQueryBuilder, ExternalRef)
+def select(env: SqlQueryBuilder, dtype: ExternalRef) -> Selected:
+    prep = {}
+    if not dtype.inherited:
+        prep.update(select_external_ref_foreign_key_properties(env, dtype))
+
+    for prop in dtype.properties.values():
+        sel = env.call('select', prop)
+        prep[prop.name] = sel
+
+    return Selected(
+        prop=dtype.prop,
+        prep=prep
+    )
+
+
+@ufunc.resolver(SqlQueryBuilder, Ref, ReservedProperty)
+def select(env: SqlQueryBuilder, dtype: Ref, reserved: ReservedProperty):
+    return Selected(prop=dtype.prop, prep=select_ref_foreign_key_properties(env, dtype))
+
+
+@ufunc.resolver(SqlQueryBuilder, ExternalRef, ReservedProperty)
+def select(env: SqlQueryBuilder, dtype: ExternalRef, reserved: ReservedProperty):
+    prep = select_external_ref_foreign_key_properties(env, dtype, target=reserved.param)
+    return prep[reserved.param]
+
+
 @ufunc.resolver(SqlQueryBuilder, Ref, str)
 def select(env, dtype: Ref, prop: str):
     table = env.backend.get_table(env.model)
@@ -473,6 +497,41 @@ def select(env, dtype: Ref, prop: str):
         env.add_column(
             table.c[dtype.prop.place + '.' + prop]
         )
+    )
+
+
+@ufunc.resolver(SqlQueryBuilder, Ref, (list, tuple))
+def select(env: SqlQueryBuilder, dtype: Ref, data: list | tuple) -> Selected:
+    prep = {}
+    if not dtype.inherited:
+        prep['_id'] = Selected(
+            prop=dtype.prop,
+            prep=select_ref_foreign_key_properties(env, dtype, properties=data)
+        )
+
+    for prop in dtype.properties.values():
+        sel = env.call('select', prop)
+        prep[prop.name] = sel
+
+    return Selected(
+        prop=dtype.prop,
+        prep=prep
+    )
+
+
+@ufunc.resolver(SqlQueryBuilder, ExternalRef, (list, tuple))
+def select(env: SqlQueryBuilder, dtype: ExternalRef, data: list | tuple) -> Selected:
+    prep = {}
+    if not dtype.inherited:
+        prep.update(select_external_ref_foreign_key_properties(env, dtype, properties=data))
+
+    for prop in dtype.properties.values():
+        sel = env.call('select', prop)
+        prep[prop.name] = sel
+
+    return Selected(
+        prop=dtype.prop,
+        prep=prep
     )
 
 
