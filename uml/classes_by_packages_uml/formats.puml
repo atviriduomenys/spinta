@@ -1,0 +1,61 @@
+@startuml
+package formats <<Rectangle>> {
+    object Format {
+            +content_type: str
+            +accept_types: set
+            +params: dict
+            +streamable: bool = True
+    }
+    package ascii <<Rectangle>> {
+        object Ascii {
+
+        }
+    }
+    package formats.csv <<Rectangle>> {
+
+        object IterableFile {
+
+        }
+
+        object formats.csv.Csv {
+
+        }
+    }
+
+    package html <<Rectangle>> {
+
+        object Html {
+
+        }
+
+        object Color {
+
+        }
+
+        object Cell {
+            +value: str
+            +link: Optional[str] = None
+            +color: Optional[Color] = None
+        }
+    }
+
+    package json <<Rectangle>> {
+        object Json {
+
+        }
+    }
+
+    package jsonlines <<Rectangle>> {
+        object JsonLines {
+
+        }
+    }
+
+}
+
+Format *-- Ascii
+Format *-- formats.csv.Csv
+Format *-- Html
+Format *-- Json
+Format *-- JsonLines
+@enduml

@@ -1,0 +1,119 @@
+@startuml
+package write <<Rectangle>> {
+
+    object push {
+        +context: Context,
+        +request: Request,
+        +scope: (Namespace, Model, DataType),
+        +backend: (type(None), Backend),
+        +*,
+        +action: Action,
+        +params: UrlParams,
+    }
+
+    object build_data_patch_for_write {
+        +context: Context,
+        +model: Model,
+        +*,
+        +given: dict,
+        +saved: dict,
+        +insert_action: bool = False,
+        +update_action: bool = False,
+    }
+
+    object build_full_response {
+        +context: Context,
+        +dtype: (Object, Model),
+        +*,
+        +patch: Optional[object],
+        +saved: Optional[object],
+    }
+
+    object before_write {
+        +context: Context,
+        +dtype: DataType,
+        +backend: Backend,
+        +*,
+        +data: DataSubItem,
+    }
+
+    object after_write {
+        +context: Context,
+        +dtype: DataType,
+        +backend: Backend,
+        +*,
+        +data: DataSubItem,
+    }
+
+    object upsert {
+        +context: Context,
+        +model: Model,
+        +backend: Backend,
+        +*,
+        +dstream: DataStream,
+        +stop_on_error: bool = True,
+    }
+
+    object patch {
+        +context: Context,
+        +model: Model,
+        +backend: Backend,
+        +*,
+        +dstream: DataStream,
+        +stop_on_error: bool = True,
+    }
+
+    object wipe {
+        +context: Context,
+        +request: Request,
+        +ns: Namespace,
+        +backend: type(None),
+        +*,
+        +action: Action,
+        +params: UrlParams,
+    }
+}
+
+push *-- Context
+push *-- Request
+push *-- Backend
+push *-- Namespace
+push *-- Model
+push *-- DataType
+push *-- Backend
+push *-- Action
+push *-- UrlParams
+push *-- File
+build_data_patch_for_write *-- Context
+build_data_patch_for_write *-- Model
+build_data_patch_for_write *-- Property
+build_data_patch_for_write *-- DataType
+build_full_response *-- Context
+build_full_response *-- Object
+build_full_response *-- DataType
+build_full_response *-- File
+before_write *-- Context
+before_write *-- DataType
+before_write *-- Backend
+before_write *-- DataSubItem
+before_write *-- File
+after_write *-- Context
+after_write *-- DataType
+after_write *-- Backend
+after_write *-- DataSubItem
+after_write *-- File
+upsert *-- Context
+upsert *-- Model
+upsert *-- Backend
+upsert *-- DataStream
+patch *-- Context
+patch *-- Model
+patch *-- Backend
+patch *-- DataStream
+wipe *-- Context
+wipe *-- Request
+wipe *-- Namespace
+wipe *-- Action
+wipe *-- UrlParams
+
+@enduml
