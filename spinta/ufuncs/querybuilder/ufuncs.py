@@ -93,7 +93,12 @@ def select(env: QueryBuilder, nested: NestedProperty) -> Selected:
 
 @ufunc.resolver(QueryBuilder, ReservedProperty)
 def select(env, prop):
-    return env.call('select', prop.dtype, prop.param)
+    return env.call('select', prop.dtype, prop)
+
+
+@ufunc.resolver(QueryBuilder, DataType, ReservedProperty)
+def select(env, dtype, reserved):
+    return env.call('select', dtype, reserved.param)
 
 
 @ufunc.resolver(QueryBuilder, ResultProperty)

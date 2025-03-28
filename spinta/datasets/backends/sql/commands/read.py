@@ -66,11 +66,7 @@ def getall(
                 val = get_row_value(context, result_builder_getter, row, sel)
                 if sel.prop:
                     if isinstance(sel.prop.dtype, PrimaryKey):
-                        val = generate_pk_for_row(sel.prop.model, row, keymap, val)
-                    elif isinstance(sel.prop.dtype, Ref):
-                        val = handle_ref_key_assignment(context, keymap, env, val, sel.prop.dtype)
-                    elif isinstance(sel.prop.dtype, Array):
-                        val = handle_external_array_type(context, sel.prop.dtype, keymap, env, val)
+                        val = generate_pk_for_row(context, sel.prop.model, row, keymap, val)
                 res[key] = val
             if is_page_enabled:
                 res['_page'] = get_page_values(env, row)

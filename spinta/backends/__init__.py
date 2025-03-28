@@ -1,9 +1,10 @@
 import base64
 import datetime
 import decimal
+import json
 import pathlib
 import uuid
-from typing import Any, Tuple
+from typing import Any
 from typing import AsyncIterator
 from typing import Dict
 from typing import Iterable
@@ -12,10 +13,9 @@ from typing import Optional
 
 import dateutil
 import shapely.geometry.base
-from shapely import wkt
-
 from geoalchemy2.elements import WKTElement, WKBElement
 from geoalchemy2.shape import to_shape
+from shapely import wkt
 
 from spinta import commands
 from spinta import exceptions
@@ -1723,7 +1723,8 @@ def cast_backend_to_python(
     backend: Backend,
     data: dict,
     *,
-    extra_properties: dict[str, Property] = None
+    extra_properties: dict[str, Property] = None,
+    **kwargs
 ) -> dict:
     properties = model.properties
     if extra_properties is not None:
@@ -1736,6 +1737,7 @@ def cast_backend_to_python(
             properties[k].dtype,
             backend,
             v,
+            **kwargs
         ) if k in properties else v
         for k, v in data.items()
     }
@@ -1747,8 +1749,9 @@ def cast_backend_to_python(
     prop: Property,
     backend: Backend,
     data: object,
+    **kwargs
 ) -> dict:
-    return commands.cast_backend_to_python(context, prop.dtype, backend, data)
+    return commands.cast_backend_to_python(context, prop.dtype, backend, data, **kwargs)
 
 
 @commands.cast_backend_to_python.register(Context, DataType, Backend, object)
@@ -1757,6 +1760,7 @@ def cast_backend_to_python(
     dtype: DataType,
     backend: Backend,
     data: Any,
+    **kwargs
 ) -> Any:
     if _check_if_nan(data):
         return None
@@ -1769,6 +1773,7 @@ def cast_backend_to_python(
     dtype: UUID,
     backend: Backend,
     data: Any,
+    **kwargs
 ) -> Any:
     if _check_if_nan(data):
         return None
@@ -1786,6 +1791,7 @@ def cast_backend_to_python(
     dtype: DateTime,
     backend: Backend,
     data: Any,
+    **kwargs
 ) -> Any:
     if _check_if_nan(data):
         return None
@@ -1803,6 +1809,7 @@ def cast_backend_to_python(
     dtype: Time,
     backend: Backend,
     data: Any,
+    **kwargs
 ) -> Any:
     if _check_if_nan(data):
         return None
@@ -1821,6 +1828,7 @@ def cast_backend_to_python(
     dtype: Date,
     backend: Backend,
     data: Any,
+    **kwargs
 ) -> Any:
     if _check_if_nan(data):
         return None
@@ -1839,6 +1847,7 @@ def cast_backend_to_python(
     dtype: Integer,
     backend: Backend,
     data: Any,
+    **kwargs
 ) -> Any:
     if _check_if_nan(data):
         return None
@@ -1861,6 +1870,7 @@ def cast_backend_to_python(
     dtype: Number,
     backend: Backend,
     data: Any,
+    **kwargs
 ) -> Any:
     if _check_if_nan(data):
         return None
@@ -1883,6 +1893,7 @@ def cast_backend_to_python(
     dtype: Binary,
     backend: Backend,
     data: str,
+    **kwargs
 ) -> Any:
     if _check_if_nan(data):
         return None
@@ -1900,6 +1911,7 @@ def cast_backend_to_python(
     dtype: Boolean,
     backend: Backend,
     data: str,
+    **kwargs
 ) -> Any:
     if _check_if_nan(data):
         return None
@@ -1917,6 +1929,7 @@ def cast_backend_to_python(
     dtype: Geometry,
     backend: Backend,
     data: str,
+    **kwargs
 ) -> Any:
     if _check_if_nan(data):
         return None
@@ -1934,6 +1947,7 @@ def cast_backend_to_python(
     dtype: Geometry,
     backend: Backend,
     data: WKTElement,
+    **kwargs
 ) -> Any:
     if _check_if_nan(data):
         return None
@@ -1946,48 +1960,50 @@ def cast_backend_to_python(
     dtype: Geometry,
     backend: Backend,
     data: WKBElement,
+    **kwargs
 ) -> Any:
     if _check_if_nan(data):
         return None
     return to_shape(data)
 
 
-@commands.cast_backend_to_python.register(Context, Ref, Backend, object)
+@commands.cast_backend_to_python.register(Context, Ref, Backend, dict)
 def cast_backend_to_python(
     context: Context,
     dtype: Ref,
     backend: Backend,
     data: Dict[str, Any],
+    **kwargs
 ) -> Any:
     if not data:
         return data
 
-    result = {}
-    for key, value in data.items():
-        converted = value
-        if key in dtype.properties:
-            converted = commands.cast_backend_to_python(
+    processed_data = {}
+    for key in data:
+        prop = commands.resolve_property(dtype.prop.model, f'{dtype.prop.place}.{key}')
+        if prop is not None:
+            processed_data[key] = commands.cast_backend_to_python(
                 context,
-                dtype.properties[key],
+                prop,
                 backend,
-                value
+                data[key],
+                **kwargs
             )
-        else:
-            for item in dtype.refprops:
-                if item.name == key:
-                    converted = commands.cast_backend_to_python(
-                        context,
-                        item.dtype,
-                        backend,
-                        value
-                    )
-                    break
-        result[key] = converted
 
-    if not result or all(value is None for value in result.values()):
+    for prop in dtype.refprops:
+        if prop.name not in processed_data and prop.name in data:
+            processed_data[prop.name] = commands.cast_backend_to_python(
+                context,
+                prop,
+                backend,
+                data[prop.name],
+                **kwargs
+            )
+
+    if not processed_data or all(value is None for value in processed_data.values()):
         return None
 
-    return result
+    return processed_data
 
 
 @commands.cast_backend_to_python.register(Context, Object, Backend, dict)
@@ -1996,6 +2012,7 @@ def cast_backend_to_python(
     dtype: Object,
     backend: Backend,
     data: Dict[str, Any],
+    **kwargs
 ) -> Dict[str, Any]:
     if data:
         return {
@@ -2004,6 +2021,7 @@ def cast_backend_to_python(
                 dtype.properties[k].dtype,
                 backend,
                 v,
+                **kwargs
             ) if k in dtype.properties else v
             for k, v in data.items()
         }
@@ -2016,6 +2034,7 @@ def cast_backend_to_python(
     dtype: Array,
     backend: Backend,
     data: List[Any],
+    **kwargs
 ) -> List[Any]:
     if data and dtype:
         return [
@@ -2024,10 +2043,29 @@ def cast_backend_to_python(
                 dtype.items.dtype,
                 backend,
                 v,
+                **kwargs
             )
             for v in data
         ]
     return data
+
+
+@commands.cast_backend_to_python.register(Context, Array, Backend, str)
+def cast_backend_to_python(
+    context: Context,
+    dtype: Array,
+    backend: Backend,
+    data: str,
+    **kwargs
+):
+    val = json.loads(data)
+    return commands.cast_backend_to_python(
+        context,
+        dtype,
+        backend,
+        val,
+        **kwargs
+    )
 
 
 @commands.cast_backend_to_python.register(Context, Denorm, Backend, object)
@@ -2036,8 +2074,9 @@ def cast_backend_to_python(
     dtype: Denorm,
     backend: Backend,
     data: Any,
+    **kwargs
 ) -> Any:
-    return commands.cast_backend_to_python(context, dtype.rel_prop, backend, data)
+    return commands.cast_backend_to_python(context, dtype.rel_prop, backend, data, **kwargs)
 
 
 @commands.reload_backend_metadata.register(Context, Manifest, Backend)

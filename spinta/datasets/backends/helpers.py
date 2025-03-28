@@ -86,7 +86,34 @@ def handle_ref_key_assignment(context: Context, keymap: KeyMap, env: Env, value:
     return val
 
 
-def generate_pk_for_row(model: Model, row: Any, keymap, pk_val: Any):
+def generate_ref_id_using_select(context: Context, dtype: Ref, data: dict) -> str:
+    ref_model = dtype.model
+    expr_parts = ['select()']
+    for prop in dtype.refprops:
+        expr_parts.append(f'{prop.place}="{data[prop.name]}"')
+    expr = asttoexpr(spyna.parse('&'.join(expr_parts)))
+    rows = commands.getall(
+        context,
+        ref_model,
+        ref_model.backend,
+        query=expr
+    )
+
+    found_value = False
+    val = None
+    for row in rows:
+        if val is not None:
+            raise MultiplePrimaryKeyCandidatesFound(dtype, values=data)
+        val = row['_id']
+        found_value = True
+
+    if not found_value:
+        raise NoPrimaryKeyCandidatesFound(dtype, values=data)
+
+    return val
+
+
+def generate_pk_for_row(context: Context, model: Model, row: Any, keymap, pk_val: Any):
     pk = None
     if model.base and commands.identifiable(model.base):
         pk_val_base = extract_values_from_row(row, model.base.parent, model.base.pk or model.base.parent.external.pkeys)

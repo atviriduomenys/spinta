@@ -3372,7 +3372,8 @@ def test_push_with_array_split(
           |   |   | Country         |         | id              | country         |       |         |
           |   |   |   | id          | integer |                 | id              |       | open    |    
           |   |   |   | name        | string  |                 | name            |       | open    | 
-          |   |   |   | languages[] | ref     | Language[code]  | languages       |       | open    | split(',') 
+          |   |   |   | languages   | array   |                 | languages       |       | open    | split(',') 
+          |   |   |   | languages[] | ref     | Language[code]  |                 |       | open    | 
           |   |   | Language        |         | id              | language        |       |         |
           |   |   |   | id          | integer |                 | id              |       | open    |    
           |   |   |   | code        | string  |                 | code            |       | open    | 
