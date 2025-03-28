@@ -852,19 +852,18 @@ def test_prepared_property(context, rc, tmp_path, geodb):
 
 def test_composite_keys(context, rc, tmp_path, sqlite):
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
-    d | r | m | property     | type   | ref           | source    | prepare                 | access
-    datasets/ds              |        |               |           |                         |
-      | rs                   | sql    |               |           |                         |
-      |   | Country          |        | id            | COUNTRY   |                         | open
-      |   |   | id           | array  |               |           | code, continent         |
-      |   |   | name         | string |               | NAME      |                         |
-      |   |   | code         | string |               | CODE      |                         |
-      |   |   | continent    | string |               | CONTINENT |                         |
-      |   | City             |        | name, country | CITY      |                         | open
-      |   |   | name         | string |               | NAME      |                         |
-      |   |   | country_code | string |               | COUNTRY   |                         |
-      |   |   | continent    | string |               | CONTINENT |                         |
-      |   |   | country      | ref    | Country       |           | country_code, continent |
+    d | r | m | property     | type   | ref             | source    | prepare                 | access
+    datasets/ds              |        |                 |           |                         |
+      | rs                   | sql    |                 |           |                         |
+      |   | Country          |        | code, continent | COUNTRY   |                         | open
+      |   |   | name         | string |                 | NAME      |                         |
+      |   |   | code         | string |                 | CODE      |                         |
+      |   |   | continent    | string |                 | CONTINENT |                         |
+      |   | City             |        | name, country   | CITY      |                         | open
+      |   |   | name         | string |                 | NAME      |                         |
+      |   |   | country_code | string |                 | COUNTRY   |                         |
+      |   |   | continent    | string |                 | CONTINENT |                         |
+      |   |   | country      | ref    | Country         |           | country_code, continent |
     '''))
 
     app = create_client(rc, tmp_path, sqlite)
