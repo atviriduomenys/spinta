@@ -83,15 +83,16 @@ def test_ns_titles(
 ):
     context = bootstrap_manifest(
         rc, '''
-    d | r | b | m | property | type   | ref          | title               | description
-                             | ns     | datasets     | All datasets        | All external datasets.
-                             | ns     | datasets/gov | Government datasets | All external government datasets.
-    datasets/gov/vpt/new     |        |              | New data            | Data from a new database.
-      | resource             |        |              |                     |
-      |   |   | Country      |        |              | Countries           | All countries.
-      |   |   |   | name     | string |              | Country name        | Name of a country.
-      |   |   | City         |        |              | Cities              | All cities.
-      |   |   |   | name     | string |              | City name           | Name of a city.
+    d | r | b | m | property | type   | ref | title               | description
+    datasets                 | ns     |     | All datasets        | All external datasets.
+    datasets/gov             | ns     |     | Government datasets | All external government datasets.
+                             |        |     |                     |
+    datasets/gov/vpt/new     |        |     | New data            | Data from a new database.
+      | resource             |        |     |                     |
+      |   |   | Country      |        |     | Countries           | All countries.
+      |   |   |   | name     | string |     | Country name        | Name of a country.
+      |   |   | City         |        |     | Cities              | All cities.
+      |   |   |   | name     | string |     | City name           | Name of a city.
     ''',
         tmp_path=tmp_path,
         manifest_type=manifest_type,
@@ -119,15 +120,16 @@ def test_ns_titles_bare_models(
 ):
     context = bootstrap_manifest(
         rc, '''
-    d | r | b | m | property                 | type   | ref                  | title               | description
-                                             | ns     | datasets             | All datasets        | All external datasets.
-                                             |        | datasets/gov         | Government datasets | All external government datasets.
-                                             |        | datasets/gov/vpt/new | New data            | Data from a new database.
-                                             |        |                      |                     |               
-      |   |   | datasets/gov/vpt/new/Country |        |                      | Countries           | All countries.
-      |   |   |   | name                     | string |                      | Country name        | Name of a country.
-      |   |   | datasets/gov/vpt/new/City    |        |                      | Cities              | All cities.
-      |   |   |   | name                     | string |                      | City name           | Name of a city.
+    d | r | b | m | property                 | type   | ref | title               | description
+    datasets                                 | ns     |     | All datasets        | All external datasets.
+    datasets/gov                             | ns     |     | Government datasets | All external government datasets.
+                                             |        |     |                     |
+    datasets/gov/vpt/new                     |        |     | New data            | Data from a new database.
+                                             |        |     |                     |               
+      |   |   | datasets/gov/vpt/new/Country |        |     | Countries           | All countries.
+      |   |   |   | name                     | string |     | Country name        | Name of a country.
+      |   |   | datasets/gov/vpt/new/City    |        |     | Cities              | All cities.
+      |   |   |   | name                     | string |     | City name           | Name of a city.
     ''',
         tmp_path=tmp_path,
         manifest_type=manifest_type,
