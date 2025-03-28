@@ -52,19 +52,18 @@ def test_internal_store_meta_rows(
     postgresql: str
 ):
     table = f'''
-    d | resource | b | m | property | type   | ref                  | source                  | prepare | access | uri                         | title               | description
-      |          |   |   |          | ns     | datasets             |                         |         |        |                             | All datasets        | All external datasets.
-      |          |   |   |          |        | datasets/gov         |                         |         |        |                             | Government datasets | All government datasets.
-      |          |   |   |          |        | datasets/gov/example |                         |         |        |                             | Example             |
-      |          |   |   |          |        |                      |                         |         |        |                             |                     |
-      |          |   |   |          | enum   | side                 | l                       | 'left'  | open   |                             | Left                | Left side.
-      |          |   |   |          |        |                      | r                       | 'right' | open   |                             | Right               | Right side.
-      |          |   |   |          |        |                      |                         |         |        |                             |                     |
-      | default  |   |   |          | sql    |                      | sqlite:///{tmp_path}/db |         |        |                             |                     |
-      |          |   |   |          |        |                      |                         |         |        |                             |                     | 
-      |          |   |   |          | prefix | locn                 |                         |         |        | http://www.w3.org/ns/locn#  |                     |
-      |          |   |   |          |        | ogc                  |                         |         |        | http://www.opengis.net/rdf# |                     |
-
+    dataset              | resource | b | m | property | type   | ref  | source                  | prepare | access | uri                         | title               | description
+    datasets             |          |   |   |          | ns     |      |                         |         |        |                             | All datasets        | All external datasets.
+    datasets/gov         |          |   |   |          | ns     |      |                         |         |        |                             | Government datasets | All government datasets.
+                         |          |   |   |          |        |      |                         |         |        |                             |                     |
+    datasets/gov/example |          |   |   |          |        |      |                         |         |        |                             | Example             |
+                         |          |   |   |          |        |      |                         |         |        |                             |                     |
+                         |          |   |   |          | prefix | locn |                         |         |        | http://www.w3.org/ns/locn#  |                     |
+                         |          |   |   |          |        | ogc  |                         |         |        | http://www.opengis.net/rdf# |                     |
+                         |          |   |   |          | enum   | side | l                       | 'left'  | open   |                             | Left                | Left side.
+                         |          |   |   |          |        |      | r                       | 'right' | open   |                             | Right               | Right side.
+                         |          |   |   |          |        |      |                         |         |        |                             |                     |
+                         | default  |   |   |          | sql    |      | sqlite:///{tmp_path}/db |         |        |                             |                     |
     '''
     tabular_manifest = load_manifest(rc, manifest=table, tmp_path=tmp_path, manifest_type='csv')
     if db_type == "sqlite":
@@ -77,15 +76,15 @@ def test_internal_store_meta_rows(
         write_internal_sql_manifest(context, dsn, tabular_manifest)
 
     compare_rows = [
-        [0, 0, None, 0, None, 'locn', 'prefix', 'locn', 'prefix', 'locn', None, None, None, None, 'http://www.w3.org/ns/locn#', None, None],
-        [1, 1, None, 0, None, 'ogc', 'prefix', 'ogc', 'prefix', 'ogc', None, None, None, None, 'http://www.opengis.net/rdf#', None, None],
-        [2, 2, None, 0, None, 'default', 'resource', 'default', 'sql', None, f'sqlite:///{tmp_path}/db', None, None, None, None, None, None],
-        [3, 3, None, 0, None, 'datasets', 'ns', 'datasets', 'ns', 'datasets', None, None, None, None, None, 'All datasets', 'All external datasets.'],
-        [4, 4, None, 0, None, 'datasets/gov', 'ns', 'datasets/gov', 'ns', 'datasets/gov', None, None, None, None, None, 'Government datasets', 'All government datasets.'],
-        [5, 5, None, 0, None, 'datasets/gov/example', 'ns', 'datasets/gov/example', 'ns', 'datasets/gov/example', None, None, None, None, None, 'Example', None],
-        [6, 6, None, 0, None, 'side', 'enum', 'side', 'enum', 'side', None, None, None, None, None, None, None],
-        [7, 7, 6, 1, None, 'side/{7}', 'enum.item', None, None, None, 'l', 'left', None, 'open', None, 'Left', 'Left side.'],
-        [8, 8, 6, 1, None, 'side/{8}', 'enum.item', None, None, None, 'r', 'right', None, 'open', None, 'Right', 'Right side.']
+        [0, 0, None, 0, None, 'datasets', 'ns', 'datasets', 'ns', None, None, None, None, None, None, 'All datasets', 'All external datasets.'],
+        [1, 1, None, 0, None, 'datasets/gov', 'ns', 'datasets/gov', 'ns', None, None, None, None, None, None, 'Government datasets', 'All government datasets.'],
+        [2, 2, None, 0, 'datasets/gov/example', 'datasets/gov/example', 'dataset', 'datasets/gov/example', None, None, None, None, None, None, None, 'Example', None],
+        [3, 3, 2, 1, 'datasets/gov/example', 'datasets/gov/example/locn', 'prefix', 'locn', 'prefix', 'locn', None, None, None, None, 'http://www.w3.org/ns/locn#', None, None],
+        [4, 4, 2, 1, 'datasets/gov/example', 'datasets/gov/example/ogc', 'prefix', 'ogc', 'prefix', 'ogc', None, None, None, None, 'http://www.opengis.net/rdf#', None, None],
+        [5, 5, 2, 1, 'datasets/gov/example', 'datasets/gov/example/side', 'enum', 'side', 'enum', 'side', None, None, None, None, None, None, None],
+        [6, 6, 5, 2, 'datasets/gov/example', 'datasets/gov/example/side/{6}', 'enum.item', None, None, None, 'l', 'left', None, 'open', None, 'Left', 'Left side.'],
+        [7, 7, 5, 2, 'datasets/gov/example', 'datasets/gov/example/side/{7}', 'enum.item', None, None, None, 'r', 'right', None, 'open', None, 'Right', 'Right side.'],
+        [8, 8, 2, 1, 'datasets/gov/example', 'datasets/gov/example/default', 'resource', 'default', 'sql', None, f'sqlite:///{tmp_path}/db', None, None, None, None, None, None],
     ]
 
     engine = sa.create_engine(dsn)
@@ -428,7 +427,6 @@ def test_internal_store_old_ids(
     postgresql: str
 ):
     # Currently unique, param does not store ids
-
     dataset_id = uuid.UUID('3de1cff9-0580-48ae-8fbc-78e557523b88')
     resource_id = uuid.UUID('5d6a9217-0ff9-4dcf-b625-19867e25d5c0')
     base_id = uuid.UUID('3f060134-2e86-407a-9405-65b45288a3f9')
@@ -446,26 +444,27 @@ def test_internal_store_old_ids(
     prefix_item_1_id = uuid.UUID('d9ddac7d-3bcc-4cb2-a319-5c275fc169e1')
 
     table = f'''
-    id                    | dataset | resource | base | model | property | type    | ref          | source                  | prepare | uri                         | title               | description
-    {namespace_item_0_id} |         |          |      |       |          | ns      | datasets     |                         |         |                             | All datasets        | All external datasets.
-    {namespace_item_1_id} |         |          |      |       |          |         | datasets/gov |                         |         |                             | Government datasets | All government datasets.
-                          |         |          |      |       |          |         |              |                         |         |                             |                     |
-    {enum_item_0_id}      |         |          |      |       |          | enum    | side         | l                       | 'left'  |                             | Left                | Left side.
-    {enum_item_1_id}      |         |          |      |       |          |         |              | r                       | 'right' |                             | Right               | Right side.  
-    {dataset_id}          | data    |          |      |       |          |         |              |                         |         |                             |                     |
-    {lang_id}             |         |          |      |       |          | lang    | lt           |                         |         |                             | Pavyzdys            | Pavyzdinis duomenu rinkinys.
-                          |         |          |      |       |          |         |              |                         |         |                             |                     |
-    {prefix_item_0_id}    |         |          |      |       |          | prefix  | locn         |                         |         | http://www.w3.org/ns/locn#  |                     |
-    {prefix_item_1_id}    |         |          |      |       |          |         | ogc          |                         |         | http://www.opengis.net/rdf# |                     |
-    {resource_id}         |         | res      |      |       |          | sql     |              | sqlite:///{tmp_path}/db |         |                             |                     |
-    {model_0_id}          |         |          |      | Test  |          |         |              |                         |         |                             |                     |
-    {property_0_id}       |         |          |      |       | num      | number  |              |                         |         |                             |                     |
-                          |         |          |      |       |          |         |              |                         |         |                             |                     |
-    {base_id}             |         |          | Test |       |          |         |              |                         |         |                             |                     |
-    {model_1_id}          |         |          |      | New   |          |         |              |                         |         |                             |                     |
-    {comment_id}          |         |          |      |       |          | comment | TEXT         |                         |         |                             | Example             | Comment
-    {property_1_id}       |         |          |      |       | text     | string  |              |                         |         |                             |                     |
+    id                    | dataset      | resource | base | model | property | type    | ref  | source                  | prepare | uri                         | title               | description
+    {namespace_item_0_id} | datasets     |          |      |       |          | ns      |      |                         |         |                             | All datasets        | All external datasets.
+    {namespace_item_1_id} | datasets/gov |          |      |       |          | ns      |      |                         |         |                             | Government datasets | All government datasets.
+                          |              |          |      |       |          |         |      |                         |         |                             |                     |
+    {dataset_id}          | data         |          |      |       |          |         |      |                         |         |                             |                     |
+    {lang_id}             |              |          |      |       |          | lang    | lt   |                         |         |                             | Pavyzdys            | Pavyzdinis duomenu rinkinys.
+                          |              |          |      |       |          |         |      |                         |         |                             |                     |
+    {prefix_item_0_id}    |              |          |      |       |          | prefix  | locn |                         |         | http://www.w3.org/ns/locn#  |                     |
+    {prefix_item_1_id}    |              |          |      |       |          |         | ogc  |                         |         | http://www.opengis.net/rdf# |                     |
+    {resource_id}         |              | res      |      |       |          | sql     |      | sqlite:///{tmp_path}/db |         |                             |                     |
+    {model_0_id}          |              |          |      | Test  |          |         |      |                         |         |                             |                     |
+    {property_0_id}       |              |          |      |       | num      | number  |      |                         |         |                             |                     |
+                          |              |          |      |       |          |         |      |                         |         |                             |                     |
+    {base_id}             |              |          | Test |       |          |         |      |                         |         |                             |                     |
+    {model_1_id}          |              |          |      | New   |          |         |      |                         |         |                             |                     |
+    {comment_id}          |              |          |      |       |          | comment | TEXT |                         |         |                             | Example             | Comment
+    {property_1_id}       |              |          |      |       | text     | string  |      |                         |         |                             |                     |
+    {enum_item_0_id}      |              |          |      |       |          | enum    | side | l                       | 'left'  |                             | Left                | Left side.
+    {enum_item_1_id}      |              |          |      |       |          |         |      | r                       | 'right' |                             | Right               | Right side.
     '''
+
     tabular_manifest = load_manifest(rc, manifest=table, tmp_path=tmp_path, manifest_type='csv')
     if db_type == "sqlite":
         dsn = 'sqlite:///' + str(tmp_path / 'db.sqlite')
@@ -477,22 +476,22 @@ def test_internal_store_old_ids(
         write_internal_sql_manifest(context, dsn, tabular_manifest)
 
     compare_rows = [
-        [0, namespace_item_0_id, None, 0, None, 'datasets', 'ns', 'datasets', 'ns', 'datasets', None, None, None, None, None, 'All datasets', 'All external datasets.'],
-        [1, namespace_item_1_id, None, 0, None, 'datasets/gov', 'ns', 'datasets/gov', 'ns', 'datasets/gov', None, None, None, None, None, 'Government datasets', 'All government datasets.'],
-        [2, 2, None, 0, None, 'side', 'enum', 'side', 'enum', 'side', None, None, None, None, None, None, None],
-        [3, enum_item_0_id, 2, 1, None, f'side/{enum_item_0_id}', 'enum.item', None, None, None, 'l', 'left', None, None, None, 'Left', 'Left side.'],
-        [4, enum_item_1_id, 2, 1, None, f'side/{enum_item_1_id}', 'enum.item', None, None, None, 'r', 'right', None, None, None, 'Right', 'Right side.'],
-        [5, dataset_id, None, 0, 'data', 'data', 'dataset', 'data', None, None, None, None, None, None, None, None, None],
-        [6, lang_id, dataset_id, 1, 'data', 'data/lt', 'lang', 'lt', 'lang', 'lt', None, None, None, None, None, 'Pavyzdys', 'Pavyzdinis duomenu rinkinys.'],
-        [7, prefix_item_0_id, dataset_id, 1, 'data', 'data/locn', 'prefix', 'locn', 'prefix', 'locn', None, None, None, None, 'http://www.w3.org/ns/locn#', None, None],
-        [8, prefix_item_1_id, dataset_id, 1, 'data', 'data/ogc', 'prefix', 'ogc', 'prefix', 'ogc', None, None, None, None, 'http://www.opengis.net/rdf#', None, None],
-        [9, resource_id, dataset_id, 1, 'data', 'data/res', 'resource', 'res', 'sql', None, f'sqlite:///{tmp_path}/db', None, None, None, None, None, None],
-        [10, model_0_id, resource_id, 2, 'data/Test', 'data/res/Test', 'model', 'Test', None, None, None, None, None, None, None, None, None],
-        [11, property_0_id, model_0_id, 3, 'data/Test/num', 'data/res/Test/num', 'property', 'num', 'number', None, None, None, None, None, None, None, None],
-        [12, base_id, resource_id, 2, 'data/Test', 'data/res/Test', 'base', 'Test', None, None, None, None, None, None, None, None, None],
-        [13, model_1_id, base_id, 3, 'data/New', 'data/res/Test/New', 'model', 'New', None, None, None, None, None, None, None, None, None],
-        [14, comment_id, model_1_id, 4, 'data/New', f'data/res/Test/New/{comment_id}', 'comment', 'TEXT', 'comment', 'TEXT', None, None, None, None, None, 'Example', 'Comment'],
-        [15, property_1_id, model_1_id, 4, 'data/New/text', 'data/res/Test/New/text', 'property', 'text', 'string', None, None, None, None, None, None, None, None],
+        [0, namespace_item_0_id, None, 0, None, 'datasets', 'ns', 'datasets', 'ns', None, None, None, None, None, None, 'All datasets', 'All external datasets.'],
+        [1, namespace_item_1_id, None, 0, None, 'datasets/gov', 'ns', 'datasets/gov', 'ns', None, None, None, None, None, None, 'Government datasets', 'All government datasets.'],
+        [2, dataset_id, None, 0, 'data', 'data', 'dataset', 'data', None, None, None, None, None, None, None, None, None],
+        [3, lang_id, dataset_id, 1, 'data', 'data/lt', 'lang', 'lt', 'lang', 'lt', None, None, None, None, None, 'Pavyzdys', 'Pavyzdinis duomenu rinkinys.'],
+        [4, prefix_item_0_id, dataset_id, 1, 'data', 'data/locn', 'prefix', 'locn', 'prefix', 'locn', None, None, None, None, 'http://www.w3.org/ns/locn#', None, None],
+        [5, prefix_item_1_id, dataset_id, 1, 'data', 'data/ogc', 'prefix', 'ogc', 'prefix', 'ogc', None, None, None, None, 'http://www.opengis.net/rdf#', None, None],
+        [6, resource_id, dataset_id, 1, 'data', 'data/res', 'resource', 'res', 'sql', None, f'sqlite:///{tmp_path}/db', None, None, None, None, None, None],
+        [7, model_0_id, resource_id, 2, 'data/Test', 'data/res/Test', 'model', 'Test', None, None, None, None, None, None, None, None, None],
+        [8, property_0_id, model_0_id, 3, 'data/Test/num', 'data/res/Test/num', 'property', 'num', 'number', None, None, None, None, None, None, None, None],
+        [9, base_id, resource_id, 2, 'data/Test', 'data/res/Test', 'base', 'Test', None, None, None, None, None, None, None, None, None],
+        [10, model_1_id, base_id, 3, 'data/New', 'data/res/Test/New', 'model', 'New', None, None, None, None, None, None, None, None, None],
+        [11, comment_id, model_1_id, 4, 'data/New', f'data/res/Test/New/{comment_id}', 'comment', 'TEXT', 'comment', 'TEXT', None, None, None, None, None, 'Example', 'Comment'],
+        [12, property_1_id, model_1_id, 4, 'data/New/text', 'data/res/Test/New/text', 'property', 'text', 'string', None, None, None, None, None, None, None, None],
+        [13, 13, property_1_id, 5, 'data/New/text', 'data/res/Test/New/text/side', 'enum', 'side', 'enum', 'side', None, None, None, None, None, None, None],
+        [14, enum_item_0_id, 13, 6, 'data/New/text', f'data/res/Test/New/text/side/{enum_item_0_id}', 'enum.item', None, None, None, 'l', 'left', None, None, None, 'Left', 'Left side.'],
+        [15, enum_item_1_id, 13, 6, 'data/New/text', f'data/res/Test/New/text/side/{enum_item_1_id}', 'enum.item', None, None, None, 'r', 'right', None, None, None, 'Right', 'Right side.'],
     ]
 
     engine = sa.create_engine(dsn)

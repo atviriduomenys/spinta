@@ -123,13 +123,14 @@ def _get_current_loc(context: Context, path: str):
 @pytest.fixture(scope='module')
 def context_current_location(rc: RawConfig) -> Context:
     return bootstrap_manifest(rc, '''
-    d | r | b | m | property | type   | ref          | title               | description
-                             | ns     | datasets     | All datasets        | All external datasets.
-                             | ns     | datasets/gov | Government datasets | All external government datasets.
-    datasets/gov/vpt/new     |        |              | New data            | Data from a new database.
-      | resource             |        |              |                     |
-      |   |   | City         |        |              | Cities              | All cities.
-      |   |   |   | name     | string |              | City name           | Name of a city.
+    d | r | b | m | property | type   | ref | title               | description
+    datasets                 | ns     |     | All datasets        | All external datasets.
+    datasets/gov             | ns     |     | Government datasets | All external government datasets.
+                             |        |     |                     |
+    datasets/gov/vpt/new     |        |     | New data            | Data from a new database.
+      | resource             |        |     |                     |
+      |   |   | City         |        |     | Cities              | All cities.
+      |   |   |   | name     | string |     | City name           | Name of a city.
     ''')
 
 
@@ -194,17 +195,18 @@ def context_current_location_with_root(rc: RawConfig):
         'root': 'datasets/gov/vpt',
     })
     return bootstrap_manifest(rc, '''
-    d | r | b | m | property | type   | ref          | title               | description
-                             | ns     | datasets     | All datasets        | All external datasets.
-                             | ns     | datasets/gov | Government datasets | All external government datasets.
-    datasets/gov/vpt/new     |        |              | New data            | Data from a new database.
-      | resource             |        |              |                     |
-      |   |   | City         |        |              | Cities              | All cities.
-      |   |   |   | name     | string |              | City name           | Name of a city.
-    datasets/gov/vpt/old     |        |              | New data            | Data from a new database.
-      | resource             |        |              |                     |
-      |   |   | Country      |        |              | Countries           | All countries.
-      |   |   |   | name     | string |              | Country name        | Name of a country.
+    d | r | b | m | property | type   | ref | title               | description
+    datasets                 | ns     |     | All datasets        | All external datasets.
+    datasets/gov             | ns     |     | Government datasets | All external government datasets.
+                             |        |     |                     |
+    datasets/gov/vpt/new     |        |     | New data            | Data from a new database.
+      | resource             |        |     |                     |
+      |   |   | City         |        |     | Cities              | All cities.
+      |   |   |   | name     | string |     | City name           | Name of a city.
+    datasets/gov/vpt/old     |        |     | New data            | Data from a new database.
+      | resource             |        |     |                     |
+      |   |   | Country      |        |     | Countries           | All countries.
+      |   |   |   | name     | string |     | Country name        | Name of a country.
     ''')
 
 

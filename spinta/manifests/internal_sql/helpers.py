@@ -657,6 +657,7 @@ def _namespaces_to_sql(
         item_id = _handle_id(ns.id)
         yield to_row(INTERNAL_MANIFEST_COLUMNS, {
             'id': item_id,
+            'dataset': name,
             'parent': parent_id,
             'depth': depth,
             'path': path,
@@ -664,7 +665,6 @@ def _namespaces_to_sql(
             'dim': 'ns',
             'name': name,
             'type': ns.type,
-            'ref': name,
             'title': ns.title,
             'description': ns.description,
             'prepare': _handle_prepare(NA)
@@ -1435,8 +1435,7 @@ def _convert_lang(row: InternalManifestRow, first: bool = False):
 
 def _convert_namespaces(row: InternalManifestRow, first: bool = False):
     new = to_row_tabular(MANIFEST_COLUMNS, row)
-    if not first:
-        new["type"] = ''
+    new['dataset'] = row['name']
     return new
 
 
