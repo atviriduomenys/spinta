@@ -766,7 +766,7 @@ class NoReferencesFound(UserError):
 
 
 class PrimaryKeyArrayTypeError(UserError):
-    template = "Array type object can not be used as a model primary key."
+    template = "Array type property can not be used as a model primary key."
 
 
 class MultipleBackRefReferencesFound(UserError):
