@@ -30,7 +30,7 @@ def handle_ref_key_assignment(context: Context, keymap: KeyMap, env: Env, value:
             prop_count_mapping[prop.name] = 1
     expected_count = sum(item for item in prop_count_mapping.values())
     if len(value) != expected_count:
-        raise GivenValueCountMissmatch(given_count=len(value), expected_count=expected_count)
+        raise GivenValueCountMissmatch(ref, given_count=len(value), expected_count=expected_count)
 
     if commands.identifiable(ref.prop):
         target_value = value
