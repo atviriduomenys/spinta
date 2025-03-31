@@ -10,7 +10,7 @@ from spinta.backends import Backend
 from spinta.backends.constants import BackendOrigin
 from spinta.components import Namespace, Base, Model, Property, Context, Config, EntryId, MetaData, Action
 from spinta.core.enums import Access
-from spinta.core.ufuncs import Expr
+from spinta.core.ufuncs import Expr, NoOp
 from spinta.datasets.components import Dataset, Resource, Param
 from spinta.dimensions.comments.components import Comment
 from spinta.dimensions.enum.components import Enums
@@ -1216,7 +1216,7 @@ def to_row_tabular(keys, values) -> ManifestRow:
 def _handle_prepare(prepare: Any):
     if isinstance(prepare, NotAvailable):
         prepare = sa.null()
-    elif isinstance(prepare, Expr):
+    elif isinstance(prepare, (Expr, NoOp)):
         prepare = prepare.todict()
     return prepare
 

@@ -81,5 +81,3 @@ class LoadBuilder(Env):
             page.size = config.default_page_size
 
         self.model.page = page
-
-

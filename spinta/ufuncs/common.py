@@ -1,6 +1,6 @@
 from typing import Any, Tuple, overload
 
-from spinta.core.ufuncs import Env, Expr, ufunc
+from spinta.core.ufuncs import Env, Expr, ufunc, NoOp
 
 
 @overload
@@ -26,17 +26,23 @@ def group(env: Env, expr: Expr) -> Tuple[Any]:
 
 @overload
 @ufunc.resolver(Env, object)
-def group(env: Env, arg: Any):
+def group(env: Env, arg: Any) -> Any:
     return arg
 
 
 @overload
 @ufunc.resolver(Env, int)
-def negative(env: Env, arg: int):
+def negative(env: Env, arg: int) -> int:
     return -arg
 
 
 @overload
 @ufunc.resolver(Env, float)
-def negative(env: Env, arg: int):
+def negative(env: Env, arg: int) -> int:
     return -arg
+
+
+@overload
+@ufunc.resolver(Env)
+def noop(env) -> NoOp:
+    return NoOp()

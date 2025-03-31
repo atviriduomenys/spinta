@@ -823,3 +823,27 @@ def test_copy_source_type_resource_model_property(context: Context, rc, cli, tmp
       |   |   |   | name     | string  |         | pavadinimas | varchar(255)
       |   |   |   | country  | ref     | Country | salis       | integer
     '''
+
+
+def test_enum_function_noop_copy(context: Context, rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
+    primary_manifest = '''
+    d | r | b | m | property | type    | ref | source       | prepare
+    dataset1                 |         |     |              |
+      | resource1            | sql     |     |              |
+                             |         |     |              |
+      |   |   | City         |         | id  | CITIES       |
+      |   |   |   | id       | integer |     | ID           |
+      |   |   |   | country  | string  |     | COUNTRY_CODE |
+                             | enum    |     | lt           |
+                             |         |     | ee           |
+                             |         |     | lv           |
+                             |         |     |              | noop()
+    '''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', primary_manifest)
+
+    cli.invoke(rc, [
+        'copy', tmp_path / 'manifest.csv', '-o', tmp_path / 'result.csv',
+    ])
+    manifest = load_manifest(rc, tmp_path / 'result.csv')
+
+    assert manifest == primary_manifest
