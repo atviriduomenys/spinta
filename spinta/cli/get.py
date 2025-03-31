@@ -16,11 +16,13 @@ log = logging.getLogger(__name__)
 def getall(
     ctx: TyperContext,
     manifests: Optional[List[str]] = Argument(help=("Manifest files to load")),
-    dsn: str = Argument(help=("Data Source Name path")),
+    backend: str = Argument(help=("Backend connection string")),
     model: str = Argument(help=("Model path")),
 ):
     manifests = convert_str_to_manifest_path(manifests)
-    context = configure_context(ctx.obj, manifests, backend="memory", dsn=dsn)
+    context = configure_context(
+        ctx.obj, manifests, backend_type="memory", backend=backend
+    )
     prepare_manifest(context, ensure_config_dir=True, verbose=False)
     response_dict = {}
     store = context.get("store")
@@ -34,12 +36,14 @@ def getall(
 def getone(
     ctx: TyperContext,
     manifests: Optional[List[str]] = Argument(help=("Manifest files to load")),
-    dsn: str = Argument(help=("Data Source Name path")),
+    backend: str = Argument(help=("Backend connection string")),
     model: str = Argument(help=("Model path")),
     id_: str = Argument(help=("Dataset model id")),
 ):
     manifests = convert_str_to_manifest_path(manifests)
-    context = configure_context(ctx.obj, manifests, backend="memory", dsn=dsn)
+    context = configure_context(
+        ctx.obj, manifests, backend_type="memory", backend=backend
+    )
     prepare_manifest(context, ensure_config_dir=True, verbose=False)
     store = context.get("store")
     model = commands.get_model(context, store.manifest, model)
