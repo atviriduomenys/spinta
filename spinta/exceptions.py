@@ -761,7 +761,7 @@ class UnauthorizedKeymapSync(UserError):
 class GivenValueCountMissmatch(BaseError):
     template = '''
     While assigning ref values {given_count} were given, but {expected_count} were expected.
-    This can happen, when there are no primary keys set on ref's model, or the keys can be nullable.
+    This can happen, when there are no primary keys set on ref's model, invalid ref key assignment or the keys can be nullable.
     '''
 
 
@@ -1082,4 +1082,10 @@ class ParentNodeNotFound(UserError):
     Nested properties are defined in '{model_name}' model, without a property that references the parent model.
     Nested properties: '{property_names}'.
     Missing property name: '{missing_property_name}'.
+    '''
+
+
+class PropertyNotPartOfRefProps(UserError):
+    template = '''
+    {prop!r} is not part of refprops ({refprops})
     '''

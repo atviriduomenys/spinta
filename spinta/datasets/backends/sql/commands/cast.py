@@ -6,6 +6,7 @@ from spinta.components import Context, Model, Mode
 from spinta.datasets.backends.helpers import generate_ref_id_using_select, flatten_keymap_encoding_values
 from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.keymaps.components import KeyMap
+from spinta.exceptions import GivenValueCountMissmatch
 from spinta.types.datatype import Ref, ExternalRef
 from spinta.types.namespace import check_if_model_has_backend_and_source
 
@@ -151,7 +152,7 @@ def cast_backend_to_python(
     **kwargs
 ):
     if len(dtype.refprops) != 1:
-        raise Exception("CANNOT MAP UNKNOWN VALUE", dtype.refprops, data)
+        raise GivenValueCountMissmatch(dtype, given_count=1, expected_count=len(dtype.refprops))
 
     return commands.cast_backend_to_python(
         context,
@@ -172,7 +173,7 @@ def cast_backend_to_python(
     **kwargs
 ):
     if len(dtype.refprops) != 1:
-        raise Exception("CANNOT MAP UNKNOWN VALUE", dtype.refprops, data)
+        raise GivenValueCountMissmatch(dtype, given_count=1, expected_count=len(dtype.refprops))
 
     return commands.cast_backend_to_python(
         context,
@@ -196,7 +197,7 @@ def cast_backend_to_python(
     # dialects that cannot cast to json objects.
     # It will only attempt to map dtype.refprops to given values, meaning Denorm mapping is lost
     if len(data) != len(dtype.refprops):
-        raise Exception("CANNOT MAP UNKNOWN VALUE", dtype.refprops, data)
+        raise GivenValueCountMissmatch(dtype, given_count=len(data), expected_count=len(dtype.refprops))
 
     return commands.cast_backend_to_python(
         context,
@@ -222,7 +223,7 @@ def cast_backend_to_python(
     # dialects that cannot cast to json objects.
     # It will only attempt to map dtype.refprops to given values, meaning Denorm mapping is lost
     if len(data) != len(dtype.refprops):
-        raise Exception("CANNOT MAP UNKNOWN VALUE", dtype.refprops, data)
+        raise GivenValueCountMissmatch(dtype, given_count=len(data), expected_count=len(dtype.refprops))
 
     return commands.cast_backend_to_python(
         context,
