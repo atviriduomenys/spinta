@@ -167,3 +167,15 @@ def handle_external_array_type(
         return [handle_ref_key_assignment(context, keymap, env, value, dtype.items.dtype) for value in val]
 
     return val
+
+
+def flatten_keymap_encoding_values(data: object):
+    # Backwards compatibility function, that converts nested dict values to flat list values
+    # Used for generating and looking up keymap values
+    if isinstance(data, dict):
+        if len(data) == 1:
+            return flatten_keymap_encoding_values(list(data.values())[0])
+        return flatten_keymap_encoding_values(list(data.values()))
+    elif isinstance(data, (list, tuple)):
+        return list(flatten_keymap_encoding_values(item) for item in data)
+    return data

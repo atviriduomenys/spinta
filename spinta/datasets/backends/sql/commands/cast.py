@@ -3,7 +3,7 @@ from __future__ import annotations
 from spinta import commands
 from spinta.backends import Backend
 from spinta.components import Context, Model, Mode
-from spinta.datasets.backends.helpers import generate_ref_id_using_select
+from spinta.datasets.backends.helpers import generate_ref_id_using_select, flatten_keymap_encoding_values
 from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.types.datatype import Ref, ExternalRef
@@ -77,7 +77,10 @@ def cast_backend_to_python(
     if len(encoding_values) == 1:
         encoding_values = encoding_values[0]
 
+    # Backwards compatibility, all nested values are converted to list values without keys
+    encoding_values = flatten_keymap_encoding_values(encoding_values)
     contains = keymap.contains(keymap_name, encoding_values)
+
     if contains:
         id_value = keymap.encode(keymap_name, encoding_values)
     elif encoding_values is None:
