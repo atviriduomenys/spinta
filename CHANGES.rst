@@ -5,9 +5,18 @@ Changes
 ====================
 
 Backwards incompatible:
+
 - added `status`, `visibility`, `eli`, `origin`, `count` and `source.type` columns. (`#1032`_)
 
   .. _#1032: https://github.com/atviriduomenys/spinta/issues/1032
+
+New Features:
+
+- Added OpenAPI Schema manifest (`#1211`_)
+- Added changes to support enum `noop()` classificator for copy & check commands (`#1146`_)
+
+  .. _#1211: https://github.com/atviriduomenys/spinta/issues/1211
+  .. _#1146: https://github.com/atviriduomenys/spinta/issues/1146
 
 0.2dev1
 =======
@@ -28,10 +37,7 @@ New Features:
 
 - Added `flip('...')` function support in `select` query to `postgresql` and `sql` backends (`#1052`_).
 
-- Added OpenAPI Schema manifest (`#1211`_)
-
   .. _#1052: https://github.com/atviriduomenys/spinta/issues/1052
-  .. _#1211: https://github.com/atviriduomenys/spinta/issues/1211
 
 Improvements:
 
