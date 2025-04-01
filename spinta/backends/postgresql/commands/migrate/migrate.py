@@ -1,8 +1,6 @@
 from typing import List, Dict, Tuple
 
 import sqlalchemy as sa
-from alembic.migration import MigrationContext
-from alembic.operations import Operations
 from sqlalchemy.engine.reflection import Inspector
 
 import spinta.backends.postgresql.helpers.migrate.actions as ma
@@ -30,6 +28,9 @@ from spinta.utils.schema import NA
 
 @commands.migrate.register(Context, Manifest, PostgreSQL, MigrateMeta)
 def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_meta: MigrateMeta):
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+
     conn = context.get(f'transaction.{backend.name}')
     ctx = MigrationContext.configure(conn, opts={
         "as_sql": migrate_meta.plan,
