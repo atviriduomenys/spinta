@@ -645,11 +645,12 @@ def resolve_property(model: Model, prop: str) -> Property | None:
     if '.' in prop:
         split = prop.split('.')
         resolved_prop = None
-        for i in range(len(split)):
-            parent_prop = '.'.join(split[:-i])
+        for i in range(len(split) - 1, 0, -1):
+            parent_prop = '.'.join(split[:i])
+            child_prop = '.'.join(split[i:])
             parent_resolved_prop = commands.resolve_property(model, parent_prop)
             if parent_resolved_prop is not None:
-                resolved_prop = commands.resolve_property(parent_resolved_prop, '.'.join(split[i:]))
+                resolved_prop = commands.resolve_property(parent_resolved_prop, child_prop)
 
             if resolved_prop is not None:
                 return resolved_prop
