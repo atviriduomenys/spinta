@@ -1135,7 +1135,7 @@ def test_primary_key_can_not_be_an_array(manifest_type, tmp_path, rc):
               |   |   |   | country  | ref     | Country
         ''', manifest_type)
 
-    assert error.value.message == 'Array type property can not be used as a model primary key.'
+    assert error.value.message == 'Array type property (property with `[]`) can not be used as primary key for a model (model.ref column).'
     assert error.value.context['model'] == 'example/Country'
     assert error.value.context['name'] == 'cities[]'
 

@@ -129,8 +129,9 @@ def load(context: Context, entity: Entity, data: dict, manifest: Manifest):
         entity.pkeys = [entity.model.flatprops[k] for k in pkeys]
     else:
         entity.unknown_primary_key = True
+        primary_key_candidates = take(entity.model.flatprops).values()
         entity.pkeys = sorted(
-            [pk for pk in take(entity.model.flatprops).values() if not pk.list],
+            [pk for pk in primary_key_candidates if (pk.given_name and '[]' not in pk.given_name) or not pk.given_name],
             key=lambda p: p.place,
         )
 

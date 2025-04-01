@@ -84,5 +84,5 @@ def check_model_primary_keys(model: Model) -> None:
         return
 
     for primary_key in model.external.pkeys:
-        if primary_key.list:
+        if primary_key.given_name and '[]' in primary_key.given_name:
             raise PrimaryKeyArrayTypeError(model, name=primary_key.given_name)
