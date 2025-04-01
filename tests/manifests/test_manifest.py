@@ -1663,6 +1663,7 @@ def test_no_model_defined_error(manifest_type, tmp_path, rc):
               |   |   |   | id       | integer |     | open   |
         ''')
 
+
 @pytest.mark.manifests('internal_sql', 'csv')
 def test_property_error(manifest_type, tmp_path, rc):
     check(tmp_path, rc, '''

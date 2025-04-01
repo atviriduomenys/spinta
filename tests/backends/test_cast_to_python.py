@@ -207,6 +207,30 @@ def test_cast_backend_to_python_denorm(rc: RawConfig):
     }
 
 
+def test_cast_backend_to_python_external_denorm(rc: RawConfig):
+    context, manifest = load_manifest_and_context(rc, '''
+    d | r | b | m | property             | type    | ref      | source  | prepare | access | level
+    example                              |         |          |         |         |        |
+      |   |   | Country                  |         | int_prop | COUNTRY |         |        |
+      |   |   |   | int_prop             | integer |          | INT     |         | open   |
+      |   |   |   | boolean_prop         | boolean |          | BOOLEAN |         | open   |
+      |   |   | City                     |         | name     | CITY    |         |        |
+      |   |   |   | name                 | string  |          | NAME    |         | open   |
+      |   |   |   | country              | ref     | Country  | COUNTRY |         | open   | 3
+      |   |   |   | country.boolean_prop |         |          |         |         | open   |
+    ''')
+    model = commands.get_model(context, manifest, 'example/City')
+
+    given = {
+        "int_prop": "5",
+        "boolean_prop": "TRUE"
+    }
+    assert commands.cast_backend_to_python(context, model.properties.get('country'), Backend(), given) == {
+        "int_prop": 5,
+        "boolean_prop": True
+    }
+
+
 def test_cast_backend_to_python_object():
     obj = Object()
     obj.properties = {
