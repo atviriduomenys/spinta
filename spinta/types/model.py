@@ -173,37 +173,8 @@ def load(
     parent_model = load[Context, Model, dict, Manifest](context, model, data, manifest, source=source)
     parent_model.given.url_params = data.get('given_url_params')
     
-    url_params = UrlParams()
-    given_url_params = parent_model.given.url_params
-    
-    if given_url_params:
-        if '?' in given_url_params:
-            action_part, query = given_url_params.split('?', 1)
-            action = action_part.strip(':') if action_part else None
-            
-            if action:
-                url_params.action = Action.by_value(action)
-            
-            parsed = parse(query)
-            if parsed:
-                if parsed['name'] == 'select':
-                    # For select(id,name)
-                    url_params.select = [
-                        arg['args'][0] for arg in parsed['args'] 
-                        if arg['name'] == 'bind'
-                    ]
-                else:
-                    # For filters like continent.code="eu"
-                    url_params.query = [parsed]
-                
-        elif given_url_params.startswith(':'):
-            # Action-only features like /:getall
-            action = given_url_params.strip(':')
-            url_params.action = Action.by_value(action)
-
     model.parent_model = parent_model
-    model.url_params = url_params
-    
+
     return model
 
 

@@ -32,7 +32,7 @@ from spinta import commands
 from spinta import spyna
 from spinta.backends import Backend
 from spinta.backends.constants import BackendOrigin
-from spinta.components import Context, Base, PrepareGiven
+from spinta.components import Action, Context, Base, PrepareGiven, UrlParams
 from spinta.datasets.components import Resource, Param
 from spinta.dimensions.comments.components import Comment
 from spinta.dimensions.enum.components import EnumItem
@@ -76,7 +76,7 @@ from spinta.manifests.tabular.components import TabularFormat
 from spinta.manifests.tabular.constants import DATASET
 from spinta.manifests.tabular.constants import DataTypeEnum
 from spinta.manifests.tabular.formats.gsheets import read_gsheets_manifest
-from spinta.spyna import SpynaAST
+from spinta.spyna import SpynaAST, parse
 from spinta.types.datatype import Ref, DataType, Denorm, Inherit, ExternalRef, BackRef, ArrayBackRef, Array, Object
 from spinta.utils.data import take
 from spinta.utils.schema import NA
@@ -437,6 +437,7 @@ class BaseReader(TabularReader):
 class ModelReader(TabularReader):
     type: str = 'model'
     data: ModelRow
+    is_partial = False
 
     def read(self, row: Dict[str, str]) -> None:
         dataset = _get_state_obj(self.state.dataset)
@@ -448,14 +449,7 @@ class ModelReader(TabularReader):
         )
 
         # Check for partial model syntax
-        given_url_params = None
-
-        if "/:" in name or "?" in name:
-            if "/:" in name:
-                given_url_params = name.rsplit("/:", 1)[1]
-            elif "?" in name:
-                given_url_params = "?" + name.split("?", 1)[1]
-
+        _read_partial_model(self, name)
 
         if self.state.rename_duplicates:
             dup = 1
@@ -468,12 +462,12 @@ class ModelReader(TabularReader):
             self.error(f"Model {name!r} with the same name is already defined.")
 
         self.name = name
-        basename = _get_model_basename(name)
 
         self.data = {
-            'type': 'model' if given_url_params is None else 'partial_model',
+            'type': 'partial_model' if self.is_partial else 'model',
             'id': row['id'],
             'name': name,
+            'basename': _get_model_basename(name),
             'base': {
                 'id': base.data["id"],
                 'name': base.name,
@@ -526,6 +520,45 @@ class ModelReader(TabularReader):
 
     def leave(self) -> None:
         self.state.model = None
+
+
+def _read_partial_model(model, name) -> None:
+    given_url_params = None
+
+    if "/:" in name or "?" in name:
+        model.is_partial = True
+        if "/:" in name:
+            given_url_params = name.rsplit("/:", 1)[1]
+        elif "?" in name:
+            given_url_params = "?" + name.split("?", 1)[1]
+    
+    if given_url_params:
+        model.data['given_url_params'] = given_url_params
+        model.url_params = UrlParams()
+
+        if '?' in given_url_params:
+            action_part, query = given_url_params.split('?', 1)
+            action = action_part.strip(':') if action_part else None
+            
+            if action:
+                model.url_params.action = Action.by_value(action)
+            
+            parsed = parse(query)
+            if parsed:
+                if parsed['name'] == 'select':
+                    # For select(id,name)
+                    model.url_params.select = [
+                        arg['args'][0] for arg in parsed['args'] 
+                        if arg['name'] == 'bind'
+                    ]
+                else:
+                    # For filters like continent.code="eu"
+                    model.url_params.query = [parsed]
+                
+        elif given_url_params.startswith(':'):
+            # Action-only params like /:getall
+            action = given_url_params.strip(':')
+            model.url_params.action = Action.by_value(action)
 
 
 def _parse_property_ref(ref: str) -> Tuple[str, List[str]]:
@@ -2031,12 +2064,14 @@ def to_relative_model_name(model: Model, dataset: Dataset = None) -> str:
 
     return '/' + model.name
 
+
 def _get_model_basename(name: str) -> str:
     if "/:" in name:
         name, url_params = name.split("/:")
         if name:
             return name.split("/")[-1] + "/:" + url_params
     return name.split("/")[-1]
+
 
 def _relative_referenced_model_name(
     relative_model: Model,

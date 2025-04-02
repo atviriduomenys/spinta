@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from email.mime import base
 import logging
 import os
 from copy import copy, deepcopy
@@ -10,8 +11,10 @@ from urllib.request import urlopen
 from lxml import etree, objectify
 from lxml.etree import _Element, QName
 
-from spinta.components import Context
+from spinta.backends.postgresql.commands.migrate import model
+from spinta.components import Context, UrlParams
 from spinta.core.ufuncs import Expr
+from spinta.manifests.tabular.helpers import _read_partial_model
 from spinta.utils.naming import Deduplicator, to_dataset_name, to_model_name, to_property_name
 
 
@@ -238,7 +241,7 @@ class XSDModel:
     models_by_ref: str | None = None
     extends_model: XSDModel | None = None
     is_partial: bool = True
-    features: str | None = None
+    given_url_params: str | None = None
 
     def __init__(self, dataset_resource) -> None:
         self.properties = {}
@@ -253,20 +256,19 @@ class XSDModel:
     def get_data(self):
 
         model_data: dict = {
-            "type": "model",
+            "type": "partial_model" if self.is_partial else "model",
             "external":
                 {
                     "name": self.source,
                     "dataset": self.dataset_resource.dataset_name,
                     "resource": self.dataset_resource.resource_name,
-                }
-
+                },
+            "name": self.name,
+            "basename": self.basename,
         }
 
         if self.is_partial:
-            model_data["url_params"] = "/:part"
-
-        model_data["name"] = self.name
+            model_data["given_url_params"] = "/:part"
 
         if self.description is not None:
             model_data["description"] = self.description.strip()
