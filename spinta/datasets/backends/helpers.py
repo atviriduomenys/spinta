@@ -30,7 +30,7 @@ def handle_ref_key_assignment(context: Context, keymap: KeyMap, env: Env, value:
             prop_count_mapping[prop.name] = 1
     expected_count = sum(item for item in prop_count_mapping.values())
     if len(value) != expected_count:
-        raise GivenValueCountMissmatch(given_count=len(value), expected_count=expected_count)
+        raise GivenValueCountMissmatch(ref, given_count=len(value), expected_count=expected_count)
 
     if commands.identifiable(ref.prop):
         target_value = value
@@ -86,7 +86,34 @@ def handle_ref_key_assignment(context: Context, keymap: KeyMap, env: Env, value:
     return val
 
 
-def generate_pk_for_row(model: Model, row: Any, keymap, pk_val: Any):
+def generate_ref_id_using_select(context: Context, dtype: Ref, data: dict) -> str:
+    ref_model = dtype.model
+    expr_parts = ['select()']
+    for prop in dtype.refprops:
+        expr_parts.append(f'{prop.place}="{data[prop.name]}"')
+    expr = asttoexpr(spyna.parse('&'.join(expr_parts)))
+    rows = commands.getall(
+        context,
+        ref_model,
+        ref_model.backend,
+        query=expr
+    )
+
+    found_value = False
+    val = None
+    for row in rows:
+        if val is not None:
+            raise MultiplePrimaryKeyCandidatesFound(dtype, values=data)
+        val = row['_id']
+        found_value = True
+
+    if not found_value:
+        raise NoPrimaryKeyCandidatesFound(dtype, values=data)
+
+    return val
+
+
+def generate_pk_for_row(context: Context, model: Model, row: Any, keymap, pk_val: Any):
     pk = None
     if model.base and commands.identifiable(model.base):
         pk_val_base = extract_values_from_row(row, model.base.parent, model.base.pk or model.base.parent.external.pkeys)
@@ -140,3 +167,15 @@ def handle_external_array_type(
         return [handle_ref_key_assignment(context, keymap, env, value, dtype.items.dtype) for value in val]
 
     return val
+
+
+def flatten_keymap_encoding_values(data: object):
+    # Backwards compatibility function, that converts nested dict values to flat list values
+    # Used for generating and looking up keymap values
+    if isinstance(data, dict):
+        if len(data) == 1:
+            return flatten_keymap_encoding_values(list(data.values())[0])
+        return flatten_keymap_encoding_values(list(data.values()))
+    elif isinstance(data, (list, tuple)):
+        return list(flatten_keymap_encoding_values(item) for item in data)
+    return data

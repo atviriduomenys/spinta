@@ -92,11 +92,11 @@ def test_backends_with_models(manifest_type, tmp_path, rc):
 @pytest.mark.manifests('internal_sql', 'csv')
 def test_ns(manifest_type, tmp_path, rc):
     check(tmp_path, rc, '''
-    d | r | b | m | property | type | ref                  | title               | description
-                             | ns   | datasets             | All datasets        | All external datasets.
-                             |      | datasets/gov         | Government datasets | All government datasets.
-                             |      | datasets/gov/example | Example             |
-                             |      |                      |                     |
+    d | r | b | m | property | type | ref | title               | description
+    datasets                 | ns   |     | All datasets        | All external datasets.
+    datasets/gov             | ns   |     | Government datasets | All government datasets.
+                             |      |     |                     |
+    datasets/gov/example     |      |     | Example             |
     ''', manifest_type)
 
 
@@ -104,11 +104,10 @@ def test_ns(manifest_type, tmp_path, rc):
 def test_ns_with_models(manifest_type, tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property | type   | ref                  | title               | description
-                             | ns     | datasets             | All datasets        | All external datasets.
-                             |        | datasets/gov         | Government datasets | All government datasets.
-                             |        | datasets/gov/example | Example             |
+    datasets                 | ns     |                      | All datasets        | All external datasets.
+    datasets/gov             | ns     |                      | Government datasets | All government datasets.
                              |        |                      |                     |
-    datasets/gov/example     |        |                      |                     |
+    datasets/gov/example     |        |                      | Example             |
       | data                 |        | default              |                     |
                              |        |                      |                     |
       |   |   | Country      |        |                      |                     |
@@ -1693,6 +1692,7 @@ def test_property_error(manifest_type, tmp_path, rc):
           |   |   |   | id         | integer      |         | open   |
           |   |   |   | name       | string       |         | open   |
         ''', manifest_type)
+
 
 @pytest.mark.manifests('internal_sql', 'csv')
 def test_no_model_defined_error(manifest_type, tmp_path, rc):
