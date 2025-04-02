@@ -11,7 +11,7 @@ from spinta.testing.data import listdata
 from spinta.testing.datasets import create_sqlite_db
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.testing.tabular import create_tabular_manifest
-from spinta.testing.utils import create_empty_backend
+from spinta.testing.utils import create_empty_backend, get_error_codes
 from spinta.ufuncs.querybuilder.components import Selected
 from spinta.ufuncs.resultbuilder.helpers import get_row_value
 
@@ -1074,7 +1074,8 @@ def test_getall_array_prepare_split(context, rc, tmp_path, geodb_array):
       |   |   | Country           |            | id              | country          |         |        |
       |   |   |   | id            | integer    |                 | id               |         | open   |    
       |   |   |   | name          | string     |                 | name             |         | open   |        
-      |   |   |   | languages[]   | ref        | Language[name]  | languages        |         | open   | split(',')    
+      |   |   |   | languages     | array      |                 | languages        |         | open   | split(',')    
+      |   |   |   | languages[]   | ref        | Language[name]  |                  |         | open   |    
     '''))
     app = create_client(rc, tmp_path, geodb_array, mode='external')
     resp = app.get(f'/example/Language')
@@ -1108,3 +1109,26 @@ def test_getall_array_prepare_split(context, rc, tmp_path, geodb_array):
             ]
         },
     ]
+
+
+@pytest.mark.parametrize('ref_level', [3, 4])
+def test_array_ref_key_count_missmatch(ref_level, context, rc, tmp_path, geodb_array):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+    d | r | b | m | property      | type       | ref      | source    | level       | access | prepare  
+    example                       |            |          |           |             |        |        
+      | db                        |            | sqlite   |           |             |        |        
+      |                           |            |          |           |             |        |
+      |   |   | Language          |            | id, name | language  |             |        |
+      |   |   |   | id            | integer    |          | id        |             | open   |    
+      |   |   |   | name          | string     |          | name      |             | open   |    
+      |   |                       |            |          |           |             |        |
+      |   |   | Country           |            | id       | country   |             |        |
+      |   |   |   | id            | integer    |          | id        |             | open   |    
+      |   |   |   | name          | string     |          | name      |             | open   |        
+      |   |   |   | languages     | array      |          | languages |             | open   | split(',')    
+      |   |   |   | languages[]   | ref        | Language |           | {ref_level} | open   |    
+    '''))
+    app = create_client(rc, tmp_path, geodb_array, mode='external')
+    app.get(f'/example/Language')
+    resp = app.get(f'/example/Country')
+    assert get_error_codes(resp.json()) == ["GivenValueCountMissmatch"]
