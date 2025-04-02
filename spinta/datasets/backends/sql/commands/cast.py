@@ -6,7 +6,7 @@ from spinta.components import Context, Model, Mode
 from spinta.datasets.backends.helpers import generate_ref_id_using_select, flatten_keymap_encoding_values
 from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.keymaps.components import KeyMap
-from spinta.exceptions import GivenValueCountMissmatch
+from spinta.exceptions import GivenValueCountMissmatch, KeymapValueNotFound
 from spinta.types.datatype import Ref, ExternalRef
 from spinta.types.namespace import check_if_model_has_backend_and_source
 
@@ -87,8 +87,12 @@ def cast_backend_to_python(
     elif encoding_values is None:
         id_value = None
     elif ref_model.mode == Mode.external and not check_if_model_has_backend_and_source(ref_model):
-        # FIXME Quick hack when trying to get `Internal` model keys while running in `External` mode (should probably return error, or None)
-        id_value = keymap.encode(keymap_name, encoding_values)
+        raise KeymapValueNotFound(
+            dtype,
+            keymap=keymap.name,
+            model_name=dtype.model.name,
+            values=encoding_values,
+        )
     else:
         id_value = generate_ref_id_using_select(context, dtype, values)
 
