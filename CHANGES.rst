@@ -14,9 +14,17 @@ New Features:
 
 - Added OpenAPI Schema manifest (`#1211`_)
 - Added changes to support enum `noop()` classificator for copy & check commands (`#1146`_)
+- Added OpenAPI Schema to DSA convertion `Dataset` column part (`#1208`_)
 
   .. _#1211: https://github.com/atviriduomenys/spinta/issues/1211
   .. _#1146: https://github.com/atviriduomenys/spinta/issues/1146
+  .. _#1208: https://github.com/atviriduomenys/spinta/issues/1208
+
+Bug fixes:
+
+- Fixed a bug where namespace (`ns`) dataset name would be placed in the ref column instead of the dataset column (`#1238`_)
+
+  .. _#1238: https://github.com/atviriduomenys/spinta/issues/1238
 
 0.2dev1
 =======
