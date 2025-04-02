@@ -107,6 +107,7 @@ pyproj = "*"
 xmltodict = "*"
 sqlean-py = "*"
 cachetools = "*"
+docutils = "^0.21.2"
 
 
 [tool.poetry.group.dev.dependencies]

@@ -1,8 +1,8 @@
 Changes
 #######
 
-0.2dev2 (unreleased)
-====================
+0.2dev2
+=======
 
 Backwards incompatible:
 

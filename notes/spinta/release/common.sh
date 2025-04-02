@@ -5,13 +5,14 @@ poetry update
 
 
 # Generate changes and readme html formats
-poetry run rst2html.py CHANGES.rst var/changes.html
+# Prepare CHANGES.rst for release (change version from unreleased to actual, check if all changes added correctly)
+poetry run rst2html CHANGES.rst var/changes.html
 xdg-open var/changes.html
 # alternative:
 # poetry shell
 # rst2html CHANGES.rst var/changes.html
 
-poetry run rst2html.py README.rst var/readme.html
+poetry run rst2html README.rst var/readme.html
 xdg-open var/readme.html
 
 
@@ -89,7 +90,7 @@ BEGIN TRANSACTION;
   CREATE EXTENSION IF NOT EXISTS postgis_tiger_geocoder;
 COMMIT;
 EOF
-
+# temp iki čia
 
 # Configure spinta
 # BASEDIR should be set by respective release type (patch, rc, etc.)
