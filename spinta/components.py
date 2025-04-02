@@ -374,7 +374,11 @@ class Node(Component):
 
     @property
     def basename(self):
-        return self.name and self.name.split('/')[-1]
+        if "/:" in self.name:
+            name, params = self.name.split("/:")
+            if name:
+                return name.split("/")[-1] + "/:" + params
+        return self.name.split("/")[-1]
 
 
 # MetaData entry ID can be file path, uuid, table row id of a Model, Dataset,
@@ -492,6 +496,7 @@ class ModelGiven:
     access: str = None
     pkeys: list[str] = None
     name: str = None
+    url_params: str = None
 
 
 class PageBy:
@@ -759,6 +764,14 @@ class Model(MetaData):
 
     def get_given_properties(self):
         return {prop_name: prop for prop_name, prop in self.properties.items() if not prop_name.startswith('_')}
+
+
+
+class PartialModel(Model):
+    """A partial variant of a model, e.g. 'City/:getone' or 'City/:getall'."""
+
+    parent_model: Optional[Model] = None
+    url_params: UrlParams  # `City/:part` would be `url_params.part`
 
 
 class PropertyGiven:
