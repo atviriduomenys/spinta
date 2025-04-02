@@ -39,6 +39,12 @@ Backwards incompatible:
 0.1.85 (unreleased)
 ===================
 
+Backwards incompatible:
+
+- The `Sql` backend no longer generates random UUIDs whenever `internal` models are being accessed in `external` mode.
+  Instead, if a value mapping is not found, an error is raised. The only way to resolve this error is to update `keymap`
+  by running `keymap sync` command (`#1214`_).
+
 New Features:
 
 - Added `split('...')` function support to `sql` backend (`#760`_).
@@ -61,6 +67,10 @@ Improvements:
 - `cast_backend_to_python` now allows extra properties to be passed (custom `select` functions that create new temporary
   properties can now be properly cast to python types) (`#1052`_).
 
+- Better support for `Denorm` properties with `Sql` backend (`#1214`_).
+
+  .. _#1214: https://github.com/atviriduomenys/spinta/issues/1214
+
 Bug fixes:
 
 - Fixed `sql` backend not using overwritten `ref` mapping values when joining tables (`#1052`_).
@@ -76,6 +86,8 @@ Bug fixes:
 - Adjusted error message for users, for when a DSA has a model with nested properties and the parent node is not defined (`#1005`_)
 
   .. _#1005: https://github.com/atviriduomenys/spinta/issues/1005
+
+
 
 0.1.84 (2025-02-19)
 ===================

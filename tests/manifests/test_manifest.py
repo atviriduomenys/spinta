@@ -1693,6 +1693,7 @@ def test_property_error(manifest_type, tmp_path, rc):
           |   |   |   | name       | string       |         | open   |
         ''', manifest_type)
 
+
 @pytest.mark.manifests('internal_sql', 'csv')
 def test_no_model_defined_error(manifest_type, tmp_path, rc):
     with pytest.raises(NoModelDefined):
