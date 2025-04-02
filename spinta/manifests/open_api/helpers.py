@@ -10,13 +10,19 @@ def read_file_data_and_transform_to_json(path: Path) -> dict:
         return json.load(file)
 
 
-def get_namespace_schema(info: dict, title: str, dataset_prefix: str) -> tuple[None, dict]:
-    return None, {
-        'type': 'ns',
-        'name': dataset_prefix,
-        'title': info.get('summary', title),
-        'description': info.get('description', '')
-    }
+def get_namespace_schemas(info: dict, title: str, dataset_prefix: str) -> Generator[tuple[None, dict]]:
+    current_path = Path()
+    path_parts = dataset_prefix.split('/')
+    is_last_part = lambda i: i == len(path_parts) - 1
+
+    for index, part in enumerate(path_parts):
+        current_path /= part
+        yield None, {
+            'type': 'ns',
+            'name': str(current_path),
+            'title': info.get('summary', title) if is_last_part(index) else '',
+            'description': info.get('description', '') if is_last_part(index) else '',
+        }
 
 
 def get_dataset_schemas(data: dict, dataset_prefix: str) -> Generator[tuple[None, dict]]:
@@ -48,7 +54,8 @@ def read_open_api_manifest(path: Path) -> Generator[tuple[None, dict]]:
     # https://spec.openapis.org/oas/latest.html#info-object
     info = data['info']
     title = info['title']
-    dataset_prefix = f'services/{title.lower().replace(" ", "_")}'
-    yield get_namespace_schema(info, title, dataset_prefix)
+    dataset_prefix = f'services/{title.lower().replace(" ", "_").replace("/", "_")}'
+
+    yield from get_namespace_schemas(info, title, dataset_prefix)
 
     yield from get_dataset_schemas(data, dataset_prefix)

@@ -4,7 +4,7 @@ from pathlib import Path
 from spinta.manifests.open_api.helpers import (
     read_file_data_and_transform_to_json,
     get_dataset_schemas,
-    get_namespace_schema,
+    get_namespace_schemas,
 )
 
 
@@ -36,14 +36,22 @@ def test_get_namespace_schema():
         }
     }
 
-    _, namespace_schema = get_namespace_schema(data['info'], title, dataset_prefix)
+    namespace_schemas = [schema for _, schema in get_namespace_schemas(data['info'], title, dataset_prefix)]
 
-    assert namespace_schema == {
-        'type': 'ns',
-        'name': dataset_prefix,
-        'title': 'API for geographic objects',
-        'description': 'Intricate description'
-    }
+    assert namespace_schemas == [
+        {
+            'type': 'ns',
+            'name': 'services',
+            'title': '',
+            'description': ''
+        },
+        {
+            'type': 'ns',
+            'name': dataset_prefix,
+            'title': 'API for geographic objects',
+            'description': 'Intricate description'
+        }
+    ]
 
 
 def test_get_dataset_schema():
