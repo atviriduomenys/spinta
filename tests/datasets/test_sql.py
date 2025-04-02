@@ -5,8 +5,6 @@ from typing import Dict
 from typing import Tuple
 
 import pytest
-from pytest import FixtureRequest
-
 import sqlalchemy as sa
 from _pytest.logging import LogCaptureFixture
 from requests import PreparedRequest
@@ -15,15 +13,15 @@ from responses import RequestsMock
 
 from spinta.client import add_client_credentials
 from spinta.core.config import RawConfig
-from spinta.utils.schema import NA
+from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
-from spinta.testing.data import listdata
 from spinta.testing.client import create_client, create_rc, configure_remote_server
+from spinta.testing.data import listdata
 from spinta.testing.datasets import Sqlite
 from spinta.testing.datasets import create_sqlite_db
-from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.utils import error, get_error_codes
+from spinta.utils.schema import NA
 
 
 @pytest.fixture(scope='module')
@@ -3976,3 +3974,85 @@ def test_ref_source_key_count_missmatch(ref_level, context, rc, tmp_path, geodb_
 
     resp = app.get('/datasets/ref/Country')
     assert get_error_codes(resp.json()) == ["GivenValueCountMissmatch"]
+
+
+def test_keymap_value_not_found_internal_model(context, rc, tmp_path, geodb_denorm):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+    d | r | m | property    | type    | ref    | source      | prepare | access | level
+    datasets/ref            |         |        |             |         |        |
+      | rs                  |         | sql    |             |         |        |
+      |   | Planet          |         | id     |             |         | open   |
+      |   |   | id          | integer |        |             |         |        |
+      |   |   | code        | string  |        |             |         |        |
+      |   |   | name        | string  |        |             |         |        |
+      |   | Country         |         | code   | COUNTRY     |         | open   |
+      |   |   | code        | string  |        | code        |         |        |
+      |   |   | name        | string  |        | name        |         |        |
+      |   |   | planet      | ref     | Planet | planet      |         |        |
+    '''))
+
+    app = create_client(rc, tmp_path, geodb_denorm, mode='external')
+    resp = app.get('/datasets/ref/Country')
+    assert get_error_codes(resp.json()) == ["KeymapValueNotFound"]
+
+
+def test_keymap_internal_model_after_sync(
+    context,
+    rc,
+    tmp_path,
+    geodb_denorm,
+    postgresql,
+    cli: SpintaCliRunner,
+    responses,
+    request,
+):
+    table = '''
+    d | r | m | property    | type    | ref          | source      | prepare | access | level
+    datasets/ref            |         |              |             |         |        |
+      | rs                  |         | sql          |             |         |        |
+      |   | Planet          |         | id           |             |         | open   |
+      |   |   | id          | integer |              |             |         |        |
+      |   |   | code        | string  |              |             |         |        |
+      |   |   | name        | string  |              |             |         |        |
+      |   | Country         |         | code         | COUNTRY     |         | open   |
+      |   |   | code        | string  |              | code        |         |        |
+      |   |   | name        | string  |              | name        |         |        |
+      |   |   | planet      | ref     | Planet[code] | planet      |         |        |
+    '''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(table))
+    localrc = create_rc(rc, tmp_path, geodb_denorm)
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    remote.app.authmodel('datasets/ref/Planet', ['insert', 'wipe'])
+    er_id = remote.app.post('/datasets/ref/Planet', json={'id': 0, 'code': 'ER'}).json()['_id']
+    mr_id = remote.app.post('/datasets/ref/Planet', json={'id': 1, 'code': 'MR'}).json()['_id']
+    jp_id = remote.app.post('/datasets/ref/Planet', json={'id': 2, 'code': 'JP'}).json()['_id']
+
+    app = create_client(rc, tmp_path, geodb_denorm, mode='external')
+    resp = app.get('/datasets/ref/Country')
+    assert get_error_codes(resp.json()) == ["KeymapValueNotFound"]
+
+    cli.invoke(localrc, [
+        'keymap', 'sync', tmp_path / 'manifest.csv',
+        '-i', remote.url,
+        '--credentials', remote.credsfile
+    ])
+
+    resp = app.get('/datasets/ref/Country')
+    assert listdata(resp, 'code', 'planet', full=True) == [{
+        'code': 'EE',
+        'planet': {
+            '_id': jp_id
+        }
+    }, {
+        'code': 'LT',
+        'planet': {
+            '_id': er_id
+        }
+    }, {
+        'code': 'LV',
+        'planet': {
+            '_id': mr_id
+        }
+    }]

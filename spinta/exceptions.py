@@ -1089,3 +1089,13 @@ class PropertyNotPartOfRefProps(UserError):
     template = '''
     {prop!r} is not part of refprops ({refprops})
     '''
+
+
+class KeymapValueNotFound(UserError):
+    template = '''
+    KeyMap ({keymap!r}) was unable to get primary key for {model_name!r} model using given values ({values!r}).
+    To fix this run `keymap sync` command so that old keys are updated and new ones are added.
+    
+    This error can occur when trying to get primary keys for internal model, while system is running in external mode and
+    keymap does not contain these specific values.
+    '''
