@@ -194,7 +194,7 @@ class ConflictingValue(UserError):
 
 
 class UniqueConstraint(UserError):
-    template = "Given value already exists."
+    template = "Given value ({value}) already exists."
 
 
 class InvalidOperandValue(UserError):
@@ -239,7 +239,7 @@ class NoItemRevision(UserError):
 
 
 class JSONError(UserError):
-    template = "Invalid JSON."
+    template = "Invalid JSON for {this}. Original error - {error}."
 
 
 class InvalidValue(UserError):
@@ -286,11 +286,11 @@ class AuthorizedClientsOnly(UserError):
 
 
 class MultipleRowsFound(BaseError):
-    template = "Multiple rows were found."
+    template = "Multiple ({number_of_rows}) rows were found under {this}."
 
 
 class ManagedProperty(UserError):
-    template = "Value of this property is managed automatically and cannot be set manually."
+    template = "Value of property ({property}) under {this} is managed automatically and cannot be set manually."
 
 
 class InvalidManagedPropertyName(UserError):
@@ -369,14 +369,6 @@ class InvalidDependencyValue(BaseError):
 
 class MultipleModelsInDependencies(BaseError):
     template = "Dependencies are allowed only from single model, but more than one model found: {models}."
-
-
-class MultipleCommandCallsInDependencies(BaseError):
-    template = "Only one command call is allowed."
-
-
-class MultipleCallsOrModelsInDependencies(BaseError):
-    template = "Only one command call or one model is allowed in dependencies."
 
 
 class InvalidSource(BaseError):
@@ -597,7 +589,7 @@ class DupicateProperty(UserError):
 
 
 class RequiredProperty(UserError):
-    template = "Property is required."
+    template = "Property ({this}) is required."
 
 
 class UnableToCast(UserError):
@@ -740,22 +732,12 @@ class DuplicateRowWhilePaginating(BaseError):
     template = "Encountered a duplicate row with page key: '{key}'"
 
 
-class UnauthorizedPropertyPush(UserError):
-    code = 403
-    template = "You do not have permission to push this property."
-
-
 class InvalidArgumentInExpression(BaseError):
     template = "Invalid {arguments} arguments given to {expr} expression."
 
 
 class BackendNotGiven(UserError):
-    template = "Model is operating in external mode, yet it does not have assigned backend to it."
-
-
-class UnauthorizedKeymapSync(UserError):
-    code = 403
-    template = "You do not have permission to sync this model's keymap."
+    template = "Model ({this}) is operating in external mode, yet it does not have an assigned backend to it."
 
 
 class GivenValueCountMissmatch(BaseError):
@@ -878,7 +860,10 @@ class DatasetNameMissmatch(UserError):
 
 
 class DatasetSchemaRequiresIds(UserError):
-    template = "All given schema rows require UUID to be set in the id field."
+    template = """
+     All given schema rows require UUID to be set in the id field.
+     Schema: {this}
+    """
 
 
 class ModifySchemaRequiresFile(UserError):
@@ -890,7 +875,7 @@ class FileSizeTooLarge(UserError):
 
 
 class SRIDNotSetForGeometry(BaseError):
-    template = "Geometry SRID is required, but was given None."
+    template = "{property} Geometry SRID is required, but was given None."
 
 
 class KeyNotFound(UserError):
@@ -1013,7 +998,7 @@ class MissingRefModel(UserError):
 
 
 class UnableToMapIntermediateTable(UserError):
-    template = 'Unable to map intermediate table to `Array` property.'
+    template = 'Unable to map intermediate table ({model}) to `Array` property.'
 
 
 class InvalidIntermediateTableMappingRefCount(UserError):

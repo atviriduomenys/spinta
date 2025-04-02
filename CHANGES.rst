@@ -1,6 +1,15 @@
 Changes
 #######
 
+0.2dev3 (unreleased)
+====================
+
+Bug fixes:
+
+- Add missing context to user facing error messages. (`#1196`_)
+
+  .. _#1196: https://github.com/atviriduomenys/spinta/issues/1196
+
 0.2dev2 (unreleased)
 ====================
 

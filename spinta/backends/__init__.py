@@ -475,7 +475,7 @@ def simple_data_check(
         srid = dtype.srid
 
         if srid is None:
-            raise SRIDNotSetForGeometry(dtype)
+            raise SRIDNotSetForGeometry(dtype, property=prop)
 
         bounding_area = get_crs_bounding_area(srid)
 
@@ -2104,3 +2104,7 @@ def get_error_context(backend: Backend, *, prefix='this') -> Dict[str, str]:
         'origin': f'{prefix}.origin',
         'features': f'{prefix}.features',
     }
+
+@commands.get_error_context.register(str)
+def get_error_context(message: str, *, prefix='this') -> Dict[str, str]:
+    return {}
