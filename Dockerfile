@@ -21,7 +21,7 @@ RUN pip install -U poetry
 COPY . /app/
 
 RUN poetry config virtualenvs.create false
-RUN poetry install --no-interaction
+RUN poetry install --no-interaction --all-extras
 
 RUN chmod +x /app/entrypoint.sh
 

@@ -1,7 +1,5 @@
 import pytest
 import sqlalchemy as sa
-from alembic.operations import Operations
-from alembic.runtime.migration import MigrationContext
 from sqlalchemy.dialects.postgresql import UUID
 
 from spinta.migrations.schema.alembic import Alembic
@@ -16,6 +14,9 @@ def engine(postgresql):
 
 @pytest.fixture()
 def ufunc(context, engine):
+    from alembic.operations import Operations
+    from alembic.runtime.migration import MigrationContext
+
     conn = engine.connect()
     ctx = MigrationContext.configure(conn)
     op = Operations(ctx)
