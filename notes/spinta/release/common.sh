@@ -90,11 +90,12 @@ BEGIN TRANSACTION;
   CREATE EXTENSION IF NOT EXISTS postgis_tiger_geocoder;
 COMMIT;
 EOF
-# temp iki čia
+
 
 # Configure spinta
+# create a dir for all release-related files (e.g. 02dev2)
 # BASEDIR should be set by respective release type (patch, rc, etc.)
-# export BASEDIR=x (better add full path)
+# export BASEDIR=x (newly created release dir, better add full path)
 mkdir -p "$BASEDIR"
 #cat "$BASEDIR"/config.yml
 cat > "$BASEDIR"/config.yml <<EOF
@@ -144,6 +145,7 @@ git status
 git checkout get.data.gov.lt
 git pull
 
+# install the current spinta code
 
 find datasets -iname "*.csv" | xargs spinta check
 cat get_data_gov_lt.in | xargs spinta copy -o "$BASEDIR"/manifest.csv
