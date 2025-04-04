@@ -181,3 +181,39 @@ def test_check_access(context: Context, rc, cli: SpintaCliRunner, tmp_path):
     assert result.exit_code != 0
     assert result.exc_info[0] is InvalidValue
     assert result.exception.context.get('given') == "test"
+
+
+def test_check_namespace_two_manifests(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(context, tmp_path / 'manifest1.csv', striptable('''
+id | d | r | b | m | property       | type   | ref  | level | 
+   | datasets/gov/test              | ns     |      |       | 
+   |                                |        |      |       | 
+   | datasets/gov/test/example1     |        |      |       | 
+   |                                |        |      |       | 
+   |   |   |   | Country            |        | code | 4     | 
+   |   |   |   |   | name           | string |      | 4     | 
+   |   |   |   |   | code           | string |      | 4     | 
+
+    '''))
+
+    create_tabular_manifest(context, tmp_path / 'manifest2.csv', striptable('''
+id | d | r | b | m | property       | type   | ref  | level |
+   | datasets/gov/test/example2     |        |      |       |
+   |                                |        |      |       |
+   |   |   |   | City               |        | code | 4     |
+   |   |   |   |   | name           | string |      | 4     |
+   |   |   |   |   | code           | string |      | 4     |
+'''))
+
+    cli.invoke(rc, [
+        'check',
+        tmp_path / 'manifest1.csv',
+        tmp_path / 'manifest2.csv',
+
+    ])
+    cli.invoke(rc, [
+        'check',
+        tmp_path / 'manifest1.csv',
+        tmp_path / 'manifest2.csv',
+
+    ])
