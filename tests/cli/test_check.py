@@ -213,7 +213,7 @@ id | d | r | b | m | property       | type   | ref  | level |
     ])
     cli.invoke(rc, [
         'check',
-        tmp_path / 'manifest1.csv',
         tmp_path / 'manifest2.csv',
+        tmp_path / 'manifest1.csv',
 
     ])
