@@ -29,11 +29,14 @@ class Expr:
         self.args = tuple(args)
         self.kwargs = kwargs
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return str(spyna.unparse(self.todict(), raw=True))
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str(spyna.unparse(self.todict()))
+
+    def __eq__(self, other) -> bool:
+        return isinstance(other, Expr) and self.todict() == other.todict()
 
     def todict(self) -> dict:
         args = [
@@ -51,7 +54,7 @@ class Expr:
             'args': args + kwargs,
         }
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs) -> Expr:
         return type(self)(self.name, *args, **kwargs)
 
     def resolve(self, env: Env) -> Tuple[List[Any], Dict[str, Any]]:
