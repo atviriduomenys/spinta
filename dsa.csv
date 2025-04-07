@@ -1,0 +1,126 @@
+id , dataset , resource , base , model , property , type   , ref      , source , prepare , level , status , visibility , access , uri                                         , eli              , title , description
+, datasets/gov/vssa , , , ,                       , ns     ,          ,        ,         ,       ,        ,            ,        ,                                             , viiv:12str/1/1   , Valstybės skaitmeninių sprendimų agentūra ,
+, , , , ,                                         , prefix , adms     ,        ,         ,       ,        ,            ,        , http://www.w3.org/ns/adms#                  ,                  ,       ,
+, , , , ,                                         ,        , cv       ,        ,         ,       ,        ,            ,        , http://data.europa.eu/m8g/                  ,                  ,       ,
+, , , , ,                                         ,        , dcat     ,        ,         ,       ,        ,            ,        , http://www.w3.org/ns/dcat#                  ,                  ,       ,
+, , , , ,                                         ,        , dcatap   ,        ,         ,       ,        ,            ,        , http://data.europa.eu/r5r/                  ,                  ,       ,
+, , , , ,                                         ,        , dcataplt ,        ,         ,       ,        ,            ,        , https://data.gov.lt/onto/DCATAPLT#          ,                  ,       ,
+, , , , ,                                         ,        , dct      ,        ,         ,       ,        ,            ,        , http://purl.org/dc/terms/                   ,                  ,       ,
+, , , , ,                                         ,        , dctype   ,        ,         ,       ,        ,            ,        , http://purl.org/dc/dcmitype/                ,                  ,       ,
+, , , , ,                                         ,        , foaf     ,        ,         ,       ,        ,            ,        , http://xmlns.com/foaf/0.1/                  ,                  ,       ,
+, , , , ,                                         ,        , legal    ,        ,         ,       ,        ,            ,        , http://www.w3.org/ns/legal#                 ,                  ,       ,
+, , , , ,                                         ,        , locn     ,        ,         ,       ,        ,            ,        , http://www.w3.org/ns/locn#                  ,                  ,       ,
+, , , , ,                                         ,        , odrl     ,        ,         ,       ,        ,            ,        , http://www.w3.org/ns/odrl/2/                ,                  ,       ,
+, , , , ,                                         ,        , org      ,        ,         ,       ,        ,            ,        , http://www.w3.org/ns/org#                   ,                  ,       ,
+, , , , ,                                         ,        , owl      ,        ,         ,       ,        ,            ,        , http://www.w3.org/2002/07/owl#              ,                  ,       ,
+, , , , ,                                         ,        , prov     ,        ,         ,       ,        ,            ,        , http://www.w3.org/ns/prov#                  ,                  ,       ,
+, , , , ,                                         ,        , rdf      ,        ,         ,       ,        ,            ,        , http://www.w3.org/1999/02/22-rdf-syntax-ns# ,                  ,       ,
+, , , , ,                                         ,        , rdfs     ,        ,         ,       ,        ,            ,        , http://www.w3.org/2000/01/rdf-schema#       ,                  ,       ,
+, , , , ,                                         ,        , skos     ,        ,         ,       ,        ,            ,        , http://www.w3.org/2004/02/skos/core#        ,                  ,       ,
+, , , , ,                                         ,        , spdx     ,        ,         ,       ,        ,            ,        , http://spdx.org/rdf/terms#                  ,                  ,       ,
+, , , , ,                                         ,        , time     ,        ,         ,       ,        ,            ,        , http://www.w3.org/2006/time#                ,                  ,       ,
+, , , , ,                                         ,        , vcard    ,        ,         ,       ,        ,            ,        , http://www.w3.org/2006/vcard/ns#            ,                  ,       ,
+, , , , ,                                         ,        , xsd      ,        ,         ,       ,        ,            ,        , http://www.w3.org/2001/XMLSchema#           ,                  ,       ,
+
+, , , , ,                                         ,        , viiv     ,        ,         ,       ,        ,            ,        , https://e-seimas.lrs.lt/portal/legalAct/lt/TAD/TAIS.415499/HdPwEMOgJK# , , Valstybės informacinių išteklių valdymo įstatymas ,
+, , , , ,                                         ,        , tgi      ,        ,         ,       ,        ,            ,        , https://e-seimas.lrs.lt/portal/legalAct/lt/TAD/TAIS.94745/niOrUlWghq# , , Teisės gauti informaciją ir duomenų pakartotinio naudojimo įstatymas ,
+, , , , ,                                         ,        , isr      ,        ,         ,       ,        ,            ,        , /datasets/gov/vssa/risr/isr                 ,                  , Informacinių sistemų registras ,
+, , , , ,                                         ,        ,          ,        ,         ,       ,        ,            ,        ,                                             ,                  ,       ,
+, datasets/gov/vssa/adp , , , ,                   ,        ,          ,        ,         ,       ,        ,            ,        ,                                             , tgi:16str/1      , Lietuvos atvirų duomenų portalas ,
+, datasets/gov/vssa/adp/dcat , , , ,              ,        ,          ,        ,         ,       ,        ,            ,        ,                                             ,                  , Atvirų duomenų katalgoas ,
+, , , , ,                                         ,        ,          ,        ,         ,       ,        ,            ,        ,                                             ,                  ,       ,
+, datasets/gov/vssa/risr , , , ,                  , ns     ,          ,        ,         ,       ,        ,            ,        ,                                             , viiv:29str/1     , Registrų ir valstybės informacinių sistemų registras ,
+, , , , ,                                         ,        ,          ,        ,         ,       ,        ,            ,        ,                                             ,                  ,       ,
+, datasets/gov/vssa/risr/isr , , , ,              ,        ,          ,        ,         ,       ,        ,            ,        ,                                             ,                  , Informacinių sistemų registras ,
+, , , , ,                                         ,        ,          ,        ,         ,       ,        ,            ,        ,                                             ,                  ,       ,
+, , , , DataController ,                          ,        ,          ,        ,         ,       ,        ,            ,        , foaf:Agent                                  , viiv:2str/11     , Duomenų valdytojas , "
+		> Valstybės ar savivaldybės institucija ar įstaiga, kitas
+		> viešojo administravimo subjektas, viešoji įstaiga ar
+		> valstybės valdoma įmonė, kurie nustato duomenų tvarkymo
+		> informacinėje sistemoje tikslus, tvarką ir priemones.
+		>
+		> -- [VIIV](https://e-seimas.lrs.lt/portal/legalAct/lt/TAD/TAIS.415499/HdPwEMOgJK)
+"
+, , , , DataProcessor ,                           ,        ,          ,        ,         ,       ,        ,            ,        , foaf:Agent                                  , viiv:2str/8      , Duomenų tvarkytojas , "
+		> Valstybės ar savivaldybės institucija ar įstaiga, kitas
+		> viešojo administravimo subjektas, viešoji įstaiga ar
+		> valstybės valdoma įmonė, kurie duomenų valdytojo nustatytais
+		> tikslais ir priemonėmis informacinėje sistemoje tvarko
+		> duomenis šios sistemos nuostatuose nustatyta tvarka.
+		>
+		> -- [VIIV](https://e-seimas.lrs.lt/portal/legalAct/lt/TAD/TAIS.415499/HdPwEMOgJK)
+"
+, , , , ,                                         ,        ,          ,        ,         ,       ,        ,            ,        ,                                             ,                  ,       ,
+, , , , InformationSystem ,                       ,        ,          ,        ,         ,       ,        ,            ,        , dcataplt:InformationSystem                  , viiv:2str/12     , Informacinė sistema , "
+		> Programinės įrangos visuma valstybės ar savivaldybės institucijos
+		> ar įstaigos, kito viešojo administravimo subjekto, viešosios
+		> įstaigos ar valstybės valdomos įmonės veiklos procesams
+		> skaitmenizuoti, duomenims tvarkyti ir (ar) administracinėms ar
+		> viešosioms paslaugoms teikti elektroniniu būdu.
+		>
+		> -- [DCAT-AP-LT](https://ivpk.github.io/DCAT-AP-LT/)
+"
+, datasets/gov/vssa/risr/dcat , , , ,             ,        ,          ,        ,         ,       ,        ,            ,        ,                                             ,                  , Duomenų katalogas ,
+, , , , ,                                         ,        ,          ,        ,         ,       ,        ,            ,        ,                                             ,                  ,       ,
+, , , isr:InformationSystem , ,                   ,        ,          ,        ,         ,       ,        ,            ,        ,                                             ,                  ,       ,
+, , , , InformationSystem ,                       ,        ,          ,        ,         ,       ,        ,            ,        , dcataplt:InformationSystem                  , viiv:2str/12     , Informacinė sistema , "
+"
+, , , , ,                                         ,        ,          ,        ,         ,       ,        ,            ,        ,                                             ,                  ,       ,
+, , , , Catalog ,                                 ,        ,          ,        ,         ,       ,        ,            ,        , dcat:DataService                            ,                  , Katalogas , "
+		> Katalogas arba saugykla, kurioje saugomi aprašomi duomenų
+		> rinkiniai arba duomenų paslaugos.
+		>
+		> Šia klase apibūdinama konkreti informacinė sistema –
+		> valstybės informacinė sistema ar registras, kurio apimtyje
+		> yra tvarkomi duomenų rinkiniai.
+		>
+		> -- [DCAT-AP-LT](https://ivpk.github.io/DCAT-AP-LT/)
+"
+, , , , ,                                         ,        ,          ,        ,         ,       ,        ,            ,        ,                                             ,                  ,       ,
+, , , , DataService ,                             ,        ,          ,        ,         ,       ,        ,            ,        , dcat:DataService                            , viiv:2str/18     , Informacinių sistemų integracinė sąsaja , "
+		> Technologinis sprendinys, užtikrinantis duomenų teikimą, gavimą ir
+		> (ar) mainus tarp dviejų ar daugiau skirtingų informacinių sistemų.
+		>
+		> -- [VIIV](https://e-seimas.lrs.lt/portal/legalAct/lt/TAD/TAIS.415499/HdPwEMOgJK)
+
+		> Operacijų rinkinys, suteikiantis prieigą prie vieno ar daugiau
+		> duomenų rinkinių arba duomenų apdorojimo funkcijų.
+		>
+		> -- [DCAT-AP-LT](https://ivpk.github.io/DCAT-AP-LT/)
+"
+, , , , ,                                         ,        ,          ,        ,         ,       ,        ,            ,        ,                                             ,                  ,       ,
+, , , , Dataset ,                                 ,        ,          ,        ,         ,       ,        ,            ,        , dcat:Dataset                                , tgi:3str/5       , Duomenų rinkinys , "
+		> Metodiškai susistemintų duomenų, turinčių vienodą konceptualią
+		> prasmę, visuma, įskaitant juos apibūdinančius duomenis (toliau –
+		> metaduomenys).
+		>
+		> -- [TGI](https://e-seimas.lrs.lt/portal/legalAct/lt/TAD/TAIS.94745/niOrUlWghq)
+
+		> Koncepcinė klasė, aprašanti kaupiamą / teikiamą informaciją.
+		> Sujungia katalogą su duomenų rinkiniu, kuris yra katalogo dalis.
+		>
+		> Šios klasės egzemplioriais apibūdinami duomenų rinkiniai, tvarkomi
+		> informacinės sistemos apimtyje. Kiekvienas duomenų rinkinys per
+		> katalogo įrašo sąryšį CatalogRecord, priskiriamas vienam
+		> informacinės sistemos (Catalog) atvejui. Tokiu būdu aprašomi
+		> konkretūs duomenų rinkiniai, valdomi ir tvarkomi konkrečios
+		> informacinės sistemos apimtyje. Konkretaus duomenų rinkinio
+		> (Dataset) registravimo pagrindas informacinės sistemos (Information
+		> system) apimtyje yra informacinės sistemos nuostatų patvirtinimas
+		> (VII valdymo ir tvarkymo metodikoje apibrėžta tvarka). Kiekvienas
+		> duomenų rinkinys įprasmina tam tikrą valstybės informacinės
+		> sistemos ar registro nuostatuose įvardintiną informacinės
+		> struktūros dalį. Duomenų rinkinys išskiriamas ir formuluojamas kaip
+		> informacinės sistemos veiklos apimtyje suvokiama prasminga ir
+		> reikšminga koncepcija, apibūdinama reikšmingomis savybėmis/
+		> atributais.
+		>
+		> -- [DCAT-AP-LT](https://ivpk.github.io/DCAT-AP-LT/)
+"
+, , , , ,                                         ,        ,          ,        ,         ,       ,        ,            ,        ,                                             ,                  ,       ,
+, , , , Agent ,                                   ,        ,          ,        ,         ,       ,        ,            ,        , foaf:Agent                                  ,                  ,       ,
+, , , , , type                                    ,        ,          ,        ,         ,       ,        ,            ,        , dct:type                                    ,                  ,       ,
+, , , , , name                                    ,        ,          ,        ,         ,       ,        ,            ,        , foaf:name                                   ,                  ,       ,
+, , , , ,                                         ,        ,          ,        ,         ,       ,        ,            ,        ,                                             ,                  ,       ,
+
+
