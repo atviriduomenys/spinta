@@ -6,7 +6,6 @@ from sqlalchemy.cimmutabledict import immutabledict
 from spinta.backends.constants import TableType
 from spinta.utils.sqlalchemy import Convention
 from spinta.backends.postgresql.helpers import get_pg_name
-from spinta.cli.helpers.migrate import MigrateRename
 from spinta.utils.itertools import ensure_list
 
 
@@ -101,16 +100,3 @@ def is_removed(name: str) -> bool:
         last = name.split('/')[-1]
         return last.startswith('__')
     return name.startswith('__')
-
-
-def nested_column_rename(column_name: str, table_name: str, rename: MigrateRename) -> str:
-    renamed = rename.get_column_name(table_name, column_name)
-    if name_changed(column_name, renamed):
-        return renamed
-
-    if '.' in column_name:
-        split_name = column_name.split('.')
-        renamed = nested_column_rename('.'.join(split_name[:-1]), table_name, rename)
-        return f'{renamed}.{split_name[-1]}'
-
-    return column_name
