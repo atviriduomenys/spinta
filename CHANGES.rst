@@ -10,6 +10,17 @@ Bug fixes:
 
   .. _#1196: https://github.com/atviriduomenys/spinta/issues/1196
 
+Backwards incompatible:
+
+- Introduce Python package extras and optional dependencies. Now unicorn, gunicorn (http) and alembic (migrations) wont
+  be installed by default. Commands `pip install spinta` and `poetry install` (locally) won't install all packages,
+  optional ones (unicorn, gunicorn, alembic) will be skipped and if need should be installed by specifying one/multiple
+  of extra group names - `http`, `migrations` or `all`. The last one (`all`) will install all dependencies (like before).
+  For local development - `poetry install --all-extras` should be used to install all packages.
+
+  .. _#1249: https://github.com/atviriduomenys/spinta/issues/1249
+
+
 0.2dev2 (unreleased)
 ====================
 

@@ -67,11 +67,11 @@ click = "*"
 typer = { version = "*", extras = ["all"] }
 
 # API server dependencies
-gunicorn = "*"
-uvicorn = "*"
+gunicorn = { version = "*", optional = true }
+uvicorn = { version = "*", optional = true }
 
 # PostgreSQL backend dependencies
-alembic = "~1.11.0"
+alembic = { version = "~1.11.0", optional = true }
 asyncpg = "*"
 psycopg2-binary = "*"
 # FIXME: https://github.com/python-poetry/poetry/issues/4402
@@ -107,6 +107,11 @@ pyproj = "*"
 xmltodict = "*"
 sqlean-py = "*"
 cachetools = "*"
+
+[tool.poetry.extras]
+http = ["gunicorn", "uvicorn"]
+migrations = ["alembic"]
+all = ["gunicorn", "uvicorn", "alembic"]
 
 
 [tool.poetry.group.dev.dependencies]
