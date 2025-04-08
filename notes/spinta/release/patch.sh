@@ -15,9 +15,9 @@ git checkout $RELEASE_VERSION
 git pull
 git tag -l -n1 | sort -h | tail -n5
 
-export CURRENT_PATCH=83
-export NEW_PATCH=84
-export FUTURE_PATCH=85
+export CURRENT_PATCH=84
+export NEW_PATCH=85
+export FUTURE_PATCH=86
 
 export CURRENT_VERSION=$RELEASE_VERSION.$CURRENT_PATCH
 export NEW_VERSION=$RELEASE_VERSION.$NEW_PATCH
@@ -33,7 +33,24 @@ git status
 #| No dependencies to install or update
 
 # Update
-#| No dependencies to install or update
+#| Package operations: 0 installs, 16 updates, 0 removals
+#|
+#|   • Updating jinja2 (3.1.5 -> 3.1.6)
+#|   • Updating typing-extensions (4.12.2 -> 4.13.1)
+#|   • Updating decorator (5.1.1 -> 5.2.1)
+#|   • Updating iniconfig (2.0.0 -> 2.1.0)
+#|   • Updating pytz (2025.1 -> 2025.2)
+#|   • Updating tzdata (2025.1 -> 2025.2)
+#|   • Updating attrs (25.1.0 -> 25.3.0)
+#|   • Updating fsspec (2025.2.0 -> 2025.3.0)
+#|   • Updating rich (13.9.4 -> 14.0.0)
+#|   • Updating setuptools (75.3.0 -> 75.3.2)
+#|   • Updating cachetools (5.5.1 -> 5.5.2)
+#|   • Updating lxml (5.3.1 -> 5.3.2)
+#|   • Updating phonenumbers (8.13.55 -> 9.0.2)
+#|   • Updating responses (0.25.6 -> 0.25.7)
+#|   • Updating setuptools-scm (8.1.0 -> 8.2.0)
+#|   • Updating typer (0.15.1 -> 0.15.2)
 
 # Run Makefile
 (cd docs && make upgrade)
@@ -48,7 +65,7 @@ head CHANGES.rst
 # notes/spinta/release/common.sh    Reset test database
 
 poetry run pytest -vvx --tb=short tests
-#| 2339 passed, 45 skipped, 58 warnings in 406.50s (0:06:46)
+#| 2394 passed, 45 skipped, 57 warnings in 400.85s (0:06:40)
 
 # If possible run same tests using test and prod env library versions
 # Test env
@@ -71,14 +88,17 @@ BASEDIR=$PWD/var/instances/$INSTANCE
 # notes/spinta/release/common.sh    Configure spinta
 # notes/spinta/release/common.sh    Create manifest file
 
-# notes/spinta/release/common.sh    Run server in EXTERNAL mode
 # notes/spinta/release/common.sh    Run migrations
-#| (3476 rows)
+#| (3624 rows)
 
 # notes/spinta/release/common.sh    Run server in INTERNAL mode
 # Don't forget to add client to server and credentials;
 # - notes/spinta/server.sh
 # - notes/spinta/push.sh
+# Add testing data
+
+# notes/spinta/release/common.sh    Run server in EXTERNAL mode
+# Sync INTERNAL model data
 
 # notes/spinta/release/common.sh    Run smoke tests
 
