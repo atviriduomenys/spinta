@@ -76,7 +76,9 @@ def get_node(
             #  temp debugginimui
             if ctype == "dataset" and data['name'].startswith("datasets/gov/test"):
                 print()
-            if commands.has_node(context, manifest, ctype, data['name'], loaded=True):
+            if ctype == "ns" and data['name'].startswith("datasets/gov/test"):
+                print()
+            if ctype != 'ns' and commands.has_node(context, manifest, ctype, data['name'], loaded=True):
 
                 name = data['name']
                 other = commands.get_node(context, manifest, ctype, name).eid
