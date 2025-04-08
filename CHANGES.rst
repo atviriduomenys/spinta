@@ -56,7 +56,11 @@ Backwards incompatible:
   .. _#842: https://github.com/atviriduomenys/spinta/issues/842
   .. _#582: https://github.com/atviriduomenys/spinta/issues/582
 
-0.1.85 (unreleased)
+0.1.86 (unreleased)
+===================
+
+
+0.1.85 (2025-04-08)
 ===================
 
 Backwards incompatible:
@@ -91,6 +95,10 @@ Improvements:
 
   .. _#1214: https://github.com/atviriduomenys/spinta/issues/1214
 
+- Added a specific `NoModelDefined` error when property is defined without a model (`#1000`_).
+
+  .. _#1000: https://github.com/atviriduomenys/spinta/issues/1000
+
 Bug fixes:
 
 - Fixed `sql` backend not using overwritten `ref` mapping values when joining tables (`#1052`_).
@@ -107,7 +115,9 @@ Bug fixes:
 
   .. _#1005: https://github.com/atviriduomenys/spinta/issues/1005
 
+- Fixed tabular reader using `dtype` instead of `raw` type when handling datatype column (`#983`_).
 
+  .. _#983: https://github.com/atviriduomenys/spinta/issues/983
 
 0.1.84 (2025-02-19)
 ===================
