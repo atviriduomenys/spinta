@@ -4,6 +4,17 @@ Changes
 0.1.86 (unreleased)
 ===================
 
+Improvements:
+
+- `migrate` command now warns users if there are potential type casting issues (invalid or unsafe).
+  Can add `--raise` argument to raise `Exception` instead of warning (only applies to invalid casts, unsafe cast do not
+  raise `Exception`, like `TEXT` to `INTEGER`, which potentially can be valid) (`#1254`_).
+
+  .. _#1254: https://github.com/atviriduomenys/spinta/issues/1254
+
+Bug fixes:
+
+- Fixed `migrate` cast not including right column types while generating `USING` code part (`#1254`_).
 
 0.1.85 (2025-04-08)
 ===================
