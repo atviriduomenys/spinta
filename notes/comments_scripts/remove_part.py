@@ -20,7 +20,7 @@ def process_files_recursively(directory):
                         new_line = line.replace('/:part', '')
                         file.write(new_line)
 
-                        file.write(f',,,,comment,{word_before_part},,"update(name: \"{word_before_part}/:part\")",4,,,,https://github.com/atviriduomenys/spinta/issues/997,,,\n')
+                        file.write(f',,,,,,comment,model,,"update(model: ""{word_before_part}/:part"")",4,,,,https://github.com/atviriduomenys/spinta/issues/997,,\n')
                     else:
                         file.write(line)
 
