@@ -11,7 +11,8 @@ from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers.migrate.migrate import PostgresqlMigrationContext, \
     adjust_kwargs, extract_literal_name_from_column, handle_unique_constraint_migration, contains_unique_constraint, \
     handle_index_migration, extract_using_from_columns, ModelMigrationContext, contains_constraint_name, \
-    constraint_with_columns, extract_sqlalchemy_columns, reduce_columns, PropertyMigrationContext
+    constraint_with_columns, extract_sqlalchemy_columns, reduce_columns, PropertyMigrationContext, \
+    column_cast_warning_message, CastSupport
 from spinta.backends.postgresql.helpers.name import name_changed, get_pg_table_name, get_pg_constraint_name, \
     get_pg_removed_name, get_pg_index_name
 from spinta.components import Context
@@ -117,11 +118,13 @@ def migrate(
 
     if type_:
         result = cast_matrix.supports(old_type, new_type)
-        if not result:
+        if result is CastSupport.INVALID:
             if migration_ctx.config.raise_error:
                 raise UnableToCastColumnTypes(property_ctx.prop.dtype, column=column_name, old_type=old_type, new_type=new_type)
             else:
-                echo("WARNING")
+                echo(column_cast_warning_message(property_ctx.prop.dtype, column_name, old_type, new_type), err=True)
+        elif result is CastSupport.UNSAFE:
+            echo(column_cast_warning_message(property_ctx.prop.dtype, column_name, old_type, new_type), err=True)
 
     using = extract_using_from_columns(
         old,

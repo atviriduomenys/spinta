@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
+import enum
 import json
 import os
 from collections import defaultdict
@@ -28,21 +29,30 @@ from spinta.cli.helpers.migrate import MigrationContext
 from spinta.components import Context, Model, Property
 from spinta.exceptions import MigrateScalarToRefTooManyKeys, UnableToFindPrimaryKeysNoUniqueConstraints, \
     UnableToFindPrimaryKeysMultipleUniqueConstraints, ModelNotFound, PropertyNotFound, FileNotFound
-from spinta.types.datatype import Ref, File, Array, Object
+from spinta.types.datatype import Ref, File, Array, Object, DataType
 from spinta.types.text.components import Text
 from spinta.utils.nestedstruct import get_root_attr
 from spinta.utils.schema import NA
 
 
+class CastSupport(enum.Enum):
+    # Doest not support casting
+    INVALID = 0
+    # Supports based on context (can only be resolved runtime, which can cause unexpected errors)
+    UNSAFE = 1
+    # Has direct support from backend
+    VALID = 2
+
+
 class CastMatrix:
-    _cache: dict[tuple[str, str], bool]
+    _cache: dict[tuple[str, str], CastSupport]
     engine: sa.engine.Engine
 
     def __init__(self, engine: sa.engine.Engine):
         self._cache = {}
         self.engine = engine
 
-    def supports(self, from_type: str, to_type: str) -> bool:
+    def supports(self, from_type: str, to_type: str) -> CastSupport:
         key = (from_type, to_type)
 
         if key in self._cache:
@@ -51,7 +61,11 @@ class CastMatrix:
         self._cache[key] = self.__supports_exec(from_type, to_type)
         return self._cache[key]
 
-    def __supports_exec(self, from_type: str, to_type: str) -> bool:
+    def __supports_exec(self, from_type: str, to_type: str) -> CastSupport:
+        """
+        Checks postgresql cast table between given type strings
+        """
+
         with self.engine.connect() as conn:
             result = conn.execute(sa.text("""
             SELECT 1
@@ -60,7 +74,26 @@ class CastMatrix:
               AND casttarget = CAST(:target AS regtype)
             LIMIT 1
             """), {"source": from_type, "target": to_type}).scalar()
-        return result is not None
+
+        result = result is not None
+        if result:
+            return CastSupport.VALID
+
+        result = self.__runtime_cast_exec(from_type, to_type)
+        return result
+
+    def __runtime_cast_exec(self, from_type: str, to_type: str) -> CastSupport:
+        """
+        Checks for unsafe casting between 2 types using runtime
+        """
+        with self.engine.connect() as conn:
+            try:
+                conn.execute(
+                    sa.text("SELECT NULL::" + from_type + "::" + to_type),
+                ).scalar()
+                return CastSupport.UNSAFE
+            except Exception as _:
+                return CastSupport.INVALID
 
 
 class RenameMap:
@@ -1226,3 +1259,12 @@ def validate_rename_map(context: Context, rename: RenameMap, manifest: Manifest)
         for column in table.columns.values():
             if column not in model.flatprops.keys():
                 raise PropertyNotFound(property=column)
+
+
+def column_cast_warning_message(
+    dtype: DataType,
+    column_name: str,
+    old_type: str,
+    new_type: str
+) -> str:
+    return f"WARNING: Casting '{column_name}' (from '{dtype.prop.model.model_type()}' model) column's type from '{old_type}' to '{new_type}' might not be possible."
