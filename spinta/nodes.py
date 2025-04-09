@@ -78,9 +78,11 @@ def get_node(
                 print()
             if ctype == "ns" and data['name'].startswith("datasets/gov/test"):
                 print()
-            if ctype != 'ns' and commands.has_node(context, manifest, ctype, data['name'], loaded=True):
+            if commands.has_node(context, manifest, ctype, data['name'], loaded=True):
+            # if ctype != 'ns' and commands.has_node(context, manifest, ctype, data['name'], loaded=True):
 
                 name = data['name']
+                # todo čia turbūt neturėtų būti eid
                 other = commands.get_node(context, manifest, ctype, name).eid
                 raise exceptions.InvalidManifestFile(
                     manifest=manifest.name,

@@ -184,19 +184,11 @@ def test_check_access(context: Context, rc, cli: SpintaCliRunner, tmp_path):
 
 
 def test_check_namespace_two_manifests(context: Context, rc, cli: SpintaCliRunner, tmp_path):
-    create_tabular_manifest(context, tmp_path / 'manifest1.csv', striptable('''
- d | r | b | m | property       | type   | ref  | level
- datasets/gov/test | | | |      | ns     |      |
- datasets/gov/test/example1     |        |      |
-                                |        |      |
-   |   |   | Country            |        | code | 4
-   |   |   |   | name           | string |      | 4
-   |   |   |   | code           | string |      | 4
-    '''))
-
-    create_tabular_manifest(context, tmp_path / 'manifest2.csv', striptable('''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
  d | r | b | m | property       | type   | ref  | level
  datasets/gov/test/example2     |        |      |
+ datasets/gov/test | | | |      | ns     |      |
+ datasets/gov/test/example1     |        |      |
                                 |        |      |
    |   |   | City               |        | code | 4
    |   |   |   | name           | string |      | 4
@@ -205,13 +197,6 @@ def test_check_namespace_two_manifests(context: Context, rc, cli: SpintaCliRunne
 
     cli.invoke(rc, [
         'check',
-        tmp_path / 'manifest1.csv',
-        tmp_path / 'manifest2.csv',
-
-    ])
-    cli.invoke(rc, [
-        'check',
-        tmp_path / 'manifest2.csv',
-        tmp_path / 'manifest1.csv',
+        tmp_path / 'manifest.csv',
 
     ])
