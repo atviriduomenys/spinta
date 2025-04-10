@@ -35,7 +35,7 @@ def getall(
 
 def getone(
     ctx: TyperContext,
-    manifests: Optional[List[str]] = Argument(help=("Manifest files to load")),
+    manifests: Optional[List[str]] = Argument(None, help=("Manifest files to load")),
     backend: str = Argument(None, help=("Backend connection string")),
     model: str = Argument(None, help=("Model path")),
     id_: str = Argument(None, help=("Dataset model id")),
