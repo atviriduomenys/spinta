@@ -1,3 +1,5 @@
+import yaml
+
 from spinta import commands
 from spinta.components import Context
 from spinta.manifests.components import Manifest
@@ -11,3 +13,10 @@ def prepare(context: Context, backend: Memory, manifest: Manifest, **kwargs):
     for model in commands.get_models(context, manifest).values():
         backend.create(get_table_name(model))
         backend.create(get_table_name(model, TableType.CHANGELOG))
+    if hasattr(backend, "dsn"):
+        with open(backend.dsn, "r") as file:
+            data = yaml.safe_load(file)
+
+        if data is not None:
+            for record in data:
+                backend.insert(record)
