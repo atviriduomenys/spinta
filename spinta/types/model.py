@@ -18,7 +18,7 @@ from spinta.backends.nobackend.components import NoBackend
 from spinta.commands import authorize
 from spinta.commands import check
 from spinta.commands import load
-from spinta.components import Action, PageBy, Page, PageInfo, UrlParams, pagination_enabled
+from spinta.components import Action, Component, PageBy, Page, PageInfo, PartialModel, UrlParams, pagination_enabled
 from spinta.components import Base
 from spinta.components import Context
 from spinta.components import Mode
@@ -45,6 +45,7 @@ from spinta.manifests.tabular.components import PropertyRow
 from spinta.nodes import get_node
 from spinta.nodes import load_model_properties
 from spinta.nodes import load_node
+from spinta.spyna import parse
 from spinta.types.helpers import check_model_name
 from spinta.types.helpers import check_property_name
 from spinta.types.namespace import load_namespace_from_name
@@ -157,6 +158,52 @@ def load(
 
     if not model.name.startswith('_') and not model.basename[0].isupper():
         raise Exception(model.basename, "MODEL NAME NEEDS TO BE UPPER CASED")
+
+    return model
+
+
+@load.register(Context, PartialModel, dict, Manifest)
+def load(
+    context: Context,
+    model: PartialModel,
+    data: dict,
+    manifest: Manifest,
+    *,
+    source: Manifest = None,
+) -> PartialModel:
+    parent_model = load[Context, Model, dict, Manifest](context, model, data, manifest, source=source)
+    parent_model.given.url_params = data.get('given_url_params')
+
+    url_params = UrlParams()
+    given_url_params = parent_model.given.url_params
+
+    if given_url_params:
+        if '?' in given_url_params:
+            action_part, query = given_url_params.split('?', 1)
+            action = action_part.strip(':') if action_part else None
+
+            if action:
+                url_params.action = Action.by_value(action)
+
+            parsed = parse(query)
+            if parsed:
+                if parsed['name'] == 'select':
+                    # For select(id,name)
+                    url_params.select = [
+                        arg['args'][0] for arg in parsed['args']
+                        if arg['name'] == 'bind'
+                    ]
+                else:
+                    # For filters like continent.code="eu"
+                    url_params.query = [parsed]
+
+        elif given_url_params.startswith(':'):
+            # Action-only features like /:getall
+            action = given_url_params.strip(':')
+            url_params.action = Action.by_value(action)
+
+    model.parent_model = parent_model
+    model.url_params = url_params
 
     return model
 
@@ -468,6 +515,12 @@ def check(context: Context, model: Model):
 
     for prop in model.properties.values():
         commands.check(context, prop)
+
+
+@check.register(Context, PartialModel)
+def check(context: Context, model: PartialModel):
+    if not model.parent_model:
+        raise exceptions.ParentModelNotFound(model)
 
 
 @check.register(Context, Property)
