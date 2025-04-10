@@ -7,7 +7,7 @@ import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers.migrate.migrate import json_has_key, get_root_attr, jsonb_keys, \
-    MigratePostgresMeta, MigrateModelMeta, adjust_kwargs
+    PostgresqlMigrationContext, PropertyMigrationContext
 from spinta.backends.postgresql.helpers.name import name_changed, get_pg_removed_name, get_pg_table_name
 from spinta.components import Context
 from spinta.types.datatype import String
@@ -16,15 +16,19 @@ from spinta.utils.nestedstruct import get_last_attr
 from spinta.utils.schema import NA
 
 
-@commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, sa.Table, list, String)
-def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, table: sa.Table,
-            old: List[sa.Column], new: String, model_meta: MigrateModelMeta, **kwargs):
-    rename = meta.rename
-    handler = meta.handler
-
-    adjusted_kwargs = adjust_kwargs(kwargs, {
-        'model_meta': model_meta
-    })
+@commands.migrate.register(Context, PostgreSQL, PostgresqlMigrationContext, PropertyMigrationContext, sa.Table, list, String)
+def migrate(
+    context: Context,
+    backend: PostgreSQL,
+    migration_ctx: PostgresqlMigrationContext,
+    property_ctx: PropertyMigrationContext,
+    table: sa.Table,
+    old: List[sa.Column],
+    new: String,
+    **kwargs
+):
+    rename = migration_ctx.rename
+    handler = migration_ctx.handler
 
     column: sa.Column = commands.prepare(context, backend, new.prop)
     old_name = rename.get_old_column_name(table.name, column.name, root_only=False)
@@ -39,12 +43,12 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
             break
 
     json_column_meta = None
-    if json_column is not None and model_meta is not None:
-        if json_column.name in model_meta.json_columns:
-            json_column_meta = model_meta.json_columns[json_column.name]
-
+    if json_column is not None:
+        if json_column.name in property_ctx.model_context.json_columns:
+            json_column_meta = property_ctx.model_context.json_columns[json_column.name]
+        else:
+            json_column_meta = property_ctx.model_context.create_json_context(backend, json_column, new.prop)
     requires_removal = True
-
     # Check if column was renamed and if there already existed column of the new name
     # If it did, remove it
     if name_changed(column.name, old_name):
@@ -62,7 +66,7 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
         if requires_removal:
             for col in old:
                 if not name_changed(col.name, column.name):
-                    commands.migrate(context, backend, meta, table, col, NA, **adjusted_kwargs)
+                    commands.migrate(context, backend, migration_ctx, property_ctx, table, col, NA, **kwargs)
                     columns.remove(col)
                     break
 
@@ -93,7 +97,7 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
                 key = determine_langauge_for_text(all_keys, [], default_langs)
                 json_column_meta.cast_to = (column, key)
             else:
-                commands.migrate(context, backend, meta, table, NA, column, **adjusted_kwargs)
+                commands.migrate(context, backend, migration_ctx, property_ctx, table, NA, column, **kwargs)
                 handler.add_action(
                     ma.TransferJSONDataMigrationAction(table_name, col, columns=[
                         (key, column)
@@ -111,12 +115,20 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ta
                 else:
                     json_column_meta.add_new_key(key, renamed_key)
         else:
-            commands.migrate(context, backend, meta, table, col, column, **adjusted_kwargs)
+            commands.migrate(context, backend, migration_ctx, property_ctx, table, col, column, **kwargs)
     else:
         raise Exception("String cannot migrate to multiple columns")
 
 
-@commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, sa.Table, sa.Column, String)
-def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, table: sa.Table,
-            old: sa.Column, new: String, **kwargs):
-    commands.migrate(context, backend, meta, table, [old], new, **kwargs)
+@commands.migrate.register(Context, PostgreSQL, PostgresqlMigrationContext, PropertyMigrationContext, sa.Table, sa.Column, String)
+def migrate(
+    context: Context,
+    backend: PostgreSQL,
+    migration_ctx: PostgresqlMigrationContext,
+    property_ctx: PropertyMigrationContext,
+    table: sa.Table,
+    old: sa.Column,
+    new: String,
+    **kwargs
+):
+    commands.migrate(context, backend, migration_ctx, property_ctx, table, [old], new, **kwargs)
