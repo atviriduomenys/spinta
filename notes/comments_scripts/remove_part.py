@@ -14,13 +14,12 @@ def process_files_recursively(directory):
                 for line in lines:
                     if '/:part' in line:
                         parts = line.split(',')
-                        word_with_part = next(part for part in parts if '/:part' in part)
-                        word_before_part = word_with_part.replace('/:part', '')
+                        word_with_part = next(part for part in parts if '/:part' in part).strip('"')
 
                         new_line = line.replace('/:part', '')
                         file.write(new_line)
 
-                        file.write(f',,,,,,comment,model,,"update(model: ""{word_before_part}/:part"")",4,,,,https://github.com/atviriduomenys/spinta/issues/997,,\n')
+                        file.write(f',,,,,,comment,model,,"update(model: ""{word_with_part}"")",4,,,,https://github.com/atviriduomenys/spinta/issues/997,,,\n')
                     else:
                         file.write(line)
 
