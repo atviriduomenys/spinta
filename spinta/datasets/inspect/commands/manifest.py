@@ -3,9 +3,11 @@ from spinta.backends import Backend
 from spinta.components import Context, Config
 from spinta.core.config import RawConfig
 from spinta.datasets.backends.dataframe.backends.json.components import Json
+from spinta.datasets.backends.dataframe.backends.memory.components import MemoryDaskBackend
 from spinta.datasets.backends.dataframe.backends.xml.components import Xml
 from spinta.datasets.backends.sql.components import Sql
 from spinta.manifests.dict.components import JsonManifest, XmlManifest
+from spinta.manifests.memory.components import MemoryManifest
 from spinta.manifests.sql.components import SqlManifest
 from spinta.manifests.tabular.components import CsvManifest
 from spinta.datasets.backends.dataframe.backends.csv.components import Csv
@@ -48,3 +50,8 @@ def backend_to_manifest_type(context: Context, backend: Xml):
 @commands.backend_to_manifest_type.register(Context, Sql)
 def backend_to_manifest_type(context: Context, backend: Sql):
     return SqlManifest
+
+
+@commands.backend_to_manifest_type.register(Context, MemoryDaskBackend)
+def backend_to_manifest_type(context: Context, backend: MemoryDaskBackend):
+    return MemoryManifest

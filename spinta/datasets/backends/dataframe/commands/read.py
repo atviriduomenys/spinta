@@ -12,6 +12,7 @@ from lxml import etree
 from spinta import commands
 from spinta.components import Context, Property, Model
 from spinta.core.ufuncs import Expr
+from spinta.datasets.backends.dataframe.backends.memory.components import MemoryDaskBackend
 from spinta.datasets.backends.dataframe.components import DaskBackend
 from spinta.datasets.backends.dataframe.backends.json.components import Json
 from spinta.datasets.backends.dataframe.backends.csv.components import Csv
@@ -478,6 +479,46 @@ def getall(
     builder.update(model=model)
     df = dask.dataframe.read_csv(list(bases), sep=resource_builder.seperator)
     yield from _dask_get_all(context, query, df, backend, model, builder, extra_properties)
+
+@commands.getall.register(Context, Model, MemoryDaskBackend)
+def getall(
+    context: Context,
+    model: Model,
+    backend: MemoryDaskBackend,
+    *,
+    query: Expr = None,
+    resolved_params: ResolvedParams = None,
+    extra_properties: dict[str, Property] = None,
+    **kwargs
+) -> Iterator[ObjectData]:
+    import yaml
+    import dask.dataframe as dd
+    import pandas as pd
+
+    yaml_string_or_file = ''
+    if isinstance(yaml_string_or_file, str) and '\n' in yaml_string_or_file[:200]: #heuristically check for string input
+        data = yaml.safe_load(yaml_string_or_file)
+    elif hasattr(yaml_string_or_file, 'read'): #file like object
+        data = yaml.safe_load(yaml_string_or_file)
+    else:
+        with open(yaml_string_or_file, 'r') as f:
+            data = yaml.safe_load(f)
+
+    if not isinstance(data, list):
+        return None #yaml did not contain a list of dictionaries.
+
+    df = pd.DataFrame(data)
+    ddf = dd.from_pandas(df, chunksize=1000)
+
+
+    builder = backend.query_builder_class(context)
+    builder.update(model=model)
+
+    yield from _dask_get_all(context, query, df, backend, model, builder, extra_properties)
+
+
+
+
 
 
 def parametrize_bases(

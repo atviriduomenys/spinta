@@ -80,6 +80,7 @@ CONFIG = {
             'dask/csv': 'spinta.datasets.backends.dataframe.backends.csv.components:Csv',
             'dask/xml': 'spinta.datasets.backends.dataframe.backends.xml.components:Xml',
             'dask/json': 'spinta.datasets.backends.dataframe.backends.json.components:Json',
+            'dask/memory': 'spinta.datasets.backends.dataframe.backends.memory.components:MemoryDaskBackend',
             'xlsx': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
             'geojson': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
             'html': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
