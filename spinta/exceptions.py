@@ -1099,3 +1099,9 @@ class KeymapValueNotFound(UserError):
     This error can occur when trying to get primary keys for internal model, while system is running in external mode and
     keymap does not contain these specific values.
     '''
+
+
+class UnableToCastColumnTypes(UserError):
+    template = '''
+    Unable to cast {column!r} column of type {old_type!r} to type {new_type!r}.
+    '''

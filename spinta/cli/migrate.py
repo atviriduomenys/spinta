@@ -11,7 +11,7 @@ from spinta import commands
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.errors import cli_error
 from spinta.cli.helpers.manifest import convert_str_to_manifest_path
-from spinta.cli.helpers.migrate import MigrateRename, MigrateMeta
+from spinta.cli.helpers.migrate import MigrationConfig
 from spinta.cli.helpers.store import load_store
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.core.context import configure_context
@@ -69,6 +69,9 @@ def migrate(
     datasets: Optional[List[str]] = Option(None, '-d', '--datasets', help=(
         "List of datasets to migrate"
     )),
+    raise_potential_error: bool = Option(False, '--raise', help=(
+        "Raises an spinta error if potential issues are found (mainly backend specific issues, like casting types between incompatible columns)"
+    ))
 ):
     """Migrate schema change to backends"""
     manifests = convert_str_to_manifest_path(manifests)
@@ -81,15 +84,14 @@ def migrate(
         if invalid_datasets:
             cli_error(f"Invalid dataset(s) provided: {', '.join(invalid_datasets)}")
 
-    migrate_meta = MigrateMeta(
+    migration_config = MigrationConfig(
         plan=plan,
         autocommit=autocommit,
-        rename=MigrateRename(
-            rename_src=rename
-        ),
-        datasets=datasets
+        rename_src=rename,
+        datasets=datasets,
+        raise_error=raise_potential_error
     )
-    commands.migrate(context, manifest, migrate_meta)
+    commands.migrate(context, manifest, migration_config)
 
 
 def freeze(ctx: TyperContext):

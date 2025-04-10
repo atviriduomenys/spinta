@@ -8,14 +8,14 @@ from spinta.backends.constants import TableType
 from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.constants import UNSUPPORTED_TYPES
-from spinta.utils.sqlalchemy import Convention
 from spinta.backends.postgresql.helpers import get_column_name
 from spinta.backends.postgresql.helpers import get_pg_name
 from spinta.backends.postgresql.helpers.changes import get_changes_table
-from spinta.backends.postgresql.helpers.name import PG_NAMING_CONVENTION, get_pg_table_name, get_pg_column_name
+from spinta.backends.postgresql.helpers.name import PG_NAMING_CONVENTION, get_pg_table_name
 from spinta.components import Context, Model
 from spinta.manifests.components import Manifest
 from spinta.types.datatype import DataType, PrimaryKey, Ref
+from spinta.utils.sqlalchemy import Convention
 
 
 @overload
