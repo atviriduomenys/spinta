@@ -89,11 +89,23 @@ def _get_row_value(context: Context, row: Any, sel: Any) -> Any:
             if sel.item in row.keys():
                 val = row[sel.item]
             else:
-                raise PropertyNotFound(
-                    sel.prop.model,
-                    property=sel.prop.name,
-                    external=sel.prop.external.name,
-                )
+                val = {}
+                for prop in sel.prop.dtype.refprops:
+                    if f'{sel.prop.name}.{prop.name}' in row.keys():
+                        val[prop.name] = row[f'{sel.prop.name}.{prop.name}']
+                    else:
+                        #TODO: Validate if this raise is needed.
+                        raise PropertyNotFound(
+                            sel.prop.model,
+                            property=sel.prop.name,
+                            external=sel.prop.external.name,
+                        )
+                if not val:
+                    raise PropertyNotFound(
+                        sel.prop.model,
+                        property=sel.prop.name,
+                        external=sel.prop.external.name,
+                    )
 
         if enum := get_prop_enum(sel.prop):
             if val is None:
@@ -492,34 +504,24 @@ def getall(
     **kwargs
 ) -> Iterator[ObjectData]:
     import yaml
-    import dask.dataframe as dd
     import pandas as pd
 
-    yaml_string_or_file = ''
-    if isinstance(yaml_string_or_file, str) and '\n' in yaml_string_or_file[:200]: #heuristically check for string input
-        data = yaml.safe_load(yaml_string_or_file)
-    elif hasattr(yaml_string_or_file, 'read'): #file like object
-        data = yaml.safe_load(yaml_string_or_file)
-    else:
-        with open(yaml_string_or_file, 'r') as f:
-            data = yaml.safe_load(f)
+    yaml_file = backend.config['dsn']
 
-    if not isinstance(data, list):
-        return None #yaml did not contain a list of dictionaries.
+    with open(yaml_file, 'r') as f:
+        data = list(yaml.safe_load_all(f))
 
-    df = pd.DataFrame(data)
-    ddf = dd.from_pandas(df, chunksize=1000)
+    df = pd.json_normalize(data)
 
+    dask_df = dask.dataframe.from_pandas(df)
+    mask = dask_df["_type"] == model.name
+
+    filtered_dask_df = dask_df[mask]
 
     builder = backend.query_builder_class(context)
     builder.update(model=model)
 
-    yield from _dask_get_all(context, query, df, backend, model, builder, extra_properties)
-
-
-
-
-
+    yield from _dask_get_all(context, query, filtered_dask_df, backend, model, builder, extra_properties)
 
 def parametrize_bases(
     context: Context,
