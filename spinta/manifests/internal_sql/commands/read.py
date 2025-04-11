@@ -8,7 +8,8 @@ from spinta.backends.helpers import get_select_tree, get_select_prop_names
 from spinta.compat import urlparams_to_expr
 from spinta.manifests.internal_sql.commands.manifest import get_model_name_list
 from spinta.renderer import render
-from spinta.components import Context, Namespace, Action, UrlParams
+from spinta.components import Context, Namespace, UrlParams
+from spinta.core.enums import Action
 from spinta.manifests.internal_sql.components import InternalSQLManifest
 from spinta.manifests.internal_sql.helpers import get_namespace_partial_data
 from spinta.types.namespace import check_if_model_has_backend_and_source, _model_matches_params

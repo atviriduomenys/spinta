@@ -1,7 +1,8 @@
 import pathlib
 
 from spinta.backends.constants import BackendFeatures
-from spinta.components import DataSubItem, Action
+from spinta.components import DataSubItem
+from spinta.core.enums import Action
 from spinta.types.datatype import File
 from spinta.utils.data import take
 

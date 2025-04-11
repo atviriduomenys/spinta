@@ -15,7 +15,8 @@ from spinta.api.schema import schema_api
 from spinta.backends.helpers import validate_and_return_transaction, validate_and_return_begin
 from spinta.cli.helpers.errors import ErrorCounter
 from spinta.formats.components import Format
-from spinta.components import Action, Model
+from spinta.components import Model
+from spinta.core.enums import Action
 from spinta.components import Context
 from spinta.components import Node
 from spinta.components import Store

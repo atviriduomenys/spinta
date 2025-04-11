@@ -8,7 +8,8 @@ from sqlalchemy.engine.row import RowProxy
 from spinta import commands
 from spinta.backends.components import SelectTree
 from spinta.formats.components import Format
-from spinta.components import Context, Model, Action
+from spinta.components import Context, Model
+from spinta.core.enums import Action
 from spinta.types.datatype import Date, DateTime
 from spinta.backends.postgresql.components import PostgreSQL
 

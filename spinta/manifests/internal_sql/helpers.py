@@ -8,8 +8,8 @@ from sqlalchemy.sql.elements import Null
 from spinta import commands
 from spinta.backends import Backend
 from spinta.backends.constants import BackendOrigin
-from spinta.components import Namespace, Base, Model, Property, Context, Config, EntryId, MetaData, Action
-from spinta.core.enums import Access
+from spinta.components import Namespace, Base, Model, Property, Context, Config, EntryId, MetaData
+from spinta.core.enums import Access, Action
 from spinta.core.ufuncs import Expr, NoOp
 from spinta.datasets.components import Dataset, Resource, Param
 from spinta.dimensions.comments.components import Comment

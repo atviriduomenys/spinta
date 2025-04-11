@@ -24,9 +24,9 @@ from spinta.cli.helpers.push.utils import extract_dependant_nodes
 from spinta.cli.helpers.store import prepare_manifest, attach_backends, attach_keymaps
 from spinta.client import get_client_credentials, get_access_token
 from spinta.commands.write import write
-from spinta.components import Mode, Config, Action
+from spinta.components import Config
 from spinta.core.context import configure_context
-from spinta.core.enums import Access
+from spinta.core.enums import Access, Action, Mode
 from spinta.datasets.keymaps.sync import sync_keymap
 from spinta.exceptions import NodeNotFound
 from spinta.formats.components import Format

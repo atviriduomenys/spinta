@@ -14,7 +14,7 @@ from typing import NamedTuple
 
 from ruamel.yaml import YAML
 
-from spinta.components import Mode
+from spinta.core.enums import Mode
 from spinta.utils.imports import importstr
 from spinta.utils.path import resource_filename
 from spinta.utils.schema import NA

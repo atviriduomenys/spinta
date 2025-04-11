@@ -34,9 +34,9 @@ from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse
 
 from spinta.components import Config
-from spinta.components import Context, Action, Namespace, Model, Property
+from spinta.components import Context, Namespace, Model, Property
 from spinta.components import ScopeFormatterFunc
-from spinta.core.enums import Access
+from spinta.core.enums import Access, Action
 from spinta.exceptions import AuthorizedClientsOnly
 from spinta.exceptions import BasicAuthRequired
 from spinta.exceptions import InvalidToken, NoTokenValidationKey, ClientWithNameAlreadyExists, ClientAlreadyExists, \

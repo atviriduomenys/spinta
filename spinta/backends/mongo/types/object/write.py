@@ -1,6 +1,7 @@
 from spinta import commands
 from spinta.types.datatype import Object
-from spinta.components import Context, DataSubItem, Action
+from spinta.components import Context, DataSubItem
+from spinta.core.enums import Action
 from spinta.backends.mongo.components import Mongo
 from spinta.utils.schema import NA
 

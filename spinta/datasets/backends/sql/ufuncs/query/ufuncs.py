@@ -11,7 +11,8 @@ import sqlalchemy as sa
 from sqlalchemy.sql.functions import Function
 
 from spinta.auth import authorized
-from spinta.components import Action, Page
+from spinta.components import Page
+from spinta.core.enums import Action
 from spinta.components import Property
 from spinta.core.ufuncs import Bind, GetAttr
 from spinta.core.ufuncs import Expr

@@ -15,6 +15,7 @@ from spinta.cli.helpers.data import ensure_data_dir
 from spinta.components import Config
 from spinta.components import Context
 from spinta.core.config import RawConfig
+from spinta.core.enums import Action
 from spinta.datasets.keymaps.components import KeyMap
 from sqlalchemy.dialects.sqlite import insert
 
@@ -148,7 +149,7 @@ class SqlAlchemyKeyMap(KeyMap):
         )
         self.conn.execute(query)
 
-    def synchronize(self, name: str, value: Any, primary_key: str):
+    def synchronize(self, name: str, value: Any, primary_key: str, action: Action):
         table = self.get_table(name)
         hash_return = _hash_value(value)
         if hash_return is None:
@@ -250,7 +251,7 @@ def sync(context: Context, keymap: SqlAlchemyKeyMap, *, data: Generator[KeymapDa
 
                 transaction = keymap.conn.begin()
 
-            keymap.synchronize(row.key, row.value, row.identifier)
+            keymap.synchronize(row.key, row.value, row.identifier, row.action)
             yield row
     finally:
         if transaction is not None and transaction.is_active:

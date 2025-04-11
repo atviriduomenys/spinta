@@ -8,7 +8,8 @@ from sqlalchemy.sql.type_api import TypeEngine
 
 from spinta import commands, spyna
 from spinta.auth import AdminToken
-from spinta.components import Model, Mode, Context
+from spinta.components import Model, Context
+from spinta.core.enums import Mode
 from spinta.core.config import RawConfig
 from spinta.core.ufuncs import asttoexpr
 from spinta.datasets.backends.sql.components import Sql

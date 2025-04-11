@@ -5,7 +5,8 @@ import sqlalchemy as sa
 
 from spinta import commands
 from spinta.utils.json import fix_data_for_json
-from spinta.components import Context, Action, Model, Property
+from spinta.components import Context, Model, Property
+from spinta.core.enums import Action
 from spinta.backends.constants import TableType
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.sqlalchemy import utcnow

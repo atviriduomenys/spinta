@@ -1,6 +1,7 @@
 from spinta import commands, exceptions
 import spinta.backends.postgresql.helpers.extractors as extractor
-from spinta.components import DataItem, Action
+from spinta.components import DataItem
+from spinta.core.enums import Action
 from sqlalchemy.exc import IntegrityError, OperationalError
 import psycopg2.errors as psy_errors
 

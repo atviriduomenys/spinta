@@ -12,7 +12,8 @@ from spinta.cli.helpers.errors import ErrorCounter
 from spinta.cli.helpers.push import prepare_data_for_push_state
 from spinta.cli.helpers.push.utils import extract_state_page_id_key, construct_where_condition_from_page
 from spinta.commands.read import PaginationMetaData, get_paginated_values
-from spinta.components import Context, Action, Config
+from spinta.components import Context, Config
+from spinta.core.enums import Action
 from spinta.components import Model
 from spinta.components import Page, get_page_size, Property, PageBy
 from spinta.utils.response import get_request

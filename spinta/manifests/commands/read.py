@@ -6,7 +6,8 @@ from spinta.accesslog import log_response
 from spinta.backends.helpers import get_select_tree, get_select_prop_names
 from spinta.renderer import render
 from spinta.compat import urlparams_to_expr
-from spinta.components import Context, Namespace, Action, UrlParams, Model
+from spinta.components import Context, Namespace, UrlParams, Model
+from spinta.core.enums import Action
 from spinta.manifests.components import Manifest
 from spinta.types.namespace import _model_matches_params, check_if_model_has_backend_and_source
 from spinta.utils import itertools

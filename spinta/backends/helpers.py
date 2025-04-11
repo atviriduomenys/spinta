@@ -14,7 +14,8 @@ from spinta import spyna
 from spinta.auth import authorized
 from spinta.backends import Backend
 from spinta.backends.components import SelectTree
-from spinta.components import Action, Config
+from spinta.components import Config
+from spinta.core.enums import Action
 from spinta.components import Component
 from spinta.components import Context
 from spinta.components import Model

@@ -11,7 +11,8 @@ from spinta.accesslog import log_async_response
 
 from spinta.renderer import render
 from spinta.utils.aiotools import aiter
-from spinta.components import Context, Action, UrlParams, DataItem
+from spinta.components import Context, UrlParams, DataItem
+from spinta.core.enums import Action
 from spinta.commands.write import prepare_patch, simple_response, validate_data
 from spinta.types.datatype import File
 from spinta.backends.fs.components import FileSystem

@@ -9,7 +9,7 @@ from starlette.responses import Response
 from starlette.responses import StreamingResponse
 
 from spinta import commands
-from spinta.components import Action
+from spinta.core.enums import Action
 from spinta.components import Context
 from spinta.components import Model
 from spinta.components import UrlParams

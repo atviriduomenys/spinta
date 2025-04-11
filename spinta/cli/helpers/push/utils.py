@@ -11,7 +11,8 @@ from spinta import commands
 from sqlalchemy.engine.row import Row
 from spinta.auth import authorized
 from spinta.cli.helpers.push.components import PushRow
-from spinta.components import Action, Page, pagination_enabled
+from spinta.components import Page, pagination_enabled
+from spinta.core.enums import Action
 from spinta.components import Context
 from spinta.components import Model
 from spinta.types.datatype import Ref

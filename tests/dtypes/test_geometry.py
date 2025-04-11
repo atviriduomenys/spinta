@@ -16,7 +16,7 @@ from geoalchemy2 import shape
 from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.components import Store
-from spinta.components import Action
+from spinta.core.enums import Action
 from spinta.core.config import RawConfig
 from spinta.formats.html.components import Cell, Html
 from spinta.testing.client import create_test_client

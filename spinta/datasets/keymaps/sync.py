@@ -1,18 +1,18 @@
 import dataclasses
 import datetime
 from collections.abc import Generator
-
-from typer import echo
 from typing import List, Iterable
+
+import tqdm
+from typer import echo
 
 from spinta import commands
 from spinta.auth import authorized
 from spinta.cli.helpers.errors import ErrorCounter
-from spinta.components import Context, Model, Action, Property, Config
+from spinta.components import Context, Model, Property, Config
+from spinta.core.enums import action_from_op, Action
 from spinta.datasets.backends.helpers import extract_values_from_row
 from spinta.datasets.keymaps.components import KeyMap
-import tqdm
-
 from spinta.utils.response import get_request
 
 
@@ -101,6 +101,7 @@ class KeymapData:
     value: object
     identifier: str
     data: dict
+    action: Action
 
 
 def process_keymap_data(
@@ -112,36 +113,35 @@ def process_keymap_data(
     dry_run: bool
 ) -> Generator[KeymapData]:
     for row in data:
-        cid = row['_cid']
-        if row['_op'] == 'insert':
-            yield from (
-                KeymapData(key=key, value=value, identifier=identifier, data=row)
-                for key, value, identifier in
-                sync_model_insert(
-                    keymap=keymap,
-                    model=model,
-                    row=row,
-                    primary_keys=primary_keys,
-                    counters=counters,
-                    dry_run=dry_run
-                )
+        action = action_from_op(model, row)
+        if action in (Action.INSERT, Action.UPSERT):
+            data = sync_model_insert(
+                model=model,
+                row=row,
+                primary_keys=primary_keys,
+                counters=counters,
+                dry_run=dry_run
             )
-        elif row['_op'] == 'patch' or row['_op'] == 'update':
-            yield from (
-                KeymapData(key=key, value=value, identifier=identifier, data=row)
-                for key, value, identifier in
-                sync_model_update(
-                    keymap=keymap,
-                    model=model,
-                    row=row,
-                    counters=counters,
-                    dry_run=dry_run
-                )
+        elif action in (Action.UPDATE, Action.PATCH):
+            data = sync_model_update(
+                keymap=keymap,
+                model=model,
+                row=row,
+                counters=counters,
+                dry_run=dry_run
             )
 
+        for key, value, identifier in data:
+            yield KeymapData(key=key, value=value, identifier=identifier, data=row, action=action)
 
-def sync_model_insert(keymap: KeyMap, model: Model, row: dict, primary_keys: List[Property], counters: dict,
-                      dry_run: bool):
+
+def sync_model_insert(
+    model: Model,
+    row: dict,
+    primary_keys: List[Property],
+    counters: dict,
+    dry_run: bool
+):
     values = _extract_row_data_from_keys(row, primary_keys)
     value = list(values.values())
     if len(value) == 1:
@@ -170,7 +170,13 @@ def sync_model_insert(keymap: KeyMap, model: Model, row: dict, primary_keys: Lis
                 counters['_total'].update(1)
 
 
-def sync_model_update(keymap: KeyMap, model: Model, row: dict, counters: dict, dry_run: bool):
+def sync_model_update(
+    keymap: KeyMap,
+    model: Model,
+    row: dict,
+    counters: dict,
+    dry_run: bool
+):
     for km, props in keymaps_affected_by_change(row, model).items():
         decoded = keymap.decode(km, row['_id'])
         remapped = remap_decoded_values(decoded, props)

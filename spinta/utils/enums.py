@@ -41,3 +41,5 @@ def enum_by_value(
         if item.value == value:
             return item
     raise exceptions.InvalidValue(component, param=param, given=value)
+
+

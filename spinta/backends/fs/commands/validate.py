@@ -2,7 +2,8 @@ import os
 
 from pathlib import Path
 from spinta import commands
-from spinta.components import Context, Action, Property, DataItem
+from spinta.components import Context, Property, DataItem
+from spinta.core.enums import Action
 from spinta.backends.components import Backend
 from spinta.types.datatype import DataType, File
 from spinta.backends.fs.components import FileSystem

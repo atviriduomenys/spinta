@@ -10,7 +10,8 @@ from spinta.backends.helpers import get_ns_reserved_props
 from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
 from spinta.backends.helpers import select_only_props
-from spinta.components import Action, pagination_enabled, Node
+from spinta.components import pagination_enabled, Node
+from spinta.core.enums import Action
 from spinta.components import Context
 from spinta.components import Model
 from spinta.components import UrlParams

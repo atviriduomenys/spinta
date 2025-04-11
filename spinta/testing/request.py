@@ -8,7 +8,7 @@ from starlette.requests import Request
 from spinta import commands
 from spinta.auth import AdminToken
 from spinta.commands.read import prepare_data_for_response
-from spinta.components import Action
+from spinta.core.enums import Action
 from spinta.components import Context
 from spinta.components import Model
 from spinta.components import UrlParams

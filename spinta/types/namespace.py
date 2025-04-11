@@ -19,7 +19,7 @@ from spinta import exceptions
 from spinta.auth import authorized
 from spinta.backends.constants import BackendFeatures
 from spinta.backends.nobackend.components import NoBackend
-from spinta.components import Action
+from spinta.core.enums import Action
 from spinta.components import Config
 from spinta.components import Context
 from spinta.components import Model

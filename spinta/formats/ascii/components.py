@@ -2,7 +2,8 @@ import operator
 import itertools
 
 from spinta import commands
-from spinta.components import Context, Action, UrlParams, Model
+from spinta.components import Context, UrlParams, Model
+from spinta.core.enums import Action
 from spinta.formats.ascii.helpers import get_widths, get_displayed_cols, draw_border, draw_header, draw_row
 from spinta.manifests.components import Manifest
 from spinta.formats.components import Format

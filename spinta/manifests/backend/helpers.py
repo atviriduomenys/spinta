@@ -13,7 +13,7 @@ from spinta import commands
 from spinta.backends.helpers import validate_and_return_begin
 from spinta.commands.write import push_stream
 from spinta.commands.write import write
-from spinta.components import Action
+from spinta.core.enums import Action
 from spinta.components import Context
 from spinta.components import DataItem
 from spinta.core.ufuncs import Expr

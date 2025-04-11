@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from spinta.components import Model
     from spinta.components import Property
     from spinta.types.datatype import DataType
-    from spinta.components import Action
+    from spinta.core.enums import Action
     from spinta.backends import Backend
     from spinta.components import Context
     from spinta.manifests.components import Manifest

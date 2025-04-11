@@ -17,7 +17,8 @@ from spinta import commands
 from spinta.backends.components import SelectTree
 from spinta.backends.helpers import get_model_reserved_props
 from spinta.backends.helpers import select_model_props
-from spinta.components import Action, Namespace, page_in_data
+from spinta.components import Namespace, page_in_data
+from spinta.core.enums import Action
 from spinta.components import Context
 from spinta.components import Model
 from spinta.components import UrlParams
