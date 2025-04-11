@@ -78,20 +78,30 @@ def get_node(
                 print()
             if ctype == "ns" and data['name'].startswith("datasets/gov/test"):
                 print()
-            if commands.has_node(context, manifest, ctype, data['name'], loaded=True):
-            # if ctype != 'ns' and commands.has_node(context, manifest, ctype, data['name'], loaded=True):
 
+            if commands.has_node(context, manifest, ctype, data['name'], loaded=True):
                 name = data['name']
-                # todo čia turbūt neturėtų būti eid
-                other = commands.get_node(context, manifest, ctype, name).eid
-                raise exceptions.InvalidManifestFile(
-                    manifest=manifest.name,
-                    eid=eid,
-                    error=(
-                        f"{ctype!r} with name {name!r} already defined in "
-                        f"{other}."
-                    ),
-                )
+                other_node = commands.get_node(context, manifest, ctype, name)
+
+                # if this namespace generated, and other - declared: pass,
+                #   because dataset path can have ns as part of their path
+                # if this namespace generated, and other generated - pass. Two datasets, each in the same namespace
+                # if this namespace declared, other - generated, pass. It's possible to first declare
+                #   a dataset, then a namespace which is included in dataset's path
+                # if this namespace declared and other - declared, raise error. Namespace can be declared only once.
+                # todo collecting namespaces should be moved to linking and this checking should be done there
+                #   https://github.com/atviriduomenys/spinta/issues/1271
+                if ctype == "ns" and other_node.generated:
+                    pass
+                else:
+                    raise exceptions.InvalidManifestFile(
+                        manifest=manifest.name,
+                        eid=eid,
+                        error=(
+                            f"{ctype!r} with name {name!r} already defined in "
+                            f"{other_node} (eid: {other_node.eid})."
+                        ),
+                    )
 
     if ctype not in config.components[group]:
         from spinta.components import Property
