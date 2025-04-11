@@ -1394,7 +1394,6 @@ def get_namespace_data(row: dict[str, str], dataset_type: str, dataset_name: str
     }
 
 
-
 class ParamReader(TabularReader):
     type: str = 'param'
     data: ParamRow

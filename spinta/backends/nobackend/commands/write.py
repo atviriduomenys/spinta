@@ -4,7 +4,8 @@ from starlette.requests import Request
 
 from spinta import commands
 from spinta.types.datatype import File
-from spinta.components import Context, Model, DataItem, Action, UrlParams
+from spinta.components import Context, Model, DataItem, UrlParams
+from spinta.core.enums import Action
 from spinta.backends.nobackend.components import NoBackend
 from spinta.exceptions import BackendNotGiven
 

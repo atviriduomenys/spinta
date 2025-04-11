@@ -10,7 +10,6 @@ import jsonpatch
 
 from spinta import commands
 from spinta.backends.constants import BackendOrigin
-from spinta.components import Mode
 from spinta.backends.helpers import load_backend
 from spinta.components import Model
 from spinta.datasets.components import Dataset
@@ -28,7 +27,7 @@ from spinta.manifests.components import Manifest
 from spinta.manifests.internal.components import InternalManifest
 from spinta.types.namespace import load_namespace_from_name
 from spinta.utils.enums import enum_by_name
-from spinta.core.enums import Access
+from spinta.core.enums import Access, Mode
 from spinta.utils.imports import importstr
 
 
