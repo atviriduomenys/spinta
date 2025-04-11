@@ -1775,7 +1775,13 @@ def _read_tabular_manifest_rows(
         Reader = READERS[dimension]
         reader = Reader(state, path, line, allow_updates=allow_updates)
         reader.read(row)
-        yield from state.release(reader)
+        #     temp čia ieškoti schemų kur type yra ns
+        datas = list(state.release(reader))
+        for eid, data in datas:
+            if data.get('type') == 'ns':
+                print(data)
+        yield from datas
+
 
     yield from state.release()
 
