@@ -24,7 +24,7 @@ from spinta.cli.helpers.data import count_rows
 from spinta.cli.helpers.data import iter_model_rows
 from spinta.cli.helpers.manifest import convert_str_to_manifest_path
 from spinta.cli.helpers.store import prepare_manifest
-from spinta.components import Action
+from spinta.core.enums import Action
 from spinta.components import Context
 from spinta.components import Model
 from spinta.components import Node

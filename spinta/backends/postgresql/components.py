@@ -82,19 +82,21 @@ class PostgreSQL(Backend):
         )
         result = list(itertools.islice(result, 2))
 
-        if len(result) == 1:
+        number_of_rows = len(result)
+
+        if number_of_rows == 1:
             if scalar:
                 return result[0][columns[0]]
             else:
                 return result[0]
 
-        elif len(result) == 0:
+        elif number_of_rows == 0:
             if default is NA:
                 raise NotFoundError()
             else:
                 return default
         else:
-            raise MultipleRowsFound()
+            raise MultipleRowsFound(str(condition.left.table), number_of_rows=number_of_rows)
 
     def add_table(
         self,

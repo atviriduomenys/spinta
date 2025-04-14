@@ -198,17 +198,6 @@ datasets/gov/rc/jar/iregistruoti    |         |                                 
 EOF
 spinta check "$BASEDIR"/sdsa.txt
 
-
-# Run server in EXTERNAL mode
-test -n "$PID" && kill "$PID"
-spinta run --mode external "$BASEDIR"/sdsa.txt &>> "$BASEDIR"/spinta.log & PID=$!
-tail -50 "$BASEDIR"/spinta.log
-
-xdg-open http://localhost:8000/datasets/gov/rc/jar/formos_statusai/Forma
-xdg-open http://localhost:8000/datasets/gov/rc/jar/formos_statusai/Statusas
-xdg-open http://localhost:8000/datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo
-
-
 # Run migrations
 spinta --tb native migrate --autocommit
 spinta --tb native bootstrap
@@ -226,8 +215,7 @@ http :8000
 http :8000/version
 http :8000/datasets/gov | jq -c '._data[]'
 
-
-# Run smoke tests
+# Setup INTERNAL server data
 SERVER=:8000
 CLIENT=test
 SECRET=secret
@@ -264,6 +252,30 @@ http POST :8000/datasets/gov/rc/ar/adresai/Adresas "$AUTH" <<EOF
 }
 EOF
 
+
+# Run server in EXTERNAL mode
+# Temporarily run with port 7000, so we can run another server with 8000 port
+test -n "$EXTERNAL_PID" && kill "$EXTERNAL_PID"
+spinta run --port 7000 --mode external "$BASEDIR"/sdsa.txt &>> "$BASEDIR"/spinta.log & EXTERNAL_PID=$!
+tail -50 "$BASEDIR"/spinta.log
+
+xdg-open http://localhost:7000/datasets/gov/rc/jar/formos_statusai/Forma
+xdg-open http://localhost:7000/datasets/gov/rc/jar/formos_statusai/Statusas
+xdg-open http://localhost:7000/datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo
+# Expected an error, since `Adresas` is running in internal mode
+# Need to sync `Adresas` data from another server
+
+# Sync data from INTERNAL server
+spinta keymap sync "$BASEDIR"/sdsa.txt -i test@localhost
+
+xdg-open http://localhost:7000/datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo
+# No more errors, `adresas._id` == `264ae0f9-53eb-496b-a07c-ce1b9cbe510c`
+
+# Turn off external server
+test -n "$EXTERNAL_PID" && kill "$EXTERNAL_PID"
+
+
+# Run smoke tests
 test -f "$BASEDIR"/keymap.db && rm "$BASEDIR"/keymap.db
 test -f "$BASEDIR"/push/localhost.db && rm "$BASEDIR"/push/localhost.db
 

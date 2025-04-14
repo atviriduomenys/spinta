@@ -25,7 +25,7 @@ from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
 from spinta.backends.mongo.components import Mongo
 from spinta.backends.mongo.helpers import inserting
-from spinta.components import Context, Node, UrlParams, Action, DataItem, Namespace, Model, Property, DataStream, \
+from spinta.components import Context, Node, UrlParams, DataItem, Namespace, Model, Property, DataStream, \
     DataSubItem
 from spinta.core.ufuncs import asttoexpr
 from spinta.formats.components import Format
@@ -35,6 +35,7 @@ from spinta.urlparams import get_model_by_name
 from spinta.utils.aiotools import agroupby
 from spinta.utils.aiotools import aslice, alist, aiter
 from spinta.utils.data import take
+from spinta.core.enums import action_from_op, Action
 from spinta.utils.errors import report_error
 from spinta.utils.nestedstruct import flatten_value
 from spinta.utils.schema import NotAvailable, NA
@@ -285,7 +286,7 @@ async def _read_request_body(
         #       `node` given in URL.
 
         if '_op' in payload:
-            action = _action_from_op(scope, payload, stop_on_error)
+            action = action_from_op(scope, payload, stop_on_error)
             if isinstance(action, exceptions.UserError):
                 yield DataItem(
                     model,
@@ -459,7 +460,7 @@ def dataitem_from_payload(
         report_error(error, stop_on_error=stop_on_error)
         return DataItem(payload=payload, error=error)
 
-    action = _action_from_op(scope, payload, stop_on_error)
+    action = action_from_op(scope, payload, stop_on_error)
     if isinstance(action, exceptions.UserError):
         error = action
         report_error(error, stop_on_error=stop_on_error)
@@ -469,23 +470,6 @@ def dataitem_from_payload(
         payload['_where'] = spyna.parse(payload['_where'])
 
     return DataItem(model, prop, propref, backend, action, payload)
-
-
-def _action_from_op(
-    scope: Node,
-    payload: dict,
-    stop_on_error: bool = True,
-) -> Union[Action, exceptions.UserError]:
-    action = payload.get('_op')
-    if not Action.has_value(action):
-        error = exceptions.UnknownAction(
-            scope,
-            action=action,
-            supported_actions=Action.values(),
-        )
-        report_error(error, stop_on_error=stop_on_error)
-        return error
-    return Action.by_value(action)
 
 
 async def prepare_data(
@@ -550,11 +534,16 @@ async def read_existing_data(
         # When updating by id only, there must be exactly one existing record.
         if data.action == Action.UPSERT or _has_id_in_where(data.given):
             rows = list(itertools.islice(rows, 2))
-            if len(rows) == 1:
+            number_of_rows = len(rows)
+            if number_of_rows == 1:
                 data.saved = rows[0]
                 data.saved['_type'] = data.model.model_type()
-            elif len(rows) > 1:
-                data.error = exceptions.MultipleRowsFound(data.model, _id=rows[0]['_id'])
+            elif number_of_rows > 1:
+                data.error = exceptions.MultipleRowsFound(
+                    data.model,
+                    _id=rows[0]['_id'],
+                    number_of_rows=number_of_rows
+                )
                 report_error(data.error, data.given, stop_on_error=stop_on_error)
             elif data.action != Action.UPSERT:
                 data.error = exceptions.ItemDoesNotExist(data.model, id=data.given['_where']['args'][1])

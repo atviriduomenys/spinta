@@ -2,13 +2,14 @@ import os
 import tempfile
 from uuid import UUID
 
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+
 from spinta import commands
 from spinta.auth import check_scope, Scopes
+from spinta.cli.helpers.migrate import MigrationConfig
 from spinta.cli.helpers.store import prepare_manifest
-from spinta.cli.helpers.migrate import MigrateRename, MigrateMeta
 from spinta.components import Context, UrlParams, Store, Model, Config, Property
-from starlette.requests import Request
-
 from spinta.core.context import configure_context, create_context
 from spinta.datasets.commands.check import check_dataset_name
 from spinta.datasets.inspect.helpers import zipitems
@@ -19,7 +20,6 @@ from spinta.manifests.components import ManifestPath, Manifest
 from spinta.manifests.tabular.helpers import datasets_to_tabular
 from spinta.utils.schema import NA
 from spinta.utils.types import is_str_uuid
-from starlette.responses import JSONResponse
 
 
 def _clean_up_file(file_path: str):
@@ -184,16 +184,15 @@ async def schema_api(context: Context, request: Request, params: UrlParams):
         validate_manifest(context, target_manifest, dataset_name)
 
         rename_data = create_migrate_rename_mapping(context, target_context, manifest, target_manifest, dataset_name)
-        migrate_meta = MigrateMeta(
+        migration_config = MigrationConfig(
             plan=False,
             autocommit=False,
-            rename=MigrateRename(
-                rename_src=rename_data
-            ),
+            rename_src=rename_data,
             datasets=[dataset_name],
-            migration_extension=(lambda: commands.update_manifest_dataset_schema(context, manifest, target_manifest))
+            migration_extension=(lambda: commands.update_manifest_dataset_schema(context, manifest, target_manifest)),
+            raise_error=True,
         )
-        commands.migrate(context, target_manifest, migrate_meta)
+        commands.migrate(context, target_manifest, migration_config)
         backend = manifest.backend
         commands.reload_backend_metadata(context, manifest, backend)
         reset_affected_objects(context, manifest, dataset_name)

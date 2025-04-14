@@ -1,8 +1,31 @@
 Changes
 #######
 
+0.2dev3 (unreleased)
+====================
+
 0.2dev2
 =======
+Bug fixes:
+
+- Add missing context to user facing error messages. (`#1196`_)
+- Do not check if a declared namespace exists in the generated namespaces (`#1256`_)
+
+  .. _#1256: https://github.com/atviriduomenys/spinta/issues/1256
+  .. _#1196: https://github.com/atviriduomenys/spinta/issues/1196
+
+Backwards incompatible:
+
+- Introduce Python package extras and optional dependencies. Now unicorn, gunicorn (http) and alembic (migrations) wont
+  be installed by default. Commands `pip install spinta` and `poetry install` (locally) won't install all packages,
+  optional ones (unicorn, gunicorn, alembic) will be skipped and if need should be installed by specifying one/multiple
+  of extra group names - `http`, `migrations` or `all`. The last one (`all`) will install all dependencies (like before).
+  For local development - `poetry install --all-extras` should be used to install all packages.
+
+  .. _#1249: https://github.com/atviriduomenys/spinta/issues/1249
+
+
+
 
 Backwards incompatible:
 
@@ -36,7 +59,26 @@ Backwards incompatible:
   .. _#842: https://github.com/atviriduomenys/spinta/issues/842
   .. _#582: https://github.com/atviriduomenys/spinta/issues/582
 
-0.1.85 (unreleased)
+0.1.86 (unreleased)
+===================
+
+Improvements:
+
+- `migrate` command now warns users if there are potential type casting issues (invalid or unsafe).
+  Can add `--raise` argument to raise `Exception` instead of warning (only applies to invalid casts, unsafe cast do not
+  raise `Exception`, like `TEXT` to `INTEGER`, which potentially can be valid) (`#1254`_).
+
+  .. _#1254: https://github.com/atviriduomenys/spinta/issues/1254
+
+Bug fixes:
+
+- Fixed `migrate` cast not including right column types while generating `USING` code part (`#1254`_).
+
+- Fixed `keymap sync` ignoring `upsert` action (`#1269`_).
+
+  .. _#1269: https://github.com/atviriduomenys/spinta/issues/1269
+
+0.1.85 (2025-04-08)
 ===================
 
 Backwards incompatible:
@@ -71,6 +113,10 @@ Improvements:
 
   .. _#1214: https://github.com/atviriduomenys/spinta/issues/1214
 
+- Added a specific `NoModelDefined` error when property is defined without a model (`#1000`_).
+
+  .. _#1000: https://github.com/atviriduomenys/spinta/issues/1000
+
 Bug fixes:
 
 - Fixed `sql` backend not using overwritten `ref` mapping values when joining tables (`#1052`_).
@@ -87,7 +133,9 @@ Bug fixes:
 
   .. _#1005: https://github.com/atviriduomenys/spinta/issues/1005
 
+- Fixed tabular reader using `dtype` instead of `raw` type when handling datatype column (`#983`_).
 
+  .. _#983: https://github.com/atviriduomenys/spinta/issues/983
 
 0.1.84 (2025-02-19)
 ===================

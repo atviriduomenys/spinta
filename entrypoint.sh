@@ -41,6 +41,6 @@ fi
 echo "Touch manifest.csv"
 touch manifest.csv
 
-poetry install spinta
+poetry install spinta[all]
 spinta upgrade
 make run

@@ -11,7 +11,8 @@ from spinta import exceptions, commands
 from spinta import spyna
 from spinta.commands import is_object_id
 from spinta.commands import prepare
-from spinta.components import Action, ParamsPage, decode_page_values
+from spinta.components import ParamsPage, decode_page_values
+from spinta.core.enums import Action
 from spinta.components import Config
 from spinta.components import Context, Node
 from spinta.components import Model

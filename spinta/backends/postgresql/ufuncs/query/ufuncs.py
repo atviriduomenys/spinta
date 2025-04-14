@@ -13,7 +13,8 @@ from spinta.auth import authorized
 from spinta.backends.constants import TableType, BackendFeatures
 from spinta.backends.postgresql.ufuncs.query.components import PgQueryBuilder, InheritForeignProperty, Lower, Recurse, \
     Negative, Positive
-from spinta.components import Property, Action, Page
+from spinta.components import Property, Page
+from spinta.core.enums import Action
 from spinta.core.ufuncs import Bind, Negative as Negative_
 from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import ufunc, GetAttr

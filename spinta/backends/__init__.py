@@ -32,7 +32,8 @@ from spinta.commands import gen_object_id
 from spinta.commands import is_object_id
 from spinta.commands import load_operator_value
 from spinta.commands import prepare
-from spinta.components import Action, UrlParams, page_in_data
+from spinta.components import UrlParams, page_in_data
+from spinta.core.enums import Action
 from spinta.components import Context
 from spinta.components import DataItem
 from spinta.components import Model
@@ -475,7 +476,7 @@ def simple_data_check(
         srid = dtype.srid
 
         if srid is None:
-            raise SRIDNotSetForGeometry(dtype)
+            raise SRIDNotSetForGeometry(dtype, property=prop)
 
         bounding_area = get_crs_bounding_area(srid)
 
@@ -2104,3 +2105,7 @@ def get_error_context(backend: Backend, *, prefix='this') -> Dict[str, str]:
         'origin': f'{prefix}.origin',
         'features': f'{prefix}.features',
     }
+
+@commands.get_error_context.register(str)
+def get_error_context(message: str, *, prefix='this') -> Dict[str, str]:
+    return {}

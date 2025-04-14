@@ -14,11 +14,10 @@ from typing import TypedDict
 from typing import Union
 
 from spinta.components import Component, Context
-from spinta.components import Mode
 from spinta.components import Model
 from spinta.components import Namespace
 from spinta.components import Store
-from spinta.core.enums import Access
+from spinta.core.enums import Access, Mode
 from spinta.dimensions.enum.components import Enums
 from spinta.dimensions.prefix.components import UriPrefix
 
