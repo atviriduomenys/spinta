@@ -26,5 +26,5 @@ class KeyMap(Component):
     def update_sync_data(self, name: str, cid: Any, time: datetime):
         raise NotImplementedError
 
-    def synchronize(self, name: str, value: Any, primary_key: str, action: Action):
+    def synchronize(self, name: str, value: Any, primary_key: str):
         raise NotImplementedError

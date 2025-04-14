@@ -101,7 +101,6 @@ class KeymapData:
     value: object
     identifier: str
     data: dict
-    action: Action
 
 
 def process_keymap_data(
@@ -132,7 +131,7 @@ def process_keymap_data(
             )
 
         for key, value, identifier in data:
-            yield KeymapData(key=key, value=value, identifier=identifier, data=row, action=action)
+            yield KeymapData(key=key, value=value, identifier=identifier, data=row)
 
 
 def sync_model_insert(
