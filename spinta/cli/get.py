@@ -35,24 +35,3 @@ def getall(
             commands.getall(context, model, store.manifest.backend)
         )
     echo(response_dict)
-
-
-def getone(
-    ctx: TyperContext,
-    manifests: Optional[List[str]] = Argument(None, help=("Manifest files to load")),
-    backend: str = Argument(None, help=("Backend connection string")),
-    model: str = Argument(None, help=("Model path")),
-    id_: str = Argument(None, help=("Dataset model id")),
-):
-    manifests = convert_str_to_manifest_path(manifests)
-    context = configure_context(
-        ctx.obj, manifests, backend_type="memory", backend=backend
-    )
-    prepare_manifest(context, ensure_config_dir=True, verbose=False)
-    store = context.get("store")
-    model = commands.get_model(context, store.manifest, model)
-    result = {}
-    try:
-        echo(commands.getone(context, model, store.manifest.backend, id_=id_))
-    except KeyError:
-        echo(result)

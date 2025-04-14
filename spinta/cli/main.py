@@ -67,8 +67,6 @@ add(app, 'upgrade', upgrade, short_help="Run upgrade scripts")
 
 add(app, 'keymap', keymap, short_help="Manage keymap database")
 add(app, 'getall', get.getall, short_help="Show data from yaml dsn as json")
-add(app, 'getone', get.getone, short_help="Show data with specific id from yaml dsn as json")
-
 
 @app.callback(invoke_without_command=True)
 def main(
