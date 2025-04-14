@@ -11,7 +11,8 @@ from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.cli.helpers.export.backends.postgresql.components import PostgresqlExportMetadata, TableData
 from spinta.cli.helpers.export.components import CounterManager
-from spinta.components import Context, Model, Action, DataItem
+from spinta.components import Context, Model, DataItem
+from spinta.core.enums import Action
 from spinta.types.datatype import Array, DataType, File
 from spinta.utils.aiotools import anext, achain
 from spinta.utils.itertools import ensure_list

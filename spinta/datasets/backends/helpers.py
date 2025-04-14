@@ -2,7 +2,8 @@ import json
 from typing import Any
 
 from spinta import commands, spyna
-from spinta.components import Property, Model, Context, Mode
+from spinta.components import Property, Model, Context
+from spinta.core.enums import Mode
 from spinta.core.ufuncs import Env, asttoexpr
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.exceptions import GivenValueCountMissmatch, MultiplePrimaryKeyCandidatesFound, NoPrimaryKeyCandidatesFound

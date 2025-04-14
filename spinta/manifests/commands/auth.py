@@ -1,6 +1,7 @@
 from spinta import commands
 from spinta.auth import authorized
-from spinta.components import Context, Action, Namespace
+from spinta.components import Context, Namespace
+from spinta.core.enums import Action
 from spinta.manifests.components import Manifest
 
 

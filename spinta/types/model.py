@@ -18,15 +18,14 @@ from spinta.backends.nobackend.components import NoBackend
 from spinta.commands import authorize
 from spinta.commands import check
 from spinta.commands import load
-from spinta.components import Action, PageBy, Page, PageInfo, UrlParams, pagination_enabled
+from spinta.components import PageBy, Page, PageInfo, UrlParams, pagination_enabled
 from spinta.components import Base
 from spinta.components import Context
-from spinta.components import Mode
 from spinta.components import Model
 from spinta.components import Property
 from spinta.core.access import link_access_param
 from spinta.core.access import load_access_param
-from spinta.core.enums import Level, load_level, load_status, load_visibility
+from spinta.core.enums import Level, load_level, load_status, load_visibility, Action, Mode
 from spinta.datasets.components import ExternalBackend
 from spinta.dimensions.comments.helpers import load_comments
 from spinta.dimensions.enum.components import EnumValue

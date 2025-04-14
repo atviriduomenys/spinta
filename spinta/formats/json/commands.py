@@ -3,7 +3,8 @@ from typing import Optional, Dict, Any
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response, StreamingResponse
 
-from spinta.components import Context, Action, UrlParams, Node
+from spinta.components import Context, UrlParams, Node
+from spinta.core.enums import Action
 from spinta import commands
 from spinta.formats.json.components import Json
 from spinta.types.text.components import Text

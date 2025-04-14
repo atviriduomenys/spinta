@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Optional, Any
 
 from spinta.components import Component
+from spinta.core.enums import Action
 
 
 class KeyMap(Component):
