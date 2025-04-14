@@ -9,6 +9,7 @@ from spinta.utils.naming import to_dataset_name, to_code_name
 
 
 SUPPORTED_PARAMETER_LOCATIONS = ['query', 'header', 'path']
+DEFAULT_DATASET_NAME = 'default'
 
 
 def read_file_data_and_transform_to_json(path: Path) -> dict:
@@ -54,21 +55,18 @@ def get_dataset_schemas(data: dict, dataset_prefix: str) -> Generator[tuple[None
     for api_endpoint, api_metadata in data.get('paths', {}).items():
         for http_method, http_method_metadata in api_metadata.items():
             tags = http_method_metadata.get('tags', [])
-            if not tags:
-                continue
 
-            dataset_name = to_dataset_name('_'.join(tags))
+            dataset_name = to_dataset_name('_'.join(tags)) or DEFAULT_DATASET_NAME  # Default dataset if no tags given.
             if dataset_name not in datasets:
                 datasets[dataset_name] = {
                     'type': 'dataset',
                     'name': f'{dataset_prefix}/{dataset_name}',
                     'title': ', '.join(tags),
                     'description': ', '.join(tag_metadata[tag] for tag in tags if tag in tag_metadata),
-                    'resources': {}
+                    'resources': {},
                 }
 
-            resource_source = f'{api_endpoint}/{http_method}'
-            resource_name = to_code_name(resource_source)
+            resource_name = to_code_name(f'{api_endpoint}/{http_method}')
             resource_parameters = get_resource_parameters(http_method_metadata.get('parameters', {}))
 
             datasets[dataset_name]['resources'][resource_name] = {

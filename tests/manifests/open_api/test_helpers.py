@@ -292,3 +292,63 @@ def test_get_dataset_schemas_no_parameters():
             }
         }
     ]
+
+
+def test_get_dataset_schemas_no_tags_default_dataset():
+    resource_countries_id = str(uuid.uuid4().hex)
+    resource_cities_id = str(uuid.uuid4().hex)
+    data = {
+        'info': {
+            'title': 'Geography API',
+            'version': '1.0.0',
+            'summary': 'API for geographic objects',
+            'description': 'Intricate description'
+        },
+        'paths': {
+            '/api/countries': {
+                'get': {
+                    'summary': 'List of countries API',
+                    'description': 'List of known countries in the world',
+                    'operationId': resource_countries_id
+                }
+            },
+            '/api/cities' : {
+                'get': {
+                    'summary': 'List of cities API',
+                    'description': 'List of known cities in the world',
+                    'operationId': resource_cities_id
+                }
+            }
+        }
+    }
+
+    dataset_schemas = [schema for _, schema in get_dataset_schemas(data, 'services/geography_api')]
+
+    assert dataset_schemas == [
+        {
+            'type': 'dataset',
+            'name': 'services/geography_api/default',
+            'title': '',
+            'description': '',
+            'resources': {
+                'api_countries_get': {
+                    'id': resource_countries_id,
+                    'params': {},
+                    'external': '/api/countries',
+                    'type': 'dask/json',
+                    'prepare': Expr('http', method='GET', body='form'),
+                    'title': 'List of countries API',
+                    'description': 'List of known countries in the world'
+                },
+                'api_cities_get': {
+                    'id': resource_cities_id,
+                    'params': {},
+                    'external': '/api/cities',
+                    'type': 'dask/json',
+                    'prepare': Expr('http', method='GET', body='form'),
+                    'title': 'List of cities API',
+                    'description': 'List of known cities in the world'
+                }
+            }
+        }
+    ]
