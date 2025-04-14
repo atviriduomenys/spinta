@@ -209,6 +209,7 @@ psql -h localhost -p 54321 -U admin spinta -c '\dt public.*'
 # Run server in INTERNAL mode
 test -n "$PID" && kill "$PID"
 spinta run &>> "$BASEDIR"/spinta.log & PID=$!
+#wait a bit for it to load
 tail -50 "$BASEDIR"/spinta.log
 
 http :8000
@@ -315,6 +316,8 @@ xdg-open http://localhost:8000/datasets/gov/rc/ar/adresai/Adresas/264ae0f9-53eb-
 xdg-open http://localhost:8000/datasets/gov/rc/ar/adresai/Adresas/:changes
 xdg-open http://localhost:8000/datasets/gov/rc/ar/adresai/Adresas/264ae0f9-53eb-496b-a07c-ce1b9cbe510c/:changes
 
+
+# change the version number in pyproject.toml
 
 # Publish project to PyPI
 # If you don't have token, see here: https://pypi.org/help/#apitoken and here: https://www.digitalocean.com/community/tutorials/how-to-publish-python-packages-to-pypi-using-poetry-on-ubuntu-22-04
