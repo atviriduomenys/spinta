@@ -51,6 +51,7 @@ def load_namespace_from_name(
     # Drop last element from path which is usually a model name.
     drop: bool = True,
 ) -> Namespace:
+
     ns: Optional[Namespace] = None
     parts: List[str] = []
     parts_ = [p for p in path.split('/') if p]

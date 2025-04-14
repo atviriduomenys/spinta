@@ -7,8 +7,10 @@ Changes
 Bug fixes:
 
 - Add missing context to user facing error messages. (`#1196`_)
+- Do not check if a declared namespace exists in the generated namespaces (`#1256`_)
 
-  .. _#1196: https://github.com/atviriduomenys/spinta/issues/1196
+  .. _#1256: https://github.com/atviriduomenys/spinta/issues/1256
+  .. _#1256: https://github.com/atviriduomenys/spinta/issues/1256
 
 Backwards incompatible:
 

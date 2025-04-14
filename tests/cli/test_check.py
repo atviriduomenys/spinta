@@ -1,7 +1,7 @@
 import pytest
 
 from spinta.components import Context
-from spinta.exceptions import InvalidValue
+from spinta.exceptions import InvalidValue, InvalidManifestFile
 from spinta.testing.cli import SpintaCliRunner
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.tabular import create_tabular_manifest
@@ -181,3 +181,43 @@ def test_check_access(context: Context, rc, cli: SpintaCliRunner, tmp_path):
     assert result.exit_code != 0
     assert result.exc_info[0] is InvalidValue
     assert result.exception.context.get('given') == "test"
+
+
+def test_check_existing_generated_manifest(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+ d | r | b | m | property       | type   | ref  | level
+ datasets/gov/test/example2     |        |      |
+ datasets/gov/test | | | |      | ns     |      |
+ datasets/gov/test/example1     |        |      |
+                                |        |      |
+   |   |   | City               |        | code | 4
+   |   |   |   | name           | string |      | 4
+   |   |   |   | code           | string |      | 4
+'''))
+
+    cli.invoke(rc, [
+        'check',
+        tmp_path / 'manifest.csv',
+
+    ])
+
+
+def test_check_existing_declared_manifest(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+ d | r | b | m | property       | type   | ref  | level
+ datasets/gov/test/example2     |        |      |
+ datasets/gov/test | | | |      | ns     |      |
+ datasets/gov/test | | | |      | ns     |      |
+ datasets/gov/test/example1     |        |      |
+                                |        |      |
+   |   |   | City               |        | code | 4
+   |   |   |   | name           | string |      | 4
+   |   |   |   | code           | string |      | 4
+'''))
+
+    result = cli.invoke(rc, [
+        'check',
+        tmp_path / 'manifest.csv',
+    ], fail=False)
+    assert result.exit_code != 0
+    assert result.exc_info[0] is InvalidManifestFile
