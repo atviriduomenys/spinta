@@ -149,7 +149,7 @@ class SqlAlchemyKeyMap(KeyMap):
         )
         self.conn.execute(query)
 
-    def synchronize(self, name: str, value: Any, primary_key: str, action: Action):
+    def synchronize(self, name: str, value: Any, primary_key: str):
         table = self.get_table(name)
         hash_return = _hash_value(value)
         if hash_return is None:
@@ -251,7 +251,7 @@ def sync(context: Context, keymap: SqlAlchemyKeyMap, *, data: Generator[KeymapDa
 
                 transaction = keymap.conn.begin()
 
-            keymap.synchronize(row.key, row.value, row.identifier, row.action)
+            keymap.synchronize(row.key, row.value, row.identifier)
             yield row
     finally:
         if transaction is not None and transaction.is_active:
