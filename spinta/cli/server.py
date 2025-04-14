@@ -12,7 +12,7 @@ from spinta import commands
 from spinta.cli.helpers.manifest import convert_str_to_manifest_path
 from spinta.cli.helpers.store import load_store
 from spinta.cli.helpers.store import prepare_manifest
-from spinta.components import Mode
+from spinta.core.enums import Mode
 from spinta.core.context import configure_context
 
 log = logging.getLogger(__name__)

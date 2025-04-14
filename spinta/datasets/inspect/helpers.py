@@ -11,7 +11,7 @@ from spinta import commands
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.store import load_manifest
 from spinta.components import Context, Property, Node
-from spinta.components import Mode
+from spinta.core.enums import Mode
 from spinta.components import Model
 from spinta.core.config import RawConfig, Path
 from spinta.core.config import ResourceTuple

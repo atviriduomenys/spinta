@@ -16,6 +16,10 @@ Bug fixes:
 
 - Fixed `migrate` cast not including right column types while generating `USING` code part (`#1254`_).
 
+- Fixed `keymap sync` ignoring `upsert` action (`#1269`_).
+
+  .. _#1269: https://github.com/atviriduomenys/spinta/issues/1269
+
 0.1.85 (2025-04-08)
 ===================
 
