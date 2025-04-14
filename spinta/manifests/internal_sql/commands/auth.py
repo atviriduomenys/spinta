@@ -3,8 +3,8 @@ import sqlalchemy as sa
 
 from spinta import commands
 from spinta.auth import get_default_auth_client_id
-from spinta.components import Context, Action, Config, Namespace
-from spinta.core.enums import Access
+from spinta.components import Context, Config, Namespace
+from spinta.core.enums import Access, Action
 from spinta.exceptions import AuthorizedClientsOnly
 from spinta.manifests.internal_sql.components import InternalSQLManifest
 from spinta.utils.enums import get_enum_by_name

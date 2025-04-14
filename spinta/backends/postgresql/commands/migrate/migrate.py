@@ -1,8 +1,6 @@
 from typing import List, Dict, Tuple
 
 import sqlalchemy as sa
-from alembic.migration import MigrationContext
-from alembic.operations import Operations
 from sqlalchemy.engine.reflection import Inspector
 
 import spinta.backends.postgresql.helpers.migrate.actions as ma
@@ -14,11 +12,11 @@ from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_column_name
 from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
 from spinta.backends.postgresql.helpers.migrate.migrate import drop_all_indexes_and_constraints, model_name_key, \
-    MigratePostgresMeta
+    PostgresqlMigrationContext, CastMatrix, validate_rename_map, RenameMap
 from spinta.backends.postgresql.helpers.name import get_pg_table_name, get_pg_column_name, \
     get_pg_foreign_key_name, get_pg_file_name, PG_NAMING_CONVENTION
 from spinta.utils.sqlalchemy import get_metadata_naming_convention
-from spinta.cli.helpers.migrate import MigrateRename, MigrateMeta
+from spinta.cli.helpers.migrate import MigrationConfig
 from spinta.commands import create_exception
 from spinta.components import Context, Model
 from spinta.datasets.inspect.helpers import zipitems
@@ -28,12 +26,15 @@ from spinta.types.namespace import sort_models_by_ref_and_base
 from spinta.utils.schema import NA
 
 
-@commands.migrate.register(Context, Manifest, PostgreSQL, MigrateMeta)
-def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_meta: MigrateMeta):
+@commands.migrate.register(Context, Manifest, PostgreSQL, MigrationConfig)
+def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migration_config: MigrationConfig):
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+
     conn = context.get(f'transaction.{backend.name}')
     ctx = MigrationContext.configure(conn, opts={
-        "as_sql": migrate_meta.plan,
-        "literal_binds": migrate_meta.plan,
+        "as_sql": migration_config.plan,
+        "literal_binds": migration_config.plan,
         "target_metadata": backend.schema
     })
     op = Operations(ctx)
@@ -42,23 +43,28 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
     metadata.reflect(
         only=_filter_reflect_datasets(
             inspector,
-            migrate_meta.datasets
+            migration_config.datasets
         )
     )
 
     handler = MigrationHandler()
-    meta = MigratePostgresMeta(
+    migration_ctx = PostgresqlMigrationContext(
+        config=migration_config,
         inspector=inspector,
         handler=handler,
-        rename=migrate_meta.rename
+        rename=RenameMap(
+            rename_src=migration_config.rename_src
+        ),
+        cast_matrix=CastMatrix(backend.engine)
     )
+    validate_rename_map(context, migration_ctx.rename, manifest)
 
     models = commands.get_models(context, manifest)
     models, tables = _filter_models_and_tables(
         models=models,
         existing_tables=inspector.get_table_names(),
-        filtered_datasets=migrate_meta.datasets,
-        rename=migrate_meta.rename
+        filtered_datasets=migration_config.datasets,
+        rename=migration_ctx.rename
     )
 
     sorted_models = sort_models_by_ref_and_base(list(models.values()))
@@ -84,21 +90,21 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
 
             old = NA
             if old_table_name:
-                name = get_pg_table_name(migrate_meta.rename.get_old_table_name(old_table_name))
+                name = get_pg_table_name(migration_ctx.rename.get_old_table_name(old_table_name))
                 old = metadata.tables[name]
 
             new = commands.get_model(context, manifest, new_model_name) if new_model_name else new_model_name
-            commands.migrate(context, backend, meta, old, new)
-    _clean_up_file_type(inspector, sorted_models, handler, migrate_meta.rename)
+            commands.migrate(context, backend, migration_ctx, old, new)
+    _clean_up_file_type(inspector, sorted_models, handler, migration_ctx.rename)
 
     try:
         # Handle autocommit migrations differently
-        if migrate_meta.autocommit:
+        if migration_config.autocommit:
             # Recreate new connection, that auto commits
             with backend.engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
                 ctx = MigrationContext.configure(conn, opts={
-                    "as_sql": migrate_meta.plan,
-                    "literal_binds": migrate_meta.plan,
+                    "as_sql": migration_config.plan,
+                    "literal_binds": migration_config.plan,
                     "target_metadata": backend.schema
                 })
                 op = Operations(ctx)
@@ -107,7 +113,7 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
 
         # If in plan mode, just run the migrations
         # ctx is already setup so that it would not execute the code
-        if migrate_meta.plan:
+        if migration_config.plan:
             with ctx.begin_transaction():
                 handler.run_migrations(op)
             return
@@ -124,8 +130,8 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
             # You can add custom logic that you might want to execute after running migrations, but before commiting
             # transaction, like `InternalSqlManifest` can update its own manifest schema, so you might want to try update
             # it here, incase it fails, transaction will be reverted and no changes will be made.
-            if migrate_meta.migration_extension is not None:
-                migrate_meta.migration_extension()
+            if migration_config.migration_extension is not None:
+                migration_config.migration_extension()
             trx.commit()
         except Exception:
             trx.rollback()
@@ -151,7 +157,7 @@ def _filter_models_and_tables(
     models: Dict[str, Model],
     existing_tables: List[str],
     filtered_datasets: List[str],
-    rename: MigrateRename
+    rename: RenameMap
 ) -> Tuple[Dict[str, Model], List[str]]:
     tables = []
 
@@ -183,8 +189,12 @@ def _filter_models_and_tables(
     return models, tables
 
 
-def _handle_foreign_key_constraints(inspector: Inspector, models: List[Model], handler: MigrationHandler,
-                                    rename: MigrateRename):
+def _handle_foreign_key_constraints(
+    inspector: Inspector,
+    models: List[Model],
+    handler: MigrationHandler,
+    rename: RenameMap
+):
     existing_table_names = set(inspector.get_table_names())
 
     for model in models:
@@ -275,7 +285,7 @@ def _handle_foreign_key_constraints(inspector: Inspector, models: List[Model], h
             ), True)
 
 
-def _clean_up_file_type(inspector: Inspector, models: List[Model], handler: MigrationHandler, rename: MigrateRename):
+def _clean_up_file_type(inspector: Inspector, models: List[Model], handler: MigrationHandler, rename: RenameMap):
     allowed_file_tables = []
     existing_tables = []
     for model in models:

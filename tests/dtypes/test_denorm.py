@@ -1,5 +1,4 @@
 import uuid
-from pathlib import Path
 
 import pytest
 from _pytest.fixtures import FixtureRequest

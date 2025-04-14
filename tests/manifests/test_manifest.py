@@ -92,11 +92,11 @@ def test_backends_with_models(manifest_type, tmp_path, rc):
 @pytest.mark.manifests('internal_sql', 'csv')
 def test_ns(manifest_type, tmp_path, rc):
     check(tmp_path, rc, '''
-    d | r | b | m | property | type | ref                  | title               | description
-                             | ns   | datasets             | All datasets        | All external datasets.
-                             |      | datasets/gov         | Government datasets | All government datasets.
-                             |      | datasets/gov/example | Example             |
-                             |      |                      |                     |
+    d | r | b | m | property | type | ref | title               | description
+    datasets                 | ns   |     | All datasets        | All external datasets.
+    datasets/gov             | ns   |     | Government datasets | All government datasets.
+                             |      |     |                     |
+    datasets/gov/example     |      |     | Example             |
     ''', manifest_type)
 
 
@@ -104,11 +104,10 @@ def test_ns(manifest_type, tmp_path, rc):
 def test_ns_with_models(manifest_type, tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property | type   | ref                  | title               | description
-                             | ns     | datasets             | All datasets        | All external datasets.
-                             |        | datasets/gov         | Government datasets | All government datasets.
-                             |        | datasets/gov/example | Example             |
+    datasets                 | ns     |                      | All datasets        | All external datasets.
+    datasets/gov             | ns     |                      | Government datasets | All government datasets.
                              |        |                      |                     |
-    datasets/gov/example     |        |                      |                     |
+    datasets/gov/example     |        |                      | Example             |
       | data                 |        | default              |                     |
                              |        |                      |                     |
       |   |   | Country      |        |                      |                     |
@@ -1452,30 +1451,6 @@ def test_intermediate_table_invalid_mapping_refprops(manifest_type, tmp_path, rc
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_intermediate_table_invalid_mapping_multiple_references(manifest_type, tmp_path, rc):
-    with pytest.raises(UnableToMapIntermediateTable):
-        check(tmp_path, rc, '''
-                d | r | b | m | property    | type    | ref             | access | title
-                example                     |         |                 |        |
-                                            |         |                 |        |
-                  |   |   | Language        |         | id              |        |
-                  |   |   |   | id          | integer |                 | open   |
-                  |   |   |   | name        | string  |                 | open   |
-                                            |         |                 |        |
-                  |   |   | Country         |         | id              |        |
-                  |   |   |   | id          | integer |                 | open   |
-                  |   |   |   | name        | string  |                 | open   |
-                  |   |   |   | languages   | array   | CountryLanguage | open   |
-                  |   |   |   | languages[] | ref     | Language        | open   |
-                                            |         |                 |        |
-                  |   |   | CountryLanguage |         |                 |        |
-                  |   |   |   | country     | ref     | Country         | open   |
-                  |   |   |   | language    | ref     | Language        | open   |
-                  |   |   |   | lang        | ref     | Language        | open   |
-            ''', manifest_type)
-
-
-@pytest.mark.manifests('internal_sql', 'csv')
 def test_intermediate_table_same_model_mapping_pkey(manifest_type, tmp_path, rc):
     check(tmp_path, rc, '''
             d | r | b | m | property    | type    | ref            | access | title
@@ -1531,7 +1506,7 @@ def test_intermediate_table_same_model_unknown_mapping(manifest_type, tmp_path, 
 
 @pytest.mark.manifests('internal_sql', 'csv')
 def test_intermediate_table_invalid_mapping_multiple_references(manifest_type, tmp_path, rc):
-    with pytest.raises(UnableToMapIntermediateTable):
+    with pytest.raises(UnableToMapIntermediateTable) as e:
         check(tmp_path, rc, '''
                 d | r | b | m | property    | type    | ref             | access | title
                 example                     |         |                 |        |
@@ -1551,6 +1526,7 @@ def test_intermediate_table_invalid_mapping_multiple_references(manifest_type, t
                   |   |   |   | language    | ref     | Language        | open   |
                   |   |   |   | lang        | ref     | Language        | open   |
             ''', manifest_type)
+    assert e.value.message == 'Unable to map intermediate table (example/CountryLanguage) to `Array` property.'
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
@@ -1693,6 +1669,7 @@ def test_property_error(manifest_type, tmp_path, rc):
           |   |   |   | id         | integer      |         | open   |
           |   |   |   | name       | string       |         | open   |
         ''', manifest_type)
+
 
 @pytest.mark.manifests('internal_sql', 'csv')
 def test_no_model_defined_error(manifest_type, tmp_path, rc):

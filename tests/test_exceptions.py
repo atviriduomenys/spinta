@@ -1,10 +1,15 @@
 # Register get_error_context commands.
+import pytest
+
 import spinta.commands  # noqa
 import spinta.manifests.commands.error  # noqa
 from spinta import commands
 
-from spinta.exceptions import BaseError, error_response
-from spinta.components import Node
+from spinta.exceptions import BaseError, error_response, JSONError, MultipleRowsFound, ManagedProperty, \
+    RequiredProperty, BackendNotGiven, SRIDNotSetForGeometry
+from spinta.components import Node, Property
+from spinta.types.datatype import DataType
+from spinta.types.geometry.components import Geometry
 
 
 class Error(BaseError):
@@ -207,3 +212,54 @@ def test_this_dataset_model_property(context):
         '    attribute: None\n'
         '    resource.backend: datasets/backends/postgres/dataset/sql\n'
     )
+
+
+def test_json_error_message(context):
+    exception = JSONError(Node(), error="Expecting value: line 1 column 1 (char 0)")
+    assert exception.message == (
+        "Invalid JSON for <spinta.components.Node(name=None)>. "
+        "Original error - Expecting value: line 1 column 1 (char 0)."
+    )
+
+def test_geometry_error_message(context):
+    model = commands.get_model(context, context.get('store').manifest, 'Org')
+    property = model.properties['title']
+    error = SRIDNotSetForGeometry(property.dtype, property=property)
+    assert error.message == (
+        "<spinta.components.Property(name='title', type='string', model='Org')> Geometry SRID is required, but was given None."
+    )
+
+@pytest.mark.parametrize(
+    argnames=["error", "params", "expected_message"],
+    argvalues=[
+        [
+            MultipleRowsFound,
+            {"this": "datasets/gov/push/file/Country", "number_of_rows": 3},
+            "Multiple (3) rows were found under datasets/gov/push/file/Country."
+        ],
+        [
+            ManagedProperty,
+            {"this": commands.get_model, "property": "_revision"},
+            "Value of property (_revision) under <model "
+             "name='datasets/backends/postgres/dataset/Report'> is managed automatically "
+             "and cannot be set manually."
+        ],
+        [
+            RequiredProperty,
+            {"this": Property()},
+            "Property ([UNKNOWN]) is required."
+        ],
+        [
+            BackendNotGiven,
+            {"this": commands.get_model},
+            "Model (<model name='datasets/backends/postgres/dataset/Report'>) is operating in external mode, "
+            "yet it does not have an assigned backend to it."
+        ],
+    ],
+)
+def test_error_messages(error: type[BaseError], params: dict, expected_message: str, context):
+    this = params.pop("this")
+    if callable(this):
+        this = this(context, context.get('store').manifest, 'datasets/backends/postgres/dataset/Report')
+    exception = error(this, **params)
+    assert exception.message == expected_message

@@ -15,7 +15,7 @@ from starlette.responses import Response
 
 from spinta.exceptions import BaseError
 from spinta.typing import ObjectData
-from spinta.components import Node, DataItem, PageInfo, Page
+from spinta.components import Node, DataItem, PageInfo, Page, Base
 from spinta.components import UrlParams
 from spinta.components import Version
 from spinta.dispatcher import command
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from spinta.components import Model
     from spinta.components import Property
     from spinta.types.datatype import DataType
-    from spinta.components import Action
+    from spinta.core.enums import Action
     from spinta.backends import Backend
     from spinta.components import Context
     from spinta.manifests.components import Manifest
@@ -1508,4 +1508,51 @@ def backend_to_manifest_type(**kwargs) -> Type[Manifest]:
     """
         Attempts to map backend to it's appropriate manifest type.
         Mainly used for `inspect` mapping.
+    """
+
+
+@overload
+def resolve_property(
+    model: Model,
+    prop: str
+) -> Property | None:
+    """
+        Attempts to resolve given string to Property using Model
+    """
+
+
+@overload
+def resolve_property(
+    base: Base,
+    prop: str
+) -> Property | None:
+    """
+        Attempts to resolve given string to Property using Base
+    """
+
+
+@overload
+def resolve_property(
+    parent_prop: Property,
+    prop: str
+) -> Property | None:
+    """
+        Attempts to resolve given string to Property using another Property
+    """
+
+
+@overload
+def resolve_property(
+    dtype: DataType,
+    prop: str
+) -> Property | None:
+    """
+        Attempts to resolve given string to Property using DataType
+    """
+
+
+@command()
+def resolve_property(*args, **kwargs) -> Property | None:
+    """
+        Attempts to resolve given arguments to existing Property
     """

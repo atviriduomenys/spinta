@@ -9,7 +9,6 @@ from typing import Iterator
 from typing import Set
 from typing import TYPE_CHECKING, List, Optional, AsyncIterator, Union
 
-import enum
 import contextlib
 import dataclasses
 import pathlib
@@ -23,7 +22,7 @@ from spinta.dimensions.lang.components import LangData
 from spinta.units.components import Unit
 from spinta.utils.encoding import encode_page_values
 from spinta.utils.schema import NA
-from spinta.core.enums import Access, Level, Status, Visibility
+from spinta.core.enums import Access, Level, Status, Visibility, Action, Mode
 
 if TYPE_CHECKING:
     from spinta.backends.components import Backend
@@ -898,38 +897,6 @@ class Attachment:
     data: bytes
 
 
-class Action(enum.Enum):
-    INSERT = 'insert'
-    UPSERT = 'upsert'
-    UPDATE = 'update'
-    PATCH = 'patch'
-    DELETE = 'delete'
-
-    WIPE = 'wipe'
-
-    GETONE = 'getone'
-    GETALL = 'getall'
-    SEARCH = 'search'
-
-    CHANGES = 'changes'
-
-    CHECK = 'check'
-    INSPECT = 'inspect'
-    SCHEMA = 'schema'
-
-    @classmethod
-    def has_value(cls, value):
-        return value in cls._value2member_map_
-
-    @classmethod
-    def by_value(cls, value):
-        return cls._value2member_map_[value]
-
-    @classmethod
-    def values(cls):
-        return list(cls._value2member_map_.keys())
-
-
 class UrlParseNode(TypedDict):
     name: str
     args: List[Any]
@@ -1111,17 +1078,6 @@ class DataSubItem:
 
 
 DataStream = AsyncIterator[DataItem]
-
-
-class Mode(enum.Enum):
-    # Internal mode always use internal backend set on manifest, namespace or
-    # model.
-    internal = 'internal'
-
-    # External model always sue external backend set on dataset or model's
-    # source entity.
-    external = 'external'
-
 
 ScopeFormatterFunc = Callable[[
     Context,

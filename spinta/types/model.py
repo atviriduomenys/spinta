@@ -18,15 +18,14 @@ from spinta.backends.nobackend.components import NoBackend
 from spinta.commands import authorize
 from spinta.commands import check
 from spinta.commands import load
-from spinta.components import Action, PageBy, Page, PageInfo, UrlParams, pagination_enabled
+from spinta.components import PageBy, Page, PageInfo, UrlParams, pagination_enabled
 from spinta.components import Base
 from spinta.components import Context
-from spinta.components import Mode
 from spinta.components import Model
 from spinta.components import Property
 from spinta.core.access import link_access_param
 from spinta.core.access import load_access_param
-from spinta.core.enums import Level, load_level, load_status, load_visibility
+from spinta.core.enums import Level, load_level, load_status, load_visibility, Action, Mode
 from spinta.datasets.components import ExternalBackend
 from spinta.dimensions.comments.helpers import load_comments
 from spinta.dimensions.enum.components import EnumValue
@@ -609,3 +608,39 @@ def create_page(page_info: PageInfo, data: Union[list, set, tuple]) -> Page:
 @commands.create_page.register(PageInfo, object)
 def create_page(page_info: PageInfo, data: Any) -> Page:
     return commands.create_page(page_info)
+
+
+@commands.resolve_property.register(Property, str)
+def resolve_property(parent_prop: Property, prop: str) -> Property | None:
+    return commands.resolve_property(parent_prop.dtype, prop)
+
+
+@commands.resolve_property.register(Base, str)
+def resolve_property(base: Base, prop: str) -> Property | None:
+    return commands.resolve_property(base.parent, prop)
+
+
+@commands.resolve_property.register(Model, str)
+def resolve_property(model: Model, prop: str) -> Property | None:
+    if prop in model.flatprops:
+        return model.flatprops[prop]
+
+    if model.base is not None:
+        resolved_base = commands.resolve_property(model.base, prop)
+        if resolved_base is not None:
+            return resolved_base
+
+    if '.' in prop:
+        split = prop.split('.')
+        resolved_prop = None
+        for i in range(len(split) - 1, 0, -1):
+            parent_prop = '.'.join(split[:i])
+            child_prop = '.'.join(split[i:])
+            parent_resolved_prop = commands.resolve_property(model, parent_prop)
+            if parent_resolved_prop is not None:
+                resolved_prop = commands.resolve_property(parent_resolved_prop, child_prop)
+
+            if resolved_prop is not None:
+                return resolved_prop
+
+    return None

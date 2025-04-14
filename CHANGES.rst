@@ -1,13 +1,50 @@
 Changes
 #######
 
+0.2dev3 (unreleased)
+====================
+
+Bug fixes:
+
+- Add missing context to user facing error messages. (`#1196`_)
+
+  .. _#1196: https://github.com/atviriduomenys/spinta/issues/1196
+
+Backwards incompatible:
+
+- Introduce Python package extras and optional dependencies. Now unicorn, gunicorn (http) and alembic (migrations) wont
+  be installed by default. Commands `pip install spinta` and `poetry install` (locally) won't install all packages,
+  optional ones (unicorn, gunicorn, alembic) will be skipped and if need should be installed by specifying one/multiple
+  of extra group names - `http`, `migrations` or `all`. The last one (`all`) will install all dependencies (like before).
+  For local development - `poetry install --all-extras` should be used to install all packages.
+
+  .. _#1249: https://github.com/atviriduomenys/spinta/issues/1249
+
+
 0.2dev2 (unreleased)
 ====================
 
 Backwards incompatible:
+
 - added `status`, `visibility`, `eli`, `origin`, `count` and `source.type` columns. (`#1032`_)
 
   .. _#1032: https://github.com/atviriduomenys/spinta/issues/1032
+
+New Features:
+
+- Added OpenAPI Schema manifest (`#1211`_)
+- Added changes to support enum `noop()` classificator for copy & check commands (`#1146`_)
+- Added OpenAPI Schema to DSA convertion `Dataset` column part (`#1208`_)
+
+  .. _#1211: https://github.com/atviriduomenys/spinta/issues/1211
+  .. _#1146: https://github.com/atviriduomenys/spinta/issues/1146
+  .. _#1208: https://github.com/atviriduomenys/spinta/issues/1208
+
+Bug fixes:
+
+- Fixed a bug where namespace (`ns`) dataset name would be placed in the ref column instead of the dataset column (`#1238`_)
+
+  .. _#1238: https://github.com/atviriduomenys/spinta/issues/1238
 
 0.2dev1
 =======
@@ -19,8 +56,33 @@ Backwards incompatible:
   .. _#842: https://github.com/atviriduomenys/spinta/issues/842
   .. _#582: https://github.com/atviriduomenys/spinta/issues/582
 
-0.1.85 (unreleased)
+0.1.86 (unreleased)
 ===================
+
+Improvements:
+
+- `migrate` command now warns users if there are potential type casting issues (invalid or unsafe).
+  Can add `--raise` argument to raise `Exception` instead of warning (only applies to invalid casts, unsafe cast do not
+  raise `Exception`, like `TEXT` to `INTEGER`, which potentially can be valid) (`#1254`_).
+
+  .. _#1254: https://github.com/atviriduomenys/spinta/issues/1254
+
+Bug fixes:
+
+- Fixed `migrate` cast not including right column types while generating `USING` code part (`#1254`_).
+
+- Fixed `keymap sync` ignoring `upsert` action (`#1269`_).
+
+  .. _#1269: https://github.com/atviriduomenys/spinta/issues/1269
+
+0.1.85 (2025-04-08)
+===================
+
+Backwards incompatible:
+
+- The `Sql` backend no longer generates random UUIDs whenever `internal` models are being accessed in `external` mode.
+  Instead, if a value mapping is not found, an error is raised. The only way to resolve this error is to update `keymap`
+  by running `keymap sync` command (`#1214`_).
 
 New Features:
 
@@ -28,10 +90,7 @@ New Features:
 
 - Added `flip('...')` function support in `select` query to `postgresql` and `sql` backends (`#1052`_).
 
-- Added OpenAPI Schema manifest (`#1211`_)
-
   .. _#1052: https://github.com/atviriduomenys/spinta/issues/1052
-  .. _#1211: https://github.com/atviriduomenys/spinta/issues/1211
 
 Improvements:
 
@@ -46,6 +105,14 @@ Improvements:
 
 - `cast_backend_to_python` now allows extra properties to be passed (custom `select` functions that create new temporary
   properties can now be properly cast to python types) (`#1052`_).
+
+- Better support for `Denorm` properties with `Sql` backend (`#1214`_).
+
+  .. _#1214: https://github.com/atviriduomenys/spinta/issues/1214
+
+- Added a specific `NoModelDefined` error when property is defined without a model (`#1000`_).
+
+  .. _#1000: https://github.com/atviriduomenys/spinta/issues/1000
 
 Bug fixes:
 
@@ -62,6 +129,10 @@ Bug fixes:
 - Adjusted error message for users, for when a DSA has a model with nested properties and the parent node is not defined (`#1005`_)
 
   .. _#1005: https://github.com/atviriduomenys/spinta/issues/1005
+
+- Fixed tabular reader using `dtype` instead of `raw` type when handling datatype column (`#983`_).
+
+  .. _#983: https://github.com/atviriduomenys/spinta/issues/983
 
 0.1.84 (2025-02-19)
 ===================

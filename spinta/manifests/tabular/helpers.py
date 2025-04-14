@@ -271,26 +271,33 @@ class DatasetReader(TabularReader):
 
     def read(self, row: Dict[str, str]) -> None:
         self.name = row['dataset']
+        dataset_type = row['type']
 
         if self.name == '/':
             self.data = {}
         else:
+            if dataset_type not in {None, '', 'dataset', 'ns'}:
+                self.error('Dataset type is not allowed (`type` column where `dataset` column is not empty)')
+
             if row['dataset'] in self.state.manifest.datasets:
                 self.error("Dataset already defined.")
 
-            self.data = {
-                'type': 'dataset',
-                'id': row['id'],
-                'name': row['dataset'],
-                'source': row['source'],
-                'level': row['level'],
-                'access': row['access'],
-                'title': row['title'],
-                'description': row['description'],
-                'given_name': row['dataset'],
-                'resources': {},
-                'count': row['count'],
-            }
+            if dataset_type == 'ns':
+                self.data = get_namespace_data(row, dataset_type, self.name)
+            else:
+                self.data = {
+                    'type': dataset_type or 'dataset',
+                    'id': row['id'],
+                    'name': row['dataset'],
+                    'source': row['source'],
+                    'level': row['level'],
+                    'access': row['access'],
+                    'title': row['title'],
+                    'description': row['description'],
+                    'given_name': row['dataset'],
+                    'resources': {},
+                    'count': row['count'],
+                }
 
     def release(self, reader: TabularReader = None) -> bool:
         return reader is None or isinstance(reader, (
@@ -1348,11 +1355,10 @@ class NamespaceReader(TabularReader):
     appendable: bool = True
 
     def read(self, row: Dict[str, str]) -> None:
-        if not row['ref']:
-            # `ref` is a required parameter.
-            return
+        if not row['dataset']:
+            self.error('Namespace does not have a name (specified in "dataset" column)')
 
-        self.name = row['ref']
+        self.name = row['dataset']
 
         manifest = self.state.manifest
 
@@ -1363,14 +1369,7 @@ class NamespaceReader(TabularReader):
             )
 
         manifest.namespaces.add(self.name)
-
-        self.rows.append({
-            'id': row['id'],
-            'type': self.type,
-            'name': self.name,
-            'title': row['title'],
-            'description': row['description'],
-        })
+        self.rows.append(get_namespace_data(row, self.type, self.name))
 
     def append(self, row: Dict[str, str]) -> None:
         self.read(row)
@@ -1383,6 +1382,16 @@ class NamespaceReader(TabularReader):
 
     def leave(self) -> None:
         pass
+
+
+def get_namespace_data(row: dict[str, str], dataset_type: str, dataset_name: str) -> dict[str, str]:
+    return {
+        'id': row['id'],
+        'type': dataset_type,
+        'name': dataset_name,
+        'title': row['title'],
+        'description': row['description']
+    }
 
 
 class ParamReader(TabularReader):
@@ -1484,7 +1493,8 @@ class EnumReader(TabularReader):
             return
 
         # FIXME AST should be handled by Env
-        source = str(row[SOURCE])
+        source = row[SOURCE]
+        source = str(source) if source else None
         if not source:
             prepare = _parse_spyna(self, row[PREPARE])
             if isinstance(prepare, dict):
@@ -1875,7 +1885,7 @@ def _read_xlsx_manifest(path: str) -> Iterator[Tuple[str, List[str]]]:
 
         empty_rows = _empty_rows_counter()
         for i, row in enumerate(rows, 2):
-            row = [row[c] if c is not None else None for c in cols]
+            row = [row[c] or "" if c is not None else None for c in cols]
             yield f'{sheet.title}:{i}', row
 
             if empty_rows(row) > 100:
@@ -2168,16 +2178,14 @@ def _namespaces_to_tabular(
         k: ns
         for k, ns in namespaces.items() if not ns.generated
     }
-    first = True
     for name, ns in namespaces.items():
         yield torow(DATASET, {
             'id': ns.id,
-            'type': ns.type if first else '',
-            'ref': name,
+            'type': ns.type,
+            'dataset': name,
             'title': ns.title,
             'description': ns.description,
         })
-        first = False
 
     if separator and namespaces:
         yield torow(DATASET, {})

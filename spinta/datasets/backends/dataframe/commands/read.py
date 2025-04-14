@@ -13,9 +13,9 @@ from lxml import etree
 
 from spinta import commands
 from spinta.components import Context, Property, Model
-from spinta.core.ufuncs import Expr
-from spinta.datasets.backends.dataframe.backends.memory.components import MemoryDaskBackend
+from spinta.core.ufuncs import Expr, Env
 from spinta.datasets.backends.dataframe.components import DaskBackend
+from spinta.datasets.backends.dataframe.backends.memory.components import MemoryDaskBackend
 from spinta.datasets.backends.dataframe.backends.json.components import Json
 from spinta.datasets.backends.dataframe.backends.csv.components import Csv
 from spinta.datasets.backends.dataframe.backends.xml.components import Xml
@@ -109,11 +109,17 @@ def _get_row_value(context: Context, row: Any, sel: Any) -> Any:
                         external=sel.prop.external.name,
                     )
 
-        if enum := get_prop_enum(sel.prop):
+        if enum_options := get_prop_enum(sel.prop):
+            env = Env(context)(this=sel.prop)
+            for enum_option in enum_options.values():
+                if isinstance(enum_option.prepare, Expr):
+                    val = env.call(enum_option.prepare.name, str(val), *enum_option.prepare.args)
+                    if val:
+                        break
             if val is None:
                 pass
-            elif str(val) in enum:
-                item = enum[str(val)]
+            elif str(val) in enum_options:
+                item = enum_options[str(val)]
                 if item.prepare is not NA:
                     val = item.prepare
             else:
