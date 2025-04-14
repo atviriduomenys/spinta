@@ -183,7 +183,7 @@ def test_check_access(context: Context, rc, cli: SpintaCliRunner, tmp_path):
     assert result.exception.context.get('given') == "test"
 
 
-def test_check_namespace_two_manifests(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+def test_check_existing_generated_manifest(context: Context, rc, cli: SpintaCliRunner, tmp_path):
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
  d | r | b | m | property       | type   | ref  | level
  datasets/gov/test/example2     |        |      |
@@ -202,7 +202,7 @@ def test_check_namespace_two_manifests(context: Context, rc, cli: SpintaCliRunne
     ])
 
 
-def test_check_namespace_two_manifests(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+def test_check_existing_declared_manifest(context: Context, rc, cli: SpintaCliRunner, tmp_path):
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
  d | r | b | m | property       | type   | ref  | level
  datasets/gov/test/example2     |        |      |
