@@ -85,7 +85,7 @@ def get_node(
                 # if this namespace declared and other - declared, raise error. Namespace can be declared only once.
                 # todo collecting namespaces should be moved to linking and this checking should be done there
                 #   https://github.com/atviriduomenys/spinta/issues/1271
-                if ctype != "ns" or other_node.generated:
+                if ctype != "ns" or not other_node.generated:
                     raise exceptions.InvalidManifestFile(
                         manifest=manifest.name,
                         eid=eid,
