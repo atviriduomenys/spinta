@@ -28,19 +28,33 @@ def test_open_api_manifest(rc: RawConfig, tmp_path: Path):
                     'tags': ['List of Countries'],
                     'summary': 'Countries',
                     'description': 'Lists known countries',
-                    'operationId': api_countries_get_id
+                    'operationId': api_countries_get_id,
+                    'parameters': [
+                        {
+                            'name': 'Title',
+                            'in': 'path',
+                            'description': ''
+                        },
+                        {
+                            'name': 'page',
+                            'in': 'query',
+                            'description': 'Page number for paginated results'
+                        }
+                    ]
                 }
             },
         }
     })
 
     table = f'''
-    id | d | r | b | m | property               | type      | ref | source         | prepare                           | level | access | uri | title             | description
-       | services                               | ns        |     |                |                                   |       |        |     |                   |
-       | services/example_api                   | ns        |     |                |                                   |       |        |     | Example of an API | Intricate description
-       |                                        |           |     |                |                                   |       |        |     |                   |
-       | services/example_api/list_of_countries |           |     |                |                                   |       |        |     | List of Countries | A list of world countries
-    09 |   | api_countries_get                  | dask/json |     | /api/countries | http(method: 'GET', body: 'form') |       |        |     | Countries         | Lists known countries
+    id | d | r | b | m | property               | type      | ref   | source         | prepare                           | level | access | uri | title             | description
+       | services                               | ns        |       |                |                                   |       |        |     |                   |
+       | services/example_api                   | ns        |       |                |                                   |       |        |     | Example of an API | Intricate description
+       |                                        |           |       |                |                                   |       |        |     |                   |
+       | services/example_api/list_of_countries |           |       |                |                                   |       |        |     | List of Countries | A list of world countries
+    09 |   | api_countries_get                  | dask/json |       | /api/countries | http(method: 'GET', body: 'form') |       |        |     | Countries         | Lists known countries
+       |                                        | param     | title | Title          | path()                            |       |        |     |                   |
+       |                                        | param     | page  | page           | query()                           |       |        |     |                   | Page number for paginated results
     '''
 
     path = tmp_path / 'manifest.json'

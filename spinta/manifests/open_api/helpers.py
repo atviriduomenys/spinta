@@ -8,6 +8,9 @@ from spinta.core.ufuncs import Expr
 from spinta.utils.naming import to_dataset_name, to_code_name
 
 
+SUPPORTED_PARAMETER_LOCATIONS = ['query', 'header', 'path']
+
+
 def read_file_data_and_transform_to_json(path: Path) -> dict:
     with Path(path).open() as file:
         return json.load(file)
@@ -28,9 +31,25 @@ def get_namespace_schemas(info: dict, title: str, dataset_prefix: str) -> Genera
         }
 
 
+def get_resource_parameters(parameters: list[dict]) -> dict[str, dict]:
+    resource_parameters = {}
+    for index, value in enumerate(parameters):
+        name = value['name']
+        location = value['in'] if value['in'] in SUPPORTED_PARAMETER_LOCATIONS else ''
+        resource_parameters[f'parameter_{index}'] = {
+            'name': to_code_name(name),
+            'source': [name],
+            'prepare': [Expr(location)],
+            'type': 'param',
+            'description': value.get('description', ''),
+        }
+
+    return resource_parameters
+
+
 def get_dataset_schemas(data: dict, dataset_prefix: str) -> Generator[tuple[None, dict]]:
     datasets = {}
-    tag_metadata = {tag['name']: tag.get('description') for tag in data.get('tags', {})}
+    tag_metadata = {tag['name']: tag.get('description', '') for tag in data.get('tags', {})}
 
     for api_endpoint, api_metadata in data.get('paths', {}).items():
         for http_method, http_method_metadata in api_metadata.items():
@@ -50,13 +69,16 @@ def get_dataset_schemas(data: dict, dataset_prefix: str) -> Generator[tuple[None
 
             resource_source = f'{api_endpoint}/{http_method}'
             resource_name = to_code_name(resource_source)
+            resource_parameters = get_resource_parameters(http_method_metadata.get('parameters', {}))
+
             datasets[dataset_name]['resources'][resource_name] = {
                 'type': 'dask/json',
-                'id': http_method_metadata.get('operationId'),
+                'id': http_method_metadata.get('operationId', ''),
                 'external': api_endpoint,
                 'prepare': Expr('http', method=http_method.upper(), body='form'),
-                'title': http_method_metadata.get('summary'),
-                'description': http_method_metadata.get('description'),
+                'title': http_method_metadata.get('summary', ''),
+                'params': resource_parameters,
+                'description': http_method_metadata.get('description', ''),
             }
 
     for dataset in datasets.values():
@@ -64,7 +86,7 @@ def get_dataset_schemas(data: dict, dataset_prefix: str) -> Generator[tuple[None
 
 
 def read_open_api_manifest(path: Path) -> Generator[tuple[None, dict]]:
-    """Transforms OpenAPI Schema structure to DSA.
+    """Read & Convert OpenAPI Schema structure to DSA.
 
     OpenAPI Schema specification: https://spec.openapis.org/oas/latest.html.
     """
