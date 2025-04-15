@@ -21,37 +21,41 @@ def process_csv_file(file_path):
     modified_rows = []
     for row_number, row in enumerate(rows):
         try:
-            ref_value = row['ref']
+            prepare_value = row['prepare']
         except KeyError as e:
             raise
 
+        # if it's already a comment, we don't need to remove anything
+        if row.get("type") == "comment":
+            modified_rows.append(row)
+            continue
         # Find all words joined with a dot
-        joined_words = re.findall(r'\b\w+(?:\.\w+)+\b', ref_value)
-        original_ref_value = ref_value
+        joined_words = re.findall(r'\b[\w\[\]]+(?:\.[\w\[\]]+)+\b', prepare_value)
+        original_prepare_value = prepare_value
         if joined_words:
             for word in joined_words:
                 pattern = r'(?:,\s*)?' + re.escape(word) + r'(?:\s*,)?'
-                ref_value = re.sub(pattern, '', ref_value)
+                prepare_value = re.sub(pattern, '', prepare_value)
 
             # Clean up any leftover stray commas or extra spaces
-            ref_value = re.sub(r'\s{2,}', ' ', ref_value)
-            ref_value = ref_value.strip(', ').strip()
+            prepare_value = re.sub(r'\s{2,}', ' ', prepare_value)
+            prepare_value = prepare_value.strip(', ').strip()
 
             # Remove empty or fully cleaned-out square brackets (e.g., something[] -> something)
-            ref_value = re.sub(r'(\w+)\[\s*(,?\s*)*\]', r'\1', ref_value)
-            ref_value = re.sub(r'\[\s*\]', '', ref_value)
+            prepare_value = re.sub(r'(\w+)\[\s*(,?\s*)*\]', r'\1', prepare_value)
+            prepare_value = re.sub(r'\[\s*\]', '', prepare_value)
             # Trim spaces inside square brackets (e.g., [ nr , code ] -> [nr, code])
-            ref_value = re.sub(r'\[([^\]]+)\]',
+            prepare_value = re.sub(r'\[([^\]]+)\]',
                                lambda m: '[' + ', '.join(part.strip() for part in m.group(1).split(',')) + ']',
-                               ref_value)
+                               prepare_value)
 
-            row['ref'] = ref_value
+            row['prepare'] = prepare_value
 
             # Create the new line to be added
             new_line = {
                 'type': 'comment',
-                'ref': 'ref',
-                'prepare': f'update(ref: "{original_ref_value}")',
+                'ref': 'prepare',
+                'prepare': f'update(prepare: "{original_prepare_value}")',
                 'level': 4,  # Example numeric column
                 'visibility': "public",
                 'uri': 'https://github.com/atviriduomenys/spinta/issues/981'
