@@ -70,13 +70,10 @@ def process_csv_file(file_path):
         writer.writeheader()
         writer.writerows(modified_rows)
 
+
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         print("Usage: python script.py <directory>")
     else:
         directory = sys.argv[1]
         process_csv_files(directory)
-        process_csv_files(directory)
-
-
-
