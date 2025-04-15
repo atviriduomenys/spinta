@@ -4,13 +4,15 @@ Changes
 0.2dev3 (unreleased)
 ====================
 
+0.2dev2
+=======
 Bug fixes:
 
 - Add missing context to user facing error messages. (`#1196`_)
 - Do not check if a declared namespace exists in the generated namespaces (`#1256`_)
 
   .. _#1256: https://github.com/atviriduomenys/spinta/issues/1256
-  .. _#1256: https://github.com/atviriduomenys/spinta/issues/1256
+  .. _#1196: https://github.com/atviriduomenys/spinta/issues/1196
 
 Backwards incompatible:
 
@@ -23,8 +25,7 @@ Backwards incompatible:
   .. _#1249: https://github.com/atviriduomenys/spinta/issues/1249
 
 
-0.2dev2 (unreleased)
-====================
+
 
 Backwards incompatible:
 
