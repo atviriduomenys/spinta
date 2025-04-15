@@ -1,5 +1,6 @@
 import itertools
 import json
+import pytest
 from pathlib import Path
 
 import sqlalchemy as sa
@@ -8,6 +9,7 @@ from sqlalchemy.engine.url import make_url, URL
 from spinta.backends.postgresql.helpers import get_pg_name
 from spinta.components import Context
 from spinta.core.config import RawConfig
+from spinta.exceptions import UnableToCastColumnTypes
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.context import create_test_context
@@ -2010,3 +2012,180 @@ def test_migrate_incorrect_foreign_key_constraint_name(
 
         cleanup_table_list(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog', 'migrate/example/Ref',
                                   'migrate/example/Ref/:changelog'])
+
+
+def test_migrate_invalid_cast_error(
+    postgresql_migration: URL,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    cleanup_tables(postgresql_migration)
+    initial_manifest = '''
+     d               | r | b | m    | property | type   | ref | source
+     migrate/example |   |   |      |          |        |     |
+                     |   |   | Test |          |        |     |
+                     |   |   |      | someDate | number |     |
+    '''
+    context, rc = configure_migrate(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {'migrate/example/Test', 'migrate/example/Test/:changelog'}.issubset(
+            tables.keys())
+        table = tables["migrate/example/Test"]
+        conn.execute(table.insert().values({
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7e",
+            "someDate": "10.568",
+        }))
+
+    override_manifest(context, tmp_path, '''
+     d               | r | b | m    | property | type | ref | source
+     migrate/example |   |   |      |          |      |     |
+                     |   |   | Test |          |      |     |
+                     |   |   |      | someDate | date |     |
+    ''')
+
+    with pytest.raises(UnableToCastColumnTypes):
+        result = cli.invoke(rc, [
+            'migrate', f'{tmp_path}/manifest.csv', '-p', '--raise'
+        ], fail=False)
+        raise result.exception
+
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        cleanup_table_list(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog'])
+
+
+def test_migrate_invalid_cast_warning(
+    postgresql_migration: URL,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    cleanup_tables(postgresql_migration)
+    initial_manifest = '''
+     d               | r | b | m    | property | type   | ref | source
+     migrate/example |   |   |      |          |        |     |
+                     |   |   | Test |          |        |     |
+                     |   |   |      | someDate | number |     |
+    '''
+    context, rc = configure_migrate(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {'migrate/example/Test', 'migrate/example/Test/:changelog'}.issubset(
+            tables.keys())
+        table = tables["migrate/example/Test"]
+        conn.execute(table.insert().values({
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7e",
+            "someDate": "10.568",
+        }))
+
+    override_manifest(context, tmp_path, '''
+     d               | r | b | m    | property | type | ref | source
+     migrate/example |   |   |      |          |      |     |
+                     |   |   | Test |          |      |     |
+                     |   |   |      | someDate | date |     |
+    ''')
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p'
+    ])
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someDate" TYPE DATE USING '
+        'CAST("migrate/example/Test"."someDate" AS DATE);\n'
+        '\n'
+        'COMMIT;\n'
+        '\n')
+    assert "WARNING: Casting 'someDate' (from 'migrate/example/Test' model) column's type from 'DOUBLE PRECISION' to 'DATE' might not be possible." in result.stderr
+
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        cleanup_table_list(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog'])
+
+
+def test_migrate_unsafe_cast_warning(
+    postgresql_migration: URL,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    cleanup_tables(postgresql_migration)
+    initial_manifest = '''
+     d               | r | b | m    | property | type   | ref | source
+     migrate/example |   |   |      |          |        |     |
+                     |   |   | Test |          |        |     |
+                     |   |   |      | someInt  | string |     |
+    '''
+    context, rc = configure_migrate(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {'migrate/example/Test', 'migrate/example/Test/:changelog'}.issubset(
+            tables.keys())
+        table = tables["migrate/example/Test"]
+        conn.execute(table.insert().values({
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7e",
+            "someInt": "50",
+        }))
+
+    override_manifest(context, tmp_path, '''
+     d               | r | b | m    | property | type    | ref | source
+     migrate/example |   |   |      |          |         |     |
+                     |   |   | Test |          |         |     |
+                     |   |   |      | someInt  | integer |     |
+    ''')
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p', '--raise'
+    ])
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someInt" TYPE INTEGER USING '
+        'CAST("migrate/example/Test"."someInt" AS INTEGER);\n'
+        '\n'
+        'COMMIT;\n'
+        '\n')
+    assert "WARNING: Casting 'someInt' (from 'migrate/example/Test' model) column's type from 'TEXT' to 'INTEGER' might not be possible." in result.stderr
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '--raise'
+    ])
+    assert "WARNING: Casting 'someInt' (from 'migrate/example/Test' model) column's type from 'TEXT' to 'INTEGER' might not be possible." in result.stderr
+
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+
+        table = tables["migrate/example/Test"]
+
+        result = conn.execute(table.select())
+        for item in result:
+            assert item["_id"] == "197109d9-add8-49a5-ab19-3ddc7589ce7e"
+            assert item["someInt"] == 50
+        cleanup_table_list(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog'])

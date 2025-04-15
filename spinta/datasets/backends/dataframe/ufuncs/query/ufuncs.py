@@ -2,7 +2,8 @@ from functools import reduce
 from typing import Dict, Any, Tuple, List
 
 from spinta.auth import authorized
-from spinta.components import Property, Action
+from spinta.components import Property
+from spinta.core.enums import Action
 from spinta.core.ufuncs import Expr, ufunc, Bind, Unresolved, GetAttr
 from spinta.datasets.backends.dataframe.ufuncs.query.components import DaskDataFrameQueryBuilder, DaskSelected as Selected
 from spinta.exceptions import PropertyNotFound, NotImplementedFeature, SourceCannotBeList

@@ -1,5 +1,6 @@
 from spinta import commands
-from spinta.components import Context, Action, DataItem, Property
+from spinta.components import Context, DataItem, Property
+from spinta.core.enums import Action
 from spinta.types.datatype import DataType
 from spinta.exceptions import UniqueConstraint
 from spinta.backends.mongo.components import Mongo

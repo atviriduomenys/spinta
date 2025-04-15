@@ -15,6 +15,7 @@ from spinta.cli.helpers.data import ensure_data_dir
 from spinta.components import Config
 from spinta.components import Context
 from spinta.core.config import RawConfig
+from spinta.core.enums import Action
 from spinta.datasets.keymaps.components import KeyMap
 from sqlalchemy.dialects.sqlite import insert
 

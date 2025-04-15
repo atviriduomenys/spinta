@@ -15,7 +15,8 @@ from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
 from spinta.backends.nobackend.components import NoBackend
 from spinta.compat import urlparams_to_expr
-from spinta.components import Context, Node, Action, UrlParams, Page, get_page_size, pagination_enabled
+from spinta.components import Context, Node, UrlParams, Page, get_page_size, pagination_enabled
+from spinta.core.enums import Action
 from spinta.components import Model
 from spinta.components import Property
 from spinta.core.ufuncs import Expr

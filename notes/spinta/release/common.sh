@@ -5,13 +5,14 @@ poetry update
 
 
 # Generate changes and readme html formats
-poetry run rst2html.py CHANGES.rst var/changes.html
+# Prepare CHANGES.rst for release (change version from unreleased to actual, check if all changes added correctly)
+poetry run rst2html CHANGES.rst var/changes.html
 xdg-open var/changes.html
 # alternative:
 # poetry shell
 # rst2html CHANGES.rst var/changes.html
 
-poetry run rst2html.py README.rst var/readme.html
+poetry run rst2html README.rst var/readme.html
 xdg-open var/readme.html
 
 
@@ -92,8 +93,9 @@ EOF
 
 
 # Configure spinta
+# create a dir for all release-related files (e.g. 02dev2)
 # BASEDIR should be set by respective release type (patch, rc, etc.)
-# export BASEDIR=x (better add full path)
+# export BASEDIR=x (newly created release dir, better add full path)
 mkdir -p "$BASEDIR"
 #cat "$BASEDIR"/config.yml
 cat > "$BASEDIR"/config.yml <<EOF
@@ -143,6 +145,7 @@ git status
 git checkout get.data.gov.lt
 git pull
 
+# install the current spinta code
 
 find datasets -iname "*.csv" | xargs spinta check
 cat get_data_gov_lt.in | xargs spinta copy -o "$BASEDIR"/manifest.csv
@@ -195,17 +198,6 @@ datasets/gov/rc/jar/iregistruoti    |         |                                 
 EOF
 spinta check "$BASEDIR"/sdsa.txt
 
-
-# Run server in EXTERNAL mode
-test -n "$PID" && kill "$PID"
-spinta run --mode external "$BASEDIR"/sdsa.txt &>> "$BASEDIR"/spinta.log & PID=$!
-tail -50 "$BASEDIR"/spinta.log
-
-xdg-open http://localhost:8000/datasets/gov/rc/jar/formos_statusai/Forma
-xdg-open http://localhost:8000/datasets/gov/rc/jar/formos_statusai/Statusas
-xdg-open http://localhost:8000/datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo
-
-
 # Run migrations
 spinta --tb native migrate --autocommit
 spinta --tb native bootstrap
@@ -217,14 +209,14 @@ psql -h localhost -p 54321 -U admin spinta -c '\dt public.*'
 # Run server in INTERNAL mode
 test -n "$PID" && kill "$PID"
 spinta run &>> "$BASEDIR"/spinta.log & PID=$!
+#wait a bit for it to load
 tail -50 "$BASEDIR"/spinta.log
 
 http :8000
 http :8000/version
 http :8000/datasets/gov | jq -c '._data[]'
 
-
-# Run smoke tests
+# Setup INTERNAL server data
 SERVER=:8000
 CLIENT=test
 SECRET=secret
@@ -261,6 +253,30 @@ http POST :8000/datasets/gov/rc/ar/adresai/Adresas "$AUTH" <<EOF
 }
 EOF
 
+
+# Run server in EXTERNAL mode
+# Temporarily run with port 7000, so we can run another server with 8000 port
+test -n "$EXTERNAL_PID" && kill "$EXTERNAL_PID"
+spinta run --port 7000 --mode external "$BASEDIR"/sdsa.txt &>> "$BASEDIR"/spinta.log & EXTERNAL_PID=$!
+tail -50 "$BASEDIR"/spinta.log
+
+xdg-open http://localhost:7000/datasets/gov/rc/jar/formos_statusai/Forma
+xdg-open http://localhost:7000/datasets/gov/rc/jar/formos_statusai/Statusas
+xdg-open http://localhost:7000/datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo
+# Expected an error, since `Adresas` is running in internal mode
+# Need to sync `Adresas` data from another server
+
+# Sync data from INTERNAL server
+spinta keymap sync "$BASEDIR"/sdsa.txt -i test@localhost
+
+xdg-open http://localhost:7000/datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo
+# No more errors, `adresas._id` == `264ae0f9-53eb-496b-a07c-ce1b9cbe510c`
+
+# Turn off external server
+test -n "$EXTERNAL_PID" && kill "$EXTERNAL_PID"
+
+
+# Run smoke tests
 test -f "$BASEDIR"/keymap.db && rm "$BASEDIR"/keymap.db
 test -f "$BASEDIR"/push/localhost.db && rm "$BASEDIR"/push/localhost.db
 
@@ -300,6 +316,8 @@ xdg-open http://localhost:8000/datasets/gov/rc/ar/adresai/Adresas/264ae0f9-53eb-
 xdg-open http://localhost:8000/datasets/gov/rc/ar/adresai/Adresas/:changes
 xdg-open http://localhost:8000/datasets/gov/rc/ar/adresai/Adresas/264ae0f9-53eb-496b-a07c-ce1b9cbe510c/:changes
 
+
+# change the version number in pyproject.toml
 
 # Publish project to PyPI
 # If you don't have token, see here: https://pypi.org/help/#apitoken and here: https://www.digitalocean.com/community/tutorials/how-to-publish-python-packages-to-pypi-using-poetry-on-ubuntu-22-04

@@ -16,7 +16,7 @@ from spinta.testing.datasets import Sqlite
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.utils import get_error_codes
 from spinta.manifests.tabular.helpers import striptable
-from spinta.components import Mode
+from spinta.core.enums import Mode
 
 
 @pytest.fixture(scope='module')

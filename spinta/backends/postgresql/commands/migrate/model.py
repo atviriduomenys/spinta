@@ -9,12 +9,12 @@ from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_pg_name, get_pg_sequence_name
 from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
 from spinta.backends.postgresql.helpers.migrate.migrate import drop_all_indexes_and_constraints, handle_new_file_type, \
-    get_prop_names, create_changelog_table, MigratePostgresMeta, \
-    MigrateModelMeta, zip_and_migrate_properties, constraint_with_name, adjust_kwargs
+    get_prop_names, create_changelog_table, PostgresqlMigrationContext, \
+    ModelMigrationContext, zip_and_migrate_properties, constraint_with_name, adjust_kwargs, RenameMap, \
+    PropertyMigrationContext
 from spinta.backends.postgresql.helpers.name import name_changed, get_pg_changelog_name, get_pg_file_name, \
     get_pg_column_name, get_pg_constraint_name, get_pg_removed_name, is_removed, get_pg_table_name, \
     get_pg_foreign_key_name
-from spinta.cli.helpers.migrate import MigrateRename
 from spinta.components import Context, Model
 from spinta.types.datatype import File
 from spinta.utils.itertools import ensure_list
@@ -22,11 +22,18 @@ from spinta.utils.schema import NotAvailable, NA
 from sqlalchemy.engine.reflection import Inspector
 
 
-@commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, sa.Table, Model)
-def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, old: sa.Table, new: Model, **kwargs):
-    rename = meta.rename
-    handler = meta.handler
-    inspector = meta.inspector
+@commands.migrate.register(Context, PostgreSQL, PostgresqlMigrationContext, sa.Table, Model)
+def migrate(
+    context: Context,
+    backend: PostgreSQL,
+    migration_ctx: PostgresqlMigrationContext,
+    old: sa.Table,
+    new: Model,
+    **kwargs
+):
+    rename = migration_ctx.rename
+    handler = migration_ctx.handler
+    inspector = migration_ctx.inspector
 
     columns = list(old.columns)
     new_table_name = get_pg_table_name(rename.get_table_name(old.name))
@@ -42,11 +49,8 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ol
 
     properties = list(new.properties.values())
 
-    model_meta = MigrateModelMeta()
-    model_meta.initialize(
-        backend=backend,
-        table=old,
-        columns=columns,
+    model_ctx = ModelMigrationContext(model=new, table=old)
+    model_ctx.initialize(
         inspector=inspector
     )
 
@@ -58,9 +62,9 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ol
         new_model=new,
         old_columns=columns,
         new_properties=properties,
-        meta=meta,
+        migration_context=migration_ctx,
         rename=rename,
-        model_meta=model_meta,
+        model_context=model_ctx,
         **kwargs
     )
 
@@ -72,7 +76,7 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ol
         inspector=inspector,
         handler=handler,
         rename=rename,
-        meta=model_meta
+        model_context=model_ctx
     )
 
     # Handle model foreign key constraint (Base `_id`)
@@ -83,22 +87,22 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ol
         inspector=inspector,
         handler=handler,
         rename=rename,
-        meta=model_meta
+        model_context=model_ctx
     )
 
     _clean_up_old_constraints(
         old_table=old,
         table_name=new_table_name,
         handler=handler,
-        meta=model_meta
+        model_context=model_ctx
     )
 
     # Handle JSON migrations, that need to be run at the end
     _handle_json_column_migrations(
         context=context,
         backend=backend,
-        meta=meta,
-        model_meta=model_meta,
+        migration_context=migration_ctx,
+        model_context=model_ctx,
         old_table=old,
         table_name=new_table_name,
         handler=handler,
@@ -106,11 +110,18 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ol
     )
 
 
-@commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, NotAvailable, Model)
-def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, old: NotAvailable, new: Model, **kwargs):
-    rename = meta.rename
-    handler = meta.handler
-    inspector = meta.inspector
+@commands.migrate.register(Context, PostgreSQL, PostgresqlMigrationContext, NotAvailable, Model)
+def migrate(
+    context: Context,
+    backend: PostgreSQL,
+    migration_ctx: PostgresqlMigrationContext,
+    old: NotAvailable,
+    new: Model,
+    **kwargs
+):
+    rename = migration_ctx.rename
+    handler = migration_ctx.handler
+    inspector = migration_ctx.inspector
 
     table_name = get_pg_table_name(get_table_name(new))
     pkey_type = commands.get_primary_key_type(context, backend)
@@ -154,10 +165,16 @@ def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, ol
     create_changelog_table(context, new, handler, rename)
 
 
-@commands.migrate.register(Context, PostgreSQL, MigratePostgresMeta, sa.Table, NotAvailable)
-def migrate(context: Context, backend: PostgreSQL, meta: MigratePostgresMeta, old: sa.Table, new: NotAvailable):
-    handler = meta.handler
-    inspector = meta.inspector
+@commands.migrate.register(Context, PostgreSQL, PostgresqlMigrationContext, sa.Table, NotAvailable)
+def migrate(
+    context: Context,
+    backend: PostgreSQL,
+    migration_ctx: PostgresqlMigrationContext,
+    old: sa.Table,
+    new: NotAvailable
+):
+    handler = migration_ctx.handler
+    inspector = migration_ctx.inspector
 
     old_table_name = old.name
 
@@ -265,8 +282,8 @@ def _handle_model_unique_constraints(
     table_name: str,
     inspector: Inspector,
     handler: MigrationHandler,
-    rename: MigrateRename,
-    meta: MigrateModelMeta
+    rename: RenameMap,
+    model_context: ModelMigrationContext
 ):
     if not new_model.unique:
         return
@@ -283,12 +300,12 @@ def _handle_model_unique_constraints(
         constraints = inspector.get_unique_constraints(old_table.name)
         constraint_name = get_pg_constraint_name(table_name, column_name_list)
 
-        if meta.unique_constraint_states[constraint_name]:
+        if model_context.unique_constraint_states[constraint_name]:
             continue
 
         constraint = constraint_with_name(constraints, constraint_name)
         if constraint:
-            meta.handle_unique_constraint(constraint_name)
+            model_context.mark_unique_constraint_handled(constraint_name)
             if constraint['column_names'] == column_name_list:
                 continue
 
@@ -305,22 +322,22 @@ def _handle_model_unique_constraints(
 
         for constraint in constraints:
             if constraint['column_names'] == old_column_name_list:
-                if meta.unique_constraint_states[constraint['name']]:
+                if model_context.unique_constraint_states[constraint['name']]:
                     continue
 
-                meta.handle_unique_constraint(constraint_name)
+                model_context.mark_unique_constraint_handled(constraint_name)
                 if constraint['name'] == constraint_name:
                     continue
 
-                meta.handle_unique_constraint(constraint['name'])
+                model_context.mark_unique_constraint_handled(constraint['name'])
                 handler.add_action(ma.RenameConstraintMigrationAction(
                     table_name=table_name,
                     old_constraint_name=constraint['name'],
                     new_constraint_name=constraint_name
                 ))
 
-        if not meta.unique_constraint_states[constraint_name]:
-            meta.handle_unique_constraint(constraint_name)
+        if not model_context.unique_constraint_states[constraint_name]:
+            model_context.mark_unique_constraint_handled(constraint_name)
             handler.add_action(ma.CreateUniqueConstraintMigrationAction(
                 table_name=table_name,
                 constraint_name=constraint_name,
@@ -354,31 +371,31 @@ def _clean_up_old_constraints(
     old_table: sa.Table,
     table_name: str,
     handler: MigrationHandler,
-    meta: MigrateModelMeta
+    model_context: ModelMigrationContext
 ):
     # Ignore deleted tables
     if old_table.name.startswith('_'):
         return
 
-    for constraint, state in meta.unique_constraint_states.items():
+    for constraint, state in model_context.unique_constraint_states.items():
         if not state:
-            meta.handle_unique_constraint(constraint)
+            model_context.mark_unique_constraint_handled(constraint)
             handler.add_action(ma.DropConstraintMigrationAction(
                 table_name=table_name,
                 constraint_name=constraint
             ))
 
-    for constraint, state in meta.foreign_constraint_states.items():
+    for constraint, state in model_context.foreign_constraint_states.items():
         if not state:
-            meta.handle_foreign_constraint(constraint)
+            model_context.mark_foreign_constraint_handled(constraint)
             handler.add_action(ma.DropConstraintMigrationAction(
                 table_name=table_name,
                 constraint_name=constraint
             ), foreign_key=True)
 
-    for index, state in meta.index_states.items():
+    for index, state in model_context.index_states.items():
         if not state:
-            meta.handle_index(index)
+            model_context.mark_index_handled(index)
             handler.add_action(ma.DropIndexMigrationAction(
                 table_name=table_name,
                 index_name=index
@@ -388,44 +405,53 @@ def _clean_up_old_constraints(
 def _handle_json_column_migrations(
     context: Context,
     backend: Backend,
-    meta: MigratePostgresMeta,
-    model_meta: MigrateModelMeta,
+    migration_context: PostgresqlMigrationContext,
+    model_context: ModelMigrationContext,
     old_table: sa.Table,
     table_name: str,
     handler: MigrationHandler,
     **kwargs
 ):
-    adjusted_kwargs = adjust_kwargs(kwargs, {
-        "model_meta": model_meta
-    })
-    for json_meta in model_meta.json_columns.values():
-        if json_meta.new_keys and json_meta.cast_to is None:
-            removed_keys = [key for key, new_key in json_meta.new_keys.items() if new_key == get_pg_removed_name(key)]
-
-            if removed_keys == json_meta.keys or json_meta.full_remove:
-                commands.migrate(context, backend, meta, old_table, json_meta.column, NA, **adjusted_kwargs)
+    for json_context in model_context.json_columns.values():
+        property_ctx = PropertyMigrationContext(prop=json_context.prop, model_context=model_context)
+        if json_context.new_keys and json_context.cast_to is None:
+            removed_keys = [key for key, new_key in json_context.new_keys.items() if new_key == get_pg_removed_name(key)]
+            if removed_keys == json_context.keys or json_context.full_remove:
+                commands.migrate(
+                    context,
+                    backend,
+                    migration_context,
+                    property_ctx,
+                    old_table,
+                    json_context.column,
+                    NA,
+                    **kwargs
+                )
             else:
-                for old_key, new_key in json_meta.new_keys.items():
-                    if new_key in json_meta.keys:
+                for old_key, new_key in json_context.new_keys.items():
+                    if new_key in json_context.keys:
                         handler.add_action(ma.RemoveJSONAttributeMigrationAction(
                             table_name,
-                            json_meta.column,
+                            json_context.column,
                             new_key
                         ))
                     handler.add_action(ma.RenameJSONAttributeMigrationAction(
                         table_name,
-                        json_meta.column,
+                        json_context.column,
                         old_key,
                         new_key
                     ))
-        elif isinstance(json_meta.cast_to, tuple) and len(json_meta.cast_to) == 2:
-            new_column = json_meta.cast_to[0]
-            key = json_meta.cast_to[1]
-            commands.migrate(context, backend, meta, old_table, json_meta.column, NA, **adjusted_kwargs)
-            commands.migrate(context, backend, meta, old_table, NA, new_column, **adjusted_kwargs)
-            renamed = json_meta.column._copy()
-            renamed.name = get_pg_removed_name(json_meta.column.name)
-            renamed.key = get_pg_removed_name(json_meta.column.name)
+        elif isinstance(json_context.cast_to, tuple) and len(json_context.cast_to) == 2:
+            new_column = json_context.cast_to[0]
+            key = json_context.cast_to[1]
+            # Remove old column
+            commands.migrate(context, backend, migration_context, property_ctx, old_table, json_context.column, NA, **kwargs)
+            # Create new empty json column
+            commands.migrate(context, backend, migration_context, property_ctx, old_table, NA, new_column, **kwargs)
+
+            renamed = json_context.column._copy()
+            renamed.name = get_pg_removed_name(json_context.column.name)
+            renamed.key = get_pg_removed_name(json_context.column.name)
             handler.add_action(
                 ma.TransferJSONDataMigrationAction(
                     table_name,
@@ -434,11 +460,11 @@ def _handle_json_column_migrations(
                 )
             )
         # Rename column
-        if json_meta.new_name:
+        if json_context.new_name:
             handler.add_action(ma.AlterColumnMigrationAction(
                 table_name,
-                json_meta.column.name,
-                new_column_name=json_meta.new_name
+                json_context.column.name,
+                new_column_name=json_context.new_name
             ))
 
 
@@ -463,8 +489,8 @@ def _handle_model_foreign_key_constraints(
     table_name: str,
     inspector: Inspector,
     handler: MigrationHandler,
-    rename: MigrateRename,
-    meta: MigrateModelMeta
+    rename: RenameMap,
+    model_context: ModelMigrationContext
 ):
     foreign_keys = inspector.get_foreign_keys(old_table.name)
     id_constraint = next(
@@ -474,7 +500,7 @@ def _handle_model_foreign_key_constraints(
     if new_model.base and commands.identifiable(new_model.base):
         referent_table = get_pg_table_name(rename.get_old_table_name(get_table_name(new_model.base.parent)))
         fk_name = get_pg_foreign_key_name(referent_table, "_id")
-        meta.handle_foreign_constraint(fk_name)
+        model_context.mark_foreign_constraint_handled(fk_name)
         if id_constraint is not None:
             if id_constraint["name"] == fk_name:
                 # Everything matches
@@ -497,7 +523,7 @@ def _handle_model_foreign_key_constraints(
                 )
                 return
 
-            meta.handle_foreign_constraint(id_constraint["name"])
+            model_context.mark_foreign_constraint_handled(id_constraint["name"])
             # Tables match, but name does not
             if id_constraint["referred_table"] == referent_table:
                 handler.add_action(ma.RenameConstraintMigrationAction(
