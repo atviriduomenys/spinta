@@ -5,15 +5,18 @@ from spinta.testing.tabular import create_tabular_manifest
 
 def yaml_content():
     return """
-        - _type: datasets/gov/example/City
-          _id: ca117a8a-fdd0-4c66-9565-093d4d493e6b
-          name: Vilnius
-          country:
-            _id: dac60010-9a29-4201-8da9-e624023eb626
-            name: Lietuva
-        - _type: datasets/gov/example/Country
-          _id: dac60010-9a29-4201-8da9-e624023eb626
-          name: Lietuva
+        ---
+        _type: datasets/gov/example/City
+        _id: 0AF24A60-00A2-4EAB-AEFF-BBA86204BC98
+        name: Vilnius
+            country:
+              _id: 4689C28B-1C44-4184-8715-16021EE87EAD
+              name: Lietuva
+        ---
+        _type: datasets/gov/example/Country
+        _id: 4689C28B-1C44-4184-8715-16021EE87EAD
+        name: Lietuva
+        ---
     """
 
 
@@ -23,11 +26,13 @@ def test_getall(context, rc, cli: SpintaCliRunner, tmp_path):
      datasets/gov/example              |         |         |            |
        | data                          | memory  |         |            |
        |   |                           |         |         |            |
-       |   |   | Country               |         |         |            | open
-       |   |   |    | name             | string  | name    |            |
+       |   |   | Country               |         | _id     |            | open
+       |   |   |    | _id              | uuid    |         | _id        |
+       |   |   |    | name             | string  |         | name       |
        |   |   |    |                  |         |         |            |
        |   |   | City                  |         |         |            | open
-       |   |   |    | name             | string  | name    |            |
+       |   |   |    | _id              | uuid    |         | _id        |
+       |   |   |    | name             | string  |         | name       |
        |   |   |    | country          | ref     | Country | ..         |
         """
     ''')

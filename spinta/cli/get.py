@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import List
 from typing import Optional
@@ -34,4 +35,5 @@ def getall(
         response_dict["_data"] = list(
             commands.getall(context, model, store.manifest.backend)
         )
-    echo(response_dict)
+    data = json.dumps(response_dict)
+    echo(data)

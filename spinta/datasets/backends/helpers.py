@@ -43,7 +43,9 @@ def handle_ref_key_assignment(context: Context, keymap: KeyMap, env: Env, value:
             target_value = value[0]
 
         val = None
-        contains = keymap.contains(keymap_name, target_value)
+        contains = None
+        if ref.refprops[0].name != "_id":
+            contains = keymap.contains(keymap_name, target_value)
         if not contains:
             if target_value is None:
                 return {'_id': None}
