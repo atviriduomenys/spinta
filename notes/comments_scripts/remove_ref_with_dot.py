@@ -76,7 +76,6 @@ if __name__ == "__main__":
     else:
         directory = sys.argv[1]
         process_csv_files(directory)
-    # directory = "/home/karina/work/vssa/metadata/datasets/gov/rc"
         process_csv_files(directory)
 
 
