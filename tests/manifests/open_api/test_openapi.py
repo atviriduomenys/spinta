@@ -48,7 +48,6 @@ def test_open_api_manifest(rc: RawConfig, tmp_path: Path):
 
     table = f'''
     id | d | r | b | m | property               | type      | ref   | source         | prepare                           | level | access | uri | title             | description
-       | services                               | ns        |       |                |                                   |       |        |     |                   |
        | services/example_api                   | ns        |       |                |                                   |       |        |     | Example of an API | Intricate description
        |                                        |           |       |                |                                   |       |        |     |                   |
        | services/example_api/list_of_countries |           |       |                |                                   |       |        |     | List of Countries | A list of world countries
@@ -80,9 +79,9 @@ def test_open_api_manifest_no_paths(rc: RawConfig, tmp_path: Path):
 
     table = '''
     id | d | r | b | m | property               | type | ref | source | prepare | level | access | uri | title             | description
-       | services                               | ns   |     |        |         |       |        |     |                   |
        | services/example_api                   | ns   |     |        |         |       |        |     | Example of an API | Intricate description
        |                                        |      |     |        |         |       |        |     |                   |
+       | services/example_api/default           |      |     |        |         |       |        |     |                   |
     '''
 
     path = tmp_path / 'manifest.json'
@@ -107,10 +106,10 @@ def test_open_api_manifest_title_with_slashes(rc: RawConfig, tmp_path: Path):
     })
 
     table = '''
-        id | d | r | b | m | property     | type | ref | source | prepare | level | access | uri | title             | description
-           | services                     | ns   |     |        |         |       |        |     |                   |
-           | services/example_for_example | ns   |     |        |         |       |        |     | Example of an API | Intricate description
-           |                              |      |     |        |         |       |        |     |                   |
+        id | d | r | b | m | property             | type | ref | source | prepare | level | access | uri | title             | description
+           | services/example_for_example         | ns   |     |        |         |       |        |     | Example of an API | Intricate description
+           |                                      |      |     |        |         |       |        |     |                   |
+           | services/example_for_example/default |      |     |        |         |       |        |     |                   |
         '''
 
     path = tmp_path / 'manifest.json'

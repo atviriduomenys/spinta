@@ -8,7 +8,7 @@ from spinta.core.ufuncs import Expr
 from spinta.utils.naming import to_dataset_name, to_code_name
 
 
-SUPPORTED_PARAMETER_LOCATIONS = ['query', 'header', 'path']
+SUPPORTED_PARAMETER_LOCATIONS = {'query', 'header', 'path'}
 DEFAULT_DATASET_NAME = 'default'
 
 
@@ -17,19 +17,13 @@ def read_file_data_and_transform_to_json(path: Path) -> dict:
         return json.load(file)
 
 
-def get_namespace_schemas(info: dict, title: str, dataset_prefix: str) -> Generator[tuple[None, dict], None, None]:
-    current_path = Path()
-    path_parts = dataset_prefix.split('/')
-
-    for index, part in enumerate(path_parts):
-        current_path /= part
-        is_last = index == len(path_parts) - 1
-        yield None, {
-            'type': 'ns',
-            'name': str(current_path),
-            'title': info.get('summary', title) if is_last else '',
-            'description': info.get('description', '') if is_last else '',
-        }
+def get_namespace_schema(info: dict, title: str, dataset_prefix: str) -> Generator[tuple[None, dict], None, None]:
+    yield None, {
+        'type': 'ns',
+        'name': dataset_prefix,
+        'title': info.get('summary', title),
+        'description': info.get('description', ''),
+    }
 
 
 def get_resource_parameters(parameters: list[dict]) -> dict[str, dict]:
@@ -79,6 +73,16 @@ def get_dataset_schemas(data: dict, dataset_prefix: str) -> Generator[tuple[None
                 'description': http_method_metadata.get('description', ''),
             }
 
+    if not datasets:
+        dataset_name = DEFAULT_DATASET_NAME
+        datasets[dataset_name] = {
+            'type': 'dataset',
+            'name': f'{dataset_prefix}/{dataset_name}',
+            'title': '',
+            'description': '',
+            'resources': {},
+        }
+
     for dataset in datasets.values():
         yield None, dataset
 
@@ -94,6 +98,6 @@ def read_open_api_manifest(path: Path) -> Generator[tuple[None, dict]]:
     title = info['title']
     dataset_prefix = f'services/{to_dataset_name(title)}'
 
-    yield from get_namespace_schemas(info, title, dataset_prefix)
+    yield from get_namespace_schema(info, title, dataset_prefix)
 
     yield from get_dataset_schemas(data, dataset_prefix)

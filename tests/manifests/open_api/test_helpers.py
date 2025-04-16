@@ -6,7 +6,7 @@ from spinta.core.ufuncs import Expr
 from spinta.manifests.open_api.helpers import (
     read_file_data_and_transform_to_json,
     get_dataset_schemas,
-    get_namespace_schemas, get_resource_parameters,
+    get_namespace_schema, get_resource_parameters,
 )
 
 
@@ -38,15 +38,9 @@ def test_get_namespace_schemas():
         }
     }
 
-    namespace_schemas = [schema for _, schema in get_namespace_schemas(data['info'], title, dataset_prefix)]
+    namespace_schemas = [schema for _, schema in get_namespace_schema(data['info'], title, dataset_prefix)]
 
     assert namespace_schemas == [
-        {
-            'type': 'ns',
-            'name': 'services',
-            'title': '',
-            'description': ''
-        },
         {
             'type': 'ns',
             'name': dataset_prefix,

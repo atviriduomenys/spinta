@@ -4,34 +4,28 @@ Changes
 0.2dev3 (unreleased)
 ====================
 
+New Features:
+
+- Added OpenAPI Schema to DSA convertion `Resource` column part (`#1209`_)
+- Added OpenAPI Schema to DSA convertion `Param` column part (`#1210`_)
+
+  .. _#1209: https://github.com/atviriduomenys/spinta/issues/1209
+  .. _#1210: https://github.com/atviriduomenys/spinta/issues/1210
+
 0.2dev2
 =======
-Bug fixes:
-
-- Add missing context to user facing error messages. (`#1196`_)
-- Do not check if a declared namespace exists in the generated namespaces (`#1256`_)
-
-  .. _#1256: https://github.com/atviriduomenys/spinta/issues/1256
-  .. _#1196: https://github.com/atviriduomenys/spinta/issues/1196
 
 Backwards incompatible:
 
+- added `status`, `visibility`, `eli`, `origin`, `count` and `source.type` columns. (`#1032`_)
 - Introduce Python package extras and optional dependencies. Now unicorn, gunicorn (http) and alembic (migrations) wont
   be installed by default. Commands `pip install spinta` and `poetry install` (locally) won't install all packages,
   optional ones (unicorn, gunicorn, alembic) will be skipped and if need should be installed by specifying one/multiple
   of extra group names - `http`, `migrations` or `all`. The last one (`all`) will install all dependencies (like before).
   For local development - `poetry install --all-extras` should be used to install all packages.
 
-  .. _#1249: https://github.com/atviriduomenys/spinta/issues/1249
-
-
-
-
-Backwards incompatible:
-
-- added `status`, `visibility`, `eli`, `origin`, `count` and `source.type` columns. (`#1032`_)
-
   .. _#1032: https://github.com/atviriduomenys/spinta/issues/1032
+  .. _#1249: https://github.com/atviriduomenys/spinta/issues/1249
 
 New Features:
 
@@ -46,8 +40,12 @@ New Features:
 Bug fixes:
 
 - Fixed a bug where namespace (`ns`) dataset name would be placed in the ref column instead of the dataset column (`#1238`_)
+- Add missing context to user facing error messages. (`#1196`_)
+- Do not check if a declared namespace exists in the generated namespaces (`#1256`_)
 
   .. _#1238: https://github.com/atviriduomenys/spinta/issues/1238
+  .. _#1256: https://github.com/atviriduomenys/spinta/issues/1256
+  .. _#1196: https://github.com/atviriduomenys/spinta/issues/1196
 
 0.2dev1
 =======
