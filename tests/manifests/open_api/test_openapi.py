@@ -23,24 +23,42 @@ def test_open_api_manifest(rc: RawConfig, tmp_path: Path):
             }
         ],
         'paths': {
-            '/api/countries': {
+            '/api/countries/{countryId}': {
                 'get': {
                     'tags': ['List of Countries'],
                     'summary': 'Countries',
                     'description': 'Lists known countries',
-                    'operationId': api_countries_get_id
+                    'operationId': api_countries_get_id,
+                    'parameters': [
+                        {
+                            'name': 'countryId',
+                            'in': 'path',
+                        },
+                        {
+                            'name': 'Title',
+                            'in': 'query',
+                            'description': ''
+                        },
+                        {
+                            'name': 'page',
+                            'in': 'query',
+                            'description': 'Page number for paginated results'
+                        }
+                    ]
                 }
             },
         }
     })
 
-    table = f'''
-    id | d | r | b | m | property               | type      | ref | source         | prepare                           | level | access | uri | title             | description
-       | services                               | ns        |     |                |                                   |       |        |     |                   |
-       | services/example_api                   | ns        |     |                |                                   |       |        |     | Example of an API | Intricate description
-       |                                        |           |     |                |                                   |       |        |     |                   |
-       | services/example_api/list_of_countries |           |     |                |                                   |       |        |     | List of Countries | A list of world countries
-    09 |   | api_countries_get                  | dask/json |     | /api/countries | http(method: 'GET', body: 'form') |       |        |     | Countries         | Lists known countries
+    table = '''
+    id | d | r | b | m | property               | type      | ref        | source                        | prepare                           | level | access | uri | title             | description
+       | services/example_api                   | ns        |            |                               |                                   |       |        |     | Example of an API | Intricate description
+       |                                        |           |            |                               |                                   |       |        |     |                   |
+       | services/example_api/list_of_countries |           |            |                               |                                   |       |        |     | List of Countries | A list of world countries
+    09 |   | api_countries_country_id_get       | dask/json |            | /api/countries/{country_id}   | http(method: 'GET', body: 'form') |       |        |     | Countries         | Lists known countries
+       |                                        | param     | country_id | countryId                     | path()                            |       |        |     |                   |
+       |                                        | param     | title      | Title                         | query()                           |       |        |     |                   |
+       |                                        | param     | page       | page                          | query()                           |       |        |     |                   | Page number for paginated results
     '''
 
     path = tmp_path / 'manifest.json'
@@ -66,9 +84,9 @@ def test_open_api_manifest_no_paths(rc: RawConfig, tmp_path: Path):
 
     table = '''
     id | d | r | b | m | property               | type | ref | source | prepare | level | access | uri | title             | description
-       | services                               | ns   |     |        |         |       |        |     |                   |
        | services/example_api                   | ns   |     |        |         |       |        |     | Example of an API | Intricate description
        |                                        |      |     |        |         |       |        |     |                   |
+       | services/example_api/default           |      |     |        |         |       |        |     |                   |
     '''
 
     path = tmp_path / 'manifest.json'
@@ -93,10 +111,10 @@ def test_open_api_manifest_title_with_slashes(rc: RawConfig, tmp_path: Path):
     })
 
     table = '''
-        id | d | r | b | m | property     | type | ref | source | prepare | level | access | uri | title             | description
-           | services                     | ns   |     |        |         |       |        |     |                   |
-           | services/example_for_example | ns   |     |        |         |       |        |     | Example of an API | Intricate description
-           |                              |      |     |        |         |       |        |     |                   |
+        id | d | r | b | m | property             | type | ref | source | prepare | level | access | uri | title             | description
+           | services/example_for_example         | ns   |     |        |         |       |        |     | Example of an API | Intricate description
+           |                                      |      |     |        |         |       |        |     |                   |
+           | services/example_for_example/default |      |     |        |         |       |        |     |                   |
         '''
 
     path = tmp_path / 'manifest.json'

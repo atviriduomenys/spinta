@@ -2,12 +2,27 @@ import json
 import uuid
 from pathlib import Path
 
+import pytest
+
 from spinta.core.ufuncs import Expr
 from spinta.manifests.open_api.helpers import (
     read_file_data_and_transform_to_json,
     get_dataset_schemas,
-    get_namespace_schemas,
+    get_namespace_schema, get_resource_parameters, replace_url_parameters,
 )
+
+
+@pytest.mark.parametrize(
+    argnames=["url", "expected_result_url"],
+    argvalues=[
+        ['/api/countries/{countryId}', '/api/countries/{country_id}'],
+        ['/api/countries/{countryId}/cities/{cityId}', '/api/countries/{country_id}/cities/{city_id}'],
+    ]
+)
+def test_replace_url_parameters(url: str, expected_result_url: str):
+    adjusted_url = replace_url_parameters(url)
+
+    assert adjusted_url == expected_result_url
 
 
 def test_read_file_data_and_transform_to_json(tmp_path: Path):
@@ -38,15 +53,9 @@ def test_get_namespace_schemas():
         }
     }
 
-    namespace_schemas = [schema for _, schema in get_namespace_schemas(data['info'], title, dataset_prefix)]
+    namespace_schemas = [schema for _, schema in get_namespace_schema(data['info'], title, dataset_prefix)]
 
     assert namespace_schemas == [
-        {
-            'type': 'ns',
-            'name': 'services',
-            'title': '',
-            'description': ''
-        },
         {
             'type': 'ns',
             'name': dataset_prefix,
@@ -56,7 +65,176 @@ def test_get_namespace_schemas():
     ]
 
 
+def test_get_resource_parameters():
+    data = [
+        {
+            'name': 'title',
+            'in': 'query',
+            'schema': {'example': 'EXAMPLE', 'type': 'string'},
+            'description': 'Item search by name',
+        },
+        {
+            'name': 'page',
+            'in': 'path',
+            'schema': {'example': 'EXAMPLE_2', 'type': 'string'},
+            'description': 'Page number for paginated results',
+        }
+    ]
+
+    resource_parameters = get_resource_parameters(data)
+
+    assert resource_parameters == {
+        'parameter_0': {
+            'description': 'Item search by name',
+            'name': 'title',
+            'prepare': [Expr('query')],
+            'source': ['title'],
+            'type': 'param',
+        },
+        'parameter_1': {
+            'description': 'Page number for paginated results',
+            'name': 'page',
+            'prepare': [Expr('path')],
+            'source': ['page'],
+            'type': 'param',
+        }
+    }
+
+
 def test_get_dataset_schemas():
+    resource_countries_id = str(uuid.uuid4().hex)
+    resource_cities_id = str(uuid.uuid4().hex)
+    data = {
+        'info': {
+            'title': 'Geography API',
+            'version': '1.0.0',
+            'summary': 'API for geographic objects',
+            'description': 'Intricate description'
+        },
+        'tags': [
+            {
+                'name': 'List of Countries',
+                'description': 'List known countries'
+            },
+            {
+                'name': 'Cities',
+                'description': 'Known cities'
+            }
+        ],
+        'paths': {
+            '/api/countries/{countryId}': {
+                'get': {
+                    'tags': ['List of Countries'],
+                    'summary': 'List of countries API',
+                    'description': 'List of known countries in the world',
+                    'operationId': resource_countries_id,
+                    'parameters': [
+                        {
+                            'name': 'countryId',
+                            'in': 'path'
+                        },
+                        {
+                            'name': 'title',
+                            'in': 'query',
+                            'description': ''
+                        },
+                        {
+                            'name': 'page',
+                            'in': 'query',
+                            'description': 'Page number for paginated results'
+                        }
+                    ]
+                }
+            },
+            '/api/cities': {
+                'get': {
+                    'tags': ['List', 'Cities'],
+                    'summary': 'List of cities API',
+                    'description': 'List of known cities in the world',
+                    'operationId': resource_cities_id,
+                    'parameters': [
+                        {
+                            'name': 'limit',
+                            'in': 'query',
+                            'description': 'Limit to X results'
+                        }
+                    ]
+                }
+            }
+        }
+    }
+
+    dataset_schemas = [schema for _, schema in get_dataset_schemas(data, 'services/geography_api')]
+
+    assert dataset_schemas == [
+        {
+            'type': 'dataset',
+            'name': 'services/geography_api/list_of_countries',
+            'title': "List of Countries",
+            'description': 'List known countries',
+            'resources': {
+                'api_countries_country_id_get': {
+                    'id': resource_countries_id,
+                    'params': {
+                        'parameter_0': {
+                            'description': '',
+                            'name': 'country_id',
+                            'prepare': [Expr('path')],
+                            'source': ['countryId'],
+                            'type': 'param'
+                        },
+                        'parameter_1': {
+                            'description': '',
+                            'name': 'title',
+                            'prepare': [Expr('query')],
+                            'source': ['title'],
+                            'type': 'param'
+                        },
+                        'parameter_2': {
+                            'description': 'Page number for paginated results',
+                            'name': 'page',
+                            'prepare': [Expr('query')],
+                            'source': ['page'],
+                            'type': 'param'
+                        }
+                    },
+                    'external': '/api/countries/{country_id}',
+                    'type': 'dask/json',
+                    'prepare': Expr('http', method='GET', body='form'),
+                    'title': 'List of countries API',
+                    'description': 'List of known countries in the world'
+                }
+            }
+        },
+        {
+            'type': 'dataset',
+            'name': 'services/geography_api/list_cities',
+            'title': "List, Cities",
+            'description': 'Known cities',
+            'resources': {
+                'api_cities_get': {
+                    'id': resource_cities_id,
+                    'params': {
+                        'parameter_0': {
+                            'description': 'Limit to X results',
+                            'name': 'limit',
+                            'prepare': [Expr('query')],
+                            'source': ['limit'],
+                            'type': 'param'
+                        }
+                    },
+                    'external': '/api/cities',
+                    'type': 'dask/json',
+                    'prepare': Expr('http', method='GET', body='form'),
+                    'title': 'List of cities API',
+                    'description': 'List of known cities in the world'
+                }
+            }
+        }
+    ]
+
+
+def test_get_dataset_schemas_no_parameters():
     resource_countries_id = str(uuid.uuid4().hex)
     resource_cities_id = str(uuid.uuid4().hex)
     data = {
@@ -107,6 +285,7 @@ def test_get_dataset_schemas():
             'resources': {
                 'api_countries_get': {
                     'id': resource_countries_id,
+                    'params': {},
                     'external': '/api/countries',
                     'type': 'dask/json',
                     'prepare': Expr('http', method='GET', body='form'),
@@ -123,6 +302,67 @@ def test_get_dataset_schemas():
             'resources': {
                 'api_cities_get': {
                     'id': resource_cities_id,
+                    'params': {},
+                    'external': '/api/cities',
+                    'type': 'dask/json',
+                    'prepare': Expr('http', method='GET', body='form'),
+                    'title': 'List of cities API',
+                    'description': 'List of known cities in the world'
+                }
+            }
+        }
+    ]
+
+
+def test_get_dataset_schemas_no_tags_default_dataset():
+    resource_countries_id = str(uuid.uuid4().hex)
+    resource_cities_id = str(uuid.uuid4().hex)
+    data = {
+        'info': {
+            'title': 'Geography API',
+            'version': '1.0.0',
+            'summary': 'API for geographic objects',
+            'description': 'Intricate description'
+        },
+        'paths': {
+            '/api/countries': {
+                'get': {
+                    'summary': 'List of countries API',
+                    'description': 'List of known countries in the world',
+                    'operationId': resource_countries_id
+                }
+            },
+            '/api/cities' : {
+                'get': {
+                    'summary': 'List of cities API',
+                    'description': 'List of known cities in the world',
+                    'operationId': resource_cities_id
+                }
+            }
+        }
+    }
+
+    dataset_schemas = [schema for _, schema in get_dataset_schemas(data, 'services/geography_api')]
+
+    assert dataset_schemas == [
+        {
+            'type': 'dataset',
+            'name': 'services/geography_api/default',
+            'title': '',
+            'description': '',
+            'resources': {
+                'api_countries_get': {
+                    'id': resource_countries_id,
+                    'params': {},
+                    'external': '/api/countries',
+                    'type': 'dask/json',
+                    'prepare': Expr('http', method='GET', body='form'),
+                    'title': 'List of countries API',
+                    'description': 'List of known countries in the world'
+                },
+                'api_cities_get': {
+                    'id': resource_cities_id,
+                    'params': {},
                     'external': '/api/cities',
                     'type': 'dask/json',
                     'prepare': Expr('http', method='GET', body='form'),
