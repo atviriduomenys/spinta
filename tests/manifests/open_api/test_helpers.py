@@ -1,6 +1,8 @@
 import json
+import uuid
 from pathlib import Path
 
+from spinta.core.ufuncs import Expr
 from spinta.manifests.open_api.helpers import (
     read_file_data_and_transform_to_json,
     get_dataset_schemas,
@@ -24,7 +26,7 @@ def test_read_file_data_and_transform_to_json(tmp_path: Path):
     assert result == file_data
 
 
-def test_get_namespace_schema():
+def test_get_namespace_schemas():
     title = 'Geography API'
     dataset_prefix = 'services/geography_api'
     data = {
@@ -54,7 +56,9 @@ def test_get_namespace_schema():
     ]
 
 
-def test_get_dataset_schema():
+def test_get_dataset_schemas():
+    resource_countries_id = str(uuid.uuid4().hex)
+    resource_cities_id = str(uuid.uuid4().hex)
     data = {
         'info': {
             'title': 'Geography API',
@@ -62,15 +66,31 @@ def test_get_dataset_schema():
             'summary': 'API for geographic objects',
             'description': 'Intricate description'
         },
+        'tags': [
+            {
+                'name': 'List of Countries',
+                'description': 'List known countries'
+            },
+            {
+                'name': 'Cities',
+                'description': 'Known cities'
+            }
+        ],
         'paths': {
             '/api/countries': {
                 'get': {
-                    'tags': ['List of Countries']
+                    'tags': ['List of Countries'],
+                    'summary': 'List of countries API',
+                    'description': 'List of known countries in the world',
+                    'operationId': resource_countries_id
                 }
             },
             '/api/cities' : {
                 'get': {
-                    'tags': ['List', 'Cities']
+                    'tags': ['List', 'Cities'],
+                    'summary': 'List of cities API',
+                    'description': 'List of known cities in the world',
+                    'operationId': resource_cities_id
                 }
             }
         }
@@ -83,12 +103,32 @@ def test_get_dataset_schema():
             'type': 'dataset',
             'name': 'services/geography_api/list_of_countries',
             'title': "List of Countries",
-            'description': ''
+            'description': 'List known countries',
+            'resources': {
+                'api_countries_get': {
+                    'id': resource_countries_id,
+                    'external': '/api/countries',
+                    'type': 'dask/json',
+                    'prepare': Expr('http', method='GET', body='form'),
+                    'title': 'List of countries API',
+                    'description': 'List of known countries in the world'
+                }
+            }
         },
         {
             'type': 'dataset',
             'name': 'services/geography_api/list_cities',
             'title': "List, Cities",
-            'description': ''
+            'description': 'Known cities',
+            'resources': {
+                'api_cities_get': {
+                    'id': resource_cities_id,
+                    'external': '/api/cities',
+                    'type': 'dask/json',
+                    'prepare': Expr('http', method='GET', body='form'),
+                    'title': 'List of cities API',
+                    'description': 'List of known cities in the world'
+                }
+            }
         }
     ]
