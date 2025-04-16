@@ -1,7 +1,4 @@
 import json
-import logging
-from typing import List
-from typing import Optional
 from typer import echo
 from typer import Argument
 from typer import Context as TyperContext
@@ -12,12 +9,10 @@ from spinta.cli.helpers.manifest import convert_str_to_manifest_path
 from spinta.cli.helpers.store import prepare_manifest, attach_keymaps
 from spinta.core.context import configure_context
 
-log = logging.getLogger(__name__)
-
 
 def getall(
     ctx: TyperContext,
-    manifests: Optional[List[str]] = Argument(None, help=("Manifest files to load")),
+    manifests: list[str] = Argument(None, help=("Manifest files to load")),
     backend: str = Argument(None, help=("Backend connection string")),
     model: str = Argument(None, help=("Model path")),
 ):

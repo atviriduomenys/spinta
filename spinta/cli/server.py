@@ -36,7 +36,7 @@ def run(
     import uvicorn
     import spinta.api
 
-    os.environ["AUTHLIB_INSECURE_TRANSPORT"] = "1"
+    os.environ['AUTHLIB_INSECURE_TRANSPORT'] = '1'
 
     manifests = convert_str_to_manifest_path(manifests)
     context = configure_context(

@@ -1,4 +1,5 @@
 import pytest
+import textwrap
 
 from spinta.exceptions import NoPrimaryKeyCandidatesFound, PropertyNotFound
 from spinta.testing.cli import SpintaCliRunner
@@ -7,53 +8,53 @@ from spinta.testing.tabular import create_tabular_manifest
 
 
 def yaml_content():
-    return """
----
-_type: datasets/gov/example/City
-_id: 0AF24A60-00A2-4EAB-AEFF-BBA86204BC98
-name: Vilnius
-country:
-  _id: 4689C28B-1C44-4184-8715-16021EE87EAD
-  name: Lietuva
----
-_type: datasets/gov/example/Country
-_id: 4689C28B-1C44-4184-8715-16021EE87EAD
-name: Lietuva
----
-    """
+    return textwrap.dedent("""\
+        ---
+        _type: datasets/gov/example/City
+        _id: 0AF24A60-00A2-4EAB-AEFF-BBA86204BC98
+        name: Vilnius
+        country:
+          _id: 4689C28B-1C44-4184-8715-16021EE87EAD
+          name: Lietuva
+        ---
+        _type: datasets/gov/example/Country
+        _id: 4689C28B-1C44-4184-8715-16021EE87EAD
+        name: Lietuva
+        ---
+    """)
 
 
 def yaml_content_with_wrong_ref():
-    return """
----
-_type: datasets/gov/example/City
-_id: 0AF24A60-00A2-4EAB-AEFF-BBA86204BC98
-name: Vilnius
-country:
-  _id: 4689C28B-1C44-4184-8715-16021EE87EAC
-  name: Lietuva
----
-_type: datasets/gov/example/Country
-_id: 4689C28B-1C44-4184-8715-16021EE87EAD
-name: Lietuva
----
-"""
+    return textwrap.dedent("""\
+        ---
+        _type: datasets/gov/example/City
+        _id: 0AF24A60-00A2-4EAB-AEFF-BBA86204BC98
+        name: Vilnius
+        country:
+          _id: 4689C28B-1C44-4184-8715-16021EE87EAD
+          name: Lietuva
+        ---
+        _type: datasets/gov/example/Country
+        _id: 4689C28B-1C44-4184-8715-16021EE87EAC
+        name: Lietuva
+        ---
+    """)
 
 
 def yaml_content_without_field():
-    return """
----
-_type: datasets/gov/example/City
-_id: 0AF24A60-00A2-4EAB-AEFF-BBA86204BC98
-country:
-  _id: 4689C28B-1C44-4184-8715-16021EE87EAC
-  name: Lietuva
----
-_type: datasets/gov/example/Country
-_id: 4689C28B-1C44-4184-8715-16021EE87EAD
-name: Lietuva
----
-"""
+    return textwrap.dedent("""\
+        ---
+        _type: datasets/gov/example/City
+        _id: 0AF24A60-00A2-4EAB-AEFF-BBA86204BC98
+        country:
+          _id: 4689C28B-1C44-4184-8715-16021EE87EAD
+          name: Lietuva
+        ---
+        _type: datasets/gov/example/Country
+        _id: 4689C28B-1C44-4184-8715-16021EE87EAC
+        name: Lietuva
+        ---
+    """)
 
 
 def test_getall(context, rc, cli: SpintaCliRunner, tmp_path):
@@ -61,15 +62,15 @@ def test_getall(context, rc, cli: SpintaCliRunner, tmp_path):
      d | r | b | m  | property         | type         | ref     | source     | access
      datasets/gov/example              |              |         |            |
        | data                          | dask/memory  |         |            |
-       |   |                           |         |         |            |
-       |   |   | Country               |         | _id     |            | open
-       |   |   |    | _id              | string  |         | _id        |
-       |   |   |    | name             | string  |         | name       |
-       |   |   |    |                  |         |         |            |
-       |   |   | City                  |         |         |            | open
-       |   |   |    | _id              | string  |         | _id        |
-       |   |   |    | name             | string  |         | name       |
-       |   |   |    | country          | ref     | Country | ..         |
+       |   |                           |              |         |            |
+       |   |   | Country               |              | _id     |            | open
+       |   |   |    | _id              | string       |         | _id        |
+       |   |   |    | name             | string       |         | name       |
+       |   |   |    |                  |              |         |            |
+       |   |   | City                  |              |         |            | open
+       |   |   |    | _id              | string       |         | _id        |
+       |   |   |    | name             | string       |         | name       |
+       |   |   |    | country          | ref          | Country | ..         |
         """
     ''')
 
@@ -78,7 +79,7 @@ def test_getall(context, rc, cli: SpintaCliRunner, tmp_path):
 
     with temp_yaml_file.open("w") as file:
         file.write(yaml_content())
-
+    content = temp_yaml_file.read_text(encoding="utf-8")
     create_tabular_manifest(context, temp_manifest_file, manifest)
 
     result = cli.invoke(
@@ -95,15 +96,15 @@ def test_getall_wrong_ref_id(context, rc, cli: SpintaCliRunner, tmp_path):
      d | r | b | m  | property         | type         | ref     | source     | access
      datasets/gov/example              |              |         |            |
        | data                          | dask/memory  |         |            |
-       |   |                           |         |         |            |
-       |   |   | Country               |         | _id     |            | open
-       |   |   |    | _id              | string  |         | _id        |
-       |   |   |    | name             | string  |         | name       |
-       |   |   |    |                  |         |         |            |
-       |   |   | City                  |         |         |            | open
-       |   |   |    | _id              | string  |         | _id        |
-       |   |   |    | name             | string  |         | name       |
-       |   |   |    | country          | ref     | Country | ..         |
+       |   |                           |              |         |            |
+       |   |   | Country               |              | _id     |            | open
+       |   |   |    | _id              | string       |         | _id        |
+       |   |   |    | name             | string       |         | name       |
+       |   |   |    |                  |              |         |            |
+       |   |   | City                  |              |         |            | open
+       |   |   |    | _id              | string       |         | _id        |
+       |   |   |    | name             | string       |         | name       |
+       |   |   |    | country          | ref          | Country | ..         |
         """
     ''')
     temp_yaml_file = tmp_path / "test_config.yaml"
@@ -127,15 +128,15 @@ def test_getall_field_not_available(context, rc, cli: SpintaCliRunner, tmp_path)
      d | r | b | m  | property         | type         | ref     | source     | access
      datasets/gov/example              |              |         |            |
        | data                          | dask/memory  |         |            |
-       |   |                           |         |         |            |
-       |   |   | Country               |         | _id     |            | open
-       |   |   |    | _id              | string  |         | _id        |
-       |   |   |    | name             | string  |         | name       |
-       |   |   |    |                  |         |         |            |
-       |   |   | City                  |         |         |            | open
-       |   |   |    | _id              | string  |         | _id        |
-       |   |   |    | name             | string  |         | name       |
-       |   |   |    | country          | ref     | Country | ..         |
+       |   |                           |              |         |            |
+       |   |   | Country               |              | _id     |            | open
+       |   |   |    | _id              | string       |         | _id        |
+       |   |   |    | name             | string       |         | name       |
+       |   |   |    |                  |              |         |            |
+       |   |   | City                  |              |         |            | open
+       |   |   |    | _id              | string       |         | _id        |
+       |   |   |    | name             | string       |         | name       |
+       |   |   |    | country          | ref          | Country | ..         |
         """
     ''')
     temp_yaml_file = tmp_path / "test_config.yaml"
