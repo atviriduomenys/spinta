@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Generator
 
@@ -10,6 +11,14 @@ from spinta.utils.naming import to_dataset_name, to_code_name
 
 SUPPORTED_PARAMETER_LOCATIONS = {'query', 'header', 'path'}
 DEFAULT_DATASET_NAME = 'default'
+
+
+def replace_url_parameters(endpoint: str) -> str:
+    """Replaces parameters in given endpoint to their codenames.
+
+    e.g. /api/cities/{cityId}/ -> /api/cities/{city_id}
+    """
+    return re.sub(r'{([^{}]+)}', lambda match: f'{{{to_code_name(match.group(1))}}}', endpoint)
 
 
 def read_file_data_and_transform_to_json(path: Path) -> dict:
@@ -66,7 +75,7 @@ def get_dataset_schemas(data: dict, dataset_prefix: str) -> Generator[tuple[None
             datasets[dataset_name]['resources'][resource_name] = {
                 'type': 'dask/json',
                 'id': http_method_metadata.get('operationId', ''),
-                'external': api_endpoint,
+                'external': replace_url_parameters(api_endpoint),
                 'prepare': Expr('http', method=http_method.upper(), body='form'),
                 'title': http_method_metadata.get('summary', ''),
                 'params': resource_parameters,

@@ -2,12 +2,27 @@ import json
 import uuid
 from pathlib import Path
 
+import pytest
+
 from spinta.core.ufuncs import Expr
 from spinta.manifests.open_api.helpers import (
     read_file_data_and_transform_to_json,
     get_dataset_schemas,
-    get_namespace_schema, get_resource_parameters,
+    get_namespace_schema, get_resource_parameters, replace_url_parameters,
 )
+
+
+@pytest.mark.parametrize(
+    argnames=["url", "expected_result_url"],
+    argvalues=[
+        ['/api/countries/{countryId}', '/api/countries/{country_id}'],
+        ['/api/countries/{countryId}/cities/{cityId}', '/api/countries/{country_id}/cities/{city_id}'],
+    ]
+)
+def test_replace_url_parameters(url: str, expected_result_url: str):
+    adjusted_url = replace_url_parameters(url)
+
+    assert adjusted_url == expected_result_url
 
 
 def test_read_file_data_and_transform_to_json(tmp_path: Path):
@@ -107,7 +122,7 @@ def test_get_dataset_schemas():
             }
         ],
         'paths': {
-            '/api/countries': {
+            '/api/countries/{countryId}': {
                 'get': {
                     'tags': ['List of Countries'],
                     'summary': 'List of countries API',
@@ -115,8 +130,12 @@ def test_get_dataset_schemas():
                     'operationId': resource_countries_id,
                     'parameters': [
                         {
+                            'name': 'countryId',
+                            'in': 'path'
+                        },
+                        {
                             'name': 'title',
-                            'in': 'path',
+                            'in': 'query',
                             'description': ''
                         },
                         {
@@ -154,17 +173,24 @@ def test_get_dataset_schemas():
             'title': "List of Countries",
             'description': 'List known countries',
             'resources': {
-                'api_countries_get': {
+                'api_countries_country_id_get': {
                     'id': resource_countries_id,
                     'params': {
                         'parameter_0': {
                             'description': '',
-                            'name': 'title',
+                            'name': 'country_id',
                             'prepare': [Expr('path')],
-                            'source': ['title'],
+                            'source': ['countryId'],
                             'type': 'param'
                         },
                         'parameter_1': {
+                            'description': '',
+                            'name': 'title',
+                            'prepare': [Expr('query')],
+                            'source': ['title'],
+                            'type': 'param'
+                        },
+                        'parameter_2': {
                             'description': 'Page number for paginated results',
                             'name': 'page',
                             'prepare': [Expr('query')],
@@ -172,7 +198,7 @@ def test_get_dataset_schemas():
                             'type': 'param'
                         }
                     },
-                    'external': '/api/countries',
+                    'external': '/api/countries/{country_id}',
                     'type': 'dask/json',
                     'prepare': Expr('http', method='GET', body='form'),
                     'title': 'List of countries API',
