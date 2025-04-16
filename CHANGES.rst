@@ -32,10 +32,12 @@ New Features:
 - Added OpenAPI Schema manifest (`#1211`_)
 - Added changes to support enum `noop()` classificator for copy & check commands (`#1146`_)
 - Added OpenAPI Schema to DSA convertion `Dataset` column part (`#1208`_)
+- Added new CLI command `getall` which returns JSON representation of YAML data. (`#1229`_)
 
   .. _#1211: https://github.com/atviriduomenys/spinta/issues/1211
   .. _#1146: https://github.com/atviriduomenys/spinta/issues/1146
   .. _#1208: https://github.com/atviriduomenys/spinta/issues/1208
+  .. _#1229: https://github.com/atviriduomenys/spinta/issues/1229
 
 Bug fixes:
 

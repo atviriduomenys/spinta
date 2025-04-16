@@ -76,6 +76,7 @@ Opening and publishing your data has never been so simple!
 
    reference/components
    reference/commands
+   reference/cli
 
 .. toctree::
    :maxdepth: 2
