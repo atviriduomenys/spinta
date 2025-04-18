@@ -44,6 +44,9 @@ RULES = {
     },
     'schema': {
         'maxargs': 0
+    },
+    'move': {
+        'maxargs': 0
     }
 }
 

@@ -770,6 +770,11 @@ def wipe():
 
 
 @command()
+def move():
+    """Change data identifier"""
+
+
+@command()
 def get_primary_key_type():
     """Return primary key column type.
 
@@ -1556,3 +1561,20 @@ def resolve_property(*args, **kwargs) -> Property | None:
     """
         Attempts to resolve given arguments to existing Property
     """
+
+
+@command()
+def redirect(
+    context: Context,
+    backend: Backend,
+    model: Model,
+    id_: str
+) -> str | None:
+    """
+        Attempts to get new _id redirect, if there are no mapping it will return None
+    """
+
+
+@command()
+def create_redirect_entry():
+    """Create new redirect entry."""

@@ -329,6 +329,18 @@ def create_changelog_table(context: Context, new: Model, handler: MigrationHandl
     ))
 
 
+def create_redirect_table(context: Context, new: Model, handler: MigrationHandler, rename: RenameMap):
+    table_name = get_pg_name(get_table_name(new, TableType.REDIRECT))
+    pkey_type = commands.get_primary_key_type(context, new.backend)
+    handler.add_action(ma.CreateTableMigrationAction(
+        table_name=table_name,
+        columns=[
+            sa.Column('_id', pkey_type, primary_key=True),
+            sa.Column('redirect', pkey_type, index=True),
+        ]
+    ))
+
+
 def handle_new_file_type(context: Context, backend: PostgreSQL, inspector: Inspector, prop: Property, pkey_type: Any,
                          handler: MigrationHandler) -> list:
     name = get_column_name(prop)
