@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import overload, Iterator, List, Tuple, Callable
 
 from starlette.requests import Request
-from starlette.responses import FileResponse
+from starlette.responses import FileResponse, RedirectResponse
 from starlette.responses import Response
 
 from spinta import commands
@@ -406,9 +406,14 @@ async def getone(
         id_=params.pk,
     )
 
-    data = commands.getone(context, model, backend, id_=params.pk)
-    data = next(prepare_data_for_response(context, model, action, params, data, reserved=[]))
-    return render(context, request, model, params, data, action=action)
+    try:
+        data = commands.getone(context, model, backend, id_=params.pk)
+        data = next(prepare_data_for_response(context, model, action, params, data, reserved=[]))
+        return render(context, request, model, params, data, action=action)
+    except ItemDoesNotExist as e:
+        if redirect_id := commands.redirect(context, backend, model, params.pk):
+            return RedirectResponse(request.url.path.replace(str(params.pk), str(redirect_id), 1), status_code=301)
+        raise e
 
 
 @overload
@@ -576,6 +581,7 @@ async def changes(
         '_id',
         '_txn',
         '_revision',
+        '_same_as'
     ])
 
     return render(context, request, model, params, rows, action=action)

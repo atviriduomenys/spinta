@@ -114,6 +114,17 @@ async def create_http_response(
     if manifest.backend is None:
         raise NoBackendConfigured(manifest)
 
+    if params.action == Action.MOVE:
+        context.attach('transaction', validate_and_return_transaction, context, manifest.backend, write=True)
+        return await commands.move(
+            context,
+            request,
+            params.model,
+            params.model.backend,
+            action=params.action,
+            params=params
+        )
+
     if params.action == Action.CHECK:
         return await _check(context, request, params)
 

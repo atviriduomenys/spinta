@@ -61,7 +61,8 @@ async def push(
         prop,
         propref=False,
         backend=backend,
-        action=action
+        action=action,
+        method=request.method
     )
 
     if action == Action.DELETE:
