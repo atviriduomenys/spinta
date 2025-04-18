@@ -30,7 +30,11 @@ def wipe(context: Context, model: Model, backend: PostgreSQL):
 
     connection = context.get('transaction').connection
 
-    # Detele changelog table
+    # Delete redirect table
+    table = backend.get_table(model, TableType.REDIRECT)
+    connection.execute(table.delete())
+
+    # Delete changelog table
     table = backend.get_table(model, TableType.CHANGELOG)
     connection.execute(table.delete())
 

@@ -11,10 +11,10 @@ from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
 from spinta.backends.postgresql.helpers.migrate.migrate import drop_all_indexes_and_constraints, handle_new_file_type, \
     get_prop_names, create_changelog_table, PostgresqlMigrationContext, \
     ModelMigrationContext, zip_and_migrate_properties, constraint_with_name, adjust_kwargs, RenameMap, \
-    PropertyMigrationContext
+    PropertyMigrationContext, create_redirect_table
 from spinta.backends.postgresql.helpers.name import name_changed, get_pg_changelog_name, get_pg_file_name, \
     get_pg_column_name, get_pg_constraint_name, get_pg_removed_name, is_removed, get_pg_table_name, \
-    get_pg_foreign_key_name
+    get_pg_foreign_key_name, get_pg_redirect_name
 from spinta.components import Context, Model
 from spinta.types.datatype import File
 from spinta.utils.itertools import ensure_list
@@ -163,6 +163,8 @@ def migrate(
 
     # Create changelog table
     create_changelog_table(context, new, handler, rename)
+    # Create redirect table
+    create_redirect_table(context, new, handler, rename)
 
 
 @commands.migrate.register(Context, PostgreSQL, PostgresqlMigrationContext, sa.Table, NotAvailable)
@@ -197,6 +199,13 @@ def migrate(
                 table_name=removed_changelog_name
             ))
 
+        # Drop redirect if it was already flagged for deletion
+        removed_redirect_name = get_pg_redirect_name(removed_table_name)
+        if inspector.has_table(removed_redirect_name):
+            handler.add_action(ma.DropTableMigrationAction(
+                table_name=removed_redirect_name
+            ))
+
         # Drop file tables if they were already flagged for deletion
         removed_file_name = get_pg_file_name(removed_table_name)
         for table in inspector.get_table_names():
@@ -224,6 +233,20 @@ def migrate(
             new_name=get_pg_sequence_name(new_changelog_name)
         ))
         drop_all_indexes_and_constraints(inspector, old_changelog_name, new_changelog_name, handler)
+
+    # Flag redirect for deletion
+    old_redirect_name = get_pg_redirect_name(old_table_name)
+    new_redirect_name = get_pg_redirect_name(removed_table_name)
+    if inspector.has_table(old_redirect_name):
+        handler.add_action(ma.RenameTableMigrationAction(
+            old_table_name=old_redirect_name,
+            new_table_name=new_redirect_name
+        ))
+        handler.add_action(ma.RenameSequenceMigrationAction(
+            old_name=get_pg_sequence_name(old_redirect_name),
+            new_name=get_pg_sequence_name(new_redirect_name)
+        ))
+        drop_all_indexes_and_constraints(inspector, old_redirect_name, new_redirect_name, handler)
 
     # Flag file tables for deletion
     for table in inspector.get_table_names():

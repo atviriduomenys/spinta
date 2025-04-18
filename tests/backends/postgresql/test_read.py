@@ -1428,3 +1428,73 @@ def test_filter_lithuanian_letters(
             'name': 'Šilutė',
         },
     ]
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_getone_redirect(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property   | type     | ref | prepare                 | access | level
+    datasets/redirect          |          |     |                         |        |
+      |   |   | Country        |          | id  |                         |        |
+      |   |   |   | id         | integer  |     |                         | open   |
+      |   |   |   | name       | string   |     |                         | open   |
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+
+    app = create_test_client(context)
+    app.authorize(['spinta_insert', 'spinta_getone', 'spinta_wipe', 'spinta_search', 'spinta_set_meta_fields', 'spinta_move'])
+    lt_id = str(uuid.uuid4())
+
+    resp = app.post('/datasets/redirect/Country', json={
+        '_id': lt_id,
+        'id': 0,
+        'name': 'Lithuania'
+    })
+    assert resp.status_code == 201
+
+    resp = app.get(f'/datasets/redirect/Country/{lt_id}')
+    assert resp.status_code == 200
+    assert listdata(resp, '_id', 'id', 'name', full=True) == [
+        {
+            '_id': lt_id,
+            'id': 0,
+            'name': 'Lithuania',
+        },
+    ]
+
+    new_lt_id = str(uuid.uuid4())
+    assert lt_id != new_lt_id
+
+    resp = app.patch(f'/datasets/redirect/Country/{lt_id}/:move', json={
+        '_id': new_lt_id,
+        '_revision': resp.json()['_revision']
+    })
+    assert listdata(resp, '_id', '_same_as', full=True) == [
+        {
+            '_id': lt_id,
+            '_same_as': new_lt_id,
+        },
+    ]
+    assert resp.status_code == 200
+
+    resp = app.get(f'/datasets/redirect/Country/{lt_id}')
+    assert resp.status_code == 200
+    assert listdata(resp, '_id', 'id', 'name', full=True) == [
+        {
+            '_id': new_lt_id,
+            'id': 0,
+            'name': 'Lithuania',
+        },
+    ]

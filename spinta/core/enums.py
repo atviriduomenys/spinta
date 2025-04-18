@@ -54,6 +54,8 @@ class Action(enum.Enum):
 
     WIPE = 'wipe'
 
+    MOVE = 'move'
+
     GETONE = 'getone'
     GETALL = 'getall'
     SEARCH = 'search'

@@ -52,6 +52,10 @@ def get_pg_changelog_name(table_name: str) -> str:
     return get_pg_name(f"{table_name}{TableType.CHANGELOG.value}")
 
 
+def get_pg_redirect_name(table_name: str) -> str:
+    return get_pg_name(f"{table_name}{TableType.REDIRECT.value}")
+
+
 def get_pg_file_name(table_name: str, arg: str = "") -> str:
     if arg and not arg.startswith('/'):
         arg = f'/{arg}'

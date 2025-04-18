@@ -77,9 +77,13 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migration
 
     for zipped_name in zipped_names:
         for new_model_name, old_table_name in zipped_name:
-            # Skip Changelog and File table migrations, because this is done in DataType migration section
+            # Skip special table migrations, because this is done in DataType migration section
             if old_table_name and any(
-                value in old_table_name for value in (TableType.CHANGELOG.value, TableType.FILE.value)
+                value in old_table_name for value in (
+                    TableType.CHANGELOG.value,
+                    TableType.FILE.value,
+                    TableType.REDIRECT.value
+                )
             ):
                 continue
 
