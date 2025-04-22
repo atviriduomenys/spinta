@@ -37,12 +37,21 @@ def process_csv_file(file_path):
             continue
 
         # we don't need comments for comments
-        if 'comment' in row:
+        if row["type"] == 'comment':
             output_lines.append(data_lines[i])
             continue
 
         original_prepare = row['prepare']
         prepare_value = original_prepare
+
+        print(f"Type of prepare_value: {type(prepare_value)}")
+        print(f"Value of prepare_value: {prepare_value}")
+
+        # Make sure prepare_value is a string
+        if prepare_value is None:
+            prepare_value = ''
+        elif not isinstance(prepare_value, str):
+            prepare_value = str(prepare_value)
 
         # Match dot-separated fields (including optional [])
         joined_words = re.findall(r'\b[\w\[\]]+(?:\.[\w\[\]]+)+\b', prepare_value)

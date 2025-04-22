@@ -2,6 +2,7 @@ import io
 import os
 import csv
 import re
+import sys
 
 def process_csv_files(directory):
     # Recursively walk through the directory
@@ -35,40 +36,53 @@ def process_csv_file(file_path):
             continue
 
         # we don't need comments for comments
-        if 'comment' in row:
+        if row.get('type') == 'comment':
             output_lines.append(data_lines[i])
             continue
-
 
         original_ref = row['ref']
         ref_value = original_ref
 
-        # Match dot-separated fields (including optional [])
-        joined_words = re.findall(r'\b[\w\[\]]+(?:\.[\w\[\]]+)+\b', ref_value)
-
-        if not joined_words:
-            output_lines.append(data_lines[i])
-            continue
-
-        # Remove each matched word + surrounding commas/whitespace
-        for word in joined_words:
-            pattern = r'(?:,\s*)?' + re.escape(word) + r'(?:\s*,)?'
-            ref_value = re.sub(pattern, '', ref_value)
-
-        # Clean spacing
-        ref_value = re.sub(r'\s{2,}', ' ', ref_value).strip(', ').strip()
-
-        # Remove empty brackets
-        ref_value = re.sub(r'(\w+)\[\s*(,?\s*)*\]', r'\1', ref_value)
+        # First, handle words inside brackets
+        # Find all bracket content
+        bracket_contents = re.findall(r'\[(.*?)\]', ref_value)
+        
+        for content in bracket_contents:
+            # Find words with dots (including multiple dots)
+            dot_words = re.findall(r'\b[\w]+(?:\.[\w]+)+\b', content)
+            
+            if dot_words:
+                # Create a new content by removing the dot words
+                new_content = content
+                for word in dot_words:
+                    new_content = re.sub(r'(?:,\s*)?' + re.escape(word) + r'(?:\s*,)?', '', new_content)
+                
+                # Clean up the new content
+                new_content = re.sub(r'\s{2,}', ' ', new_content).strip(', ')
+                
+                # Replace the original bracket content with the cleaned version
+                ref_value = ref_value.replace(f'[{content}]', f'[{new_content}]' if new_content else '')
+        
+        # If there are empty brackets after processing, remove them
         ref_value = re.sub(r'\[\s*\]', '', ref_value)
-
-        # Clean spacing inside brackets
-        ref_value = re.sub(
-            r'\[([^\]]+)\]',
-            lambda m: '[' + ', '.join(part.strip() for part in m.group(1).split(',')) + ']',
-            ref_value
-        )
-
+        
+        # Now handle dot-separated words outside brackets
+        outside_brackets = re.sub(r'\[.*?\]', '', ref_value)
+        dot_words_outside = re.findall(r'\b[\w]+(?:\.[\w]+)+\b', outside_brackets)
+        
+        for word in dot_words_outside:
+            ref_value = re.sub(r'(?:,\s*)?' + re.escape(word) + r'(?:\s*,)?', '', ref_value)
+        
+        # Clean up spacing and commas
+        ref_value = re.sub(r'\s{2,}', ' ', ref_value).strip(', ')
+        
+        # Fix any remaining empty brackets
+        ref_value = re.sub(r'\[\s*\]', '', ref_value)
+        
+        # Final cleanup for any comma issues
+        ref_value = re.sub(r',\s*,', ',', ref_value)
+        ref_value = ref_value.strip(', ')
+        
         # If no change, keep original line
         if ref_value == original_ref:
             output_lines.append(data_lines[i])
@@ -101,13 +115,9 @@ def process_csv_file(file_path):
 
 
 if __name__ == "__main__":
-    # if len(sys.argv) != 2:
-    #     print("Usage: python script.py <directory>")
-    # else:
-    #     directory = sys.argv[1]
-    #     process_csv_files(directory)
-    directory = "/home/karina/work/vssa/metadata/datasets/gov/rc"
-    process_csv_files(directory)
-
-
-
+    if len(sys.argv) != 2:
+        print("Usage: python script.py <directory>")
+        sys.exit(1)
+    else:
+        directory = sys.argv[1]
+        process_csv_files(directory)

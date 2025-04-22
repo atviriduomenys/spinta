@@ -13,19 +13,16 @@ def normalize_column_names(directory):
 def normalize_column_names_in_file(file_path):
     # Read the CSV file
     with open(file_path, mode='r', newline='', encoding='utf-8') as file:
-        reader = csv.DictReader(file)
-        # Normalize fieldnames by stripping whitespace
-        original_fieldnames = reader.fieldnames
-        normalized_fieldnames = [field.strip() for field in original_fieldnames]
-        rows = list(reader)
-
-    # Write the modified rows back to the CSV file with normalized column names
+        # Read the first line (header) and the rest of the file
+        header = file.readline().strip()
+        content = file.read()
+    
+    # Normalize header by stripping whitespace from each field
+    normalized_header = ','.join([field.strip() for field in header.split(',')])
+    
+    # Write the normalized header and the original content back to the file
     with open(file_path, mode='w', newline='', encoding='utf-8') as file:
-        writer = csv.DictWriter(file, fieldnames=normalized_fieldnames)
-        writer.writeheader()
-        for row in rows:
-            # Write each row with normalized column names
-            writer.writerow({normalized: row[original] for original, normalized in zip(original_fieldnames, normalized_fieldnames)})
+        file.write(normalized_header + '\n' + content)
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
