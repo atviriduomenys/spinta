@@ -264,7 +264,6 @@ class XSDModel:
                     "resource": self.dataset_resource.resource_name,
                 },
             "name": self.name,
-            "basename": self.basename,
         }
 
         if self.is_partial:

@@ -46,7 +46,6 @@ def test_manifest_loading(postgresql, rc, cli: SpintaCliRunner, tmp_path, reques
         'country.yml': {
             'type': 'model',
             'name': 'Country',
-            'basename': 'Country',
             'properties': {
                 'name': {'type': 'string'},
             },

@@ -61,7 +61,7 @@ def _get_sql_type(dtype: DataType) -> Type[TypeEngine]:
 
 
 def _get_model_db_name(model: Model) -> str:
-    return model.basename.upper()
+    return model.get_name_without_ns().upper()
 
 
 def _meta_from_manifest(context: Context, manifest: Manifest) -> sa.MetaData:

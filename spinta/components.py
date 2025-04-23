@@ -370,6 +370,14 @@ class Node(Component):
         `:dataset/dsname`, also, `ns` models have `:ns` specifier.
         """
         return ''
+    
+    @property
+    def basename(self):
+        if "/:" in self.name:
+            name, params = self.name.split("/:")
+            if name:
+                return name.split("/")[-1] + "/:" + params
+        return self.name.split("/")[-1]
 
 
 # MetaData entry ID can be file path, uuid, table row id of a Model, Dataset,
@@ -716,7 +724,6 @@ class Model(MetaData):
         'eli': {'type': 'string'},
         'count': {'type': 'integer'},
         'origin': {'type': 'string'},
-        'basename': {'type': 'string'},
     }
 
     def __init__(self):
@@ -739,6 +746,13 @@ class Model(MetaData):
 
     def model_type(self):
         return self.name
+    
+    def get_name_without_ns(self):
+        # todo workaround, maybe remove after dealing with /: properly
+        #  https://github.com/atviriduomenys/spinta/issues/927
+        return self.basename
+
+        # return self.name.split('/')[-1]
 
     def add_keymap_property_combination(self, given_props: List[Property]):
         extract_names = list([prop.name for prop in given_props])

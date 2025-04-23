@@ -467,7 +467,6 @@ class ModelReader(TabularReader):
             'type': 'partial_model' if self.is_partial else 'model',
             'id': row['id'],
             'name': name,
-            'basename': _get_model_basename(name),
             'base': {
                 'id': base.data["id"],
                 'name': base.name,
@@ -2063,14 +2062,6 @@ def to_relative_model_name(model: Model, dataset: Dataset = None) -> str:
         return model.basename
 
     return '/' + model.name
-
-
-def _get_model_basename(name: str) -> str:
-    if "/:" in name:
-        name, url_params = name.split("/:")
-        if name:
-            return name.split("/")[-1] + "/:" + url_params
-    return name.split("/")[-1]
 
 
 def _relative_referenced_model_name(
