@@ -32,7 +32,7 @@ from spinta import commands
 from spinta import spyna
 from spinta.backends import Backend
 from spinta.backends.constants import BackendOrigin
-from spinta.components import Context, Base, PrepareGiven
+from spinta.components import Action, Context, Base, PrepareGiven, UrlParams
 from spinta.datasets.components import Resource, Param
 from spinta.dimensions.comments.components import Comment
 from spinta.dimensions.enum.components import EnumItem
@@ -76,7 +76,7 @@ from spinta.manifests.tabular.components import TabularFormat
 from spinta.manifests.tabular.constants import DATASET
 from spinta.manifests.tabular.constants import DataTypeEnum
 from spinta.manifests.tabular.formats.gsheets import read_gsheets_manifest
-from spinta.spyna import SpynaAST
+from spinta.spyna import SpynaAST, parse
 from spinta.types.datatype import Ref, DataType, Denorm, Inherit, ExternalRef, BackRef, ArrayBackRef, Array, Object
 from spinta.utils.data import take
 from spinta.utils.schema import NA
@@ -437,6 +437,7 @@ class BaseReader(TabularReader):
 class ModelReader(TabularReader):
     type: str = 'model'
     data: ModelRow
+    is_partial = False
 
     def read(self, row: Dict[str, str]) -> None:
         dataset = _get_state_obj(self.state.dataset)
@@ -447,10 +448,8 @@ class ModelReader(TabularReader):
             row['model'],
         )
 
-        if "/:" in name:
-            name, features = name.rsplit("/:", 1)
-        else:
-            features = None
+        # Check for partial model syntax
+        _read_partial_model(self, name)
 
         if self.state.rename_duplicates:
             dup = 1
@@ -465,7 +464,7 @@ class ModelReader(TabularReader):
         self.name = name
 
         self.data = {
-            'type': 'model',
+            'type': 'partial_model' if self.is_partial else 'model',
             'id': row['id'],
             'name': name,
             'base': {
@@ -496,7 +495,6 @@ class ModelReader(TabularReader):
                 'prepare': _parse_spyna(self, row[PREPARE]),
             },
             'given_name': name,
-            'features': features,
             'status': row.get(STATUS),
             'visibility': row.get(VISIBILITY),
             'eli': row.get(ELI),
@@ -521,6 +519,45 @@ class ModelReader(TabularReader):
 
     def leave(self) -> None:
         self.state.model = None
+
+
+def _read_partial_model(model, name) -> None:
+    given_url_params = None
+
+    if "/:" in name or "?" in name:
+        model.is_partial = True
+        if "/:" in name:
+            given_url_params = name.rsplit("/:", 1)[1]
+        elif "?" in name:
+            given_url_params = "?" + name.split("?", 1)[1]
+    
+    if given_url_params:
+        model.data['given_url_params'] = given_url_params
+        model.url_params = UrlParams()
+
+        if '?' in given_url_params:
+            action_part, query = given_url_params.split('?', 1)
+            action = action_part.strip(':') if action_part else None
+            
+            if action:
+                model.url_params.action = Action.by_value(action)
+            
+            parsed = parse(query)
+            if parsed:
+                if parsed['name'] == 'select':
+                    # For select(id,name)
+                    model.url_params.select = [
+                        arg['args'][0] for arg in parsed['args'] 
+                        if arg['name'] == 'bind'
+                    ]
+                else:
+                    # For filters like continent.code="eu"
+                    model.url_params.query = [parsed]
+                
+        elif given_url_params.startswith(':'):
+            # Action-only params like /:getall
+            action = given_url_params.strip(':')
+            model.url_params.action = Action.by_value(action)
 
 
 def _parse_property_ref(ref: str) -> Tuple[str, List[str]]:
@@ -1224,19 +1261,19 @@ def _check_if_property_already_set(reader: PropertyReader, given_row: dict, full
     root = True
     for name in split:
 
-        base_name = name
+        basename = name
 
         if not base and root:
             skip = True
             root = False
             if _name_complex(name):
                 skip = False
-                base_name = _clean_up_prop_name(name)
+                basename = _clean_up_prop_name(name)
 
-            if base_name not in properties:
+            if basename not in properties:
                 return
 
-            base = properties[base_name]
+            base = properties[basename]
 
             if skip:
                 continue
@@ -1985,19 +2022,36 @@ def load_ascii_tabular_manifest(
 
 
 def get_relative_model_name(dataset: [str, dict], name: str) -> str:
+    # First handle any url parameters
+    basename = name
+    url_params = None
+    if "/:" in name:
+        basename, url_params = name.rsplit("/:", 1)
+    elif "?" in name:
+        basename, url_params = name.split("?", 1)
+        
     if isinstance(dataset, str):
-        return name.replace(dataset, '')
-    if name.startswith('/'):
-        return name[1:]
-    elif '/' in name:
-        return name
+        result = basename.replace(dataset, '')
+    elif basename.startswith('/'):
+        result = basename[1:]
+    elif '/' in basename:
+        result = basename
     elif dataset is None:
-        return name
+        result = basename
     else:
-        return '/'.join([
+        result = '/'.join([
             dataset['name'],
-            name,
+            basename,
         ])
+        
+    # Add back any url parameters
+    if url_params:
+        if "?" in name:
+            result = f"{result}?{url_params}"
+        else:
+            result = f"{result}/:{url_params}"
+            
+    return result
 
 
 def to_relative_model_name(model: Model, dataset: Dataset = None) -> str:
@@ -2006,8 +2060,8 @@ def to_relative_model_name(model: Model, dataset: Dataset = None) -> str:
         return model.name
     if model.name == f'{dataset.name}/{model.basename}':
         return model.basename
-    else:
-        return '/' + model.name
+
+    return '/' + model.name
 
 
 def _relative_referenced_model_name(
@@ -2565,8 +2619,8 @@ def _model_to_tabular(
             model,
             model.external.dataset,
         )
-    if model.features:
-        data['model'] = f"{data['model']}{model.features}"
+    if model.given.url_params and not data['model'].endswith(model.given.url_params):
+        data['model'] = f"{data['model']}{model.given.url_params}"
     if external and model.external:
         data.update({
             'source': model.external.name,
