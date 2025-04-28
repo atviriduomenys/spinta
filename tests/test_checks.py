@@ -172,6 +172,7 @@ def test_check_names_dataset(
 
     assert e.value.message == "Invalid 'datasets/gov/Example' namespace code name."
 
+
 @pytest.mark.manifests('internal_sql', 'csv')
 def test_check_enum_values_under_source(manifest_type , tmp_path, rc):
     context, manifest = load_manifest_and_context(rc, '''
