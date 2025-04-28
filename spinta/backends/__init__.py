@@ -2194,6 +2194,12 @@ def get_error_context(backend: Backend, *, prefix='this') -> Dict[str, str]:
         'features': f'{prefix}.features',
     }
 
+
 @commands.get_error_context.register(str)
 def get_error_context(message: str, *, prefix='this') -> Dict[str, str]:
     return {}
+
+
+@commands.redirect.register(Context, Backend, Model, str)
+def redirect(context: Context, backend: Backend, model: Model, data: str):
+    return None
