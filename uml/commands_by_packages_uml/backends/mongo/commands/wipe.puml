@@ -1,0 +1,14 @@
+@startuml
+package wipe <<Rectangle>> {
+
+    object wipe {
+        +context: Context,
+        +model: Model,
+        +backend: Mongo
+    }
+}
+
+wipe *-- Context
+wipe *-- Model
+wipe *-- Mongo
+@enduml
