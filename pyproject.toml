@@ -108,6 +108,7 @@ xmltodict = "*"
 sqlean-py = "*"
 cachetools = "*"
 docutils = "^0.21.2"
+zeep = "^4.3.1"
 
 [tool.poetry.extras]
 http = ["gunicorn", "uvicorn"]

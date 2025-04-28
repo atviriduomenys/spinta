@@ -84,6 +84,7 @@ CONFIG = {
             'xlsx': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
             'geojson': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
             'html': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
+            'soap': 'spinta.datasets.backends.dataframe.backends.soap.components:Soap',
 
             # This will be deprecated, when all datasources migrate to `dask` version
             'csv': 'spinta.compat:CsvDeprecated',

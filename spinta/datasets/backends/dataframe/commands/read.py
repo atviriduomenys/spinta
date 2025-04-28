@@ -382,7 +382,7 @@ def _get_pkeys_if_ref(prop: Property):
     return return_list
 
 
-def _get_dask_dataframe_meta(model: Model):
+def get_dask_dataframe_meta(model: Model):
     dask_meta = {}
     for prop in model.properties.values():
         if prop.external and prop.external.name:
@@ -420,13 +420,13 @@ def getall(
                 "pkeys": _get_pkeys_if_ref(prop)
             }
 
-    meta = _get_dask_dataframe_meta(model)
+    meta = get_dask_dataframe_meta(model)
     df = dask.bag.from_sequence(bases).map(
         _get_data_json,
         source=model.external.name,
         model_props=props
     ).flatten().to_dataframe(meta=meta)
-    yield from _dask_get_all(context, query, df, backend, model, builder, extra_properties)
+    yield from dask_get_all(context, query, df, backend, model, builder, extra_properties)
 
 
 @commands.getall.register(Context, Model, Xml)
@@ -456,14 +456,14 @@ def getall(
                 "pkeys": _get_pkeys_if_ref(prop)
             }
 
-    meta = _get_dask_dataframe_meta(model)
+    meta = get_dask_dataframe_meta(model)
     df = dask.bag.from_sequence(bases).map(
         _get_data_xml,
         namespaces=_gather_namespaces_from_model(context, model),
         source=model.external.name,
         model_props=props
     ).flatten().to_dataframe(meta=meta)
-    yield from _dask_get_all(context, query, df, backend, model, builder, extra_properties)
+    yield from dask_get_all(context, query, df, backend, model, builder, extra_properties)
 
 
 def _gather_namespaces_from_model(context: Context, model: Model):
@@ -498,7 +498,7 @@ def getall(
     builder = backend.query_builder_class(context)
     builder.update(model=model)
     df = dask.dataframe.read_csv(list(bases), sep=resource_builder.seperator)
-    yield from _dask_get_all(context, query, df, backend, model, builder, extra_properties)
+    yield from dask_get_all(context, query, df, backend, model, builder, extra_properties)
 
 @commands.getall.register(Context, Model, MemoryDaskBackend)
 def getall(
@@ -526,7 +526,7 @@ def getall(
     builder = backend.query_builder_class(context)
     builder.update(model=model)
 
-    yield from _dask_get_all(
+    yield from dask_get_all(
         context, query, dask_df, backend, model, builder, extra_properties
     )
 
@@ -553,7 +553,7 @@ def parametrize_bases(
         yield base
 
 
-def _dask_get_all(
+def dask_get_all(
     context: Context,
     query: Expr,
     df: dask.dataframe,
