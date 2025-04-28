@@ -44,23 +44,11 @@ def name_changed(
     return old_table_name != new_table_name or old_property_name != new_property_name
 
 
-def get_pg_table_name(table_name: str) -> str:
-    return get_pg_name(table_name)
-
-
-def get_pg_changelog_name(table_name: str) -> str:
-    return get_pg_name(f"{table_name}{TableType.CHANGELOG.value}")
-
-
-def get_pg_redirect_name(table_name: str) -> str:
-    return get_pg_name(f"{table_name}{TableType.REDIRECT.value}")
-
-
-def get_pg_file_name(table_name: str, arg: str = "") -> str:
+def get_pg_table_name(table_name: str, ttype: TableType = TableType.MAIN, arg: str = "") -> str:
     if arg and not arg.startswith('/'):
         arg = f'/{arg}'
 
-    return get_pg_name(f"{table_name}{TableType.FILE.value}{arg}")
+    return get_pg_name(f"{table_name}{ttype.value}{arg}")
 
 
 def get_pg_column_name(column_name: str) -> str:

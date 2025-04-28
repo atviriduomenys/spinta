@@ -3,11 +3,11 @@ from sqlalchemy.dialects.postgresql import BIGINT, ARRAY
 
 import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
-from spinta.backends.constants import BackendFeatures
+from spinta.backends.constants import BackendFeatures, TableType
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers.migrate.migrate import get_root_attr, PostgresqlMigrationContext, \
     PropertyMigrationContext
-from spinta.backends.postgresql.helpers.name import name_changed, get_pg_file_name, get_pg_column_name, \
+from spinta.backends.postgresql.helpers.name import name_changed, get_pg_column_name, \
     get_pg_table_name
 from spinta.components import Context
 from spinta.types.datatype import File
@@ -55,8 +55,8 @@ def migrate(
             table_name=table_name,
             column=sa.Column(get_pg_column_name(f'{name}._blocks'), ARRAY(pkey_type, ), nullable=nullable)
         ))
-    old_table = get_pg_file_name(table.name, pg_name)
-    new_table = get_pg_file_name(table_name, pg_name)
+    old_table = get_pg_table_name(table.name, TableType.FILE, pg_name)
+    new_table = get_pg_table_name(table_name, TableType.FILE, pg_name)
     if not inspector.has_table(old_table):
         handler.add_action(ma.CreateTableMigrationAction(
             table_name=new_table,
@@ -98,9 +98,9 @@ def migrate(
                 new_column_name=new_name
             ))
     table_name = get_pg_table_name(rename.get_table_name(table.name))
-    old_table = get_pg_file_name(table.name, old_name)
-    new_table_old_prop = get_pg_file_name(table_name, old_name)
-    new_table_new_prop = get_pg_file_name(table_name, column_name)
+    old_table = get_pg_table_name(table.name, TableType.FILE, old_name)
+    new_table_old_prop = get_pg_table_name(table_name, TableType.FILE, old_name)
+    new_table_new_prop = get_pg_table_name(table_name, TableType.FILE, column_name)
     if name_changed(old_name, column_name) and inspector.has_table(old_table):
         handler.add_action(
             ma.RenameTableMigrationAction(
