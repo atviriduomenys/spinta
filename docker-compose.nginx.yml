@@ -9,6 +9,7 @@ services:
       - "80:80"
     networks:
       - spinta
+      - katalogas
   database:
     image: postgis/postgis:16-3.4
     environment:
@@ -22,6 +23,8 @@ services:
 
 networks:
   spinta:
+    external: true
+  katalogas:
     external: true
 
 volumes:
