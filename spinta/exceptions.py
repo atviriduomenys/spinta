@@ -1090,3 +1090,11 @@ class UnableToCastColumnTypes(UserError):
     template = '''
     Unable to cast {column!r} column of type {old_type!r} to type {new_type!r}.
     '''
+
+
+class SoapServiceError(Exception):
+    pass
+
+
+class SoapParseError(Exception):
+    pass
