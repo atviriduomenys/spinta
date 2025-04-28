@@ -14,8 +14,7 @@ from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
 from spinta.backends.postgresql.helpers.migrate.migrate import drop_all_indexes_and_constraints, model_name_key, \
     PostgresqlMigrationContext, CastMatrix, validate_rename_map, RenameMap
 from spinta.backends.postgresql.helpers.name import get_pg_table_name, get_pg_column_name, \
-    get_pg_foreign_key_name, get_pg_file_name, PG_NAMING_CONVENTION
-from spinta.utils.sqlalchemy import get_metadata_naming_convention
+    get_pg_foreign_key_name, PG_NAMING_CONVENTION
 from spinta.cli.helpers.migrate import MigrationConfig
 from spinta.commands import create_exception
 from spinta.components import Context, Model
@@ -24,6 +23,7 @@ from spinta.manifests.components import Manifest
 from spinta.types.datatype import Ref, File
 from spinta.types.namespace import sort_models_by_ref_and_base
 from spinta.utils.schema import NA
+from spinta.utils.sqlalchemy import get_metadata_naming_convention
 
 
 @commands.migrate.register(Context, Manifest, PostgreSQL, MigrationConfig)
@@ -299,7 +299,7 @@ def _clean_up_file_type(inspector: Inspector, models: List[Model], handler: Migr
                 old_table = rename.get_old_table_name(get_table_name(model))
                 old_column = rename.get_old_column_name(old_table, get_column_name(prop))
                 allowed_file_tables.append(
-                    get_pg_file_name(old_table, old_column)
+                    get_pg_table_name(old_table, TableType.FILE, old_column)
                 )
 
     for table in inspector.get_table_names():
@@ -307,7 +307,7 @@ def _clean_up_file_type(inspector: Inspector, models: List[Model], handler: Migr
             split = table.split(f'{TableType.FILE.value}/')
             if split[0] in existing_tables:
                 if table not in allowed_file_tables and not split[1].startswith("__"):
-                    new_name = get_pg_file_name(split[0], f'__{split[1]}')
+                    new_name = get_pg_table_name(split[0], TableType.FILE, f'__{split[1]}')
                     if inspector.has_table(new_name):
                         handler.add_action(ma.DropTableMigrationAction(
                             table_name=new_name

@@ -1,4 +1,5 @@
 import sqlalchemy as sa
+from sqlalchemy.engine.reflection import Inspector
 
 import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
@@ -10,16 +11,15 @@ from spinta.backends.postgresql.helpers import get_pg_name, get_pg_sequence_name
 from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
 from spinta.backends.postgresql.helpers.migrate.migrate import drop_all_indexes_and_constraints, handle_new_file_type, \
     get_prop_names, create_changelog_table, PostgresqlMigrationContext, \
-    ModelMigrationContext, zip_and_migrate_properties, constraint_with_name, adjust_kwargs, RenameMap, \
+    ModelMigrationContext, zip_and_migrate_properties, constraint_with_name, RenameMap, \
     PropertyMigrationContext, create_redirect_table
-from spinta.backends.postgresql.helpers.name import name_changed, get_pg_changelog_name, get_pg_file_name, \
-    get_pg_column_name, get_pg_constraint_name, get_pg_removed_name, is_removed, get_pg_table_name, \
-    get_pg_foreign_key_name, get_pg_redirect_name
+from spinta.backends.postgresql.helpers.name import name_changed, get_pg_column_name, get_pg_constraint_name, \
+    get_pg_removed_name, is_removed, get_pg_table_name, \
+    get_pg_foreign_key_name
 from spinta.components import Context, Model
 from spinta.types.datatype import File
 from spinta.utils.itertools import ensure_list
 from spinta.utils.schema import NotAvailable, NA
-from sqlalchemy.engine.reflection import Inspector
 
 
 @commands.migrate.register(Context, PostgreSQL, PostgresqlMigrationContext, sa.Table, Model)
@@ -193,21 +193,21 @@ def migrate(
         ))
 
         # Drop changelog if it was already flagged for deletion
-        removed_changelog_name = get_pg_changelog_name(removed_table_name)
+        removed_changelog_name = get_pg_table_name(removed_table_name, TableType.CHANGELOG)
         if inspector.has_table(removed_changelog_name):
             handler.add_action(ma.DropTableMigrationAction(
                 table_name=removed_changelog_name
             ))
 
         # Drop redirect if it was already flagged for deletion
-        removed_redirect_name = get_pg_redirect_name(removed_table_name)
+        removed_redirect_name = get_pg_table_name(removed_table_name, TableType.REDIRECT)
         if inspector.has_table(removed_redirect_name):
             handler.add_action(ma.DropTableMigrationAction(
                 table_name=removed_redirect_name
             ))
 
         # Drop file tables if they were already flagged for deletion
-        removed_file_name = get_pg_file_name(removed_table_name)
+        removed_file_name = get_pg_table_name(removed_table_name, TableType.FILE)
         for table in inspector.get_table_names():
             if table.startswith(removed_file_name):
                 handler.add_action(ma.DropTableMigrationAction(
@@ -221,8 +221,8 @@ def migrate(
     drop_all_indexes_and_constraints(inspector, old_table_name, removed_table_name, handler)
 
     # Flag changelog for deletion
-    old_changelog_name = get_pg_changelog_name(old_table_name)
-    new_changelog_name = get_pg_changelog_name(removed_table_name)
+    old_changelog_name = get_pg_table_name(old_table_name, TableType.CHANGELOG)
+    new_changelog_name = get_pg_table_name(removed_table_name, TableType.CHANGELOG)
     if inspector.has_table(old_changelog_name):
         handler.add_action(ma.RenameTableMigrationAction(
             old_table_name=old_changelog_name,
@@ -235,25 +235,21 @@ def migrate(
         drop_all_indexes_and_constraints(inspector, old_changelog_name, new_changelog_name, handler)
 
     # Flag redirect for deletion
-    old_redirect_name = get_pg_redirect_name(old_table_name)
-    new_redirect_name = get_pg_redirect_name(removed_table_name)
+    old_redirect_name = get_pg_table_name(old_table_name, TableType.REDIRECT)
+    new_redirect_name = get_pg_table_name(removed_table_name, TableType.REDIRECT)
     if inspector.has_table(old_redirect_name):
         handler.add_action(ma.RenameTableMigrationAction(
             old_table_name=old_redirect_name,
             new_table_name=new_redirect_name
         ))
-        handler.add_action(ma.RenameSequenceMigrationAction(
-            old_name=get_pg_sequence_name(old_redirect_name),
-            new_name=get_pg_sequence_name(new_redirect_name)
-        ))
         drop_all_indexes_and_constraints(inspector, old_redirect_name, new_redirect_name, handler)
 
     # Flag file tables for deletion
     for table in inspector.get_table_names():
-        old_file_name = get_pg_file_name(old_table_name)
+        old_file_name = get_pg_table_name(old_table_name, TableType.FILE)
         if table.startswith(old_file_name):
             split = table.split(TableType.FILE.value)
-            removed_file_name = get_pg_file_name(removed_table_name, split[1])
+            removed_file_name = get_pg_table_name(removed_table_name, TableType.FILE, split[1])
             handler.add_action(ma.RenameTableMigrationAction(
                 old_table_name=table,
                 new_table_name=removed_file_name
@@ -277,9 +273,9 @@ def _handle_model_rename(
     ))
 
     # Handle Changelog table rename
-    old_changelog_name = get_pg_changelog_name(old_name)
+    old_changelog_name = get_pg_table_name(old_name, TableType.CHANGELOG)
     if inspector.has_table(old_changelog_name):
-        new_changelog_name = get_pg_changelog_name(new_name)
+        new_changelog_name = get_pg_table_name(new_name, TableType.CHANGELOG)
         handler.add_action(ma.RenameTableMigrationAction(
             old_table_name=old_changelog_name,
             new_table_name=new_changelog_name
@@ -289,13 +285,13 @@ def _handle_model_rename(
         ))
 
     # Handle File table renames
-    old_file_name = get_pg_file_name(old_name)
+    old_file_name = get_pg_table_name(old_name, TableType.FILE)
     for table in inspector.get_table_names():
         if table.startswith(old_file_name):
             split = table.split(TableType.FILE.value)
             handler.add_action(ma.RenameTableMigrationAction(
                 old_table_name=table,
-                new_table_name=get_pg_file_name(new_name, split[1])
+                new_table_name=get_pg_table_name(new_name, TableType.FILE, split[1])
             ))
 
 
