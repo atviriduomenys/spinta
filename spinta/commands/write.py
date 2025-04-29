@@ -1383,7 +1383,6 @@ async def move(
     action: Action,
     params: UrlParams,
 ):
-    remove = request.method == 'DELETE'
     commands.authorize(context, Action.MOVE, model)
 
     stop_on_error = not params.fault_tolerant
@@ -1397,12 +1396,12 @@ async def move(
     )
     dstream = prepare_data(context, stream, stop_on_error)
     dstream = read_existing_data(context, dstream, stop_on_error)
-    dstream = validate_move(context, dstream, remove)
+    dstream = validate_move(context, dstream)
     dstream = validate_data(context, dstream)
     dstream = prepare_patch(context, dstream)
     dstream = prepare_data_for_write(context, dstream, params)
 
-    dstream = commands.move(context, model, backend, dstream=dstream, remove=remove)
+    dstream = commands.move(context, model, backend, dstream=dstream)
     dstream = commands.create_redirect_entry(context, model, model.backend, dstream=dstream)
     dstream = commands.create_changelog_entry(
         context, model, model.backend, dstream=dstream,
@@ -1433,7 +1432,6 @@ async def move(
 async def validate_move(
     context: Context,
     dstream: AsyncIterator[DataItem],
-    remove: bool,
 ):
     async for data in dstream:
         redirect_id = str(data.given.get('_id'))
@@ -1450,11 +1448,7 @@ async def validate_move(
         except exceptions.ItemDoesNotExist:
             rows = []
 
-        if remove:
-            if not rows:
-                raise Exception("VALUE HAS TO EXIST WHEN USING MOVE WITH DELETE")
-        else:
-            if rows:
-                raise Exception("VALUE CANNOT EXIST WHEN USING MOVE WITH PATCH")
+        if not rows:
+            raise Exception("VALUE HAS TO EXIST WHEN USING MOVE WITH DELETE")
 
         yield data
