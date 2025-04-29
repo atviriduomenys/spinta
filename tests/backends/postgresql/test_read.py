@@ -1456,10 +1456,18 @@ def test_getone_redirect(
     app = create_test_client(context)
     app.authorize(['spinta_insert', 'spinta_getone', 'spinta_wipe', 'spinta_search', 'spinta_set_meta_fields', 'spinta_move'])
     lt_id = str(uuid.uuid4())
+    new_lt_id = str(uuid.uuid4())
+    assert lt_id != new_lt_id
 
     resp = app.post('/datasets/redirect/Country', json={
         '_id': lt_id,
         'id': 0,
+        'name': 'Lithuania'
+    })
+    assert resp.status_code == 201
+    resp = app.post('/datasets/redirect/Country', json={
+        '_id': new_lt_id,
+        'id': 1,
         'name': 'Lithuania'
     })
     assert resp.status_code == 201
@@ -1474,10 +1482,7 @@ def test_getone_redirect(
         },
     ]
 
-    new_lt_id = str(uuid.uuid4())
-    assert lt_id != new_lt_id
-
-    resp = app.patch(f'/datasets/redirect/Country/{lt_id}/:move', json={
+    resp = app.request('delete', f'/datasets/redirect/Country/{lt_id}/:move', json={
         '_id': new_lt_id,
         '_revision': resp.json()['_revision']
     })
@@ -1494,7 +1499,7 @@ def test_getone_redirect(
     assert listdata(resp, '_id', 'id', 'name', full=True) == [
         {
             '_id': new_lt_id,
-            'id': 0,
+            'id': 1,
             'name': 'Lithuania',
         },
     ]
