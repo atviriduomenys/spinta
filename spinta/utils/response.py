@@ -114,7 +114,7 @@ async def create_http_response(
     if manifest.backend is None:
         raise NoBackendConfigured(manifest)
 
-    if params.action == Action.MOVE:
+    if request.method == 'DELETE' and params.action == Action.MOVE:
         context.attach('transaction', validate_and_return_transaction, context, manifest.backend, write=True)
         return await commands.move(
             context,

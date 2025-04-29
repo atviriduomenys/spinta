@@ -223,10 +223,8 @@ async def move(
     backend: PostgreSQL,
     *,
     dstream: AsyncIterator[DataItem],
-    remove: bool = False,
     stop_on_error: bool = True,
 ):
-    # FIXME Currently only `DELETE` works properly, `PATCH` only works if there are no other models referencing this model
     transaction = context.get('transaction')
     config = context.get('config')
     connection = transaction.connection
@@ -242,8 +240,6 @@ async def move(
         context,
         model
     ))
-    if not remove and affected_models:
-        raise Exception("MOVE WITH REFERENCED MODELS ONLY SUPPORTED WITH DELETE METHOD")
 
     async for data in dstream:
         try:
@@ -258,25 +254,10 @@ async def move(
                 str(patch.get('_id')),
                 affected_models
             )
-            if remove:
-                connection.execute(
-                    table.delete().
-                    where(table.c._id == pk)
-                )
-            else:
-                result = connection.execute(
-                    table.update().
-                    where(table.c._id == pk).
-                    where(table.c._revision == data.saved['_revision']).
-                    values(patch)
-                )
-                if result.rowcount == 0:
-                    raise Exception(f"Update failed, {model} with {pk} not found.")
-                elif result.rowcount > 1:
-                    raise Exception(
-                        f"Update failed, {model} with {pk} has found and update "
-                        f"{result.rowcount} rows."
-                    )
+            connection.execute(
+                table.delete().
+                where(table.c._id == pk)
+            )
 
             commands.after_write(context, model, backend, data=data)
             savepoint.commit()
