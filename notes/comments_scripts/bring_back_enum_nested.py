@@ -131,7 +131,7 @@ def process_csv_file(file_path):
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print("Usage: python remove_ref_with_dot.py <directory>")
+        print("Usage: python bring_back_enum_nested.py <directory>")
     else:
         directory = sys.argv[1]
         process_csv_files(directory)
