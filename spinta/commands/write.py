@@ -27,6 +27,7 @@ from spinta.components import Context, Node, UrlParams, DataItem, Namespace, Mod
     DataSubItem
 from spinta.core.enums import action_from_op, Action
 from spinta.core.ufuncs import asttoexpr
+from spinta.exceptions import RequiredField
 from spinta.formats.components import Format
 from spinta.renderer import render
 from spinta.types.datatype import DataType, Object, Array, File, Ref, Denorm, Inherit, BackRef, ExternalRef
@@ -1436,19 +1437,14 @@ async def validate_move(
     async for data in dstream:
         redirect_id = str(data.given.get('_id'))
         if redirect_id is None:
-            raise Exception("Move command expects _id to be given")
+            raise RequiredField(data.model, action=data.action.value, field='_id')
 
-        try:
-            rows = [commands.getone(
-                context,
-                data.model,
-                data.backend,
-                id_=redirect_id,
-            )]
-        except exceptions.ItemDoesNotExist:
-            rows = []
-
-        if not rows:
-            raise Exception("VALUE HAS TO EXIST WHEN USING MOVE WITH DELETE")
+        # Check if redirect value exists
+        commands.getone(
+            context,
+            data.model,
+            data.backend,
+            id_=redirect_id,
+        )
 
         yield data

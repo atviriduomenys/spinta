@@ -5,7 +5,9 @@ from typing import AsyncIterator
 from sqlalchemy import exc
 
 from spinta import commands, exceptions, spyna
+from spinta.backends.constants import TableType
 from spinta.backends.postgresql.components import PostgreSQL
+from spinta.backends.postgresql.helpers.redirect import remove_from_redirect
 from spinta.backends.postgresql.sqlalchemy import utcnow
 from spinta.commands import create_exception
 from spinta.commands.write import push_stream, dataitem_from_payload
@@ -37,6 +39,9 @@ async def insert(
     error_list = []
     savepoint_transaction_start = connection.begin_nested()
     rollback_full = False
+
+    redirect_table = backend.get_table(model, TableType.REDIRECT)
+
     async for data in dstream:
         try:
             savepoint = connection.begin_nested()
@@ -50,6 +55,9 @@ async def insert(
             )
             connection.execute(qry, patch)
             commands.after_write(context, model, backend, data=data)
+
+            # On insert remove redirect entry if _id already exists
+            remove_from_redirect(connection, redirect_table, patch['_id'])
             savepoint.commit()
         except exc.DatabaseError as error:
             rollback_full = True
