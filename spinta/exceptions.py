@@ -1105,3 +1105,9 @@ class UnableToCastColumnTypes(UserError):
     template = '''
     Unable to cast {column!r} column of type {old_type!r} to type {new_type!r}.
     '''
+
+
+class RequiredField(UserError):
+    template = '''
+    {action!r} requires {field!r} to be given.
+    '''

@@ -309,7 +309,7 @@ def simple_data_check(
     # Action.DELETE is ignore for qvarn compatibility reasons.
     # XXX: make `spinta` check for revision on Action.DELETE,
     #      implementers can override this command as they please.
-    updating = data.action in (Action.UPDATE, Action.PATCH)
+    updating = data.action in (Action.UPDATE, Action.PATCH, Action.MOVE)
     if updating and '_revision' not in data.given:
         raise NoItemRevision(prop)
 

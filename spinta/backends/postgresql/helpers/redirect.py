@@ -23,3 +23,15 @@ def get_redirect_table(context: Context, backend: PostgreSQL, model: Model):
         sa.Column('redirect', pkey_type, index=True),
     )
     return table
+
+
+def remove_from_redirect(
+    conn: sa.engine.Connection,
+    table: sa.Table,
+    pk: str
+):
+    conn.execute(
+        table.delete().where(
+            table.columns['_id'] == pk
+        )
+    )

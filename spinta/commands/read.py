@@ -16,9 +16,9 @@ from spinta.backends.helpers import get_select_tree
 from spinta.backends.nobackend.components import NoBackend
 from spinta.compat import urlparams_to_expr
 from spinta.components import Context, Node, UrlParams, Page, get_page_size, pagination_enabled
-from spinta.core.enums import Action
 from spinta.components import Model
 from spinta.components import Property
+from spinta.core.enums import Action
 from spinta.core.ufuncs import Expr
 from spinta.exceptions import ItemDoesNotExist
 from spinta.exceptions import UnavailableSubresource, InfiniteLoopWithPagination, BackendNotGiven, TooShortPageSize, \
@@ -30,6 +30,7 @@ from spinta.types.datatype import Object
 from spinta.ufuncs.querybuilder.components import QueryParams
 from spinta.ufuncs.querybuilder.helpers import update_query_with_url_params, add_page_expr
 from spinta.utils.data import take
+from spinta.utils.url import build_url_path
 
 
 @commands.getall.register(Context, Model, Request)
@@ -405,14 +406,21 @@ async def getone(
         action=action.value,
         id_=params.pk,
     )
-
     try:
         data = commands.getone(context, model, backend, id_=params.pk)
         data = next(prepare_data_for_response(context, model, action, params, data, reserved=[]))
         return render(context, request, model, params, data, action=action)
     except ItemDoesNotExist as e:
         if redirect_id := commands.redirect(context, backend, model, params.pk):
-            return RedirectResponse(request.url.path.replace(str(params.pk), str(redirect_id), 1), status_code=301)
+            ptree = params.changed_parsetree({
+                'path': (
+                    model.name.split('/') +
+                    [redirect_id] +
+                    ([params.prop.place] if params.prop is not None else [])
+                )
+            })
+            result = '/' + build_url_path(ptree)
+            return RedirectResponse(result, status_code=301)
         raise e
 
 
