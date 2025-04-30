@@ -3,7 +3,6 @@ import os
 import csv
 import re
 
-
 def process_csv_files(directory):
     # Recursively walk through the directory
     for root, _, files in os.walk(directory):
@@ -12,7 +11,6 @@ def process_csv_files(directory):
                 file_path = os.path.join(root, file)
                 process_csv_file(file_path)
                 print(f"Processed: {file_path}")  # Add debug output
-
 
 def process_csv_file(file_path):
     # Read original file lines as text
@@ -42,14 +40,15 @@ def process_csv_file(file_path):
             output_lines.append(data_lines[i])
             continue
 
-        if not "/:part" in row["model"]:
+        if not row["type"].startswith('money'):
+
             output_lines.append(data_lines[i])
             continue
 
         # Change type from money to string
-        old_model = row["model"]
-        row["model"] = row["model"].replace('/:part', '')
-
+        old_type = row["type"]
+        row["type"] = row["type"].replace('money', 'string')
+        
         # Write the modified row using csv to match format
         with io.StringIO() as buf:
             writer = csv.DictWriter(buf, fieldnames=fieldnames, quoting=csv.QUOTE_MINIMAL)
@@ -60,8 +59,8 @@ def process_csv_file(file_path):
         # Add the comment row (quoting minimally to blend with original style)
         comment_row = {
             'type': 'comment',
-            'ref': 'model',
-            'prepare': f'update(model: ""{old_model}"")',
+            'ref': 'type',
+            'prepare': f'update(type: ""{old_type}"")',
             'visibility': 'public',
             'uri': 'https://github.com/atviriduomenys/spinta/issues/1289'
         }

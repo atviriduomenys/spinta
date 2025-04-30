@@ -42,49 +42,89 @@ def process_csv_file(file_path):
 
         original_ref = row['ref']
         ref_value = original_ref
+        changed = False  # Track if we made any changes
 
-        # First, handle words inside brackets
-        # Find all bracket content
-        bracket_contents = re.findall(r'\[(.*?)\]', ref_value)
+        # Handle bracket contents more carefully
+        position = 0
+        result = ''
         
-        for content in bracket_contents:
-            # Find words with dots (including multiple dots)
-            dot_words = re.findall(r'\b[\w]+(?:\.[\w]+)+\b', content)
+        # Find all bracket sections
+        for match in re.finditer(r'(\w+)(\[.*?\])', ref_value):
+            prefix, brackets = match.groups()
+            bracket_content = brackets[1:-1]  # Remove the [ and ]
             
-            if dot_words:
-                # Create a new content by removing the dot words
-                new_content = content
-                for word in dot_words:
-                    new_content = re.sub(r'(?:,\s*)?' + re.escape(word) + r'(?:\s*,)?', '', new_content)
+            # Add text before this match
+            result += ref_value[position:match.start()]
+            
+            # Check if there are any dot-separated words in the bracket content
+            if re.search(r'\b[\w]+(?:\.[\w]+)+\b', bracket_content):
+                # Only process if there are dot-separated words
+                parts = [part.strip() for part in bracket_content.split(',')]
+                filtered_parts = [part for part in parts if not re.search(r'\b[\w]+(?:\.[\w]+)+\b', part)]
+                new_bracket_content = ', '.join(filtered_parts)
                 
-                # Clean up the new content
-                new_content = re.sub(r'\s{2,}', ' ', new_content).strip(', ')
+                # If we removed something, mark as changed
+                if new_bracket_content != bracket_content:
+                    changed = True
                 
-                # Replace the original bracket content with the cleaned version
-                ref_value = ref_value.replace(f'[{content}]', f'[{new_content}]' if new_content else '')
+                # Add the prefix and modified brackets
+                result += prefix + '[' + new_bracket_content + ']'
+            else:
+                # No dot-separated words, keep as is
+                result += prefix + brackets
+            
+            position = match.end()
         
-        # If there are empty brackets after processing, remove them
-        ref_value = re.sub(r'\[\s*\]', '', ref_value)
+        # Add any remaining text
+        result += ref_value[position:]
         
-        # Now handle dot-separated words outside brackets
-        outside_brackets = re.sub(r'\[.*?\]', '', ref_value)
-        dot_words_outside = re.findall(r'\b[\w]+(?:\.[\w]+)+\b', outside_brackets)
+        # Now process text outside brackets for dot-separated words
+        sections = []
+        last_end = 0
         
-        for word in dot_words_outside:
-            ref_value = re.sub(r'(?:,\s*)?' + re.escape(word) + r'(?:\s*,)?', '', ref_value)
+        for match in re.finditer(r'\[.*?\]', result):
+            start, end = match.span()
+            # Process text before bracket
+            if start > last_end:
+                outside_text = result[last_end:start]
+                # Check if there are dot-separated words
+                if re.search(r'\b[\w]+(?:\.[\w]+)+\b', outside_text):
+                    processed_text = remove_dot_words_keep_commas(outside_text)
+                    sections.append(processed_text)
+                    # If we removed something, mark as changed
+                    if processed_text != outside_text:
+                        changed = True
+                else:
+                    sections.append(outside_text)
+            
+            # Keep the bracket as is
+            sections.append(result[start:end])
+            last_end = end
         
-        # Clean up spacing and commas
-        ref_value = re.sub(r'\s{2,}', ' ', ref_value).strip(', ')
+        # Process any remaining text
+        if last_end < len(result):
+            outside_text = result[last_end:]
+            # Check if there are dot-separated words
+            if re.search(r'\b[\w]+(?:\.[\w]+)+\b', outside_text):
+                processed_text = remove_dot_words_keep_commas(outside_text)
+                sections.append(processed_text)
+                # If we removed something, mark as changed
+                if processed_text != outside_text:
+                    changed = True
+            else:
+                sections.append(outside_text)
         
-        # Fix any remaining empty brackets
-        ref_value = re.sub(r'\[\s*\]', '', ref_value)
+        # Join all sections
+        ref_value = ''.join(sections)
         
-        # Final cleanup for any comma issues
-        ref_value = re.sub(r',\s*,', ',', ref_value)
-        ref_value = ref_value.strip(', ')
+        # Clean up spacing and comma formatting if we made changes
+        if changed:
+            ref_value = re.sub(r'\s{2,}', ' ', ref_value)
+            ref_value = re.sub(r',\s*,', ',', ref_value)
+            ref_value = ref_value.strip(', ')
         
-        # If no change, keep original line
-        if ref_value == original_ref:
+        # If no change or no dot words were found, keep original line
+        if not changed or ref_value == original_ref:
             output_lines.append(data_lines[i])
             continue
 
@@ -112,6 +152,16 @@ def process_csv_file(file_path):
     # Write back to file
     with open(file_path, 'w', encoding='utf-8') as f:
         f.writelines(output_lines)
+
+def remove_dot_words_keep_commas(text):
+    # Split by commas
+    parts = [part.strip() for part in text.split(',')]
+    
+    # Filter out parts that are dot-separated words
+    filtered_parts = [part for part in parts if not re.search(r'\b[\w]+(?:\.[\w]+)+\b', part)]
+    
+    # Rejoin with commas
+    return ', '.join(filtered_parts)
 
 
 if __name__ == "__main__":
