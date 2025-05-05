@@ -312,7 +312,7 @@ def drop_all_indexes_and_constraints(inspector: Inspector, table: str, new_table
             )
 
 
-def create_changelog_table(context: Context, new: Model, handler: MigrationHandler, rename: RenameMap):
+def create_changelog_table(context: Context, new: Model, handler: MigrationHandler):
     table_name = get_pg_name(get_table_name(new, TableType.CHANGELOG))
     pkey_type = commands.get_primary_key_type(context, new.backend)
     handler.add_action(ma.CreateTableMigrationAction(
@@ -329,7 +329,7 @@ def create_changelog_table(context: Context, new: Model, handler: MigrationHandl
     ))
 
 
-def create_redirect_table(context: Context, new: Model, handler: MigrationHandler, rename: RenameMap):
+def create_redirect_table(context: Context, new: Model, handler: MigrationHandler):
     table_name = get_pg_name(get_table_name(new, TableType.REDIRECT))
     pkey_type = commands.get_primary_key_type(context, new.backend)
     handler.add_action(ma.CreateTableMigrationAction(
@@ -1280,3 +1280,10 @@ def column_cast_warning_message(
     new_type: str
 ) -> str:
     return f"WARNING: Casting '{column_name}' (from '{dtype.prop.model.model_type()}' model) column's type from '{old_type}' to '{new_type}' might not be possible."
+
+
+def contains_any_table(
+    *tables,
+    inspector: Inspector,
+) -> bool:
+    return all(inspector.has_table(table) for table in tables)
