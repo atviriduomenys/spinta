@@ -1286,4 +1286,4 @@ def contains_any_table(
     *tables,
     inspector: Inspector,
 ) -> bool:
-    return all(inspector.has_table(table) for table in tables)
+    return any(inspector.has_table(table) for table in tables)
