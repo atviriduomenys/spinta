@@ -22,6 +22,7 @@ python "$scripts_dir"trim_csv_spaces.py $DSA_DIR
 # seems to be working
 python "$scripts_dir"remove_part.py $DSA_DIR
 
+python "$scripts_dir"remove_underscore_property_name.py $DSA_DIR
 # todo adjust levels
 
 python "$scripts_dir"remove_ref_with_dot.py $DSA_DIR
@@ -34,5 +35,11 @@ python "$scripts_dir"remove_money_type.py $DSA_DIR
 python "$scripts_dir"remove_ref_with_dot_prepare.py $DSA_DIR
 
 
-todo
- add array above []
+# todo
+#  add array above []
+#  properties that start with _ (_created, _updated)
+properties su pabraukimu - nuimt pabraukimą, uždėt koemntarą https://github.com/atviriduomenys/spinta/issues/963
+
+
+Kai yra tas pats modelis su "get_all" ir "getone" - gal daryti ModelioPavadinimasGetall ?
+virsis užsiciklina
