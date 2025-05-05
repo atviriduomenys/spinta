@@ -1013,7 +1013,13 @@ def test_migrate_rename_model(
         'ALTER SEQUENCE "migrate/example/Ref/:changelog__id_seq" RENAME TO '
         '"migrate/example/NewRef/:changelog__id_seq";\n'
         '\n'
+        'ALTER TABLE "migrate/example/Ref/:redirect" RENAME TO '
+        '"migrate/example/NewRef/:redirect";\n'
+        '\n'
         'ALTER TABLE "migrate/example/Test" RENAME TO "migrate/example/New";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test/:file/someFile" RENAME TO '
+        '"migrate/example/New/:file/someFile";\n'
         '\n'
         'ALTER TABLE "migrate/example/Test/:changelog" RENAME TO '
         '"migrate/example/New/:changelog";\n'
@@ -1021,8 +1027,8 @@ def test_migrate_rename_model(
         'ALTER SEQUENCE "migrate/example/Test/:changelog__id_seq" RENAME TO '
         '"migrate/example/New/:changelog__id_seq";\n'
         '\n'
-        'ALTER TABLE "migrate/example/Test/:file/someFile" RENAME TO '
-        '"migrate/example/New/:file/someFile";\n'
+        'ALTER TABLE "migrate/example/Test/:redirect" RENAME TO '
+        '"migrate/example/New/:redirect";\n'
         '\n'
         'ALTER INDEX "ix_migrate/example/Test_someRef._id" RENAME TO '
         '"ix_migrate/example/New_someRef._id";\n'
@@ -1041,11 +1047,12 @@ def test_migrate_rename_model(
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
-        assert {'migrate/example/New', 'migrate/example/New/:changelog',
+        assert {'migrate/example/New', 'migrate/example/New/:changelog', 'migrate/example/New/:redirect',
                 'migrate/example/New/:file/someFile', 'migrate/example/NewRef'}.issubset(tables.keys())
 
-        assert not {'migrate/example/Test', 'migrate/example/Test/:changelog',
-                    'migrate/example/Test/:file/someFile', 'migrate/example/Ref'}.issubset(tables.keys())
+        assert not {'migrate/example/Test', 'migrate/example/Test/:changelog', 'migrate/example/Test/:redirect'
+                                                                               'migrate/example/Test/:file/someFile',
+                    'migrate/example/Ref'}.issubset(tables.keys())
 
         table = tables["migrate/example/New"]
 
@@ -1054,8 +1061,9 @@ def test_migrate_rename_model(
         assert not any(
             constraint["constraint_name"] == 'fk_migrate/example/Test_someRef._id' for constraint in constraints)
 
-        cleanup_table_list(meta, ['migrate/example/New', 'migrate/example/New/:changelog',
-                                  'migrate/example/New/:file/someFile', 'migrate/example/NewRef'])
+        cleanup_table_list(meta,
+                           ['migrate/example/New', 'migrate/example/New/:changelog', 'migrate/example/New/:redirect',
+                            'migrate/example/New/:file/someFile', 'migrate/example/NewRef'])
 
 
 def test_migrate_rename_property(
