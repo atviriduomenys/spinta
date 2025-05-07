@@ -12,6 +12,7 @@ from spinta.datasets.backends.dataframe.commands.read import (
     get_dask_dataframe_meta,
     dask_get_all
 )
+from spinta.datasets.backends.dataframe.ufuncs.query.components import DaskDataFrameQueryBuilder
 from spinta.dimensions.param.components import ResolvedParams
 from spinta.typing import ObjectData
 
@@ -38,12 +39,22 @@ def getall(
         resolved_params
     )
     bases = list(bases)
+
+    # TODO: use input() ufunc to add SOAP request data to SOAP builder (env) instance.
+    #  ufunc should be written using this query builder since it's SOAP specific
     builder = backend.query_builder_class(context)
     builder.update(model=model)
+    # expr = builder.resolve(query)
+    # where = builder.execute(expr)
+    # qry = builder.build(where)
+
+    # TODO: Somehow these input() params should be removed from query before calling this builder
+    df_builder = DaskDataFrameQueryBuilder(context)
+    df_builder.update(model=model)
 
     meta = get_dask_dataframe_meta(model)
     df = dask.bag.from_sequence(bases).map(
         _get_data_soap, backend=backend
     ).flatten().to_dataframe(meta=meta)
 
-    yield from dask_get_all(context, query, df, backend, model, builder, extra_properties)
+    yield from dask_get_all(context, query, df, backend, model, df_builder, extra_properties)
