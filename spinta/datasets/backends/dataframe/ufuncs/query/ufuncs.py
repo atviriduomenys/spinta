@@ -179,7 +179,8 @@ def select(env: DaskDataFrameQueryBuilder, prop: Property) -> Selected:
     if prop.place not in env.resolved:
         if isinstance(prop.external, list):
             raise SourceCannotBeList(prop)
-        if prop.external.prepare is not NA:
+        if prop.external.name and prop.external.prepare is not NA:
+            # If property doesn't have external name - it describes query parameter
             # If `prepare` formula is given, evaluate formula.
             if isinstance(prop.external.prepare, Expr):
                 result = env(this=prop).resolve(prop.external.prepare)
@@ -192,6 +193,10 @@ def select(env: DaskDataFrameQueryBuilder, prop: Property) -> Selected:
             #      properties.
             #      tag:resolving_private_properties_in_prepare_context
             result = env.call('select', prop.dtype, result)
+        elif prop.external.prepare is not NA:
+            # property without external name and with `prepare` is already evaluated
+            # so just use evaluated value
+            result = Selected(prop=prop, prep=prop.external.prepare)
         elif prop.external and prop.external.name:
             # If prepare is not given, then take value from `source`.
             result = env.call('select', prop.dtype)
