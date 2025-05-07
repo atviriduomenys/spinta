@@ -5,6 +5,10 @@ Changes
 0.2dev4 (unreleased)
 ====================
 
+New Features:
+- Add support for specifying SOAP request body in SOAP requests.(`#1274`_)
+
+  .. _#1274: https://github.com/atviriduomenys/spinta/issues/1274
 
 0.2dev3
 =======
