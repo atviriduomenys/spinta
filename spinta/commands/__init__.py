@@ -13,15 +13,15 @@ from typing import overload
 from starlette.requests import Request
 from starlette.responses import Response
 
-from spinta.exceptions import BaseError
-from spinta.typing import ObjectData
+from spinta.components import Namespace
 from spinta.components import Node, DataItem, PageInfo, Page, Base
 from spinta.components import UrlParams
 from spinta.components import Version
 from spinta.dispatcher import command
+from spinta.exceptions import BaseError
 from spinta.manifests.components import ManifestSchema
 from spinta.manifests.components import NodeSchema
-from spinta.components import Namespace
+from spinta.typing import ObjectData
 
 if TYPE_CHECKING:
     from spinta.components import Store
@@ -40,7 +40,6 @@ if TYPE_CHECKING:
     from spinta.formats.html.components import ComplexCell
     from spinta.core.ufuncs import Expr
     from spinta.dimensions.enum.components import EnumItem
-
 
 T = TypeVar('T')
 
