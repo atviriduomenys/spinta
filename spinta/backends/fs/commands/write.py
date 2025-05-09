@@ -51,7 +51,7 @@ async def push(
         prop,
         propref=False,
         backend=backend,
-        action=action
+        action=action,
     )
     data.given = {
         prop.name: {

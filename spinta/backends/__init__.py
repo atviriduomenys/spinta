@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import base64
 import datetime
 import decimal
@@ -21,7 +23,7 @@ from spinta import commands
 from spinta import exceptions
 from spinta.backends.components import Backend
 from spinta.backends.components import SelectTree
-from spinta.backends.helpers import check_unknown_props
+from spinta.backends.helpers import check_unknown_props, get_select_tree, prepare_response
 from spinta.backends.helpers import flat_select_to_nested
 from spinta.backends.helpers import get_model_reserved_props
 from spinta.backends.helpers import get_select_prop_names
@@ -32,14 +34,14 @@ from spinta.commands import gen_object_id
 from spinta.commands import is_object_id
 from spinta.commands import load_operator_value
 from spinta.commands import prepare
-from spinta.components import UrlParams, page_in_data
-from spinta.core.enums import Action
 from spinta.components import Context
 from spinta.components import DataItem
 from spinta.components import Model
 from spinta.components import Namespace
 from spinta.components import Node
 from spinta.components import Property
+from spinta.components import UrlParams, page_in_data
+from spinta.core.enums import Action
 from spinta.core.ufuncs import asttoexpr
 from spinta.exceptions import ConflictingValue, RequiredProperty, LangNotDeclared, TooManyLangsGiven, \
     UnableToDetermineRequiredLang, CoordinatesOutOfRange, InheritPropertyValueMissmatch, SRIDNotSetForGeometry, \
@@ -307,7 +309,7 @@ def simple_data_check(
     # Action.DELETE is ignore for qvarn compatibility reasons.
     # XXX: make `spinta` check for revision on Action.DELETE,
     #      implementers can override this command as they please.
-    updating = data.action in (Action.UPDATE, Action.PATCH)
+    updating = data.action in (Action.UPDATE, Action.PATCH, Action.MOVE)
     if updating and '_revision' not in data.given:
         raise NoItemRevision(prop)
 
@@ -492,11 +494,11 @@ def complex_data_check(
     backend: Backend,
 ) -> None:
     # XXX: Maybe Action.DELETE should also provide revision.
-    updating = data.action in (Action.UPDATE, Action.PATCH)
+    updating = data.action in (Action.UPDATE, Action.PATCH, Action.MOVE)
     if updating and '_revision' not in data.given:
         raise NoItemRevision(model)
 
-    if data.action in (Action.UPDATE, Action.PATCH, Action.DELETE):
+    if data.action in (Action.UPDATE, Action.PATCH, Action.DELETE, Action.MOVE):
         for k in ('_type', '_revision'):
             if k in data.given and data.saved[k] != data.given[k]:
                 raise ConflictingValue(
@@ -567,7 +569,7 @@ def complex_data_check(
     value: object,
     **kwargs
 ):
-    if data.action in (Action.UPDATE, Action.PATCH, Action.DELETE):
+    if data.action in (Action.UPDATE, Action.PATCH, Action.DELETE, Action.MOVE):
         for k in ('_type', '_revision'):
             if k in data.given and data.saved[k] != data.given[k]:
                 raise ConflictingValue(
@@ -588,7 +590,7 @@ def complex_data_check(
     base_data: dict = {},
     **kwargs
 ):
-    if data.action in (Action.UPDATE, Action.PATCH, Action.DELETE):
+    if data.action in (Action.UPDATE, Action.PATCH, Action.DELETE, Action.MOVE):
         for k in ('_type', '_revision'):
             if k in data.given and data.saved[k] != data.given[k]:
                 raise ConflictingValue(
@@ -756,6 +758,92 @@ def prepare_data_for_response(
             ['_type', '_revision'],
         )
     }
+
+
+def _extract_id_data_from_dataitem(
+    data: DataItem
+) -> dict | None:
+    # MOVE action edge case, when saved and patch _id is used differently
+    if data.patch and data.saved and data.action is Action.MOVE:
+        return {
+            '_id': data.saved['_id'],
+            '_same_as': data.patch['_id']
+        }
+
+    if data.patch and '_id' in data.patch and data.prop is None:
+        return {'_id': data.patch['_id']}
+    elif (
+        data.patch and
+        data.prop and
+        data.patch[data.prop.name] and
+        '_id' in data.patch[data.prop.name]
+    ):
+        return {'_id': data.patch[data.prop.name]['_id']}
+    elif (
+        data.saved and
+        data.prop and
+        data.saved[data.prop.name] and
+        '_id' in data.saved[data.prop.name]
+    ):
+        return {'_id': data.saved[data.prop.name]['_id']}
+    elif data.saved:
+        return {'_id': data.saved['_id']}
+
+
+@commands.prepare_data_for_response.register(Context, Format, DataItem)
+def prepare_data_for_response(
+    context: Context,
+    fmt: Format,
+    data: DataItem,
+) -> dict:
+    resp = prepare_response(context, data)
+    resp = {k: v for k, v in resp.items() if not k.startswith('_')}
+    if data.prop or data.model:
+        resp['_type'] = (data.prop or data.model).model_type()
+
+    id_data = _extract_id_data_from_dataitem(data)
+    resp.update(id_data)
+
+    if data.patch and '_revision' in data.patch:
+        resp['_revision'] = data.patch['_revision']
+    elif data.saved:
+        resp['_revision'] = data.saved['_revision']
+
+    if data.action and (data.model or data.prop):
+        if data.prop:
+            resp = commands.prepare_data_for_response(
+                context,
+                data.prop.dtype,
+                fmt,
+                resp,
+                action=data.action,
+            )
+        else:
+            select_tree = get_select_tree(context, data.action, None)
+            prop_names = get_select_prop_names(
+                context,
+                data.model,
+                data.model.properties,
+                data.action,
+                select_tree,
+                include_denorm_props=False
+            )
+            resp = commands.prepare_data_for_response(
+                context,
+                data.model,
+                fmt,
+                resp,
+                action=data.action,
+                select=select_tree,
+                prop_names=prop_names,
+            )
+    if data.error is not None:
+        return {
+            **resp,
+            '_errors': [exceptions.error_response(data.error)],
+        }
+    else:
+        return resp
 
 
 @commands.prepare_data_for_response.register(Context, File, Format, dict)
@@ -2106,6 +2194,12 @@ def get_error_context(backend: Backend, *, prefix='this') -> Dict[str, str]:
         'features': f'{prefix}.features',
     }
 
+
 @commands.get_error_context.register(str)
 def get_error_context(message: str, *, prefix='this') -> Dict[str, str]:
     return {}
+
+
+@commands.redirect.register(Context, Backend, Model, str)
+def redirect(context: Context, backend: Backend, model: Model, data: str):
+    return None

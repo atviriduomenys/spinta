@@ -5,7 +5,7 @@ import shutil
 import pytest
 
 from spinta.auth import yml
-from spinta.cli.helpers.upgrade.components import UPGRADE_CLIENTS_SCRIPT
+from spinta.cli.helpers.upgrade.components import Script
 from spinta.core.config import RawConfig
 from spinta.exceptions import ClientsMigrationRequired
 from spinta.testing.cli import SpintaCliRunner
@@ -58,7 +58,7 @@ def test_detect_upgrade_clients_no_keymap(
 
     cli.invoke(rc, [
         'upgrade',
-        '-r', UPGRADE_CLIENTS_SCRIPT
+        '-r', Script.CLIENTS.value
     ])
 
     keymap_path = get_keymap_path(clients_path)
@@ -100,7 +100,7 @@ def test_detect_upgrade_clients_no_id(
 
     cli.invoke(rc, [
         'upgrade',
-        '-r', UPGRADE_CLIENTS_SCRIPT
+        '-r', Script.CLIENTS.value
     ])
 
     keymap_path = get_keymap_path(clients_path)
@@ -142,7 +142,7 @@ def test_detect_upgrade_clients_empty_keymap(
 
     cli.invoke(rc, [
         'upgrade',
-        '-r', UPGRADE_CLIENTS_SCRIPT
+        '-r', Script.CLIENTS.value
     ])
 
     keymap_path = get_keymap_path(clients_path)
@@ -184,7 +184,7 @@ def test_detect_upgrade_clients_empty_id(
 
     cli.invoke(rc, [
         'upgrade',
-        '-r', UPGRADE_CLIENTS_SCRIPT
+        '-r', Script.CLIENTS.value
     ])
 
     keymap_path = get_keymap_path(clients_path)

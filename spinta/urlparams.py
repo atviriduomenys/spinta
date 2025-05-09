@@ -221,6 +221,8 @@ def _prepare_urlparams_from_path(params: UrlParams):
             params.action = Action.SCHEMA
         elif name == 'inspect':
             params.action = Action.INSPECT
+        elif name == 'move':
+            params.action = Action.MOVE
         elif name == 'fault-tolerant':
             params.fault_tolerant = True
         elif name == 'wipe':

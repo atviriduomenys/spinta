@@ -95,6 +95,15 @@ def test_migrate_create_models_with_file_type(
         'CREATE INDEX "ix_migrate/example/Test/:changelog__txn" ON '
         '"migrate/example/Test/:changelog" (_txn);\n'
         '\n'
+        'CREATE TABLE "migrate/example/Test/:redirect" (\n'
+        '    _id UUID NOT NULL, \n'
+        '    redirect UUID, \n'
+        '    CONSTRAINT "pk_migrate/example/Test/:redirect" PRIMARY KEY (_id)\n'
+        ');\n'
+        '\n'
+        'CREATE INDEX "ix_migrate/example/Test/:redirect_redirect" ON '
+        '"migrate/example/Test/:redirect" (redirect);\n'
+        '\n'
         'COMMIT;\n'
         '\n')
 

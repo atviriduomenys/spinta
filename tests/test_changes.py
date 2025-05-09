@@ -113,6 +113,7 @@ def test_changes_with_ref(context, app):
         '_id',
         '_txn',
         '_revision',
+        '_same_as',
         'title',
         'country._id',
     ]
@@ -153,6 +154,7 @@ def test_changes_with_ref_reassign(context, app):
         '_id',
         '_txn',
         '_revision',
+        '_same_as',
         'title',
         'country._id',
     ]
@@ -199,6 +201,7 @@ def test_changes_with_ref_unassign(context, app):
         '_id',
         '_txn',
         '_revision',
+        '_same_as',
         'title',
         'country._id',
     ]
@@ -297,6 +300,7 @@ def test_changes_invalid_ref_changelog(
         '_id',
         '_txn',
         '_revision',
+        '_same_as',
         'id',
         'name',
         'ref._id',

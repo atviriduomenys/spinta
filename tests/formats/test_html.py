@@ -390,6 +390,7 @@ def test_file_type_changes(
         'Accept': 'text/html',
     })
     assert _table(resp.context['data'])[0][6:] == [
+        {'color': '#f5f5f5', 'value': ''},
         {
             'value': 'Lithuania',
         },
@@ -416,6 +417,7 @@ def test_file_type_changes_single_object(
         'Accept': 'text/html',
     })
     assert _table(resp.context['data'])[0][6:] == [
+        {'color': '#f5f5f5', 'value': ''},
         {
             'value': 'Lithuania',
         },

@@ -1,23 +1,27 @@
+from __future__ import annotations
+
+import enum
 from collections.abc import Callable
 
-from typing import Optional, Any
-from typing_extensions import Concatenate, ParamSpec
+from typing_extensions import ParamSpec
 
 from spinta.components import Context
 
 P = ParamSpec("P")
-UpgradeFuncType = Callable[Concatenate[Context, P], Any]
-UpgradeCheckFuncType = Callable[Concatenate[Context, P], bool]
+UpgradeFuncType = Callable[P.kwargs]
+UpgradeCheckFuncType = Callable[P.kwargs, bool]
 
 
 class UpgradeComponent:
     def __init__(
         self,
         upgrade: UpgradeFuncType,
-        check: Optional[UpgradeCheckFuncType] = None
+        check: UpgradeCheckFuncType | None = None,
+        required: list[str] | None = None
     ):
         self.__upgrade_func = upgrade
         self.__check_func = check
+        self.required = required
 
     def upgrade(self, context: Context, **kwargs):
         self.__upgrade_func(context, **kwargs)
@@ -29,4 +33,15 @@ class UpgradeComponent:
         return self.__check_func(context, **kwargs)
 
 
-UPGRADE_CLIENTS_SCRIPT = "clients"
+@enum.unique
+class Script(enum.Enum):
+    CLIENTS = "clients"
+    REDIRECT = "redirect"
+    DEDUPLICATE = "deduplicate"
+
+
+class ScriptStatus(enum.Enum):
+    PASSED = "PASSED"
+    REQUIRED = "REQUIRED"
+    FORCED = "FORCED"
+    SKIPPED = "SKIPPED"

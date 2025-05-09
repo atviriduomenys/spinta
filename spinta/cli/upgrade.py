@@ -1,10 +1,11 @@
 import logging
+
 from typer import Context as TyperContext
 from typer import Option
 
 from spinta.cli.helpers.store import load_config
-from spinta.cli.helpers.upgrade.scripts import run_specific_script, run_all_scripts, get_all_upgrade_script_names, \
-    does_script_exist
+from spinta.cli.helpers.upgrade.core import run_specific_script, run_all_scripts, get_all_upgrade_script_names, \
+    script_exists
 from spinta.core.context import configure_context
 from spinta.exceptions import UpgradeError, UpgradeScriptNotFound
 
@@ -33,6 +34,7 @@ def upgrade(
     )),
 ):
     context = configure_context(ctx.obj)
+
     try:
         load_config(
             context,
@@ -43,7 +45,7 @@ def upgrade(
         pass
 
     if run is not None:
-        if not does_script_exist(run):
+        if not script_exists(run):
             raise UpgradeScriptNotFound(
                 script=run,
                 available_scripts=get_all_upgrade_script_names()

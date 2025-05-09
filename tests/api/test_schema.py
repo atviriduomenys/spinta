@@ -49,11 +49,10 @@ def clean_up_after_schema_changes(
     meta.reflect()
     drop_list = []
     for table in tables:
-        if table in meta.tables:
-            drop_list.append(meta.tables[table])
-        changelog = get_pg_name(f'{table}{TableType.CHANGELOG.value}')
-        if changelog in meta.tables:
-            drop_list.append(meta.tables[changelog])
+        for type_ in TableType:
+            table_name = get_pg_name(f'{table}{type_.value}')
+            if table_name in meta.tables:
+                drop_list.append(meta.tables[table_name])
     meta.drop_all(tables=drop_list)
 
 
