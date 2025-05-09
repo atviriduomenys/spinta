@@ -1384,8 +1384,6 @@ async def move(
     action: Action,
     params: UrlParams,
 ):
-    commands.authorize(context, Action.MOVE, model)
-
     stop_on_error = not params.fault_tolerant
     stream = data_item_stream(
         context,
@@ -1395,19 +1393,7 @@ async def move(
         params,
         stop_on_error
     )
-    dstream = prepare_data(context, stream, stop_on_error)
-    dstream = read_existing_data(context, dstream, stop_on_error)
-    dstream = validate_move(context, dstream)
-    dstream = validate_data(context, dstream)
-    dstream = prepare_patch(context, dstream)
-    dstream = prepare_data_for_write(context, dstream, params)
-
-    dstream = commands.move(context, model, backend, dstream=dstream)
-    dstream = commands.create_redirect_entry(context, model, model.backend, dstream=dstream)
-    dstream = commands.create_changelog_entry(
-        context, model, model.backend, dstream=dstream,
-    )
-
+    dstream = move_stream(context, model, stream, stop_on_error, params)
     dstream = log_async_response(context, dstream)
 
     batch = False
@@ -1428,6 +1414,32 @@ async def move(
     headers = prepare_headers(context, model, response, action, is_batch=batch)
     return render(context, request, model, params, response,
                   action=action, status_code=status_code, headers=headers)
+
+
+async def move_stream(
+    context: Context,
+    model: Model,
+    stream: AsyncIterator[DataItem],
+    stop_on_error: bool = True,
+    params: UrlParams = None
+) -> AsyncIterator[DataItem]:
+    commands.authorize(context, Action.MOVE, model)
+    dstream = prepare_data(context, stream, stop_on_error)
+    dstream = read_existing_data(context, dstream, stop_on_error)
+    dstream = validate_move(context, dstream)
+    dstream = validate_data(context, dstream)
+    dstream = prepare_patch(context, dstream)
+    dstream = prepare_data_for_write(context, dstream, params)
+    dstream = commands.move(
+        context, model, model.backend, dstream=dstream,
+        stop_on_error=stop_on_error,
+    )
+    dstream = commands.create_redirect_entry(context, model, model.backend, dstream=dstream)
+    dstream = commands.create_changelog_entry(
+        context, model, model.backend, dstream=dstream,
+    )
+    async for data in dstream:
+        yield data
 
 
 async def validate_move(
