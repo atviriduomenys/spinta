@@ -290,7 +290,7 @@ def test_upgrade_clients_skip_upgrade(context,
         'upgrade',
         '-r', Script.CLIENTS.value
     ])
-    assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.REQUIRED) in result.stdout
+    assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.PASSED) in result.stdout
     assert "Created keymap" not in result.stdout
 
     # Add new client
