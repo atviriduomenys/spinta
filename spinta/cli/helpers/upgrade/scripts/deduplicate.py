@@ -125,7 +125,7 @@ def _create_duplicate_entries(context: Context, backend: PostgreSQL, dmodel: _Du
             columns = [_ensure_table_set(col, table) for col in columns]
             pkey_columns.extend(columns)
 
-        subquery = sa.select(*pkey_columns).group_by(*pkey_columns).having(sa.func.count() > 1)
+        subquery = sa.select(*pkey_columns).group_by(*pkey_columns).having(sa.func.count() > 1).subquery()
         query = sa.select(table).where(
             sa.and_(
                 *(table.c[col.name] == subquery.c[col.name] for col in pkey_columns)
@@ -147,7 +147,7 @@ def _add_uniqueness(context: Context, model: Model):
 
 @dispatch(Context, Backend, Model)
 def _add_uniqueness(context: Context, backend: Backend, model: Model):
-    echo(f'SKIPPED ADDING UNIQUE CONSTRAINT TO "{model.model_type()}"')
+    echo(f'Skipped adding uniqueness to "{model.model_type()}"')
 
 
 @dispatch(Context, PostgreSQL, Model)
@@ -165,7 +165,7 @@ def _add_uniqueness(context: Context, backend: PostgreSQL, model: Model):
     transaction = context.get('transaction')
     conn = transaction.connection
     conn.execute(query)
-    echo(f'ADDED UNIQUE CONSTRAINT TO "{model.model_type()}"')
+    echo(f'Added unique constraint to "{model.model_type()}"')
 
 
 def _extract_pkey_values(row: dict, keys: list) -> tuple:
@@ -228,7 +228,7 @@ async def _migrate_duplicates(
         finally:
             duplicate_counter.close()
     else:
-        echo(f'"{model.model_type()}" DOES NOT CONTAIN DUPLICATES')
+        echo(f'"{model.model_type()}" does not contain duplicate values')
 
 
 def migrate_duplicates(
