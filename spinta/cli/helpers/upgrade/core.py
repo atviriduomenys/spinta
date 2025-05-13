@@ -41,6 +41,7 @@ def run_all_scripts(
     context: Context,
     destructive: bool = False,
     force: bool = False,
+    check_only: bool = False,
     **kwargs
 ):
     sorted_scripts = _sort_scripts_by_required()
@@ -50,6 +51,7 @@ def run_all_scripts(
             script_name=script_name,
             destructive=destructive,
             force=force,
+            check_only=check_only,
             **kwargs
         )
 
@@ -65,6 +67,7 @@ def run_specific_script(
     script_name: str,
     destructive: bool = False,
     force: bool = False,
+    check_only: bool = False,
     **kwargs
 ):
     script = __upgrade_scripts[script_name]
@@ -72,7 +75,7 @@ def run_specific_script(
     if force:
         status = ScriptStatus.FORCED
 
-    if status in (ScriptStatus.FORCED, ScriptStatus.REQUIRED):
+    if status in (ScriptStatus.FORCED, ScriptStatus.REQUIRED) and not check_only:
         script.upgrade(context, destructive=destructive, **kwargs)
     echo(script_check_status_message(script_name, status))
 
