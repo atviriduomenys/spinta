@@ -1447,7 +1447,7 @@ async def validate_move(
     dstream: AsyncIterator[DataItem],
 ):
     async for data in dstream:
-        redirect_id = str(data.given.get('_id'))
+        redirect_id = data.given.get('_id')
         if redirect_id is None:
             raise RequiredField(data.model, action=data.action.value, field='_id')
 
@@ -1456,7 +1456,7 @@ async def validate_move(
             context,
             data.model,
             data.backend,
-            id_=redirect_id,
+            id_=str(redirect_id),
         )
 
         yield data
