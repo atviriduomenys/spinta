@@ -3,7 +3,7 @@
 # docker compose -f docker-compose.nginx.yml up -d
 
 services:
-  ${BRANCH}:
+  spinta-${BRANCH}:
     build:
       context: .
       dockerfile: Dockerfile
@@ -18,7 +18,7 @@ services:
     networks:
        spinta:
           aliases:
-             - ${BRANCH}
+             - spinta-${BRANCH}
 networks:
   spinta:
     external: true
