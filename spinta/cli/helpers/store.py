@@ -8,7 +8,7 @@ from spinta.auth import auth_server_keys_exists, client_name_exists, get_clients
 from spinta.auth import create_client_file
 from spinta.auth import gen_auth_server_keys
 from spinta.backends.helpers import validate_and_return_transaction, validate_and_return_begin
-from spinta.cli.helpers.upgrade.clients import requires_client_migration
+from spinta.cli.helpers.upgrade.scripts.clients import requires_client_migration
 from spinta.components import Config
 from spinta.components import Context
 from spinta.components import Store

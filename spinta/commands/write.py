@@ -21,13 +21,13 @@ from spinta.accesslog import log_async_response
 from spinta.auth import check_scope, Scopes
 from spinta.backends.components import Backend
 from spinta.backends.constants import BackendFeatures
-from spinta.backends.helpers import get_select_prop_names
-from spinta.backends.helpers import get_select_tree
 from spinta.backends.mongo.components import Mongo
 from spinta.backends.mongo.helpers import inserting
 from spinta.components import Context, Node, UrlParams, DataItem, Namespace, Model, Property, DataStream, \
     DataSubItem
+from spinta.core.enums import action_from_op, Action
 from spinta.core.ufuncs import asttoexpr
+from spinta.exceptions import RequiredField
 from spinta.formats.components import Format
 from spinta.renderer import render
 from spinta.types.datatype import DataType, Object, Array, File, Ref, Denorm, Inherit, BackRef, ExternalRef
@@ -35,7 +35,6 @@ from spinta.urlparams import get_model_by_name
 from spinta.utils.aiotools import agroupby
 from spinta.utils.aiotools import aslice, alist, aiter
 from spinta.utils.data import take
-from spinta.core.enums import action_from_op, Action
 from spinta.utils.errors import report_error
 from spinta.utils.nestedstruct import flatten_value
 from spinta.utils.schema import NotAvailable, NA
@@ -73,14 +72,14 @@ async def push(
         scope = scope.prop
 
     stop_on_error = not params.fault_tolerant
-    if is_streaming_request(request):
-        stream = _read_request_stream(
-            context, request, scope, action, stop_on_error,
-        )
-    else:
-        stream = _read_request_body(
-            context, request, scope, action, params, stop_on_error,
-        )
+    stream = data_item_stream(
+        context,
+        request,
+        scope,
+        action,
+        params,
+        stop_on_error
+    )
     dstream = push_stream(context, stream,
                           stop_on_error=stop_on_error,
                           params=params)
@@ -133,6 +132,25 @@ async def push(  # noqa
         )
     else:
         raise NotImplementedError
+
+
+def data_item_stream(
+    context: Context,
+    request: Request,
+    scope: (Namespace, Model, Property),
+    action: Action,
+    params: UrlParams,
+    stop_on_error: bool
+):
+    if is_streaming_request(request):
+        stream = _read_request_stream(
+            context, request, scope, action, stop_on_error,
+        )
+    else:
+        stream = _read_request_body(
+            context, request, scope, action, params, stop_on_error,
+        )
+    return stream
 
 
 async def push_stream(
@@ -203,7 +221,7 @@ async def write(
     stream = push_stream(context, aiter(stream))
     async for data in stream:
         if changed is False or data.patch:
-            yield _get_simple_response(context, data, fmt)
+            yield commands.prepare_data_for_response(context, fmt, data)
 
 
 def _stream_group_key(data: DataItem):
@@ -469,7 +487,7 @@ def dataitem_from_payload(
     if '_where' in payload:
         payload['_where'] = spyna.parse(payload['_where'])
 
-    return DataItem(model, prop, propref, backend, action, payload)
+    return DataItem(model, prop, propref, backend, action, payload=payload)
 
 
 async def prepare_data(
@@ -893,43 +911,6 @@ async def prepare_data_for_write(
         yield data
 
 
-def prepare_response(
-    context: Context,
-    data: DataItem,
-) -> (DataItem, dict):
-    if data.action == Action.UPDATE:
-        # Minor optimisation: if we querying subresource, then build
-        # response only for the subresource tree, do not walk through
-        # whole model property tree.
-        if data.prop:
-            dtype = data.prop.dtype
-            patch = data.patch.get(data.prop.name, {})
-            saved = data.saved.get(data.prop.name, {})
-        else:
-            dtype = data.model
-            patch = take(data.patch)
-            saved = take(data.saved)
-
-        resp = build_full_response(
-            context,
-            dtype,
-            patch=patch,
-            saved=saved,
-        )
-
-        # When querying subresources, response still must be enclosed with
-        # the subresource key.
-        if data.prop:
-            resp = {
-                data.prop.name: resp,
-            }
-    elif data.patch:
-        resp = data.patch
-    else:
-        resp = {}
-    return resp
-
-
 @commands.build_full_response.register()
 def build_full_response(
     context: Context,
@@ -1268,7 +1249,7 @@ async def _batch_response(
     batch = []
     async for data in results:
         errors += data.error is not None
-        batch.append(_get_simple_response(context, data, fmt))
+        batch.append(commands.prepare_data_for_response(context, fmt, data))
 
     if errors > 0:
         status_code = 400
@@ -1299,77 +1280,7 @@ async def simple_response(
         status_code = 204
     else:
         status_code = 200
-    return status_code, _get_simple_response(context, data, fmt)
-
-
-# XXX: This should be refactored into
-#      prepare_data_for_response[Model, Format, DataItem].
-def _get_simple_response(
-    context: Context,
-    data: DataItem,
-    fmt: Format,
-) -> Dict[str, Any]:
-    resp = prepare_response(context, data)
-    resp = {k: v for k, v in resp.items() if not k.startswith('_')}
-    if data.prop or data.model:
-        resp['_type'] = (data.prop or data.model).model_type()
-    if data.patch and '_id' in data.patch and data.prop is None:
-        resp['_id'] = data.patch['_id']
-    elif (
-        data.patch and
-        data.prop and
-        data.patch[data.prop.name] and
-        '_id' in data.patch[data.prop.name]
-    ):
-        resp['_id'] = data.patch[data.prop.name]['_id']
-    elif (
-        data.saved and
-        data.prop and
-        data.saved[data.prop.name] and
-        '_id' in data.saved[data.prop.name]
-    ):
-        resp['_id'] = data.saved[data.prop.name]['_id']
-    elif data.saved:
-        resp['_id'] = data.saved['_id']
-    if data.patch and '_revision' in data.patch:
-        resp['_revision'] = data.patch['_revision']
-    elif data.saved:
-        resp['_revision'] = data.saved['_revision']
-    if data.action and (data.model or data.prop):
-        if data.prop:
-            resp = commands.prepare_data_for_response(
-                context,
-                data.prop.dtype,
-                fmt,
-                resp,
-                action=data.action,
-            )
-        else:
-            select_tree = get_select_tree(context, data.action, None)
-            prop_names = get_select_prop_names(
-                context,
-                data.model,
-                data.model.properties,
-                data.action,
-                select_tree,
-                include_denorm_props=False
-            )
-            resp = commands.prepare_data_for_response(
-                context,
-                data.model,
-                fmt,
-                resp,
-                action=data.action,
-                select=select_tree,
-                prop_names=prop_names,
-            )
-    if data.error is not None:
-        return {
-            **resp,
-            '_errors': [exceptions.error_response(data.error)],
-        }
-    else:
-        return resp
+    return status_code, commands.prepare_data_for_response(context, fmt, data)
 
 
 @commands.upsert.register()
@@ -1456,3 +1367,91 @@ def prepare_headers(
         server_url = context.get('config').server_url
         headers['location'] = f'{server_url}{node.name}/{resp["_id"]}'
     return headers
+
+
+@commands.move.register(Context, Request, Model, Backend)
+async def move(
+    context: Context,
+    request: Request,
+    model: Model,
+    backend: Backend,
+    *,
+    action: Action,
+    params: UrlParams,
+):
+    stop_on_error = not params.fault_tolerant
+    stream = data_item_stream(
+        context,
+        request,
+        model,
+        action,
+        params,
+        stop_on_error
+    )
+    dstream = move_stream(context, model, stream, stop_on_error, params)
+    dstream = log_async_response(context, dstream)
+
+    batch = False
+    if await is_batch(request, model):
+        batch = True
+        status_code, response = await _batch_response(
+            context,
+            params.fmt,
+            dstream,
+        )
+    else:
+        status_code, response = await simple_response(
+            context,
+            params.fmt,
+            dstream,
+        )
+
+    headers = prepare_headers(context, model, response, action, is_batch=batch)
+    return render(context, request, model, params, response,
+                  action=action, status_code=status_code, headers=headers)
+
+
+async def move_stream(
+    context: Context,
+    model: Model,
+    stream: AsyncIterator[DataItem],
+    stop_on_error: bool = True,
+    params: UrlParams = None
+) -> AsyncIterator[DataItem]:
+    commands.authorize(context, Action.MOVE, model)
+    dstream = prepare_data(context, stream, stop_on_error)
+    dstream = read_existing_data(context, dstream, stop_on_error)
+    dstream = validate_move(context, dstream)
+    dstream = validate_data(context, dstream)
+    dstream = prepare_patch(context, dstream)
+    dstream = prepare_data_for_write(context, dstream, params)
+    dstream = commands.move(
+        context, model, model.backend, dstream=dstream,
+        stop_on_error=stop_on_error,
+    )
+    dstream = commands.create_redirect_entry(context, model, model.backend, dstream=dstream)
+    dstream = commands.create_changelog_entry(
+        context, model, model.backend, dstream=dstream,
+    )
+    async for data in dstream:
+        yield data
+
+
+async def validate_move(
+    context: Context,
+    dstream: AsyncIterator[DataItem],
+):
+    async for data in dstream:
+        redirect_id = data.given.get('_id')
+        if redirect_id is None:
+            raise RequiredField(data.model, action=data.action.value, field='_id')
+
+        # Check if redirect value exists
+        commands.getone(
+            context,
+            data.model,
+            data.backend,
+            id_=str(redirect_id),
+        )
+
+        yield data

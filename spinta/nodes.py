@@ -214,6 +214,7 @@ def load_model_properties(
         '_base': {'type': 'inherit'},
         '_page': {'type': 'page'},
         '_uri': {'type': 'uri'},
+        '_same_as': {'type': 'uuid'},
         **data,
     }
 

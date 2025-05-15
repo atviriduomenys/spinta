@@ -7,6 +7,7 @@ class TableType(enum.Enum):
     CHANGELOG = '/:changelog'
     CACHE = '/:cache'
     FILE = '/:file'
+    REDIRECT = '/:redirect'
 
 
 class BackendOrigin(enum.Enum):
