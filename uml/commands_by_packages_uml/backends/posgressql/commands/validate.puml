@@ -1,0 +1,21 @@
+@startuml
+package validate <<Rectangle>> {
+
+    object check_unique_constraint {
+        +context: Context,
+        +data: DataItem,
+        +dtype: DataType,
+        +prop: Property,
+        +backend: PostgreSQL,
+        +value: object,
+    }
+}
+
+check_unique_constraint *-- Context
+check_unique_constraint *-- DataItem
+check_unique_constraint *-- DataType
+check_unique_constraint *-- Property
+check_unique_constraint *-- PostgreSQL
+
+@enduml
+
