@@ -1092,6 +1092,14 @@ class UnableToCastColumnTypes(UserError):
     '''
 
 
+class SoapServiceError(Exception):
+    pass
+
+
+class SoapParseError(Exception):
+    pass
+
+
 class RequiredField(UserError):
     template = '''
     {action!r} requires {field!r} to be given.
