@@ -5,6 +5,8 @@ import pytest
 from _pytest.fixtures import FixtureRequest
 
 from spinta.auth import AdminToken
+from spinta.backends.constants import TableType
+from spinta.backends.postgresql.helpers.name import get_pg_table_name
 from spinta.cli.helpers.push.utils import get_data_checksum
 from spinta.components import Context
 from spinta.core.config import RawConfig
@@ -1655,3 +1657,42 @@ def test_getone_potential_redirect_loop(
     resp = app.get(f'/datasets/redirect/Country/{new_lt_id}')
     assert resp.status_code == 404
     assert get_error_codes(resp.json()) == ['ItemDoesNotExist']
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_getone_invalid_value_missing_redirect(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property   | type     | ref | prepare                 | access | level
+    datasets/redirect          |          |     |                         |        |
+      |   |   | Country        |          | id  |                         |        |
+      |   |   |   | id         | integer  |     |                         | open   |
+      |   |   |   | name       | string   |     |                         | open   |
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+
+    app = create_test_client(context)
+    app.authorize(['spinta_insert', 'spinta_getone', 'spinta_wipe', 'spinta_search', 'spinta_set_meta_fields', 'spinta_move'])
+    lt_id = str(uuid.uuid4())
+
+    country_redirect = get_pg_table_name("datasets/redirect/Country", TableType.REDIRECT)
+    manifest = context.get('store').manifest
+    with manifest.backend.begin() as conn:
+        conn.execute(f'''
+            DROP TABLE IF EXISTS "{country_redirect}";
+        ''')
+
+    resp = app.get(f'/datasets/redirect/Country/{lt_id}')
+    assert resp.status_code == 500
+    assert get_error_codes(resp.json()) == ['RedirectFeatureMissing', 'ItemDoesNotExist']
