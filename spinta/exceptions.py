@@ -1104,3 +1104,10 @@ class RequiredField(UserError):
     template = '''
     {action!r} requires {field!r} to be given.
     '''
+
+
+class RedirectFeatureMissing(UpgradeError):
+    template = '''
+    Missing redirect implementation. Consider running:
+    `spinta upgrade -r redirect` command.
+    '''

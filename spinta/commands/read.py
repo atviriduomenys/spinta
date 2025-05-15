@@ -20,7 +20,7 @@ from spinta.components import Model
 from spinta.components import Property
 from spinta.core.enums import Action
 from spinta.core.ufuncs import Expr
-from spinta.exceptions import ItemDoesNotExist
+from spinta.exceptions import ItemDoesNotExist, RedirectFeatureMissing, MultipleErrors
 from spinta.exceptions import UnavailableSubresource, InfiniteLoopWithPagination, BackendNotGiven, TooShortPageSize, \
     TooShortPageSizeKeyRepetition
 from spinta.renderer import render
@@ -411,16 +411,19 @@ async def getone(
         data = next(prepare_data_for_response(context, model, action, params, data, reserved=[]))
         return render(context, request, model, params, data, action=action)
     except ItemDoesNotExist as e:
-        if redirect_id := commands.redirect(context, backend, model, params.pk):
-            ptree = params.changed_parsetree({
-                'path': (
-                    model.name.split('/') +
-                    [redirect_id] +
-                    ([params.prop.place] if params.prop is not None else [])
-                )
-            })
-            result = '/' + build_url_path(ptree)
-            return RedirectResponse(result, status_code=301)
+        try:
+            if redirect_id := commands.redirect(context, backend, model, params.pk):
+                ptree = params.changed_parsetree({
+                    'path': (
+                        model.name.split('/') +
+                        [redirect_id] +
+                        ([params.prop.place] if params.prop is not None else [])
+                    )
+                })
+                result = '/' + build_url_path(ptree)
+                return RedirectResponse(result, status_code=301)
+        except RedirectFeatureMissing as r_e:
+            raise MultipleErrors([r_e, e])
         raise e
 
 
