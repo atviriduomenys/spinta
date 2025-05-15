@@ -30,6 +30,7 @@ RESERVED_PROPERTY_NAMES = {
     '_base',
     '_uri',
     '_page',
+    '_same_as'
 }
 
 

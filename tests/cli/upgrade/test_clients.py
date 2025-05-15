@@ -3,35 +3,19 @@ import pathlib
 from collections import Counter
 
 from spinta.auth import ensure_client_folders_exist, get_client_file_path
-from spinta.cli.helpers.upgrade.clients import client_migration_status_message, CLIENT_STATUS_SUCCESS, \
+from spinta.cli.helpers.upgrade.components import Script, ScriptStatus
+from spinta.cli.helpers.upgrade.helpers import script_check_status_message
+from spinta.cli.helpers.upgrade.scripts.clients import client_migration_status_message, CLIENT_STATUS_SUCCESS, \
     CLIENT_STATUS_FAILED_INVALID, CLIENT_STATUS_FAILED_MISSING_ID, CLIENT_STATUS_FAILED_MISSING_SECRET, \
     CLIENT_STATUS_FAILED_MISSING_SCOPES, CLIENT_STATUS_SKIPPED_MIGRATED
-from spinta.cli.helpers.upgrade.components import UPGRADE_CLIENTS_SCRIPT
-from spinta.cli.helpers.upgrade.helpers import script_check_status_message
-from spinta.cli.helpers.upgrade.scripts import UPGRADE_CHECK_STATUS_REQUIRED, UPGRADE_CHECK_STATUS_PASSED, \
-    UPGRADE_CHECK_STATUS_FORCED
-from spinta.exceptions import UpgradeScriptNotFound
 from spinta.testing.cli import SpintaCliRunner
-import pytest
-
 from spinta.testing.client import create_old_client_file, get_yaml_data
 from spinta.utils.config import get_clients_path, get_keymap_path, get_id_path
 from spinta.utils.types import is_str_uuid
 
 
-def test_upgrade_invalid_script_name(context,
-    rc,
-    cli: SpintaCliRunner
-):
-    with pytest.raises(UpgradeScriptNotFound):
-        result = cli.invoke(rc, [
-            'upgrade',
-            '-r', 'UNAVAILABLE'
-        ], fail=False)
-        raise result.exception
-
-
-def test_upgrade_clients_detect_upgrade(context,
+def test_upgrade_clients_detect_upgrade(
+    context,
     rc,
     cli: SpintaCliRunner,
     tmp_path: pathlib.Path
@@ -58,10 +42,10 @@ def test_upgrade_clients_detect_upgrade(context,
 
     result = cli.invoke(rc, [
         'upgrade',
-        '-r', UPGRADE_CLIENTS_SCRIPT
+        '-r', Script.CLIENTS.value
     ])
     assert result.exit_code == 0
-    assert script_check_status_message(UPGRADE_CLIENTS_SCRIPT, UPGRADE_CHECK_STATUS_REQUIRED) in result.stdout
+    assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.REQUIRED) in result.stdout
     assert client_migration_status_message('TEST.yml', CLIENT_STATUS_SUCCESS) in result.stdout
     assert "Created keymap with 1 users" in result.stdout
 
@@ -93,7 +77,8 @@ def test_upgrade_clients_detect_upgrade(context,
     }
 
 
-def test_upgrade_clients_detect_upgrade_multiple(context,
+def test_upgrade_clients_detect_upgrade_multiple(
+    context,
     rc,
     cli: SpintaCliRunner,
     tmp_path: pathlib.Path
@@ -130,10 +115,10 @@ def test_upgrade_clients_detect_upgrade_multiple(context,
 
     result = cli.invoke(rc, [
         'upgrade',
-        '-r', UPGRADE_CLIENTS_SCRIPT
+        '-r', Script.CLIENTS.value
     ])
     assert result.exit_code == 0
-    assert script_check_status_message(UPGRADE_CLIENTS_SCRIPT, UPGRADE_CHECK_STATUS_REQUIRED) in result.stdout
+    assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.REQUIRED) in result.stdout
     assert client_migration_status_message('NEW.yml', CLIENT_STATUS_SUCCESS) in result.stdout
     assert client_migration_status_message('TEST.yml', CLIENT_STATUS_SUCCESS) in result.stdout
     assert "Created keymap with 2 users" in result.stdout
@@ -183,7 +168,8 @@ def test_upgrade_clients_detect_upgrade_multiple(context,
     }
 
 
-def test_upgrade_clients_detect_upgrade_folders_already_exist(context,
+def test_upgrade_clients_detect_upgrade_folders_already_exist(
+    context,
     rc,
     cli: SpintaCliRunner,
     tmp_path: pathlib.Path
@@ -226,10 +212,10 @@ def test_upgrade_clients_detect_upgrade_folders_already_exist(context,
     # Run upgrade in normal mode
     result = cli.invoke(rc, [
         'upgrade',
-        '-r', UPGRADE_CLIENTS_SCRIPT
+        '-r', Script.CLIENTS.value
     ])
     assert result.exit_code == 0
-    assert script_check_status_message(UPGRADE_CLIENTS_SCRIPT, UPGRADE_CHECK_STATUS_REQUIRED) in result.stdout
+    assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.REQUIRED) in result.stdout
     assert client_migration_status_message('TEST.yml', CLIENT_STATUS_SUCCESS) in result.stdout
     assert "Created keymap with 1 users" in result.stdout
 
@@ -254,7 +240,8 @@ def test_upgrade_clients_detect_upgrade_folders_already_exist(context,
     }
 
 
-def test_upgrade_clients_skip_upgrade(context,
+def test_upgrade_clients_skip_upgrade(
+    context,
     rc,
     cli: SpintaCliRunner,
     tmp_path: pathlib.Path
@@ -281,18 +268,18 @@ def test_upgrade_clients_skip_upgrade(context,
     )
     result = cli.invoke(rc, [
         'upgrade',
-        '-r', 'clients'
+        '-r', Script.CLIENTS.value
     ])
-    assert script_check_status_message(UPGRADE_CLIENTS_SCRIPT, UPGRADE_CHECK_STATUS_REQUIRED) in result.stdout
+    assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.REQUIRED) in result.stdout
     assert client_migration_status_message('TEST.yml', CLIENT_STATUS_SUCCESS) in result.stdout
     assert "Created keymap with 1 users" in result.stdout
 
     # Run again
     result = cli.invoke(rc, [
         'upgrade',
-        '-r', UPGRADE_CLIENTS_SCRIPT
+        '-r', Script.CLIENTS.value
     ])
-    assert script_check_status_message(UPGRADE_CLIENTS_SCRIPT, UPGRADE_CHECK_STATUS_PASSED) in result.stdout
+    assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.PASSED) in result.stdout
     assert "Created keymap" not in result.stdout
 
     # Add new client
@@ -307,9 +294,9 @@ def test_upgrade_clients_skip_upgrade(context,
     )
     result = cli.invoke(rc, [
         'upgrade',
-        '-r', UPGRADE_CLIENTS_SCRIPT
+        '-r', Script.CLIENTS.value
     ])
-    assert script_check_status_message(UPGRADE_CLIENTS_SCRIPT, UPGRADE_CHECK_STATUS_PASSED) in result.stdout
+    assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.PASSED) in result.stdout
     assert "Created keymap" not in result.stdout
 
     keymap_path = get_keymap_path(clients_path)
@@ -319,7 +306,8 @@ def test_upgrade_clients_skip_upgrade(context,
     assert list(keymap.keys()) == ['TEST']
 
 
-def test_upgrade_clients_invalid_client(context,
+def test_upgrade_clients_invalid_client(
+    context,
     rc,
     cli: SpintaCliRunner,
     tmp_path: pathlib.Path
@@ -340,10 +328,10 @@ def test_upgrade_clients_invalid_client(context,
 
     result = cli.invoke(rc, [
         'upgrade',
-        '-r', UPGRADE_CLIENTS_SCRIPT
+        '-r', Script.CLIENTS.value
     ])
     assert result.exit_code == 0
-    assert script_check_status_message(UPGRADE_CLIENTS_SCRIPT, UPGRADE_CHECK_STATUS_REQUIRED) in result.stdout
+    assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.REQUIRED) in result.stdout
     assert client_migration_status_message('TEST.yml', CLIENT_STATUS_FAILED_INVALID) in result.stdout
     assert "Created keymap with 0 users" in result.stdout
 
@@ -363,7 +351,8 @@ def test_upgrade_clients_invalid_client(context,
     assert items == []
 
 
-def test_upgrade_clients_invalid_client_missing_id(context,
+def test_upgrade_clients_invalid_client_missing_id(
+    context,
     rc,
     cli: SpintaCliRunner,
     tmp_path: pathlib.Path
@@ -389,10 +378,10 @@ def test_upgrade_clients_invalid_client_missing_id(context,
 
     result = cli.invoke(rc, [
         'upgrade',
-        '-r', UPGRADE_CLIENTS_SCRIPT
+        '-r', Script.CLIENTS.value
     ])
     assert result.exit_code == 0
-    assert script_check_status_message(UPGRADE_CLIENTS_SCRIPT, UPGRADE_CHECK_STATUS_REQUIRED) in result.stdout
+    assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.REQUIRED) in result.stdout
     assert client_migration_status_message('TEST.yml', CLIENT_STATUS_FAILED_MISSING_ID) in result.stdout
     assert "Created keymap with 0 users" in result.stdout
 
@@ -412,7 +401,8 @@ def test_upgrade_clients_invalid_client_missing_id(context,
     assert items == []
 
 
-def test_upgrade_clients_invalid_client_missing_secret(context,
+def test_upgrade_clients_invalid_client_missing_secret(
+    context,
     rc,
     cli: SpintaCliRunner,
     tmp_path: pathlib.Path
@@ -438,10 +428,10 @@ def test_upgrade_clients_invalid_client_missing_secret(context,
 
     result = cli.invoke(rc, [
         'upgrade',
-        '-r', UPGRADE_CLIENTS_SCRIPT
+        '-r', Script.CLIENTS.value
     ])
     assert result.exit_code == 0
-    assert script_check_status_message(UPGRADE_CLIENTS_SCRIPT, UPGRADE_CHECK_STATUS_REQUIRED) in result.stdout
+    assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.REQUIRED) in result.stdout
     assert client_migration_status_message('TEST.yml', CLIENT_STATUS_FAILED_MISSING_SECRET) in result.stdout
     assert "Created keymap with 0 users" in result.stdout
 
@@ -461,7 +451,8 @@ def test_upgrade_clients_invalid_client_missing_secret(context,
     assert items == []
 
 
-def test_upgrade_clients_invalid_client_missing_scopes(context,
+def test_upgrade_clients_invalid_client_missing_scopes(
+    context,
     rc,
     cli: SpintaCliRunner,
     tmp_path: pathlib.Path
@@ -485,10 +476,10 @@ def test_upgrade_clients_invalid_client_missing_scopes(context,
 
     result = cli.invoke(rc, [
         'upgrade',
-        '-r', UPGRADE_CLIENTS_SCRIPT
+        '-r', Script.CLIENTS.value
     ])
     assert result.exit_code == 0
-    assert script_check_status_message(UPGRADE_CLIENTS_SCRIPT, UPGRADE_CHECK_STATUS_REQUIRED) in result.stdout
+    assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.REQUIRED) in result.stdout
     assert client_migration_status_message('TEST.yml', CLIENT_STATUS_FAILED_MISSING_SCOPES) in result.stdout
     assert "Created keymap with 0 users" in result.stdout
 
@@ -508,7 +499,8 @@ def test_upgrade_clients_invalid_client_missing_scopes(context,
     assert items == []
 
 
-def test_upgrade_clients_force_upgrade(context,
+def test_upgrade_clients_force_upgrade(
+    context,
     rc,
     cli: SpintaCliRunner,
     tmp_path: pathlib.Path
@@ -535,9 +527,9 @@ def test_upgrade_clients_force_upgrade(context,
     )
     result = cli.invoke(rc, [
         'upgrade',
-        '-r', UPGRADE_CLIENTS_SCRIPT
+        '-r', Script.CLIENTS.value
     ])
-    assert script_check_status_message(UPGRADE_CLIENTS_SCRIPT, UPGRADE_CHECK_STATUS_REQUIRED) in result.stdout
+    assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.REQUIRED) in result.stdout
 
     # Add new client
     create_old_client_file(
@@ -551,9 +543,9 @@ def test_upgrade_clients_force_upgrade(context,
     )
     result = cli.invoke(rc, [
         'upgrade',
-        '-r', UPGRADE_CLIENTS_SCRIPT
+        '-r', Script.CLIENTS.value
     ])
-    assert script_check_status_message(UPGRADE_CLIENTS_SCRIPT, UPGRADE_CHECK_STATUS_PASSED) in result.stdout
+    assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.PASSED) in result.stdout
 
     keymap_path = get_keymap_path(clients_path)
     assert keymap_path.exists()
@@ -564,10 +556,10 @@ def test_upgrade_clients_force_upgrade(context,
     # Force check
     result = cli.invoke(rc, [
         'upgrade',
-        '-r', UPGRADE_CLIENTS_SCRIPT,
+        '-r', Script.CLIENTS.value,
         '-f'
     ])
-    assert script_check_status_message(UPGRADE_CLIENTS_SCRIPT, UPGRADE_CHECK_STATUS_FORCED) in result.stdout
+    assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.FORCED) in result.stdout
     assert client_migration_status_message('NEW.yml', CLIENT_STATUS_SUCCESS) in result.stdout
     assert client_migration_status_message('TEST.yml', CLIENT_STATUS_SKIPPED_MIGRATED) in result.stdout
     assert "Created keymap with 2 users" in result.stdout
@@ -596,7 +588,8 @@ def test_upgrade_clients_force_upgrade(context,
     }
 
 
-def test_upgrade_clients_force_upgrade_destructive(context,
+def test_upgrade_clients_force_upgrade_destructive(
+    context,
     rc,
     cli: SpintaCliRunner,
     tmp_path: pathlib.Path
@@ -623,9 +616,9 @@ def test_upgrade_clients_force_upgrade_destructive(context,
     )
     result = cli.invoke(rc, [
         'upgrade',
-        '-r', UPGRADE_CLIENTS_SCRIPT
+        '-r', Script.CLIENTS.value
     ])
-    assert script_check_status_message(UPGRADE_CLIENTS_SCRIPT, UPGRADE_CHECK_STATUS_REQUIRED) in result.stdout
+    assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.REQUIRED) in result.stdout
 
     keymap_path = get_keymap_path(clients_path)
     assert keymap_path.exists()
@@ -649,25 +642,25 @@ def test_upgrade_clients_force_upgrade_destructive(context,
     )
     result = cli.invoke(rc, [
         'upgrade',
-        '-r', UPGRADE_CLIENTS_SCRIPT
+        '-r', Script.CLIENTS.value
     ])
-    assert script_check_status_message(UPGRADE_CLIENTS_SCRIPT, UPGRADE_CHECK_STATUS_PASSED) in result.stdout
+    assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.PASSED) in result.stdout
 
     result = cli.invoke(rc, [
         'upgrade',
-        '-r', UPGRADE_CLIENTS_SCRIPT,
+        '-r', Script.CLIENTS.value,
         '-f'
     ])
-    assert script_check_status_message(UPGRADE_CLIENTS_SCRIPT, UPGRADE_CHECK_STATUS_FORCED) in result.stdout
+    assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.FORCED) in result.stdout
     assert client_migration_status_message('TEST.yml', CLIENT_STATUS_SKIPPED_MIGRATED) in result.stdout
 
     # Force check
     result = cli.invoke(rc, [
         'upgrade',
-        '-r', UPGRADE_CLIENTS_SCRIPT,
+        '-r', Script.CLIENTS.value,
         '-f', '-d'
     ])
-    assert script_check_status_message(UPGRADE_CLIENTS_SCRIPT, UPGRADE_CHECK_STATUS_FORCED) in result.stdout
+    assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.FORCED) in result.stdout
     assert client_migration_status_message('TEST.yml', CLIENT_STATUS_SUCCESS) in result.stdout
     assert "DESTRUCTIVE MODE" in result.stdout
 

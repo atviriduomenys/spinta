@@ -5,6 +5,8 @@ import pytest
 from _pytest.fixtures import FixtureRequest
 
 from spinta.auth import AdminToken
+from spinta.backends.constants import TableType
+from spinta.backends.postgresql.helpers.name import get_pg_table_name
 from spinta.cli.helpers.push.utils import get_data_checksum
 from spinta.components import Context
 from spinta.core.config import RawConfig
@@ -1429,6 +1431,7 @@ def test_filter_lithuanian_letters(
         },
     ]
 
+
 @pytest.mark.manifests('internal_sql', 'csv')
 def test_swap_ufunc(
     manifest_type: str,
@@ -1477,6 +1480,7 @@ def test_swap_ufunc(
         {"id": 2, "name": "---"},
         {"id": 3, "name": "---"},
     ]
+
 
 @pytest.mark.manifests('internal_sql', 'csv')
 def test_replace_source_with_prepare(
@@ -1581,3 +1585,269 @@ def test_null_under_prepare(
         {"id": 1, "name": None},
         {"id": 2, "name": ""},
     ]
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_getone_redirect(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property   | type     | ref | prepare                 | access | level
+    datasets/redirect          |          |     |                         |        |
+      |   |   | Country        |          | id  |                         |        |
+      |   |   |   | id         | integer  |     |                         | open   |
+      |   |   |   | name       | string   |     |                         | open   |
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+
+    app = create_test_client(context)
+    app.authorize(['spinta_insert', 'spinta_getone', 'spinta_wipe', 'spinta_search', 'spinta_set_meta_fields', 'spinta_move'])
+    lt_id = str(uuid.uuid4())
+    new_lt_id = str(uuid.uuid4())
+    assert lt_id != new_lt_id
+
+    resp = app.post('/datasets/redirect/Country', json={
+        '_id': lt_id,
+        'id': 0,
+        'name': 'Lithuania'
+    })
+    assert resp.status_code == 201
+    resp = app.post('/datasets/redirect/Country', json={
+        '_id': new_lt_id,
+        'id': 1,
+        'name': 'Lithuania'
+    })
+    assert resp.status_code == 201
+
+    resp = app.get(f'/datasets/redirect/Country/{lt_id}')
+    assert resp.status_code == 200
+    assert listdata(resp, '_id', 'id', 'name', full=True) == [
+        {
+            '_id': lt_id,
+            'id': 0,
+            'name': 'Lithuania',
+        },
+    ]
+
+    resp = app.request('delete', f'/datasets/redirect/Country/{lt_id}/:move', json={
+        '_id': new_lt_id,
+        '_revision': resp.json()['_revision']
+    })
+    assert listdata(resp, '_id', '_same_as', full=True) == [
+        {
+            '_id': lt_id,
+            '_same_as': new_lt_id,
+        },
+    ]
+    assert resp.status_code == 200
+
+    resp = app.get(f'/datasets/redirect/Country/{lt_id}')
+    assert resp.status_code == 200
+    assert listdata(resp, '_id', 'id', 'name', full=True) == [
+        {
+            '_id': new_lt_id,
+            'id': 1,
+            'name': 'Lithuania',
+        },
+    ]
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_getone_potential_redirect_loop(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    """
+        Redirect loop potential case:
+        DATA:
+            ca76ec2a-f8ca-4cb5-87ae-d801e143844b
+            f3ccada0-3104-4ab3-9fa4-d9a09f6ee55e
+
+        REDIRECT MAPPING:
+            EMPTY
+
+        if we do these steps, there could potentially be redirect issues, if it's not handled properly:
+        1.  DELETE "/Model/ca76ec2a-f8ca-4cb5-87ae-d801e143844b/:move" {"_id": "f3ccada0-3104-4ab3-9fa4-d9a09f6ee55e"}
+            DATA:
+                f3ccada0-3104-4ab3-9fa4-d9a09f6ee55e
+
+            REDIRECT MAPPING:
+                ca76ec2a-f8ca-4cb5-87ae-d801e143844b -> f3ccada0-3104-4ab3-9fa4-d9a09f6ee55e
+        2.  POST "/Model" {"_id": "ca76ec2a-f8ca-4cb5-87ae-d801e143844b"}
+            DATA:
+                ca76ec2a-f8ca-4cb5-87ae-d801e143844b
+                f3ccada0-3104-4ab3-9fa4-d9a09f6ee55e
+        3.  DELETE "/Model/f3ccada0-3104-4ab3-9fa4-d9a09f6ee55e/:move" {"_id": "ca76ec2a-f8ca-4cb5-87ae-d801e143844b"}
+            DATA:
+                ca76ec2a-f8ca-4cb5-87ae-d801e143844b
+
+            REDIRECT MAPPING (POTENTIALY):
+                ca76ec2a-f8ca-4cb5-87ae-d801e143844b -> f3ccada0-3104-4ab3-9fa4-d9a09f6ee55e
+                f3ccada0-3104-4ab3-9fa4-d9a09f6ee55e -> ca76ec2a-f8ca-4cb5-87ae-d801e143844b
+        4.  DELETE "/Model/ca76ec2a-f8ca-4cb5-87ae-d801e143844b"
+            DATA:
+                EMPTY
+        5.  GET "/Model/ca76ec2a-f8ca-4cb5-87ae-d801e143844b"
+            GET "/Model/f3ccada0-3104-4ab3-9fa4-d9a09f6ee55e"
+
+            This has potential to be redirect loop if redirect mapping is not handled correctly when data with existing
+            redirect id is added back and/or data is deleted while it's being used in redirect table
+    """
+
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property   | type     | ref | prepare                 | access | level
+    datasets/redirect          |          |     |                         |        |
+      |   |   | Country        |          | id  |                         |        |
+      |   |   |   | id         | integer  |     |                         | open   |
+      |   |   |   | name       | string   |     |                         | open   |
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+
+    app = create_test_client(context)
+    app.authorize([
+        'spinta_insert',
+        'spinta_getone',
+        'spinta_delete',
+        'spinta_wipe',
+        'spinta_search',
+        'spinta_set_meta_fields',
+        'spinta_move',
+        'spinta_getall'
+    ])
+    lt_id = str(uuid.uuid4())
+    new_lt_id = str(uuid.uuid4())
+    assert lt_id != new_lt_id
+
+    resp_old = app.post('/datasets/redirect/Country', json={
+        '_id': lt_id,
+        'id': 0,
+        'name': 'Lithuania'
+    })
+    assert resp_old.status_code == 201
+    resp_new = app.post('/datasets/redirect/Country', json={
+        '_id': new_lt_id,
+        'id': 1,
+        'name': 'Lithuania'
+    })
+    assert resp_new.status_code == 201
+
+    # Move lt to new_lt
+    resp = app.request('delete', f'/datasets/redirect/Country/{lt_id}/:move', json={
+        '_id': new_lt_id,
+        '_revision': resp_old.json()['_revision']
+    })
+    assert listdata(resp, '_id', '_same_as', full=True) == [
+        {
+            '_id': lt_id,
+            '_same_as': new_lt_id,
+        },
+    ]
+    assert resp.status_code == 200
+
+    resp = app.get(f'/datasets/redirect/Country/{lt_id}')
+    assert resp.status_code == 200
+    assert listdata(resp, '_id', 'id', 'name', full=True) == [
+        {
+            '_id': new_lt_id,
+            'id': 1,
+            'name': 'Lithuania',
+        },
+    ]
+
+    # Create new lt entry
+    resp = app.post('/datasets/redirect/Country', json={
+        '_id': lt_id,
+        'id': 0,
+        'name': 'Lithuania'
+    })
+    assert resp.status_code == 201
+
+    # Now move new_lt to lt
+    resp = app.request('delete', f'/datasets/redirect/Country/{new_lt_id}/:move', json={
+        '_id': lt_id,
+        '_revision': resp_new.json()['_revision']
+    })
+    assert listdata(resp, '_id', '_same_as', full=True) == [
+        {
+            '_id': new_lt_id,
+            '_same_as': lt_id,
+        },
+    ]
+    assert resp.status_code == 200
+
+    # Delete lt entry
+    resp = app.delete(f'/datasets/redirect/Country/{lt_id}')
+    assert resp.status_code == 204
+
+    resp = app.get('/datasets/redirect/Country')
+    assert resp.status_code == 200
+
+    # Should be empty
+    assert listdata(resp) == []
+
+    # Should return errors, that item is not found, and not redirect loop
+    resp = app.get(f'/datasets/redirect/Country/{lt_id}')
+    assert resp.status_code == 404
+    assert get_error_codes(resp.json()) == ['ItemDoesNotExist']
+
+    resp = app.get(f'/datasets/redirect/Country/{new_lt_id}')
+    assert resp.status_code == 404
+    assert get_error_codes(resp.json()) == ['ItemDoesNotExist']
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_getone_invalid_value_missing_redirect(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property   | type     | ref | prepare                 | access | level
+    datasets/redirect          |          |     |                         |        |
+      |   |   | Country        |          | id  |                         |        |
+      |   |   |   | id         | integer  |     |                         | open   |
+      |   |   |   | name       | string   |     |                         | open   |
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+
+    app = create_test_client(context)
+    app.authorize(['spinta_insert', 'spinta_getone', 'spinta_wipe', 'spinta_search', 'spinta_set_meta_fields', 'spinta_move'])
+    lt_id = str(uuid.uuid4())
+
+    country_redirect = get_pg_table_name("datasets/redirect/Country", TableType.REDIRECT)
+    manifest = context.get('store').manifest
+    with manifest.backend.begin() as conn:
+        conn.execute(f'''
+            DROP TABLE IF EXISTS "{country_redirect}";
+        ''')
+
+    resp = app.get(f'/datasets/redirect/Country/{lt_id}')
+    assert resp.status_code == 500
+    assert get_error_codes(resp.json()) == ['RedirectFeatureMissing', 'ItemDoesNotExist']
