@@ -8,6 +8,7 @@ from spinta.dimensions.param.helpers import link_params
 from spinta.exceptions import MissingReference
 from spinta.types.datatype import Partial, Ref
 from spinta.components import Property
+from spinta.ufuncs.linkbuilder.components import LinkBuilder
 
 
 @commands.link.register(Context, Dataset)
@@ -22,6 +23,9 @@ def link(context: Context, resource: Resource):
     link_access_param(resource, (resource.dataset,))
     if resource.params and resource.manifest:
         link_params(context, resource.manifest, resource.params, resource.dataset)
+
+    resource_builder = LinkBuilder(context, resource, resource.dataset)
+    resource_builder.resolve(resource.prepare)
 
 
 @commands.link.register(Context, Entity)
