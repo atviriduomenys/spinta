@@ -152,6 +152,8 @@ def load_node(
     remainder = {}
     node_schema = resolve_schema(node, Component)
     for name in set(node_schema) | set(data):
+        if name == 'items':
+            print()
         if name not in node_schema:
             if mixed:
                 remainder[name] = data[name]
