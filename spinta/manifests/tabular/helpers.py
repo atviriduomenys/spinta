@@ -6,7 +6,6 @@ import logging
 import textwrap
 import types
 import uuid
-from copy import deepcopy
 from operator import itemgetter
 from itertools import zip_longest
 from typing import Any
