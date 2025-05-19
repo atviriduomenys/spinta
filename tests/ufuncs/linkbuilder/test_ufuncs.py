@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import pytest
 from zeep.proxy import OperationProxy
 
@@ -54,24 +52,6 @@ class TestPrepareWsdl:
             "wsdl() argument incorrect_resource must be wsdl type resource."
         )
 
-    def test_raise_error_if_wsdl_client_is_not_initiated_successfully(self, rc: RawConfig, tmp_path: Path) -> None:
-        incorrect_wsdl = Path(tmp_path / "incorrect_wsdl.xml")
-        incorrect_wsdl.write_text("")
-        table = f"""
-        d | r | b | m | property | type   | source                                          | prepare
-        example                  |        |                                                 |
-          | wsdl_resource        | wsdl   | {incorrect_wsdl}                                |
-          | soap_resource        | soap   | CityService.CityPort.CityPortType.CityOperation | wsdl(wsdl_resource)
-        """
-
-        with pytest.raises(SoapServiceError) as e:
-            load_manifest_and_context(rc, table, mode=Mode.external)
-
-        assert str(e.value) == (
-            'Cannot parse SOAP operation "CityService.CityPort.CityPortType.CityOperation", '
-            'because WSDL client is not initialized.'
-        )
-
     @pytest.mark.parametrize(
         "invalid_source",
         [
@@ -95,7 +75,7 @@ class TestPrepareWsdl:
 
         assert str(e.value.context["error"]) == (
             f'Model source "{invalid_source}" format is invalid. '
-            f'Source must be in following format: "service.port.port_type.operation"'
+            f'Source must be provided in the following format: "service.port.port_type.operation"'
         )
 
     @pytest.mark.parametrize(

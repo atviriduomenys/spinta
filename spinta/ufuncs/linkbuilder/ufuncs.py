@@ -35,17 +35,14 @@ def wsdl(env: LinkBuilder, parent_resource_backend: WsdlBackend) -> None:
     soap_source = env.resource.backend.config.get("dsn")
 
     with parent_resource_backend.begin():
-        if not (client := parent_resource_backend.client):
-            raise SoapServiceError(
-                f'Cannot parse SOAP operation "{soap_source}", because WSDL client is not initialized.'
-            )
+        client = parent_resource_backend.client
 
     try:
         service_name, port_name, _, operation_name = soap_source.split(".")
     except ValueError:
         error_msg = (
             f'Model source "{soap_source}" format is invalid. '
-            f'Source must be in following format: "service.port.port_type.operation"'
+            f'Source must be provided in the following format: "service.port.port_type.operation"'
         )
         raise InvalidSource(env.resource, error=error_msg)
 
