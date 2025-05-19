@@ -1,11 +1,13 @@
 import io
 import json
 import pathlib
-from typing import Dict, Any, Iterator
+from typing import Any, Dict, Iterator
 
 import dask
 import numpy as np
+import pandas as pd
 import requests
+import yaml
 from dask.dataframe import DataFrame
 from lxml import etree
 
@@ -13,6 +15,7 @@ from spinta import commands
 from spinta.components import Context, Property, Model
 from spinta.core.ufuncs import Expr, Env
 from spinta.datasets.backends.dataframe.components import DaskBackend
+from spinta.datasets.backends.dataframe.backends.memory.components import MemoryDaskBackend
 from spinta.datasets.backends.dataframe.backends.json.components import Json
 from spinta.datasets.backends.dataframe.backends.csv.components import Csv
 from spinta.datasets.backends.dataframe.backends.xml.components import Xml
@@ -88,11 +91,23 @@ def _get_row_value(context: Context, row: Any, sel: Any) -> Any:
             if sel.item in row.keys():
                 val = row[sel.item]
             else:
-                raise PropertyNotFound(
-                    sel.prop.model,
-                    property=sel.prop.name,
-                    external=sel.prop.external.name,
-                )
+                val = {}
+                if isinstance(sel.prop.dtype, Ref):
+                    for prop in sel.prop.dtype.refprops:
+                        if f"{sel.prop.name}.{prop.name}" in row.keys():
+                            val[prop.name] = row[f"{sel.prop.name}.{prop.name}"]
+                        else:
+                            raise PropertyNotFound(
+                                sel.prop.model,
+                                property=sel.prop.name,
+                                external=sel.prop.external.name,
+                            )
+                if not val:
+                    raise PropertyNotFound(
+                        sel.prop.model,
+                        property=sel.prop.name,
+                        external=sel.prop.external.name,
+                    )
 
         if enum_options := get_prop_enum(sel.prop):
             env = Env(context)(this=sel.prop)
@@ -367,7 +382,7 @@ def _get_pkeys_if_ref(prop: Property):
     return return_list
 
 
-def _get_dask_dataframe_meta(model: Model):
+def get_dask_dataframe_meta(model: Model):
     dask_meta = {}
     for prop in model.properties.values():
         if prop.external and prop.external.name:
@@ -405,13 +420,13 @@ def getall(
                 "pkeys": _get_pkeys_if_ref(prop)
             }
 
-    meta = _get_dask_dataframe_meta(model)
+    meta = get_dask_dataframe_meta(model)
     df = dask.bag.from_sequence(bases).map(
         _get_data_json,
         source=model.external.name,
         model_props=props
     ).flatten().to_dataframe(meta=meta)
-    yield from _dask_get_all(context, query, df, backend, model, builder, extra_properties)
+    yield from dask_get_all(context, query, df, backend, model, builder, extra_properties)
 
 
 @commands.getall.register(Context, Model, Xml)
@@ -441,14 +456,14 @@ def getall(
                 "pkeys": _get_pkeys_if_ref(prop)
             }
 
-    meta = _get_dask_dataframe_meta(model)
+    meta = get_dask_dataframe_meta(model)
     df = dask.bag.from_sequence(bases).map(
         _get_data_xml,
         namespaces=_gather_namespaces_from_model(context, model),
         source=model.external.name,
         model_props=props
     ).flatten().to_dataframe(meta=meta)
-    yield from _dask_get_all(context, query, df, backend, model, builder, extra_properties)
+    yield from dask_get_all(context, query, df, backend, model, builder, extra_properties)
 
 
 def _gather_namespaces_from_model(context: Context, model: Model):
@@ -483,7 +498,37 @@ def getall(
     builder = backend.query_builder_class(context)
     builder.update(model=model)
     df = dask.dataframe.read_csv(list(bases), sep=resource_builder.seperator)
-    yield from _dask_get_all(context, query, df, backend, model, builder, extra_properties)
+    yield from dask_get_all(context, query, df, backend, model, builder, extra_properties)
+
+@commands.getall.register(Context, Model, MemoryDaskBackend)
+def getall(
+    context: Context,
+    model: Model,
+    backend: MemoryDaskBackend,
+    *,
+    query: Expr = None,
+    resolved_params: ResolvedParams = None,
+    extra_properties: dict[str, Property] = None,
+    **kwargs,
+) -> Iterator[ObjectData]:
+    yaml_file = backend.config["dsn"]
+
+    with open(yaml_file, "r") as f:
+        data = list(yaml.safe_load_all(f))
+
+    df = pd.json_normalize(data)
+    mask = df["_type"] == model.name
+
+    filtered_df = df[mask]
+    filtered_df = filtered_df.dropna(axis=1)
+    dask_df = dask.dataframe.from_pandas(filtered_df)
+
+    builder = backend.query_builder_class(context)
+    builder.update(model=model)
+
+    yield from dask_get_all(
+        context, query, dask_df, backend, model, builder, extra_properties
+    )
 
 
 def parametrize_bases(
@@ -508,7 +553,7 @@ def parametrize_bases(
         yield base
 
 
-def _dask_get_all(
+def dask_get_all(
     context: Context,
     query: Expr,
     df: dask.dataframe,

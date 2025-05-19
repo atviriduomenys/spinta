@@ -4,50 +4,50 @@ Changes
 0.2dev3 (unreleased)
 ====================
 
+New Features:
+
+- Added OpenAPI Schema to DSA convertion `Resource` column part (`#1209`_)
+- Added OpenAPI Schema to DSA convertion `Param` column part (`#1210`_)
+
+  .. _#1209: https://github.com/atviriduomenys/spinta/issues/1209
+  .. _#1210: https://github.com/atviriduomenys/spinta/issues/1210
+
 0.2dev2
 =======
-Bug fixes:
-
-- Add missing context to user facing error messages. (`#1196`_)
-- Do not check if a declared namespace exists in the generated namespaces (`#1256`_)
-
-  .. _#1256: https://github.com/atviriduomenys/spinta/issues/1256
-  .. _#1196: https://github.com/atviriduomenys/spinta/issues/1196
 
 Backwards incompatible:
 
+- added `status`, `visibility`, `eli`, `origin`, `count` and `source.type` columns. (`#1032`_)
 - Introduce Python package extras and optional dependencies. Now unicorn, gunicorn (http) and alembic (migrations) wont
   be installed by default. Commands `pip install spinta` and `poetry install` (locally) won't install all packages,
   optional ones (unicorn, gunicorn, alembic) will be skipped and if need should be installed by specifying one/multiple
   of extra group names - `http`, `migrations` or `all`. The last one (`all`) will install all dependencies (like before).
   For local development - `poetry install --all-extras` should be used to install all packages.
 
-  .. _#1249: https://github.com/atviriduomenys/spinta/issues/1249
-
-
-
-
-Backwards incompatible:
-
-- added `status`, `visibility`, `eli`, `origin`, `count` and `source.type` columns. (`#1032`_)
-
   .. _#1032: https://github.com/atviriduomenys/spinta/issues/1032
+  .. _#1249: https://github.com/atviriduomenys/spinta/issues/1249
 
 New Features:
 
 - Added OpenAPI Schema manifest (`#1211`_)
 - Added changes to support enum `noop()` classificator for copy & check commands (`#1146`_)
 - Added OpenAPI Schema to DSA convertion `Dataset` column part (`#1208`_)
+- Added new CLI command `getall` which returns JSON representation of YAML data. (`#1229`_)
 
   .. _#1211: https://github.com/atviriduomenys/spinta/issues/1211
   .. _#1146: https://github.com/atviriduomenys/spinta/issues/1146
   .. _#1208: https://github.com/atviriduomenys/spinta/issues/1208
+  .. _#1229: https://github.com/atviriduomenys/spinta/issues/1229
 
 Bug fixes:
 
 - Fixed a bug where namespace (`ns`) dataset name would be placed in the ref column instead of the dataset column (`#1238`_)
+- Add missing context to user facing error messages. (`#1196`_)
+- Do not check if a declared namespace exists in the generated namespaces (`#1256`_)
 
   .. _#1238: https://github.com/atviriduomenys/spinta/issues/1238
+  .. _#1256: https://github.com/atviriduomenys/spinta/issues/1256
+  .. _#1196: https://github.com/atviriduomenys/spinta/issues/1196
 
 0.2dev1
 =======
@@ -62,6 +62,14 @@ Backwards incompatible:
 0.1.86 (unreleased)
 ===================
 
+Backwards incompatible:
+
+- To support `redirect`, we introduced a new `API` endpoint `/:move` that creates redirect entries. Because all data
+  manipulations must be logged in the `changelog`, we needed a way to indicate that one `_id` was moved to another `_id`.
+  Since `_id` is unique and cannot be reused, we added a new property, `_same_as`, used exclusively to track which `_id`
+  an entry was moved to. As a result, this property is now included in all tabular results (HTML, ASCII, CSV),
+  even though it will typically be empty (`#1290`_).
+
 Improvements:
 
 - `migrate` command now warns users if there are potential type casting issues (invalid or unsafe).
@@ -69,6 +77,27 @@ Improvements:
   raise `Exception`, like `TEXT` to `INTEGER`, which potentially can be valid) (`#1254`_).
 
   .. _#1254: https://github.com/atviriduomenys/spinta/issues/1254
+
+- The `upgrade` command now support `-c` or `--check` flag, which performs only the script check without executing
+  any scripts. This is useful for previewing required upgrades without applying them (`#1290`_).
+
+New Features:
+
+- Added a `redirect` upgrade script (`spinta upgrade -r redirect`) that checks if the current `backend` supports redirects.
+  If not, it will attempt to add the missing features (`#1290`_).
+
+- Added a `deduplicate` upgrade script (`spinta upgrade -r deduplicate`). This checks models with assigned primary keys
+  (`model.ref`) to ensure uniqueness is enforced. If not, it scans for duplicates, aggregates them using `model.ref` keys,
+  and processes them via the `/:move` endpoint (keeping the oldest entry as the root). It then attempts to enforce
+  uniqueness going forward (`#1290`_).
+
+- Implemented `redirect` support. When trying to fetch an entry that no longer exists, the `API` will redirect the request
+  if a mapping exists in the `redirect` table (`#1290`_).
+
+- Added `DELETE` `/:move` endpoint, that removes an entry and marks it as moved to another existing entry via
+  the `redirect` table (`#1290`_).
+
+  .. _#1290: https://github.com/atviriduomenys/spinta/issues/1290
 
 Bug fixes:
 

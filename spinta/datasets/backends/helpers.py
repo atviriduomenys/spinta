@@ -16,8 +16,12 @@ def handle_ref_key_assignment(context: Context, keymap: KeyMap, env: Env, value:
     keymap_name = ref.model.model_type()
     if ref.refprops != ref.model.external.pkeys:
         keymap_name = f'{keymap_name}.{"_".join(prop.name for prop in ref.refprops)}'
-
-    if not isinstance(value, (tuple, list)):
+    if isinstance(value, dict):
+        new_value = []
+        for prop in ref.refprops:
+            new_value.append(value[prop.name])
+        value = new_value
+    elif not isinstance(value, (tuple, list)):
         value = [value]
     else:
         value = list(value)
@@ -39,7 +43,9 @@ def handle_ref_key_assignment(context: Context, keymap: KeyMap, env: Env, value:
             target_value = value[0]
 
         val = None
-        contains = keymap.contains(keymap_name, target_value)
+        contains = None
+        if ref.refprops[0].name != "_id":
+            contains = keymap.contains(keymap_name, target_value)
         if not contains:
             if target_value is None:
                 return {'_id': None}
