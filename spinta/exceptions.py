@@ -1092,9 +1092,9 @@ class UnableToCastColumnTypes(UserError):
     '''
 
 
-class SoapServiceError(Exception):
+class WsdlClientError(Exception):
     pass
 
 
-class SoapParseError(Exception):
+class SoapServiceError(Exception):
     pass
