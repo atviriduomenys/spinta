@@ -1026,10 +1026,6 @@ def _get_parent_data_array(reader: PropertyReader, given_row: dict, full_name: s
     if not current_parent:
         current_parent.update(_empty_property(_array_datatype_handler(reader, empty_array_row)))
 
-    # temp vienas variantas, kad klaida čia
-    if given_row.get('type') == DataTypeEnum.BACKREF.value:
-        current_parent['type'] = DataTypeEnum._ARRAY_BACKREF.value
-
     adjustment = 1 if current_parent.get('type') in ALLOWED_ARRAY_TYPES else 0
 
     for _ in range(array_depth - adjustment):
@@ -1041,6 +1037,9 @@ def _get_parent_data_array(reader: PropertyReader, given_row: dict, full_name: s
             current_parent = _process_allowed_partial_type(reader, current_parent, root_name, empty_array_row)
         else:
             raise NestedDataTypeMismatch(initial=current_type, required=DataTypeEnum.ARRAY.value)
+
+    if given_row.get('type') == DataTypeEnum.BACKREF.value:
+        current_parent['type'] = DataTypeEnum._ARRAY_BACKREF.value
 
     return current_parent
 
@@ -1142,8 +1141,7 @@ def _extract_and_create_parent_data(
     if root_property:
         complete_structure.update(root_property)
 
-    parent_dict = None
-    parent_data = None
+    current_nested_dict = None
     total_parts = len(property_parts)
     property_name = property_path
     accumulated_path = []
@@ -1152,33 +1150,28 @@ def _extract_and_create_parent_data(
         accumulated_path.append(part)
 
         if '[]' in part:
-            parent_dict = _get_parent_data_array(
-                reader, current_row, '.'.join(accumulated_path), parent_dict or complete_structure
+            current_nested_dict = _get_parent_data_array(
+                reader, current_row, '.'.join(accumulated_path), current_nested_dict or complete_structure
             )
         elif '@' in part:
-            parent_dict = _get_parent_data_text(
-                reader, current_row, '.'.join(accumulated_path), parent_dict or complete_structure
+            current_nested_dict = _get_parent_data_text(
+                reader, current_row, '.'.join(accumulated_path), current_nested_dict or complete_structure
             )
 
         if index < total_parts - 1:
-            if not parent_dict and complete_structure:
-                parent_dict = complete_structure
+            if not current_nested_dict and complete_structure:
+                current_nested_dict = complete_structure
             else:
-                parent_dict = _get_parent_data_partial(
-                    reader, current_row, '.'.join(accumulated_path), parent_dict or complete_structure
+                current_nested_dict = _get_parent_data_partial(
+                    reader, current_row, '.'.join(accumulated_path), current_nested_dict or complete_structure
                 )
-            # temp gali reik4t atkomentuot
-            # if index == total_parts - 2:
-            #     parent_data = deepcopy(current_nested_dict)
         else:
             property_name = _clean_up_prop_name(part)
 
-        if parent_dict and parent_dict['type'] not in ALLOWED_NESTING_TYPES:
-            raise DataTypeCannotBeUsedForNesting(dtype=parent_dict['type'])
+        if current_nested_dict and current_nested_dict['type'] not in ALLOWED_NESTING_TYPES:
+            raise DataTypeCannotBeUsedForNesting(dtype=current_nested_dict['type'])
 
-    return complete_structure, parent_dict, property_name
-    # temp gali reik4t atkeist
-    # return complete_structure, parent_data, property_name
+    return complete_structure, current_nested_dict, property_name
 
 
 def _get_parent_data(reader: PropertyReader, given_row: dict, name: str):
