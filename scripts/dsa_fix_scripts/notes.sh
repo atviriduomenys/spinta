@@ -5,7 +5,7 @@ echo "* text=auto" > .gitattributes
 
 # export DSA_DIR=some/directory
 
-export scripts_dir="notes/comments_scripts/"
+export scripts_dir="scripts/dsa_fix_scripts/"
 
 # applied:
 python "$scripts_dir"remove_spaces_column_names.py $DSA_DIR
