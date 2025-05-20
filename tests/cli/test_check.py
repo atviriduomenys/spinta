@@ -221,3 +221,33 @@ def test_check_existing_declared_manifest(context: Context, rc, cli: SpintaCliRu
     ], fail=False)
     assert result.exit_code != 0
     assert result.exc_info[0] is InvalidManifestFile
+
+
+def test_check_nested_Backref(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    d | r | b | m | property                   | type    | ref       | source            | prepare | access | level
+    datasets/gov/example                       |         |           |                   |         |        |
+      | data                                   | sql     |           |                   |         |        |
+                                               |         |           |                   |         |        |
+      |   |   | Continent                      |         | code      | salis             |         |        | 
+      |   |   |   | code                       | string  |           | kodas             |         | public | 1
+      |   |   |   | name                       | string  |           | pavadinimas       |         | open   | 2
+      |   |   |   | political                  | ref     | Political | countries         |         | open   | 3      
+      |   |   |   | political.countries        | array   |           | countries         |         | open   | 3 
+      |   |   |   | political.countries[]      | backref | Country   | .                 |         | open   | 3
+      |   |   | Political                      |         | code      | salis             |         |        | 
+      |   |   |   | code                       | string  |           | kodas             |         | public | 1
+      |   |   |   | name                       | string  |           | pavadinimas       |         | open   | 2 
+      |   |   |   | countries[]                | backref | Country   | .                 |         | open   | 3                
+      |   |   | Country                        |         | code      | salis             |         |        |    
+      |   |   |   | continent                  | ref     | Continent | ./.               |         | public | 1      
+      |   |   |   | political                  | ref     | Political | ././.             |         | public | 1
+      |   |   |   | code                       | string  |           | kodas             |         | public | 1
+      |   |   |   | name                       | string  |           | pavadinimas       |         | open   | 2
+    '''))
+
+    result = cli.invoke(rc, [
+        'check',
+        tmp_path / 'manifest.csv'
+    ])
+

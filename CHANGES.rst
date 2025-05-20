@@ -12,6 +12,11 @@ New Features:
   .. _#1209: https://github.com/atviriduomenys/spinta/issues/1209
   .. _#1210: https://github.com/atviriduomenys/spinta/issues/1210
 
+Bug fixes:
+- Fixed a bug where an error was thrown when nested property was a `ref` followed by a `backref`. (`#1302`_)
+
+  .. _#1302: https://github.com/atviriduomenys/spinta/issues/1302
+
 0.2dev2
 =======
 
