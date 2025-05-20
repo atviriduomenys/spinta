@@ -243,7 +243,7 @@ def test_check_nested_Backref(context: Context, rc, cli: SpintaCliRunner, tmp_pa
       |   |   |   | continent                  | ref     | Continent | ./.               |         | public | 1      
       |   |   |   | political                  | ref     | Political | ././.             |         | public | 1
       |   |   |   | code                       | string  |           | kodas             |         | public | 1
-      |   |   |   | name                       | string  |           | pavadinimas       |         | open   | 2                                |         |         |                   |         |        |              
+      |   |   |   | name                       | string  |           | pavadinimas       |         | open   | 2
     '''))
 
     result = cli.invoke(rc, [
