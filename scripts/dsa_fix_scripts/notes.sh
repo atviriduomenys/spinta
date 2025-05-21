@@ -31,8 +31,10 @@ python "$scripts_dir"remove_ref_with_dot.py $DSA_DIR
 
 python "$scripts_dir"remove_money_type.py $DSA_DIR
 
-# needs checking
+
 python "$scripts_dir"remove_ref_with_dot_prepare.py $DSA_DIR
+
+python "$scripts_dir"remove_getone_getall.py $DSA_DIR
 
 
 # todo

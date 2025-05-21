@@ -1,16 +1,33 @@
+import argparse
+import csv
 import io
 import os
-import csv
 import re
 import sys
+from pathlib import Path
 
-def process_csv_files(directory):
-    # Recursively walk through the directory
-    for root, _, files in os.walk(directory):
-        for file in files:
-            if file.endswith('.csv'):
-                file_path = os.path.join(root, file)
-                process_csv_file(file_path)
+
+def remove_dot_words(text):
+    """
+    Remove words containing dots from the text.
+    For example, "word1, word2.field1, word3" -> "word1, word3"
+    """
+    # First, handle cases like 'word[].attribute' or 'word[content].attribute'
+    bracket_dot_pattern = r'(\b\w+)(\[\]|\[.*?\])\.(\w+)'
+    result = re.sub(bracket_dot_pattern, '', text)
+
+    # Then handle standard dot-separated words
+    parts = [part.strip() for part in result.split(',')]
+    filtered_parts = [part for part in parts if not re.search(r'\b[\w]+(?:\.[\w]+)+\b', part)]
+    clean_result = ', '.join(filtered_parts)
+
+    # Clean up extra spaces and commas
+    clean_result = re.sub(r'\s{2,}', ' ', clean_result)
+    clean_result = re.sub(r',\s*,', ',', clean_result)
+    clean_result = clean_result.strip(', ')
+
+    return clean_result
+
 
 def process_csv_file(file_path):
     # Read original file lines as text
@@ -41,90 +58,12 @@ def process_csv_file(file_path):
             continue
 
         original_ref = row['ref']
-        ref_value = original_ref
-        changed = False  # Track if we made any changes
 
-        # Handle bracket contents more carefully
-        position = 0
-        result = ''
-        
-        # Find all bracket sections
-        for match in re.finditer(r'(\w+)(\[.*?\])', ref_value):
-            prefix, brackets = match.groups()
-            bracket_content = brackets[1:-1]  # Remove the [ and ]
-            
-            # Add text before this match
-            result += ref_value[position:match.start()]
-            
-            # Check if there are any dot-separated words in the bracket content
-            if re.search(r'\b[\w]+(?:\.[\w]+)+\b', bracket_content):
-                # Only process if there are dot-separated words
-                parts = [part.strip() for part in bracket_content.split(',')]
-                filtered_parts = [part for part in parts if not re.search(r'\b[\w]+(?:\.[\w]+)+\b', part)]
-                new_bracket_content = ', '.join(filtered_parts)
-                
-                # If we removed something, mark as changed
-                if new_bracket_content != bracket_content:
-                    changed = True
-                
-                # Add the prefix and modified brackets
-                result += prefix + '[' + new_bracket_content + ']'
-            else:
-                # No dot-separated words, keep as is
-                result += prefix + brackets
-            
-            position = match.end()
-        
-        # Add any remaining text
-        result += ref_value[position:]
-        
-        # Now process text outside brackets for dot-separated words
-        sections = []
-        last_end = 0
-        
-        for match in re.finditer(r'\[.*?\]', result):
-            start, end = match.span()
-            # Process text before bracket
-            if start > last_end:
-                outside_text = result[last_end:start]
-                # Check if there are dot-separated words
-                if re.search(r'\b[\w]+(?:\.[\w]+)+\b', outside_text):
-                    processed_text = remove_dot_words_keep_commas(outside_text)
-                    sections.append(processed_text)
-                    # If we removed something, mark as changed
-                    if processed_text != outside_text:
-                        changed = True
-                else:
-                    sections.append(outside_text)
-            
-            # Keep the bracket as is
-            sections.append(result[start:end])
-            last_end = end
-        
-        # Process any remaining text
-        if last_end < len(result):
-            outside_text = result[last_end:]
-            # Check if there are dot-separated words
-            if re.search(r'\b[\w]+(?:\.[\w]+)+\b', outside_text):
-                processed_text = remove_dot_words_keep_commas(outside_text)
-                sections.append(processed_text)
-                # If we removed something, mark as changed
-                if processed_text != outside_text:
-                    changed = True
-            else:
-                sections.append(outside_text)
-        
-        # Join all sections
-        ref_value = ''.join(sections)
-        
-        # Clean up spacing and comma formatting if we made changes
-        if changed:
-            ref_value = re.sub(r'\s{2,}', ' ', ref_value)
-            ref_value = re.sub(r',\s*,', ',', ref_value)
-            ref_value = ref_value.strip(', ')
-        
-        # If no change or no dot words were found, keep original line
-        if not changed or ref_value == original_ref:
+        # Use the improved function for cleaning
+        ref_value = remove_dot_words(original_ref)
+
+        # If no change was made, keep original line
+        if ref_value == original_ref:
             output_lines.append(data_lines[i])
             continue
 
@@ -153,21 +92,25 @@ def process_csv_file(file_path):
     with open(file_path, 'w', encoding='utf-8') as f:
         f.writelines(output_lines)
 
-def remove_dot_words_keep_commas(text):
-    # Split by commas
-    parts = [part.strip() for part in text.split(',')]
-    
-    # Filter out parts that are dot-separated words
-    filtered_parts = [part for part in parts if not re.search(r'\b[\w]+(?:\.[\w]+)+\b', part)]
-    
-    # Rejoin with commas
-    return ', '.join(filtered_parts)
 
+def main():
+    parser = argparse.ArgumentParser(description='Remove references containing dots from CSV files')
+    parser.add_argument('path', help='Path to a CSV file or directory containing CSV files')
+    args = parser.parse_args()
 
-if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Usage: python script.py <directory>")
-        sys.exit(1)
+    path = Path(args.path)
+
+    if path.is_file() and path.suffix.lower() == '.csv':
+        print(f"Processing file: {path}")
+        process_csv_file(path)
+    elif path.is_dir():
+        for csv_file in path.glob('**/*.csv'):
+            print(f"Processing file: {csv_file}")
+            process_csv_file(csv_file)
     else:
-        directory = sys.argv[1]
-        process_csv_files(directory)
+        print(f"Error: {path} is not a CSV file or directory")
+        sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()
