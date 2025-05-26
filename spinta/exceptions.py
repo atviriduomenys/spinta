@@ -1118,3 +1118,11 @@ class RedirectFeatureMissing(UpgradeError):
     Missing redirect implementation. Consider running:
     `spinta upgrade -r redirect` command.
     '''
+
+
+class KeymapMigrationRequired(UpgradeError):
+    template = '''
+    Keymap ({keymap!r}) is missing {migration!r} migration.
+    Run this command to execute migrations:
+    `spinta upgrade`.
+    '''
