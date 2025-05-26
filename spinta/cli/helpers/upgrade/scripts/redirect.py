@@ -80,7 +80,7 @@ def cli_requires_redirect_migration(
     missing_models = list(models_missing_redirect(context, **kwargs))
     model_count = len(missing_models)
     if model_count > 0:
-        echo(f"FOUND {model_count} models that does not support REDIRECT feature.")
+        echo(f"Found {model_count} models that does not support REDIRECT feature.")
 
     return model_count > 0
 

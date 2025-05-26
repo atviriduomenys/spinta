@@ -1,8 +1,10 @@
+from __future__ import annotations
+
+import dataclasses
 from datetime import datetime
 from typing import Optional, Any
 
 from spinta.components import Component
-from spinta.core.enums import Action
 
 
 class KeyMap(Component):
@@ -26,5 +28,14 @@ class KeyMap(Component):
     def update_sync_data(self, name: str, cid: Any, time: datetime):
         raise NotImplementedError
 
-    def synchronize(self, name: str, value: Any, primary_key: str):
+    def synchronize(self, data: KeymapSyncData):
         raise NotImplementedError
+
+
+@dataclasses.dataclass
+class KeymapSyncData:
+    name: str
+    value: object
+    identifier: str
+    data: dict
+    redirect: str | None = None

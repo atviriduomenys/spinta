@@ -1,4 +1,5 @@
-import dataclasses
+from __future__ import annotations
+
 import datetime
 from collections.abc import Generator
 from typing import List, Iterable
@@ -12,7 +13,7 @@ from spinta.cli.helpers.errors import ErrorCounter
 from spinta.components import Context, Model, Property, Config
 from spinta.core.enums import action_from_op, Action
 from spinta.datasets.backends.helpers import extract_values_from_row
-from spinta.datasets.keymaps.components import KeyMap
+from spinta.datasets.keymaps.components import KeyMap, KeymapSyncData
 from spinta.utils.response import get_request
 
 
@@ -95,14 +96,6 @@ def _cid_offset(
     return sync_cid
 
 
-@dataclasses.dataclass
-class KeymapData:
-    key: str
-    value: object
-    identifier: str
-    data: dict
-
-
 def process_keymap_data(
     keymap: KeyMap,
     model: Model,
@@ -110,11 +103,11 @@ def process_keymap_data(
     primary_keys: list[Property],
     counters: dict,
     dry_run: bool
-) -> Generator[KeymapData]:
+) -> Generator[KeymapSyncData]:
     for row in data:
         action = action_from_op(model, row)
         if action in (Action.INSERT, Action.UPSERT):
-            data = sync_model_insert(
+            yield from sync_model_insert(
                 model=model,
                 row=row,
                 primary_keys=primary_keys,
@@ -122,16 +115,20 @@ def process_keymap_data(
                 dry_run=dry_run
             )
         elif action in (Action.UPDATE, Action.PATCH):
-            data = sync_model_update(
+            yield from sync_model_update(
                 keymap=keymap,
                 model=model,
                 row=row,
                 counters=counters,
                 dry_run=dry_run
             )
-
-        for key, value, identifier in data:
-            yield KeymapData(key=key, value=value, identifier=identifier, data=row)
+        elif action is Action.MOVE:
+            yield from sync_model_move(
+                model=model,
+                row=row,
+                counters=counters,
+                dry_run=dry_run
+            )
 
 
 def sync_model_insert(
@@ -141,27 +138,38 @@ def sync_model_insert(
     counters: dict,
     dry_run: bool
 ):
+    id_ = row['_id']
     values = _extract_row_data_from_keys(row, primary_keys)
     value = list(values.values())
     if len(value) == 1:
         value = value[0]
 
     if not dry_run:
-        yield model.model_type(), value, row['_id']
+        yield KeymapSyncData(
+            name=model.model_type(),
+            value=value,
+            identifier=id_,
+            data=row
+        )
 
     if model.model_type() in counters and model.model_type() in counters[model.model_type()]:
         counters[model.model_type()][model.model_type()].update(1)
     if '_total' in counters:
         counters['_total'].update(1)
 
-    if row['_id'] and model.required_keymap_properties:
+    if id_ and model.required_keymap_properties:
         for combination in model.required_keymap_properties:
             joined = '_'.join(combination)
             key = f'{model.model_type()}.{joined}'
             val = extract_values_from_row(row, model, combination)
 
             if not dry_run:
-                yield key, val, row['_id']
+                yield KeymapSyncData(
+                    name=key,
+                    value=val,
+                    identifier=id_,
+                    data=row
+                )
 
             if model.model_type() in counters and key in counters[model.model_type()]:
                 counters[model.model_type()][key].update(1)
@@ -176,8 +184,9 @@ def sync_model_update(
     counters: dict,
     dry_run: bool
 ):
+    id_ = row['_id']
     for km, props in keymaps_affected_by_change(row, model).items():
-        decoded = keymap.decode(km, row['_id'])
+        decoded = keymap.decode(km, id_)
         remapped = remap_decoded_values(decoded, props)
         for key in remapped.keys():
             if key in row:
@@ -187,12 +196,59 @@ def sync_model_update(
             val = val[0]
 
         if not dry_run:
-            yield km, val, row['_id']
+            yield KeymapSyncData(
+                name=km,
+                value=val,
+                identifier=id_,
+                data=row
+            )
 
         if model.model_type() in counters and km in counters[model.model_type()]:
             counters[model.model_type()][km].update(1)
         if '_total' in counters:
             counters['_total'].update(1)
+
+
+def sync_model_move(
+    model: Model,
+    row: dict,
+    counters: dict,
+    dry_run: bool
+):
+    id_ = row['_id']
+    redirect_id = row['_same_as']
+    if not dry_run:
+        yield KeymapSyncData(
+            name=model.model_type(),
+            value=None,
+            identifier=id_,
+            data=row,
+            redirect=redirect_id
+        )
+
+    if model.model_type() in counters and model.model_type() in counters[model.model_type()]:
+        counters[model.model_type()][model.model_type()].update(1)
+    if '_total' in counters:
+        counters['_total'].update(1)
+
+    if id_ and model.required_keymap_properties:
+        for combination in model.required_keymap_properties:
+            joined = '_'.join(combination)
+            key = f'{model.model_type()}.{joined}'
+
+            if not dry_run:
+                yield KeymapSyncData(
+                    name=key,
+                    value=None,
+                    identifier=id_,
+                    data=row,
+                    redirect=redirect_id
+                )
+
+            if model.model_type() in counters and key in counters[model.model_type()]:
+                counters[model.model_type()][key].update(1)
+            if '_total' in counters:
+                counters['_total'].update(1)
 
 
 def sync_keymap(
@@ -312,7 +368,7 @@ def _extract_row_data_from_keys(row: dict, keys: List[Property]) -> dict:
 
 
 @commands.sync.register(Context, KeyMap)
-def sync(context: Context, keymap: KeyMap, *, data: Generator[KeymapData]):
+def sync(context: Context, keymap: KeyMap, *, data: Generator[KeymapSyncData]):
     for row in data:
-        keymap.synchronize(row.key, row.value, row.identifier)
+        keymap.synchronize(row.name, row.value, row.identifier)
         yield row
