@@ -15,24 +15,24 @@ python "$scripts_dir"bring_back_language_tags.py $DSA_DIR
 python "$scripts_dir"bring_back_enum_nested.py $DSA_DIR
 python "$scripts_dir"trim_csv_spaces.py $DSA_DIR
 
-python "$scripts_dir"remove_part.py $DSA_DIR
+python "$scripts_dir"remove_part_997.py $DSA_DIR
 # to apply:
 
-python "$scripts_dir"remove_underscore_property_name.py $DSA_DIR
+python "$scripts_dir"remove_underscore_property_name_963.py $DSA_DIR
 
-python "$scripts_dir"remove_money_type.py $DSA_DIR
+python "$scripts_dir"remove_money_type_40.py $DSA_DIR
 
 # todo adjust levels
 
-python "$scripts_dir"remove_ref_with_dot.py $DSA_DIR
+python "$scripts_dir"remove_ref_with_dot_981.py $DSA_DIR
 level: 1
 
 # asset_type.id.name@lt change everywhere to asset_type.name@lt
 
-python "$scripts_dir"remove_ref_with_dot_prepare.py $DSA_DIR
+python "$scripts_dir"remove_ref_with_dot_prepare_981.py $DSA_DIR
 level: 1
 
-python "$scripts_dir"remove_getone_getall.py $DSA_DIR
+python "$scripts_dir"remove_getone_getall_927.py $DSA_DIR
 
 
 # todo

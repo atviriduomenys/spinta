@@ -58,6 +58,7 @@ def process_csv_file(file_path):
             continue
 
         original_prepare = row['prepare']
+        original_level = row['level']
 
         # Use the improved function for cleaning
         prepare_value = remove_dot_words(original_prepare)
@@ -68,16 +69,22 @@ def process_csv_file(file_path):
             continue
 
         # Replace the old ref with the cleaned one inside the original line
-        updated_line = data_lines[i].replace(original_prepare, prepare_value)
-        output_lines.append(updated_line)
+        row['level'] = 1
+        row['prepare'] = prepare_value
+        # Write the modified row using csv to match format
+        with io.StringIO() as buf:
+            writer = csv.DictWriter(buf, fieldnames=fieldnames, quoting=csv.QUOTE_MINIMAL)
+            writer.writerow(row)
+            modified_line = buf.getvalue()
+        output_lines.append(modified_line)
 
         # Add the comment row (quoting minimally to blend with original style)
         comment_row = {
             'type': 'comment',
             'ref': 'prepare',
             'prepare': f'update(prepare: "{original_prepare}")',
-            'level': 4,
-            'visibility': 'public',
+            'level': original_level,
+            'visibility': 'protected',
             'uri': 'https://github.com/atviriduomenys/spinta/issues/981'
         }
 
