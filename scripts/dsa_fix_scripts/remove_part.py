@@ -62,7 +62,7 @@ def process_csv_file(file_path):
             'type': 'comment',
             'ref': 'model',
             'prepare': f'update(model: "{old_model}")',
-            'visibility': 'public',
+            'visibility': 'protected',
             'uri': 'https://github.com/atviriduomenys/spinta/issues/997'
         }
 
