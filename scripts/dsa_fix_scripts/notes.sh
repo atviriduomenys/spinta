@@ -15,12 +15,8 @@ python "$scripts_dir"bring_back_language_tags.py $DSA_DIR
 python "$scripts_dir"bring_back_enum_nested.py $DSA_DIR
 python "$scripts_dir"trim_csv_spaces.py $DSA_DIR
 
-
-# to apply:
-
-
-# seems to be working
 python "$scripts_dir"remove_part.py $DSA_DIR
+# to apply:
 
 python "$scripts_dir"remove_underscore_property_name.py $DSA_DIR
 # todo adjust levels

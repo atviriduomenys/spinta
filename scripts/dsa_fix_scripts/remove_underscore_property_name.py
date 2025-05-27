@@ -34,6 +34,8 @@ def process_csv_file(file_path):
 
     output_lines = [header_line]  # Start with header
 
+    # todo maybe add support for prepare (not needed now though)
+
     for i, row in enumerate(rows):
         if 'property' not in row:
             output_lines.append(data_lines[i])
@@ -44,13 +46,69 @@ def process_csv_file(file_path):
             output_lines.append(data_lines[i])
             continue
 
-        if not row["property"].startswith('_'):
+        if (not row["property"].startswith('_')
+            and not "._" in row["property"]
+            and not ' _' in row["ref"]
+            and not '[_' in row["ref"]
+            and not ' _' in row["base"]
+            and not '[_' in row["base"]
+        ):
             output_lines.append(data_lines[i])
             continue
 
-        # Change type from money to string
         old_property = row["property"]
-        row["property"] = row["property"].lstrip("_")
+        old_ref = row["ref"]
+        old_base = row["base"]
+
+        comment_row_property = ''
+        comment_row_ref = ''
+        comment_row_base = ''
+
+        # remove initial underscore
+        if row["property"].startswith('_') or '._' in row["property"]:
+            row["property"] = row["property"].lstrip('_')
+
+            # remove underscore in property name
+            row["property"] = row["property"].replace('._', '.')
+
+            # Add the comment row (quoting minimally to blend with original style)
+            comment_row_property = {
+                'type': 'comment',
+                'ref': 'property',
+                'prepare': f'update(property: "{old_property}")',
+                'visibility': 'protected',
+                'uri': 'https://github.com/atviriduomenys/spinta/issues/963'
+            }
+
+        if " _" in row["ref"] or '[_' in row["ref"]:
+            row["ref"] = row["ref"].replace(' _', ' ')
+
+            # remove underscore in property name
+            row["ref"] = row["ref"].replace('[_', '.')
+
+            # Add the comment row (quoting minimally to blend with original style)
+            comment_row_ref = {
+                'type': 'comment',
+                'ref': 'ref',
+                'prepare': f'update(ref: "{old_ref}")',
+                'visibility': 'protected',
+                'uri': 'https://github.com/atviriduomenys/spinta/issues/963'
+            }
+
+        if " _" in row["base"] or '[_' in row["base"]:
+            row["base"] = row["base"].replace(' _', ' ')
+
+            # remove underscore in property name
+            row["base"] = row["base"].replace('[_', '.')
+
+            # Add the comment row (quoting minimally to blend with original style)
+            comment_row_base = {
+                'type': 'comment',
+                'ref': 'base',
+                'prepare': f'update(base: "{old_base}")',
+                'visibility': 'protected',
+                'uri': 'https://github.com/atviriduomenys/spinta/issues/963'
+            }
 
         # Write the modified row using csv to match format
         with io.StringIO() as buf:
@@ -59,21 +117,32 @@ def process_csv_file(file_path):
             modified_line = buf.getvalue()
         output_lines.append(modified_line)
 
-        # Add the comment row (quoting minimally to blend with original style)
-        comment_row = {
-            'type': 'comment',
-            'ref': 'property',
-            'prepare': f'update(property: "{old_property}")',
-            'visibility': 'public',
-            'uri': 'https://github.com/atviriduomenys/spinta/issues/963'
-        }
+        if comment_row_property:
 
-        # Write comment row using csv to match format
-        with io.StringIO() as buf:
-            writer = csv.DictWriter(buf, fieldnames=fieldnames, quoting=csv.QUOTE_MINIMAL)
-            writer.writerow(comment_row)
-            comment_line = buf.getvalue()
-        output_lines.append(comment_line)
+            # Write comment row using csv to match format
+            with io.StringIO() as buf:
+                writer = csv.DictWriter(buf, fieldnames=fieldnames, quoting=csv.QUOTE_MINIMAL)
+                writer.writerow(comment_row_property)
+                comment_line = buf.getvalue()
+            output_lines.append(comment_line)
+
+        if comment_row_ref:
+
+            # Write comment row using csv to match format
+            with io.StringIO() as buf:
+                writer = csv.DictWriter(buf, fieldnames=fieldnames, quoting=csv.QUOTE_MINIMAL)
+                writer.writerow(comment_row_ref)
+                comment_line = buf.getvalue()
+            output_lines.append(comment_line)
+
+        if comment_row_base:
+
+            # Write comment row using csv to match format
+            with io.StringIO() as buf:
+                writer = csv.DictWriter(buf, fieldnames=fieldnames, quoting=csv.QUOTE_MINIMAL)
+                writer.writerow(comment_row_base)
+                comment_line = buf.getvalue()
+            output_lines.append(comment_line)
 
     # Write back to file
     with open(file_path, 'w', encoding='utf-8') as f:
