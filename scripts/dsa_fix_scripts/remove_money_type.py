@@ -61,8 +61,8 @@ def process_csv_file(file_path):
             'type': 'comment',
             'ref': 'type',
             'prepare': f'update(type: ""{old_type}"")',
-            'visibility': 'public',
-            'uri': 'https://github.com/atviriduomenys/spinta/issues/1289'
+            'visibility': 'protected',
+            'uri': 'https://github.com/atviriduomenys/spinta/issues/40'
         }
 
         # Write comment row using csv to match format

@@ -19,15 +19,15 @@ python "$scripts_dir"remove_part.py $DSA_DIR
 # to apply:
 
 python "$scripts_dir"remove_underscore_property_name.py $DSA_DIR
+
+python "$scripts_dir"remove_money_type.py $DSA_DIR
+
 # todo adjust levels
 
 python "$scripts_dir"remove_ref_with_dot.py $DSA_DIR
 level: 1
 
 # asset_type.id.name@lt change everywhere to asset_type.name@lt
-
-python "$scripts_dir"remove_money_type.py $DSA_DIR
-
 
 python "$scripts_dir"remove_ref_with_dot_prepare.py $DSA_DIR
 level: 1
@@ -37,20 +37,15 @@ python "$scripts_dir"remove_getone_getall.py $DSA_DIR
 
 # todo
 
-properties su pabraukimu kaip pk - ref stulpely
 ref required - pakeisti į ref (be required) https://github.com/atviriduomenys/spinta/issues/1313
 
 #  add array above []
-#  properties that start with _ (_created, _updated)
-properties su pabraukimu - nuimt pabraukimą, uždėt koemntarą https://github.com/atviriduomenys/spinta/issues/963
 
 
-
-Kai yra tas pats modelis su "get_all" ir "getone" - gal daryti ModelioPavadinimasGetall ?
 virsis užsiciklina
 
 
-pirminis raktas su language tag dar lyg ne visais atvejais veikia?
+pirminis raktas su language tag dar lyg ne visais atvejais veikia? Kai modelio foreign key nurodomas su language tag
 
 rasti kažkokį (gal laikiną) sprendimą šitai problemai: https://github.com/ivpk/dsa/discussions/70
 
@@ -58,6 +53,8 @@ rasti kažkokį (gal laikiną) sprendimą šitai problemai: https://github.com/i
 
 ,,,,,dokumentai[],backref,"/datasets/gov/rc/gr_ws/n605_isplestinis_duomenu_rinkinys/AsmensDokumentas[nr]"
 Kai yra tokia situacija, tai čia gaunasi neaiškumas, ar tas [nr] nurodo pirminį raktą, per kurį jungiami modeliai, ar ref, kuriam yra šitas backref
+
+
 
 Vladimirui: `jei bus klaida Model 'X' does not contain any suitable properties for backref` tai pridėjus ref reikėtų pridėti komentarą
 
