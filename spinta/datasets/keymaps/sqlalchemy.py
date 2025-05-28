@@ -1,6 +1,7 @@
 import datetime
 import decimal
 import hashlib
+import json
 import uuid
 from collections.abc import Generator
 from typing import Optional, Any
@@ -20,7 +21,8 @@ from spinta.components import Config
 from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.datasets.keymaps.components import KeyMap, KeymapSyncData
-from spinta.exceptions import KeyMapGivenKeyMissmatch, KeymapMigrationRequired
+from spinta.exceptions import KeyMapGivenKeyMissmatch, KeymapMigrationRequired, KeymapDuplicateMapping
+from spinta.utils.json import fix_data_for_json
 
 
 class SqlAlchemyKeyMap(KeyMap):
@@ -59,11 +61,12 @@ class SqlAlchemyKeyMap(KeyMap):
         if not valid_value:
             return None
 
+        prepared_value = _prepare_value(value)
         table = self.get_table(name)
         current_key = self.conn.execute(
             sa.select([table.c.key]).where(
                 sa.and_(
-                    table.c.value == value,
+                    table.c.value == prepared_value,
                     table.c.redirect == None
                 )
             )
@@ -92,7 +95,7 @@ class SqlAlchemyKeyMap(KeyMap):
 
         self.conn.execute(table.insert(), {
             'key': current_key,
-            'value': value,
+            'value': prepared_value,
             'redirect': None,
         })
         return current_key
@@ -101,7 +104,7 @@ class SqlAlchemyKeyMap(KeyMap):
         table = self.get_table(name)
         query = sa.select([table.c.value]).where(table.c.key == key)
         value = self.conn.execute(query).scalar()
-        return value
+        return json.loads(value)
 
     def contains(self, name: str, value: Any) -> bool:
         valid_value = _valid_keymap_value(value)
@@ -109,8 +112,9 @@ class SqlAlchemyKeyMap(KeyMap):
             return False
 
         table = self.get_table(name)
+        prepared_value = _prepare_value(value)
         query = sa.select([sa.func.count()]).where(
-            table.c.value == value
+            table.c.value == prepared_value
         )
         return self.conn.execute(query).scalar() > 0
 
@@ -134,6 +138,7 @@ class SqlAlchemyKeyMap(KeyMap):
         id_ = data.identifier
         redirect = data.redirect
         value_ = data.value
+        prepared_value = _prepare_value(value_)
 
         # Redirect id to another
         if redirect is not None:
@@ -152,16 +157,46 @@ class SqlAlchemyKeyMap(KeyMap):
         select_query = table.select().where(table.c.key == id_)
         entry = self.conn.execute(select_query).scalar()
         if entry is None:
-            query = insert(table).values(key=id_, value=value_)
+            query = insert(table).values(key=id_, value=prepared_value)
             self.conn.execute(query)
         else:
-            update_query = sa.update(table).values(value=value_, redirect=redirect).where(table.c.key == id_)
+            update_query = sa.update(table).values(value=prepared_value, redirect=redirect).where(table.c.key == id_)
             self.conn.execute(update_query)
 
     def has_synced_before(self) -> bool:
         table = self.get_table(self.sync_table_name)
         count = self.conn.execute(sa.func.count(table.c.model)).scalar()
         return count != 0
+
+    def validate_data(self, name: str):
+        table = self.get_table(name)
+        dup_values = (
+            sa.select(table.c.value)
+            .where(table.c.redirect.is_(None))
+            .group_by(table.c.value)
+            .having(sa.func.count(table.c.value) > 1)
+            .subquery()
+        )
+
+        affected_key_count_query = (
+            sa.select(sa.func.count())
+            .select_from(dup_values)
+        )
+        affected_row_count_query = (
+            sa.select(sa.func.count())
+            .select_from(table)
+            .where(
+                sa.and_(
+                    table.c.value.in_(sa.select(dup_values.c.value)),
+                    table.c.redirect.is_(None)
+                )
+            )
+        )
+        affected_key_count = self.conn.execute(affected_key_count_query).scalar_one()
+        affected_row_count = self.conn.execute(affected_row_count_query).scalar_one()
+
+        if affected_key_count and affected_row_count:
+            raise KeymapDuplicateMapping(self, key=name, key_count=affected_key_count, affected_count=affected_row_count)
 
     def contains_migration(self, name: str):
         migrations = self.get_table(self.migration_table_name)
@@ -218,6 +253,10 @@ def _valid_keymap_value(value: object) -> bool:
             return False
 
     return True
+
+
+def _prepare_value(value):
+    return json.dumps(fix_data_for_json(value))
 
 
 def _hash_value(value):

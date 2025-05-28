@@ -24,7 +24,8 @@ def script_destructive_warning(
 
 
 def ensure_store_is_loaded(
-    context: Context
+    context: Context,
+    verbose: bool = False
 ) -> Store:
     from spinta.cli.helpers.store import prepare_manifest
 
@@ -32,7 +33,7 @@ def ensure_store_is_loaded(
         if store.manifest:
             return store
 
-    store = prepare_manifest(context, full_load=True)
+    store = prepare_manifest(context, verbose=verbose, full_load=True)
     return store
 
 
@@ -53,7 +54,7 @@ def sort_scripts_by_required(scripts: dict[str, UpgradeComponent]) -> dict:
 
         for req in required:
             if req not in data:
-                echo(f'Warning: "{req}" requirement for "{node}" script was not found')
+                echo(f'Warning: "{req}" requirement for "{node}" script was not found', err=True)
                 continue
             graph[req].append(node)
             requirement_count[node] += 1
@@ -72,7 +73,7 @@ def sort_scripts_by_required(scripts: dict[str, UpgradeComponent]) -> dict:
 
     if len(result) != len(data):
         unresolved = set(data) - set(result)
-        echo(f'Warning: Dependency cycle detected or unresolved dependencies in: {unresolved}')
+        echo(f'Warning: Dependency cycle detected or unresolved dependencies in: {unresolved}', err=True)
         # Extend results, potentially might cause errors, because of cycles
         result.extend(unresolved)
 

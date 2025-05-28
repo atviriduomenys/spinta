@@ -79,9 +79,6 @@ def cli_requires_redirect_migration(
     ensure_store_is_loaded(context)
     missing_models = list(models_missing_redirect(context, **kwargs))
     model_count = len(missing_models)
-    if model_count > 0:
-        echo(f"Found {model_count} models that does not support REDIRECT feature.")
-
     return model_count > 0
 
 
@@ -96,6 +93,7 @@ def migrate_redirect(
     if model_count == 0:
         return
 
+    echo(f"Found {model_count} models that does not support REDIRECT feature.")
     counter = tqdm.tqdm(desc='MIGRATING REDIRECT MODELS', ascii=True, total=model_count)
     try:
         for model in missing_models:

@@ -27,7 +27,7 @@ def outdated_keymaps(context: Context, migration: str, additional_check: Callabl
 def apply_migration_to_outdated_keymaps(context: Context, migration: str, apply_migration: callable, **kwargs):
     keymaps = outdated_keymaps(context, migration, None, **kwargs)
     for keymap in keymaps:
-        echo(f"\tApplying \"{migration}\" migration to keymap (\"{keymap.name}\"")
+        echo(f"Applying \"{migration}\" migration to keymap (\"{keymap.name}\")")
         apply_migration(context, keymap, migration)
         keymap.mark_migration(migration)
 

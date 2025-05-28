@@ -1119,3 +1119,13 @@ class KeymapMigrationRequired(UpgradeError):
     Run this command to execute migrations:
     `spinta upgrade`.
     '''
+
+
+class KeymapDuplicateMapping(UserError):
+    template = '''
+    Keymap's ({keymap!r}) {key!r} key contains {key_count} duplicate value combinations.
+    This affects {affected_count} keymap entries.
+    
+    Make sure that synchronizing data is valid and is up to date. If it is try to rerun keymap synchronization. In case
+    it does not help you might need to fully reset this key's keymap data and rerun synchronization.
+    '''
