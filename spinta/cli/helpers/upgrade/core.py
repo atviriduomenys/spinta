@@ -41,9 +41,9 @@ def run_specific_script(
     if force:
         status = ScriptStatus.FORCED
 
+    echo(script_check_status_message(script_name, status))
     if status in (ScriptStatus.FORCED, ScriptStatus.REQUIRED) and not check_only:
         script.upgrade(context, destructive=destructive, **kwargs)
-    echo(script_check_status_message(script_name, status))
 
 
 def check_script(context: Context, script: str | Script | UpgradeComponent, **kwargs) -> ScriptStatus:
@@ -52,7 +52,7 @@ def check_script(context: Context, script: str | Script | UpgradeComponent, **kw
             script = script.value
 
         if not script_exists(script):
-            echo(f'Warning: "{script}" script not found')
+            echo(f'Warning: "{script}" script not found', err=True)
             return ScriptStatus.SKIPPED
 
         script = get_script(script)
@@ -60,7 +60,7 @@ def check_script(context: Context, script: str | Script | UpgradeComponent, **kw
     if script.required:
         for required_script in script.required:
             if check_script(context, required_script, **kwargs) is ScriptStatus.REQUIRED:
-                echo(f'Warning: "{required_script}" requirement is not met')
+                echo(f'Warning: "{required_script}" requirement is not met for "{script.name}" script', err=True)
                 return ScriptStatus.SKIPPED
 
     return ScriptStatus.REQUIRED if script.check(context, **kwargs) else ScriptStatus.PASSED

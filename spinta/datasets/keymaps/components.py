@@ -31,6 +31,9 @@ class KeyMap(Component):
     def synchronize(self, data: KeymapSyncData):
         raise NotImplementedError
 
+    def validate_data(self, name: str):
+        raise NotImplementedError
+
 
 @dataclasses.dataclass
 class KeymapSyncData:

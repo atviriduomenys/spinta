@@ -318,6 +318,8 @@ def sync_keymap(
                 dry_run=dry_run
             )
             data = commands.sync(context, keymap, data=data)
+            for key in model_keymaps:
+                keymap.validate_data(key)
             try:
                 for row in data:
                     offset_cid = row.data['_cid']
@@ -370,5 +372,5 @@ def _extract_row_data_from_keys(row: dict, keys: List[Property]) -> dict:
 @commands.sync.register(Context, KeyMap)
 def sync(context: Context, keymap: KeyMap, *, data: Generator[KeymapSyncData]):
     for row in data:
-        keymap.synchronize(row.name, row.value, row.identifier)
+        keymap.synchronize(row)
         yield row
