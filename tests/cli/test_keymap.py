@@ -6,6 +6,8 @@ import sqlalchemy as sa
 
 from spinta.components import Context
 from spinta.core.enums import Action
+from spinta.datasets.keymaps.components import KeyMap
+from spinta.datasets.keymaps.sqlalchemy import SqlAlchemyKeyMap
 from spinta.testing.data import send
 from spinta.testing.datasets import create_sqlite_db
 from spinta.testing.tabular import create_tabular_manifest
@@ -51,14 +53,20 @@ def check_keymap_state(context: Context, table_name: str):
 
 @pytest.fixture(scope='function')
 def reset_keymap(context):
-    def _reset_keymap():
-        keymap = context.get('store').keymaps['default']
+    def _reset_keymap(excluded_tables: list[str] = None):
         with keymap.engine.connect() as conn:
-            for table in keymap.metadata.tables.values():
+            for key, table in keymap.metadata.tables.items():
+                if excluded_tables and key in excluded_tables:
+                    continue
                 conn.execute(table.delete())
-    _reset_keymap()
+
+    keymap = context.get('store').keymaps['default']
+    excluded = []
+    if isinstance(keymap, SqlAlchemyKeyMap):
+        excluded.append(keymap.migration_table_name)
+    _reset_keymap(excluded)
     yield
-    _reset_keymap()
+    _reset_keymap(excluded)
 
 
 def test_keymap_sync_dry_run(
