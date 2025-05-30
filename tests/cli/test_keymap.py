@@ -1,3 +1,5 @@
+import dataclasses
+import json
 import re
 import uuid
 
@@ -6,13 +8,22 @@ import sqlalchemy as sa
 
 from spinta.components import Context
 from spinta.core.enums import Action
+from spinta.datasets.keymaps.sqlalchemy import SqlAlchemyKeyMap
+from spinta.manifests.tabular.helpers import striptable
+from spinta.testing.cli import SpintaCliRunner
+from spinta.testing.client import create_rc, configure_remote_server
+from spinta.testing.config import RawConfig
 from spinta.testing.data import send
 from spinta.testing.datasets import create_sqlite_db
 from spinta.testing.tabular import create_tabular_manifest
-from spinta.manifests.tabular.helpers import striptable
-from spinta.testing.cli import SpintaCliRunner
-from spinta.testing.config import RawConfig
-from spinta.testing.client import create_rc, configure_remote_server, RemoteServer
+
+
+@dataclasses.dataclass
+class KeymapData:
+    key: str
+    identifier: str
+    value: object
+    redirect: object = dataclasses.field(default=None)
 
 
 @pytest.fixture(scope='function')
@@ -40,25 +51,38 @@ def geodb():
         yield db
 
 
-def check_keymap_state(context: Context, table_name: str):
+def check_keymap_state(context: Context, table_name: str) -> list[KeymapData]:
     keymap = context.get('store').keymaps['default']
+    values = []
     with keymap.engine.connect() as conn:
         table = keymap.get_table(table_name)
         query = sa.select([table])
-        values = conn.execute(query).fetchall()
+        for row in conn.execute(query):
+            values.append(KeymapData(
+                key=table_name,
+                identifier=row['key'],
+                value=json.loads(row['value']),
+                redirect=row['redirect']
+            ))
         return values
 
 
 @pytest.fixture(scope='function')
 def reset_keymap(context):
-    def _reset_keymap():
-        keymap = context.get('store').keymaps['default']
+    def _reset_keymap(excluded_tables: list[str] = None):
         with keymap.engine.connect() as conn:
-            for table in keymap.metadata.tables.values():
+            for key, table in keymap.metadata.tables.items():
+                if excluded_tables and key in excluded_tables:
+                    continue
                 conn.execute(table.delete())
-    _reset_keymap()
+
+    keymap = context.get('store').keymaps['default']
+    excluded = []
+    if isinstance(keymap, SqlAlchemyKeyMap):
+        excluded.append(keymap.migration_table_name)
+    _reset_keymap(excluded)
     yield
-    _reset_keymap()
+    _reset_keymap(excluded)
 
 
 def test_keymap_sync_dry_run(
@@ -171,7 +195,9 @@ def test_keymap_sync(
     # Check keymap state after sync for Country
     keymap_after_sync = check_keymap_state(context, 'syncdataset/countries/Country')
     assert len(keymap_after_sync) == 1
-    assert keymap_after_sync[0][0] == country_id
+    assert keymap_after_sync[0].identifier == country_id
+    assert keymap_after_sync[0].value == 2
+    assert keymap_after_sync[0].redirect is None
 
 
 def test_keymap_sync_more_entries(
@@ -225,7 +251,7 @@ def test_keymap_sync_more_entries(
 
     keymap_after_sync = check_keymap_state(context, 'largedataset/countries/Country')
     assert len(keymap_after_sync) == 10
-    keymap_keys = [entry[0] for entry in keymap_after_sync]
+    keymap_keys = [entry.identifier for entry in keymap_after_sync]
     assert all(key in entry_ids for key in keymap_keys)
 
 
@@ -284,7 +310,9 @@ def test_keymap_sync_dataset(
     # Check keymap state before sync for Country
     keymap_after_sync = check_keymap_state(context, 'syncdataset/countries/Country')
     assert len(keymap_after_sync) == 1
-    assert keymap_after_sync[0][0] == country_id
+    assert keymap_after_sync[0].identifier == country_id
+    assert keymap_after_sync[0].value == 2
+    assert keymap_after_sync[0].redirect is None
 
 
 def test_keymap_sync_no_changes(
@@ -349,7 +377,9 @@ def test_keymap_sync_no_changes(
 
     keymap_after_sync = check_keymap_state(context, 'syncdataset/countries/Country')
     assert len(keymap_after_sync) == 1
-    assert keymap_after_sync[0][0] == country_id
+    assert keymap_after_sync[0].identifier == country_id
+    assert keymap_after_sync[0].value == 2
+    assert keymap_after_sync[0].redirect is None
 
 
 def test_keymap_sync_consequitive_changes(
@@ -404,7 +434,9 @@ def test_keymap_sync_consequitive_changes(
     assert result.exit_code == 0
     keymap_after_sync = check_keymap_state(context, 'syncdataset/countries/Country')
     assert len(keymap_after_sync) == 1
-    assert keymap_after_sync[0][0] == country_id_1
+    assert keymap_after_sync[0].identifier == country_id_1
+    assert keymap_after_sync[0].value == 2
+    assert keymap_after_sync[0].redirect is None
 
     remote.app.authmodel('syncdataset/countries/Country', ['insert', 'wipe'])
     resp = remote.app.post('https://example.com/syncdataset/countries/Country', json={
@@ -421,9 +453,12 @@ def test_keymap_sync_consequitive_changes(
 
     keymap_after_sync = check_keymap_state(context, 'syncdataset/countries/Country')
     assert len(keymap_after_sync) == 2
-    assert keymap_after_sync[0][0] == country_id_1
-    assert keymap_after_sync[1][0] == country_id_2
-
+    assert keymap_after_sync[0].identifier == country_id_1
+    assert keymap_after_sync[0].value == 2
+    assert keymap_after_sync[0].redirect is None
+    assert keymap_after_sync[1].identifier == country_id_2
+    assert keymap_after_sync[1].value == 3
+    assert keymap_after_sync[1].redirect is None
 
 def test_keymap_sync_missing_input(
     context,
@@ -637,7 +672,7 @@ def test_keymap_sync_with_pages(
 
     keymap_after_sync = check_keymap_state(context, 'largedataset/countries/Country')
     assert len(keymap_after_sync) == 10
-    keymap_keys = [entry[0] for entry in keymap_after_sync]
+    keymap_keys = [entry.identifier for entry in keymap_after_sync]
     assert all(key in entry_ids for key in keymap_keys)
 
 
@@ -701,7 +736,7 @@ def test_keymap_sync_with_transaction_batches(
 
     keymap_after_sync = check_keymap_state(context, 'largedataset/countries/Country')
     assert len(keymap_after_sync) == 10
-    keymap_keys = [entry[0] for entry in keymap_after_sync]
+    keymap_keys = [entry.identifier for entry in keymap_after_sync]
     assert all(key in entry_ids for key in keymap_keys)
 
 
@@ -761,7 +796,9 @@ def test_keymap_sync_insert(
     assert result.exit_code == 0
     keymap_after_sync = check_keymap_state(context, model)
     assert len(keymap_after_sync) == 1
-    assert keymap_after_sync[0][0] == country_id_1
+    assert keymap_after_sync[0].identifier == country_id_1
+    assert keymap_after_sync[0].value == 1
+    assert keymap_after_sync[0].redirect is None
     with keymap as km:
         assert km.decode(model, country_id_1) == 1
 
@@ -823,11 +860,11 @@ def test_keymap_sync_update(
     assert result.exit_code == 0
     keymap_after_sync = check_keymap_state(context, model)
     assert len(keymap_after_sync) == 1
-    assert keymap_after_sync[0][0] == country_id_1
+    assert keymap_after_sync[0].identifier == country_id_1
+    assert keymap_after_sync[0].value == 1
+    assert keymap_after_sync[0].redirect is None
     with keymap as km:
         assert km.decode(model, country_id_1) == 1
-
-    hash_, value = keymap_after_sync[0][1], keymap_after_sync[0][2]
 
     obj = remote.app.post(f'{model}/{country_id_1}', json={
         '_op': Action.UPDATE.value,
@@ -851,9 +888,9 @@ def test_keymap_sync_update(
     assert result.exit_code == 0
     keymap_after_sync = check_keymap_state(context, model)
     assert len(keymap_after_sync) == 1
-    assert keymap_after_sync[0][0] == country_id_2
-    assert keymap_after_sync[0][1] != hash_
-    assert keymap_after_sync[0][2] != value
+    assert keymap_after_sync[0].identifier == country_id_2
+    assert keymap_after_sync[0].value == 10
+    assert keymap_after_sync[0].redirect is None
     with keymap as km:
         assert km.decode(model, country_id_2) == 10
 
@@ -915,11 +952,11 @@ def test_keymap_sync_patch(
     assert result.exit_code == 0
     keymap_after_sync = check_keymap_state(context, model)
     assert len(keymap_after_sync) == 1
-    assert keymap_after_sync[0][0] == country_id_1
+    assert keymap_after_sync[0].identifier == country_id_1
+    assert keymap_after_sync[0].value == 1
+    assert keymap_after_sync[0].redirect is None
     with keymap as km:
         assert km.decode(model, country_id_1) == 1
-
-    hash_, value = keymap_after_sync[0][1], keymap_after_sync[0][2]
 
     obj = remote.app.post(f'{model}/{country_id_1}', json={
         '_op': Action.PATCH.value,
@@ -943,9 +980,9 @@ def test_keymap_sync_patch(
     assert result.exit_code == 0
     keymap_after_sync = check_keymap_state(context, model)
     assert len(keymap_after_sync) == 1
-    assert keymap_after_sync[0][0] == country_id_2
-    assert keymap_after_sync[0][1] != hash_
-    assert keymap_after_sync[0][2] != value
+    assert keymap_after_sync[0].identifier == country_id_2
+    assert keymap_after_sync[0].value == 10
+    assert keymap_after_sync[0].redirect is None
     with keymap as km:
         assert km.decode(model, country_id_2) == 10
 
@@ -1007,11 +1044,11 @@ def test_keymap_sync_upsert_insert(
     assert result.exit_code == 0
     keymap_after_sync = check_keymap_state(context, model)
     assert len(keymap_after_sync) == 1
-    assert keymap_after_sync[0][0] == country_id_1
+    assert keymap_after_sync[0].identifier == country_id_1
+    assert keymap_after_sync[0].value == 1
+    assert keymap_after_sync[0].redirect is None
     with keymap as km:
         assert km.decode(model, country_id_1) == 1
-
-    hash_, value = keymap_after_sync[0][1], keymap_after_sync[0][2]
 
     country_id_2 = str(uuid.uuid4())
     obj = remote.app.post(f'{model}/{country_id_2}', json={
@@ -1035,15 +1072,15 @@ def test_keymap_sync_upsert_insert(
     assert result.exit_code == 0
     keymap_after_sync = check_keymap_state(context, model)
     assert len(keymap_after_sync) == 2
-    assert keymap_after_sync[0][0] == country_id_1
-    assert keymap_after_sync[0][1] == hash_
-    assert keymap_after_sync[0][2] == value
+    assert keymap_after_sync[0].identifier == country_id_1
+    assert keymap_after_sync[0].value == 1
+    assert keymap_after_sync[0].redirect is None
     with keymap as km:
         assert km.decode(model, country_id_1) == 1
 
-    assert keymap_after_sync[1][0] == country_id_2
-    assert keymap_after_sync[1][1] != hash_
-    assert keymap_after_sync[1][2] != value
+    assert keymap_after_sync[1].identifier == country_id_2
+    assert keymap_after_sync[1].value == 10
+    assert keymap_after_sync[1].redirect is None
     with keymap as km:
         assert km.decode(model, country_id_2) == 10
 
@@ -1105,11 +1142,11 @@ def test_keymap_sync_upsert_update(
     assert result.exit_code == 0
     keymap_after_sync = check_keymap_state(context, model)
     assert len(keymap_after_sync) == 1
-    assert keymap_after_sync[0][0] == country_id_1
+    assert keymap_after_sync[0].identifier == country_id_1
+    assert keymap_after_sync[0].value == 1
+    assert keymap_after_sync[0].redirect is None
     with keymap as km:
         assert km.decode(model, country_id_1) == 1
-
-    hash_, value = keymap_after_sync[0][1], keymap_after_sync[0][2]
 
     obj = remote.app.post(f'{model}/{country_id_1}', json={
         '_op': Action.UPSERT.value,
@@ -1132,8 +1169,8 @@ def test_keymap_sync_upsert_update(
     assert result.exit_code == 0
     keymap_after_sync = check_keymap_state(context, model)
     assert len(keymap_after_sync) == 1
-    assert keymap_after_sync[0][0] == country_id_2
-    assert keymap_after_sync[0][1] != hash_
-    assert keymap_after_sync[0][2] != value
+    assert keymap_after_sync[0].identifier == country_id_2
+    assert keymap_after_sync[0].value == 10
+    assert keymap_after_sync[0].redirect is None
     with keymap as km:
         assert km.decode(model, country_id_2) == 10

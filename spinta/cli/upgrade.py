@@ -5,8 +5,9 @@ from typer import Option
 from typer import echo
 
 from spinta.cli.helpers.store import load_config
-from spinta.cli.helpers.upgrade.core import run_specific_script, run_all_scripts, get_all_upgrade_script_names, \
+from spinta.cli.helpers.upgrade.core import run_specific_script, run_all_scripts, \
     script_exists
+from spinta.cli.helpers.upgrade.registry import get_all_script_names
 from spinta.core.context import configure_context
 from spinta.exceptions import UpgradeError, UpgradeScriptNotFound
 
@@ -30,13 +31,17 @@ def upgrade(
     run: str = Option(None, '-r', '--run', help=(
         f"""
         Specify a script to run.
-        Available scripts: {get_all_upgrade_script_names()}
+        Available scripts: {get_all_script_names()}
         """
     )),
     check_only: bool = Option(False, '-c', '--check', help=(
         "Only runs script checks, skipping execution part (used to find out what scripts are needed to run)."
     ))
 ):
+    rc = ctx.obj.get('rc')
+    rc.add('upgrade', {
+        'upgrade_mode': True
+    })
     context = configure_context(ctx.obj)
 
     if force and check_only:
@@ -56,7 +61,7 @@ def upgrade(
         if not script_exists(run):
             raise UpgradeScriptNotFound(
                 script=run,
-                available_scripts=get_all_upgrade_script_names()
+                available_scripts=get_all_script_names()
             )
 
         run_specific_script(
