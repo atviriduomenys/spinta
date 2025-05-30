@@ -17,8 +17,9 @@ class DaskDataFrameQueryBuilder(Env):
     backend: DaskBackend
     model: Model
     dataframe: DataFrame
+    params: dict
 
-    def init(self, backend: DaskBackend, dataframe: DataFrame):
+    def init(self, backend: DaskBackend, dataframe: DataFrame, params: dict) -> DaskDataFrameQueryBuilder:
         return self(
             backend=backend,
             dataframe=dataframe,
@@ -30,6 +31,7 @@ class DaskDataFrameQueryBuilder(Env):
             },
             limit=None,
             offset=None,
+            params=params,
         )
 
     def build(self, where):
