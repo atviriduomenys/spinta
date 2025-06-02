@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import enum
 from collections.abc import Callable
 
@@ -18,8 +20,8 @@ class UpgradeComponent:
     def __init__(
         self,
         upgrade: UpgradeFuncType,
-        check: Union[UpgradeCheckFuncType, None] = None,
-        required: Union[list[str], None] = None
+        check: UpgradeCheckFuncType | None = None,
+        required: list[str] | None = None
     ):
         self.__upgrade_func = upgrade
         self.__check_func = check
