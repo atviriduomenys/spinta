@@ -19,18 +19,20 @@ python "$scripts_dir"remove_part_997.py $DSA_DIR
 python "$scripts_dir"remove_underscore_property_name_963.py $DSA_DIR
 python "$scripts_dir"remove_money_type_40.py $DSA_DIR
 
-# waiting for review:
+
 
 python "$scripts_dir"remove_ref_with_dot_981.py $DSA_DIR
 level: 1
 python "$scripts_dir"remove_ref_with_dot_prepare_981.py $DSA_DIR
 level: 1
 
-# to apply:
+
 
 python "$scripts_dir"remove_getone_getall_927.py $DSA_DIR
 
+# waiting for review:
 
+# to apply:
 
 
 # todo
