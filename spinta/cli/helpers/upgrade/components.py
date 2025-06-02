@@ -1,7 +1,7 @@
 import enum
 from collections.abc import Callable
 
-from typing import Concatenate, ParamSpec
+from typing_extensions import Concatenate, ParamSpec
 
 from spinta.components import Context
 
