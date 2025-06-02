@@ -3,7 +3,6 @@
 import io
 import os
 import csv
-import re
 
 
 def process_csv_files(directory):
@@ -14,6 +13,19 @@ def process_csv_files(directory):
                 file_path = os.path.join(root, file)
                 process_csv_file(file_path)
                 print(f"Processed: {file_path}")  # Add debug output
+
+def get_level(property_name):
+    # underscored property can be in the middle of the property name
+    property_names = property_name.split('.')
+
+    for name in property_names:
+        if name.startswith('_'):
+            property_name = name
+            break
+    if property_name.split('@')[0] in ['_id', '_revision', '_created', '_updated', '_label']:
+        return 4
+    else:
+        return 2
 
 
 def process_csv_file(file_path):
@@ -59,13 +71,16 @@ def process_csv_file(file_path):
         old_property = row["property"]
         old_ref = row["ref"]
         old_base = row["base"]
+        old_level = row["level"]
 
         comment_row_property = ''
         comment_row_ref = ''
         comment_row_base = ''
+        new_property_level = old_level
 
         # remove initial underscore
         if row["property"].startswith('_') or '._' in row["property"]:
+            new_property_level = get_level(row["property"])
             row["property"] = row["property"].lstrip('_')
 
             # remove underscore in property name
@@ -77,7 +92,8 @@ def process_csv_file(file_path):
                 'ref': 'property',
                 'prepare': f'update(property: "{old_property}")',
                 'visibility': 'protected',
-                'uri': 'https://github.com/atviriduomenys/spinta/issues/963'
+                'uri': 'https://github.com/atviriduomenys/spinta/issues/963',
+                'level': old_level,
             }
 
         if " _" in row["ref"] or '[_' in row["ref"]:
@@ -92,7 +108,8 @@ def process_csv_file(file_path):
                 'ref': 'ref',
                 'prepare': f'update(ref: "{old_ref}")',
                 'visibility': 'protected',
-                'uri': 'https://github.com/atviriduomenys/spinta/issues/963'
+                'uri': 'https://github.com/atviriduomenys/spinta/issues/963',
+                'level': old_level,
             }
 
         if " _" in row["base"] or '[_' in row["base"]:
@@ -107,8 +124,11 @@ def process_csv_file(file_path):
                 'ref': 'base',
                 'prepare': f'update(base: "{old_base}")',
                 'visibility': 'protected',
-                'uri': 'https://github.com/atviriduomenys/spinta/issues/963'
+                'uri': 'https://github.com/atviriduomenys/spinta/issues/963',
+                'level': old_level,
             }
+
+        row["level"] = new_property_level
 
         # Write the modified row using csv to match format
         with io.StringIO() as buf:

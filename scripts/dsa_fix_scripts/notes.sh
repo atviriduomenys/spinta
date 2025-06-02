@@ -16,23 +16,21 @@ python "$scripts_dir"bring_back_enum_nested.py $DSA_DIR
 python "$scripts_dir"trim_csv_spaces.py $DSA_DIR
 
 python "$scripts_dir"remove_part_997.py $DSA_DIR
-# to apply:
-
 python "$scripts_dir"remove_underscore_property_name_963.py $DSA_DIR
-
 python "$scripts_dir"remove_money_type_40.py $DSA_DIR
 
-# todo adjust levels
+# waiting for review:
 
 python "$scripts_dir"remove_ref_with_dot_981.py $DSA_DIR
 level: 1
-
-# asset_type.id.name@lt change everywhere to asset_type.name@lt
-
 python "$scripts_dir"remove_ref_with_dot_prepare_981.py $DSA_DIR
 level: 1
 
+# to apply:
+
 python "$scripts_dir"remove_getone_getall_927.py $DSA_DIR
+
+
 
 
 # todo
@@ -46,6 +44,8 @@ virsis užsiciklina
 
 
 pirminis raktas su language tag dar lyg ne visais atvejais veikia? Kai modelio foreign key nurodomas su language tag
+čia gal reikia paleisti `remove_language_tag_nested`
+
 
 rasti kažkokį (gal laikiną) sprendimą šitai problemai: https://github.com/ivpk/dsa/discussions/70
 
@@ -61,3 +61,4 @@ Vladimirui: `jei bus klaida Model 'X' does not contain any suitable properties f
 ,,,,,asmens_objektai1,ref,/datasets/gov/rc/ntr_ws/n200_nt_objektu_ir_teisiu_sarasas_pagal_koda_arba_id/AsmensObjektas,,,,develop,,private,,,,
 ,,,,,,comment,property,,"delete(property: ""asmens_objektai1"")",,,public,,https://github.com/atviriduomenys/spinta/issues/1314,,,
 
+# asset_type.id.name@lt change everywhere to asset_type.name@lt - ar dar reikia?

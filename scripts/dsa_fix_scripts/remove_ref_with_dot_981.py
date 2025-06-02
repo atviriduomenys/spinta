@@ -87,7 +87,7 @@ def process_csv_file(file_path):
 
         # Replace the old ref with the cleaned one inside the original line
         row['level'] = 1
-        row['prepare'] = ref_value
+        row['ref'] = ref_value
         # Write the modified row using csv to match format
         with io.StringIO() as buf:
             writer = csv.DictWriter(buf, fieldnames=fieldnames, quoting=csv.QUOTE_MINIMAL)
@@ -98,8 +98,8 @@ def process_csv_file(file_path):
         # Add the comment row (quoting minimally to blend with original style)
         comment_row = {
             'type': 'comment',
-            'ref': 'prepare',
-            'prepare': f'update(prepare: "{original_ref}")',
+            'ref': 'ref',
+            'prepare': f'update(ref: "{original_ref}")',
             'level': original_level,
             'visibility': 'protected',
             'uri': 'https://github.com/atviriduomenys/spinta/issues/981'

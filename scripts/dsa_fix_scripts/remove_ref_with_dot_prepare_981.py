@@ -11,12 +11,30 @@ def remove_dot_words(text):
     """
     Remove words containing dots from the text.
     For example, "word1, word2.field1, word3" -> "word1, word3"
+    Also handles brackets properly, removing empty brackets or keeping with content.
     """
-    # First, handle cases like 'word[].attribute' or 'word[content].attribute'
-    bracket_dot_pattern = r'(\b\w+)(\[\]|\[.*?\])\.(\w+)'
-    result = re.sub(bracket_dot_pattern, '', text)
 
-    # Then handle standard dot-separated words
+    # Handle the bracket content specifically
+    def process_bracket_content(match):
+        prefix = match.group(1)  # Everything before the opening bracket
+        content = match.group(2)  # Content inside brackets
+
+        # Split by comma and filter out dot-containing parts
+        parts = [part.strip() for part in content.split(',')]
+        filtered_parts = [part for part in parts if '.' not in part]
+
+        if not filtered_parts:
+            # If all parts were removed, return just the prefix without brackets
+            return prefix
+        else:
+            # Otherwise, rebuild with the remaining content
+            return f"{prefix}[{', '.join(filtered_parts)}]"
+
+    # Find paths with brackets and process their content
+    bracket_pattern = r'(.*?)\[(.*?)\]'
+    result = re.sub(bracket_pattern, process_bracket_content, text)
+
+    # Then handle standard dot-separated words outside of brackets
     parts = [part.strip() for part in result.split(',')]
     filtered_parts = [part for part in parts if not re.search(r'\b[\w]+(?:\.[\w]+)+\b', part)]
     clean_result = ', '.join(filtered_parts)

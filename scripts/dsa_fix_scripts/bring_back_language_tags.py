@@ -72,3 +72,5 @@ if __name__ == "__main__":
     else:
         directory = sys.argv[1]
         process_csv_files(directory)
+
+# patikrinti, ar viskas ok su `level`

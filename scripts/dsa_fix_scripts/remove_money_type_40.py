@@ -47,7 +47,9 @@ def process_csv_file(file_path):
 
         # Change type from money to string
         old_type = row["type"]
+        old_level = row["level"]
         row["type"] = row["type"].replace('money', 'string')
+        row["level"] = 2
         
         # Write the modified row using csv to match format
         with io.StringIO() as buf:
@@ -62,6 +64,7 @@ def process_csv_file(file_path):
             'ref': 'type',
             'prepare': f'update(type: ""{old_type}"")',
             'visibility': 'protected',
+            'level': old_level,
             'uri': 'https://github.com/atviriduomenys/spinta/issues/40'
         }
 
