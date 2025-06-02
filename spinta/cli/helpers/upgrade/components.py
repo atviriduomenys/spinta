@@ -4,9 +4,9 @@ import enum
 from collections.abc import Callable
 
 try:
-    from typing import Optional, Concatenate, ParamSpec, Union
+    from typing import Optional, Concatenate, ParamSpec
 except ImportError:
-    from typing_extensions import Optional, Concatenate, ParamSpec, Union
+    from typing_extensions import Optional, Concatenate, ParamSpec
 
 from spinta.components import Context
 
