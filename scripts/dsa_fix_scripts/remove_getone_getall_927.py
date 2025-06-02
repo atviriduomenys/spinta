@@ -1,7 +1,6 @@
 import io
 import os
 import csv
-import re
 
 
 def process_csv_files(directory):
@@ -51,7 +50,7 @@ def process_csv_file(file_path):
         function = row["model"].split('/:')[1].split('?')[0]
         # Change type from money to string
         old_model = row["model"]
-        row["model"] = row["model"].split('/:')[0]
+        row["model"] = row["model"].replace(f'/:{function}', '')
         if row["model"] not in model_with_functions_counts:
             model_with_functions_counts[row["model"]] = 0
         else:
@@ -72,7 +71,7 @@ def process_csv_file(file_path):
             'ref': 'model',
             'prepare': f'update(model: "{old_model}")',
             'visibility': 'public',
-            'uri': 'https://github.com/atviriduomenys/spinta/issues/997'
+            'uri': 'https://github.com/atviriduomenys/spinta/issues/927'
         }
 
         # Write comment row using csv to match format
