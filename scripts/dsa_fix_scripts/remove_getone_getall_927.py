@@ -48,15 +48,19 @@ def process_csv_file(file_path):
             output_lines.append(data_lines[i])
             continue
         function = row["model"].split('/:')[1].split('?')[0]
+        model_name = row["model"].split('/:')[0]
         # Change type from money to string
         old_model = row["model"]
-        row["model"] = row["model"].replace(f'/:{function}', '')
-        if row["model"] not in model_with_functions_counts:
-            model_with_functions_counts[row["model"]] = 0
+
+        model_number = ""
+        if model_name not in model_with_functions_counts:
+            model_with_functions_counts[model_name] = 0
         else:
-            model_with_functions_counts[row["model"]] += 1
-            if model_with_functions_counts[row["model"]] > 0:
-                row["model"] += str(model_with_functions_counts[row["model"]])
+            model_with_functions_counts[model_name] += 1
+            if model_with_functions_counts[model_name] > 0:
+                model_number = str(model_with_functions_counts[model_name])
+        row["model"] = row["model"].replace(f'/:{function}', model_number)
+
 
         # Write the modified row using csv to match format
         with io.StringIO() as buf:
