@@ -47,7 +47,12 @@ Bug fixes:
 
 - Fixed `keymap sync` ignoring `upsert` action (`#1269`_).
 
+- Fixed a bug where an error was thrown when nested property was a `ref` followed by a `backref`. (`#1302`_)
+
   .. _#1269: https://github.com/atviriduomenys/spinta/issues/1269
+  .. _#1302: https://github.com/atviriduomenys/spinta/issues/1302
+
+
 
 0.1.85 (2025-04-08)
 ===================
