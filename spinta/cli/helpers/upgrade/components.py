@@ -1,15 +1,14 @@
-from __future__ import annotations
-
 import enum
 from collections.abc import Callable
 
-from typing_extensions import ParamSpec
+from typing import Concatenate, ParamSpec
 
 from spinta.components import Context
 
-P = ParamSpec("P")
-UpgradeFuncType = Callable[P.kwargs]
-UpgradeCheckFuncType = Callable[P.kwargs, bool]
+P = ParamSpec('P')
+
+UpgradeFuncType = Callable[Concatenate[Context, P], None]
+UpgradeCheckFuncType = Callable[Concatenate[Context, P], bool]
 
 
 class UpgradeComponent:
