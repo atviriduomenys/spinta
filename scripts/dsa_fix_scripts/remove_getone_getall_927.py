@@ -51,7 +51,7 @@ def process_csv_file(file_path):
         function = row["model"].split('/:')[1].split('?')[0]
         # Change type from money to string
         old_model = row["model"]
-        row["model"] = row["model"].split('/:')[0] + function.capitalize()
+        row["model"] = row["model"].split('/:')[0]
         if row["model"] not in model_with_functions_counts:
             model_with_functions_counts[row["model"]] = 0
         else:
