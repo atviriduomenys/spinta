@@ -10,7 +10,7 @@ from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.client import create_rc, configure_remote_server
 from spinta.testing.datasets import create_sqlite_db
 from spinta.testing.tabular import create_tabular_manifest
-from tests.cli.test_keymap import check_keymap_state
+from tests.cli.test_keymap import check_keymap_state, reset_keymap
 
 
 @pytest.fixture(scope='function')
@@ -47,6 +47,7 @@ def test_upgrade_missing_initial_migration(
     tmp_path,
     geodb,
     request,
+    reset_keymap
 ):
     table = '''
             d | r | b | m | property | type    | ref                             | source         | level | access
@@ -122,6 +123,7 @@ def test_upgrade_missing_redirect_migration_entry(
     tmp_path,
     geodb,
     request,
+    reset_keymap
 ):
     table = '''
             d | r | b | m | property | type    | ref                             | source         | level | access
@@ -199,6 +201,7 @@ def test_upgrade_redirect_migration_from_old_version(
     tmp_path,
     geodb,
     request,
+    reset_keymap
 ):
     table = '''
             d | r | b | m | property | type    | ref                             | source         | level | access
@@ -237,8 +240,9 @@ def test_upgrade_redirect_migration_from_old_version(
             "syncdataset/countries/Country", keymap.metadata,
             sa.Column('key', sa.Text, primary_key=True),
             sa.Column('hash', sa.Text, unique=True, index=True),
-            sa.Column('value', sa.LargeBinary),
+            sa.Column('value', sa.LargeBinary)
         )
+        old_table.drop(checkfirst=True)
         old_table.create()
 
     manifest = tmp_path / 'manifest.csv'
@@ -280,6 +284,7 @@ def test_upgrade_redirect_migration_from_old_version_with_data(
     tmp_path,
     geodb,
     request,
+    reset_keymap
 ):
     table = '''
             d | r | b | m | property | type    | ref                             | source         | level | access
@@ -404,6 +409,7 @@ def test_upgrade_redirect_migration_from_old_version_with_multi_column_data(
     tmp_path,
     geodb,
     request,
+    reset_keymap
 ):
     table = '''
             d | r | b | m | property | type    | ref                             | source         | level | access
