@@ -32,7 +32,10 @@ def process_csv_file(file_path):
 
     output_lines = [header_line]  # Start with header
 
+    model_with_functions_counts = {}
+
     for i, row in enumerate(rows):
+
         if 'type' not in row:
             output_lines.append(data_lines[i])
             continue
@@ -48,7 +51,13 @@ def process_csv_file(file_path):
         function = row["model"].split('/:')[1].split('?')[0]
         # Change type from money to string
         old_model = row["model"]
-        row["model"] = row["model"].split('/:')[0] + function.capitalize() + str(i)
+        row["model"] = row["model"].split('/:')[0] + function.capitalize()
+        if row["model"] not in model_with_functions_counts:
+            model_with_functions_counts[row["model"]] = 0
+        else:
+            model_with_functions_counts[row["model"]] += 1
+            if model_with_functions_counts[row["model"]] > 0:
+                row["model"] += str(model_with_functions_counts[row["model"]])
 
         # Write the modified row using csv to match format
         with io.StringIO() as buf:

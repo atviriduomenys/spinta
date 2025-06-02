@@ -11,39 +11,48 @@ def remove_dot_words(text):
     """
     Remove words containing dots from the text.
     For example, "word1, word2.field1, word3" -> "word1, word3"
-    Also handles brackets properly, removing empty brackets or keeping with content.
+    Also handles bracket notations properly, removing items like dokumentai[].nr
     """
-
-    # Handle the bracket content specifically
-    def process_bracket_content(match):
-        prefix = match.group(1)  # Everything before the opening bracket
-        content = match.group(2)  # Content inside brackets
-
-        # Split by comma and filter out dot-containing parts
-        parts = [part.strip() for part in content.split(',')]
-        filtered_parts = [part for part in parts if '.' not in part]
-
-        if not filtered_parts:
-            # If all parts were removed, return just the prefix without brackets
-            return prefix
-        else:
-            # Otherwise, rebuild with the remaining content
-            return f"{prefix}[{', '.join(filtered_parts)}]"
-
-    # Find paths with brackets and process their content
-    bracket_pattern = r'(.*?)\[(.*?)\]'
-    result = re.sub(bracket_pattern, process_bracket_content, text)
-
-    # Then handle standard dot-separated words outside of brackets
-    parts = [part.strip() for part in result.split(',')]
-    filtered_parts = [part for part in parts if not re.search(r'\b[\w]+(?:\.[\w]+)+\b', part)]
+    # First, split by commas and process each part separately
+    parts = [part.strip() for part in text.split(',')]
+    filtered_parts = []
+    
+    for part in parts:
+        # Check if this part contains any form of dot notation (including after brackets)
+        if re.search(r'\.[\w]+', part):
+            continue  # Skip parts with dots
+            
+        # Handle brackets but without dots in the complete expression
+        if '[' in part and ']' in part and '.' not in part:
+            # Process content inside brackets
+            bracket_pattern = r'(.*?)\[(.*?)\]'
+            match = re.search(bracket_pattern, part)
+            if match:
+                prefix = match.group(1)
+                content = match.group(2)
+                
+                # Split by comma and filter out dot-containing parts inside brackets
+                inner_parts = [inner_part.strip() for inner_part in content.split(',')]
+                filtered_inner_parts = [inner_part for inner_part in inner_parts if '.' not in inner_part]
+                
+                if not filtered_inner_parts:
+                    # If all inner parts were removed, keep just the prefix without brackets
+                    filtered_parts.append(prefix)
+                else:
+                    # Otherwise, rebuild with the remaining content
+                    filtered_parts.append(f"{prefix}[{', '.join(filtered_inner_parts)}]")
+            continue
+            
+        # If we got here, the part has no dots and no brackets, so keep it
+        filtered_parts.append(part)
+    
     clean_result = ', '.join(filtered_parts)
-
+    
     # Clean up extra spaces and commas
     clean_result = re.sub(r'\s{2,}', ' ', clean_result)
     clean_result = re.sub(r',\s*,', ',', clean_result)
     clean_result = clean_result.strip(', ')
-
+    
     return clean_result
 
 
