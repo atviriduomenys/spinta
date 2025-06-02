@@ -1,7 +1,10 @@
 import enum
 from collections.abc import Callable
 
-from typing_extensions import Concatenate, ParamSpec
+try:
+    from typing import Optional, Concatenate, ParamSpec, Union
+except ImportError:
+    from typing_extensions import Optional, Concatenate, ParamSpec, Union
 
 from spinta.components import Context
 
@@ -15,8 +18,8 @@ class UpgradeComponent:
     def __init__(
         self,
         upgrade: UpgradeFuncType,
-        check: UpgradeCheckFuncType | None = None,
-        required: list[str] | None = None
+        check: Union[UpgradeCheckFuncType, None] = None,
+        required: Union[list[str], None] = None
     ):
         self.__upgrade_func = upgrade
         self.__check_func = check
