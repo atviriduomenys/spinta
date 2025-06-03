@@ -87,7 +87,7 @@ def input_(env: ParamBuilder, param_source: str, prep_value: str) -> dict:
 
 @ufunc.resolver(ParamBuilder, str, NotAvailable, name="input")
 def input_(env: ParamBuilder, param_source: str, _: NotAvailable) -> dict:
-    return {"source": param_source, "value": NA}
+    return {"source": param_source, "value": None}
 
 
 # {'name': 'getattr', 'args': [{'name': 'loop', 'args': [{'name': 'read', 'args': []}], 'type': 'method'}, {'name': 'bind', 'args': ['more']}]}

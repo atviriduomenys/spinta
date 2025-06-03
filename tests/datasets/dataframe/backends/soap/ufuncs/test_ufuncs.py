@@ -11,12 +11,11 @@ from spinta.core.enums import Mode
 from spinta.core.ufuncs import asttoexpr
 from spinta.datasets.backends.dataframe.backends.soap.ufuncs.components import SoapQueryBuilder
 from spinta.dimensions.param.components import ResolvedResourceParam
-from spinta.exceptions import PropertyPrepareValueRequired, PropertyNotFound, UnknownMethod
+from spinta.exceptions import PropertyNotFound, UnknownMethod
 from spinta.manifests.components import Manifest
 from spinta.spyna import parse, unparse
 from spinta.testing.manifest import prepare_manifest
 from spinta.ufuncs.querybuilder.components import QueryParams
-from spinta.utils.schema import NA
 
 
 def _get_soap_query_builder(
@@ -240,7 +239,9 @@ class TestSoapRequestBody:
         assert soap_query_builder.soap_request_body == {"request_model/param1": "url_value"}
         assert soap_query_builder.property_values == {"parameter1": "url_value"}
 
-    def test_raise_error_if_param_source_without_default_and_no_url_param_given(self, rc: RawConfig) -> None:
+    def test_build_body_from_request_if_param_source_without_default_and_no_url_param_given(
+        self, rc: RawConfig
+    ) -> None:
         context, manifest = prepare_manifest(rc, """
             d | r | b | m | property | type    | ref        | source                                          | access | prepare
             example                  | dataset |            |                                                 |        |
@@ -258,10 +259,11 @@ class TestSoapRequestBody:
             "parameter1": ResolvedResourceParam(
                 target="parameter1",
                 source="request_model/param1",
-                value=NA,
+                value=None,
             )
         }
         soap_query_builder = _get_soap_query_builder(context, manifest, resource_params=resource_params)
+        soap_query_builder.build()
 
-        with pytest.raises(PropertyPrepareValueRequired):
-            soap_query_builder.build()
+        assert soap_query_builder.soap_request_body == {"request_model/param1": None}
+        assert soap_query_builder.property_values == {"parameter1": None}

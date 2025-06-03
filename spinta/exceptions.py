@@ -1076,10 +1076,6 @@ class PropertyNotPartOfRefProps(UserError):
     '''
 
 
-class PropertyPrepareValueRequired(UserError):
-    template = "Property {prop!r} prepare must have either default value or value from URI"
-
-
 class KeymapValueNotFound(UserError):
     template = '''
     KeyMap ({keymap!r}) was unable to get primary key for {model_name!r} model using given values ({values!r}).

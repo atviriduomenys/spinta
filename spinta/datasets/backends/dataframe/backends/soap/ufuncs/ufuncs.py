@@ -8,9 +8,7 @@ from spinta.core.enums import Action
 from spinta.core.ufuncs import ufunc, Expr, Bind, ShortExpr
 from spinta.datasets.backends.dataframe.backends.soap.ufuncs.components import SoapQueryBuilder
 from spinta.dimensions.param.components import ResolvedResourceParam
-from spinta.exceptions import PropertyPrepareValueRequired
 from spinta.utils.data import take
-from spinta.utils.schema import NA
 
 
 @ufunc.resolver(SoapQueryBuilder, Expr)
@@ -77,8 +75,7 @@ def soap_request_body(env: SoapQueryBuilder, prop: Property) -> None:
 
 @ufunc.resolver(SoapQueryBuilder, Property, ResolvedResourceParam)
 def soap_request_body(env: SoapQueryBuilder, prop: Property, resolved_resource_param: ResolvedResourceParam) -> None:
-    if (value := env.query_params.url_params.get(prop.place, resolved_resource_param.value)) is NA:
-        raise PropertyPrepareValueRequired(prop=prop)
+    value = env.query_params.url_params.get(prop.place, resolved_resource_param.value)
 
     env.soap_request_body.update({resolved_resource_param.source: value})
     env.property_values.update({resolved_resource_param.target: value})

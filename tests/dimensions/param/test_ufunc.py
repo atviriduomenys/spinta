@@ -4,7 +4,6 @@ from spinta.components import Context
 from spinta.core.ufuncs import asttoexpr
 from spinta.dimensions.param.components import ParamBuilder, ResolvedResourceParam
 from spinta.spyna import parse
-from spinta.utils.schema import NA
 
 
 @pytest.mark.parametrize(
@@ -17,7 +16,7 @@ from spinta.utils.schema import NA
             'input("default1", "default2", "default3")',
             ResolvedResourceParam(target="target", source="foo", value="default1"),
         ),
-        ("foo", 'input()', ResolvedResourceParam(target="target", source="foo", value=NA)),
+        ("foo", 'input()', ResolvedResourceParam(target="target", source="foo", value=None)),
     ]
 )
 def test_input_command_returns_dict(context: Context, param_source: str, param_prepare: str, result: dict) -> None:

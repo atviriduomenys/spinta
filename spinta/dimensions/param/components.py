@@ -1,3 +1,4 @@
+from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 from typing import Dict
@@ -26,4 +27,4 @@ ResolvedParams = Dict[str, Any]
 class ResolvedResourceParam:
     target: str
     source: str
-    value: str
+    value: str | None

@@ -21,7 +21,9 @@ from spinta.ufuncs.querybuilder.components import QueryParams
 
 
 def _get_data_soap(url: str, backend: Soap, soap_request: dict) -> list[dict]:
-    return serialize_object(backend.soap_operation(**soap_request), target_cls=dict)
+    response_data = serialize_object(backend.soap_operation(**soap_request), target_cls=dict)
+
+    return response_data or []
 
 
 def _check_key(key: str) -> None:
