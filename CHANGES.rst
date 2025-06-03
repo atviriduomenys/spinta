@@ -19,8 +19,10 @@ New Features:
 
 Bug fixes:
 - Fixed a bug where an error was thrown when nested property was a `ref` followed by a `backref`. (`#1302`_)
+- Fixed a bug where `spinta` didn't work with Python versions > 3.10. (`#1326`_)
 
   .. _#1302: https://github.com/atviriduomenys/spinta/issues/1302
+  .. _#1326: https://github.com/atviriduomenys/spinta/issues/1326
 
 0.2dev2
 =======
