@@ -73,7 +73,7 @@ def getattr_(env: ParamBuilder, _: NotAvailable):
 @ufunc.resolver(ParamBuilder, Expr, name="input")
 def input_(env: ParamBuilder, expr: Expr) -> ResolvedResourceParam:
     args, kwargs = expr.resolve(env)
-    prep_value = args[0] if len(args) > 0 else NA
+    prep_value = args[0] if args else NA
 
     resolved_dict = env.call("input", env.this, prep_value)
 

@@ -26,19 +26,19 @@ def _get_data_soap(url: str, backend: Soap, soap_request: dict) -> list[dict]:
     return response_data or []
 
 
-def _check_key(key: str) -> None:
-    if not key:  # In case if split is empty string
+def _check_empty_key(key: str) -> None:
+    if not key:
         raise ValueError(f'Invalid dictionary key "{key}"')
 
 
-def _set_intermediate_dict(dictionary: dict, key) -> dict:
+def _add_dict_from_key_part(dictionary: dict, key: str) -> dict:
     """
-    Intermediate dict is any non-last part of key.
-    Example: In {a/b/c/d: "foo"} -> a, b, c will become intermediate dicts
+    If key not in dictionary: add "key": {} to dictionary and return key value
+    If key is in dictionary: return key value
 
-    If intermediate dict already has non-dict value set it means that given data is incorrect
+    Raise error if key is empty or key value is not dict
     """
-    _check_key(key)
+    _check_empty_key(key)
 
     if not isinstance(dictionary.get(key, {}), dict):
         raise ValueError(f'Cannot set key {{"{key}": {{}}}} because it already exists in: {dictionary}')
@@ -47,9 +47,9 @@ def _set_intermediate_dict(dictionary: dict, key) -> dict:
 
 
 def _set_dict_value(dictionary: dict, key: str, value: str) -> None:
-    _check_key(key)
+    _check_empty_key(key)
 
-    if dictionary.get(key):
+    if key in dictionary.keys():
         raise ValueError(f'Cannot set value {{"{key}": "{value}"}} because it already exists in : {dictionary}')
     dictionary[key] = value
 
@@ -57,7 +57,7 @@ def _set_dict_value(dictionary: dict, key: str, value: str) -> None:
 def _expand_dict_keys(target: dict, separator: str = "/") -> dict:
     """
     Function splits target dictionary keys into separate dictionaries, if key has separator.
-    Example: {"a/b/c": "value"} -> {"a": {"b": "c": "value"}}
+    Example: {"a/b/c": "value"} -> {"a": {"b": {"c": "value"}}}
              {"a/b": "value1", "a/c": "value2"} -> {"a": {"b": "value1", "c": "value2"}}
 
     Raises ValueError if target dictionary is incorrect.
@@ -67,13 +67,15 @@ def _expand_dict_keys(target: dict, separator: str = "/") -> dict:
     result = {}
 
     for key, value in target.items():
-        parts = key.split(separator)
+        key_parts = key.split(separator)
 
+        # Gets/Creates dictionaries from every key part, except the last one
         current = result
-        for part in parts[:-1]:
-            current = _set_intermediate_dict(current, part)
+        for part in key_parts[:-1]:
+            current = _add_dict_from_key_part(current, part)
 
-        _set_dict_value(current, parts[-1], value)
+        # Sets value on the last key part
+        _set_dict_value(current, key_parts[-1], value)
 
     return result
 
@@ -115,7 +117,16 @@ def getall(
         _get_data_soap, backend=backend, soap_request=soap_request,
     ).flatten().to_dataframe(meta=meta)
 
-    df_builder = DaskDataFrameQueryBuilder(context)
-    df_builder.update(model=model)
+    dask_dataframe_query_builder = DaskDataFrameQueryBuilder(context)
+    dask_dataframe_query_builder.update(model=model)
 
-    yield from dask_get_all(context, query, df, backend, model, df_builder, extra_properties, builder.property_values)
+    yield from dask_get_all(
+        context,
+        query,
+        df,
+        backend,
+        model,
+        dask_dataframe_query_builder,
+        extra_properties,
+        builder.property_values
+    )
