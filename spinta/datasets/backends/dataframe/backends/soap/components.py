@@ -9,6 +9,8 @@ from spinta.utils.schema import NA
 
 class Soap(DaskBackend):
     type: str = "soap"
+    query_builder_type = "soap"
+
     soap_operation: OperationProxy | NA = NA
 
     @contextlib.contextmanager
