@@ -8,9 +8,21 @@ New Features:
 
 - Added OpenAPI Schema to DSA convertion `Resource` column part (`#1209`_)
 - Added OpenAPI Schema to DSA convertion `Param` column part (`#1210`_)
+- Added `soap` backend for basic SOAP data reading from WSDL (`#1273`_)
+- Added separate `wsdl` backend to read WSDL file and `wsdl(...)` function to link any `soap` type resource with
+  `wsdl` type resource for WSDL/SOAP data reading (`#279`_)
 
   .. _#1209: https://github.com/atviriduomenys/spinta/issues/1209
   .. _#1210: https://github.com/atviriduomenys/spinta/issues/1210
+  .. _#1273: https://github.com/atviriduomenys/spinta/issues/1273
+  .. _#279: https://github.com/atviriduomenys/spinta/issues/279
+
+Bug fixes:
+- Fixed a bug where an error was thrown when nested property was a `ref` followed by a `backref`. (`#1302`_)
+- Fixed a bug where `spinta` didn't work with Python versions > 3.10. (`#1326`_)
+
+  .. _#1302: https://github.com/atviriduomenys/spinta/issues/1302
+  .. _#1326: https://github.com/atviriduomenys/spinta/issues/1326
 
 0.2dev2
 =======
