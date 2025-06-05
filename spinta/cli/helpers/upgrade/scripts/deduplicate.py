@@ -46,7 +46,7 @@ class _DuplicateEntry:
         self.affected_data.append(data)
 
     def to_move_mapping(self) -> _DuplicateMoveMapping:
-        sorted_data = sorted(self.affected_data, key=lambda x: x.created)
+        sorted_data = sorted(self.affected_data, key=lambda x: x.created, reverse=True)
         primary = sorted_data[0]
         targets = tuple(sorted_data[1:])
         return _DuplicateMoveMapping(primary, targets)

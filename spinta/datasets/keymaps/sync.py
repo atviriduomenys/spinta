@@ -318,11 +318,12 @@ def sync_keymap(
                 dry_run=dry_run
             )
             data = commands.sync(context, keymap, data=data)
-            for key in model_keymaps:
-                keymap.validate_data(key)
             try:
                 for row in data:
                     offset_cid = row.data['_cid']
+
+                for key in model_keymaps:
+                    keymap.validate_data(key)
             finally:
                 if not dry_run:
                     for keymap_name in model_keymaps:
