@@ -111,33 +111,35 @@ def _create_duplicate_entries(context: Context, backend: Backend, dmodel: _Dupli
 
 @dispatch(Context, PostgreSQL, _DuplicateModel)
 def _create_duplicate_entries(context: Context, backend: PostgreSQL, dmodel: _DuplicateModel):
-    with backend.begin() as conn:
-        table = backend.get_table(dmodel.model)
-        pkey_columns = list()
-        pkey_column_names = list()
-        for pkey in dmodel.model.external.pkeys:
-            for name in get_prop_names(pkey):
-                pkey_column_names.append(get_pg_column_name(name))
+    transaction = context.get('transaction')
+    connection = transaction.connection
 
-            columns = commands.prepare(context, backend, pkey)
-            columns = ensure_list(columns)
-            columns = extract_sqlalchemy_columns(columns)
-            columns = [_ensure_table_set(col, table) for col in columns]
-            pkey_columns.extend(columns)
+    table = backend.get_table(dmodel.model)
+    pkey_columns = list()
+    pkey_column_names = list()
+    for pkey in dmodel.model.external.pkeys:
+        for name in get_prop_names(pkey):
+            pkey_column_names.append(get_pg_column_name(name))
 
-        subquery = sa.select(*pkey_columns).group_by(*pkey_columns).having(sa.func.count() > 1).subquery()
-        query = sa.select(table).where(
-            sa.and_(
-                *(table.c[col.name] == subquery.c[col.name] for col in pkey_columns)
-            )
-        ).order_by(*pkey_columns, table.c._created)
+        columns = commands.prepare(context, backend, pkey)
+        columns = ensure_list(columns)
+        columns = extract_sqlalchemy_columns(columns)
+        columns = [_ensure_table_set(col, table) for col in columns]
+        pkey_columns.extend(columns)
 
-        results = conn.execute(query)
-        for row in results:
-            pkey = _extract_pkey_values(row, pkey_column_names)
-            entry = dmodel.get_entry(pkey)
-            data = _DuplicateData(row['_id'], row['_revision'], row['_created'])
-            entry.add_data(data)
+    subquery = sa.select(*pkey_columns).group_by(*pkey_columns).having(sa.func.count() > 1).subquery()
+    query = sa.select(table).where(
+        sa.and_(
+            *(table.c[col.name] == subquery.c[col.name] for col in pkey_columns)
+        )
+    ).order_by(*pkey_columns, sa.desc(table.c._created))
+
+    results = connection.execute(query)
+    for row in results:
+        pkey = _extract_pkey_values(row, pkey_column_names)
+        entry = dmodel.get_entry(pkey)
+        data = _DuplicateData(row['_id'], row['_revision'], row['_created'])
+        entry.add_data(data)
 
 
 @dispatch(Context, Model)
