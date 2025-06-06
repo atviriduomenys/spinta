@@ -1,6 +1,6 @@
 # Check outdated packages and upgrade them
 xdg-open https://github.com/atviriduomenys/spinta/security/dependabot
-poetry install
+poetry install --all-extras
 poetry update
 
 
@@ -18,6 +18,7 @@ xdg-open var/readme.html
 
 # Reset test database
 # password is in the docker-compose.yml file
+#If docker is not running, run `docker compose up`
 psql -h localhost -p 54321 -U admin postgres -c 'DROP DATABASE spinta_tests'
 psql -h localhost -p 54321 -U admin postgres -c 'CREATE DATABASE spinta_tests'
 psql -h localhost -p 54321 -U admin spinta_tests <<EOF
