@@ -100,6 +100,7 @@ def load(context: Context, config: Config) -> Config:
             "Configuration option `mode` must be added to a manifest, now it "
             "is added to the config root."
         )
+    config.upgrade_mode = rc.get('upgrade_mode', default=False)
 
     return config
 

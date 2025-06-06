@@ -8,6 +8,7 @@ from sqlalchemy.engine.reflection import Inspector
 if TYPE_CHECKING:
     from alembic.operations import Operations
 
+
 def migrate_table(
     engine: Engine,
     metadata: sa.MetaData,
