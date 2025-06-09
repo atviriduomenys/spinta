@@ -162,7 +162,7 @@ description = "A database migration tool for SQLAlchemy."
 optional = true
 python-versions = ">=3.7"
 groups = ["main"]
-markers = "extra == \"migrations\" or extra == \"all\""
+markers = "extra == \"all\" or extra == \"migrations\""
 files = [
     {file = "alembic-1.11.3-py3-none-any.whl", hash = "sha256:d6c96c2482740592777c400550a523bc7a9aada4e210cae2e733354ddae6f6f8"},
     {file = "alembic-1.11.3.tar.gz", hash = "sha256:3db4ce81a9072e1b5aa44c2d202add24553182672a12daf21608d6f62a8f9cf9"},
@@ -1146,7 +1146,7 @@ description = "WSGI HTTP Server for UNIX"
 optional = true
 python-versions = ">=3.7"
 groups = ["main"]
-markers = "extra == \"http\" or extra == \"all\""
+markers = "extra == \"all\" or extra == \"http\""
 files = [
     {file = "gunicorn-23.0.0-py3-none-any.whl", hash = "sha256:ec400d38950de4dfd418cff8328b2c8faed0edb0d517d3394e457c317908ca4d"},
     {file = "gunicorn-23.0.0.tar.gz", hash = "sha256:f014447a0101dc57e294f6c18ca6b40227a4c90e9bdb586042628030cba004ec"},
@@ -1164,32 +1164,31 @@ tornado = ["tornado (>=0.2)"]
 
 [[package]]
 name = "h11"
-version = "0.14.0"
+version = "0.16.0"
 description = "A pure-Python, bring-your-own-I/O implementation of HTTP/1.1"
 optional = false
-python-versions = ">=3.7"
+python-versions = ">=3.8"
 groups = ["main", "dev"]
 files = [
-    {file = "h11-0.14.0-py3-none-any.whl", hash = "sha256:e3fe4ac4b851c468cc8363d500db52c2ead036020723024a109d37346efaa761"},
-    {file = "h11-0.14.0.tar.gz", hash = "sha256:8f19fbbe99e72420ff35c00b27a34cb9937e902a8b810e2c88300c6f0a3b699d"},
+    {file = "h11-0.16.0-py3-none-any.whl", hash = "sha256:63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86"},
+    {file = "h11-0.16.0.tar.gz", hash = "sha256:4e35b956cf45792e4caa5885e69fba00bdbc6ffafbfa020300e549b208ee5ff1"},
 ]
-markers = {main = "extra == \"http\" or extra == \"all\""}
 
 [[package]]
 name = "httpcore"
-version = "1.0.8"
+version = "1.0.9"
 description = "A minimal low-level HTTP client."
 optional = false
 python-versions = ">=3.8"
 groups = ["dev"]
 files = [
-    {file = "httpcore-1.0.8-py3-none-any.whl", hash = "sha256:5254cf149bcb5f75e9d1b2b9f729ea4a4b883d1ad7379fc632b727cec23674be"},
-    {file = "httpcore-1.0.8.tar.gz", hash = "sha256:86e94505ed24ea06514883fd44d2bc02d90e77e7979c8eb71b90f41d364a1bad"},
+    {file = "httpcore-1.0.9-py3-none-any.whl", hash = "sha256:2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55"},
+    {file = "httpcore-1.0.9.tar.gz", hash = "sha256:6e34463af53fd2ab5d807f399a9b45ea31c3dfa2276f15a2c3f00afff6e176e8"},
 ]
 
 [package.dependencies]
 certifi = "*"
-h11 = ">=0.13,<0.15"
+h11 = ">=0.16"
 
 [package.extras]
 asyncio = ["anyio (>=4.0,<5.0)"]
@@ -1470,7 +1469,7 @@ files = [
     {file = "lxml-5.3.2-cp310-cp310-musllinux_1_2_ppc64le.whl", hash = "sha256:aa837e6ee9534de8d63bc4c1249e83882a7ac22bd24523f83fad68e6ffdf41ae"},
     {file = "lxml-5.3.2-cp310-cp310-musllinux_1_2_s390x.whl", hash = "sha256:da4c9223319400b97a2acdfb10926b807e51b69eb7eb80aad4942c0516934858"},
     {file = "lxml-5.3.2-cp310-cp310-musllinux_1_2_x86_64.whl", hash = "sha256:dc0e9bdb3aa4d1de703a437576007d366b54f52c9897cae1a3716bb44fc1fc85"},
-    {file = "lxml-5.3.2-cp310-cp310-win32.whl", hash = "sha256:5f94909a1022c8ea12711db7e08752ca7cf83e5b57a87b59e8a583c5f35016ad"},
+    {file = "lxml-5.3.2-cp310-cp310-win32.win32.whl", hash = "sha256:dd755a0a78dd0b2c43f972e7b51a43be518ebc130c9f1a7c4480cf08b4385486"},
     {file = "lxml-5.3.2-cp310-cp310-win_amd64.whl", hash = "sha256:d64ea1686474074b38da13ae218d9fde0d1dc6525266976808f41ac98d9d7980"},
     {file = "lxml-5.3.2-cp311-cp311-macosx_10_9_universal2.whl", hash = "sha256:9d61a7d0d208ace43986a92b111e035881c4ed45b1f5b7a270070acae8b0bfb4"},
     {file = "lxml-5.3.2-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:856dfd7eda0b75c29ac80a31a6411ca12209183e866c33faf46e77ace3ce8a79"},
@@ -1609,7 +1608,7 @@ description = "A super-fast templating language that borrows the best ideas from
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "extra == \"migrations\" or extra == \"all\""
+markers = "extra == \"all\" or extra == \"migrations\""
 files = [
     {file = "mako-1.3.10-py3-none-any.whl", hash = "sha256:baef24a52fc4fc514a0887ac600f9f1cff3d82c61d4d700a1fa84d597b88db59"},
     {file = "mako-1.3.10.tar.gz", hash = "sha256:99579a6f39583fa7e5630a28c3c1f440e4e97a414b80372649c0ce338da2ea28"},
@@ -4075,7 +4074,7 @@ files = [
     {file = "uvicorn-0.34.1-py3-none-any.whl", hash = "sha256:984c3a8c7ca18ebaad15995ee7401179212c59521e67bfc390c07fa2b8d2e065"},
     {file = "uvicorn-0.34.1.tar.gz", hash = "sha256:af981725fc4b7ffc5cb3b0e9eda6258a90c4b52cb2a83ce567ae0a7ae1757afc"},
 ]
-markers = {main = "extra == \"http\" or extra == \"all\""}
+markers = {main = "extra == \"all\" or extra == \"http\""}
 
 [package.dependencies]
 click = ">=7.0"

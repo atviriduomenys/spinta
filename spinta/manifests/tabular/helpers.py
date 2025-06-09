@@ -1025,9 +1025,6 @@ def _get_parent_data_array(reader: PropertyReader, given_row: dict, full_name: s
     if not current_parent:
         current_parent.update(_empty_property(_array_datatype_handler(reader, empty_array_row)))
 
-    if given_row.get('type') == DataTypeEnum.BACKREF.value:
-        current_parent['type'] = DataTypeEnum._ARRAY_BACKREF.value
-
     adjustment = 1 if current_parent.get('type') in ALLOWED_ARRAY_TYPES else 0
 
     for _ in range(array_depth - adjustment):
@@ -1039,6 +1036,9 @@ def _get_parent_data_array(reader: PropertyReader, given_row: dict, full_name: s
             current_parent = _process_allowed_partial_type(reader, current_parent, root_name, empty_array_row)
         else:
             raise NestedDataTypeMismatch(initial=current_type, required=DataTypeEnum.ARRAY.value)
+
+    if given_row.get('type') == DataTypeEnum.BACKREF.value:
+        current_parent['type'] = DataTypeEnum._ARRAY_BACKREF.value
 
     return current_parent
 
