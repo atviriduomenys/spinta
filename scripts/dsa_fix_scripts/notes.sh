@@ -30,7 +30,7 @@ python "$scripts_dir"remove_getone_getall_927.py $DSA_DIR
 
 # to apply:
 
-
+python "$scripts_dir"remove_ref_required_1313.py $DSA_DIR
 # todo
 
 ref required - pakeisti į ref (be required) https://github.com/atviriduomenys/spinta/issues/1313
