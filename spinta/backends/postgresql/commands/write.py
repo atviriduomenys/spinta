@@ -196,7 +196,7 @@ def _get_data_action(data: DataSubItem | DataItem) -> Action:
 def _apply_action_parameters(patch: dict, action: Action):
     if action in (Action.INSERT, Action.UPSERT):
         patch['_created'] = utcnow()
-    elif action in (Action.UPDATE, Action.PATCH):
+    elif action in (Action.UPDATE, Action.PATCH, Action.MOVE):
         patch['_updated'] = utcnow()
 
 
