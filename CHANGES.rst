@@ -1,8 +1,13 @@
 Changes
 #######
 
-0.2dev3 (unreleased)
+
+0.2dev4 (unreleased)
 ====================
+
+
+0.2dev3
+=======
 
 New Features:
 
@@ -18,6 +23,7 @@ New Features:
   .. _#279: https://github.com/atviriduomenys/spinta/issues/279
 
 Bug fixes:
+
 - Fixed a bug where an error was thrown when nested property was a `ref` followed by a `backref`. (`#1302`_)
 - Fixed a bug where `spinta` didn't work with Python versions > 3.10. (`#1326`_)
 
