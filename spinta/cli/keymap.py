@@ -112,6 +112,7 @@ def keymap_sync(
         # Synchronize keymaps
         with manifest.keymap as km:
             dependant_models = extract_dependant_nodes(context, models, False)
+            dependant_models = sort_models_by_ref_and_base(dependant_models)
             sync_keymap(
                 context=context,
                 keymap=km,

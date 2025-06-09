@@ -72,6 +72,7 @@ def check_keymap_state(context: Context, table_name: str) -> list[KeymapData]:
 @pytest.fixture(scope='function')
 def reset_keymap(context):
     def _reset_keymap(excluded_tables: list[str] = None):
+        keymap.metadata.reflect()
         with keymap.engine.connect() as conn:
             for key, table in keymap.metadata.tables.items():
                 if excluded_tables and key in excluded_tables:
