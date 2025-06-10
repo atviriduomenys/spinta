@@ -17,6 +17,7 @@ RUN apt-get update && \
         g++ \
         cmake \
         make \
+        git \
         libboost-all-dev \
         libsnappy-dev \
         libgflags-dev \
