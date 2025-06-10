@@ -1,5 +1,17 @@
-FROM python:3.9-slim
+FROM python:3.9-alpine as rmanifests
 
+WORKDIR /tmp
+
+RUN apk add git
+RUN git clone https://github.com/atviriduomenys/demo-saltiniai.git
+
+# Catch till first manifest will be defined
+RUN mkdir demo-saltiniai/manifests || true
+
+
+FROM python:3.9-slim as base
+
+EXPOSE 8000
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
@@ -25,4 +37,14 @@ RUN poetry install --no-interaction --all-extras
 
 RUN chmod +x /app/entrypoint.sh
 
-EXPOSE 8000
+FROM base as manifests
+
+WORKDIR /tmp
+COPY --from=rmanifests /tmp/demo-saltiniai/manifests /tmp/manifests
+
+RUN spinta upgrade
+RUN ls /tmp/manifests | xargs spinta copy -o /tmp/manifest.csv
+
+
+FROM base as build
+COPY --from=manifests /tmp/manifest.csv /app/manifest.csv
