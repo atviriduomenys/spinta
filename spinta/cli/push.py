@@ -182,6 +182,7 @@ def push(
             if not synced:
                 synchronize_keymap = True
             dependant_models = extract_dependant_nodes(context, models, not synchronize_keymap)
+            dependant_models = sort_models_by_ref_and_base(dependant_models)
             sync_keymap(
                 context=context,
                 keymap=km,

@@ -244,18 +244,18 @@ def test_upgrade_deduplicate_simple(
                 '_id': 'f55f9c6f-43ff-49e6-bfcf-3e9b33ffb987'
             }
         }, {
-            '_id': '49b7cc6c-0bab-4ed8-bc8f-2da1c486c895',
-            'id': 1,
-            'name': 'rand_1',
-            'city': {
-                '_id': '53d25cc5-d1cb-409e-883c-cb277057c654'
-            }
-        }, {
-            '_id': '486effd6-1f1c-43ec-aefd-9abb50e04595',
+            '_id': '48b7cc6c-0bab-4ed8-bc8f-2da1c486c895',
             'id': 1,
             'name': 'rand_1',
             'city': {
                 '_id': 'f55f9c6f-43ff-49e6-bfcf-3e9b33ffb987'
+            }
+        }, {
+            '_id': '496effd6-1f1c-43ec-aefd-9abb50e04595',
+            'id': 1,
+            'name': 'rand_1',
+            'city': {
+                '_id': '53d25cc5-d1cb-409e-883c-cb277057c654'
             }
         }, {
             '_id': '5fbc4498-9013-4905-9bc0-a2b94f12d4f2',
@@ -297,7 +297,7 @@ def test_upgrade_deduplicate_simple(
         'datasets/deduplicate/cli/City']
 
     result = app.get('datasets/deduplicate/rand/Random')
-    assert listdata(result, 'id', 'name', 'city', '_revision', '_id', full=True) == data[
+    assert listdata(result, 'id', 'name', '_id', 'city', '_revision', full=True) == data[
         'datasets/deduplicate/rand/Random']
 
     result = cli.invoke(context.get('rc'), [
@@ -319,14 +319,14 @@ def test_upgrade_deduplicate_simple(
 
     result = app.get('datasets/deduplicate/rand/Random')
     assert listdata(result, 'id', 'name', 'city', '_id', full=True) == [{
-        '_id': '4f5a99a4-eb5f-4792-a280-5914baa3ca49',
+        '_id': '58639700-37d4-4479-b800-5ab006b9c914',
         'id': 0,
         'name': 'rand_0',
         'city': {
-            '_id': '53d25cc5-d1cb-409e-883c-cb277057c654'
+            '_id': 'f55f9c6f-43ff-49e6-bfcf-3e9b33ffb987'
         }
     }, {
-        '_id': '49b7cc6c-0bab-4ed8-bc8f-2da1c486c895',
+        '_id': '496effd6-1f1c-43ec-aefd-9abb50e04595',
         'id': 1,
         'name': 'rand_1',
         'city': {
@@ -347,14 +347,14 @@ def test_upgrade_deduplicate_simple(
         {
             '_cid': 6,
             '_op': 'move',
-            '_id': '58639700-37d4-4479-b800-5ab006b9c914',
-            '_same_as': '4f5a99a4-eb5f-4792-a280-5914baa3ca49',
+            '_id': '4f5a99a4-eb5f-4792-a280-5914baa3ca49',
+            '_same_as': '58639700-37d4-4479-b800-5ab006b9c914',
         },
         {
             '_cid': 7,
             '_op': 'move',
-            '_id': '486effd6-1f1c-43ec-aefd-9abb50e04595',
-            '_same_as': '49b7cc6c-0bab-4ed8-bc8f-2da1c486c895',
+            '_id': '48b7cc6c-0bab-4ed8-bc8f-2da1c486c895',
+            '_same_as': '496effd6-1f1c-43ec-aefd-9abb50e04595',
         },
     ]
 
@@ -548,7 +548,7 @@ def test_upgrade_deduplicate_referenced(
 
     result = app.get('datasets/deduplicate/cli/Country')
     assert listdata(result, 'id', 'name', '_id', full=True) == [{
-        '_id': '9b6442ed-ed75-4f78-bb2b-617d63ad837a',
+        '_id': 'd8785261-cc15-409f-800d-aeacf44162f2',
         'id': 0,
         'name': 'Lithuania'
     }, {
@@ -559,18 +559,18 @@ def test_upgrade_deduplicate_referenced(
 
     result = app.get('datasets/deduplicate/cli/City')
     assert listdata(result, 'id', 'name', 'country', '_id', full=True) == [{
-        '_id': 'f55f9c6f-43ff-49e6-bfcf-3e9b33ffb987',
+        '_id': 'f65f9c6f-43ff-49e6-bfcf-3e9b33ffb987',
         'id': 0,
         'name': 'Vilnius',
         'country': {
-            '_id': '9b6442ed-ed75-4f78-bb2b-617d63ad837a'
+            '_id': 'd8785261-cc15-409f-800d-aeacf44162f2'
         }
     }, {
         '_id': '53d25cc5-d1cb-409e-883c-cb277057c654',
         'id': 1,
         'name': 'Kaunas',
         'country': {
-            '_id': '9b6442ed-ed75-4f78-bb2b-617d63ad837a'
+            '_id': 'd8785261-cc15-409f-800d-aeacf44162f2'
         }
     }, {
         '_id': 'e7a7f160-37d4-4e37-a248-b32f7ce003c1',
@@ -583,25 +583,25 @@ def test_upgrade_deduplicate_referenced(
 
     result = app.get('datasets/deduplicate/rand/Random')
     assert listdata(result, 'id', 'name', 'city', '_id', full=True) == [{
-        '_id': '4f5a99a4-eb5f-4792-a280-5914baa3ca49',
+        '_id': '58639700-37d4-4479-b800-5ab006b9c914',
         'id': 0,
         'name': 'rand_0',
         'city': {
-            '_id': '53d25cc5-d1cb-409e-883c-cb277057c654'
+            '_id': 'f65f9c6f-43ff-49e6-bfcf-3e9b33ffb987'
         }
     }, {
-        '_id': '49b7cc6c-0bab-4ed8-bc8f-2da1c486c895',
+        '_id': '586effd6-1f1c-43ec-aefd-9abb50e04595',
         'id': 1,
         'name': 'rand_1',
         'city': {
-            '_id': 'f55f9c6f-43ff-49e6-bfcf-3e9b33ffb987'
+            '_id': 'f65f9c6f-43ff-49e6-bfcf-3e9b33ffb987'
         }
     }, {
         '_id': '5fbc4498-9013-4905-9bc0-a2b94f12d4f2',
         'id': 2,
         'name': 'rand_2',
         'city': {
-            '_id': 'f55f9c6f-43ff-49e6-bfcf-3e9b33ffb987'
+            '_id': 'f65f9c6f-43ff-49e6-bfcf-3e9b33ffb987'
         }
     }]
 
@@ -611,47 +611,65 @@ def test_upgrade_deduplicate_referenced(
         {
             '_cid': 4,
             '_op': 'move',
-            '_id': 'd8785261-cc15-409f-800d-aeacf44162f2',
-            '_same_as': '9b6442ed-ed75-4f78-bb2b-617d63ad837a',
+            '_id': '9b6442ed-ed75-4f78-bb2b-617d63ad837a',
+            '_same_as': 'd8785261-cc15-409f-800d-aeacf44162f2',
         },
     ]
 
-    resp = app.get(f'/datasets/deduplicate/cli/City/:changes/-2')
+    resp = app.get(f'/datasets/deduplicate/cli/City/:changes/-3')
     assert resp.status_code == 200
     assert listdata(resp, '_cid', '_id', '_op', '_same_as', 'id', 'name', 'country._id', full=True) == [
         {
             '_cid': 5,
             '_op': 'patch',
-            '_id': '53d25cc5-d1cb-409e-883c-cb277057c654',
-            'country._id': '9b6442ed-ed75-4f78-bb2b-617d63ad837a',
+            '_id': 'f55f9c6f-43ff-49e6-bfcf-3e9b33ffb987',
+            'country._id': 'd8785261-cc15-409f-800d-aeacf44162f2',
         },
-        {
-            '_cid': 6,
-            '_op': 'move',
-            '_id': 'f65f9c6f-43ff-49e6-bfcf-3e9b33ffb987',
-            '_same_as': 'f55f9c6f-43ff-49e6-bfcf-3e9b33ffb987',
-        },
-    ]
-
-    resp = app.get(f'/datasets/deduplicate/rand/Random/:changes/-3')
-    assert resp.status_code == 200
-    assert listdata(resp, '_cid', '_id', '_op', '_same_as', 'id', 'name', 'city._id', full=True) == [
         {
             '_cid': 6,
             '_op': 'patch',
-            '_id': '49b7cc6c-0bab-4ed8-bc8f-2da1c486c895',
-            'city._id': 'f55f9c6f-43ff-49e6-bfcf-3e9b33ffb987',
+            '_id': 'f65f9c6f-43ff-49e6-bfcf-3e9b33ffb987',
+            'country._id': 'd8785261-cc15-409f-800d-aeacf44162f2',
         },
         {
             '_cid': 7,
             '_op': 'move',
+            '_id': 'f55f9c6f-43ff-49e6-bfcf-3e9b33ffb987',
+            '_same_as': 'f65f9c6f-43ff-49e6-bfcf-3e9b33ffb987',
+        },
+    ]
+
+    resp = app.get(f'/datasets/deduplicate/rand/Random/:changes/-5')
+    assert resp.status_code == 200
+    assert listdata(resp, '_cid', '_id', '_op', '_same_as', 'id', 'name', 'city._id', sort='_cid', full=True) == [
+        {
+            '_cid': 6,
+            '_op': 'patch',
             '_id': '58639700-37d4-4479-b800-5ab006b9c914',
-            '_same_as': '4f5a99a4-eb5f-4792-a280-5914baa3ca49',
+            'city._id': 'f65f9c6f-43ff-49e6-bfcf-3e9b33ffb987',
+        },
+        {
+            '_cid': 7,
+            '_op': 'patch',
+            '_id': '586effd6-1f1c-43ec-aefd-9abb50e04595',
+            'city._id': 'f65f9c6f-43ff-49e6-bfcf-3e9b33ffb987',
         },
         {
             '_cid': 8,
+            '_op': 'patch',
+            '_id': '5fbc4498-9013-4905-9bc0-a2b94f12d4f2',
+            'city._id': 'f65f9c6f-43ff-49e6-bfcf-3e9b33ffb987',
+        },
+        {
+            '_cid': 9,
             '_op': 'move',
-            '_id': '586effd6-1f1c-43ec-aefd-9abb50e04595',
-            '_same_as': '49b7cc6c-0bab-4ed8-bc8f-2da1c486c895',
+            '_id': '4f5a99a4-eb5f-4792-a280-5914baa3ca49',
+            '_same_as': '58639700-37d4-4479-b800-5ab006b9c914',
+        },
+        {
+            '_cid': 10,
+            '_op': 'move',
+            '_id': '49b7cc6c-0bab-4ed8-bc8f-2da1c486c895',
+            '_same_as': '586effd6-1f1c-43ec-aefd-9abb50e04595',
         },
     ]

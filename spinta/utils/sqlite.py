@@ -9,6 +9,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.engine.reflection import Inspector
 
 
+
 def migrate_table(
     engine: Engine,
     metadata: sa.MetaData,
