@@ -88,6 +88,11 @@ Backwards incompatible:
   an entry was moved to. As a result, this property is now included in all tabular results (HTML, ASCII, CSV),
   even though it will typically be empty (`#1290`_).
 
+- In order to add `move` support and to deobfuscate `SqlAlchemyKeymap` new migration system was added. From now on any
+  schema changes to keymap should be done using `spinta upgrade`. Keymap now stores separate table called `_migrations`,
+  it stores all already executed migrations. Each time `spinta` configures keymap, it will check if all of
+  required migrations have been executed on it (`#1307`_).
+
 Improvements:
 
 - `migrate` command now warns users if there are potential type casting issues (invalid or unsafe).
@@ -98,6 +103,12 @@ Improvements:
 
 - The `upgrade` command now support `-c` or `--check` flag, which performs only the script check without executing
   any scripts. This is useful for previewing required upgrades without applying them (`#1290`_).
+
+- Deobfuscated `SqlAlchemyKeymap` database values, they are no longer hashed (`#1307`_).
+
+- `keymap sync` now supports `move` changelog action (`#1307`_).
+
+  .. _#1307: https://github.com/atviriduomenys/spinta/issues/1307
 
 New Features:
 
@@ -124,6 +135,9 @@ Bug fixes:
 - Fixed `keymap sync` ignoring `upsert` action (`#1269`_).
 
   .. _#1269: https://github.com/atviriduomenys/spinta/issues/1269
+
+- Fixed `postgresql` `update` action updating `_created`, instead of `_updated` value (`#1307`_).
+
 
 0.1.85 (2025-04-08)
 ===================

@@ -186,6 +186,20 @@ async def delete(
     savepoint_transaction_start.commit()
 
 
+def _get_data_action(data: DataSubItem | DataItem) -> Action:
+    if isinstance(data, DataItem):
+        return data.action
+
+    return _get_data_action(data.root)
+
+
+def _apply_action_parameters(patch: dict, action: Action):
+    if action in (Action.INSERT, Action.UPSERT):
+        patch['_created'] = utcnow()
+    elif action in (Action.UPDATE, Action.PATCH, Action.MOVE):
+        patch['_updated'] = utcnow()
+
+
 @commands.before_write.register(Context, Model, PostgreSQL)
 def before_write(
     context: Context,
@@ -197,7 +211,7 @@ def before_write(
     patch = take(['_id'], data.patch)
     patch['_revision'] = take('_revision', data.patch, data.saved)
     patch['_txn'] = context.get('transaction').id
-    patch['_created'] = utcnow()
+    _apply_action_parameters(patch, _get_data_action(data))
     for prop in take(model.properties).values():
         if not prop.dtype.inherited:
             prop_data = data[prop.name]
