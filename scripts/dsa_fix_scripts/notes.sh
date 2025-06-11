@@ -26,23 +26,20 @@ level: 1
 
 python "$scripts_dir"remove_getone_getall_927.py $DSA_DIR
 
-# waiting for review:
+python "$scripts_dir"remove_ref_required_1313.py $DSA_DIR
+
+
+python "$scripts_dir"remove_language_tag_nested_1339.py $DSA_DIR
 
 # to apply:
 
-python "$scripts_dir"remove_ref_required_1313.py $DSA_DIR
 # todo
-
-ref required - pakeisti į ref (be required) https://github.com/atviriduomenys/spinta/issues/1313
-
-#  add array above []
-
 
 virsis užsiciklina
 
 
-pirminis raktas su language tag dar lyg ne visais atvejais veikia? Kai modelio foreign key nurodomas su language tag
-čia gal reikia paleisti `remove_language_tag_nested`
+
+#  add array above [] - actually, not necessarily, it works as it is
 
 
 rasti kažkokį (gal laikiną) sprendimą šitai problemai: https://github.com/ivpk/dsa/discussions/70
