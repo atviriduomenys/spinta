@@ -6,7 +6,7 @@ RUN apk add git
 RUN git clone https://github.com/atviriduomenys/demo-saltiniai.git
 
 # Catch till first manifest will be defined
-RUN mkdir demo-saltiniai/manifests || true
+RUN mkdir -p demo-saltiniai/manifests
 
 
 FROM python:3.9-slim as base
