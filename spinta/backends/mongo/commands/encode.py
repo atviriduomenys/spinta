@@ -23,5 +23,6 @@ def cast_backend_to_python(
     dtype: Date,
     backend: Mongo,
     value: datetime.datetime,
+    **kwargs
 ) -> datetime.date:
     return value.date()

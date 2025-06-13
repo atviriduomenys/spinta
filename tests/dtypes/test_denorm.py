@@ -1,5 +1,4 @@
 import uuid
-from pathlib import Path
 
 import pytest
 from _pytest.fixtures import FixtureRequest
@@ -1156,7 +1155,7 @@ def test_denorm_nested_advanced(
     resp = app.get('/datasets/denorm/nested/adv/City?select(name, country.planet)')
     assert listdata(resp, sort='name', full=True) == [
         {
-            'country.planet': None,
+            'country': None,
             'name': 'Ryga'
         },
         {
@@ -1166,7 +1165,7 @@ def test_denorm_nested_advanced(
             'name': 'Talin'
         },
         {
-            'country.planet': None,
+            'country': None,
             'name': 'Vilnius'
         },
     ]

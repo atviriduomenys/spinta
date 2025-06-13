@@ -5,7 +5,7 @@ import pytest
 from fsspec import AbstractFileSystem
 from fsspec.implementations.memory import MemoryFileSystem
 
-from spinta.components import Mode
+from spinta.core.enums import Mode
 from spinta.core.config import RawConfig
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
@@ -29,12 +29,12 @@ def test_csv_read(rc: RawConfig, fs: AbstractFileSystem):
     ).encode('utf-8'))
 
     context, manifest = prepare_manifest(rc, '''
-    d | r | b | m | property | type    | ref  | source              | prepare | access
-    example/csv              |         |      |                     |         |
-      | csv                  | csv     |      | memory://cities.csv |         |
-      |   |   | City         |         | name |                     |         |
-      |   |   |   | name     | string  |      | miestas             |         | open
-      |   |   |   | country  | string  |      | šalis               |         | open
+    d | r | b | m | property | type     | ref  | source              | prepare | access
+    example/csv              |          |      |                     |         |
+      | csv                  | dask/csv |      | memory://cities.csv |         |
+      |   |   | City         |          | name |                     |         |
+      |   |   |   | name     | string   |      | miestas             |         | open
+      |   |   |   | country  | string   |      | šalis               |         | open
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
@@ -57,12 +57,12 @@ def test_csv_read_unknown_column(rc: RawConfig, fs: AbstractFileSystem):
     ).encode('utf-8'))
 
     context, manifest = prepare_manifest(rc, '''
-    d | r | b | m | property | type    | source              | prepare | access
-    example/csv              |         |                     |         |
-      | csv                  | csv     | memory://cities.csv |         |
-      |   |   | City         |         |                     |         |
-      |   |   |   | name     | string  | miestas             |         | open
-      |   |   |   | country  | string  | salis               |         | open
+    d | r | b | m | property | type     | source              | prepare | access
+    example/csv              |          |                     |         |
+      | csv                  | dask/csv | memory://cities.csv |         |
+      |   |   | City         |          |                     |         |
+      |   |   |   | name     | string   | miestas             |         | open
+      |   |   |   | country  | string   | salis               |         | open
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
@@ -88,17 +88,17 @@ def test_csv_read_refs(rc: RawConfig, fs: AbstractFileSystem):
     ).encode('utf-8'))
 
     context, manifest = prepare_manifest(rc, '''
-    d | r | b | m | property | type   | ref                        | source                 | prepare | access
-    example/csv/countries        |        |                            |                        |         |
-      | csv                  | csv    |                            | memory://countries.csv |         |
-      |   |   | Country      |        | code                       |                        |         |
-      |   |   |   | code     | string |                            | kodas                  |         | open
-      |   |   |   | name     | string |                            | pavadinimas            |         | open
-    example/csv/cities           |        |                            |                        |         |
-      | csv                  | csv    |                            | memory://cities.csv    |         |
-      |   |   | City         |        | name                       |                        |         |
-      |   |   |   | name     | string |                            | miestas                |         | open
-      |   |   |   | country  | ref    | /example/csv/countries/Country | šalis                  |         | open
+    d | r | b | m | property | type     | ref                            | source                 | prepare | access
+    example/csv/countries    |          |                                |                        |         |
+      | csv                  | dask/csv |                                | memory://countries.csv |         |
+      |   |   | Country      |          | code                           |                        |         |
+      |   |   |   | code     | string   |                                | kodas                  |         | open
+      |   |   |   | name     | string   |                                | pavadinimas            |         | open
+    example/csv/cities       |          |                                |                        |         |
+      | csv                  | dask/csv |                                | memory://cities.csv    |         |
+      |   |   | City         |          | name                           |                        |         |
+      |   |   |   | name     | string   |                                | miestas                |         | open
+      |   |   |   | country  | ref      | /example/csv/countries/Country | šalis                  |         | open
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
@@ -135,18 +135,18 @@ def test_csv_read_multiple_models(rc: RawConfig, fs: AbstractFileSystem):
     ).encode('utf-8'))
 
     context, manifest = prepare_manifest(rc, '''
-    d | r | b | m | property | type    | ref     | source                 | prepare | access
-    example/csv/countries        |         |         |                        |         |
-      | csv0                 | csv     |         | memory://countries.csv |         |
-      |   |   | Country      |         | code    |                        |         |
-      |   |   |   | code     | string  |         | kodas                  |         | open
-      |   |   |   | name     | string  |         | pavadinimas            |         | open
-      |   |   |   | id       | integer |         | id                     |         | open
-                             |         |         |                        |         |
-      | csv1                 | csv     |         | memory://cities.csv    |         |
-      |   |   | City         |         | miestas |                        |         |
-      |   |   |   | miestas  | string  |         | miestas                |         | open
-      |   |   |   | kodas    | string  |         | šalis                  |         | open
+    d | r | b | m | property | type     | ref     | source                 | prepare | access
+    example/csv/countries    |          |         |                        |         |
+      | csv0                 | dask/csv |         | memory://countries.csv |         |
+      |   |   | Country      |          | code    |                        |         |
+      |   |   |   | code     | string   |         | kodas                  |         | open
+      |   |   |   | name     | string   |         | pavadinimas            |         | open
+      |   |   |   | id       | integer  |         | id                     |         | open
+                             |          |         |                        |         |
+      | csv1                 | dask/csv |         | memory://cities.csv    |         |
+      |   |   | City         |          | miestas |                        |         |
+      |   |   |   | miestas  | string   |         | miestas                |         | open
+      |   |   |   | kodas    | string   |         | šalis                  |         | open
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
@@ -188,12 +188,12 @@ def test_xml_read(rc: RawConfig, tmp_path: Path):
     path.write_text(xml)
 
     context, manifest = prepare_manifest(rc, f'''
-    d | r | b | m | property | type    | ref  | source              | prepare | access
-    example/xml                  |         |      |                     |         |
-      | xml                  | xml     |      | {path}              |         |
-      |   |   | City         |         | name | /cities/city        |         |
-      |   |   |   | name     | string  |      | name                |         | open
-      |   |   |   | country  | string  |      | code                |         | open
+    d | r | b | m | property | type     | ref  | source              | prepare | access
+    example/xml              |          |      |                     |         |
+      | xml                  | dask/xml |      | {path}              |         |
+      |   |   | City         |          | name | /cities/city        |         |
+      |   |   |   | name     | string   |      | name                |         | open
+      |   |   |   | country  | string   |      | code                |         | open
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
@@ -219,12 +219,12 @@ def test_xml_read_with_attributes(rc: RawConfig, tmp_path: Path):
     path.write_text(xml)
 
     context, manifest = prepare_manifest(rc, f'''
-    d | r | b | m | property | type    | ref  | source              | prepare | access
-    example/xml                  |         |      |                     |         |
-      | xml                  | xml     |      | {path}              |         |
-      |   |   | City         |         | name | /cities/city        |         |
-      |   |   |   | name     | string  |      | @name               |         | open
-      |   |   |   | country  | string  |      | @code               |         | open
+    d | r | b | m | property | type     | ref  | source              | prepare | access
+    example/xml              |          |      |                     |         |
+      | xml                  | dask/xml |      | {path}              |         |
+      |   |   | City         |          | name | /cities/city        |         |
+      |   |   |   | name     | string   |      | @name               |         | open
+      |   |   |   | country  | string   |      | @code               |         | open
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
@@ -268,16 +268,16 @@ def test_xml_read_refs_level_3(rc: RawConfig, tmp_path: Path):
     path.write_text(xml)
 
     context, manifest = prepare_manifest(rc, f'''
-       d | r | b | m | property | type    | ref     | source                               | prepare | access | level
-       example/xml                  |         |         |                                      |         |        |
-         | xml                  | xml     |         | {path}                               |         |        |
-         |   |   | City         |         | name    | /countries/country/cities/city       |         |        |
-         |   |   |   | name     | string  |         | @name                                |         | open   |
-         |   |   |   | code     | ref     | Country | ../../code                           |         | open   | 3
-                     | 
-         |   |   | Country      |         | country | /countries/country                   |         |        |
-         |   |   |   | name     | string  |         | name                                 |         | open   |
-         |   |   |   | country  | string  |         | code                                 |         | open   |
+       d | r | b | m | property | type     | ref     | source                               | prepare | access | level
+       example/xml              |          |         |                                      |         |        |
+         | xml                  | dask/xml |         | {path}                               |         |        |
+         |   |   | City         |          | name    | /countries/country/cities/city       |         |        |
+         |   |   |   | name     | string   |         | @name                                |         | open   |
+         |   |   |   | code     | ref      | Country | ../../code                           |         | open   | 3
+                     |  
+         |   |   | Country      |          | country | /countries/country                   |         |        |
+         |   |   |   | name     | string   |         | name                                 |         | open   |
+         |   |   |   | country  | string   |         | code                                 |         | open   |
         ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
@@ -321,16 +321,16 @@ def test_xml_read_refs_level_4(rc: RawConfig, tmp_path: Path):
     path.write_text(xml)
 
     context, manifest = prepare_manifest(rc, f'''
-       d | r | b | m | property | type    | ref     | source                               | prepare | access | level
-       example/xml                  |         |         |                                      |         |        |
-         | xml                  | xml     |         | {path}                               |         |        |
-         |   |   | City         |         | name    | /countries/country/cities/city       |         |        |
-         |   |   |   | name     | string  |         | @name                                |         | open   |
-         |   |   |   | code     | ref     | Country | ../..                                |         | open   | 4
-                     | 
-         |   |   | Country      |         | country | /countries/country                   |         |        |
-         |   |   |   | name     | string  |         | name                                 |         | open   |
-         |   |   |   | country  | string  |         | code                                 |         | open   |
+       d | r | b | m | property | type     | ref     | source                               | prepare | access | level
+       example/xml              |          |         |                                      |         |        |
+         | xml                  | dask/xml |         | {path}                               |         |        |
+         |   |   | City         |          | name    | /countries/country/cities/city       |         |        |
+         |   |   |   | name     | string   |         | @name                                |         | open   |
+         |   |   |   | code     | ref      | Country | ../..                                |         | open   | 4
+                     |  
+         |   |   | Country      |          | country | /countries/country                   |         |        |
+         |   |   |   | name     | string   |         | name                                 |         | open   |
+         |   |   |   | country  | string   |         | code                                 |         | open   |
         ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
@@ -373,17 +373,17 @@ def test_xml_read_multiple_sources(rc: RawConfig, tmp_path: Path):
     path1.write_text(xml1)
 
     context, manifest = prepare_manifest(rc, f'''
-       d | r | b | m | property | type    | ref     | source             | prepare | access | level
-       example/xml                  |         |         |                    |         |        |
-         | xml_city             | xml     |         | {path0}            |         |        |
-         |   |   | City         |         | name    | /cities/city       |         |        |
-         |   |   |   | name     | string  |         | @name              |         | open   |
-         |   |   |   | code     | string  |         | @code              |         | open   | 3
-                     | 
-         | xml_country          | xml     |         | {path1}            |         |        |
-         |   |   | Country      |         | code    | /countries/country |         |        |
-         |   |   |   | name     | string  |         | @name              |         | open   |
-         |   |   |   | code     | string  |         | @code              |         | open   |
+       d | r | b | m | property | type     | ref     | source             | prepare | access | level
+       example/xml              |          |         |                    |         |        |
+         | xml_city             | dask/xml |         | {path0}            |         |        |
+         |   |   | City         |          | name    | /cities/city       |         |        |
+         |   |   |   | name     | string   |         | @name              |         | open   |
+         |   |   |   | code     | string   |         | @code              |         | open   | 3
+                     |  
+         | xml_country          | dask/xml |         | {path1}            |         |        |
+         |   |   | Country      |          | code    | /countries/country |         |        |
+         |   |   |   | name     | string   |         | @name              |         | open   |
+         |   |   |   | code     | string   |         | @code              |         | open   |
         ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
@@ -415,13 +415,13 @@ def test_xml_read_with_empty(rc: RawConfig, tmp_path: Path):
     path.write_text(xml)
 
     context, manifest = prepare_manifest(rc, f'''
-    d | r | m              | property | type   | ref     | source                 | level        
-           example/xml                |        |         |                        |
-             | resource               | xml    |         | {path}                 |
-                                      |        |         |                        |
-             |   | Country |          |        | code    | /countries/country     |
-             |   |         | name     | string |         | @name                  |
-             |   |         | code     | string |         | @code                  |
+    d | r | m              | property | type     | ref     | source                 | level        
+           example/xml                |          |         |                        |
+             | resource               | dask/xml |         | {path}                 |
+                                      |          |         |                        |
+             |   | Country |          |          | code    | /countries/country     |
+             |   |         | name     | string   |         | @name                  |
+             |   |         | code     | string   |         | @code                  |
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
@@ -455,15 +455,15 @@ def test_xml_read_with_empty_nested(rc: RawConfig, tmp_path: Path):
     path.write_text(xml)
 
     context, manifest = prepare_manifest(rc, f'''
-    d | r | m              | property  | type    | ref     | source                | level        
-           example/xml                     |         |         |                       |
-             | resource                | xml     |         | {path}                |
-                                       |         |         |                       |
-             |   | Country |           |         | code    | /countries/country     |
-             |   |         | name      | string  |         | @name                  |
-             |   |         | code      | string  |         | @code                  |
-             |   |         | latitude  | integer |         | location/lat        |
-             |   |         | longitude | integer |         | location/lon          |
+    d | r | m              | property  | type     | ref     | source                | level        
+           example/xml                 |          |         |                       |
+             | resource                | dask/xml |         | {path}                |
+                                       |          |         |                       |
+             |   | Country |           |          | code    | /countries/country     |
+             |   |         | name      | string   |         | @name                  |
+             |   |         | code      | string   |         | @code                  |
+             |   |         | latitude  | integer  |         | location/lat        |
+             |   |         | longitude | integer  |         | location/lon          |
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
@@ -498,13 +498,13 @@ def test_json_read(rc: RawConfig, tmp_path: Path):
     path.write_text(json.dumps(json_manifest))
 
     context, manifest = prepare_manifest(rc, f'''
-    d | r | m              | property | type   | ref     | source                | level        
-           example/json                    |        |         |                       |
-             | resource               | json   |         | {path}                |
-                                      |        |         |                       |
-             |   | Country |          |        | code    | countries             |
-             |   |         | name     | string |         | name                  |
-             |   |         | code     | string |         | code                  |
+    d | r | m              | property | type      | ref     | source                | level        
+           example/json               |           |         |                       |
+             | resource               | dask/json |         | {path}                |
+                                      |           |         |                       |
+             |   | Country |          |           | code    | countries             |
+             |   |         | name     | string    |         | name                  |
+             |   |         | code     | string    |         | code                  |
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
@@ -551,15 +551,15 @@ def test_json_read_nested(rc: RawConfig, tmp_path: Path):
     path.write_text(json.dumps(json_manifest))
 
     context, manifest = prepare_manifest(rc, f'''
-    d | r | m              | property  | type    | ref     | source                | level        
-           example/json                     |         |         |                       |
-             | resource                | json    |         | {path}                |
-                                       |         |         |                       |
-             |   | Country |           |         | code    | countries             |
-             |   |         | name      | string  |         | name                  |
-             |   |         | code      | string  |         | code                  |
-             |   |         | latitude  | integer |         | location.lat          |
-             |   |         | longitude | integer |         | location.lon          |
+    d | r | m              | property  | type      | ref     | source                | level        
+           example/json                |           |         |                       |
+             | resource                | dask/json |         | {path}                |
+                                       |           |         |                       |
+             |   | Country |           |           | code    | countries             |
+             |   |         | name      | string    |         | name                  |
+             |   |         | code      | string    |         | code                  |
+             |   |         | latitude  | integer   |         | location.lat          |
+             |   |         | longitude | integer   |         | location.lon          |
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
@@ -616,18 +616,18 @@ def test_json_read_multi_nested(rc: RawConfig, tmp_path: Path):
     path.write_text(json.dumps(json_manifest))
 
     context, manifest = prepare_manifest(rc, f'''
-    d | r | m              | property  | type    | ref     | source
-           example/json                     |         |         |
-             | resource                | json    |         | {path}
-                                       |         |         |
-             |   | Country |           |         | code    | galaxy.solar_system.planet.countries
-             |   |         | name      | string  |         | name
-             |   |         | code      | string  |         | code
-             |   |         | latitude  | integer |         | location.lat
-             |   |         | longitude | integer |         | location.lon
-             |   |         | galaxy    | string  |         | ....name
-             |   |         | system    | string  |         | ...name
-             |   |         | planet    | string  |         | ..name
+    d | r | m              | property  | type      | ref     | source
+           example/json                |           |         |
+             | resource                | dask/json |         | {path}
+                                       |           |         |
+             |   | Country |           |           | code    | galaxy.solar_system.planet.countries
+             |   |         | name      | string    |         | name
+             |   |         | code      | string    |         | code
+             |   |         | latitude  | integer   |         | location.lat
+             |   |         | longitude | integer   |         | location.lon
+             |   |         | galaxy    | string    |         | ....name
+             |   |         | system    | string    |         | ...name
+             |   |         | planet    | string    |         | ..name
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
@@ -685,13 +685,13 @@ def test_json_read_blank_node_list(rc: RawConfig, tmp_path: Path):
     path.write_text(json.dumps(json_manifest))
 
     context, manifest = prepare_manifest(rc, f'''
-    d | r | m              | property | type   | ref     | source                | level        
-           example/json                    |        |         |                       |
-             | resource               | json   |         | {path}                |
-                                      |        |         |                       |
-             |   | Country |          |        | code    | .                     |
-             |   |         | name     | string |         | name                  |
-             |   |         | code     | string |         | code                  |
+    d | r | m              | property | type      | ref     | source                | level        
+           example/json               |           |         |                       |
+             | resource               | dask/json |         | {path}                |
+                                      |           |         |                       |
+             |   | Country |          |           | code    | .                     |
+             |   |         | name     | string    |         | name                  |
+             |   |         | code     | string    |         | code                  |
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
@@ -728,14 +728,14 @@ def test_json_read_blank_node_single_level(rc: RawConfig, tmp_path: Path):
     path.write_text(json.dumps(json_manifest))
 
     context, manifest = prepare_manifest(rc, f'''
-    d | r | m              | property | type    | ref     | source                | level        
-           example/json                    |         |         |                       |
-             | resource               | json    |         | {path}                |
-                                      |         |         |                       |
-             |   | Country |          |         | code    | countries             |
-             |   |         | name     | string  |         | name                  |
-             |   |         | code     | string  |         | code                  |
-             |   |         | id       | integer |         | ..id                  |       
+    d | r | m              | property | type      | ref     | source                | level        
+           example/json               |           |         |                       |
+             | resource               | dask/json |         | {path}                |
+                                      |           |         |                       |
+             |   | Country |          |           | code    | countries             |
+             |   |         | name     | string    |         | name                  |
+             |   |         | code     | string    |         | code                  |
+             |   |         | id       | integer   |         | ..id                  |       
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
@@ -793,19 +793,19 @@ def test_json_read_blank_node_multi_level(rc: RawConfig, tmp_path: Path):
     path.write_text(json.dumps(json_manifest))
 
     context, manifest = prepare_manifest(rc, f'''
-    d | r | m              | property  | type    | ref     | source   
-           example/json                     |         |         |
-             | resource                | json    |         | {path}
-                                       |         |         |
-             |   | Country |           |         | code    | galaxy.solar_system.planet.countries
-             |   |         | name      | string  |         | name
-             |   |         | code      | string  |         | code
-             |   |         | latitude  | integer |         | location.lat
-             |   |         | longitude | integer |         | location.lon
-             |   |         | id        | integer |         | .....id  
-             |   |         | galaxy    | string  |         | ....name
-             |   |         | system    | string  |         | ...name
-             |   |         | planet    | string  |         | ..name     
+    d | r | m              | property  | type      | ref     | source   
+           example/json                |           |         |
+             | resource                | dask/json |         | {path}
+                                       |           |         |
+             |   | Country |           |           | code    | galaxy.solar_system.planet.countries
+             |   |         | name      | string    |         | name
+             |   |         | code      | string    |         | code
+             |   |         | latitude  | integer   |         | location.lat
+             |   |         | longitude | integer   |         | location.lon
+             |   |         | id        | integer   |         | .....id  
+             |   |         | galaxy    | string    |         | ....name
+             |   |         | system    | string    |         | ...name
+             |   |         | planet    | string    |         | ..name     
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
@@ -882,17 +882,17 @@ def test_json_read_ref_level_3(rc: RawConfig, tmp_path: Path):
     path.write_text(json.dumps(json_manifest))
 
     context, manifest = prepare_manifest(rc, f'''
-    d | r | m              | property | type   | ref     | source                | level        
-           example/json                    |        |         |                       |
-             | resource               | json   |         | {path}                |
-                                      |        |         |                       |
-             |   | Country |          |        | code    | countries             |
-             |   |         | name     | string |         | name                  |
-             |   |         | code     | string |         | code                  |
-                                      |        |         |                       |
-             |   | City    |          |        |         | countries[].cities    |
-             |   |         | name     | string |         | name                  |
-             |   |         | country  | ref    | Country | ..                    | 3
+    d | r | m              | property | type      | ref     | source                | level        
+           example/json               |           |         |                       |
+             | resource               | dask/json |         | {path}                |
+                                      |           |         |                       |
+             |   | Country |          |           | code    | countries             |
+             |   |         | name     | string    |         | name                  |
+             |   |         | code     | string    |         | code                  |
+                                      |           |         |                       |
+             |   | City    |          |           |         | countries[].cities    |
+             |   |         | name     | string    |         | name                  |
+             |   |         | country  | ref       | Country | ..                    | 3
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
@@ -942,17 +942,17 @@ def test_json_read_ref_level_4(rc: RawConfig, tmp_path: Path):
     path.write_text(json.dumps(json_manifest))
 
     context, manifest = prepare_manifest(rc, f'''
-    d | r | m              | property | type   | ref     | source                | level        
-           example/json                    |        |         |                       |
-             | resource               | json   |         | {path}                |
-                                      |        |         |                       |
-             |   | Country |          |        | code    | countries             |
-             |   |         | name     | string |         | name                  |
-             |   |         | code     | string |         | code                  |
-                                      |        |         |                       |
-             |   | City    |          |        |         | countries[].cities    |
-             |   |         | name     | string |         | name                  |
-             |   |         | country  | ref    | Country | ..                    | 4
+    d | r | m              | property | type      | ref     | source                | level        
+           example/json               |           |         |                       |
+             | resource               | dask/json |         | {path}                |
+                                      |           |         |                       |
+             |   | Country |          |           | code    | countries             |
+             |   |         | name     | string    |         | name                  |
+             |   |         | code     | string    |         | code                  |
+                                      |           |         |                       |
+             |   | City    |          |           |         | countries[].cities    |
+             |   |         | name     | string    |         | name                  |
+             |   |         | country  | ref       | Country | ..                    | 4
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
@@ -1013,17 +1013,17 @@ def test_json_read_multiple_sources(rc: RawConfig, tmp_path: Path):
     path1.write_text(json.dumps(json1))
 
     context, manifest = prepare_manifest(rc, f'''
-       d | r | b | m | property | type    | ref     | source    | prepare | access | level
-       example/json                  |         |         |           |         |        |
-         | json_city            | json    |         | {path1}   |         |        |
-         |   |   | City         |         | name    | cities    |         |        |
-         |   |   |   | name     | string  |         | name      |         | open   |
-         |   |   |   | code     | string  |         | code      |         | open   |
+       d | r | b | m | property | type      | ref     | source    | prepare | access | level
+       example/json             |           |         |           |         |        |
+         | json_city            | dask/json |         | {path1}   |         |        |
+         |   |   | City         |           | name    | cities    |         |        |
+         |   |   |   | name     | string    |         | name      |         | open   |
+         |   |   |   | code     | string    |         | code      |         | open   |
                      |
-         | json_country         | json    |         | {path0}   |         |        |
-         |   |   | Country      |         | code    | countries |         |        |
-         |   |   |   | name     | string  |         | name      |         | open   |
-         |   |   |   | code     | string  |         | code      |         | open   |
+         | json_country         | dask/json |         | {path0}   |         |        |
+         |   |   | Country      |           | code    | countries |         |        |
+         |   |   |   | name     | string    |         | name      |         | open   |
+         |   |   |   | code     | string    |         | code      |         | open   |
         ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
@@ -1063,13 +1063,13 @@ def test_json_read_with_empty(rc: RawConfig, tmp_path: Path):
     path.write_text(json.dumps(json_manifest))
 
     context, manifest = prepare_manifest(rc, f'''
-    d | r | m              | property | type   | ref     | source                | level        
-           example/json                    |        |         |                       |
-             | resource               | json   |         | {path}                |
-                                      |        |         |                       |
-             |   | Country |          |        | code    | countries             |
-             |   |         | name     | string |         | name                  |
-             |   |         | code     | string |         | code                  |
+    d | r | m              | property | type      | ref     | source                | level        
+           example/json               |           |         |                       |
+             | resource               | dask/json |         | {path}                |
+                                      |           |         |                       |
+             |   | Country |          |           | code    | countries             |
+             |   |         | name     | string    |         | name                  |
+             |   |         | code     | string    |         | code                  |
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
@@ -1109,15 +1109,15 @@ def test_json_read_with_empty_nested(rc: RawConfig, tmp_path: Path):
     path.write_text(json.dumps(json_manifest))
 
     context, manifest = prepare_manifest(rc, f'''
-    d | r | m              | property  | type    | ref     | source                | level        
-           example/json                     |         |         |                       |
-             | resource                | json    |         | {path}                |
-                                       |         |         |                       |
-             |   | Country |           |         | code    | countries             |
-             |   |         | name      | string  |         | name                  |
-             |   |         | code      | string  |         | code                  |
-             |   |         | latitude  | integer |         | location.lat          |
-             |   |         | longitude | integer |         | location.lon          |
+    d | r | m              | property  | type      | ref     | source                | level        
+           example/json                |           |         |                       |
+             | resource                | dask/json |         | {path}                |
+                                       |           |         |                       |
+             |   | Country |           |           | code    | countries             |
+             |   |         | name      | string    |         | name                  |
+             |   |         | code      | string    |         | code                  |
+             |   |         | latitude  | integer   |         | location.lat          |
+             |   |         | longitude | integer   |         | location.lon          |
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
@@ -1140,11 +1140,11 @@ def test_text_read_from_external_source(
     ).encode('utf-8'))
 
     context, manifest = prepare_manifest(rc, '''
-    d | r | b | m | property    | type    | ref  | source                 | prepare | access
-    example/countries           |         |      |                        |         |
-      | csv                     | csv     |      | memory://countries.csv |         |
-      |   |   | Country         |         | name |                        |         |
-      |   |   |   | name@lt     | string  |      | šalislt                |         | open
+    d | r | b | m | property    | type     | ref  | source                 | prepare | access
+    example/countries           |          |      |                        |         |
+      | csv                     | dask/csv |      | memory://countries.csv |         |
+      |   |   | Country         |          | name |                        |         |
+      |   |   |   | name@lt     | string   |      | šalislt                |         | open
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
@@ -1167,14 +1167,14 @@ def test_json_read_parametrize_simple_iterate_pages(rc: RawConfig, tmp_path: Pat
         current_page_file.write_text(json.dumps(json_manifest))
 
     context, manifest = prepare_manifest(rc, f'''
-    d | r | b | m | property    | type    | ref  | source                 | prepare | access
-    example/json                |         |      |                        |         |
-      | resource                | json    |      | {{path}}               |         |
-      |   |   |                 | param   | path | {tmp_path / "page0.json"} |         |
-      |   |   |                 |         |      | Page                   | read().next |
-      |   |   | Page            |         | name | page                   |         |
-      |   |   |   | name        | string  |      | name                   |         | open
-      |   |   |   | next        | uri     |      | next                   |         | open
+    d | r | b | m | property    | type      | ref  | source                 | prepare | access
+    example/json                |           |      |                        |         |
+      | resource                | dask/json |      | {{path}}               |         |
+      |   |   |                 | param     | path | {tmp_path / "page0.json"} |         |
+      |   |   |                 |           |      | Page                   | read().next |
+      |   |   | Page            |           | name | page                   |         |
+      |   |   |   | name        | string    |      | name                   |         | open
+      |   |   |   | next        | uri       |      | next                   |         | open
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
@@ -1199,17 +1199,17 @@ def test_json_read_parametrize_iterate_pages_distinct(rc: RawConfig, tmp_path: P
         current_page_file.write_text(json.dumps(json_manifest))
 
     context, manifest = prepare_manifest(rc, f'''
-    d | r | b | m | property    | type    | ref  | source                 | prepare | access
-    example/json                |         |      |                        |         |
-      | resource                | json    |      | {{path}}               |         |
-      |   |   |                 | param   | path | {tmp_path / "page0.json"} |         |
-      |   |   |                 |         |      | Page                   | read().next |
-      |   |   | Page            |         | name | page                   |         |
-      |   |   |   | name        | string  |      | name                   |         | open
-      |   |   |   | next        | uri     |      | next                   |         | open
-      |   |   | PageDistinct    |         | name | page                   | distinct() |
-      |   |   |   | name        | string  |      | name                   |         | open
-      |   |   |   | next        | uri     |      | next                   |         | open
+    d | r | b | m | property    | type      | ref  | source                 | prepare | access
+    example/json                |           |      |                        |         |
+      | resource                | dask/json |      | {{path}}               |         |
+      |   |   |                 | param     | path | {tmp_path / "page0.json"} |         |
+      |   |   |                 |           |      | Page                   | read().next |
+      |   |   | Page            |           | name | page                   |         |
+      |   |   |   | name        | string    |      | name                   |         | open
+      |   |   |   | next        | uri       |      | next                   |         | open
+      |   |   | PageDistinct    |           | name | page                   | distinct() |
+      |   |   |   | name        | string    |      | name                   |         | open
+      |   |   |   | next        | uri       |      | next                   |         | open
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
@@ -1239,17 +1239,17 @@ def test_json_read_parametrize_iterate_pages_limit(rc: RawConfig, tmp_path: Path
         current_page_file.write_text(json.dumps(json_manifest))
 
     context, manifest = prepare_manifest(rc, f'''
-    d | r | b | m | property    | type    | ref  | source                 | prepare | access
-    example/json                |         |      |                        |         |
-      | resource                | json    |      | {{path}}               |         |
-      |   |   |                 | param   | path | {tmp_path / "page0.json"} |         |
-      |   |   |                 |         |      | Page                   | read().next |
-      |   |   | Page            |         | name | page                   |         |
-      |   |   |   | name        | string  |      | name                   |         | open
-      |   |   |   | next        | uri     |      | next                   |         | open
-      |   |   | PageDistinct    |         | name | page                   | distinct() |
-      |   |   |   | name        | string  |      | name                   |         | open
-      |   |   |   | next        | uri     |      | next                   |         | open
+    d | r | b | m | property    | type      | ref  | source                 | prepare | access
+    example/json                |           |      |                        |         |
+      | resource                | dask/json |      | {{path}}               |         |
+      |   |   |                 | param     | path | {tmp_path / "page0.json"} |         |
+      |   |   |                 |           |      | Page                   | read().next |
+      |   |   | Page            |           | name | page                   |         |
+      |   |   |   | name        | string    |      | name                   |         | open
+      |   |   |   | next        | uri       |      | next                   |         | open
+      |   |   | PageDistinct    |           | name | page                   | distinct() |
+      |   |   |   | name        | string    |      | name                   |         | open
+      |   |   |   | next        | uri       |      | next                   |         | open
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
@@ -1278,14 +1278,14 @@ def test_xml_read_parametrize_simple_iterate_pages(rc: RawConfig, tmp_path: Path
         current_page_file.write_text(xml_manifest)
 
     context, manifest = prepare_manifest(rc, f'''
-    d | r | b | m | property    | type    | ref  | source                 | prepare | access
-    example/xml                 |         |      |                        |         |
-      | resource                | xml     |      | {{path}}               |         |
-      |   |   |                 | param   | path | {tmp_path / "page0.xml"} |         |
-      |   |   |                 |         |      | Page                   | read().next |
-      |   |   | Page            |         | name | ../pages               |         |
-      |   |   |   | name        | string  |      | @name                  |         | open
-      |   |   |   | next        | uri     |      | next/text()            |         | open
+    d | r | b | m | property    | type     | ref  | source                 | prepare | access
+    example/xml                 |          |      |                        |         |
+      | resource                | dask/xml |      | {{path}}               |         |
+      |   |   |                 | param    | path | {tmp_path / "page0.xml"} |         |
+      |   |   |                 |          |      | Page                   | read().next |
+      |   |   | Page            |          | name | ../pages               |         |
+      |   |   |   | name        | string   |      | @name                  |         | open
+      |   |   |   | next        | uri      |      | next/text()            |         | open
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
@@ -1335,25 +1335,25 @@ def test_xml_json_combined_read_parametrize_advanced_iterate_pages(rc: RawConfig
         current_page_file.write_text(xml_manifest)
 
     context, manifest = prepare_manifest(rc, f'''
-    d | r | b | m | property    | type    | ref     | source                            | prepare     | access
-    example/all                 |         |         |                                   |             |
-      | json_resource           | json    |         | {{path}}                          |             |
-      |   |   |                 | param   | path    | {tmp_path / "page0.json"}         |             |
-      |   |   |                 |         |         | Page                              | read().next |
-      |   |   | Page            |         | name    | page                              |             |
-      |   |   |   | name        | string  |         | name                              |             | open
-      |   |   |   | next        | uri     |         | next                              |             | open
-      |   |   | Database        |         | name    | page.database                     |             |
-      |   |   |   | name        | string  |         | name                              |             | open
-      |   |   |   | id          | integer |         | id                                |             | open
-      | xml_resource            | xml     |         | {tmp_path / "database"}{{id}}.xml |             |
-      |   |   |                 | param   | id      | Database                          | read().id   |
-      |   |   | Meta            |         | context | databases/meta                    | distinct()  |
-      |   |   |   | name        | string  |         | @name                             |             | open
-      |   |   |   | context     | string  |         | context/text()                    |             | open
-      |   |   | MetaNotDistinct |         | context | databases/meta                    |             |
-      |   |   |   | name        | string  |         | @name                             |             | open
-      |   |   |   | context     | string  |         | context/text()                    |             | open
+    d | r | b | m | property    | type      | ref     | source                            | prepare     | access
+    example/all                 |           |         |                                   |             |
+      | json_resource           | dask/json |         | {{path}}                          |             |
+      |   |   |                 | param     | path    | {tmp_path / "page0.json"}         |             |
+      |   |   |                 |           |         | Page                              | read().next |
+      |   |   | Page            |           | name    | page                              |             |
+      |   |   |   | name        | string    |         | name                              |             | open
+      |   |   |   | next        | uri       |         | next                              |             | open
+      |   |   | Database        |           | name    | page.database                     |             |
+      |   |   |   | name        | string    |         | name                              |             | open
+      |   |   |   | id          | integer   |         | id                                |             | open
+      | xml_resource            | dask/xml  |         | {tmp_path / "database"}{{id}}.xml |             |
+      |   |   |                 | param     | id      | Database                          | read().id   |
+      |   |   | Meta            |           | context | databases/meta                    | distinct()  |
+      |   |   |   | name        | string    |         | @name                             |             | open
+      |   |   |   | context     | string    |         | context/text()                    |             | open
+      |   |   | MetaNotDistinct |           | context | databases/meta                    |             |
+      |   |   |   | name        | string    |         | @name                             |             | open
+      |   |   |   | context     | string    |         | context/text()                    |             | open
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
@@ -1415,14 +1415,14 @@ def test_csv_read_parametrize_simple_iterate_pages(rc: RawConfig, tmp_path: Path
         current_page_file.write_text(csv_manifest)
 
     context, manifest = prepare_manifest(rc, f'''
-    d | r | b | m | property    | type    | ref  | source                  | prepare | access
-    example/csv                 |         |      |                         |         |
-      | resource                | csv     |      | {tmp_path}/{{}}{{path}} |         |
-      |   |   |                 | param   | path | 0.csv                   |         |
-      |   |   |                 |         |      | Page                    | read().next |
-      |   |   | Page            |         | name | page                    |         |
-      |   |   |   | name        | string  |      | name                    |         | open
-      |   |   |   | next        | uri     |      | next                    |         | open
+    d | r | b | m | property    | type     | ref  | source                  | prepare | access
+    example/csv                 |          |      |                         |         |
+      | resource                | dask/csv |      | {tmp_path}/{{}}{{path}} |         |
+      |   |   |                 | param    | path | 0.csv                   |         |
+      |   |   |                 |          |      | Page                    | read().next |
+      |   |   | Page            |          | name | page                    |         |
+      |   |   |   | name        | string   |      | name                    |         | open
+      |   |   |   | next        | uri      |      | next                    |         | open
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
@@ -1481,31 +1481,31 @@ def test_xml_json_csv_combined_read_parametrize_advanced_iterate_pages(rc: RawCo
             total_id += 1
 
     context, manifest = prepare_manifest(rc, f'''
-    d | r | b | m | property      | type    | ref     | source                            | prepare     | access
-    example/all                   |         |         |                                   |             |
-      | json_resource             | json    |         | {{path}}                          |             |
-      |   |   |                   | param   | path    | {tmp_path / "page0.json"}         |             |
-      |   |   |                   |         |         | Page                              | read().next |
-      |   |   | Page              |         | name    | page                              |             |
-      |   |   |   | name          | string  |         | name                              |             | open
-      |   |   |   | next          | uri     |         | next                              |             | open
-      |   |   |   | database_type | string  |         | database_type                     |             | open
-      | csv_resource              | csv     |         | {tmp_path}/{{}}_{{type}}.csv      |             |
-      |   |   |                   | param   | type    | Page                              | read().database_type |
-      |   |   | Database          |         | name    | database                          |             |
-      |   |   |   | name          | string  |         | name                              |             | open
-      |   |   |   | id            | integer |         | id                                |             | open
-      |   |   | DatabaseDistinct  |         | name    | database                          | distinct()  |
-      |   |   |   | name          | string  |         | name                              |             | open
-      |   |   |   | id            | integer |         | id                                |             | open
-      | xml_resource              | xml     |         | {tmp_path / "database"}{{id}}.xml |             |
-      |   |   |                   | param   | id      | Database                          | read().id   |
-      |   |   | Meta              |         | context | databases/meta                    | distinct()  |
-      |   |   |   | name          | string  |         | @name                             |             | open
-      |   |   |   | context       | string  |         | context/text()                    |             | open
-      |   |   | MetaNotDistinct   |         | context | databases/meta                    |             |
-      |   |   |   | name          | string  |         | @name                             |             | open
-      |   |   |   | context       | string  |         | context/text()                    |             | open
+    d | r | b | m | property      | type      | ref     | source                            | prepare     | access
+    example/all                   |           |         |                                   |             |
+      | json_resource             | dask/json |         | {{path}}                          |             |
+      |   |   |                   | param     | path    | {tmp_path / "page0.json"}         |             |
+      |   |   |                   |           |         | Page                              | read().next |
+      |   |   | Page              |           | name    | page                              |             |
+      |   |   |   | name          | string    |         | name                              |             | open
+      |   |   |   | next          | uri       |         | next                              |             | open
+      |   |   |   | database_type | string    |         | database_type                     |             | open
+      | csv_resource              | dask/csv  |         | {tmp_path}/{{}}_{{type}}.csv      |             |
+      |   |   |                   | param     | type    | Page                              | read().database_type |
+      |   |   | Database          |           | name    | database                          |             |
+      |   |   |   | name          | string    |         | name                              |             | open
+      |   |   |   | id            | integer   |         | id                                |             | open
+      |   |   | DatabaseDistinct  |           | name    | database                          | distinct()  |
+      |   |   |   | name          | string    |         | name                              |             | open
+      |   |   |   | id            | integer   |         | id                                |             | open
+      | xml_resource              | dask/xml  |         | {tmp_path / "database"}{{id}}.xml |             |
+      |   |   |                   | param     | id      | Database                          | read().id   |
+      |   |   | Meta              |           | context | databases/meta                    | distinct()  |
+      |   |   |   | name          | string    |         | @name                             |             | open
+      |   |   |   | context       | string    |         | context/text()                    |             | open
+      |   |   | MetaNotDistinct   |           | context | databases/meta                    |             |
+      |   |   |   | name          | string    |         | @name                             |             | open
+      |   |   |   | context       | string    |         | context/text()                    |             | open
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
@@ -1596,17 +1596,17 @@ def test_json_keymap_ref_keys_valid_order(context, rc, tmp_path, sqlite):
     path.write_text(json.dumps(json_manifest))
 
     context, manifest = prepare_manifest(rc, f'''                   
-            d | r | m | property        | type    | ref                | source              | prepare             | access
-        datasets/json/keymap            |         |                    |                     |                     |
-          | rs                          | json    |                    | {path}              |                     |
-          |   | Planet                  |         | code               | planets             |                     | open
-          |   |   | code                | string  |                    | code                |                     |
-          |   |   | name                | string  |                    | name                |                     |
-          |   | Country                 |         | code               | planets[].countries |                     | open
-          |   |   | code                | string  |                    | code                |                     |
-          |   |   | name                | string  |                    | name                |                     |
-          |   |   | planet              | ref     | Planet             | ..                  |                     |
-          |   |   | planet_name         | ref     | Planet[name]       | ..name              |                     |
+            d | r | m | property        | type      | ref                | source              | prepare             | access
+        datasets/json/keymap            |           |                    |                     |                     |
+          | rs                          | dask/json |                    | {path}              |                     |
+          |   | Planet                  |           | code               | planets             |                     | open
+          |   |   | code                | string    |                    | code                |                     |
+          |   |   | name                | string    |                    | name                |                     |
+          |   | Country                 |           | code               | planets[].countries |                     | open
+          |   |   | code                | string    |                    | code                |                     |
+          |   |   | name                | string    |                    | name                |                     |
+          |   |   | planet              | ref       | Planet             | ..                  |                     |
+          |   |   | planet_name         | ref       | Planet[name]       | ..name              |                     |
           ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
@@ -1680,17 +1680,17 @@ def test_json_keymap_ref_keys_invalid_order(context, rc, tmp_path, sqlite):
     path.write_text(json.dumps(json_manifest))
 
     context, manifest = prepare_manifest(rc, f'''                   
-                d | r | m | property        | type    | ref                | source              | prepare             | access
-            datasets/json/keymap            |         |                    |                     |                     |
-              | rs                          | json    |                    | {path}              |                     |
-              |   | Planet                  |         | code               | planets             |                     | open
-              |   |   | code                | string  |                    | code                |                     |
-              |   |   | name                | string  |                    | name                |                     |
-              |   | Country                 |         | code               | planets[].countries |                     | open
-              |   |   | code                | string  |                    | code                |                     |
-              |   |   | name                | string  |                    | name                |                     |
-              |   |   | planet              | ref     | Planet             | ..                  |                     |
-              |   |   | planet_name         | ref     | Planet[name]       | ..name              |                     |
+                d | r | m | property        | type      | ref                | source              | prepare             | access
+            datasets/json/keymap            |           |                    |                     |                     |
+              | rs                          | dask/json |                    | {path}              |                     |
+              |   | Planet                  |           | code               | planets             |                     | open
+              |   |   | code                | string    |                    | code                |                     |
+              |   |   | name                | string    |                    | name                |                     |
+              |   | Country                 |           | code               | planets[].countries |                     | open
+              |   |   | code                | string    |                    | code                |                     |
+              |   |   | name                | string    |                    | name                |                     |
+              |   |   | planet              | ref       | Planet             | ..                  |                     |
+              |   |   | planet_name         | ref       | Planet[name]       | ..name              |                     |
               ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
@@ -1720,4 +1720,40 @@ def test_json_keymap_ref_keys_invalid_order(context, rc, tmp_path, sqlite):
             'planet._id': id_mapping['MS'],
             'planet_name._id': id_mapping['MS'],
         }
+    ]
+
+
+def test_swap_ufunc(rc: RawConfig, fs: AbstractFileSystem):
+    fs.pipe('cities.csv', (
+        'id,name\n'
+        '1,test\n'
+        '2,\n'
+        '3,''\n'
+        '4,null'
+    ).encode('utf-8'))
+
+    context, manifest = prepare_manifest(rc, '''
+    d | r | b | m | property | type     | ref  | source              | prepare            | access
+    example/csv              |          |      |                     |                    |
+      | csv                  | dask/csv |      | memory://cities.csv |                    |
+      |   |   | City         |          | name |                     |                    |
+      |   |   |   | id       | string   |      | id                  |                    | open
+      |   |   |   | name     | string   |      | name                |                    | open
+      |   |   |   |          | enum     |      |                     |                    | open
+      |   |   |   |          |          |      |                     |  swap('nan', '---')  | open
+      |   |   |   |          |          |      |                     |  swap(null, '---') | open
+      |   |   |   |          |          |      |                     |  swap('', '---')   | open
+      |   |   |   |          |          |      |                     |  '---'             | open
+      |   |   |   |          |          |      |                     |  'test'            | open
+    ''', mode=Mode.external)
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel('example/csv/City', ['getall'])
+
+    resp = app.get('/example/csv/City')
+    assert listdata(resp) == [
+        (1, 'test'),
+        (2, '---'),
+        (3, '---'),
+        (4, '---'),
     ]

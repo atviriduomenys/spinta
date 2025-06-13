@@ -14,7 +14,9 @@ from spinta import spyna
 from spinta.auth import authorized
 from spinta.backends import Backend
 from spinta.backends.components import SelectTree
-from spinta.components import Action
+from spinta.commands import build_full_response
+from spinta.components import Config, DataItem
+from spinta.core.enums import Action
 from spinta.components import Component
 from spinta.components import Context
 from spinta.components import Model
@@ -70,6 +72,8 @@ def load_backend(
     backend.name = name
     backend.origin = origin
     backend.config = data
+    load_query_builder_class(config, backend)
+    load_result_builder_class(config, backend)
     commands.load(context, backend, data)
     return backend
 
@@ -314,7 +318,9 @@ def get_model_reserved_props(action: Action, include_page: bool) -> List[str]:
     elif action == Action.SEARCH:
         reserved = ['_type', '_id', '_revision', '_base']
     elif action == Action.CHANGES:
-        return ['_cid', '_created', '_op', '_id', '_txn', '_revision']
+        return ['_cid', '_created', '_op', '_id', '_txn', '_revision', '_same_as']
+    elif action == Action.MOVE:
+        return ['_type', '_revision', '_id', '_same_as']
     else:
         reserved = ['_type', '_id', '_revision']
     if include_page:
@@ -339,3 +345,54 @@ def get_table_name(
     else:
         name = model.model_type() + ttype.value
     return name
+
+
+def load_query_builder_class(config: Config, backend: Backend):
+    if backend.query_builder_type is None:
+        return
+
+    backend.query_builder_class = config.components.get('querybuilders')[backend.query_builder_type]
+
+
+def load_result_builder_class(config: Config, backend: Backend):
+    if backend.result_builder_type is None:
+        return
+
+    backend.result_builder_class = config.components.get('resultbuilders')[backend.result_builder_type]
+
+
+def prepare_response(
+    context: Context,
+    data: DataItem,
+) -> (DataItem, dict):
+    if data.action == Action.UPDATE:
+        # Minor optimisation: if we querying subresource, then build
+        # response only for the subresource tree, do not walk through
+        # whole model property tree.
+        if data.prop:
+            dtype = data.prop.dtype
+            patch = data.patch.get(data.prop.name, {})
+            saved = data.saved.get(data.prop.name, {})
+        else:
+            dtype = data.model
+            patch = take(data.patch)
+            saved = take(data.saved)
+
+        resp = build_full_response(
+            context,
+            dtype,
+            patch=patch,
+            saved=saved,
+        )
+
+        # When querying subresources, response still must be enclosed with
+        # the subresource key.
+        if data.prop:
+            resp = {
+                data.prop.name: resp,
+            }
+    elif data.patch:
+        resp = data.patch
+    else:
+        resp = {}
+    return resp

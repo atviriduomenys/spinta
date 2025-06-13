@@ -5,8 +5,6 @@ from typing import Dict
 from typing import Tuple
 
 import pytest
-from pytest import FixtureRequest
-
 import sqlalchemy as sa
 from _pytest.logging import LogCaptureFixture
 from requests import PreparedRequest
@@ -15,15 +13,16 @@ from responses import RequestsMock
 
 from spinta.client import add_client_credentials
 from spinta.core.config import RawConfig
-from spinta.utils.schema import NA
+from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
-from spinta.testing.data import listdata
 from spinta.testing.client import create_client, create_rc, configure_remote_server
+from spinta.testing.data import listdata
 from spinta.testing.datasets import Sqlite
 from spinta.testing.datasets import create_sqlite_db
-from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.tabular import create_tabular_manifest
-from spinta.testing.utils import error
+from spinta.testing.utils import error, get_error_codes
+from spinta.utils.schema import NA
+from tests.cli.test_keymap import reset_keymap
 
 
 @pytest.fixture(scope='module')
@@ -102,6 +101,7 @@ def geodb():
 def geodb_denorm():
     with create_sqlite_db({
         'PLANET': [
+            sa.Column('id', sa.Integer),
             sa.Column('code', sa.Text, primary_key=True),
             sa.Column('name', sa.Text),
         ],
@@ -109,6 +109,7 @@ def geodb_denorm():
             sa.Column('code', sa.Text, primary_key=True),
             sa.Column('name', sa.Text),
             sa.Column('planet', sa.Text),
+            sa.Column('planet_name', sa.Text),
         ],
         'CITY': [
             sa.Column('code', sa.Text, primary_key=True),
@@ -120,9 +121,9 @@ def geodb_denorm():
         ],
     }) as db:
         db.write('PLANET', [
-            {'code': 'ER', 'name': 'Earth'},
-            {'code': 'MR', 'name': 'Mars'},
-            {'code': 'JP', 'name': 'Jupyter'},
+            {'id': 0, 'code': 'ER', 'name': 'Earth'},
+            {'id': 0, 'code': 'MR', 'name': 'Mars'},
+            {'id': 0, 'code': 'JP', 'name': 'Jupyter'},
         ])
         db.write('COUNTRY', [
             {'code': 'LT', 'name': 'Lithuania', 'planet': 'ER'},
@@ -850,19 +851,18 @@ def test_prepared_property(context, rc, tmp_path, geodb):
 
 def test_composite_keys(context, rc, tmp_path, sqlite):
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
-    d | r | m | property     | type   | ref           | source    | prepare                 | access
-    datasets/ds              |        |               |           |                         |
-      | rs                   | sql    |               |           |                         |
-      |   | Country          |        | id            | COUNTRY   |                         | open
-      |   |   | id           | array  |               |           | code, continent         |
-      |   |   | name         | string |               | NAME      |                         |
-      |   |   | code         | string |               | CODE      |                         |
-      |   |   | continent    | string |               | CONTINENT |                         |
-      |   | City             |        | name, country | CITY      |                         | open
-      |   |   | name         | string |               | NAME      |                         |
-      |   |   | country_code | string |               | COUNTRY   |                         |
-      |   |   | continent    | string |               | CONTINENT |                         |
-      |   |   | country      | ref    | Country       |           | country_code, continent |
+    d | r | m | property     | type   | ref             | source    | prepare                 | access
+    datasets/ds              |        |                 |           |                         |
+      | rs                   | sql    |                 |           |                         |
+      |   | Country          |        | code, continent | COUNTRY   |                         | open
+      |   |   | name         | string |                 | NAME      |                         |
+      |   |   | code         | string |                 | CODE      |                         |
+      |   |   | continent    | string |                 | CONTINENT |                         |
+      |   | City             |        | name, country   | CITY      |                         | open
+      |   |   | name         | string |                 | NAME      |                         |
+      |   |   | country_code | string |                 | COUNTRY   |                         |
+      |   |   | continent    | string |                 | CONTINENT |                         |
+      |   |   | country      | ref    | Country         |           | country_code, continent |
     '''))
 
     app = create_client(rc, tmp_path, sqlite)
@@ -2942,11 +2942,11 @@ def test_advanced_denorm(context, rc, tmp_path, geodb_denorm):
       |   |   | code                | string  |         | code         |         |
       |   |   | name                | string  |         | name         |         |
       |   |   | country             | ref     | Country | country      |         |
-      |   |   | country.code        | string  |         | countryName  |         |
-      |   |   | country.name        |         |         |              |         |
+      |   |   | country.code        |         |         |              |         |
+      |   |   | country.name        | string  |         | countryName  |         |
       |   |   | country.year        | integer |         | countryYear  |         |
       |   |   | country.planet.name |         |         |              |         |
-      |   |   | country.planet.code | string  |         | planetName   |         |
+      |   |   | country.planet.code | string  |         |              | 'ER'    |
       '''))
 
     app = create_client(rc, tmp_path, geodb_denorm)
@@ -2995,26 +2995,26 @@ def test_advanced_denorm(context, rc, tmp_path, geodb_denorm):
         'code': 'RYG',
         'name': 'Ryga',
         'country.name': 'Latvia',
-        'country.code': 'Latvia',
+        'country.code': 'LV',
         'country.year': 1408,
-        'country.planet.name': 'Mars',
-        'country.planet.code': 'Marsas'
+        'country.planet.name': 'Earth',
+        'country.planet.code': 'ER'
     }, {
         'code': 'TLN',
         'name': 'Talin',
-        'country.name': 'Estonia',
-        'country.code': 'Estija',
+        'country.name': 'Estija',
+        'country.code': 'EE',
         'country.year': 1784,
-        'country.planet.name': 'Jupyter',
-        'country.planet.code': 'Jupiteris'
+        'country.planet.name': 'Earth',
+        'country.planet.code': 'ER'
     }, {
         'code': 'VLN',
         'name': 'Vilnius',
-        'country.name': 'Lithuania',
-        'country.code': 'Lietuva',
+        'country.name': 'Lietuva',
+        'country.code': 'LT',
         'country.year': 1204,
         'country.planet.name': 'Earth',
-        'country.planet.code': 'Zeme'
+        'country.planet.code': 'ER'
     }]
 
 
@@ -3103,6 +3103,225 @@ def test_advanced_denorm_lvl_3(context, rc, tmp_path, geodb_denorm):
         'country.code': 'LT',
         'country.year': 1204,
         'country.planet.name': 'Zeme',
+    }]
+
+
+def test_advanced_denorm_lvl_3_multi(context, rc, tmp_path, geodb_denorm):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    d | r | m | property            | type    | ref        | source      | prepare        | access | level
+    datasets/denorm/lvl3            |         |            |             |                |        |
+      | rs                          | sql     |            |             |                |        |
+      |   | Planet                  |         | id, code   | PLANET      |                | open   |
+      |   |   | id                  | integer |            | id          |                |        |
+      |   |   | code                | string  |            | code        |                |        |
+      |   |   | name                | string  |            | name        |                |        |
+      |   | Country                 |         | code       | COUNTRY     |                | open   |
+      |   |   | code                | string  |            | code        |                |        |
+      |   |   | name                | string  |            | name        |                |        |
+      |   |   | planet_code         | string  |            | planet      |                |        |
+      |   |   | planet              | ref     | Planet     |             | 0, planet_code |        | 3
+      |   | City                    |         | code       | CITY        |                | open   |
+      |   |   | code                | string  |            | code        |                |        |
+      |   |   | name                | string  |            | name        |                |        |
+      |   |   | country             | ref     | Country    | country     |                |        | 3
+      |   |   | country.name        |         |            | countryName |                |        |
+      |   |   | country.year        | integer |            | countryYear |                |        |
+      |   |   | country.planet.name |         |            |             |                |        |
+      |   |   | country.planet.code | string  |            |             | 'ER'           |        |
+    '''))
+
+    app = create_client(rc, tmp_path, geodb_denorm)
+
+    resp = app.get('/datasets/denorm/lvl3/Planet')
+    assert listdata(resp, sort='code', full=True) == [{
+        'id': 0,
+        'code': 'ER',
+        'name': 'Earth'
+    }, {
+        'id': 0,
+        'code': 'JP',
+        'name': 'Jupyter'
+    }, {
+        'id': 0,
+        'code': 'MR',
+        'name': 'Mars'
+    }]
+
+    resp = app.get('/datasets/denorm/lvl3/Country')
+    assert listdata(resp, 'code', 'name', sort='code', full=True) == [{
+        'code': 'EE',
+        'name': 'Estonia',
+    }, {
+        'code': 'LT',
+        'name': 'Lithuania',
+
+    }, {
+        'code': 'LV',
+        'name': 'Latvia',
+    }]
+
+    resp = app.get('/datasets/denorm/lvl3/City')
+    assert listdata(
+        resp,
+        'code',
+        'name',
+        'country.name',
+        'country.code',
+        'country.year',
+        'country.planet.name',
+        'country.planet.code',
+        sort='code',
+        full=True
+    ) == [{
+        'code': 'RYG',
+        'name': 'Ryga',
+        'country.name': 'Latvia',
+        'country.code': 'LV',
+        'country.year': 1408,
+        'country.planet.name': 'Earth',
+        'country.planet.code': 'ER',
+    }, {
+        'code': 'TLN',
+        'name': 'Talin',
+        'country.name': 'Estonia',
+        'country.code': 'EE',
+        'country.year': 1784,
+        'country.planet.name': 'Earth',
+        'country.planet.code': 'ER',
+    }, {
+        'code': 'VLN',
+        'name': 'Vilnius',
+        'country.name': 'Lithuania',
+        'country.code': 'LT',
+        'country.year': 1204,
+        'country.planet.name': 'Earth',
+        'country.planet.code': 'ER',
+    }]
+
+
+def test_denorm_lvl_3_multi(context, rc, tmp_path, geodb_denorm):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    d | r | m | property            | type    | ref        | source      | prepare        | access | level
+    datasets/denorm/lvl3            |         |            |             |                |        |
+      | rs                          | sql     |            |             |                |        |
+      |   | Planet                  |         | id, code   | PLANET      |                | open   |
+      |   |   | id                  | integer |            | id          |                |        |
+      |   |   | code                | string  |            | code        |                |        |
+      |   |   | name                | string  |            | name        |                |        |
+      |   | Country                 |         | code       | COUNTRY     |                | open   |
+      |   |   | code                | string  |            | code        |                |        |
+      |   |   | name                | string  |            | name        |                |        |
+      |   |   | planet_code         | string  |            | planet      |                |        |
+      |   |   | planet              | ref     | Planet     |             | 0, planet_code |        | 3
+      |   |   | planet.name         |         |            |             |                |        |
+    '''))
+
+    app = create_client(rc, tmp_path, geodb_denorm)
+
+    resp = app.get('/datasets/denorm/lvl3/Planet')
+    assert listdata(resp, sort='code', full=True) == [{
+        'id': 0,
+        'code': 'ER',
+        'name': 'Earth'
+    }, {
+        'id': 0,
+        'code': 'JP',
+        'name': 'Jupyter'
+    }, {
+        'id': 0,
+        'code': 'MR',
+        'name': 'Mars'
+    }]
+
+    resp = app.get('/datasets/denorm/lvl3/Country')
+    assert listdata(resp, 'code', 'name', 'planet', sort='code', full=True) == [{
+        'code': 'EE',
+        'name': 'Estonia',
+        'planet': {
+            'code': 'JP',
+            'id': 0,
+            'name': 'Jupyter'
+        }
+    }, {
+        'code': 'LT',
+        'name': 'Lithuania',
+        'planet': {
+            'code': 'ER',
+            'id': 0,
+            'name': 'Earth'
+        }
+
+    }, {
+        'code': 'LV',
+        'name': 'Latvia',
+        'planet': {
+            'code': 'MR',
+            'id': 0,
+            'name': 'Mars'
+        }
+    }]
+
+
+def test_denorm_lvl_4_multi(context, rc, tmp_path, geodb_denorm):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    d | r | m | property            | type    | ref        | source      | prepare        | access | level
+    datasets/denorm/lvl4            |         |            |             |                |        |
+      | rs                          | sql     |            |             |                |        |
+      |   | Planet                  |         | id, code   | PLANET      |                | open   |
+      |   |   | id                  | integer |            | id          |                |        |
+      |   |   | code                | string  |            | code        |                |        |
+      |   |   | name                | string  |            | name        |                |        |
+      |   | Country                 |         | code       | COUNTRY     |                | open   |
+      |   |   | code                | string  |            | code        |                |        |
+      |   |   | name                | string  |            | name        |                |        |
+      |   |   | planet_code         | string  |            | planet      |                |        |
+      |   |   | planet              | ref     | Planet     |             | 0, planet_code |        | 4
+      |   |   | planet.name         |         |            |             |                |        |
+    '''))
+
+    app = create_client(rc, tmp_path, geodb_denorm)
+
+    resp = app.get('/datasets/denorm/lvl4/Planet')
+    assert listdata(resp, sort='code', full=True) == [{
+        'id': 0,
+        'code': 'ER',
+        'name': 'Earth'
+    }, {
+        'id': 0,
+        'code': 'JP',
+        'name': 'Jupyter'
+    }, {
+        'id': 0,
+        'code': 'MR',
+        'name': 'Mars'
+    }]
+    ids = {values['name']: values['_id'] for values in resp.json()['_data']}
+    ids_list = list(ids.values())
+    assert ids_list.count(ids_list[0]) != len(ids_list)
+
+    resp = app.get('/datasets/denorm/lvl4/Country')
+    assert listdata(resp, 'code', 'name', 'planet', sort='code', full=True) == [{
+        'code': 'EE',
+        'name': 'Estonia',
+        'planet': {
+            '_id': ids['Jupyter'],
+            'name': 'Jupyter'
+        }
+    }, {
+        'code': 'LT',
+        'name': 'Lithuania',
+        'planet': {
+            '_id': ids['Earth'],
+            'name': 'Earth'
+        }
+
+    }, {
+        'code': 'LV',
+        'name': 'Latvia',
+        'planet': {
+            '_id': ids['Mars'],
+            'name': 'Mars'
+        }
     }]
 
 
@@ -3678,4 +3897,164 @@ def test_object_filter_nested(context, rc, tmp_path, geodb_denorm):
         'name': 'Ryga',
         'c.country.name': 'Latvia',
         'c.country.year': 1408,
+    }]
+
+
+@pytest.mark.parametrize('ref_level', [3, 4])
+def test_ref_prepare_key_count_missmatch(ref_level, context, rc, tmp_path, geodb_denorm):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+    d | r | m | property    | type    | ref    | source      | prepare        | access | level
+    datasets/ref/err        |         |        |             |                |        |
+      | rs                  | sql     |        |             |                |        |
+      |   | Planet          |         | id     | PLANET      |                | open   |
+      |   |   | id          | integer |        | id          |                |        |
+      |   |   | code        | string  |        | code        |                |        |
+      |   |   | name        | string  |        | name        |                |        |
+      |   | Country         |         | code   | COUNTRY     |                | open   |
+      |   |   | code        | string  |        | code        |                |        |
+      |   |   | name        | string  |        | name        |                |        |
+      |   |   | planet_code | string  |        | planet      |                |        |
+      |   |   | planet      | ref     | Planet |             | 0, planet_code |        | {ref_level}
+      |   |   | planet.name |         |        |             |                |        |
+    '''))
+
+    app = create_client(rc, tmp_path, geodb_denorm)
+
+    resp = app.get('/datasets/ref/err/Planet')
+    assert listdata(resp, sort='code', full=True) == [{
+        'id': 0,
+        'code': 'ER',
+        'name': 'Earth'
+    }, {
+        'id': 0,
+        'code': 'JP',
+        'name': 'Jupyter'
+    }, {
+        'id': 0,
+        'code': 'MR',
+        'name': 'Mars'
+    }]
+
+    resp = app.get('/datasets/ref/err/Country')
+    assert get_error_codes(resp.json()) == ["GivenValueCountMissmatch"]
+
+
+@pytest.mark.parametrize('ref_level', [3, 4])
+def test_ref_source_key_count_missmatch(ref_level, context, rc, tmp_path, geodb_denorm, reset_keymap):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+    d | r | m | property    | type    | ref      | source  | prepare | access | level
+    datasets/ref            |         |          |         |         |        |
+      | rs                  | sql     |          |         |         |        |
+      |   | Planet          |         | id, code | PLANET  |         | open   |
+      |   |   | id          | integer |          | id      |         |        |
+      |   |   | code        | string  |          | code    |         |        |
+      |   |   | name        | string  |          | name    |         |        |
+      |   | Country         |         | code     | COUNTRY |         | open   |
+      |   |   | code        | string  |          | code    |         |        |
+      |   |   | name        | string  |          | name    |         |        |
+      |   |   | planet      | ref     | Planet   | planet  |         |        | {ref_level}
+      |   |   | planet.name |         |          |         |         |        |
+    '''))
+
+    app = create_client(rc, tmp_path, geodb_denorm)
+
+    resp = app.get('/datasets/ref/Planet')
+    assert listdata(resp, sort='code', full=True) == [{
+        'id': 0,
+        'code': 'ER',
+        'name': 'Earth'
+    }, {
+        'id': 0,
+        'code': 'JP',
+        'name': 'Jupyter'
+    }, {
+        'id': 0,
+        'code': 'MR',
+        'name': 'Mars'
+    }]
+
+    resp = app.get('/datasets/ref/Country')
+    assert get_error_codes(resp.json()) == ["GivenValueCountMissmatch"]
+
+
+def test_keymap_value_not_found_internal_model(context, rc, tmp_path, geodb_denorm, reset_keymap):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
+    d | r | m | property    | type    | ref          | source      | prepare | access | level
+    datasets/ref            |         |              |             |         |        |
+      | rs                  |         | sql          |             |         |        |
+      |   | Planet          |         | id, code     |             |         | open   |
+      |   |   | id          | integer |              |             |         |        |
+      |   |   | code        | string  |              |             |         |        |
+      |   |   | name        | string  |              |             |         |        |
+      |   | Country         |         | code         | COUNTRY     |         | open   |
+      |   |   | code        | string  |              | code        |         |        |
+      |   |   | name        | string  |              | name        |         |        |
+      |   |   | planet      | ref     | Planet[code] | planet      |         |        |
+    '''))
+
+    app = create_client(rc, tmp_path, geodb_denorm, mode='external')
+    resp = app.get('/datasets/ref/Country')
+    assert get_error_codes(resp.json()) == ["KeymapValueNotFound"]
+
+
+def test_keymap_internal_model_after_sync(
+    context,
+    rc,
+    tmp_path,
+    geodb_denorm,
+    postgresql,
+    cli: SpintaCliRunner,
+    responses,
+    request,
+    reset_keymap
+):
+    table = '''
+    d | r | m | property    | type    | ref          | source      | prepare | access | level
+    datasets/ref            |         |              |             |         |        |
+      | rs                  |         | sql          |             |         |        |
+      |   | Planet          |         | id, code     |             |         | open   |
+      |   |   | id          | integer |              |             |         |        |
+      |   |   | code        | string  |              |             |         |        |
+      |   |   | name        | string  |              |             |         |        |
+      |   | Country         |         | code         | COUNTRY     |         | open   |
+      |   |   | code        | string  |              | code        |         |        |
+      |   |   | name        | string  |              | name        |         |        |
+      |   |   | planet      | ref     | Planet[code] | planet      |         |        |
+    '''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(table))
+    localrc = create_rc(rc, tmp_path, geodb_denorm)
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    remote.app.authmodel('datasets/ref/Planet', ['insert', 'wipe'])
+    er_id = remote.app.post('/datasets/ref/Planet', json={'id': 0, 'code': 'ER'}).json()['_id']
+    mr_id = remote.app.post('/datasets/ref/Planet', json={'id': 1, 'code': 'MR'}).json()['_id']
+    jp_id = remote.app.post('/datasets/ref/Planet', json={'id': 2, 'code': 'JP'}).json()['_id']
+
+    app = create_client(rc, tmp_path, geodb_denorm, mode='external')
+    resp = app.get('/datasets/ref/Country')
+    assert get_error_codes(resp.json()) == ["KeymapValueNotFound"]
+
+    cli.invoke(localrc, [
+        'keymap', 'sync', tmp_path / 'manifest.csv',
+        '-i', remote.url,
+        '--credentials', remote.credsfile
+    ])
+
+    resp = app.get('/datasets/ref/Country')
+    assert listdata(resp, 'code', 'planet', full=True) == [{
+        'code': 'EE',
+        'planet': {
+            '_id': jp_id
+        }
+    }, {
+        'code': 'LT',
+        'planet': {
+            '_id': er_id
+        }
+    }, {
+        'code': 'LV',
+        'planet': {
+            '_id': mr_id
+        }
     }]

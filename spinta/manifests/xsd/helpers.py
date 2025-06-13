@@ -453,7 +453,7 @@ class XSDReader:
             'name': self.dataset_name,
             'resources': {
                 "resource1": {
-                    'type': 'xml',
+                    'type': 'dask/xml',
                 },
             },
             'given_name': self._dataset_given_name

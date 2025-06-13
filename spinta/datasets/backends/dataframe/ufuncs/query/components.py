@@ -1,21 +1,25 @@
+from __future__ import annotations
+
 from typing import Any
 
 from dask.dataframe import DataFrame
 
 from spinta.components import Model, Property
 from spinta.core.ufuncs import Env, Expr
-from spinta.datasets.backends.dataframe.components import DaskBackend
+
 from spinta.exceptions import UnknownMethod
-from spinta.ufuncs.basequerybuilder.components import Selected
+from spinta.ufuncs.querybuilder.components import Selected
 from spinta.utils.schema import NA
+from spinta.datasets.backends.dataframe.components import DaskBackend
 
 
 class DaskDataFrameQueryBuilder(Env):
     backend: DaskBackend
     model: Model
     dataframe: DataFrame
+    params: dict
 
-    def init(self, backend: DaskBackend, dataframe: DataFrame):
+    def init(self, backend: DaskBackend, dataframe: DataFrame, params: dict) -> DaskDataFrameQueryBuilder:
         return self(
             backend=backend,
             dataframe=dataframe,
@@ -27,6 +31,7 @@ class DaskDataFrameQueryBuilder(Env):
             },
             limit=None,
             offset=None,
+            params=params,
         )
 
     def build(self, where):

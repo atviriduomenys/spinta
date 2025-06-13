@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "spinta"
-version = "0.2.dev1"
+version = "0.2.dev3"
 description = "A platform for describing, extracting, transforming, loading and serving open data."
 authors = ["Mantas Zimnickas <sirexas@gmail.com>"]
 license = "MIT"
@@ -67,11 +67,11 @@ click = "*"
 typer = { version = "*", extras = ["all"] }
 
 # API server dependencies
-gunicorn = "*"
-uvicorn = "*"
+gunicorn = { version = "*", optional = true }
+uvicorn = { version = "*", optional = true }
 
 # PostgreSQL backend dependencies
-alembic = "~1.11.0"
+alembic = { version = "~1.11.0", optional = true }
 asyncpg = "*"
 psycopg2-binary = "*"
 # FIXME: https://github.com/python-poetry/poetry/issues/4402
@@ -107,6 +107,13 @@ pyproj = "*"
 xmltodict = "*"
 sqlean-py = "*"
 cachetools = "*"
+docutils = "^0.21.2"
+zeep = "^4.3.1"
+
+[tool.poetry.extras]
+http = ["gunicorn", "uvicorn"]
+migrations = ["alembic"]
+all = ["gunicorn", "uvicorn", "alembic"]
 
 
 [tool.poetry.group.dev.dependencies]

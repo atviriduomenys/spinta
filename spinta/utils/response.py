@@ -15,7 +15,8 @@ from spinta.api.schema import schema_api
 from spinta.backends.helpers import validate_and_return_transaction, validate_and_return_begin
 from spinta.cli.helpers.errors import ErrorCounter
 from spinta.formats.components import Format
-from spinta.components import Action, Model
+from spinta.components import Model
+from spinta.core.enums import Action
 from spinta.components import Context
 from spinta.components import Node
 from spinta.components import Store
@@ -112,6 +113,17 @@ async def create_http_response(
 
     if manifest.backend is None:
         raise NoBackendConfigured(manifest)
+
+    if request.method == 'DELETE' and params.action == Action.MOVE:
+        context.attach('transaction', validate_and_return_transaction, context, manifest.backend, write=True)
+        return await commands.move(
+            context,
+            request,
+            params.model,
+            params.model.backend,
+            action=params.action,
+            params=params
+        )
 
     if params.action == Action.CHECK:
         return await _check(context, request, params)

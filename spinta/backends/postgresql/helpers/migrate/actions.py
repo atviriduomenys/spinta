@@ -3,12 +3,15 @@ from sqlalchemy.dialects.postgresql import UUID
 from typing import List, Tuple, Dict
 
 import sqlalchemy as sa
-from alembic.operations import Operations
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from alembic.operations import Operations
 
 
 class MigrationAction(ABC):
     @abstractmethod
-    def execute(self, op: Operations):
+    def execute(self, op: "Operations"):
         pass
 
 
@@ -17,7 +20,7 @@ class CreateTableMigrationAction(MigrationAction):
         self.table_name = table_name
         self.columns = columns
 
-    def execute(self, op: Operations):
+    def execute(self, op: "Operations"):
         op.create_table(self.table_name, *self.columns)
 
 
@@ -25,7 +28,7 @@ class DropTableMigrationAction(MigrationAction):
     def __init__(self, table_name: str):
         self.table_name = table_name
 
-    def execute(self, op: Operations):
+    def execute(self, op: "Operations"):
         op.drop_table(table_name=self.table_name)
 
 
@@ -34,7 +37,7 @@ class RenameTableMigrationAction(MigrationAction):
         self.old_table_name = old_table_name
         self.new_table_name = new_table_name
 
-    def execute(self, op: Operations):
+    def execute(self, op: "Operations"):
         op.rename_table(old_table_name=self.old_table_name, new_table_name=self.new_table_name)
 
 
@@ -43,7 +46,7 @@ class AddColumnMigrationAction(MigrationAction):
         self.table_name = table_name
         self.column = column
 
-    def execute(self, op: Operations):
+    def execute(self, op: "Operations"):
         op.add_column(table_name=self.table_name, column=self.column)
 
 
@@ -52,7 +55,7 @@ class DropColumnMigrationAction(MigrationAction):
         self.table_name = table_name
         self.column_name = column_name
 
-    def execute(self, op: Operations):
+    def execute(self, op: "Operations"):
         op.drop_column(table_name=self.table_name, column_name=self.column_name)
 
 
@@ -66,7 +69,7 @@ class AlterColumnMigrationAction(MigrationAction):
         self.type_ = type_
         self.using = using
 
-    def execute(self, op: Operations):
+    def execute(self, op: "Operations"):
         op.alter_column(
             table_name=self.table_name,
             column_name=self.column_name,
@@ -82,7 +85,7 @@ class DropConstraintMigrationAction(MigrationAction):
         self.table_name = table_name
         self.constraint_name = constraint_name
 
-    def execute(self, op: Operations):
+    def execute(self, op: "Operations"):
         op.drop_constraint(constraint_name=self.constraint_name, table_name=self.table_name)
 
 
@@ -91,7 +94,7 @@ class DropIndexMigrationAction(MigrationAction):
         self.table_name = table_name
         self.index_name = index_name
 
-    def execute(self, op: Operations):
+    def execute(self, op: "Operations"):
         op.drop_index(index_name=self.index_name, table_name=self.table_name)
 
 
@@ -101,7 +104,7 @@ class CreateUniqueConstraintMigrationAction(MigrationAction):
         self.constraint_name = constraint_name
         self.columns = columns
 
-    def execute(self, op: Operations):
+    def execute(self, op: "Operations"):
         op.create_unique_constraint(constraint_name=self.constraint_name, table_name=self.table_name,
                                     columns=self.columns)
 
@@ -110,7 +113,7 @@ class RenameConstraintMigrationAction(MigrationAction):
     def __init__(self, table_name: str, old_constraint_name: str, new_constraint_name: str):
         self.query = f'ALTER TABLE "{table_name}" RENAME CONSTRAINT "{old_constraint_name}" TO "{new_constraint_name}"'
 
-    def execute(self, op: Operations):
+    def execute(self, op: "Operations"):
         replaced = self.query.replace(":", "\\:")
         op.execute(replaced)
 
@@ -121,7 +124,7 @@ class CreatePrimaryKeyMigrationAction(MigrationAction):
         self.constraint_name = constraint_name
         self.columns = columns
 
-    def execute(self, op: Operations):
+    def execute(self, op: "Operations"):
         op.create_primary_key(constraint_name=self.constraint_name, table_name=self.table_name, columns=self.columns)
 
 
@@ -132,7 +135,7 @@ class CreateIndexMigrationAction(MigrationAction):
         self.columns = columns
         self.using = using
 
-    def execute(self, op: Operations):
+    def execute(self, op: "Operations"):
         op.create_index(index_name=self.index_name, table_name=self.table_name, columns=self.columns,
                         postgresql_using=self.using)
 
@@ -141,7 +144,7 @@ class RenameIndexMigrationAction(MigrationAction):
     def __init__(self, old_index_name: str, new_index_name: str):
         self.query = f'ALTER INDEX "{old_index_name}" RENAME TO "{new_index_name}"'
 
-    def execute(self, op: Operations):
+    def execute(self, op: "Operations"):
         replaced = self.query.replace(":", "\\:")
         op.execute(replaced)
 
@@ -208,7 +211,7 @@ class DowngradeTransferDataMigrationAction(MigrationAction):
             original_table.columns[source_column.name] == foreign_table.columns[target]
         )
 
-    def execute(self, op: Operations):
+    def execute(self, op: "Operations"):
         op.execute(self.query)
 
 
@@ -272,7 +275,7 @@ class UpgradeTransferDataMigrationAction(MigrationAction):
             )
         )
 
-    def execute(self, op: Operations):
+    def execute(self, op: "Operations"):
         op.execute(self.query)
 
 
@@ -285,7 +288,7 @@ class CreateForeignKeyMigrationAction(MigrationAction):
         self.local_cols = local_cols
         self.remote_cols = remote_cols
 
-    def execute(self, op: Operations):
+    def execute(self, op: "Operations"):
         op.create_foreign_key(
             constraint_name=self.constraint_name,
             source_table=self.source_table,
@@ -299,7 +302,7 @@ class RenameSequenceMigrationAction(MigrationAction):
     def __init__(self, old_name: str, new_name: str):
         self.query = f'ALTER SEQUENCE "{old_name}" RENAME TO "{new_name}"'
 
-    def execute(self, op: Operations):
+    def execute(self, op: "Operations"):
         replaced = self.query.replace(":", "\\:")
         op.execute(replaced)
 
@@ -323,7 +326,7 @@ class TransferJSONDataMigrationAction(MigrationAction):
             }
         )
 
-    def execute(self, op: Operations):
+    def execute(self, op: "Operations"):
         op.execute(self.query)
 
 
@@ -351,7 +354,7 @@ class TransferColumnDataToJSONMigrationAction(MigrationAction):
             }
         )
 
-    def execute(self, op: Operations):
+    def execute(self, op: "Operations"):
         op.execute(self.query)
 
 
@@ -371,7 +374,7 @@ class AddEmptyAttributeToJSONMigrationAction(MigrationAction):
             }
         )
 
-    def execute(self, op: Operations):
+    def execute(self, op: "Operations"):
         op.execute(self.query)
 
 
@@ -390,7 +393,7 @@ class RenameJSONAttributeMigrationAction(MigrationAction):
             }
         ).where(copied_source.has_key(old_key))
 
-    def execute(self, op: Operations):
+    def execute(self, op: "Operations"):
         op.execute(self.query)
 
 
@@ -408,7 +411,7 @@ class RemoveJSONAttributeMigrationAction(MigrationAction):
             }
         ).where(copied_source.has_key(key))
 
-    def execute(self, op: Operations):
+    def execute(self, op: "Operations"):
         op.execute(self.query)
 
 
@@ -436,7 +439,7 @@ class MigrationHandler:
                     return True
         return False
 
-    def run_migrations(self, op: Operations):
+    def run_migrations(self, op: "Operations"):
         for migration in self.migrations:
             migration.execute(op)
         for migration in self.foreign_key_migration:

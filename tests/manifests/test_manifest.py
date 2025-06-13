@@ -1,9 +1,22 @@
 import pytest
 
-from spinta.exceptions import InvalidManifestFile, ReferencedPropertyNotFound, PartialTypeNotFound, \
-    DataTypeCannotBeUsedForNesting, NestedDataTypeMismatch, SameModelIntermediateTableMapping, \
-    InvalidIntermediateTableMappingRefCount, UnableToMapIntermediateTable, IntermediateTableMappingInvalidType, \
-    IntermediateTableValueTypeMissmatch, IntermediateTableRefPropertyModelMissmatch, IntermediateTableRefModelMissmatch
+from spinta.exceptions import (
+    NoModelDefined,
+    InvalidManifestFile,
+    ReferencedPropertyNotFound,
+    PartialTypeNotFound,
+    DataTypeCannotBeUsedForNesting,
+    NestedDataTypeMismatch,
+    SameModelIntermediateTableMapping,
+    InvalidIntermediateTableMappingRefCount,
+    UnableToMapIntermediateTable,
+    IntermediateTableMappingInvalidType,
+    IntermediateTableValueTypeMissmatch,
+    IntermediateTableRefPropertyModelMissmatch,
+    IntermediateTableRefModelMissmatch,
+    UndefinedPropertyType,
+    ParentNodeNotFound
+)
 from spinta.testing.manifest import load_manifest
 from spinta.manifests.tabular.helpers import TabularManifestError
 
@@ -79,11 +92,11 @@ def test_backends_with_models(manifest_type, tmp_path, rc):
 @pytest.mark.manifests('internal_sql', 'csv')
 def test_ns(manifest_type, tmp_path, rc):
     check(tmp_path, rc, '''
-    d | r | b | m | property | type | ref                  | title               | description
-                             | ns   | datasets             | All datasets        | All external datasets.
-                             |      | datasets/gov         | Government datasets | All government datasets.
-                             |      | datasets/gov/example | Example             |
-                             |      |                      |                     |
+    d | r | b | m | property | type | ref | title               | description
+    datasets                 | ns   |     | All datasets        | All external datasets.
+    datasets/gov             | ns   |     | Government datasets | All government datasets.
+                             |      |     |                     |
+    datasets/gov/example     |      |     | Example             |
     ''', manifest_type)
 
 
@@ -91,11 +104,10 @@ def test_ns(manifest_type, tmp_path, rc):
 def test_ns_with_models(manifest_type, tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property | type   | ref                  | title               | description
-                             | ns     | datasets             | All datasets        | All external datasets.
-                             |        | datasets/gov         | Government datasets | All government datasets.
-                             |        | datasets/gov/example | Example             |
+    datasets                 | ns     |                      | All datasets        | All external datasets.
+    datasets/gov             | ns     |                      | Government datasets | All government datasets.
                              |        |                      |                     |
-    datasets/gov/example     |        |                      |                     |
+    datasets/gov/example     |        |                      | Example             |
       | data                 |        | default              |                     |
                              |        |                      |                     |
       |   |   | Country      |        |                      |                     |
@@ -245,17 +257,61 @@ def test_comment(manifest_type, tmp_path, rc):
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_prop_type_not_given(manifest_type, tmp_path, rc):
+def test_property_type_defined_in_base_model(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
+        d | r | b | m | property     | type    | ref       | access | title
+        example                      |         |           |        |
+                                     |         |           |        |
+          |   |   | Area             |         |           |        |
+          |   |   |   | name         | string  |           |        |
+          |   |   |   | population   | integer |           |        |
+                                     |         |           |        |
+          |   | Area                 |         |           |        |
+          |   |   | Country          |         |           |        |
+          |   |   |   | name         |         |           |        |
+          |   |   |   | code         | string  |           |        |
+          |   |   |   | population   | integer |           |        |
+    ''', manifest_type)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_property_type_undefined(manifest_type, tmp_path, rc):
+    """Property 'type' is undefined in the model and not present in the base model."""
+    with pytest.raises(UndefinedPropertyType) as e:
+        check(tmp_path, rc, '''
+            d | r | b | m | property     | type    | ref       | access | title
+            example                      |         |           |        |
+                                         |         |           |        |
+              |   |   | Area             |         |           |        |
+              |   |   |   | name         | string  |           |        |
+              |   |   |   | population   | integer |           |        |
+                                         |         |           |        |
+              |   | Area                 |         |           |        |
+              |   |   | Country          |         |           |        |
+              |   |   |   | name         |         |           |        |
+              |   |   |   | code         |         |           |        |
+              |   |   |   | population   | integer |           |        |
+        ''', manifest_type)
+
+    assert e.value.message == 'Parameter "type" must be defined for property "code", because it is not defined in base model or there is no base model.'
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_property_type_undefined_no_base_model(manifest_type, tmp_path, rc):
+    """Property 'type' is undefined in the model and the model does not have a base to inherit from"""
     with pytest.raises(InvalidManifestFile) as e:
         check(tmp_path, rc, '''
-        d | r | b | m | property | type
-        datasets/gov/example     |
-          |   |   | Bool         |
-          |   |   |   | value    |
+            d | r | b | m | property     | type    | ref       | access | title
+            example                      |         |           |        |
+                                         |         |           |        |
+              |   |   | Country          |         |           |        |
+              |   |   |   | name         | string  |           |        |
+              |   |   |   | code         |         |           |        |
+              |   |   |   | population   | integer |           |        |
         ''', manifest_type)
-    assert e.value.context['error'] == (
-        "Type is not given for 'value' property in "
-        "'datasets/gov/example/Bool' model."
+
+    assert e.value.message == (
+        "Error while parsing '4' manifest entry: Type is not given for 'code' property in 'example/Country' model."
     )
 
 
@@ -482,7 +538,7 @@ def test_with_denormalized_data(manifest_type, tmp_path, rc):
 
 @pytest.mark.manifests('internal_sql', 'csv')
 def test_with_denormalized_data_ref_error(manifest_type, tmp_path, rc):
-    with pytest.raises(PartialTypeNotFound) as e:
+    with pytest.raises(ParentNodeNotFound) as e:
         check(tmp_path, rc, '''
         d | r | b | m | property               | type   | ref       | access
         example                                |        |           |
@@ -494,6 +550,21 @@ def test_with_denormalized_data_ref_error(manifest_type, tmp_path, rc):
           |   |   |   | name                   | string |           | open
           |   |   |   | country.name           |        |           | open
         ''', manifest_type)
+
+    assert e.value.context == {
+        'component': 'spinta.types.datatype.Partial',
+        'manifest': 'default',
+        'schema': '7',
+        'dataset': 'example',
+        'model': 'example/City',
+        'entity': '',
+        'property': 'country',
+        'attribute': None,
+        'type': 'partial',
+        'model_name': 'example/City',
+        'property_names': 'country.name',
+        'missing_property_name': 'country'
+    }
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
@@ -520,6 +591,28 @@ def test_with_denormalized_data_undefined_error(manifest_type, tmp_path, rc):
         "Property 'country.continent.size' not found."
     )
     assert e.value.context['ref'] == "{'property': 'size', 'model': 'example/Continent'}"
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_denormalized_field(manifest_type, tmp_path, rc):
+    """country.continent.size is a denormalized field and has a type directly in City model."""
+    check(tmp_path, rc, '''
+    d | r | b | m | property               | type    | ref       | access
+    example                                |         |           |
+                                           |         |           |
+      |   |   | Continent                  |         |           |
+      |   |   |   | name                   | string  |           | open
+                                           |         |           |
+      |   |   | Country                    |         |           |
+      |   |   |   | name                   | string  |           | open
+      |   |   |   | continent              | ref     | Continent | open
+                                           |         |           |
+      |   |   | City                       |         |           |
+      |   |   |   | name                   | string  |           | open
+      |   |   |   | country                | ref     | Country   | open
+      |   |   |   | country.name           |         |           | open
+      |   |   |   | country.continent.size | integer |           | open
+    ''', manifest_type)
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
@@ -709,6 +802,22 @@ def test_resource_param_multiple(manifest_type, tmp_path, rc):
       |   |   |   | id         | integer |         |          |
       |   |   |   | name       | string  |         |          |
       |   |   |   | population | integer |         |          |
+    ''', manifest_type)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_resource_param_multiple_prepare_type_is_empty(manifest_type, tmp_path, rc):
+    check(tmp_path, rc,'''
+    d | r | b | m | property  | type    | ref    | source      | prepare
+    test_dataset              |         |        |             |
+      | resource1             | xml     |        |             |
+                              | param   | param1 | param1      | body()
+                              |         | param2 | param2      | body()
+                              |         | param3 | param3      | body()
+                              |         |        |             |
+      |   |   | Continent     |         |        |             |
+      |   |   |   | name      | string  |        | name/text() |
+      |   |   |   | id        | integer |        | name/text() |
     ''', manifest_type)
 
 
@@ -1342,30 +1451,6 @@ def test_intermediate_table_invalid_mapping_refprops(manifest_type, tmp_path, rc
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
-def test_intermediate_table_invalid_mapping_multiple_references(manifest_type, tmp_path, rc):
-    with pytest.raises(UnableToMapIntermediateTable):
-        check(tmp_path, rc, '''
-                d | r | b | m | property    | type    | ref             | access | title
-                example                     |         |                 |        |
-                                            |         |                 |        |
-                  |   |   | Language        |         | id              |        |
-                  |   |   |   | id          | integer |                 | open   |
-                  |   |   |   | name        | string  |                 | open   |
-                                            |         |                 |        |
-                  |   |   | Country         |         | id              |        |
-                  |   |   |   | id          | integer |                 | open   |
-                  |   |   |   | name        | string  |                 | open   |
-                  |   |   |   | languages   | array   | CountryLanguage | open   |
-                  |   |   |   | languages[] | ref     | Language        | open   |
-                                            |         |                 |        |
-                  |   |   | CountryLanguage |         |                 |        |
-                  |   |   |   | country     | ref     | Country         | open   |
-                  |   |   |   | language    | ref     | Language        | open   |
-                  |   |   |   | lang        | ref     | Language        | open   |
-            ''', manifest_type)
-
-
-@pytest.mark.manifests('internal_sql', 'csv')
 def test_intermediate_table_same_model_mapping_pkey(manifest_type, tmp_path, rc):
     check(tmp_path, rc, '''
             d | r | b | m | property    | type    | ref            | access | title
@@ -1421,7 +1506,7 @@ def test_intermediate_table_same_model_unknown_mapping(manifest_type, tmp_path, 
 
 @pytest.mark.manifests('internal_sql', 'csv')
 def test_intermediate_table_invalid_mapping_multiple_references(manifest_type, tmp_path, rc):
-    with pytest.raises(UnableToMapIntermediateTable):
+    with pytest.raises(UnableToMapIntermediateTable) as e:
         check(tmp_path, rc, '''
                 d | r | b | m | property    | type    | ref             | access | title
                 example                     |         |                 |        |
@@ -1441,6 +1526,7 @@ def test_intermediate_table_invalid_mapping_multiple_references(manifest_type, t
                   |   |   |   | language    | ref     | Language        | open   |
                   |   |   |   | lang        | ref     | Language        | open   |
             ''', manifest_type)
+    assert e.value.message == 'Unable to map intermediate table (example/CountryLanguage) to `Array` property.'
 
 
 @pytest.mark.manifests('internal_sql', 'csv')
@@ -1566,3 +1652,36 @@ def test_intermediate_table_invalid_mapping_left_property_model_missmatch(manife
                   |   |   |   | country     | ref     | Extra           | open   |
                   |   |   |   | language    | ref     | Language        | open   |
             ''', manifest_type)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_property_error(manifest_type, tmp_path, rc):
+    check(tmp_path, rc, '''
+        d | r | b | m | property   | type         | ref     | access | title
+        example                    |              |         |        |
+                                   |              |         |        |
+          |   |   | City           |              |         |        |
+          |   |   |   | id         | integer      |         | open   |
+          |   |   |   | country    | ref required | Country | open   |
+          |   |   |   | country.id | integer      |         | open   |
+                                   |              |         |        |
+          |   |   | Country        |              |         |        |
+          |   |   |   | id         | integer      |         | open   |
+          |   |   |   | name       | string       |         | open   |
+        ''', manifest_type)
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_no_model_defined_error(manifest_type, tmp_path, rc):
+    with pytest.raises(NoModelDefined):
+        check(tmp_path, rc, '''
+            d | r | b | m | property | type    | ref | access | title
+            example                  |         |     |        |
+                                     |         |     |        |
+              |   |   | City         |         | id  |        |
+              |   |   |   | id       | integer |     | open   |
+              |   |   |   | name     | string  |     | open   |
+            second_example           |         |     |        |
+                                     |         |     |        |
+              |   |   |   | id       | integer |     | open   |
+        ''')

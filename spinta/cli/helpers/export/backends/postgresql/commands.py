@@ -14,8 +14,8 @@ from spinta.cli.helpers.export.backends.postgresql.helpers import split_data, ge
 from spinta.cli.helpers.export.components import CounterManager
 from spinta.cli.helpers.export.helpers import create_data_items, prepare_data_without_checks, prepare_export_patch
 from spinta.commands.write import prepare_data_for_write
-from spinta.components import Context, Model, UrlParams, Action, DataSubItem
-from spinta.core.enums import Access
+from spinta.components import Context, Model, UrlParams, DataSubItem
+from spinta.core.enums import Access, Action
 from spinta.types.datatype import Array
 from spinta.types.geometry.components import Geometry
 from spinta.utils.aiotools import aiter, aenumerate

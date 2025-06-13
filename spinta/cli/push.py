@@ -25,9 +25,8 @@ from spinta.cli.helpers.push.sync import sync_push_state
 from spinta.cli.helpers.store import prepare_manifest, attach_backends, attach_keymaps
 from spinta.client import get_access_token
 from spinta.client import get_client_credentials
-from spinta.components import Action
+from spinta.core.enums import Action, Mode
 from spinta.components import Config
-from spinta.components import Mode
 from spinta.core.context import configure_context
 from spinta.datasets.keymaps.sync import sync_keymap
 from spinta.types.namespace import sort_models_by_ref_and_base
@@ -183,6 +182,7 @@ def push(
             if not synced:
                 synchronize_keymap = True
             dependant_models = extract_dependant_nodes(context, models, not synchronize_keymap)
+            dependant_models = sort_models_by_ref_and_base(dependant_models)
             sync_keymap(
                 context=context,
                 keymap=km,

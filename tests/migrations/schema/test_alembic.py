@@ -1,14 +1,10 @@
 import pytest
-
 import sqlalchemy as sa
-
-from alembic.runtime.migration import MigrationContext
-from alembic.operations import Operations
 from sqlalchemy.dialects.postgresql import UUID
 
-from spinta.backends.postgresql.components import PostgreSQL
-from spinta.testing.ufuncs import UFuncTester
 from spinta.migrations.schema.alembic import Alembic
+from spinta.testing.ufuncs import UFuncTester
+from spinta.testing.utils import create_empty_backend
 
 
 @pytest.fixture(scope='module')
@@ -18,12 +14,15 @@ def engine(postgresql):
 
 @pytest.fixture()
 def ufunc(context, engine):
+    from alembic.operations import Operations
+    from alembic.runtime.migration import MigrationContext
+
     conn = engine.connect()
     ctx = MigrationContext.configure(conn)
     op = Operations(ctx)
     return UFuncTester(Alembic, context, scope={
         'op': op,
-        'backend': PostgreSQL()
+        'backend': create_empty_backend(context, 'postgresql')
     })
 
 

@@ -8,9 +8,9 @@ from sqlalchemy.sql.elements import Null
 from spinta import commands
 from spinta.backends import Backend
 from spinta.backends.constants import BackendOrigin
-from spinta.components import Namespace, Base, Model, Property, Context, Config, EntryId, MetaData, Action
-from spinta.core.enums import Access
-from spinta.core.ufuncs import Expr
+from spinta.components import Namespace, Base, Model, Property, Context, Config, EntryId, MetaData
+from spinta.core.enums import Access, Action
+from spinta.core.ufuncs import Expr, NoOp
 from spinta.datasets.components import Dataset, Resource, Param
 from spinta.dimensions.comments.components import Comment
 from spinta.dimensions.enum.components import Enums
@@ -657,6 +657,7 @@ def _namespaces_to_sql(
         item_id = _handle_id(ns.id)
         yield to_row(INTERNAL_MANIFEST_COLUMNS, {
             'id': item_id,
+            'dataset': name,
             'parent': parent_id,
             'depth': depth,
             'path': path,
@@ -664,7 +665,6 @@ def _namespaces_to_sql(
             'dim': 'ns',
             'name': name,
             'type': ns.type,
-            'ref': name,
             'title': ns.title,
             'description': ns.description,
             'prepare': _handle_prepare(NA)
@@ -872,7 +872,7 @@ def _params_to_sql(
                     'mpath': new_mpath,
                     'dim': 'param',
                     'name': param.name,
-                    'type': 'param',
+                    'type': param.type,
                     'ref': param.name,
                     'source': source,
                     'title': param.title,
@@ -1216,7 +1216,7 @@ def to_row_tabular(keys, values) -> ManifestRow:
 def _handle_prepare(prepare: Any):
     if isinstance(prepare, NotAvailable):
         prepare = sa.null()
-    elif isinstance(prepare, Expr):
+    elif isinstance(prepare, (Expr, NoOp)):
         prepare = prepare.todict()
     return prepare
 
@@ -1390,7 +1390,7 @@ def _convert_param(row: InternalManifestRow, param_data: InternalManifestRow, fi
         new["title"] = ''
         new["description"] = ''
     else:
-        new["type"] = 'param'
+        new["type"] = _value_or_empty(param_data["type"])
         new["ref"] = _value_or_empty(param_data["ref"])
         new["title"] = _value_or_empty(param_data["title"])
         new["description"] = _value_or_empty(param_data["description"])
@@ -1435,8 +1435,7 @@ def _convert_lang(row: InternalManifestRow, first: bool = False):
 
 def _convert_namespaces(row: InternalManifestRow, first: bool = False):
     new = to_row_tabular(MANIFEST_COLUMNS, row)
-    if not first:
-        new["type"] = ''
+    new['dataset'] = row['name']
     return new
 
 

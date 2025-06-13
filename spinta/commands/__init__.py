@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Type
 from typing import Dict
 from typing import Iterator
 from typing import List
@@ -13,22 +13,22 @@ from typing import overload
 from starlette.requests import Request
 from starlette.responses import Response
 
-from spinta.exceptions import BaseError
-from spinta.typing import ObjectData
-from spinta.components import Node, DataItem, PageInfo, Page
+from spinta.components import Namespace
+from spinta.components import Node, DataItem, PageInfo, Page, Base
 from spinta.components import UrlParams
 from spinta.components import Version
 from spinta.dispatcher import command
+from spinta.exceptions import BaseError
 from spinta.manifests.components import ManifestSchema
 from spinta.manifests.components import NodeSchema
-from spinta.components import Namespace
+from spinta.typing import ObjectData
 
 if TYPE_CHECKING:
     from spinta.components import Store
     from spinta.components import Model
     from spinta.components import Property
     from spinta.types.datatype import DataType
-    from spinta.components import Action
+    from spinta.core.enums import Action
     from spinta.backends import Backend
     from spinta.components import Context
     from spinta.manifests.components import Manifest
@@ -40,7 +40,6 @@ if TYPE_CHECKING:
     from spinta.formats.html.components import ComplexCell
     from spinta.core.ufuncs import Expr
     from spinta.dimensions.enum.components import EnumItem
-
 
 T = TypeVar('T')
 
@@ -770,6 +769,11 @@ def wipe():
 
 
 @command()
+def move():
+    """Change data identifier"""
+
+
+@command()
 def get_primary_key_type():
     """Return primary key column type.
 
@@ -968,8 +972,54 @@ def get_model_scopes():
     """
 
 
+@overload
+def cast_backend_to_python(
+    context: Context,
+    model: DataType,
+    backend: Backend,
+    data: object,
+    **kwargs
+):
+    """Convert backend native types to python native types"""
+
+
+@overload
+def cast_backend_to_python(
+    context: Context,
+    model: Property,
+    backend: Backend,
+    data: object,
+    **kwargs
+):
+    """Convert backend native types to python native types"""
+
+
+@overload
+def cast_backend_to_python(
+    context: Context,
+    model: Model,
+    backend: Backend,
+    data: object,
+    **kwargs
+):
+    """Convert backend native types to python native types using Model"""
+
+
+@overload
+def cast_backend_to_python(
+    context: Context,
+    model: Model,
+    backend: Backend,
+    data: object,
+    *,
+    extra_properties: dict[str, Property],
+    **kwargs
+):
+    """Convert backend native types to python native types using Model and optionally with additional properties"""
+
+
 @command()
-def cast_backend_to_python():
+def cast_backend_to_python(*args, **kwargs):
     """Convert backend native types to python native types."""
 
 
@@ -1347,11 +1397,6 @@ def reload_backend_metadata(context: Context, manifest: Manifest, backend: Backe
 
 
 @command()
-def get_result_builder(context: Context, backend: Backend):
-    """Returns backend specific result builder"""
-
-
-@command()
 def identifiable(node: Node) -> bool:
     """Check if node is identifiable"""
 
@@ -1440,3 +1485,95 @@ def validate_export_output(
 def validate_export_output(**kwargs):
     """Validates given output for specified format"""
 
+
+@overload
+def backend_to_manifest_type(
+    context: Context,
+    backend: str
+) -> Type[Manifest]:
+    """
+        Attempts to convert backend type string to Backend and then
+        attempts to map backend to it's appropriate manifest type.
+    """
+
+
+@overload
+def backend_to_manifest_type(
+    context: Context,
+    backend: Backend
+) -> Type[Manifest]:
+    """
+        Attempts to map backend to it's appropriate manifest type.
+    """
+
+
+@command()
+def backend_to_manifest_type(**kwargs) -> Type[Manifest]:
+    """
+        Attempts to map backend to it's appropriate manifest type.
+        Mainly used for `inspect` mapping.
+    """
+
+
+@overload
+def resolve_property(
+    model: Model,
+    prop: str
+) -> Property | None:
+    """
+        Attempts to resolve given string to Property using Model
+    """
+
+
+@overload
+def resolve_property(
+    base: Base,
+    prop: str
+) -> Property | None:
+    """
+        Attempts to resolve given string to Property using Base
+    """
+
+
+@overload
+def resolve_property(
+    parent_prop: Property,
+    prop: str
+) -> Property | None:
+    """
+        Attempts to resolve given string to Property using another Property
+    """
+
+
+@overload
+def resolve_property(
+    dtype: DataType,
+    prop: str
+) -> Property | None:
+    """
+        Attempts to resolve given string to Property using DataType
+    """
+
+
+@command()
+def resolve_property(*args, **kwargs) -> Property | None:
+    """
+        Attempts to resolve given arguments to existing Property
+    """
+
+
+@command()
+def redirect(
+    context: Context,
+    backend: Backend,
+    model: Model,
+    id_: str
+) -> str | None:
+    """
+        Attempts to get new _id redirect, if there are no mapping it will return None
+    """
+
+
+@command()
+def create_redirect_entry():
+    """Create new redirect entry."""

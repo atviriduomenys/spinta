@@ -1,6 +1,76 @@
 Changes
 #######
 
+
+0.2dev4 (unreleased)
+====================
+
+New Features:
+- Add support for specifying SOAP request body in SOAP requests.(`#1274`_)
+
+  .. _#1274: https://github.com/atviriduomenys/spinta/issues/1274
+
+0.2dev3
+=======
+
+New Features:
+
+- Added OpenAPI Schema to DSA convertion `Resource` column part (`#1209`_)
+- Added OpenAPI Schema to DSA convertion `Param` column part (`#1210`_)
+- Added `soap` backend for basic SOAP data reading from WSDL (`#1273`_)
+- Added separate `wsdl` backend to read WSDL file and `wsdl(...)` function to link any `soap` type resource with
+  `wsdl` type resource for WSDL/SOAP data reading (`#279`_)
+
+  .. _#1209: https://github.com/atviriduomenys/spinta/issues/1209
+  .. _#1210: https://github.com/atviriduomenys/spinta/issues/1210
+  .. _#1273: https://github.com/atviriduomenys/spinta/issues/1273
+  .. _#279: https://github.com/atviriduomenys/spinta/issues/279
+
+Bug fixes:
+
+- Fixed a bug where an error was thrown when nested property was a `ref` followed by a `backref`. (`#1302`_)
+- Fixed a bug where `spinta` didn't work with Python versions > 3.10. (`#1326`_)
+
+  .. _#1302: https://github.com/atviriduomenys/spinta/issues/1302
+  .. _#1326: https://github.com/atviriduomenys/spinta/issues/1326
+
+0.2dev2
+=======
+
+Backwards incompatible:
+
+- added `status`, `visibility`, `eli`, `origin`, `count` and `source.type` columns. (`#1032`_)
+- Introduce Python package extras and optional dependencies. Now unicorn, gunicorn (http) and alembic (migrations) wont
+  be installed by default. Commands `pip install spinta` and `poetry install` (locally) won't install all packages,
+  optional ones (unicorn, gunicorn, alembic) will be skipped and if need should be installed by specifying one/multiple
+  of extra group names - `http`, `migrations` or `all`. The last one (`all`) will install all dependencies (like before).
+  For local development - `poetry install --all-extras` should be used to install all packages.
+
+  .. _#1032: https://github.com/atviriduomenys/spinta/issues/1032
+  .. _#1249: https://github.com/atviriduomenys/spinta/issues/1249
+
+New Features:
+
+- Added OpenAPI Schema manifest (`#1211`_)
+- Added changes to support enum `noop()` classificator for copy & check commands (`#1146`_)
+- Added OpenAPI Schema to DSA convertion `Dataset` column part (`#1208`_)
+- Added new CLI command `getall` which returns JSON representation of YAML data. (`#1229`_)
+
+  .. _#1211: https://github.com/atviriduomenys/spinta/issues/1211
+  .. _#1146: https://github.com/atviriduomenys/spinta/issues/1146
+  .. _#1208: https://github.com/atviriduomenys/spinta/issues/1208
+  .. _#1229: https://github.com/atviriduomenys/spinta/issues/1229
+
+Bug fixes:
+
+- Fixed a bug where namespace (`ns`) dataset name would be placed in the ref column instead of the dataset column (`#1238`_)
+- Add missing context to user facing error messages. (`#1196`_)
+- Do not check if a declared namespace exists in the generated namespaces (`#1256`_)
+
+  .. _#1238: https://github.com/atviriduomenys/spinta/issues/1238
+  .. _#1256: https://github.com/atviriduomenys/spinta/issues/1256
+  .. _#1196: https://github.com/atviriduomenys/spinta/issues/1196
+
 0.2dev1
 =======
 
@@ -11,8 +81,192 @@ Backwards incompatible:
   .. _#842: https://github.com/atviriduomenys/spinta/issues/842
   .. _#582: https://github.com/atviriduomenys/spinta/issues/582
 
-0.1.83 (unreleased)
+0.1.86 (unreleased)
 ===================
+
+Backwards incompatible:
+
+- To support `redirect`, we introduced a new `API` endpoint `/:move` that creates redirect entries. Because all data
+  manipulations must be logged in the `changelog`, we needed a way to indicate that one `_id` was moved to another `_id`.
+  Since `_id` is unique and cannot be reused, we added a new property, `_same_as`, used exclusively to track which `_id`
+  an entry was moved to. As a result, this property is now included in all tabular results (HTML, ASCII, CSV),
+  even though it will typically be empty (`#1290`_).
+
+- In order to add `move` support and to deobfuscate `SqlAlchemyKeymap` new migration system was added. From now on any
+  schema changes to keymap should be done using `spinta upgrade`. Keymap now stores separate table called `_migrations`,
+  it stores all already executed migrations. Each time `spinta` configures keymap, it will check if all of
+  required migrations have been executed on it (`#1307`_).
+
+Improvements:
+
+- `migrate` command now warns users if there are potential type casting issues (invalid or unsafe).
+  Can add `--raise` argument to raise `Exception` instead of warning (only applies to invalid casts, unsafe cast do not
+  raise `Exception`, like `TEXT` to `INTEGER`, which potentially can be valid) (`#1254`_).
+
+  .. _#1254: https://github.com/atviriduomenys/spinta/issues/1254
+
+- The `upgrade` command now support `-c` or `--check` flag, which performs only the script check without executing
+  any scripts. This is useful for previewing required upgrades without applying them (`#1290`_).
+
+- Deobfuscated `SqlAlchemyKeymap` database values, they are no longer hashed (`#1307`_).
+
+- `keymap sync` now supports `move` changelog action (`#1307`_).
+
+  .. _#1307: https://github.com/atviriduomenys/spinta/issues/1307
+
+New Features:
+
+- Added a `redirect` upgrade script (`spinta upgrade -r redirect`) that checks if the current `backend` supports redirects.
+  If not, it will attempt to add the missing features (`#1290`_).
+
+- Added a `deduplicate` upgrade script (`spinta upgrade -r deduplicate`). This checks models with assigned primary keys
+  (`model.ref`) to ensure uniqueness is enforced. If not, it scans for duplicates, aggregates them using `model.ref` keys,
+  and processes them via the `/:move` endpoint (keeping the oldest entry as the root). It then attempts to enforce
+  uniqueness going forward (`#1290`_).
+
+- Implemented `redirect` support. When trying to fetch an entry that no longer exists, the `API` will redirect the request
+  if a mapping exists in the `redirect` table (`#1290`_).
+
+- Added `DELETE` `/:move` endpoint, that removes an entry and marks it as moved to another existing entry via
+  the `redirect` table (`#1290`_).
+
+  .. _#1290: https://github.com/atviriduomenys/spinta/issues/1290
+
+Bug fixes:
+
+- Fixed `migrate` cast not including right column types while generating `USING` code part (`#1254`_).
+
+- Fixed `keymap sync` ignoring `upsert` action (`#1269`_).
+
+  .. _#1269: https://github.com/atviriduomenys/spinta/issues/1269
+
+- Fixed `postgresql` `update` action updating `_created`, instead of `_updated` value (`#1307`_).
+
+
+0.1.85 (2025-04-08)
+===================
+
+Backwards incompatible:
+
+- The `Sql` backend no longer generates random UUIDs whenever `internal` models are being accessed in `external` mode.
+  Instead, if a value mapping is not found, an error is raised. The only way to resolve this error is to update `keymap`
+  by running `keymap sync` command (`#1214`_).
+
+New Features:
+
+- Added `split('...')` function support to `sql` backend (`#760`_).
+
+- Added `flip('...')` function support in `select` query to `postgresql` and `sql` backends (`#1052`_).
+
+  .. _#1052: https://github.com/atviriduomenys/spinta/issues/1052
+
+Improvements:
+
+- Added `Array` push support for `sql` backend (`#760`_).
+
+  .. _#760: https://github.com/atviriduomenys/spinta/issues/760
+
+- Replaced `from_wkt` and `to_wkt`, to `wkt.loads` and `wkt.dumps`. This will ensure, that older versions of `shapely`
+  will still be supported (`#1186`_).
+
+  .. _#1186: https://github.com/atviriduomenys/spinta/issues/1186
+
+- `cast_backend_to_python` now allows extra properties to be passed (custom `select` functions that create new temporary
+  properties can now be properly cast to python types) (`#1052`_).
+
+- Better support for `Denorm` properties with `Sql` backend (`#1214`_).
+
+  .. _#1214: https://github.com/atviriduomenys/spinta/issues/1214
+
+- Added a specific `NoModelDefined` error when property is defined without a model (`#1000`_).
+
+  .. _#1000: https://github.com/atviriduomenys/spinta/issues/1000
+
+Bug fixes:
+
+- Fixed `sql` backend not using overwritten `ref` mapping values when joining tables (`#1052`_).
+
+- Fixed `cast_backend_to_python` not propagating casting to `Ref` children (`#1052`_).
+
+- Fixed `cast_backend_to_python` not casting `Denorm` values with required type (`#1052`_).
+
+- Added an additional check for properties that are not given a `type` and the `type` can not be inherited from the base model (`#1019`_).
+
+  .. _#1019: https://github.com/atviriduomenys/spinta/issues/1019
+
+- Adjusted error message for users, for when a DSA has a model with nested properties and the parent node is not defined (`#1005`_)
+
+  .. _#1005: https://github.com/atviriduomenys/spinta/issues/1005
+
+- Fixed tabular reader using `dtype` instead of `raw` type when handling datatype column (`#983`_).
+
+  .. _#983: https://github.com/atviriduomenys/spinta/issues/983
+
+0.1.84 (2025-02-19)
+===================
+
+Bug fixes:
+
+- Fixed `SqliteQueryBuilder` importing wrong `Sqlite` class (`#1174`_).
+
+  .. _#1174: https://github.com/atviriduomenys/spinta/issues/1174
+
+0.1.83 (2025-02-18)
+===================
+
+Backwards incompatible:
+
+- `sql` backend no longer tries to automatically change it's query functions based on dsn dialect. Now in order to access
+  specific dialect's functionality, you need to specify it through type (`#1127`_).
+
+  Currently supported `sql` backend types:
+    - `sql` - generic default sql type (tries to use dialect indifferent functions).
+    - `sql/postgresql` - PostgreSQL dialect.
+    - `sql/mssql` - Microsoft SQL server dialect.
+    - `sql/mysql` - MySQL dialect.
+    - `sql/mariadb` - MariaDB dialect.
+    - `sql/sqlite` - Sqlite dialect.
+    - `sql/oracle` - Oracle database dialect.
+
+  It is recommended to specify dialects in the manifest or config, this will ensure better performance and can unlock
+  more functionality (in case some dialects support unique functions). Because system no longer tries to automatically
+  detect the dialect there is a possibility of errors or invalid values if you do not set the correct dialect.
+
+- `Backend` objects now store `result_builder_class` and `query_builder_class` properties, which can be used to initialize
+  their respective builders. This changes how `QueryBuilders` and `ResultBuilders` are now created. Each `Backend` now has
+  to specify their builder through `result_builder_type` and `query_builder_type`, which are strings, that map with
+  corresponding classes in `config.components` (`#1127`_).
+
+  All `QueryBuilder` classes are stored in `config.components.querybuilders` path.
+
+  Currently there are these builders, that can be used:
+    - '' - Empty default query builder.
+    - `postgresql` - Internal postgresql query builder.
+    - `mongo` - Internal mongo query builder.
+    - `sql`- External default sql query builder.
+    - `sql/sqlite` - External sqlite dialect query builder.
+    - `sql/mssql` - External microsoft sql dialect query builder.
+    - `sql/postgresql` - External postgresql dialect query builder.
+    - `sql/oracle` - External oracle dialect query builder.
+    - `sql/mysql` - External mysql dialect query builder.
+    - `sql/mariadb` - External mariadb dialect query builder.
+    - `dask` - External Dask dataframe query builder.
+
+  All `ResultBuilder` classes are stored in `config.components.resultbuilders` path.
+
+  Currently there are these builders, that can be used:
+    - '' - Empty default result builder.
+    - `postgresql` - Internal postgresql result builder.
+    - `sql`- External sql result builder.
+
+- In order to maintain cohesiveness in code and data structure, dask backends have gone through same treatment as `sql`.
+  Before they worked similar to the new system (users had to manually specify their type), but now to make sure that
+  naming convention is same with all components `csv`, `json` and `xml` types have been renamed to `dask/csv`, `dask/json`,
+  `dask/xml`. If you used these backends before, you will now need to add `dask/` prefix to their types (`#1127`_).
+
+  Because so many datasets use `csv`, `json` and `xml` types, they will not be fully removed, but they will be deprecated
+  and eventually might be removed, so it's encouraged to change them to `dask` format.
+
 
 New features:
 
@@ -30,6 +284,13 @@ Improvements:
   if they are the same or higher level than given `access` (default is `private`, meaning everything is exported) (`#1130`_).
 
   .. _#1130: https://github.com/atviriduomenys/spinta/issues/1130
+
+- Separated `sql` `backend` dialects to their own separate backends (`#1127`_).
+
+- Added `dask/` prefix to `csv`, `xml` and `json` backends (`#1127`_).
+
+  .. _#1127: https://github.com/atviriduomenys/spinta/issues/1127
+
 
 Bug fix:
 

@@ -16,7 +16,7 @@ from spinta.testing.datasets import Sqlite
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.utils import get_error_codes
 from spinta.manifests.tabular.helpers import striptable
-from spinta.components import Mode
+from spinta.core.enums import Mode
 
 
 @pytest.fixture(scope='module')
@@ -548,13 +548,13 @@ def test_external_json(tmp_path: Path, rc: RawConfig):
         json.dump(test_data, file)
 
     context, manifest = prepare_manifest(rc, f'''
-id | d | r | b | m | property  | type    | ref | source      | prepare | level | access | uri | title | description
-   | datasets/uuid/example     |         |     |             |         |       |        |     |       |
-   |   | data                  | json    |     | {json_file} |         |       |        |     |       |
-   |                           |         |     |             |         |       |        |     |       |
-   |   |   |   | TestUUID      |         | id  | test_uuid   |         |       | open   |     |       |
-   |   |   |   |   | id        | integer |     | id          |         |       |        |     |       |
-   |   |   |   |   | guid      | uuid    |     | guid        |         |       |        |     |       |
+id | d | r | b | m | property  | type      | ref | source      | prepare | level | access | uri | title | description
+   | datasets/uuid/example     |           |     |             |         |       |        |     |       |
+   |   | data                  | dask/json |     | {json_file} |         |       |        |     |       |
+   |                           |           |     |             |         |       |        |     |       |
+   |   |   |   | TestUUID      |           | id  | test_uuid   |         |       | open   |     |       |
+   |   |   |   |   | id        | integer   |     | id          |         |       |        |     |       |
+   |   |   |   |   | guid      | uuid      |     | guid        |         |       |        |     |       |
         ''', mode=Mode.external)
     context.loaded = True
 
@@ -587,13 +587,13 @@ def test_external_json_select(tmp_path: Path, rc: RawConfig):
         json.dump(test_data, file)
 
     context, manifest = prepare_manifest(rc, f'''
-id | d | r | b | m | property  | type    | ref | source      | prepare | level | access | uri | title | description
-   | datasets/uuid/example     |         |     |             |         |       |        |     |       |
-   |   | data                  | json    |     | {json_file} |         |       |        |     |       |
-   |                           |         |     |             |         |       |        |     |       |
-   |   |   |   | TestUUID      |         | id  | test_uuid   |         |       | open   |     |       |
-   |   |   |   |   | id        | integer |     | id          |         |       |        |     |       |
-   |   |   |   |   | guid      | uuid    |     | guid        |         |       |        |     |       |
+id | d | r | b | m | property  | type      | ref | source      | prepare | level | access | uri | title | description
+   | datasets/uuid/example     |           |     |             |         |       |        |     |       |
+   |   | data                  | dask/json |     | {json_file} |         |       |        |     |       |
+   |                           |           |     |             |         |       |        |     |       |
+   |   |   |   | TestUUID      |           | id  | test_uuid   |         |       | open   |     |       |
+   |   |   |   |   | id        | integer   |     | id          |         |       |        |     |       |
+   |   |   |   |   | guid      | uuid      |     | guid        |         |       |        |     |       |
         ''', mode=Mode.external)
     context.loaded = True
 
@@ -614,13 +614,13 @@ def test_external_csv(tmp_path: Path, rc: RawConfig):
         file.write(test_data)
 
     context, manifest = prepare_manifest(rc, f'''
-id | d | r | b | m | property  | type    | ref | source      | prepare | level | access | uri | title | description
-   | datasets/uuid/example     |         |     |             |         |       |        |     |       |
-   |   | data                  | csv     |     | {csv_file}  |         |       |        |     |       |
-   |                           |         |     |             |         |       |        |     |       |
-   |   |   |   | TestUUID      |         | id  | test_uuid   |         |       | open   |     |       |
-   |   |   |   |   | id        | integer |     | id          |         |       |        |     |       |
-   |   |   |   |   | guid      | uuid    |     | guid        |         |       |        |     |       |
+id | d | r | b | m | property  | type     | ref | source      | prepare | level | access | uri | title | description
+   | datasets/uuid/example     |          |     |             |         |       |        |     |       |
+   |   | data                  | dask/csv |     | {csv_file}  |         |       |        |     |       |
+   |                           |          |     |             |         |       |        |     |       |
+   |   |   |   | TestUUID      |          | id  | test_uuid   |         |       | open   |     |       |
+   |   |   |   |   | id        | integer  |     | id          |         |       |        |     |       |
+   |   |   |   |   | guid      | uuid     |     | guid        |         |       |        |     |       |
     ''', mode=Mode.external)
     context.loaded = True
 
@@ -644,13 +644,13 @@ def test_external_csv_select(tmp_path: Path, rc: RawConfig):
         file.write(test_data)
 
     context, manifest = prepare_manifest(rc, f'''
-id | d | r | b | m | property  | type    | ref | source      | prepare | level | access | uri | title | description
-   | datasets/uuid/example     |         |     |             |         |       |        |     |       |
-   |   | data                  | csv     |     | {csv_file}  |         |       |        |     |       |
-   |                           |         |     |             |         |       |        |     |       |
-   |   |   |   | TestUUID      |         | id  | test_uuid   |         |       | open   |     |       |
-   |   |   |   |   | id        | integer |     | id          |         |       |        |     |       |
-   |   |   |   |   | guid      | uuid    |     | guid        |         |       |        |     |       |
+id | d | r | b | m | property  | type     | ref | source      | prepare | level | access | uri | title | description
+   | datasets/uuid/example     |          |     |             |         |       |        |     |       |
+   |   | data                  | dask/csv |     | {csv_file}  |         |       |        |     |       |
+   |                           |          |     |             |         |       |        |     |       |
+   |   |   |   | TestUUID      |          | id  | test_uuid   |         |       | open   |     |       |
+   |   |   |   |   | id        | integer  |     | id          |         |       |        |     |       |
+   |   |   |   |   | guid      | uuid     |     | guid        |         |       |        |     |       |
     ''', mode=Mode.external)
     context.loaded = True
 
@@ -680,13 +680,13 @@ def test_external_xml(tmp_path: Path, rc: RawConfig):
         file.write(test_data)
 
     context, manifest = prepare_manifest(rc, f'''
-id | d | r | b | m | property  | type    | ref | source            | prepare | level | access | uri | title | description
-   | datasets/uuid/example     |         |     |                   |         |       |        |     |       |
-   |   | data                  | xml     |     | {xml_file}        |         |       |        |     |       |
-   |                           |         |     |                   |         |       |        |     |       |
-   |   |   |   | TestUUID      |         | id  | /items/test_uuid  |         |       | open   |     |       |
-   |   |   |   |   | id        | integer |     | id                |         |       |        |     |       |
-   |   |   |   |   | guid      | uuid    |     | guid              |         |       |        |     |       |
+id | d | r | b | m | property  | type     | ref | source            | prepare | level | access | uri | title | description
+   | datasets/uuid/example     |          |     |                   |         |       |        |     |       |
+   |   | data                  | dask/xml |     | {xml_file}        |         |       |        |     |       |
+   |                           |          |     |                   |         |       |        |     |       |
+   |   |   |   | TestUUID      |          | id  | /items/test_uuid  |         |       | open   |     |       |
+   |   |   |   |   | id        | integer  |     | id                |         |       |        |     |       |
+   |   |   |   |   | guid      | uuid     |     | guid              |         |       |        |     |       |
     ''', mode=Mode.external)
     context.loaded = True
 
@@ -718,13 +718,13 @@ def test_external_xml_select(tmp_path: Path, rc: RawConfig):
         file.write(test_data)
 
     context, manifest = prepare_manifest(rc, f'''
-id | d | r | b | m | property  | type    | ref | source            | prepare | level | access | uri | title | description
-   | datasets/uuid/example     |         |     |                   |         |       |        |     |       |
-   |   | data                  | xml     |     | {xml_file}        |         |       |        |     |       |
-   |                           |         |     |                   |         |       |        |     |       |
-   |   |   |   | TestUUID      |         | id  | /items/test_uuid  |         |       | open   |     |       |
-   |   |   |   |   | id        | integer |     | id                |         |       |        |     |       |
-   |   |   |   |   | guid      | uuid    |     | guid              |         |       |        |     |       |
+id | d | r | b | m | property  | type     | ref | source            | prepare | level | access | uri | title | description
+   | datasets/uuid/example     |          |     |                   |         |       |        |     |       |
+   |   | data                  | dask/xml |     | {xml_file}        |         |       |        |     |       |
+   |                           |          |     |                   |         |       |        |     |       |
+   |   |   |   | TestUUID      |          | id  | /items/test_uuid  |         |       | open   |     |       |
+   |   |   |   |   | id        | integer  |     | id                |         |       |        |     |       |
+   |   |   |   |   | guid      | uuid     |     | guid              |         |       |        |     |       |
     ''', mode=Mode.external)
     context.loaded = True
 

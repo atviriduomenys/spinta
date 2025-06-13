@@ -1,3 +1,5 @@
+from __future__ import annotations
+from dataclasses import dataclass
 from typing import Any
 from typing import Dict
 
@@ -19,3 +21,10 @@ class ParamLoader(Env):
 
 
 ResolvedParams = Dict[str, Any]
+
+
+@dataclass(frozen=True)
+class ResolvedResourceParam:
+    target: str
+    source: str
+    value: str | None

@@ -1,12 +1,12 @@
-from typing import Dict
-from typing import Optional
+from typing import Dict, TYPE_CHECKING, Optional
 
 import sqlalchemy as sa
-from alembic.migration import MigrationContext
-from alembic.operations import Operations
 from sqlalchemy.dialects.sqlite.base import SQLiteDialect
 from sqlalchemy.engine import Engine
 from sqlalchemy.engine.reflection import Inspector
+
+if TYPE_CHECKING:
+    from alembic.operations import Operations
 
 
 def migrate_table(
@@ -21,6 +21,9 @@ def migrate_table(
     ]] = None,
     copy: bool = False
 ) -> None:
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+
     if not inspector.has_table(table.name):
         table.create()
         return
@@ -78,7 +81,7 @@ def _need_migrating(
 
 def _migrate_with_alter_table(
     inspector: Inspector,
-    op: Operations,
+    op: "Operations",
     table: sa.Table,
     renames: Optional[Dict[str, str]],
 ) -> None:
@@ -113,7 +116,7 @@ def _migrate_with_insert_from_select(
     engine: Engine,
     metadata: sa.MetaData,
     inspector: Inspector,
-    op: Operations,
+    op: "Operations",
     table: sa.Table,
     renames: Optional[Dict[str, str]],
 ) -> None:

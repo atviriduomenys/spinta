@@ -15,9 +15,9 @@ git checkout $RELEASE_VERSION
 git pull
 git tag -l -n1 | sort -h | tail -n5
 
-export CURRENT_PATCH=80
-export NEW_PATCH=81
-export FUTURE_PATCH=82
+export CURRENT_PATCH=84
+export NEW_PATCH=85
+export FUTURE_PATCH=86
 
 export CURRENT_VERSION=$RELEASE_VERSION.$CURRENT_PATCH
 export NEW_VERSION=$RELEASE_VERSION.$NEW_PATCH
@@ -29,24 +29,32 @@ git checkout $PREPARE_BRANCH
 git status
 
 # notes/spinta/release/common.sh    Check outdated packages and upgrade them
-#| Package operations: 0 installs, 11 updates, 0 removals
+# Install
+#| No dependencies to install or update
+
+# Update
+#| Package operations: 0 installs, 16 updates, 0 removals
 #|
-#|   • Updating certifi (2024.8.30 -> 2024.12.14)
-#|   • Updating six (1.16.0 -> 1.17.0)
-#|   • Updating attrs (24.2.0 -> 24.3.0)
-#|   • Updating mako (1.3.6 -> 1.3.8)
-#|   • Updating httpx (0.28.0 -> 0.28.1)
-#|   • Updating phonenumbers (8.13.51 -> 8.13.52)
-#|   • Updating python-multipart (0.0.19 -> 0.0.20)
-#|   • Updating sqlparse (0.5.2 -> 0.5.3)
-#|   • Updating starlette (0.41.3 -> 0.42.0)
-#|   • Updating typer (0.14.0 -> 0.15.1)
-#|   • Updating uvicorn (0.32.1 -> 0.33.0)
+#|   • Updating jinja2 (3.1.5 -> 3.1.6)
+#|   • Updating typing-extensions (4.12.2 -> 4.13.1)
+#|   • Updating decorator (5.1.1 -> 5.2.1)
+#|   • Updating iniconfig (2.0.0 -> 2.1.0)
+#|   • Updating pytz (2025.1 -> 2025.2)
+#|   • Updating tzdata (2025.1 -> 2025.2)
+#|   • Updating attrs (25.1.0 -> 25.3.0)
+#|   • Updating fsspec (2025.2.0 -> 2025.3.0)
+#|   • Updating rich (13.9.4 -> 14.0.0)
+#|   • Updating setuptools (75.3.0 -> 75.3.2)
+#|   • Updating cachetools (5.5.1 -> 5.5.2)
+#|   • Updating lxml (5.3.1 -> 5.3.2)
+#|   • Updating phonenumbers (8.13.55 -> 9.0.2)
+#|   • Updating responses (0.25.6 -> 0.25.7)
+#|   • Updating setuptools-scm (8.1.0 -> 8.2.0)
+#|   • Updating typer (0.15.1 -> 0.15.2)
+
 
 # Run Makefile
-cd docs
-make upgrade
-cd ..
+(cd docs && make upgrade)
 
 # Check what was changed and update CHANGES.rst
 xdg-open https://github.com/atviriduomenys/spinta/compare/$CURRENT_VERSION...$RELEASE_VERSION
@@ -58,7 +66,7 @@ head CHANGES.rst
 # notes/spinta/release/common.sh    Reset test database
 
 poetry run pytest -vvx --tb=short tests
-#| 2241 passed, 45 skipped, 55 warnings in 348.64s (0:05:48)
+#| 2394 passed, 45 skipped, 57 warnings in 400.85s (0:06:40)
 
 # If possible run same tests using test and prod env library versions
 # Test env
@@ -81,14 +89,17 @@ BASEDIR=$PWD/var/instances/$INSTANCE
 # notes/spinta/release/common.sh    Configure spinta
 # notes/spinta/release/common.sh    Create manifest file
 
-# notes/spinta/release/common.sh    Run server in EXTERNAL mode
 # notes/spinta/release/common.sh    Run migrations
-#| (3314 rows)
+#| (3624 rows)
 
 # notes/spinta/release/common.sh    Run server in INTERNAL mode
 # Don't forget to add client to server and credentials;
 # - notes/spinta/server.sh
 # - notes/spinta/push.sh
+# Add testing data
+
+# notes/spinta/release/common.sh    Run server in EXTERNAL mode
+# Sync INTERNAL model data
 
 # notes/spinta/release/common.sh    Run smoke tests
 

@@ -15,19 +15,48 @@ Spinta supports multiple backends and multiple backend instances. All
 supported backends are defined in `components.backends`. You can look it up::
 
   > spinta config components.backends
-  Origin  Name                            Value
-  ------  ------------------------------  ------------------------------------------------
-  spinta  components.backends.memory      spinta.backends.memory.components:Memory
-  spinta  components.backends.postgresql  spinta.backends.postgresql.components:PostgreSQL
-  spinta  components.backends.mongo       spinta.backends.mongo.components:Mongo
-  spinta  components.backends.fs          spinta.backends.fs.components:FileSystem
-  spinta  components.backends.s3          spinta.backends.s3:S3
-  spinta  components.backends.sql         spinta.datasets.backends.sql.components:Sql
-  spinta  components.backends.sqldump     spinta.datasets.backends.sqldump.components:SqlDump
-  spinta  components.backends.csv         spinta.datasets.backends.csv.components:Csv
-  spinta  components.backends.xml         spinta.datasets.backends.dataframe.components:Xml
-  spinta  components.backends.json        spinta.datasets.backends.dataframe.components:Json
-  spinta  components.backends.soap        spinta.datasets.backends.dataframe.components:Soap
+    Origin  Name                                Value
+    ------  ----------------------------------  ----------------------------------------------------------------------
+    spinta  components.backends.memory          spinta.backends.memory.components:Memory
+    spinta  components.backends.postgresql      spinta.backends.postgresql.components:PostgreSQL
+    spinta  components.backends.mongo           spinta.backends.mongo.components:Mongo
+    spinta  components.backends.fs              spinta.backends.fs.components:FileSystem
+    spinta  components.backends.sql             spinta.datasets.backends.sql.components:Sql
+    spinta  components.backends.sql/sqlite      spinta.datasets.backends.sql.backends.sqlite.components:Sqlite
+    spinta  components.backends.sql/postgresql  spinta.datasets.backends.sql.backends.postgresql.components:PostgreSQL
+    spinta  components.backends.sql/mssql       spinta.datasets.backends.sql.backends.mssql.components:MSSQL
+    spinta  components.backends.sql/mysql       spinta.datasets.backends.sql.backends.mysql.components:MySQL
+    spinta  components.backends.sql/mariadb     spinta.datasets.backends.sql.backends.mariadb.components:MariaDB
+    spinta  components.backends.sql/oracle      spinta.datasets.backends.sql.backends.oracle.components:Oracle
+    spinta  components.backends.sqldump         spinta.datasets.backends.sqldump.components:SqlDump
+    spinta  components.backends.dask            spinta.datasets.backends.dataframe.components:DaskBackend
+    spinta  components.backends.dask/csv        spinta.datasets.backends.dataframe.backends.csv.components:Csv
+    spinta  components.backends.dask/xml        spinta.datasets.backends.dataframe.backends.xml.components:Xml
+    spinta  components.backends.dask/json       spinta.datasets.backends.dataframe.backends.json.components:Json
+    spinta  components.backends.xlsx            spinta.datasets.backends.notimpl.components:BackendNotImplemented
+    spinta  components.backends.geojson         spinta.datasets.backends.notimpl.components:BackendNotImplemented
+    spinta  components.backends.html            spinta.datasets.backends.notimpl.components:BackendNotImplemented
+    spinta  components.backends.csv             spinta.compat:CsvDeprecated
+    spinta  components.backends.xml             spinta.compat:XmlDeprecated
+    spinta  components.backends.json            spinta.compat:JsonDeprecated
+
+Certain backends allow specifying a sub-backend for tailored functionality.
+Currently there are two backends that allow it:
+
+- `sql` - Generic `sql` backend that support most of the `sql` dialects. It is highly recommended to specify the dialect.
+
+  - `sql/sqlite` - Sqlite dialect.
+  - `sql/postgresql` - PostgreSQL dialect.
+  - `sql/mssql` - Microsoft SQL dialect.
+  - `sql/mysql` - MySQL dialect.
+  - `sql/mariadb` - MariaDB dialect.
+  - `sql/oracle` - Oracle dialect.
+
+- `dask` - `Backend` type that focuses on storing data into dask dataframe tables. It must specify sub-backend.
+
+  - `dask/csv` - Csv format (formally `csv`).
+  - `dask/xml` - Xml format (formally `xml`).
+  - `dask/json` - Json format (formally `json`).
 
 Each supported backend has a human readable name, like `postgresql` or `mongo`.
 You can use these names to add backend instances. Backend instance is a

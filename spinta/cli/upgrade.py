@@ -1,10 +1,13 @@
 import logging
+
 from typer import Context as TyperContext
 from typer import Option
+from typer import echo
 
 from spinta.cli.helpers.store import load_config
-from spinta.cli.helpers.upgrade.scripts import run_specific_script, run_all_scripts, get_all_upgrade_script_names, \
-    does_script_exist
+from spinta.cli.helpers.upgrade.core import run_specific_script, run_all_scripts, \
+    script_exists
+from spinta.cli.helpers.upgrade.registry import get_all_script_names
 from spinta.core.context import configure_context
 from spinta.exceptions import UpgradeError, UpgradeScriptNotFound
 
@@ -28,11 +31,23 @@ def upgrade(
     run: str = Option(None, '-r', '--run', help=(
         f"""
         Specify a script to run.
-        Available scripts: {get_all_upgrade_script_names()}
+        Available scripts: {get_all_script_names()}
         """
     )),
+    check_only: bool = Option(False, '-c', '--check', help=(
+        "Only runs script checks, skipping execution part (used to find out what scripts are needed to run)."
+    ))
 ):
+    rc = ctx.obj.get('rc')
+    rc.add('upgrade', {
+        'upgrade_mode': True
+    })
     context = configure_context(ctx.obj)
+
+    if force and check_only:
+        echo("Cannot run force mode with check only mode", err=True)
+        return
+
     try:
         load_config(
             context,
@@ -43,22 +58,24 @@ def upgrade(
         pass
 
     if run is not None:
-        if not does_script_exist(run):
+        if not script_exists(run):
             raise UpgradeScriptNotFound(
                 script=run,
-                available_scripts=get_all_upgrade_script_names()
+                available_scripts=get_all_script_names()
             )
 
         run_specific_script(
             context=context,
             destructive=destructive,
             force=force,
-            script_name=run
+            script_name=run,
+            check_only=check_only
         )
         return
 
     run_all_scripts(
         context=context,
         destructive=destructive,
-        force=force
+        force=force,
+        check_only=check_only
     )

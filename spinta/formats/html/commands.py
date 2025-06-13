@@ -23,7 +23,8 @@ from spinta.backends.helpers import get_model_reserved_props, get_select_prop_na
 from spinta.backends.helpers import get_ns_reserved_props
 from spinta.backends.helpers import select_model_props
 from spinta.backends.postgresql.types.geometry.helpers import get_display_value, get_osm_link
-from spinta.components import Action, pagination_enabled, page_in_data
+from spinta.components import pagination_enabled, page_in_data
+from spinta.core.enums import Action
 from spinta.components import Context
 from spinta.components import Model
 from spinta.components import Namespace
@@ -38,7 +39,7 @@ from spinta.formats.html.helpers import get_model_link
 from spinta.formats.html.helpers import get_output_formats
 from spinta.formats.html.helpers import get_template_context
 from spinta.formats.html.helpers import short_id
-from spinta.types.datatype import Array, ExternalRef, PageType, BackRef, ArrayBackRef
+from spinta.types.datatype import Array, ExternalRef, PageType, BackRef, ArrayBackRef, Denorm
 from spinta.types.datatype import DataType
 from spinta.types.datatype import File
 from spinta.types.datatype import Object
@@ -913,6 +914,28 @@ def prepare_dtype_for_response(
     display_value = get_display_value(value)
     osm_link = get_osm_link(value, dtype)
     return Cell(display_value, link=osm_link)
+
+
+@commands.prepare_dtype_for_response.register(Context, Html, Denorm, (object, type(None), NotAvailable))
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: Denorm,
+    value: Any,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    return commands.prepare_dtype_for_response(
+        context,
+        fmt,
+        dtype.rel_prop,
+        value,
+        data=data,
+        action=action,
+        select=select
+    )
 
 
 def _value_or_null(value):

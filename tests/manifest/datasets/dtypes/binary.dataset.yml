@@ -3,4 +3,4 @@ type: dataset
 name: datasets/dtypes/binary
 resources:
   resource:
-    type: csv
+    type: dask/csv

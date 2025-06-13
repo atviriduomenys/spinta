@@ -233,7 +233,7 @@ def test_exceptions_unique_constraint_single_column(
         "errors": [{
             "type": "property",
             "code": "UniqueConstraint",
-            "template": "Given value already exists.",
+            "template": "Given value ({value}) already exists.",
             "context": {
                 "component": "spinta.components.Property",
                 "manifest": "default",
@@ -244,7 +244,7 @@ def test_exceptions_unique_constraint_single_column(
                 "property": "name",
                 "attribute": ""
             },
-            "message": "Given value already exists."
+            "message": "Given value ([UNKNOWN]) already exists."
         }]
     }
 

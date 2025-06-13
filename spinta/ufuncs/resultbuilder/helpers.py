@@ -1,16 +1,15 @@
 from collections import abc
-
-from multipledispatch import dispatch
 from typing import Any, Union
 
-from spinta import commands
+from multipledispatch import dispatch
+
 from spinta.backends import Backend
 from spinta.components import Context, Property
-from spinta.core.ufuncs import Expr
+from spinta.core.ufuncs import Expr, Env
 from spinta.dimensions.enum.helpers import get_prop_enum
-from spinta.exceptions import ValueNotInEnum, PropertyNotFound
-from spinta.ufuncs.basequerybuilder.components import Selected
-from spinta.ufuncs.resultbuilder.components import ResultBuilder
+from spinta.exceptions import ValueNotInEnum
+from spinta.ufuncs.querybuilder.components import Selected
+from spinta.ufuncs.resultbuilder.components import ResultBuilder, EnumResultBuilder
 from spinta.utils.schema import NA
 
 ResultBuilderGetter = abc.Callable[[], ResultBuilder]
@@ -131,7 +130,7 @@ def get_row_value(context: Context, backend: Backend, row: Any, sel: Any, check_
 
 
 def backend_result_builder_getter(context: Context, backend: Backend) -> ResultBuilderGetter:
-    return lambda: commands.get_result_builder(context, backend)
+    return lambda: backend.result_builder_class(context)
 
 
 def _get_row_value(
@@ -139,7 +138,7 @@ def _get_row_value(
     row: Any,
     sel: Any,
     check_enums: bool,
-    result_builder_getter: Union[ResultBuilderGetter, ResultBuilder]
+    result_builder_getter: Union[ResultBuilderGetter, ResultBuilder],
 ):
     if isinstance(sel, Selected):
         if isinstance(sel.prep, Expr):
@@ -165,7 +164,16 @@ def _get_row_value(
                         val = item.prepare
                 else:
                     raise ValueNotInEnum(sel.prop, value=val)
-
+        elif enum_options := get_prop_enum(sel.prop):
+            for enum_option in enum_options.values():
+                if isinstance(enum_option.prepare, Expr):
+                    env = EnumResultBuilder(context).init(val)
+                    val = env.resolve(enum_option.prepare)
+                    if env.has_value_changed:
+                        break
+                elif enum_option.source and enum_option.prepare and enum_option.source == val:
+                    val = enum_option.prepare
+                    break
         return val
     if isinstance(sel, tuple):
         return tuple(_get_row_value(context, row, v, check_enums, result_builder_getter) for v in sel)

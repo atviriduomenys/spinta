@@ -276,7 +276,7 @@ It is a good idea to provide some screenshots if we are dealing with graphical
 user interfaces.
 
 But do not make screenshots of code, tracebacks or DSA tables, these should be
-provided as text, in order to be alby to select and copy the text.
+provided as text, in order to be able to select, copy and search the text.
 
 
 

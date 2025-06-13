@@ -7,7 +7,8 @@ from starlette.requests import Request
 from starlette.responses import StreamingResponse
 
 from spinta.formats.ascii.components import Ascii
-from spinta.components import Context, Action, UrlParams, Model
+from spinta.components import Context, UrlParams, Model
+from spinta.core.enums import Action
 from spinta import commands
 from spinta.utils.response import aiter, peek_and_stream
 

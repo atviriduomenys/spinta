@@ -8,14 +8,15 @@ from spinta.backends.constants import TableType
 from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.constants import UNSUPPORTED_TYPES
-from spinta.utils.sqlalchemy import Convention
 from spinta.backends.postgresql.helpers import get_column_name
 from spinta.backends.postgresql.helpers import get_pg_name
 from spinta.backends.postgresql.helpers.changes import get_changes_table
-from spinta.backends.postgresql.helpers.name import PG_NAMING_CONVENTION, get_pg_table_name, get_pg_column_name
+from spinta.backends.postgresql.helpers.name import PG_NAMING_CONVENTION, get_pg_table_name
+from spinta.backends.postgresql.helpers.redirect import get_redirect_table
 from spinta.components import Context, Model
 from spinta.manifests.components import Manifest
 from spinta.types.datatype import DataType, PrimaryKey, Ref
+from spinta.utils.sqlalchemy import Convention
 
 
 @overload
@@ -78,6 +79,10 @@ def prepare(context: Context, backend: PostgreSQL, model: Model, ignore_duplicat
     # Create changes table.
     changelog_table = get_changes_table(context, backend, model)
     backend.add_table(changelog_table, model, TableType.CHANGELOG)
+
+    # Create redirect table.
+    redirect_table = get_redirect_table(context, backend, model)
+    backend.add_table(redirect_table, model, TableType.REDIRECT)
 
 
 @overload

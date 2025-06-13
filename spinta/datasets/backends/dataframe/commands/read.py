@@ -1,18 +1,25 @@
+from __future__ import annotations
 import io
 import json
 import pathlib
-from typing import Dict, Any, Iterator
+from typing import Any, Dict, Iterator
 
 import dask
 import numpy as np
+import pandas as pd
 import requests
+import yaml
 from dask.dataframe import DataFrame
 from lxml import etree
 
 from spinta import commands
 from spinta.components import Context, Property, Model
-from spinta.core.ufuncs import Expr
-from spinta.datasets.backends.dataframe.components import DaskBackend, Csv, Xml, Json
+from spinta.core.ufuncs import Expr, Env
+from spinta.datasets.backends.dataframe.components import DaskBackend
+from spinta.datasets.backends.dataframe.backends.memory.components import MemoryDaskBackend
+from spinta.datasets.backends.dataframe.backends.json.components import Json
+from spinta.datasets.backends.dataframe.backends.csv.components import Csv
+from spinta.datasets.backends.dataframe.backends.xml.components import Xml
 from spinta.datasets.backends.dataframe.ufuncs.components import TabularResource
 from spinta.datasets.backends.dataframe.ufuncs.query.components import DaskDataFrameQueryBuilder
 from spinta.datasets.backends.helpers import handle_ref_key_assignment
@@ -27,19 +34,19 @@ from spinta.manifests.components import Manifest
 from spinta.manifests.dict.helpers import is_list_of_dicts, is_blank_node
 from spinta.types.datatype import PrimaryKey, Ref, DataType, Boolean, Number, Integer, DateTime
 from spinta.typing import ObjectData
-from spinta.ufuncs.basequerybuilder.components import Selected
+from spinta.ufuncs.querybuilder.components import Selected
 from spinta.ufuncs.helpers import merge_formulas
 from spinta.ufuncs.resultbuilder.components import ResultBuilder
 from spinta.utils.data import take
 from spinta.utils.schema import NA
 
 
-def _resolve_expr(context: Context, row: Any, sel: Selected) -> Any:
+def _resolve_expr(context: Context, row: Any, sel: Selected, params: dict) -> Any:
     if sel.item is None:
         val = None
     else:
         val = row[sel.item]
-    env = ResultBuilder(context).init(val, sel.prop, row)
+    env = ResultBuilder(context).init(val, sel.prop, row, params)
     return env.resolve(sel.prep)
 
 
@@ -75,27 +82,47 @@ def _aggregate_values(data, target: Property):
     return recursive_collect(data, 0)
 
 
-def _get_row_value(context: Context, row: Any, sel: Any) -> Any:
+def _get_row_value(context: Context, row: Any, sel: Any, params: dict | None) -> Any:
+    params = params or {}
+
     if isinstance(sel, Selected):
         if isinstance(sel.prep, Expr):
-            val = _resolve_expr(context, row, sel)
+            val = _resolve_expr(context, row, sel, params)
         elif sel.prep is not NA:
-            val = _get_row_value(context, row, sel.prep)
+            val = _get_row_value(context, row, sel.prep, params)
         else:
             if sel.item in row.keys():
                 val = row[sel.item]
             else:
-                raise PropertyNotFound(
-                    sel.prop.model,
-                    property=sel.prop.name,
-                    external=sel.prop.external.name,
-                )
+                val = {}
+                if isinstance(sel.prop.dtype, Ref):
+                    for prop in sel.prop.dtype.refprops:
+                        if f"{sel.prop.name}.{prop.name}" in row.keys():
+                            val[prop.name] = row[f"{sel.prop.name}.{prop.name}"]
+                        else:
+                            raise PropertyNotFound(
+                                sel.prop.model,
+                                property=sel.prop.name,
+                                external=sel.prop.external.name,
+                            )
+                if not val:
+                    raise PropertyNotFound(
+                        sel.prop.model,
+                        property=sel.prop.name,
+                        external=sel.prop.external.name,
+                    )
 
-        if enum := get_prop_enum(sel.prop):
+        if enum_options := get_prop_enum(sel.prop):
+            env = Env(context)(this=sel.prop)
+            for enum_option in enum_options.values():
+                if isinstance(enum_option.prepare, Expr):
+                    val = env.call(enum_option.prepare.name, str(val), *enum_option.prepare.args)
+                    if val:
+                        break
             if val is None:
                 pass
-            elif str(val) in enum:
-                item = enum[str(val)]
+            elif str(val) in enum_options:
+                item = enum_options[str(val)]
                 if item.prepare is not NA:
                     val = item.prepare
             else:
@@ -103,11 +130,11 @@ def _get_row_value(context: Context, row: Any, sel: Any) -> Any:
 
         return val
     if isinstance(sel, tuple):
-        return tuple(_get_row_value(context, row, v) for v in sel)
+        return tuple(_get_row_value(context, row, v, params) for v in sel)
     if isinstance(sel, list):
-        return [_get_row_value(context, row, v) for v in sel]
+        return [_get_row_value(context, row, v, params) for v in sel]
     if isinstance(sel, dict):
-        return {k: _get_row_value(context, row, v) for k, v in sel.items()}
+        return {k: _get_row_value(context, row, v, params) for k, v in sel.items()}
     return sel
 
 
@@ -358,7 +385,7 @@ def _get_pkeys_if_ref(prop: Property):
     return return_list
 
 
-def _get_dask_dataframe_meta(model: Model):
+def get_dask_dataframe_meta(model: Model):
     dask_meta = {}
     for prop in model.properties.values():
         if prop.external and prop.external.name:
@@ -374,6 +401,7 @@ def getall(
     *,
     query: Expr = None,
     resolved_params: ResolvedParams = None,
+    extra_properties: dict[str, Property] = None,
     **kwargs
 ) -> Iterator[ObjectData]:
     bases = parametrize_bases(
@@ -383,7 +411,7 @@ def getall(
         resolved_params
     )
 
-    builder = DaskDataFrameQueryBuilder(context)
+    builder = backend.query_builder_class(context)
     builder.update(model=model)
     props = {}
     for prop in model.properties.values():
@@ -395,13 +423,13 @@ def getall(
                 "pkeys": _get_pkeys_if_ref(prop)
             }
 
-    meta = _get_dask_dataframe_meta(model)
+    meta = get_dask_dataframe_meta(model)
     df = dask.bag.from_sequence(bases).map(
         _get_data_json,
         source=model.external.name,
         model_props=props
     ).flatten().to_dataframe(meta=meta)
-    yield from _dask_get_all(context, query, df, backend, model, builder)
+    yield from dask_get_all(context, query, df, backend, model, builder, extra_properties)
 
 
 @commands.getall.register(Context, Model, Xml)
@@ -412,6 +440,7 @@ def getall(
     *,
     query: Expr = None,
     resolved_params: ResolvedParams = None,
+    extra_properties: dict[str, Property] = None,
     **kwargs
 ) -> Iterator[ObjectData]:
     bases = parametrize_bases(
@@ -420,7 +449,7 @@ def getall(
         model.external.resource,
         resolved_params
     )
-    builder = DaskDataFrameQueryBuilder(context)
+    builder = backend.query_builder_class(context)
     builder.update(model=model)
     props = {}
     for prop in model.properties.values():
@@ -430,14 +459,14 @@ def getall(
                 "pkeys": _get_pkeys_if_ref(prop)
             }
 
-    meta = _get_dask_dataframe_meta(model)
+    meta = get_dask_dataframe_meta(model)
     df = dask.bag.from_sequence(bases).map(
         _get_data_xml,
         namespaces=_gather_namespaces_from_model(context, model),
         source=model.external.name,
         model_props=props
     ).flatten().to_dataframe(meta=meta)
-    yield from _dask_get_all(context, query, df, backend, model, builder)
+    yield from dask_get_all(context, query, df, backend, model, builder, extra_properties)
 
 
 def _gather_namespaces_from_model(context: Context, model: Model):
@@ -456,6 +485,7 @@ def getall(
     *,
     query: Expr = None,
     resolved_params: ResolvedParams = None,
+    extra_properties: dict[str, Property] = None,
     **kwargs
 ) -> Iterator[ObjectData]:
     resource_builder = TabularResource(context)
@@ -468,10 +498,40 @@ def getall(
         model.external.name
     )
 
-    builder = DaskDataFrameQueryBuilder(context)
+    builder = backend.query_builder_class(context)
     builder.update(model=model)
     df = dask.dataframe.read_csv(list(bases), sep=resource_builder.seperator)
-    yield from _dask_get_all(context, query, df, backend, model, builder)
+    yield from dask_get_all(context, query, df, backend, model, builder, extra_properties)
+
+@commands.getall.register(Context, Model, MemoryDaskBackend)
+def getall(
+    context: Context,
+    model: Model,
+    backend: MemoryDaskBackend,
+    *,
+    query: Expr = None,
+    resolved_params: ResolvedParams = None,
+    extra_properties: dict[str, Property] = None,
+    **kwargs,
+) -> Iterator[ObjectData]:
+    yaml_file = backend.config["dsn"]
+
+    with open(yaml_file, "r") as f:
+        data = list(yaml.safe_load_all(f))
+
+    df = pd.json_normalize(data)
+    mask = df["_type"] == model.name
+
+    filtered_df = df[mask]
+    filtered_df = filtered_df.dropna(axis=1)
+    dask_df = dask.dataframe.from_pandas(filtered_df)
+
+    builder = backend.query_builder_class(context)
+    builder.update(model=model)
+
+    yield from dask_get_all(
+        context, query, dask_df, backend, model, builder, extra_properties
+    )
 
 
 def parametrize_bases(
@@ -496,13 +556,23 @@ def parametrize_bases(
         yield base
 
 
-def _dask_get_all(context: Context, query: Expr, df: dask.dataframe, backend: DaskBackend, model: Model, env: DaskDataFrameQueryBuilder):
+def dask_get_all(
+    context: Context,
+    query: Expr,
+    df: dask.dataframe,
+    backend: DaskBackend,
+    model: Model,
+    env: DaskDataFrameQueryBuilder,
+    extra_properties: dict,
+    params: dict | None = None,
+):
+    params = params or {}
     keymap: KeyMap = context.get(f'keymap.{model.keymap.name}')
 
     query = merge_formulas(model.external.prepare, query)
     query = merge_formulas(query, get_enum_filters(context, model))
     query = merge_formulas(query, get_ref_filters(context, model))
-    env = env.init(backend, df)
+    env = env.init(backend, df, params)
     expr = env.resolve(query)
     where = env.execute(expr)
     qry = env.build(where)
@@ -513,14 +583,14 @@ def _dask_get_all(context: Context, query: Expr, df: dask.dataframe, backend: Da
             '_type': model.model_type(),
         }
         for key, sel in env.selected.items():
-            val = _get_row_value(context, row, sel)
+            val = _get_row_value(context, row, sel, env.params)
             if sel.prop:
                 if isinstance(sel.prop.dtype, PrimaryKey):
                     val = keymap.encode(sel.prop.model.model_type(), val)
                 elif isinstance(sel.prop.dtype, Ref):
                     val = handle_ref_key_assignment(context, keymap, env, val, sel.prop.dtype)
             res[key] = val
-        res = commands.cast_backend_to_python(context, model, backend, res)
+        res = commands.cast_backend_to_python(context, model, backend, res, extra_properties=extra_properties)
         yield res
 
 

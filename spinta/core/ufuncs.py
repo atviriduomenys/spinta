@@ -29,11 +29,14 @@ class Expr:
         self.args = tuple(args)
         self.kwargs = kwargs
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return str(spyna.unparse(self.todict(), raw=True))
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str(spyna.unparse(self.todict()))
+
+    def __eq__(self, other) -> bool:
+        return isinstance(other, Expr) and self.todict() == other.todict()
 
     def todict(self) -> dict:
         args = [
@@ -51,7 +54,7 @@ class Expr:
             'args': args + kwargs,
         }
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs) -> Expr:
         return type(self)(self.name, *args, **kwargs)
 
     def resolve(self, env: Env) -> Tuple[List[Any], Dict[str, Any]]:
@@ -224,7 +227,6 @@ class Env:
 
         if expr.name in self._resolvers:
             ufunc = self._resolvers[expr.name]
-
         else:
             args, kwargs = expr.resolve(self)
             return self.default_resolver(expr, *args, **kwargs)
@@ -285,6 +287,9 @@ class Bind(Unresolved):
     def __repr__(self):
         return self.name
 
+    def __str__(self):
+        return self.name
+
 
 class Pair(Unresolved):
 
@@ -309,5 +314,19 @@ class GetAttr(Unresolved):
     obj: str
     name: Union[GetAttr, Bind]
 
+    def __str__(self):
+        return f'{self.obj}.{str(self.name)}'
+
 
 bind = functools.partial(Expr, 'bind')
+
+
+class NoOp(Expr):
+    def __init__(self):
+        self.name = 'noop'
+
+    def todict(self) -> dict:
+        return {
+            'name': self.name,
+            'args': []
+        }

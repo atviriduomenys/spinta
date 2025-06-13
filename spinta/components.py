@@ -9,7 +9,6 @@ from typing import Iterator
 from typing import Set
 from typing import TYPE_CHECKING, List, Optional, AsyncIterator, Union
 
-import enum
 import contextlib
 import dataclasses
 import pathlib
@@ -23,7 +22,7 @@ from spinta.dimensions.lang.components import LangData
 from spinta.units.components import Unit
 from spinta.utils.encoding import encode_page_values
 from spinta.utils.schema import NA
-from spinta.core.enums import Access, Level
+from spinta.core.enums import Access, Level, Status, Visibility, Action, Mode
 
 if TYPE_CHECKING:
     from spinta.backends.components import Backend
@@ -676,6 +675,11 @@ class Model(MetaData):
     uri_prop: Property = None
     page: PageInfo = None
     features: str = None
+    status: Status | None = None
+    visibility: Visibility | None = None
+    eli: str | None = None
+    count: int | None = None
+    origin: str | None = None
 
     required_keymap_properties = None
 
@@ -704,6 +708,19 @@ class Model(MetaData):
         'uri': {'type': 'string'},
         'given_name': {'type': 'string', 'default': None},
         'features': {},
+        'status': {
+            'type': 'string',
+            'choices': Status,
+            'default': 'develop'
+        },
+        'visibility': {
+            'type': 'string',
+            'choices': Visibility,
+            'default': 'private',
+        },
+        'eli': {'type': 'string'},
+        'count': {'type': 'integer'},
+        'origin': {'type': 'string'},
     }
 
     def __init__(self):
@@ -734,7 +751,6 @@ class Model(MetaData):
 
         # return self.name.split('/')[-1]
 
-
     def add_keymap_property_combination(self, given_props: List[Property]):
         extract_names = list([prop.name for prop in given_props])
         if extract_names not in self.required_keymap_properties:
@@ -743,20 +759,15 @@ class Model(MetaData):
     def get_given_properties(self):
         return {prop_name: prop for prop_name, prop in self.properties.items() if not prop_name.startswith('_')}
 
-    def get_from_flatprops(self, prop: str) -> Property:
-        if prop in self.flatprops:
-            return self.flatprops[prop]
-        else:
-            raise exceptions.FieldNotInResource(self, property=prop)
-
 
 class PropertyGiven:
-    access: str = None
-    enum: str = None
-    unit: str = None
-    name: str = None
+    access: str | None = None
+    enum: str | None = None
+    unit: str | None = None
+    name: str | None = None
     explicit: bool = True
-    prepare: List[PrepareGiven] = []
+    type: str | None = None
+    prepare: list[PrepareGiven] = []
 
 
 class PrepareGiven(TypedDict):
@@ -784,6 +795,11 @@ class Property(ExtraMetaData):
     lang: LangData = None
     unit: Unit = None       # Given in ref column.
     comments: List[Comment] = None
+    status: Status | None = None
+    visibility: Visibility | None = None
+    eli: str | None = None
+    count: int | None = None
+    origin: str | None = None
 
     schema = {
         'title': {},
@@ -811,6 +827,19 @@ class Property(ExtraMetaData):
         'given_name': {'type': 'string', 'default': None},
         'explicitly_given': {'type': 'boolean'},
         'prepare_given': {'required': False},
+        'status': {
+            'type': 'string',
+            'choices': Status,
+            'default': 'develop',
+        },
+        'visibility': {
+            'type': 'string',
+            'choices': Visibility,
+            'default': 'private',
+        },
+        'eli': {'type': 'string'},
+        'count': {'type': 'integer'},
+        'origin': {'type': 'string'},
     }
 
     def __init__(self):
@@ -857,7 +886,7 @@ class CommandList:
 
 @dataclasses.dataclass
 class FuncProperty:
-    func: Expr
+    func: Expr | None
     prop: Property
 
 
@@ -866,38 +895,6 @@ class Attachment:
     content_type: str
     filename: str
     data: bytes
-
-
-class Action(enum.Enum):
-    INSERT = 'insert'
-    UPSERT = 'upsert'
-    UPDATE = 'update'
-    PATCH = 'patch'
-    DELETE = 'delete'
-
-    WIPE = 'wipe'
-
-    GETONE = 'getone'
-    GETALL = 'getall'
-    SEARCH = 'search'
-
-    CHANGES = 'changes'
-
-    CHECK = 'check'
-    INSPECT = 'inspect'
-    SCHEMA = 'schema'
-
-    @classmethod
-    def has_value(cls, value):
-        return value in cls._value2member_map_
-
-    @classmethod
-    def by_value(cls, value):
-        return cls._value2member_map_[value]
-
-    @classmethod
-    def values(cls):
-        return list(cls._value2member_map_.keys())
 
 
 class UrlParseNode(TypedDict):
@@ -1082,17 +1079,6 @@ class DataSubItem:
 
 DataStream = AsyncIterator[DataItem]
 
-
-class Mode(enum.Enum):
-    # Internal mode always use internal backend set on manifest, namespace or
-    # model.
-    internal = 'internal'
-
-    # External model always sue external backend set on dataset or model's
-    # source entity.
-    external = 'external'
-
-
 ScopeFormatterFunc = Callable[[
     Context,
     Union[Namespace, Model, Property],
@@ -1138,6 +1124,10 @@ class Config:
     # MB
     max_api_file_size: int
     max_error_count_on_insert: int
+
+    # Config variable that should only be set when running `upgrade` `cli` command, used to track when certain errors
+    # can be ignored (like missing migrations while loading configs)
+    upgrade_mode: bool = False
 
     def __init__(self):
         self.commands = _CommandsConfig()

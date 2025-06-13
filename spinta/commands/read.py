@@ -1,11 +1,10 @@
 import uuid
-from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
-from typing import overload, Optional, Iterator, List, Tuple, Callable
+from typing import overload, Iterator, List, Tuple, Callable
 
 from starlette.requests import Request
-from starlette.responses import FileResponse
+from starlette.responses import FileResponse, RedirectResponse
 from starlette.responses import Response
 
 from spinta import commands
@@ -16,22 +15,22 @@ from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
 from spinta.backends.nobackend.components import NoBackend
 from spinta.compat import urlparams_to_expr
-from spinta.components import Context, Node, Action, UrlParams, Page, PageBy, get_page_size, Config, \
-    pagination_enabled
+from spinta.components import Context, Node, UrlParams, Page, get_page_size, pagination_enabled
 from spinta.components import Model
 from spinta.components import Property
+from spinta.core.enums import Action
 from spinta.core.ufuncs import Expr
-from spinta.exceptions import ItemDoesNotExist
+from spinta.exceptions import ItemDoesNotExist, RedirectFeatureMissing, MultipleErrors
 from spinta.exceptions import UnavailableSubresource, InfiniteLoopWithPagination, BackendNotGiven, TooShortPageSize, \
     TooShortPageSizeKeyRepetition
 from spinta.renderer import render
 from spinta.types.datatype import DataType
 from spinta.types.datatype import File
 from spinta.types.datatype import Object
-from spinta.typing import ObjectData
-from spinta.ufuncs.basequerybuilder.components import QueryParams, QueryPage
-from spinta.ufuncs.basequerybuilder.helpers import update_query_with_url_params, add_page_expr
+from spinta.ufuncs.querybuilder.components import QueryParams
+from spinta.ufuncs.querybuilder.helpers import update_query_with_url_params, add_page_expr
 from spinta.utils.data import take
+from spinta.utils.url import build_url_path
 
 
 @commands.getall.register(Context, Model, Request)
@@ -63,6 +62,10 @@ async def getall(
         action=action.value,
     )
 
+    func_properties = None
+    if params.select_funcs:
+        func_properties = {key: func.prop for key, func in params.select_funcs.items()}
+
     if params.head:
         rows = []
     else:
@@ -74,7 +77,8 @@ async def getall(
                 query=expr,
                 limit=params.limit,
                 default_expand=False,
-                params=query_params
+                params=query_params,
+                extra_properties=func_properties
             )
         else:
             rows = commands.getall(
@@ -83,7 +87,8 @@ async def getall(
                 backend,
                 params=query_params,
                 query=expr,
-                default_expand=False
+                default_expand=False,
+                extra_properties=func_properties
             )
 
     rows = prepare_data_for_response(
@@ -107,8 +112,6 @@ def getall(
     *,
     query: Expr = None,
     limit: int = None,
-    default_expand: bool = True,
-    params: QueryParams = None,
     **kwargs
 ) -> Iterator:
     backend = model.backend
@@ -128,7 +131,13 @@ def getall(
     while not page_meta.is_finished:
         page_meta.is_finished = True
         query = add_page_expr(query, page)
-        rows = commands.getall(context, model, backend, params=params, query=query, default_expand=default_expand, **kwargs)
+        rows = commands.getall(
+            context,
+            model,
+            backend,
+            query=query,
+            **kwargs
+        )
 
         yield from get_paginated_values(page, page_meta, rows, extract_source_page_keys)
 
@@ -397,10 +406,25 @@ async def getone(
         action=action.value,
         id_=params.pk,
     )
-
-    data = commands.getone(context, model, backend, id_=params.pk)
-    data = next(prepare_data_for_response(context, model, action, params, data, reserved=[]))
-    return render(context, request, model, params, data, action=action)
+    try:
+        data = commands.getone(context, model, backend, id_=params.pk)
+        data = next(prepare_data_for_response(context, model, action, params, data, reserved=[]))
+        return render(context, request, model, params, data, action=action)
+    except ItemDoesNotExist as e:
+        try:
+            if redirect_id := commands.redirect(context, backend, model, params.pk):
+                ptree = params.changed_parsetree({
+                    'path': (
+                        model.name.split('/') +
+                        [redirect_id] +
+                        ([params.prop.place] if params.prop is not None else [])
+                    )
+                })
+                result = '/' + build_url_path(ptree)
+                return RedirectResponse(result, status_code=301)
+        except RedirectFeatureMissing as r_e:
+            raise MultipleErrors([r_e, e])
+        raise e
 
 
 @overload
@@ -568,6 +592,7 @@ async def changes(
         '_id',
         '_txn',
         '_revision',
+        '_same_as'
     ])
 
     return render(context, request, model, params, rows, action=action)

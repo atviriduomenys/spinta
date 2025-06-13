@@ -303,7 +303,7 @@ class XSDDatasetResource:
             'name': self.dataset_name,
             'resources': {
                 self.resource_name: {
-                    'type': 'xml',
+                    'type': 'dask/xml'
                 },
             },
             'given_name': self.dataset_given_name
@@ -449,9 +449,10 @@ class XSDReader:
 
     def post_process_separate_complex_type_root_elements(self) -> None:
         processed_models = []
+        deduplicator = Deduplicator()
         for prop in self.separate_complex_type_root_elements:
             for model in self.top_level_complex_type_models[prop.xsd_type_to]:
-                # this complexType is aldo used by non-top level elements, we need to leave it and work on it's copy
+                # this complexType is also used by non-top level elements, we need to leave it and work on it's copy
                 # or more than one top level element uses it
                 if prop.xsd_type_to in self.properties_xsd_type_to_set or model in processed_models:
                     model = deepcopy(model)
@@ -459,7 +460,7 @@ class XSDReader:
                 model.is_partial = False
                 model.is_entry_model = True
                 model.source = f"/{prop.xsd_name}"
-                model.set_name(self.deduplicate_model_name(to_model_name(prop.xsd_name)))
+                model.set_name(deduplicator(to_model_name(prop.xsd_name)))
                 processed_models.append(model)
 
     def _add_refs_for_backrefs(self):

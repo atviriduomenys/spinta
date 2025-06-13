@@ -4,19 +4,14 @@ import pytest
 from fsspec import AbstractFileSystem
 from fsspec.implementations.memory import MemoryFileSystem
 
-from spinta import commands
 from spinta.auth import AdminToken
 from spinta.commands import getall, get_model
-from spinta.components import Mode, Model, Property, PropertyGiven, UrlParams, Version, Store
+from spinta.components import Store
+from spinta.core.enums import Mode
 from spinta.core.config import RawConfig
-from spinta.datasets.backends.dataframe.components import Xml
-from spinta.datasets.components import Attribute, Entity, Resource, Dataset
-from spinta.datasets.keymaps.sqlalchemy import SqlAlchemyKeyMap
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
 from spinta.testing.manifest import prepare_manifest
-from spinta.testing.request import make_get_request
-from spinta.types.datatype import Binary
 
 
 @pytest.fixture
@@ -35,12 +30,12 @@ def test_csv_tabular_seperator_default_error(rc: RawConfig, fs: AbstractFileSyst
     ).encode('utf-8'))
 
     context, manifest = prepare_manifest(rc, '''
-    d | r | b | m | property | type    | ref  | source              | prepare | access
-    example                  |         |      |                     |         |
-      | csv                  | csv     |      | memory://cities.csv |         |
-      |   |   | City         |         | name |                     |         |
-      |   |   |   | name     | string  |      | miestas             |         | open
-      |   |   |   | country  | string  |      | šalis               |         | open
+    d | r | b | m | property | type     | ref  | source              | prepare | access
+    example                  |          |      |                     |         |
+      | csv                  | dask/csv |      | memory://cities.csv |         |
+      |   |   | City         |          | name |                     |         |
+      |   |   |   | name     | string   |      | miestas             |         | open
+      |   |   |   | country  | string   |      | šalis               |         | open
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
@@ -59,12 +54,12 @@ def test_csv_tabular_seperator(rc: RawConfig, fs: AbstractFileSystem):
     ).encode('utf-8'))
 
     context, manifest = prepare_manifest(rc, '''
-    d | r | b | m | property | type    | ref  | source              | prepare          | access
-    example                  |         |      |                     |                  |
-      | csv                  | csv     |      | memory://cities.csv | tabular(sep:";") |
-      |   |   | City         |         | name |                     |                  |
-      |   |   |   | name     | string  |      | miestas             |                  | open
-      |   |   |   | country  | string  |      | šalis               |                  | open
+    d | r | b | m | property | type     | ref  | source              | prepare          | access
+    example                  |          |      |                     |                  |
+      | csv                  | dask/csv |      | memory://cities.csv | tabular(sep:";") |
+      |   |   | City         |          | name |                     |                  |
+      |   |   |   | name     | string   |      | miestas             |                  | open
+      |   |   |   | country  | string   |      | šalis               |                  | open
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
@@ -89,13 +84,13 @@ def test_xsd_base64(rc: RawConfig, tmp_path: Path):
     path.write_text(xml)
 
     context, manifest = prepare_manifest(rc, f'''
-    d | r | b | m | property | type    | ref  | source              | prepare          | access
-    example                  |         |      |                     |                  |
-      | res1                 | xml     |      | {tmp_path}/cities.xml |                  |
-      |   |   | City         |         |      | /CITY               |                  |
-      |   |   |   | name     | string  |      | NAME                |                  | open
-      |   |   |   | country  | string  |      | COUNTRY             |                  | open
-      |   |   |   | file     | binary  |      | FILE                | base64()         | open
+    d | r | b | m | property | type     | ref  | source              | prepare          | access
+    example                  |          |      |                     |                  |
+      | res1                 | dask/xml |      | {tmp_path}/cities.xml |                  |
+      |   |   | City         |          |      | /CITY               |                  |
+      |   |   |   | name     | string   |      | NAME                |                  | open
+      |   |   |   | country  | string   |      | COUNTRY             |                  | open
+      |   |   |   | file     | binary   |      | FILE                | base64()         | open
     ''', mode=Mode.external)
     #
     #       /example/City?select(name, country, base64(file))
@@ -119,13 +114,13 @@ def test_base64_getall(rc: RawConfig, tmp_path: Path):
     path = tmp_path / 'cities.xml'
     path.write_text(xml)
     context, manifest = prepare_manifest(rc, f'''
-    d | r | b | m | property | type    | ref  | source              | prepare          | access
-    example                  |         |      |                     |                  |
-      | res1                 | xml     |      | {tmp_path}/cities.xml |                  |
-      |   |   | City         |         |      | /CITY               |                  |
-      |   |   |   | name     | string  |      | NAME                |                  | open
-      |   |   |   | country  | string  |      | COUNTRY             |                  | open
-      |   |   |   | file     | binary  |      | FILE                | base64()         | open
+    d | r | b | m | property | type     | ref  | source              | prepare          | access
+    example                  |          |      |                     |                  |
+      | res1                 | dask/xml |      | {tmp_path}/cities.xml |                  |
+      |   |   | City         |          |      | /CITY               |                  |
+      |   |   |   | name     | string   |      | NAME                |                  | open
+      |   |   |   | country  | string   |      | COUNTRY             |                  | open
+      |   |   |   | file     | binary   |      | FILE                | base64()         | open
     ''', mode=Mode.external)
     #
     #       /example/City?select(name, country, base64(file))
@@ -161,12 +156,12 @@ def test_csv_and_operation(rc: RawConfig, fs: AbstractFileSystem):
     ).encode('utf-8'))
 
     context, manifest = prepare_manifest(rc, '''
-    d | r | b | m | property | type    | ref  | source              | prepare          | access
-    example                  |         |      |                     |                  |
-      | csv                  | csv     |      | memory://cities.csv |                  |
-      |   |   | City         |         | name |                     |                  |
-      |   |   |   | name     | string  |      | miestas             |                  | open
-      |   |   |   | country  | string  |      | salis               |                  | open
+    d | r | b | m | property | type     | ref  | source              | prepare          | access
+    example                  |          |      |                     |                  |
+      | csv                  | dask/csv |      | memory://cities.csv |                  |
+      |   |   | City         |          | name |                     |                  |
+      |   |   |   | name     | string   |      | miestas             |                  | open
+      |   |   |   | country  | string   |      | salis               |                  | open
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
@@ -189,12 +184,12 @@ def test_csv_or_operation(rc: RawConfig, fs: AbstractFileSystem):
     ).encode('utf-8'))
 
     context, manifest = prepare_manifest(rc, '''
-    d | r | b | m | property | type    | ref  | source              | prepare          | access
-    example                  |         |      |                     |                  |
-      | csv                  | csv     |      | memory://cities.csv |                  |
-      |   |   | City         |         | name |                     |                  |
-      |   |   |   | name     | string  |      | miestas             |                  | open
-      |   |   |   | country  | string  |      | salis               |                  | open
+    d | r | b | m | property | type     | ref  | source              | prepare          | access
+    example                  |          |      |                     |                  |
+      | csv                  | dask/csv |      | memory://cities.csv |                  |
+      |   |   | City         |          | name |                     |                  |
+      |   |   |   | name     | string   |      | miestas             |                  | open
+      |   |   |   | country  | string   |      | salis               |                  | open
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
@@ -219,12 +214,12 @@ def test_csv_and_or_operation(rc: RawConfig, fs: AbstractFileSystem):
     ).encode('utf-8'))
 
     context, manifest = prepare_manifest(rc, '''
-    d | r | b | m | property | type    | ref  | source              | prepare          | access
-    example                  |         |      |                     |                  |
-      | csv                  | csv     |      | memory://cities.csv |                  |
-      |   |   | City         |         | name |                     |                  |
-      |   |   |   | name     | string  |      | miestas             |                  | open
-      |   |   |   | country  | string  |      | salis               |                  | open
+    d | r | b | m | property | type     | ref  | source              | prepare          | access
+    example                  |          |      |                     |                  |
+      | csv                  | dask/csv |      | memory://cities.csv |                  |
+      |   |   | City         |          | name |                     |                  |
+      |   |   |   | name     | string   |      | miestas             |                  | open
+      |   |   |   | country  | string   |      | salis               |                  | open
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)

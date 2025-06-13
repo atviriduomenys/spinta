@@ -11,7 +11,8 @@ from spinta import exceptions, commands
 from spinta import spyna
 from spinta.commands import is_object_id
 from spinta.commands import prepare
-from spinta.components import Action, ParamsPage, decode_page_values
+from spinta.components import ParamsPage, decode_page_values
+from spinta.core.enums import Action
 from spinta.components import Config
 from spinta.components import Context, Node
 from spinta.components import Model
@@ -20,8 +21,8 @@ from spinta.components import UrlParams, Version
 from spinta.core.ufuncs import Bind, Expr, asttoexpr
 from spinta.exceptions import ModelNotFound, InvalidPageParameterCount, InvalidPageKey
 from spinta.manifests.components import Manifest
-from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder
-from spinta.ufuncs.basequerybuilder.ufuncs import Star
+from spinta.ufuncs.querybuilder.components import QueryBuilder
+from spinta.ufuncs.querybuilder.ufuncs import Star
 from spinta.ufuncs.requestparamsbuilder.components import RequestParamsBuilder
 from spinta.utils import url as urlutil
 from spinta.utils.config import asbool
@@ -220,6 +221,8 @@ def _prepare_urlparams_from_path(params: UrlParams):
             params.action = Action.SCHEMA
         elif name == 'inspect':
             params.action = Action.INSPECT
+        elif name == 'move':
+            params.action = Action.MOVE
         elif name == 'fault-tolerant':
             params.fault_tolerant = True
         elif name == 'wipe':
@@ -449,7 +452,7 @@ def parse_accept_lang_header(lang_string):
 
 
 def get_required_lang(context: Context, params: UrlParams):
-    env = BaseQueryBuilder(context)
+    env = QueryBuilder(context)
     langs = []
     if params.lang:
         stared = False

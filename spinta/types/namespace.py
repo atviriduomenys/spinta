@@ -19,7 +19,7 @@ from spinta import exceptions
 from spinta.auth import authorized
 from spinta.backends.constants import BackendFeatures
 from spinta.backends.nobackend.components import NoBackend
-from spinta.components import Action
+from spinta.core.enums import Action
 from spinta.components import Config
 from spinta.components import Context
 from spinta.components import Model
@@ -29,7 +29,7 @@ from spinta.components import UrlParams
 from spinta.exceptions import InvalidName
 from spinta.manifests.components import Manifest
 from spinta.nodes import load_node
-from spinta.types.datatype import Ref
+from spinta.types.datatype import Ref, Array
 
 namespace_is_lowercase = re.compile(r'^([a-z][a-z0-9]*)+(/[a-z][a-z0-9]*)+|([a-z][a-z0-9]*)$')
 
@@ -51,6 +51,7 @@ def load_namespace_from_name(
     # Drop last element from path which is usually a model name.
     drop: bool = True,
 ) -> Namespace:
+
     ns: Optional[Namespace] = None
     parts: List[str] = []
     parts_ = [p for p in path.split('/') if p]
@@ -357,6 +358,9 @@ def iter_model_base(model: Model) -> Iterator[Model]:
 
 
 def iter_model_refs(model: Model) -> Iterator[Ref]:
-    for prop in model.properties.values():
-        if prop.dtype.name == 'ref':
+    for prop in model.flatprops.values():
+        if isinstance(prop.dtype, Array):
+            prop = prop.dtype.items
+        if isinstance(prop.dtype, Ref):
             yield prop.dtype
+

@@ -10,7 +10,8 @@ from spinta.types.file.helpers import prepare_patch_data
 from spinta.utils.aiotools import aiter
 from spinta.utils.data import take
 from spinta.renderer import render
-from spinta.components import Action, UrlParams, DataItem
+from spinta.components import UrlParams, DataItem
+from spinta.core.enums import Action
 from spinta.types.datatype import DataType, File
 from spinta.commands.write import prepare_patch, simple_response, validate_data
 from spinta.components import Context, DataSubItem
@@ -60,7 +61,7 @@ async def push(
         prop,
         propref=False,
         backend=backend,
-        action=action
+        action=action,
     )
 
     if action == Action.DELETE:

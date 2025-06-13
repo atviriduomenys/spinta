@@ -2,10 +2,10 @@ import contextlib
 
 import pymongo
 
+from spinta.backends.components import Backend
 from spinta.backends.constants import BackendFeatures
 from spinta.components import Model
 from spinta.components import Property
-from spinta.backends.components import Backend
 
 
 class Mongo(Backend):
@@ -26,6 +26,8 @@ class Mongo(Backend):
     features = {
         BackendFeatures.WRITE,
     }
+
+    query_builder_type = 'mongo'
 
     @contextlib.contextmanager
     def transaction(self, write=False):

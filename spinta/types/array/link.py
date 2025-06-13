@@ -68,7 +68,7 @@ def _extract_intermediate_table_properties(source: Array, intermediate_model: Mo
 
     ref_properties = [prop for prop in intermediate_model.flatprops.values() if isinstance(prop.dtype, Ref)]
     if len(ref_properties) != 2:
-        raise UnableToMapIntermediateTable(source)
+        raise UnableToMapIntermediateTable(source, model=source.model.name)
 
     if all(_compare_models(source.prop.model, prop.dtype.model) for prop in ref_properties):
         raise SameModelIntermediateTableMapping(source)

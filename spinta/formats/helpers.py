@@ -10,7 +10,8 @@ from spinta.backends.helpers import get_ns_reserved_props
 from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
 from spinta.backends.helpers import select_only_props
-from spinta.components import Action, pagination_enabled, Node
+from spinta.components import pagination_enabled, Node
+from spinta.core.enums import Action
 from spinta.components import Context
 from spinta.components import Model
 from spinta.components import UrlParams
@@ -23,7 +24,7 @@ from spinta.types.datatype import Inherit
 from spinta.types.datatype import Object
 from spinta.types.datatype import Ref
 from spinta.types.text.components import Text
-from spinta.ufuncs.basequerybuilder.ufuncs import Star
+from spinta.ufuncs.querybuilder.ufuncs import Star
 from spinta.utils.data import take
 from spinta.utils.nestedstruct import get_separated_name
 

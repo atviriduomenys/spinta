@@ -46,11 +46,10 @@ from spinta.dimensions.enum.components import Enums
 from spinta.dimensions.lang.components import LangData
 from spinta.dimensions.prefix.components import UriPrefix
 from spinta.exceptions import MultipleErrors, InvalidBackRefReferenceAmount, DataTypeCannotBeUsedForNesting, \
-    NestedDataTypeMismatch
-from spinta.exceptions import PropertyNotFound
+    NestedDataTypeMismatch, NoModelDefined, PropertyNotFound
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
-from spinta.manifests.tabular.components import ACCESS, URI
+from spinta.manifests.tabular.components import ACCESS, URI, STATUS, VISIBILITY, ELI, COUNT, ORIGIN
 from spinta.manifests.tabular.components import BackendRow
 from spinta.manifests.tabular.components import BaseRow
 from spinta.manifests.tabular.components import CommentData
@@ -272,25 +271,33 @@ class DatasetReader(TabularReader):
 
     def read(self, row: Dict[str, str]) -> None:
         self.name = row['dataset']
+        dataset_type = row['type']
 
         if self.name == '/':
             self.data = {}
         else:
+            if dataset_type not in {None, '', 'dataset', 'ns'}:
+                self.error('Dataset type is not allowed (`type` column where `dataset` column is not empty)')
+
             if row['dataset'] in self.state.manifest.datasets:
                 self.error("Dataset already defined.")
 
-            self.data = {
-                'type': 'dataset',
-                'id': row['id'],
-                'name': row['dataset'],
-                'source': row['source'],
-                'level': row['level'],
-                'access': row['access'],
-                'title': row['title'],
-                'description': row['description'],
-                'given_name': row['dataset'],
-                'resources': {},
-            }
+            if dataset_type == 'ns':
+                self.data = get_namespace_data(row, dataset_type, self.name)
+            else:
+                self.data = {
+                    'type': dataset_type or 'dataset',
+                    'id': row['id'],
+                    'name': row['dataset'],
+                    'source': row['source'],
+                    'level': row['level'],
+                    'access': row['access'],
+                    'title': row['title'],
+                    'description': row['description'],
+                    'given_name': row['dataset'],
+                    'resources': {},
+                    'count': row['count'],
+                }
 
     def release(self, reader: TabularReader = None) -> bool:
         return reader is None or isinstance(reader, (
@@ -365,6 +372,7 @@ class ResourceReader(TabularReader):
             'title': row['title'],
             'description': row['description'],
             'given_name': self.name,
+            'source_type': row['source.type']
         }
 
         dataset['resources'][self.name] = self.data
@@ -484,10 +492,16 @@ class ModelReader(TabularReader):
                     if row['ref'] else []
                 ),
                 'name': row['source'],
+                'type': row['source.type'],
                 'prepare': _parse_spyna(self, row[PREPARE]),
             },
             'given_name': name,
-            'features': features
+            'features': features,
+            'status': row.get(STATUS),
+            'visibility': row.get(VISIBILITY),
+            'eli': row.get(ELI),
+            'count': row.get(COUNT),
+            'origin': row.get(ORIGIN),
         }
         if resource and not dataset:
             self.data['backend'] = resource.name
@@ -557,7 +571,10 @@ def _parse_dtype_string(dtype: str) -> dict:
     }
 
 
-def _get_type_repr(dtype: List[DataType, str]):
+def _get_type_repr(dtype: DataType | str | None) -> str:
+    if dtype is None:
+        return DataTypeEnum.INHERIT.value
+
     if isinstance(dtype, DataType):
         args = ''
         required = ' required' if dtype.required else ''
@@ -597,6 +614,14 @@ def _get_type_repr(dtype: List[DataType, str]):
         return f'{dtype}{args}{required}{unique}'
 
 
+def _resolve_dtype(reader: TabularReader, row: dict) -> dict:
+    dtype = _get_type_repr(row['type'])
+    dtype = _parse_dtype_string(dtype)
+    if dtype.get('error'):
+        reader.error(dtype['error'])
+    return dtype
+
+
 def combine_source_prepare(source, prepare):
     result = prepare
     if source:
@@ -623,7 +648,6 @@ class PropertyReader(TabularReader):
     enums: Set[str]
 
     def read(self, row: Dict[str, str]) -> None:
-        self.path_to_current_prop = self._path_to_current_prop(row['property'])
         complete_structure, parent_structure, prop_name = _extract_and_create_parent_data(self, row, row['property'])
 
         prop_data = _handle_datatype(self, row)
@@ -633,9 +657,16 @@ class PropertyReader(TabularReader):
             parent_structure,
             complete_structure
         )
-        self.data = complete_structure
+
+        # Edge case where there is no nesting, need to couple `prop_data` with `complete_structure`
+        # This ensures that `self.data` is coupled with `self.state.mode.data`
+        # Any changes done to `self.data` will also be reflected there (enum, etc.)
+        if prop_data == complete_structure:
+            prop_data = complete_structure
+
+        self.data = prop_data
         self.name = prop_name
-        self.state.model.data['properties'][prop_name] = self.data
+        self.state.model.data['properties'][prop_name] = complete_structure
 
     def append(self, row: Dict[str, str]) -> None:
         if not row['property']:
@@ -681,15 +712,6 @@ class PropertyReader(TabularReader):
             )
         )
 
-    def _path_to_current_prop(self, prop_given_name: str) -> str:
-        STR_PROPERTIES = 'properties'
-        parts = prop_given_name.split('.')[1:]
-        result = '.'.join(
-            part.split('@')[0] + ('.' + STR_PROPERTIES if i < len(parts) - 1 else '')
-            for i, part in enumerate(parts)
-        )
-        return STR_PROPERTIES + '.' + result if result else ''
-
 
 def _initial_normal_property_schema(given_name: str, dtype: dict, row: dict):
     return {
@@ -706,7 +728,12 @@ def _initial_normal_property_schema(given_name: str, dtype: dict, row: dict):
         'unique': dtype['unique'],
         'given_name': given_name,
         'prepare_given': [],
-        'explicitly_given': True
+        'explicitly_given': True,
+        'status': row.get(STATUS),
+        'visibility': row.get(VISIBILITY),
+        'eli': row.get(ELI),
+        'count': row.get(COUNT),
+        'origin': row.get(ORIGIN),
     }
 
 
@@ -729,6 +756,7 @@ def _initial_text_property_schema(given_name: str, dtype: dict, row: dict):
 
 
 def _datatype_handler(reader: PropertyReader, row: dict, initial_data_loader: Callable[[str, dict, dict], dict]):
+    dtype: dict = _resolve_dtype(reader, row)
     given_name = row['property']
     reader.name = _clean_up_prop_name(row['property'].split('.')[-1])
 
@@ -739,12 +767,6 @@ def _datatype_handler(reader: PropertyReader, row: dict, initial_data_loader: Ca
             f"Now it is defined in {context.name!r} {context.type} context."
         )
     _check_if_property_already_set(reader, row, given_name)
-    dtype = _get_type_repr(row['type'])
-    dtype = _parse_dtype_string(dtype)
-    if dtype['error']:
-        reader.error(
-            dtype['error']
-        )
 
     if reader.state.base and not dtype['type']:
         dtype['type'] = 'inherit'
@@ -789,12 +811,14 @@ def _datatype_handler(reader: PropertyReader, row: dict, initial_data_loader: Ca
     if dataset or row['source']:
         new_data['external'] = {
             'name': row['source'],
+            'type': row['source.type'],
         }
 
     return new_data
 
 
 def _string_datatype_handler(reader: PropertyReader, row: dict):
+    dtype: dict = _resolve_dtype(reader, row)
     given_name = row['property']
     reader.name = _clean_up_prop_name(row['property'].split('.')[-1])
 
@@ -805,17 +829,10 @@ def _string_datatype_handler(reader: PropertyReader, row: dict):
             f"Now it is defined in {context.name!r} {context.type} context."
         )
     existing_data = _check_if_property_already_set(reader, row, given_name)
-    if row['type'] == DataTypeEnum.TEXT.value and existing_data:
+    if dtype['type'] == DataTypeEnum.TEXT.value and existing_data:
         reader.error(
             f"Property {reader.name!r} with the same name is already "
             f"defined for this {reader.state.model.name!r} model."
-        )
-
-    dtype = _get_type_repr(row['type'])
-    dtype = _parse_dtype_string(dtype)
-    if dtype['error']:
-        reader.error(
-            dtype['error']
         )
 
     new_data = _initial_normal_property_schema(given_name, dtype, row)
@@ -834,12 +851,14 @@ def _string_datatype_handler(reader: PropertyReader, row: dict):
     if dataset or row['source']:
         new_data['external'] = {
             'name': row['source'],
+            'type': row['source.type']
         }
 
     return new_data
 
 
 def _text_datatype_handler(reader: PropertyReader, row: dict):
+    dtype: dict = _resolve_dtype(reader, row)
     given_name = row['property']
     reader.name = _clean_up_prop_name(row['property'].split('.')[-1])
 
@@ -854,12 +873,6 @@ def _text_datatype_handler(reader: PropertyReader, row: dict):
         reader.error(
             f"Property {reader.name!r} with the same name is already "
             f"defined for this {reader.state.model.name!r} model."
-        )
-    dtype = _get_type_repr(row['type'])
-    dtype = _parse_dtype_string(dtype)
-    if dtype['error']:
-        reader.error(
-            dtype['error']
         )
 
     new_data = _initial_text_property_schema(given_name, dtype, row)
@@ -917,10 +930,8 @@ def _partial_datatype_handler(reader: PropertyReader, row: dict):
 
 
 def _handle_datatype(reader: PropertyReader, row: dict):
-    if row['type'] in DATATYPE_HANDLERS:
-        handler = DATATYPE_HANDLERS[row['type']]
-    else:
-        handler = DATATYPE_HANDLERS['_default']
+    dtype: dict = _resolve_dtype(reader, row)
+    handler = DATATYPE_HANDLERS.get(dtype['type'], DATATYPE_HANDLERS['_default'])
     return handler(reader, row)
 
 
@@ -939,6 +950,8 @@ DATATYPE_HANDLERS = {
 
 
 def _get_root_prop(reader: PropertyReader, name: str):
+    if reader.state.model is None:
+        raise NoModelDefined(property=name)
     if name in reader.state.model.data['properties']:
         return reader.state.model.data['properties'][name]
     return None
@@ -1012,9 +1025,6 @@ def _get_parent_data_array(reader: PropertyReader, given_row: dict, full_name: s
     if not current_parent:
         current_parent.update(_empty_property(_array_datatype_handler(reader, empty_array_row)))
 
-    if given_row.get('type') == DataTypeEnum.BACKREF.value:
-        current_parent['type'] = DataTypeEnum._ARRAY_BACKREF.value
-
     adjustment = 1 if current_parent.get('type') in ALLOWED_ARRAY_TYPES else 0
 
     for _ in range(array_depth - adjustment):
@@ -1026,6 +1036,9 @@ def _get_parent_data_array(reader: PropertyReader, given_row: dict, full_name: s
             current_parent = _process_allowed_partial_type(reader, current_parent, root_name, empty_array_row)
         else:
             raise NestedDataTypeMismatch(initial=current_type, required=DataTypeEnum.ARRAY.value)
+
+    if given_row.get('type') == DataTypeEnum.BACKREF.value:
+        current_parent['type'] = DataTypeEnum._ARRAY_BACKREF.value
 
     return current_parent
 
@@ -1342,11 +1355,10 @@ class NamespaceReader(TabularReader):
     appendable: bool = True
 
     def read(self, row: Dict[str, str]) -> None:
-        if not row['ref']:
-            # `ref` is a required parameter.
-            return
+        if not row['dataset']:
+            self.error('Namespace does not have a name (specified in "dataset" column)')
 
-        self.name = row['ref']
+        self.name = row['dataset']
 
         manifest = self.state.manifest
 
@@ -1357,14 +1369,7 @@ class NamespaceReader(TabularReader):
             )
 
         manifest.namespaces.add(self.name)
-
-        self.rows.append({
-            'id': row['id'],
-            'type': self.type,
-            'name': self.name,
-            'title': row['title'],
-            'description': row['description'],
-        })
+        self.rows.append(get_namespace_data(row, self.type, self.name))
 
     def append(self, row: Dict[str, str]) -> None:
         self.read(row)
@@ -1377,6 +1382,16 @@ class NamespaceReader(TabularReader):
 
     def leave(self) -> None:
         pass
+
+
+def get_namespace_data(row: dict[str, str], dataset_type: str, dataset_name: str) -> dict[str, str]:
+    return {
+        'id': row['id'],
+        'type': dataset_type,
+        'name': dataset_name,
+        'title': row['title'],
+        'description': row['description']
+    }
 
 
 class ParamReader(TabularReader):
@@ -1397,6 +1412,7 @@ class ParamReader(TabularReader):
     def _get_data(self, name: str, row: ManifestRow):
         return {
             'name': name,
+            'type': row['type'],
             'source': [row[SOURCE]],
             'prepare': [_parse_spyna(self, row[PREPARE])],
             'title': row[TITLE],
@@ -1440,8 +1456,11 @@ class ParamReader(TabularReader):
             self.name = row[REF]
             self._check_param_name(node, self.name)
             self._ensure_params_list(node, self.name)
-
-        self._get_and_append_data(node.data['params'][self.name], row)
+        params  = node.data['params']
+        if self.name not in params:
+            params[self.name] = self._get_data(self.name, row)
+        else:
+            self._get_and_append_data(params[self.name], row)
 
     def release(self, reader: TabularReader = None) -> bool:
         return not isinstance(reader, (AppendReader, LangReader))
@@ -1474,7 +1493,8 @@ class EnumReader(TabularReader):
             return
 
         # FIXME AST should be handled by Env
-        source = str(row[SOURCE])
+        source = row[SOURCE]
+        source = str(source) if source else None
         if not source:
             prepare = _parse_spyna(self, row[PREPARE])
             if isinstance(prepare, dict):
@@ -1498,9 +1518,13 @@ class EnumReader(TabularReader):
             'title': row[TITLE],
             'description': row[DESCRIPTION],
             'level': row[LEVEL],
+            'status': row[STATUS],
+            'visibility': row[VISIBILITY],
+            'eli': row[ELI],
+            'count': row[COUNT],
         }
 
-        node_data: PropertyRow = self._get_node_data(row)
+        node_data: PropertyRow = self._get_node_data()
 
         if 'enums' not in node_data:
             node_data['enums'] = {}
@@ -1529,7 +1553,7 @@ class EnumReader(TabularReader):
     def leave(self) -> None:
         pass
 
-    def _get_node_data(self, row: ManifestRow) -> PropertyRow:
+    def _get_node_data(self) -> PropertyRow:
         node: TabularReader = (
             self.state.prop
             or self.state.model
@@ -1538,15 +1562,7 @@ class EnumReader(TabularReader):
             or self.state.dataset
             or self.state.manifest
         )
-
-        node_data: PropertyRow = node.data
-
-        if isinstance(node, PropertyReader):
-            if node.path_to_current_prop:
-                for key in node.path_to_current_prop.split('.'):
-                    node_data = node_data[key]
-
-        return node_data
+        return node.data
 
 
 class LangReader(TabularReader):
@@ -1869,7 +1885,7 @@ def _read_xlsx_manifest(path: str) -> Iterator[Tuple[str, List[str]]]:
 
         empty_rows = _empty_rows_counter()
         for i, row in enumerate(rows, 2):
-            row = [row[c] if c is not None else None for c in cols]
+            row = [row[c] or "" if c is not None else None for c in cols]
             yield f'{sheet.title}:{i}', row
 
             if empty_rows(row) > 100:
@@ -2162,16 +2178,14 @@ def _namespaces_to_tabular(
         k: ns
         for k, ns in namespaces.items() if not ns.generated
     }
-    first = True
     for name, ns in namespaces.items():
         yield torow(DATASET, {
             'id': ns.id,
-            'type': ns.type if first else '',
-            'ref': name,
+            'type': ns.type,
+            'dataset': name,
             'title': ns.title,
             'description': ns.description,
         })
-        first = False
 
     if separator and namespaces:
         yield torow(DATASET, {})
@@ -2211,7 +2225,11 @@ def _enums_to_tabular(
                 'access': item.given.access,
                 'title': item.title,
                 'description': item.description,
-                'level': item.level,
+                'level': item.level.value if item.level else "",
+                'status': item.status.name if item.status else "",
+                'visibility': item.visibility.name if item.visibility else "",
+                'eli': item.eli,
+                'count': item.count,
             })
             if lang := list(_lang_to_tabular(item.lang)):
                 first = True
@@ -2300,7 +2318,7 @@ def _params_to_tabular(params: List[Param]) -> Iterator[ManifestRow]:
                 prepare = spyna.unparse(prepare)
             if i == 0:
                 yield torow(DATASET, {
-                    'type': 'param',
+                    'type': param.type,
                     'ref': param.name,
                     'source': source,
                     'prepare': prepare,
@@ -2328,6 +2346,7 @@ def _dataset_to_tabular(
         'access': dataset.given.access,
         'title': dataset.title,
         'description': dataset.description,
+        'count': dataset.count,
     })
     yield from _lang_to_tabular(dataset.lang)
     yield from _prefixes_to_tabular(dataset.prefixes, separator=True)
@@ -2350,6 +2369,7 @@ def _resource_to_tabular(
         'id': resource.id,
         'resource': resource.name,
         'source': resource.external if external else '',
+        'source.type': resource.source_type,
         'prepare': unparse(resource.prepare or NA) if external else '',
         'type': resource.type,
         'ref': (
@@ -2407,6 +2427,11 @@ def _property_to_tabular(
         'uri': prop.uri,
         'title': prop.title,
         'description': prop.description,
+        'status': prop.status.name if prop.status else "",
+        'visibility': prop.visibility.name if prop.visibility else "",
+        'eli': prop.eli,
+        'count': prop.count,
+        'origin': prop.origin,
     }
 
     if external and prop.external:
@@ -2420,8 +2445,11 @@ def _property_to_tabular(
                 "Source can't be a list, use prepare instead."
             )
         elif prop.external:
-            data['source'] = prop.external.name
-            data['prepare'] = unparse(prop.external.prepare or NA)
+            data.update({
+                'source': prop.external.name,
+                'source.type': prop.external.type,
+                'prepare': unparse(prop.external.prepare or NA),
+            })
 
     yield_rows = []
 
@@ -2526,6 +2554,11 @@ def _model_to_tabular(
         'title': model.title,
         'description': model.description,
         'uri': model.uri if model.uri else "",
+        'status': model.status.name if model.status else "",
+        'visibility': model.visibility.name if model.visibility else "",
+        'eli': model.eli,
+        'count': model.count,
+        'origin': model.origin,
     }
     if model.external and model.external.dataset:
         data['model'] = to_relative_model_name(
@@ -2537,6 +2570,7 @@ def _model_to_tabular(
     if external and model.external:
         data.update({
             'source': model.external.name,
+            'source.type': model.external.type,
             'prepare': unparse(model.external.prepare or NA),
         })
         if (
@@ -2587,7 +2621,6 @@ def datasets_to_tabular(
         order_by=order_by,
         separator=True,
     )
-
     seen_datasets = set()
     dataset = None
     resource = None

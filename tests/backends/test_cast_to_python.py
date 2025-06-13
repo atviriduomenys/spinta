@@ -1,12 +1,15 @@
 import datetime
 from typing import Any
+
 import pytest
 import shapely.geometry
 
 from spinta import commands
 from spinta.backends import Backend
 from spinta.components import Context, Property
-from spinta.types.datatype import Number, Integer, Boolean, Time, Date, DateTime, Binary, DataType, Ref, Object, Array
+from spinta.core.config import RawConfig
+from spinta.testing.manifest import load_manifest_and_context
+from spinta.types.datatype import Number, Integer, Boolean, Time, Date, DateTime, Binary, DataType, Object, Array
 from spinta.types.geometry.components import Geometry
 
 number_data = {
@@ -157,17 +160,72 @@ def test_cast_backend_to_python_geometry(given: Any, expected: Any):
     assert commands.cast_backend_to_python(Context("empty"), Geometry(), Backend(), given) == expected
 
 
-def test_cast_backend_to_python_ref():
-    ref = Ref()
-    ref.refprops = [
-        _create_property("int_prop", Integer()),
-        _create_property("boolean_prop", Boolean())
-    ]
+def test_cast_backend_to_python_ref(rc: RawConfig):
+    context, manifest = load_manifest_and_context(rc, '''
+    d | r | b | m | property     | type    | ref                    | source  | prepare | access
+    example                      |         |                        |         |         |
+      |   |   | Country          |         | int_prop, boolean_prop | COUNTRY |         |
+      |   |   |   | int_prop     | integer |                        | INT     |         | open
+      |   |   |   | boolean_prop | boolean |                        | BOOLEAN |         | open
+      |   |   | City             |         | name                   | CITY    |         |
+      |   |   |   | name         | string  |                        | NAME    |         | open
+      |   |   |   | country      | ref     | Country                | COUNTRY |         | open
+    ''')
+    model = commands.get_model(context, manifest, 'example/City')
+
     given = {
         "int_prop": "5",
         "boolean_prop": "TRUE"
     }
-    assert commands.cast_backend_to_python(Context("empty"), ref, Backend(), given) == {
+    assert commands.cast_backend_to_python(context, model.properties.get('country'), Backend(), given) == {
+        "int_prop": 5,
+        "boolean_prop": True
+    }
+
+
+def test_cast_backend_to_python_denorm(rc: RawConfig):
+    context, manifest = load_manifest_and_context(rc, '''
+    d | r | b | m | property             | type    | ref      | source  | prepare | access
+    example                              |         |          |         |         |
+      |   |   | Country                  |         | int_prop | COUNTRY |         |
+      |   |   |   | int_prop             | integer |          | INT     |         | open
+      |   |   |   | boolean_prop         | boolean |          | BOOLEAN |         | open
+      |   |   | City                     |         | name     | CITY    |         |
+      |   |   |   | name                 | string  |          | NAME    |         | open
+      |   |   |   | country              | ref     | Country  | COUNTRY |         | open
+      |   |   |   | country.boolean_prop |         |          |         |         | open
+    ''')
+    model = commands.get_model(context, manifest, 'example/City')
+
+    given = {
+        "int_prop": "5",
+        "boolean_prop": "TRUE"
+    }
+    assert commands.cast_backend_to_python(context, model.properties.get('country'), Backend(), given) == {
+        "int_prop": 5,
+        "boolean_prop": True
+    }
+
+
+def test_cast_backend_to_python_external_denorm(rc: RawConfig):
+    context, manifest = load_manifest_and_context(rc, '''
+    d | r | b | m | property             | type    | ref      | source  | prepare | access | level
+    example                              |         |          |         |         |        |
+      |   |   | Country                  |         | int_prop | COUNTRY |         |        |
+      |   |   |   | int_prop             | integer |          | INT     |         | open   |
+      |   |   |   | boolean_prop         | boolean |          | BOOLEAN |         | open   |
+      |   |   | City                     |         | name     | CITY    |         |        |
+      |   |   |   | name                 | string  |          | NAME    |         | open   |
+      |   |   |   | country              | ref     | Country  | COUNTRY |         | open   | 3
+      |   |   |   | country.boolean_prop |         |          |         |         | open   |
+    ''')
+    model = commands.get_model(context, manifest, 'example/City')
+
+    given = {
+        "int_prop": "5",
+        "boolean_prop": "TRUE"
+    }
+    assert commands.cast_backend_to_python(context, model.properties.get('country'), Backend(), given) == {
         "int_prop": 5,
         "boolean_prop": True
     }

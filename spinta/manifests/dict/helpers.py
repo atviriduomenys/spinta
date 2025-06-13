@@ -73,7 +73,7 @@ def read_schema(manifest_type: DictFormat, path: str, dataset_name: str):
         'prefixes': prefixes,
         'resources': {
             dataset_structure["resource"]: {
-                'type': manifest_type.value,
+                'type': f'dask/{manifest_type.value}',
                 'external': path,
             },
         },

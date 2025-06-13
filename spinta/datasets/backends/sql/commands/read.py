@@ -3,12 +3,11 @@ from typing import Iterator
 
 from spinta import commands
 from spinta.backends.helpers import validate_and_return_begin
-from spinta.components import Context
+from spinta.components import Context, Property
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.helpers import handle_ref_key_assignment, generate_pk_for_row, handle_external_array_type
 from spinta.datasets.backends.sql.components import Sql
-from spinta.datasets.backends.sql.ufuncs.query.components import SqlQueryBuilder
 from spinta.datasets.helpers import get_enum_filters
 from spinta.datasets.helpers import get_ref_filters
 from spinta.datasets.keymaps.components import KeyMap
@@ -16,8 +15,8 @@ from spinta.datasets.utils import iterparams
 from spinta.types.datatype import PrimaryKey, Array
 from spinta.types.datatype import Ref
 from spinta.typing import ObjectData
-from spinta.ufuncs.basequerybuilder.components import QueryParams
-from spinta.ufuncs.basequerybuilder.helpers import get_page_values
+from spinta.ufuncs.querybuilder.components import QueryParams
+from spinta.ufuncs.querybuilder.helpers import get_page_values
 from spinta.ufuncs.helpers import merge_formulas
 from spinta.ufuncs.resultbuilder.helpers import get_row_value, backend_result_builder_getter
 from spinta.utils.nestedstruct import flat_dicts_to_nested, extract_list_property_names
@@ -33,10 +32,11 @@ def getall(
     *,
     query: Expr = None,
     params: QueryParams = None,
+    extra_properties: dict[str, Property] = None,
     **kwargs
 ) -> Iterator[ObjectData]:
     conn = context.get(f'transaction.{backend.name}')
-    builder = SqlQueryBuilder(context)
+    builder = backend.query_builder_class(context)
     builder.update(model=model)
     # Merge user passed query with query set in manifest.
     query = merge_formulas(model.external.prepare, query)
@@ -66,18 +66,14 @@ def getall(
                 val = get_row_value(context, result_builder_getter, row, sel)
                 if sel.prop:
                     if isinstance(sel.prop.dtype, PrimaryKey):
-                        val = generate_pk_for_row(sel.prop.model, row, keymap, val)
-                    elif isinstance(sel.prop.dtype, Ref):
-                        val = handle_ref_key_assignment(context, keymap, env, val, sel.prop.dtype)
-                    elif isinstance(sel.prop.dtype, Array):
-                        val = handle_external_array_type(context, sel.prop.dtype, keymap, env, val)
+                        val = generate_pk_for_row(context, sel.prop.model, row, keymap, val)
                 res[key] = val
             if is_page_enabled:
                 res['_page'] = get_page_values(env, row)
 
             res['_type'] = model.model_type()
             res = flat_dicts_to_nested(res, list_keys=list_keys)
-            res = commands.cast_backend_to_python(context, model, backend, res)
+            res = commands.cast_backend_to_python(context, model, backend, res, extra_properties=extra_properties)
             yield res
 
 

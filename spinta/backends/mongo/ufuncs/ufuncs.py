@@ -10,7 +10,8 @@ import pymongo
 from spinta import exceptions
 from spinta.auth import authorized
 from spinta.backends.mongo.ufuncs.components import MongoQueryBuilder, Recurse, Lower, Negative, Positive
-from spinta.components import Action, Model, Property, Page
+from spinta.components import Property, Page
+from spinta.core.enums import Action
 from spinta.core.ufuncs import Bind
 from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import ufunc
@@ -25,7 +26,7 @@ from spinta.types.datatype import Number
 from spinta.types.datatype import Object
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import String
-from spinta.ufuncs.basequerybuilder.ufuncs import Star
+from spinta.ufuncs.querybuilder.ufuncs import Star
 from spinta.utils.data import take
 
 
@@ -93,8 +94,9 @@ def select(env, arg: Star) -> None:
 def select(env, field):
     if field.name == '_page':
         return None
-    prop = env.model.flatprops.get(field.name)
-    if prop and authorized(env.context, prop, Action.SEARCH):
+
+    prop = env.resolve_property(field)
+    if authorized(env.context, prop, Action.SEARCH):
         return env.call('select', prop.dtype)
     else:
         raise FieldNotInResource(env.model, property=field.name)
@@ -360,7 +362,7 @@ FUNCS = [
 
 @ufunc.resolver(MongoQueryBuilder, Bind, names=FUNCS)
 def func(env, name, field):
-    prop = env.model.get_from_flatprops(field.name)
+    prop = env.resolve_property(field)
     return env.call(name, prop.dtype)
 
 
@@ -414,7 +416,7 @@ def sort(env, expr):
 
 @ufunc.resolver(MongoQueryBuilder, Bind)
 def sort(env, field):
-    prop = env.model.get_from_flatprops(field.name)
+    prop = env.resolve_property(field)
     return env.call('asc', prop.dtype)
 
 
@@ -450,19 +452,13 @@ def desc(env, dtype):
 
 @ufunc.resolver(MongoQueryBuilder, Bind)
 def negative(env, field: Bind) -> Negative:
-    if field.name in env.model.properties:
-        prop = env.model.properties[field.name]
-    else:
-        raise FieldNotInResource(env.model, property=field.name)
+    prop = env.resolve_property(field)
     return Negative(prop.dtype)
 
 
 @ufunc.resolver(MongoQueryBuilder, Bind)
 def positive(env, field: Bind) -> Positive:
-    if field.name in env.model.properties:
-        prop = env.model.properties[field.name]
-    else:
-        raise FieldNotInResource(env.model, property=field.name)
+    prop = env.resolve_property(field)
     return Positive(prop.dtype)
 
 

@@ -12,7 +12,8 @@ from authlib.jose import jwt
 
 from spinta import auth, commands
 from spinta.auth import get_client_file_path, query_client, get_clients_path, ensure_client_folders_exist
-from spinta.components import Action, Context
+from spinta.components import Context
+from spinta.core.enums import Action
 from spinta.exceptions import InvalidClientFileFormat
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.utils import get_error_codes
