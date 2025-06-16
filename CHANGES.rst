@@ -61,7 +61,12 @@ Bug fixes:
 
   .. _#1326: https://github.com/atviriduomenys/spinta/issues/1326
 
+- Fixed a bug where an error was thrown when nested property was a `ref` followed by a `backref`. (`#1302`_)
+
   .. _#1269: https://github.com/atviriduomenys/spinta/issues/1269
+  .. _#1302: https://github.com/atviriduomenys/spinta/issues/1302
+
+
 
 - Fixed `postgresql` `update` action updating `_created`, instead of `_updated` value (`#1307`_).
 
