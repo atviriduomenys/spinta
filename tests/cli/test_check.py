@@ -251,3 +251,28 @@ def test_check_nested_Backref(context: Context, rc, cli: SpintaCliRunner, tmp_pa
         tmp_path / 'manifest.csv'
     ])
 
+def test_check_dot_in_ref(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+ d | r | b | m | property   | type    | ref                     | source
+ test_dataset               |         |                         |
+   | resource1              | xml     |                         |
+                            |         |                         |
+   |   |   | Area           |         | id                      |
+   |   |   |   | name       | string  |                         | name/text()
+   |   |   |   | id         | integer |                         | name/text()
+   |   |   |   | area       | string  |                         | name/text()
+ test_dataset2              |         |                         |
+   | resource2              | xml     |                         |
+                            |         |                         |
+   |   | /test_dataset/Area |         | area                    |
+   |   |   | Country        |         | area.id                 | Country    
+   |   |   |   | name       | string  |                         | name/text()
+   |   |   |   | code       | string  |                         | code/text()
+   |   |   |   | area       | ref     | /test_dataset/Area[id]  | area/text()
+   |   |   |   | area.id    | integer |                         | area/text()
+    '''))
+
+    cli.invoke(rc, [
+        'check',
+        tmp_path / 'manifest.csv',
+    ])
