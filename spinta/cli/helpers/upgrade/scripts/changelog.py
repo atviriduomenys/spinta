@@ -195,12 +195,13 @@ def fetch_corrupted_changelog_entities(
             FROM entity_data e
             JOIN last_data ld USING (_rid)
             WHERE ld.last_action != 'move'
-        )
+        ),
         frequent_final_data AS (
             SELECT final_data
             FROM base
             GROUP BY final_data
             HAVING COUNT(*) > 1
+        )
     
     -- 5) Only return those JSON states that occur >= 2×
     SELECT
