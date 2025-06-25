@@ -171,12 +171,14 @@ async def auth_clients_add(request: Request) -> JSONResponse:
         client_id,
         client_data["secret"],
         client_data.get("scopes"),
+        client_data.get("backends"),
     )
 
     return JSONResponse({
         "client_id": client_["client_id"],
         "client_name": name,
-        "scopes": client_["scopes"]
+        "scopes": client_["scopes"],
+        "backends": client_["backends"],
     })
 
 
@@ -246,11 +248,11 @@ async def auth_clients_patch_specific(request: Request) -> JSONResponse:
     token = context.get('auth.token')
     client_id = request.path_params["client"]
 
-    validator_cls = ClientPatchData
+    validator_class = ClientPatchData
     try:
         check_scope(context, Scopes.AUTH_CLIENTS)
     except InsufficientScopeError:
-        validator_cls = ClientSecretPatchData
+        validator_class = ClientSecretPatchData
         # Requests without AUTH_CLIENTS scope can only change its own secret
         if client_id != token.get_client_id():
             raise InsufficientPermission(scope=Scopes.AUTH_CLIENTS)
@@ -261,7 +263,7 @@ async def auth_clients_patch_specific(request: Request) -> JSONResponse:
 
     data = await request.json()
     try:
-        client_data = validator_cls.model_validate(data).model_dump(exclude_unset=True)
+        client_data = validator_class.model_validate(data).model_dump(exclude_unset=True)
     except ValidationError as e:
         if "secret" in data.keys():
             data["secret"] = "..."
@@ -269,21 +271,23 @@ async def auth_clients_patch_specific(request: Request) -> JSONResponse:
         raise ClientValidationError(
             request_data=data,
             errors=error_dict,
-            inputs=list(validator_cls.model_fields.keys())
+            inputs=list(validator_class.model_fields.keys())
         )
 
     new_data = update_client_file(
         context,
         path,
         client_id,
-        name=data["client_name"] if client_data.get("client_name") else None,
-        secret=data["secret"] if client_data.get("secret") else None,
-        scopes=data["scopes"] if client_data.get("scopes") else None,
+        name=client_data.get("client_name", None),
+        secret=client_data.get("secret", None),
+        scopes=client_data.get("scopes", None),
+        backends=client_data.get("backends", None),
     )
     return_value = {
         "client_id": new_data["client_id"],
         "client_name": new_data["client_name"],
-        "scopes": list(new_data["scopes"])
+        "scopes": list(new_data["scopes"]),
+        "backends": new_data["backends"],
     }
     return JSONResponse(return_value)
 

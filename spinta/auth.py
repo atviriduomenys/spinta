@@ -10,7 +10,7 @@ import pathlib
 import time
 import uuid
 from threading import Lock
-from typing import Set
+from typing import Set, Any
 from typing import Type
 from typing import Union, List, Tuple
 
@@ -172,12 +172,22 @@ class Client(rfc6749.ClientMixin):
     name: str
     secret_hash: str
     scopes: Set[str]
+    backends: dict[str, dict[str, Any]]
 
-    def __init__(self, *, id_: str, name_: str, secret_hash: str, scopes: List[str]):
+    def __init__(
+        self,
+        *,
+        id_: str,
+        name_: str,
+        secret_hash: str,
+        scopes: list[str],
+        backends: dict[str, dict[str, Any]],
+    ) -> None:
         self.id = id_
         self.name = name_
         self.secret_hash = secret_hash
         self.scopes = set(scopes)
+        self.backends = backends
 
     def __repr__(self):
         cls = type(self)
@@ -634,11 +644,12 @@ def create_client_file(
     path: pathlib.Path,
     name: str,
     client_id: str,
-    secret: str = None,
-    scopes: List[str] = None,
+    secret: str | None = None,
+    scopes: List[str] | None = None,
+    backends: dict[str, dict[str, str]] | None = None,
     *,
     add_secret: bool = False,
-) -> Tuple[pathlib.Path, dict]:
+) -> tuple[pathlib.Path, dict]:
     client_file = get_client_file_path(path, client_id)
     if client_file.exists():
         raise ClientAlreadyExists(client_id=client_file)
@@ -665,6 +676,7 @@ def create_client_file(
         'client_secret': secret,
         'client_secret_hash': secret_hash,
         'scopes': scopes or [],
+        'backends': backends or {},
     }
     keymap[name] = client_id
 
@@ -711,10 +723,11 @@ def update_client_file(
     context: Context,
     path: pathlib.Path,
     client_id: str,
-    name: str,
-    secret: str,
-    scopes: list
-):
+    name: str | None,
+    secret: str | None,
+    scopes: list | None,
+    backends: dict[str, dict[str, str]] | None,
+) -> dict:
     if client_exists(path, client_id):
         config = context.get("config")
         client = query_client(get_clients_path(config), client_id)
@@ -724,6 +737,7 @@ def update_client_file(
         new_name = name if name else client.name
         new_secret_hash = passwords.crypt(secret) if secret else client.secret_hash
         new_scopes = scopes if scopes is not None else client.scopes
+        new_backends = backends if backends is not None else client.backends
 
         client_path = get_client_file_path(path, client_id)
         keymap = _load_keymap_data(keymap_path)
@@ -735,7 +749,8 @@ def update_client_file(
             "client_id": client.id,
             "client_name": new_name,
             "client_secret_hash": new_secret_hash,
-            "scopes": list(new_scopes)
+            "scopes": list(new_scopes),
+            "backends": new_backends,
         }
 
         yml.dump(new_data, client_path)
@@ -888,7 +903,12 @@ def query_client(path: pathlib.Path, client: str, is_name: bool = False) -> Clie
         raise Exception(f'Client {client_file} scopes must be list of scopes.')
     client_id = data["client_id"]
     client_name = data["client_name"] if ("client_name" in data.keys() and data["client_name"]) else None
-    client = Client(id_=client_id, name_=client_name, secret_hash=data['client_secret_hash'],
-                    scopes=data['scopes'])
+    client = Client(
+        id_=client_id,
+        name_=client_name,
+        secret_hash=data['client_secret_hash'],
+        scopes=data['scopes'],
+        backends=data['backends'] if data.get('backends') else {},
+    )
     return client
 
