@@ -59,7 +59,7 @@ def check_script(context: Context, script: str | Script | UpgradeComponent, **kw
 
     if script.required:
         for required_script in script.required:
-            if check_script(context, required_script, **kwargs) is ScriptStatus.REQUIRED:
+            if check_script(context, required_script, **kwargs) in (ScriptStatus.REQUIRED, ScriptStatus.SKIPPED):
                 echo(f'Warning: "{required_script}" requirement is not met for "{script.name}" script', err=True)
                 return ScriptStatus.SKIPPED
 
