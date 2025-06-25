@@ -79,6 +79,7 @@ def test_client_add_old(rc, cli: SpintaCliRunner, tmp_path):
         'client_name': 'test',
         'client_secret_hash': client['client_secret_hash'],
         'scopes': [],
+        'backends': {},
     }
 
 
@@ -97,6 +98,7 @@ def test_client_add(rc, cli: SpintaCliRunner, tmp_path):
         'client_name': client['client_id'],
         'client_secret_hash': client['client_secret_hash'],
         'scopes': [],
+        'backends': {},
     }
 
 
@@ -121,6 +123,7 @@ def test_client_add_default_path(rc, cli: SpintaCliRunner, tmp_path):
         'client_name': 'test',
         'client_secret_hash': client['client_secret_hash'],
         'scopes': [],
+        'backends': {},
     }
 
 
