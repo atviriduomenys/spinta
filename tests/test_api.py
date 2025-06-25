@@ -1504,20 +1504,26 @@ def test_auth_clients_create_authorized_incorrect(
         "new_field": "FIELD"
     })
     assert resp.status_code == 400
-    assert error(resp) == "UnknownPropertyInRequest"
+    err = error(resp, "context", "code")
+    assert err["code"] == "ClientValidationError"
+    assert err["context"]["errors"] == "{'new_field': 'Extra inputs are not permitted'}"
 
     resp = app.post('/auth/clients', json={
         "client_name": "exist0"
     })
     assert resp.status_code == 400
-    assert error(resp) == "EmptyPassword"
+    err = error(resp, "context", "code")
+    assert err["code"] == "ClientValidationError"
+    assert err["context"]["errors"] == "{'secret': 'Field required'}"
 
     resp = app.post('/auth/clients', json={
         "client_name": "exist1",
         "secret": ""
     })
     assert resp.status_code == 400
-    assert error(resp) == "EmptyPassword"
+    err = error(resp, "context", "code")
+    assert err["code"] == "ClientValidationError"
+    assert err["context"]["errors"] == "{'secret': 'String should have at least 1 character'}"
 
     # Clean up
     clean_up_auth_client(context, resp_created.json()["client_id"])
@@ -1891,28 +1897,36 @@ def test_auth_clients_update_authorized_incorrect(
     resp = app.patch(f'/auth/clients/{resp_created.json()["client_id"]}', json={
         "client_name": "NEW"
     })
-    assert resp.status_code == 403
-    assert error(resp) == "InsufficientPermissionForUpdate"
+    assert resp.status_code == 400
+    err = error(resp, "context", "code")
+    assert err["code"] == "ClientValidationError"
+    assert err["context"]["errors"] == "{'client_name': 'Extra inputs are not permitted'}"
 
     resp = app.patch(f'/auth/clients/{resp_created.json()["client_id"]}', json={
         "scopes": [
             "spinta_insert"
         ]
     })
-    assert resp.status_code == 403
-    assert error(resp) == "InsufficientPermissionForUpdate"
+    assert resp.status_code == 400
+    err = error(resp, "context", "code")
+    assert err["code"] == "ClientValidationError"
+    assert err["context"]["errors"] == "{'scopes': 'Extra inputs are not permitted'}"
 
     resp = app.patch(f'/auth/clients/{resp_created.json()["client_id"]}', json={
         "something": "else"
     })
     assert resp.status_code == 400
-    assert error(resp) == "UnknownPropertyInRequest"
+    err = error(resp, "context", "code")
+    assert err["code"] == "ClientValidationError"
+    assert err["context"]["errors"] == "{'something': 'Extra inputs are not permitted'}"
 
     resp = app.patch(f'/auth/clients/{resp_created.json()["client_id"]}', json={
         "secret": ""
     })
     assert resp.status_code == 400
-    assert error(resp) == "EmptyPassword"
+    err = error(resp, "context", "code")
+    assert err["code"] == "ClientValidationError"
+    assert err["context"]["errors"] == "{'secret': 'String should have at least 1 character'}"
 
     # Clean up
     clean_up_auth_client(context, resp_created.json()["client_id"])
