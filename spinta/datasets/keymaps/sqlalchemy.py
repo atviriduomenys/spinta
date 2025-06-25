@@ -55,8 +55,6 @@ class SqlAlchemyKeyMap(KeyMap):
         return table
 
     def encode(self, name: str, value: object, primary_key=None) -> Optional[str]:
-        # Make value msgpack serializable.
-
         valid_value = _valid_keymap_value(value)
         if not valid_value:
             return None

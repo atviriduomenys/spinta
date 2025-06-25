@@ -77,6 +77,7 @@ class Script(enum.Enum):
     CLIENTS = "clients"
     REDIRECT = "redirect"
     DEDUPLICATE = "deduplicate"
+    CHANGELOG = "changelog"
 
     # Sqlalchemy keymap migrations
     SQL_KEYMAP_INITIAL = "sqlalchemy_keymap_001_initial"

@@ -655,6 +655,11 @@ def is_object_id(context: Context, backend: Backend, model: Model, value: str):
         return False
 
 
+@is_object_id.register(Context, Backend, Model, uuid.UUID)
+def is_object_id(context: Context, backend: Backend, model: Model, value: uuid.UUID):
+    return value.version == 4
+
+
 @is_object_id.register(Context, Backend, Model, object)
 def is_object_id(context: Context, backend: Backend, model: Model, value: object):
     # returns false if object id is non string.

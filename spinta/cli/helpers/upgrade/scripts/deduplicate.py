@@ -130,7 +130,7 @@ def _create_duplicate_entries(context: Context, backend: PostgreSQL, dmodel: _Du
     subquery = sa.select(*pkey_columns).group_by(*pkey_columns).having(sa.func.count() > 1).subquery()
     query = sa.select(table).where(
         sa.and_(
-            *(table.c[col.name] == subquery.c[col.name] for col in pkey_columns)
+            *(table.c[col.name].is_not_distinct_from(subquery.c[col.name]) for col in pkey_columns)
         )
     ).order_by(*pkey_columns, sa.desc(table.c._created))
 

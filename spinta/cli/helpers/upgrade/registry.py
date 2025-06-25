@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import List, Dict
 
 from spinta.cli.helpers.upgrade.components import UpgradeComponent, Script, ScriptTarget, ScriptTag
+from spinta.cli.helpers.upgrade.scripts.changelog import cli_requires_changelog_migrations, migrate_changelog_duplicates
 from spinta.cli.helpers.upgrade.scripts.clients import migrate_clients, cli_requires_clients_migration
 from spinta.cli.helpers.upgrade.scripts.deduplicate import cli_requires_deduplicate_migrations, migrate_duplicates
 from spinta.cli.helpers.upgrade.scripts.keymaps.sqlalchemy.initial_setup import requires_sql_keymap_initial_migration, \
@@ -90,6 +91,15 @@ _register_script(
         required=[Script.REDIRECT.value],
         targets={ScriptTarget.BACKEND.value},
         tags={ScriptTag.BUG_FIX.value},
+    )
+)
+_register_script(
+    UpgradeComponent(
+        name=Script.CHANGELOG.value,
+        upgrade=migrate_changelog_duplicates,
+        check=cli_requires_changelog_migrations,
+        required=[Script.DEDUPLICATE.value],
+        targets={ScriptTarget.BACKEND.value}
     )
 )
 
