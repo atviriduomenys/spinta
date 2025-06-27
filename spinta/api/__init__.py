@@ -159,7 +159,7 @@ async def auth_clients_add(request: Request) -> JSONResponse:
         )
 
     client_id = str(uuid.uuid4())
-    name = client_data["client_name"] if client_data.get("client_name") else client_id
+    name = client_data.get("client_name") or client_id
 
     path = get_clients_path(config)
     while client_exists(path, client_id):

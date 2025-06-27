@@ -10,7 +10,6 @@ from spinta.core.config import RawConfig
 from spinta.core.enums import Mode
 from spinta.core.ufuncs import asttoexpr
 from spinta.datasets.backends.dataframe.backends.soap.ufuncs.components import SoapQueryBuilder
-from spinta.dimensions.param.components import ResolvedResourceParam
 from spinta.exceptions import PropertyNotFound, UnknownMethod
 from spinta.manifests.components import Manifest
 from spinta.spyna import parse, unparse
@@ -126,12 +125,9 @@ class TestSoapRequestBody:
         token = auth.Token(token, BearerTokenValidator(context))
         context.set('auth.token', token)
 
+        model = get_model(context, manifest, 'example/City')
         resource_params = {
-            "parameter1": ResolvedResourceParam(
-                target="parameter1",
-                source="request_model/param1",
-                value="default_val",
-            )
+            param.name: param for param in model.external.resource.params
         }
         soap_query_builder = _get_soap_query_builder(context, manifest, resource_params=resource_params)
         soap_query_builder.build()
@@ -152,7 +148,11 @@ class TestSoapRequestBody:
             """, mode=Mode.external)
         context.set('auth.token', AdminToken())
 
-        soap_query_builder = _get_soap_query_builder(context, manifest)
+        model = get_model(context, manifest, 'example/City')
+        resource_params = {
+            param.name: param for param in model.external.resource.params
+        }
+        soap_query_builder = _get_soap_query_builder(context, manifest, resource_params=resource_params)
         soap_query_builder.build()
 
         assert soap_query_builder.soap_request_body == {}
@@ -172,7 +172,11 @@ class TestSoapRequestBody:
             """, mode=Mode.external)
         context.set('auth.token', AdminToken())
 
-        soap_query_builder = _get_soap_query_builder(context, manifest)
+        model = get_model(context, manifest, 'example/City')
+        resource_params = {
+            param.name: param for param in model.external.resource.params
+        }
+        soap_query_builder = _get_soap_query_builder(context, manifest, resource_params=resource_params)
         soap_query_builder.build()
 
         assert soap_query_builder.soap_request_body == {}
@@ -192,12 +196,9 @@ class TestSoapRequestBody:
             """, mode=Mode.external)
         context.set('auth.token', AdminToken())
 
+        model = get_model(context, manifest, 'example/City')
         resource_params = {
-            "parameter1": ResolvedResourceParam(
-                target="parameter1",
-                source="request_model/param1",
-                value="default_val",
-            )
+            param.name: param for param in model.external.resource.params
         }
         soap_query_builder = _get_soap_query_builder(context, manifest, resource_params=resource_params)
         soap_query_builder.build()
@@ -221,12 +222,9 @@ class TestSoapRequestBody:
 
         query_params = QueryParams()
         query_params.url_params = {"p1": "url_value"}
+        model = get_model(context, manifest, 'example/City')
         resource_params = {
-            "parameter1": ResolvedResourceParam(
-                target="parameter1",
-                source="request_model/param1",
-                value="default_val",
-            )
+            param.name: param for param in model.external.resource.params
         }
         soap_query_builder = _get_soap_query_builder(
             context,
@@ -255,12 +253,9 @@ class TestSoapRequestBody:
             """, mode=Mode.external)
         context.set('auth.token', AdminToken())
 
+        model = get_model(context, manifest, 'example/City')
         resource_params = {
-            "parameter1": ResolvedResourceParam(
-                target="parameter1",
-                source="request_model/param1",
-                value=None,
-            )
+            param.name: param for param in model.external.resource.params
         }
         soap_query_builder = _get_soap_query_builder(context, manifest, resource_params=resource_params)
         soap_query_builder.build()
