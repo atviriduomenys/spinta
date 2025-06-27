@@ -100,7 +100,7 @@ def getall(
     )
     bases = list(bases)
 
-    resource_params = next(iterparams(context, model, model.manifest, model.external.resource.params))
+    resource_params = {param.name: param for param in model.external.resource.params}
 
     builder = backend.query_builder_class(context)
     builder = builder.init(backend=backend, model=model, resource_params=resource_params, query_params=params)

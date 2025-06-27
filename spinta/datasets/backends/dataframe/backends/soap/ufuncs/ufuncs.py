@@ -7,8 +7,9 @@ from spinta.components import Property
 from spinta.core.enums import Action
 from spinta.core.ufuncs import ufunc, Expr, Bind, ShortExpr
 from spinta.datasets.backends.dataframe.backends.soap.ufuncs.components import SoapQueryBuilder
-from spinta.dimensions.param.components import ResolvedResourceParam
+from spinta.datasets.components import Param
 from spinta.utils.data import take
+from spinta.utils.schema import NA
 
 
 @ufunc.resolver(SoapQueryBuilder, Expr)
@@ -62,20 +63,27 @@ def soap_request_body(env: SoapQueryBuilder, prop: Property) -> None:
     """
     if prop.external.name:
         # Ignore properties with `source`
-        return None
+        return
 
     if not isinstance(prop.external.prepare, Expr):
         # Ignore properties without `prepare` expression
-        return None
+        return
 
-    resource_property_value = env(this=prop).resolve(prop.external.prepare)
+    resource_param = env(this=prop).resolve(prop.external.prepare)
+    env.call("soap_request_body", prop, resource_param)
 
-    env.call("soap_request_body", prop, resource_property_value)
 
+@ufunc.resolver(SoapQueryBuilder, Property, Param)
+def soap_request_body(env: SoapQueryBuilder, prop: Property, param: Param) -> None:
+    # Replace default param.soap_body values with url_param values
+    url_param_value = env.query_params.url_params.get(prop.place)
+    param_soap_body = {
+        key: url_param_value or (value if value is not NA else None)
+        for key, value in param.soap_body.items()
+    }
 
-@ufunc.resolver(SoapQueryBuilder, Property, ResolvedResourceParam)
-def soap_request_body(env: SoapQueryBuilder, prop: Property, resolved_resource_param: ResolvedResourceParam) -> None:
-    value = env.query_params.url_params.get(prop.place, resolved_resource_param.value)
+    # param row can only have one value, so we take this value
+    param_value = list(param_soap_body.values())[0] if param_soap_body else None
 
-    env.soap_request_body.update({resolved_resource_param.source: value})
-    env.property_values.update({resolved_resource_param.target: value})
+    env.soap_request_body.update(param_soap_body)
+    env.property_values.update({param.name: param_value})

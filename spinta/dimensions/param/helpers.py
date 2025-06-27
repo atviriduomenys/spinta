@@ -7,7 +7,21 @@ from spinta.datasets.components import Param, Dataset
 from spinta.dimensions.param.components import ParamLoader
 from spinta.manifests.components import Manifest
 from spinta.nodes import load_node
+from spinta.ufuncs.loadbuilder.components import LoadBuilder
 from spinta.utils.schema import NA
+
+
+def load_param_formulas(context: Context, param: Param, prepare_asts: list[dict]) -> None:
+    formulas = []
+    builder = LoadBuilder(context)
+    for source, ast in zip(param.sources, prepare_asts):
+        builder.update(this=source, param=param)
+
+        # If builder cannot resolve formula - save it in formula and leave resolving for later
+        if formula := builder.resolve(asttoexpr(ast)):
+            formulas.append(formula)
+
+    param.formulas = formulas
 
 
 def load_params(context: Context, manifest: Manifest, param_data: Any) -> List[Param]:
@@ -17,7 +31,7 @@ def load_params(context: Context, manifest: Manifest, param_data: Any) -> List[P
             param = Param()
             load_node(context, param, data)
             param.sources = data['source'].copy()
-            param.formulas = [asttoexpr(prep) for prep in data['prepare']]
+            load_param_formulas(context, param, data['prepare'])
             param.name = data['name']
             params.append(param)
     elif isinstance(param_data, list):
@@ -37,9 +51,10 @@ def load_params(context: Context, manifest: Manifest, param_data: Any) -> List[P
                 }
                 load_node(context, param, data)
                 param.sources = data['source'].copy()
-                param.formulas = [asttoexpr(prep) for prep in data['prepare']]
+                load_param_formulas(context, param, data['prepare'])
                 param.name = data['name']
                 params.append(param)
+
     return params
 
 

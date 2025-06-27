@@ -3,7 +3,6 @@ from spinta.backends.helpers import load_query_builder_class
 from spinta.commands import get_model
 from spinta.core.config import RawConfig
 from spinta.core.enums import Mode
-from spinta.dimensions.param.components import ResolvedResourceParam
 from spinta.testing.manifest import prepare_manifest
 from spinta.ufuncs.querybuilder.components import QueryParams
 
@@ -52,12 +51,12 @@ def test_soap_query_builder_build_populates_soap_request_body_and_property_value
     query_builder = model.backend.query_builder_class(context)
 
     resource_params = {
-        "parameter1": ResolvedResourceParam(target="parameter1", source="request_model/param1", value="default_value")
+        param.name: param for param in model.external.resource.params
     }
     new_query_builder = query_builder.init(model.backend, model, resource_params, QueryParams())
 
     assert new_query_builder.soap_request_body == {}
     assert new_query_builder.property_values == {}
     new_query_builder.build()
-    assert new_query_builder.soap_request_body == {"request_model/param1": "default_value"}
-    assert new_query_builder.property_values == {"parameter1": "default_value"}
+    assert new_query_builder.soap_request_body == {"request_model/param1": "default_val"}
+    assert new_query_builder.property_values == {"parameter1": "default_val"}
