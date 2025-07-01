@@ -9,12 +9,13 @@ from spinta.ufuncs.querybuilder.components import QueryParams
 
 def test_soap_query_builder_has_all_attributes_only_after_init_is_called(rc: RawConfig) -> None:
     context, manifest = prepare_manifest(rc, """
-        d | r | b | m | property | type    | ref | source                                          | access | prepare
-        example                  | dataset |     |                                                 |        |
-          | wsdl_resource        | wsdl    |     | tests/datasets/backends/wsdl/data/wsdl.xml      |        |
-          | soap_resource        | soap    |     | CityService.CityPort.CityPortType.CityOperation |        | wsdl(wsdl_resource)
-          |   |   | City         |         | id  | /                                               | open   |
-          |   |   |   | id       | integer |     | id                                              |        |
+        d | r | b | m | property | type    | ref    | source                                          | access | prepare
+        example                  | dataset |        |                                                 |        |
+          | wsdl_resource        | wsdl    |        | tests/datasets/backends/wsdl/data/wsdl.xml      |        |
+          | soap_resource        | soap    |        | CityService.CityPort.CityPortType.CityOperation |        | wsdl(wsdl_resource)
+          |   |   |   |          | param   | param1 | request_model/param1                            | open   | input('1')
+          |   |   | City         |         | id     | /                                               | open   |
+          |   |   |   | id       | integer |        | id                                              |        |
         """, mode=Mode.external)
 
     config = context.get("config")
@@ -23,12 +24,12 @@ def test_soap_query_builder_has_all_attributes_only_after_init_is_called(rc: Raw
     query_builder = model.backend.query_builder_class(context)
 
     query_params = QueryParams()
-    new_query_builder = query_builder.init(model.backend, model, {"param1": "1"}, query_params)
+    new_query_builder = query_builder.init(model.backend, model, query_params)
 
     assert query_builder is not new_query_builder
     assert new_query_builder.soap_request_body == {}
     assert new_query_builder.property_values == {}
-    assert new_query_builder.params == {"param1": "1"}
+    assert new_query_builder.params == {param.name: param for param in model.external.resource.params}
     assert new_query_builder.query_params == query_params
 
 
@@ -50,10 +51,7 @@ def test_soap_query_builder_build_populates_soap_request_body_and_property_value
     load_query_builder_class(config, model.backend)
     query_builder = model.backend.query_builder_class(context)
 
-    resource_params = {
-        param.name: param for param in model.external.resource.params
-    }
-    new_query_builder = query_builder.init(model.backend, model, resource_params, QueryParams())
+    new_query_builder = query_builder.init(model.backend, model, QueryParams())
 
     assert new_query_builder.soap_request_body == {}
     assert new_query_builder.property_values == {}
