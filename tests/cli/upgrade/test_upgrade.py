@@ -4,10 +4,11 @@ from collections import Counter
 
 import pytest
 
-from spinta.cli.helpers.upgrade.components import Script, ScriptStatus
-from spinta.cli.helpers.upgrade.helpers import script_check_status_message
+from spinta.cli.helpers.upgrade.components import Script
+from spinta.cli.helpers.script.components import ScriptStatus
+from spinta.cli.helpers.script.helpers import script_check_status_message
 from spinta.cli.helpers.upgrade.scripts.clients import client_migration_status_message, CLIENT_STATUS_SUCCESS
-from spinta.exceptions import UpgradeScriptNotFound
+from spinta.exceptions import ScriptNotFound
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.client import create_old_client_file
 from spinta.utils.config import get_clients_path, get_keymap_path
@@ -18,10 +19,10 @@ def test_upgrade_invalid_script_name(
     rc,
     cli: SpintaCliRunner
 ):
-    with pytest.raises(UpgradeScriptNotFound):
+    with pytest.raises(ScriptNotFound):
         result = cli.invoke(rc, [
             'upgrade',
-            '-r', 'UNAVAILABLE'
+            'UNAVAILABLE'
         ], fail=False)
         raise result.exception
 
@@ -54,7 +55,7 @@ def test_upgrade_check_only(
 
     result = cli.invoke(rc, [
         'upgrade',
-        '-r', Script.CLIENTS.value,
+        Script.CLIENTS.value,
         '-c'
     ])
     assert result.exit_code == 0
