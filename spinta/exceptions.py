@@ -1094,3 +1094,46 @@ class UnableToCastColumnTypes(UserError):
     template = '''
     Unable to cast {column!r} column of type {old_type!r} to type {new_type!r}.
     '''
+
+
+class WsdlClientError(Exception):
+    pass
+
+
+class SoapServiceError(Exception):
+    pass
+
+
+class SoapRequestBodyParseError(Exception):
+    pass
+
+
+class RequiredField(UserError):
+    template = '''
+    {action!r} requires {field!r} to be given.
+    '''
+
+
+class RedirectFeatureMissing(UpgradeError):
+    template = '''
+    Missing redirect implementation. Consider running:
+    `spinta upgrade -r redirect` command.
+    '''
+
+
+class KeymapMigrationRequired(UpgradeError):
+    template = '''
+    Keymap ({keymap!r}) is missing {migration!r} migration.
+    Run this command to execute migrations:
+    `spinta upgrade`.
+    '''
+
+
+class KeymapDuplicateMapping(UserError):
+    template = '''
+    Keymap's ({keymap!r}) {key!r} key contains {key_count} duplicate value combinations.
+    This affects {affected_count} keymap entries.
+    
+    Make sure that synchronizing data is valid and is up to date. If it is try to rerun keymap synchronization. In case
+    it does not help you might need to fully reset this key's keymap data and rerun synchronization.
+    '''

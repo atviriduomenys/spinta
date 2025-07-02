@@ -355,6 +355,7 @@ def load(
     prop.given.name = prop.given_name
     return prop
 
+
 def _link_prop_enum(
     prop: Property,
 ) -> Optional[EnumValue]:

@@ -5,7 +5,7 @@ from typing import Any
 from typer import echo
 import ruamel.yaml
 
-from spinta.cli.helpers.upgrade.components import UPGRADE_CLIENTS_SCRIPT
+from spinta.cli.helpers.upgrade.components import Script
 from spinta.cli.helpers.upgrade.helpers import script_destructive_warning
 from spinta.components import Context, Config
 from spinta.core.config import DEFAULT_CONFIG_PATH
@@ -59,7 +59,7 @@ def migrate_clients(context: Context, destructive: bool, **kwargs: Any):
         keymap = {}
 
     if destructive:
-        echo(script_destructive_warning(UPGRADE_CLIENTS_SCRIPT, "override already migrated files with old ones"))
+        echo(script_destructive_warning(Script.CLIENTS.value, "override already migrated files with old ones"))
 
     items = os.listdir(clients_path)
     for item in items:
@@ -192,7 +192,7 @@ def _migrate_client_file(
     return CLIENT_STATUS_SUCCESS
 
 
-def cli_requires_clients_migration(context: Context, **kwargs: Any) -> bool:
+def cli_requires_clients_migration(context: Context, **kwargs) -> bool:
     config: Config = context.get('config')
     config_path = config.config_path or DEFAULT_CONFIG_PATH
     config_path = pathlib.Path(config_path)

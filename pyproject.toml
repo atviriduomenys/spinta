@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "spinta"
-version = "0.2.dev2"
+version = "0.2.dev3"
 description = "A platform for describing, extracting, transforming, loading and serving open data."
 authors = ["Mantas Zimnickas <sirexas@gmail.com>"]
 license = "MIT"
@@ -108,6 +108,7 @@ xmltodict = "*"
 sqlean-py = "*"
 cachetools = "*"
 docutils = "^0.21.2"
+zeep = "^4.3.1"
 
 [tool.poetry.extras]
 http = ["gunicorn", "uvicorn"]

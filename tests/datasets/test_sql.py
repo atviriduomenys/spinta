@@ -22,6 +22,7 @@ from spinta.testing.datasets import create_sqlite_db
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.utils import error, get_error_codes
 from spinta.utils.schema import NA
+from tests.cli.test_keymap import reset_keymap
 
 
 @pytest.fixture(scope='module')
@@ -3903,7 +3904,7 @@ def test_object_filter_nested(context, rc, tmp_path, geodb_denorm):
 def test_ref_prepare_key_count_missmatch(ref_level, context, rc, tmp_path, geodb_denorm):
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
     d | r | m | property    | type    | ref    | source      | prepare        | access | level
-    datasets/ref            |         |        |             |                |        |
+    datasets/ref/err        |         |        |             |                |        |
       | rs                  | sql     |        |             |                |        |
       |   | Planet          |         | id     | PLANET      |                | open   |
       |   |   | id          | integer |        | id          |                |        |
@@ -3919,7 +3920,7 @@ def test_ref_prepare_key_count_missmatch(ref_level, context, rc, tmp_path, geodb
 
     app = create_client(rc, tmp_path, geodb_denorm)
 
-    resp = app.get('/datasets/ref/Planet')
+    resp = app.get('/datasets/ref/err/Planet')
     assert listdata(resp, sort='code', full=True) == [{
         'id': 0,
         'code': 'ER',
@@ -3934,12 +3935,12 @@ def test_ref_prepare_key_count_missmatch(ref_level, context, rc, tmp_path, geodb
         'name': 'Mars'
     }]
 
-    resp = app.get('/datasets/ref/Country')
+    resp = app.get('/datasets/ref/err/Country')
     assert get_error_codes(resp.json()) == ["GivenValueCountMissmatch"]
 
 
 @pytest.mark.parametrize('ref_level', [3, 4])
-def test_ref_source_key_count_missmatch(ref_level, context, rc, tmp_path, geodb_denorm):
+def test_ref_source_key_count_missmatch(ref_level, context, rc, tmp_path, geodb_denorm, reset_keymap):
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
     d | r | m | property    | type    | ref      | source  | prepare | access | level
     datasets/ref            |         |          |         |         |        |
@@ -3976,19 +3977,19 @@ def test_ref_source_key_count_missmatch(ref_level, context, rc, tmp_path, geodb_
     assert get_error_codes(resp.json()) == ["GivenValueCountMissmatch"]
 
 
-def test_keymap_value_not_found_internal_model(context, rc, tmp_path, geodb_denorm):
+def test_keymap_value_not_found_internal_model(context, rc, tmp_path, geodb_denorm, reset_keymap):
     create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(f'''
-    d | r | m | property    | type    | ref    | source      | prepare | access | level
-    datasets/ref            |         |        |             |         |        |
-      | rs                  |         | sql    |             |         |        |
-      |   | Planet          |         | id     |             |         | open   |
-      |   |   | id          | integer |        |             |         |        |
-      |   |   | code        | string  |        |             |         |        |
-      |   |   | name        | string  |        |             |         |        |
-      |   | Country         |         | code   | COUNTRY     |         | open   |
-      |   |   | code        | string  |        | code        |         |        |
-      |   |   | name        | string  |        | name        |         |        |
-      |   |   | planet      | ref     | Planet | planet      |         |        |
+    d | r | m | property    | type    | ref          | source      | prepare | access | level
+    datasets/ref            |         |              |             |         |        |
+      | rs                  |         | sql          |             |         |        |
+      |   | Planet          |         | id, code     |             |         | open   |
+      |   |   | id          | integer |              |             |         |        |
+      |   |   | code        | string  |              |             |         |        |
+      |   |   | name        | string  |              |             |         |        |
+      |   | Country         |         | code         | COUNTRY     |         | open   |
+      |   |   | code        | string  |              | code        |         |        |
+      |   |   | name        | string  |              | name        |         |        |
+      |   |   | planet      | ref     | Planet[code] | planet      |         |        |
     '''))
 
     app = create_client(rc, tmp_path, geodb_denorm, mode='external')
@@ -4005,12 +4006,13 @@ def test_keymap_internal_model_after_sync(
     cli: SpintaCliRunner,
     responses,
     request,
+    reset_keymap
 ):
     table = '''
     d | r | m | property    | type    | ref          | source      | prepare | access | level
     datasets/ref            |         |              |             |         |        |
       | rs                  |         | sql          |             |         |        |
-      |   | Planet          |         | id           |             |         | open   |
+      |   | Planet          |         | id, code     |             |         | open   |
       |   |   | id          | integer |              |             |         |        |
       |   |   | code        | string  |              |             |         |        |
       |   |   | name        | string  |              |             |         |        |

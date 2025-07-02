@@ -1140,6 +1140,10 @@ class Config:
     max_api_file_size: int
     max_error_count_on_insert: int
 
+    # Config variable that should only be set when running `upgrade` `cli` command, used to track when certain errors
+    # can be ignored (like missing migrations while loading configs)
+    upgrade_mode: bool = False
+
     def __init__(self):
         self.commands = _CommandsConfig()
         self.components = {}

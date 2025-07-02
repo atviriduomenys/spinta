@@ -65,6 +65,7 @@ def test_export_csv(app):
         '_id',
         '_txn',
         '_revision',
+        '_same_as',
         'code',
         'title',
     ]

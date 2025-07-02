@@ -34,6 +34,10 @@ class QueryParams:
     default_expand: bool = False
     lang: List = None
     push: bool = False
+    url_params: dict
+
+    def __init__(self, url_params: dict | None = None) -> None:
+        self.url_params = url_params or {}
 
 
 class Selected:
@@ -112,7 +116,7 @@ class QueryBuilder(Env):
 
     property_resolver: PropertyResolver = None
 
-    def init_query_params(self, params: QueryParams):
+    def init_query_params(self, params: QueryParams | None):
         if params is None:
             params = QueryParams()
         self.query_params = params

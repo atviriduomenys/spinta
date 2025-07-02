@@ -1,3 +1,4 @@
+from __future__ import annotations
 import io
 import json
 import pathlib
@@ -40,12 +41,12 @@ from spinta.utils.data import take
 from spinta.utils.schema import NA
 
 
-def _resolve_expr(context: Context, row: Any, sel: Selected) -> Any:
+def _resolve_expr(context: Context, row: Any, sel: Selected, params: dict) -> Any:
     if sel.item is None:
         val = None
     else:
         val = row[sel.item]
-    env = ResultBuilder(context).init(val, sel.prop, row)
+    env = ResultBuilder(context).init(val, sel.prop, row, params)
     return env.resolve(sel.prep)
 
 
@@ -81,12 +82,14 @@ def _aggregate_values(data, target: Property):
     return recursive_collect(data, 0)
 
 
-def _get_row_value(context: Context, row: Any, sel: Any) -> Any:
+def _get_row_value(context: Context, row: Any, sel: Any, params: dict | None) -> Any:
+    params = params or {}
+
     if isinstance(sel, Selected):
         if isinstance(sel.prep, Expr):
-            val = _resolve_expr(context, row, sel)
+            val = _resolve_expr(context, row, sel, params)
         elif sel.prep is not NA:
-            val = _get_row_value(context, row, sel.prep)
+            val = _get_row_value(context, row, sel.prep, params)
         else:
             if sel.item in row.keys():
                 val = row[sel.item]
@@ -127,11 +130,11 @@ def _get_row_value(context: Context, row: Any, sel: Any) -> Any:
 
         return val
     if isinstance(sel, tuple):
-        return tuple(_get_row_value(context, row, v) for v in sel)
+        return tuple(_get_row_value(context, row, v, params) for v in sel)
     if isinstance(sel, list):
-        return [_get_row_value(context, row, v) for v in sel]
+        return [_get_row_value(context, row, v, params) for v in sel]
     if isinstance(sel, dict):
-        return {k: _get_row_value(context, row, v) for k, v in sel.items()}
+        return {k: _get_row_value(context, row, v, params) for k, v in sel.items()}
     return sel
 
 
@@ -382,7 +385,7 @@ def _get_pkeys_if_ref(prop: Property):
     return return_list
 
 
-def _get_dask_dataframe_meta(model: Model):
+def get_dask_dataframe_meta(model: Model):
     dask_meta = {}
     for prop in model.properties.values():
         if prop.external and prop.external.name:
@@ -420,13 +423,13 @@ def getall(
                 "pkeys": _get_pkeys_if_ref(prop)
             }
 
-    meta = _get_dask_dataframe_meta(model)
+    meta = get_dask_dataframe_meta(model)
     df = dask.bag.from_sequence(bases).map(
         _get_data_json,
         source=model.external.name,
         model_props=props
     ).flatten().to_dataframe(meta=meta)
-    yield from _dask_get_all(context, query, df, backend, model, builder, extra_properties)
+    yield from dask_get_all(context, query, df, backend, model, builder, extra_properties)
 
 
 @commands.getall.register(Context, Model, Xml)
@@ -456,14 +459,14 @@ def getall(
                 "pkeys": _get_pkeys_if_ref(prop)
             }
 
-    meta = _get_dask_dataframe_meta(model)
+    meta = get_dask_dataframe_meta(model)
     df = dask.bag.from_sequence(bases).map(
         _get_data_xml,
         namespaces=_gather_namespaces_from_model(context, model),
         source=model.external.name,
         model_props=props
     ).flatten().to_dataframe(meta=meta)
-    yield from _dask_get_all(context, query, df, backend, model, builder, extra_properties)
+    yield from dask_get_all(context, query, df, backend, model, builder, extra_properties)
 
 
 def _gather_namespaces_from_model(context: Context, model: Model):
@@ -498,7 +501,7 @@ def getall(
     builder = backend.query_builder_class(context)
     builder.update(model=model)
     df = dask.dataframe.read_csv(list(bases), sep=resource_builder.seperator)
-    yield from _dask_get_all(context, query, df, backend, model, builder, extra_properties)
+    yield from dask_get_all(context, query, df, backend, model, builder, extra_properties)
 
 @commands.getall.register(Context, Model, MemoryDaskBackend)
 def getall(
@@ -526,7 +529,7 @@ def getall(
     builder = backend.query_builder_class(context)
     builder.update(model=model)
 
-    yield from _dask_get_all(
+    yield from dask_get_all(
         context, query, dask_df, backend, model, builder, extra_properties
     )
 
@@ -553,21 +556,23 @@ def parametrize_bases(
         yield base
 
 
-def _dask_get_all(
+def dask_get_all(
     context: Context,
     query: Expr,
     df: dask.dataframe,
     backend: DaskBackend,
     model: Model,
     env: DaskDataFrameQueryBuilder,
-    extra_properties: dict
+    extra_properties: dict,
+    params: dict | None = None,
 ):
+    params = params or {}
     keymap: KeyMap = context.get(f'keymap.{model.keymap.name}')
 
     query = merge_formulas(model.external.prepare, query)
     query = merge_formulas(query, get_enum_filters(context, model))
     query = merge_formulas(query, get_ref_filters(context, model))
-    env = env.init(backend, df)
+    env = env.init(backend, df, params)
     expr = env.resolve(query)
     where = env.execute(expr)
     qry = env.build(where)
@@ -578,7 +583,7 @@ def _dask_get_all(
             '_type': model.model_type(),
         }
         for key, sel in env.selected.items():
-            val = _get_row_value(context, row, sel)
+            val = _get_row_value(context, row, sel, env.params)
             if sel.prop:
                 if isinstance(sel.prop.dtype, PrimaryKey):
                     val = keymap.encode(sel.prop.model.model_type(), val)

@@ -84,6 +84,8 @@ CONFIG = {
             'xlsx': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
             'geojson': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
             'html': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
+            'soap': 'spinta.datasets.backends.dataframe.backends.soap.components:Soap',
+            'wsdl': 'spinta.datasets.backends.wsdl.components:WsdlBackend',
 
             # This will be deprecated, when all datasources migrate to `dask` version
             'csv': 'spinta.compat:CsvDeprecated',
@@ -106,7 +108,8 @@ CONFIG = {
             'sql/oracle': 'spinta.datasets.backends.sql.backends.oracle.ufuncs.query.components:OracleQueryBuilder',
             'sql/mysql': 'spinta.datasets.backends.sql.backends.mysql.ufuncs.query.components:MySQLQueryBuilder',
             'sql/mariadb': 'spinta.datasets.backends.sql.backends.mariadb.ufuncs.query.components:MariaDBQueryBuilder',
-            'dask': 'spinta.datasets.backends.dataframe.ufuncs.query.components:DaskDataFrameQueryBuilder'
+            'dask': 'spinta.datasets.backends.dataframe.ufuncs.query.components:DaskDataFrameQueryBuilder',
+            'soap': 'spinta.datasets.backends.dataframe.backends.soap.ufuncs.components:SoapQueryBuilder',
         },
         'resultbuilders': {
             # Default result builder

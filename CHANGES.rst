@@ -1,16 +1,38 @@
 Changes
 #######
 
-0.2dev3 (unreleased)
+
+0.2dev4 (unreleased)
 ====================
+
+New Features:
+- Add support for specifying SOAP request body in SOAP requests.(`#1274`_)
+
+  .. _#1274: https://github.com/atviriduomenys/spinta/issues/1274
+
+0.2dev3
+=======
 
 New Features:
 
 - Added OpenAPI Schema to DSA convertion `Resource` column part (`#1209`_)
 - Added OpenAPI Schema to DSA convertion `Param` column part (`#1210`_)
+- Added `soap` backend for basic SOAP data reading from WSDL (`#1273`_)
+- Added separate `wsdl` backend to read WSDL file and `wsdl(...)` function to link any `soap` type resource with
+  `wsdl` type resource for WSDL/SOAP data reading (`#279`_)
 
   .. _#1209: https://github.com/atviriduomenys/spinta/issues/1209
   .. _#1210: https://github.com/atviriduomenys/spinta/issues/1210
+  .. _#1273: https://github.com/atviriduomenys/spinta/issues/1273
+  .. _#279: https://github.com/atviriduomenys/spinta/issues/279
+
+Bug fixes:
+
+- Fixed a bug where an error was thrown when nested property was a `ref` followed by a `backref`. (`#1302`_)
+- Fixed a bug where `spinta` didn't work with Python versions > 3.10. (`#1326`_)
+
+  .. _#1302: https://github.com/atviriduomenys/spinta/issues/1302
+  .. _#1326: https://github.com/atviriduomenys/spinta/issues/1326
 
 0.2dev2
 =======
@@ -62,6 +84,19 @@ Backwards incompatible:
 0.1.86 (unreleased)
 ===================
 
+Backwards incompatible:
+
+- To support `redirect`, we introduced a new `API` endpoint `/:move` that creates redirect entries. Because all data
+  manipulations must be logged in the `changelog`, we needed a way to indicate that one `_id` was moved to another `_id`.
+  Since `_id` is unique and cannot be reused, we added a new property, `_same_as`, used exclusively to track which `_id`
+  an entry was moved to. As a result, this property is now included in all tabular results (HTML, ASCII, CSV),
+  even though it will typically be empty (`#1290`_).
+
+- In order to add `move` support and to deobfuscate `SqlAlchemyKeymap` new migration system was added. From now on any
+  schema changes to keymap should be done using `spinta upgrade`. Keymap now stores separate table called `_migrations`,
+  it stores all already executed migrations. Each time `spinta` configures keymap, it will check if all of
+  required migrations have been executed on it (`#1307`_).
+
 Improvements:
 
 - `migrate` command now warns users if there are potential type casting issues (invalid or unsafe).
@@ -70,6 +105,33 @@ Improvements:
 
   .. _#1254: https://github.com/atviriduomenys/spinta/issues/1254
 
+- The `upgrade` command now support `-c` or `--check` flag, which performs only the script check without executing
+  any scripts. This is useful for previewing required upgrades without applying them (`#1290`_).
+
+- Deobfuscated `SqlAlchemyKeymap` database values, they are no longer hashed (`#1307`_).
+
+- `keymap sync` now supports `move` changelog action (`#1307`_).
+
+  .. _#1307: https://github.com/atviriduomenys/spinta/issues/1307
+
+New Features:
+
+- Added a `redirect` upgrade script (`spinta upgrade -r redirect`) that checks if the current `backend` supports redirects.
+  If not, it will attempt to add the missing features (`#1290`_).
+
+- Added a `deduplicate` upgrade script (`spinta upgrade -r deduplicate`). This checks models with assigned primary keys
+  (`model.ref`) to ensure uniqueness is enforced. If not, it scans for duplicates, aggregates them using `model.ref` keys,
+  and processes them via the `/:move` endpoint (keeping the oldest entry as the root). It then attempts to enforce
+  uniqueness going forward (`#1290`_).
+
+- Implemented `redirect` support. When trying to fetch an entry that no longer exists, the `API` will redirect the request
+  if a mapping exists in the `redirect` table (`#1290`_).
+
+- Added `DELETE` `/:move` endpoint, that removes an entry and marks it as moved to another existing entry via
+  the `redirect` table (`#1290`_).
+
+  .. _#1290: https://github.com/atviriduomenys/spinta/issues/1290
+
 Bug fixes:
 
 - Fixed `migrate` cast not including right column types while generating `USING` code part (`#1254`_).
@@ -77,6 +139,9 @@ Bug fixes:
 - Fixed `keymap sync` ignoring `upsert` action (`#1269`_).
 
   .. _#1269: https://github.com/atviriduomenys/spinta/issues/1269
+
+- Fixed `postgresql` `update` action updating `_created`, instead of `_updated` value (`#1307`_).
+
 
 0.1.85 (2025-04-08)
 ===================
