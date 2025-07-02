@@ -14,9 +14,9 @@ from sqlalchemy.dialects.sqlite import insert
 
 from spinta import commands
 from spinta.cli.helpers.data import ensure_data_dir
-from spinta.cli.helpers.upgrade.components import ScriptTarget, ScriptTag
-from spinta.cli.helpers.upgrade.helpers import sort_scripts_by_required
-from spinta.cli.helpers.upgrade.registry import get_filtered_scripts
+from spinta.cli.helpers.script.components import ScriptTarget, ScriptTag
+from spinta.cli.helpers.script.helpers import sort_scripts_by_required
+from spinta.cli.helpers.upgrade.registry import upgrade_script_registry
 from spinta.components import Config
 from spinta.components import Context
 from spinta.core.config import RawConfig
@@ -59,7 +59,7 @@ class SqlAlchemyKeyMap(KeyMap):
         if not valid_value:
             return None
 
-        prepared_value = _prepare_value(value)
+        prepared_value = prepare_value(value)
         table = self.get_table(name)
         current_key = self.conn.execute(
             sa.select([table.c.key]).where(
@@ -110,7 +110,7 @@ class SqlAlchemyKeyMap(KeyMap):
             return False
 
         table = self.get_table(name)
-        prepared_value = _prepare_value(value)
+        prepared_value = prepare_value(value)
         query = sa.select([sa.func.count()]).where(
             table.c.value == prepared_value
         )
@@ -136,7 +136,7 @@ class SqlAlchemyKeyMap(KeyMap):
         id_ = data.identifier
         redirect = data.redirect
         value_ = data.value
-        prepared_value = _prepare_value(value_)
+        prepared_value = prepare_value(value_)
 
         # Redirect id to another
         if redirect is not None:
@@ -253,7 +253,7 @@ def _valid_keymap_value(value: object) -> bool:
     return True
 
 
-def _prepare_value(value):
+def prepare_value(value):
     return json.dumps(fix_data_for_json(value))
 
 
@@ -347,7 +347,7 @@ def validate_migrations(context: Context, keymap: SqlAlchemyKeyMap):
     if config.upgrade_mode:
         return
 
-    migration_scripts = get_filtered_scripts(
+    migration_scripts = upgrade_script_registry.get_all(
         targets={ScriptTarget.SQLALCHEMY_KEYMAP.value},
         tags={ScriptTag.DB_MIGRATION.value}
     )
@@ -366,7 +366,7 @@ def initialize_meta_tables(keymap: SqlAlchemyKeyMap):
         keymap.get_table(keymap.migration_table_name)
 
         # Mark all migration scripts as already executed
-        migration_scripts = get_filtered_scripts(
+        migration_scripts = upgrade_script_registry.get_all(
             targets={ScriptTarget.SQLALCHEMY_KEYMAP.value},
             tags={ScriptTag.DB_MIGRATION.value}
         )

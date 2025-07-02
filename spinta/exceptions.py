@@ -965,9 +965,9 @@ class InvalidClientsKeymapStructure(UpgradeError):
     '''
 
 
-class UpgradeScriptNotFound(UserError):
+class ScriptNotFound(UserError):
     template = '''
-    Upgrade script {script!r} not found.
+    {script_type!r} script {script!r} not found.
     Available scripts: {available_scripts}.
     '''
 

@@ -39,6 +39,7 @@ def apply_migration(context: Context, keymap: 'SqlAlchemyKeyMap', migration: str
 def migrate_table(keymap: 'SqlAlchemyKeyMap', table: sa.Table):
     from alembic.migration import MigrationContext
     from alembic.operations import Operations
+    from spinta.datasets.keymaps.sqlalchemy import prepare_value
 
     connection = keymap.conn
     ctx = MigrationContext.configure(connection, opts={
@@ -56,8 +57,11 @@ def migrate_table(keymap: 'SqlAlchemyKeyMap', table: sa.Table):
     deleted_table_exists = False
     normal_table_exists = True
     progress = tqdm(desc=f'MIGRATING "{table}" KEYMAP DATA', ascii=True)
-    with connection.begin() as trx:
-        try:
+    try:
+        with connection.begin() as trx:
+            if temp_table in keymap.metadata.tables:
+                temp_table_exists = True
+
             new_table = keymap._create_table(temp_table)
             temp_table_exists = True
 
@@ -68,6 +72,7 @@ def migrate_table(keymap: 'SqlAlchemyKeyMap', table: sa.Table):
             data_stmt = sa.select([table.c.key, table.c.value])
             for row in connection.execute(data_stmt):
                 decoded = msgpack.loads(row['value'], raw=False)
+                decoded = prepare_value(decoded)
                 connection.execute(new_table.insert(
                     values={
                         'key': row['key'],
@@ -89,13 +94,12 @@ def migrate_table(keymap: 'SqlAlchemyKeyMap', table: sa.Table):
             temp_table_exists = False
             op.drop_table(deleted_table)
             deleted_table_exists = False
-            trx.commit()
-        except Exception:
-            requires_rollback = False
-            progress.close()
+    except Exception:
+        progress.close()
+
+        with connection.begin():
             if temp_table_exists:
                 op.drop_table(temp_table)
-                requires_rollback = True
 
             if deleted_table_exists:
                 if normal_table_exists:
@@ -104,10 +108,5 @@ def migrate_table(keymap: 'SqlAlchemyKeyMap', table: sa.Table):
                     deleted_table,
                     table_name
                 )
-                requires_rollback = True
 
-            if requires_rollback:
-                trx.rollback()
-            else:
-                trx.commit()
-            raise
+        raise

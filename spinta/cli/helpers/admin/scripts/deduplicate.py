@@ -16,7 +16,7 @@ from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers.migrate.migrate import extract_sqlalchemy_columns, get_prop_names
 from spinta.backends.postgresql.helpers.name import get_pg_table_name, get_pg_column_name, get_pg_constraint_name
 from spinta.cli.helpers.auth import require_auth
-from spinta.cli.helpers.upgrade.helpers import ensure_store_is_loaded
+from spinta.cli.helpers.script.helpers import ensure_store_is_loaded
 from spinta.commands.write import dataitem_from_payload, move_stream
 from spinta.components import Context, Model, DataItem
 from spinta.core.enums import Action
@@ -216,10 +216,15 @@ async def _duplicate_mapping_to_dataitem(
 
 async def _migrate_duplicates(
     context: Context,
-    dmodel: _DuplicateModel
-):
+    dmodel: _DuplicateModel,
+    destructive: bool,
+) -> bool:
     model = dmodel.model
     if len(dmodel.duplicate_entries) > 0:
+        if not destructive:
+            echo(f'"{model.model_type()}" contains duplicate values, use --destructive to migrate them')
+            return False
+
         duplicate_counter = tqdm.tqdm(desc=model.model_type(), ascii=True)
         try:
             for mapping in dmodel.get_move_mappings():
@@ -232,9 +237,11 @@ async def _migrate_duplicates(
     else:
         echo(f'"{model.model_type()}" does not contain duplicate values')
 
+    return True
 
 def migrate_duplicates(
     context: Context,
+    destructive: bool,
     **kwargs
 ):
     models = list(_models_without_unique_constraint(context))
@@ -246,8 +253,8 @@ def migrate_duplicates(
             context.attach('transaction', validate_and_return_transaction, context, store.manifest.backend, write=True)
             for model in models:
                 dmodel = _generate_duplicate_model_data(context, model)
-                asyncio.run(_migrate_duplicates(context, dmodel))
-                if dmodel.missing_unique:
+                result = asyncio.run(_migrate_duplicates(context, dmodel, destructive))
+                if dmodel.missing_unique and result:
                     _add_uniqueness(context, model)
                     pass
                 counter.update(1)

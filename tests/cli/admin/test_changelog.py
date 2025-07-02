@@ -6,8 +6,10 @@ from _pytest.fixtures import FixtureRequest
 
 from spinta.backends.constants import TableType
 from spinta.backends.postgresql.helpers.name import get_pg_table_name, get_pg_constraint_name
-from spinta.cli.helpers.upgrade.components import Script, ScriptStatus
-from spinta.cli.helpers.upgrade.helpers import script_check_status_message
+from spinta.cli.helpers.admin.components import Script
+from spinta.cli.helpers.upgrade.components import Script as UpgradeScript
+from spinta.cli.helpers.script.components import ScriptStatus
+from spinta.cli.helpers.script.helpers import script_check_status_message
 from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.manifests.tabular.helpers import striptable
@@ -18,7 +20,7 @@ from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.tabular import create_tabular_manifest
 
 
-def test_upgrade_changelog_requires_redirect(
+def test_admin_changelog_requires_redirect(
     context: Context,
     tmp_path: Path,
     rc: RawConfig,
@@ -70,8 +72,8 @@ def test_upgrade_changelog_requires_redirect(
     assert not insp.has_table(city_redirect)
     assert not insp.has_table(random_redirect)
     result = cli.invoke(context.get('rc'), [
-        'upgrade',
-        '-r', Script.CHANGELOG.value
+        'admin',
+        Script.CHANGELOG.value
     ])
     assert result.exit_code == 0
     assert script_check_status_message(Script.CHANGELOG.value, ScriptStatus.SKIPPED) in result.stdout
@@ -82,25 +84,25 @@ def test_upgrade_changelog_requires_redirect(
 
     result = cli.invoke(context.get('rc'), [
         'upgrade',
-        '-r', Script.REDIRECT.value
+        UpgradeScript.REDIRECT.value
     ])
     assert result.exit_code == 0
-    assert script_check_status_message(Script.REDIRECT.value, ScriptStatus.REQUIRED) in result.stdout
+    assert script_check_status_message(UpgradeScript.REDIRECT.value, ScriptStatus.REQUIRED) in result.stdout
 
     assert insp.has_table(country_redirect)
     assert insp.has_table(city_redirect)
     assert insp.has_table(random_redirect)
 
     result = cli.invoke(context.get('rc'), [
-        'upgrade',
-        '-r', Script.CHANGELOG.value,
+        'admin',
+        Script.CHANGELOG.value,
         '-c'
     ])
     assert result.exit_code == 0
     assert script_check_status_message(Script.CHANGELOG.value, ScriptStatus.PASSED) in result.stdout
 
 
-def test_upgrade_changelog_requires_deduplicate(
+def test_admin_changelog_requires_deduplicate(
     context: Context,
     tmp_path: Path,
     rc: RawConfig,
@@ -152,15 +154,15 @@ def test_upgrade_changelog_requires_deduplicate(
 
 
     result = cli.invoke(context.get('rc'), [
-        'upgrade',
-        '-r', Script.CHANGELOG.value
+        'admin',
+         Script.CHANGELOG.value
     ])
     assert result.exit_code == 0
     assert script_check_status_message(Script.CHANGELOG.value, ScriptStatus.SKIPPED) in result.stdout
 
     result = cli.invoke(context.get('rc'), [
-        'upgrade',
-        '-r', Script.DEDUPLICATE.value
+        'admin',
+         Script.DEDUPLICATE.value
     ])
     assert result.exit_code == 0
     assert script_check_status_message(Script.DEDUPLICATE.value, ScriptStatus.REQUIRED) in result.stdout
@@ -169,14 +171,14 @@ def test_upgrade_changelog_requires_deduplicate(
     assert any(uq_city_constraint == constraint["name"] for constraint in insp.get_unique_constraints(city_name))
 
     result = cli.invoke(context.get('rc'), [
-        'upgrade',
-        '-r', Script.CHANGELOG.value
+        'admin',
+        Script.CHANGELOG.value
     ])
     assert result.exit_code == 0
     assert script_check_status_message(Script.CHANGELOG.value, ScriptStatus.PASSED) in result.stdout
 
 
-def test_upgrade_changelog_old_deleted_entries(
+def test_admin_changelog_old_deleted_entries(
     context: Context,
     tmp_path: Path,
     rc: RawConfig,
@@ -296,8 +298,8 @@ def test_upgrade_changelog_old_deleted_entries(
     ]
 
     result = cli.invoke(context.get('rc'), [
-        'upgrade',
-        '-r', Script.CHANGELOG.value
+        'admin',
+        Script.CHANGELOG.value
     ])
     assert result.exit_code == 0
     assert script_check_status_message(Script.CHANGELOG.value, ScriptStatus.REQUIRED) in result.stdout
