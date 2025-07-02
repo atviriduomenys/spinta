@@ -1129,3 +1129,4 @@ class KeymapDuplicateMapping(UserError):
     Make sure that synchronizing data is valid and is up to date. If it is try to rerun keymap synchronization. In case
     it does not help you might need to fully reset this key's keymap data and rerun synchronization.
     '''
+

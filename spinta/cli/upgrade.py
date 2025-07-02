@@ -1,4 +1,5 @@
 import logging
+import sys
 from typing import Optional, List
 
 from typer import Context as TyperContext, Argument
@@ -48,7 +49,7 @@ def upgrade(
 
     if force and check_only:
         echo("Cannot run force mode with check only mode", err=True)
-        return
+        sys.exit(1)
 
     try:
         load_config(
