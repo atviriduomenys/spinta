@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import sys
 from typing import Optional, List
 
 from typer import Context as TyperContext, Argument
@@ -45,7 +46,7 @@ def admin(
 
     if force and check_only:
         echo("Cannot run force mode with check only mode", err=True)
-        return
+        sys.exit(1)
 
     load_config(
         context,
@@ -53,7 +54,8 @@ def admin(
     )
 
     if scripts is None:
-        raise Exception("Script is required")
+        echo("At least one script needs to be specified", err=True)
+        sys.exit(1)
 
     script_objects = {}
     for script in scripts:

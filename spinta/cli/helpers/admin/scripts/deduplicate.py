@@ -184,7 +184,7 @@ def _models_without_unique_constraint(
 ) -> Iterator[Model]:
     store = ensure_store_is_loaded(context)
     for model in commands.get_models(context, store.manifest).values():
-        if model.model_type().startswith('_') or model.external.unknown_primary_key:
+        if model.model_type().startswith('_') or not model.external or model.external.unknown_primary_key:
             continue
 
         check = _fulfills_unique_constraint(context, model)
