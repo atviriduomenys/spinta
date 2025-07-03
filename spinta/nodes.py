@@ -232,7 +232,7 @@ def load_model_properties(
         model.flatprops[name] = prop
 
 
-@commands.identifiable.register()
+@commands.identifiable.register(Node)
 def identifiable(node: Node):
     return False
 
