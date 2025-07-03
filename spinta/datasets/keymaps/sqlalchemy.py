@@ -132,6 +132,11 @@ class SqlAlchemyKeyMap(KeyMap):
         self.conn.execute(query)
 
     def synchronize(self, data: KeymapSyncData):
+        # TODO Backwards compatibility, should remove, when models without primary key are reworked
+        if not data.identifiable:
+            self.__legacy_synchronize(data)
+            return
+
         table: sa.Table = self.get_table(data.name)
         id_ = data.identifier
         redirect = data.redirect
@@ -160,6 +165,42 @@ class SqlAlchemyKeyMap(KeyMap):
         else:
             update_query = sa.update(table).values(value=prepared_value, redirect=redirect).where(table.c.key == id_)
             self.conn.execute(update_query)
+
+    def __legacy_synchronize(self, data: KeymapSyncData):
+        """
+        Do not run this method anymore, it is here only for backward compatibility.
+        Models without a primary key should not be synchronized, but this feature is still not implemented.
+        For that reason we still need to run this code (even though it can create duplicate value mapping).
+        """
+        table: sa.Table = self.get_table(data.name)
+        id_ = data.identifier
+        redirect = data.redirect
+        value_ = data.value
+
+        if redirect is not None:
+            return
+
+        valid_value = _valid_keymap_value(value_)
+        if not valid_value:
+            return
+
+        prepared_value = prepare_value(value_)
+        where_condition = sa.or_(table.c.key == id_, table.c.value == prepared_value)
+        select_query = sa.select([sa.func.count()]).select_from(table).where(where_condition)
+        count = self.conn.execute(select_query).scalar()
+        should_insert = True
+        if count == 1:
+            should_insert = False
+            update_query = sa.update(table).values(key=id_, value=prepared_value, redirect=redirect).where(where_condition)
+            self.conn.execute(update_query)
+        else:
+            delete_query = sa.delete(table).where(where_condition)
+            self.conn.execute(delete_query)
+
+        if should_insert:
+            query = insert(table).values(key=id_, value=prepared_value, redirect=redirect)
+            self.conn.execute(query)
+
 
     def has_synced_before(self) -> bool:
         table = self.get_table(self.sync_table_name)
