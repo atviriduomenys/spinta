@@ -1,8 +1,5 @@
-import atexit
-import importlib.resources
 import pathlib
-from contextlib import ExitStack
-from pathlib import Path
+from importlib import resources
 
 
 def is_ignored(rules, base, path):
@@ -28,6 +25,6 @@ def is_ignored(rules, base, path):
     return False
 
 
-def resource_filename(package: str, target: str) -> Path:
-    with importlib.resources.files(package) / target as ref:
+def resource_filename(package: str, target: str) -> pathlib.Path:
+    with resources.path(package, target) as ref:
         return ref
