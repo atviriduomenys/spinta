@@ -1,5 +1,12 @@
 import pathlib
-from importlib import resources
+
+try:
+    # for Python >=3.10
+    from importlib import resources
+    from importlib.resources import abc
+except ImportError:
+    # Python <=3.9
+    from importlib import resources, abc
 
 
 def is_ignored(rules, base, path):
@@ -25,6 +32,5 @@ def is_ignored(rules, base, path):
     return False
 
 
-def resource_filename(package: str, target: str) -> pathlib.Path:
-    with resources.path(package, target) as ref:
-        return ref
+def resource_filename(package: str, target: str) -> abc.Traversable:
+    return resources.files(package).joinpath(target)
