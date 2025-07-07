@@ -12,7 +12,7 @@ New Features:
 
 Bug fixes:
 
-- Fixed situation where nested properties in `ref` column where giving an error. (`#981`_)
+- Fixed situation where nested properties in `ref` column were giving an error. (`#981`_)
 
   .. _#981: https://github.com/atviriduomenys/spinta/issues/981
 
