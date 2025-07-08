@@ -109,6 +109,7 @@ sqlean-py = "*"
 cachetools = "*"
 docutils = "^0.21.2"
 zeep = "^4.3.1"
+standard-cgi = {version = "^3.13.0", python = "3.13"}
 
 [tool.poetry.extras]
 http = ["gunicorn", "uvicorn"]
