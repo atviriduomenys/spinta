@@ -38,8 +38,13 @@ else
     echo "Found existing config.yml."
 fi
 
-echo "Touch manifest.csv"
-touch manifest.csv
+git clone https://github.com/atviriduomenys/demo-saltiniai.git
+mkdir manifest
+find demo-saltiniai/manifest -name "*.csv" | xargs -I{} mv "{}" manifests/
+spinta upgrade
+ls manifests | xargs spinta copy -o manifest.csv
+
+rm -rf demo-saltiniai manifests
 
 poetry install spinta[all]
 spinta upgrade
