@@ -40,13 +40,32 @@ def admin(
     )),
     check_only: bool = Option(False, '-c', '--check', help=(
         "Only runs script checks, skipping execution part (used to find out what scripts are needed to run)."
-    ))
+    )),
+    extra: Optional[List[str]] = Option(None, '--extra', help=(
+        "Extra arguments to pass to the script. Example: `--extra arg1=val1 arg2=val2`"
+    )),
 ):
     context = configure_context(ctx.obj)
 
     if force and check_only:
         echo("Cannot run force mode with check only mode", err=True)
         sys.exit(1)
+
+    extra_args = {}
+    if extra:
+        for item in extra:
+            if '=' in item:
+                key, value = item.split('=', 1)
+                key = key.replace('-', '_')
+                if key in extra_args:
+                    echo(
+                        f"Duplicate --extra argument '{key}' given, only the last one will be used.",
+                        err=True,
+                    )
+                extra_args[key] = value
+            else:
+                echo(f"Invalid --extra format, expected key=value but got '{item}'.", err=True)
+                sys.exit(1)
 
     load_config(
         context,
@@ -71,5 +90,6 @@ def admin(
             destructive=destructive,
             force=force,
             script_name=script,
-            check_only=check_only
+            check_only=check_only,
+            **extra_args,
         )

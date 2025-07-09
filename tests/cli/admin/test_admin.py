@@ -72,13 +72,15 @@ def test_admin_multiple(
         request=request,
         full_load=True
     )
-
+    with open(tmp_path / 'modellist.txt', 'w') as f:
+        f.write('datasets/temp/Country')
 
     result = cli.invoke(context.get('rc'), [
         'admin',
         Script.CHANGELOG.value,
         Script.DEDUPLICATE.value,
-        '-c'
+        '-c',
+        '--extra', f'models-list={tmp_path / "modellist.txt"}'
     ])
     assert result.exit_code == 0
 

@@ -1,6 +1,8 @@
 import asyncio
 import dataclasses
 import datetime
+import pathlib
+import sys
 from collections.abc import Generator
 from typing import List, Iterator, AsyncIterator
 
@@ -318,9 +320,11 @@ async def _duplicate_mapping_to_dataitem(
         yield item
 
 
-def models_with_pkey(context: Context) -> Generator[Model]:
+def models_with_pkey(context: Context, whitelist: list[str]) -> Generator[Model]:
     store = ensure_store_is_loaded(context)
-    for model in commands.get_models(context, store.manifest).values():
+
+    for model_name in whitelist:
+        model = commands.get_model(context, store.manifest, model_name)
         if model.model_type().startswith('_') or model.external.unknown_primary_key:
             continue
 
@@ -329,9 +333,12 @@ def models_with_pkey(context: Context) -> Generator[Model]:
 
 def cli_requires_changelog_migrations(
     context: Context,
+    models_list: str = None,
     **kwargs,
 ) -> bool:
-    models = list(models_with_pkey(context))
+    models_list = parse_model_list(context, models_list)
+
+    models = list(models_with_pkey(context, models_list))
     for model in models:
         if _changelog_contains_corrupted_data(context, model):
             echo(f"Corrupted changelog entry found for \"{model.model_type()}\"")
@@ -374,9 +381,12 @@ async def _migrate_duplicates(
 
 def migrate_changelog_duplicates(
     context: Context,
+    models_list: str = None,
     **kwargs,
 ):
-    models = list(models_with_pkey(context))
+    models_list = parse_model_list(context, models_list)
+
+    models = list(models_with_pkey(context, models_list))
     counter = tqdm.tqdm(desc='MIGRATING CHANGELOGS WITH DUPLICATES', ascii=True, total=len(models))
     store = context.get('store')
     try:
@@ -390,3 +400,21 @@ def migrate_changelog_duplicates(
                 counter.update(1)
     finally:
         counter.close()
+
+
+def parse_model_list(
+    context: Context,
+    models_list: str = None,
+    **kwargs,
+) -> list[str]:
+    if models_list is None:
+        echo("Script requires model list file path (can also add it through `--extra models-list=<file_path>` argument).", err=True)
+        models_list = input("Enter model list file path: ")
+
+    models_path = pathlib.Path(models_list)
+    if not models_path.exists():
+        echo(f"File \"{models_list}\" does not exist.", err=True)
+        sys.exit(1)
+
+    with models_path.open('r') as f:
+        return f.read().splitlines()
