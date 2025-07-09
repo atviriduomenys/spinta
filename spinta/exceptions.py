@@ -925,7 +925,7 @@ class NoPrimaryKeyCandidatesFound(UserError):
 class ClientsMigrationRequired(UpgradeError):
     template = '''
     Clients folder structure is out of date. Please migrate it using:
-    'spinta upgrade', or 'spinta upgrade -r clients' commands.
+    'spinta upgrade', or 'spinta upgrade clients' commands.
     
     Old structure used to be:
     ../clients/???.yml
@@ -943,7 +943,7 @@ class ClientsKeymapNotFound(UpgradeError):
     Cannot find `../clients/helpers/keymap.yml` file.
     
     Make sure it exists.
-    Consider running `spinta upgrade` or `spinta upgrade -r clients` commands 
+    Consider running `spinta upgrade` or `spinta upgrade clients` commands 
     '''
 
 
@@ -952,7 +952,7 @@ class ClientsIdFolderNotFound(UpgradeError):
     Cannot find `../clients/id` folder.
 
     Make sure it exists.
-    Consider running `spinta upgrade` or `spinta upgrade -r clients` commands 
+    Consider running `spinta upgrade` or `spinta upgrade clients` commands 
     '''
 
 
@@ -961,7 +961,7 @@ class InvalidClientsKeymapStructure(UpgradeError):
     Could not load Clients `keymap.yml`.
     Structure is invalid.
 
-    Fix it or consider running `spinta upgrade -f -r clients` command.
+    Fix it or consider running `spinta upgrade clients -f` command.
     '''
 
 
@@ -1109,7 +1109,7 @@ class RequiredField(UserError):
 class RedirectFeatureMissing(UpgradeError):
     template = '''
     Missing redirect implementation. Consider running:
-    `spinta upgrade -r redirect` command.
+    `spinta upgrade redirect` command.
     '''
 
 

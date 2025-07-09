@@ -333,10 +333,10 @@ def models_with_pkey(context: Context, whitelist: list[str]) -> Generator[Model]
 
 def cli_requires_changelog_migrations(
     context: Context,
-    models_list: str = None,
+    input_path: pathlib.Path = None,
     **kwargs,
 ) -> bool:
-    models_list = parse_model_list(context, models_list)
+    models_list = parse_input_path(context, input_path)
 
     models = list(models_with_pkey(context, models_list))
     for model in models:
@@ -381,10 +381,10 @@ async def _migrate_duplicates(
 
 def migrate_changelog_duplicates(
     context: Context,
-    models_list: str = None,
+    input_path: pathlib.Path = None,
     **kwargs,
 ):
-    models_list = parse_model_list(context, models_list)
+    models_list = parse_input_path(context, input_path)
 
     models = list(models_with_pkey(context, models_list))
     counter = tqdm.tqdm(desc='MIGRATING CHANGELOGS WITH DUPLICATES', ascii=True, total=len(models))
@@ -402,19 +402,24 @@ def migrate_changelog_duplicates(
         counter.close()
 
 
-def parse_model_list(
+def parse_input_path(
     context: Context,
-    models_list: str = None,
+    input_path: pathlib.Path = None,
     **kwargs,
-) -> list[str]:
-    if models_list is None:
-        echo("Script requires model list file path (can also add it through `--extra models-list=<file_path>` argument).", err=True)
-        models_list = input("Enter model list file path: ")
+):
+    if input_path is None:
+        # Reads stdin direct for data
+        if not sys.stdin.isatty():
+            data = sys.stdin.read()
+            data = data.splitlines()
+            return data
 
-    models_path = pathlib.Path(models_list)
-    if not models_path.exists():
-        echo(f"File \"{models_list}\" does not exist.", err=True)
+        echo("Script requires model list file path (can also add it through `--input <file_path>` argument).", err=True)
+        input_path = input("Enter model list file path: ")
+
+    if not input_path.exists():
+        echo(f"File \"{input_path}\" does not exist.", err=True)
         sys.exit(1)
 
-    with models_path.open('r') as f:
+    with input_path.open('r') as f:
         return f.read().splitlines()
