@@ -93,10 +93,16 @@ def test_admin_changelog_requires_redirect(
     assert insp.has_table(city_redirect)
     assert insp.has_table(random_redirect)
 
+    with open(tmp_path / 'modellist.txt', 'w') as f:
+        f.write('datasets/deduplicate/cli/req/Country\n')
+        f.write('datasets/deduplicate/cli/req/City\n')
+        f.write('datasets/deduplicate/rand/req/Random\n')
+
     result = cli.invoke(context.get('rc'), [
         'admin',
         Script.CHANGELOG.value,
-        '-c'
+        '-c',
+        '--extra', f'models-list={tmp_path / "modellist.txt"}'
     ])
     assert result.exit_code == 0
     assert script_check_status_message(Script.CHANGELOG.value, ScriptStatus.PASSED) in result.stdout
@@ -170,9 +176,15 @@ def test_admin_changelog_requires_deduplicate(
     insp = sa.inspect(backend.engine)
     assert any(uq_city_constraint == constraint["name"] for constraint in insp.get_unique_constraints(city_name))
 
+    with open(tmp_path / 'modellist.txt', 'w') as f:
+        f.write('datasets/deduplicate/cli/Country\n')
+        f.write('datasets/deduplicate/cli/City\n')
+        f.write('datasets/deduplicate/rand/Random\n')
+
     result = cli.invoke(context.get('rc'), [
         'admin',
-        Script.CHANGELOG.value
+        Script.CHANGELOG.value,
+        '--extra', f'models-list={tmp_path / "modellist.txt"}'
     ])
     assert result.exit_code == 0
     assert script_check_status_message(Script.CHANGELOG.value, ScriptStatus.PASSED) in result.stdout
@@ -297,9 +309,13 @@ def test_admin_changelog_old_deleted_entries(
         {'_cid': 11, '_op': 'delete', '_id': c_1_1},
     ]
 
+    with open(tmp_path / 'modellist.txt', 'w') as f:
+        f.write('datasets/deduplicate/changelog/Country')
+
     result = cli.invoke(context.get('rc'), [
         'admin',
-        Script.CHANGELOG.value
+        Script.CHANGELOG.value,
+        '--extra', f'models-list={tmp_path / "modellist.txt"}'
     ])
     assert result.exit_code == 0
     assert script_check_status_message(Script.CHANGELOG.value, ScriptStatus.REQUIRED) in result.stdout
