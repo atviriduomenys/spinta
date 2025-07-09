@@ -12,7 +12,7 @@ New Features:
 
 Bug fixes:
 
-- Fixed a bug where `spinta` didn't work with Python version 3.13 (`#986`_, `#1357`_)
+- Fixed bugs where `spinta` didn't work with Python version 3.13 (`#986`_, `#1357`_)
 - Updated `pyproj` from version 3.6.1 to 3.7.1 to ensure compatibility with Python version 3.13 (`1358`_)
   
   .. _#986: https://github.com/atviriduomenys/spinta/issues/986
