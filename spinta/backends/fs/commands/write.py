@@ -1,6 +1,6 @@
-import cgi
 import pathlib
 import typing
+from email.message import Message
 
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
@@ -63,7 +63,13 @@ async def push(
     if 'revision' in request.headers:
         data.given['_revision'] = request.headers.get('revision')
     if 'content-disposition' in request.headers:
-        data.given[prop.name]['_id'] = cgi.parse_header(request.headers['content-disposition'])[1]['filename']
+        message = Message()
+        message['Content-Disposition'] = request.headers['content-disposition']
+        parameters = dict(message.get_params(header='Content-Disposition'))
+        filename = parameters.get('filename')
+        if filename:
+            data.given[prop.name]['_id'] = filename
+
     require_content_length = (
         Action.INSERT,
         Action.UPSERT,
