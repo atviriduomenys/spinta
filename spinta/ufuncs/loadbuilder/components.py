@@ -2,12 +2,14 @@ from typing import Any
 
 from spinta.components import Model, Config, PageInfo
 from spinta.core.ufuncs import Env, Expr
+from spinta.datasets.components import Param
 from spinta.exceptions import FieldNotInResource
 from spinta.ufuncs.loadbuilder.helpers import page_contains_unsupported_keys
 
 
 class LoadBuilder(Env):
     model: Model
+    param: Param
 
     def resolve(self, expr: Any):
         if not isinstance(expr, Expr):

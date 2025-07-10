@@ -2,6 +2,7 @@ from spinta.components import Property, PageInfo
 from spinta.core.ufuncs import ufunc, Expr, Pair, Bind, Positive, Negative
 from spinta.exceptions import InvalidArgumentInExpression, FieldNotInResource
 from spinta.ufuncs.loadbuilder.components import LoadBuilder
+from spinta.utils.schema import NA
 
 
 @ufunc.resolver(LoadBuilder, Expr, name='page')
@@ -61,3 +62,11 @@ def or_(env, expr):
     args, kwargs = expr.resolve(env)
     args = [a for a in args if a is not None]
     return args
+
+
+@ufunc.resolver(LoadBuilder, Expr, name='input')
+def input_(env: LoadBuilder, expr: Expr) -> None:
+    args, kwargs = expr.resolve(env)
+    prep_value = args[0] if args else NA
+
+    env.param.soap_body = {env.this: prep_value}

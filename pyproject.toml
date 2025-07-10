@@ -53,6 +53,7 @@ setuptools = "*"
 setuptools-scm = "*"
 # https://github.com/encode/starlette/security/advisories/GHSA-f96h-pmfr-66vw
 starlette = ">=0.40"
+pydantic = "*"
 toposort = "*"
 tqdm = "*"
 ujson = "*"

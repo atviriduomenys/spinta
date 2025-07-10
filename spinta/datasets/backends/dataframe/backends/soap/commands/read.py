@@ -13,7 +13,6 @@ from spinta.datasets.backends.dataframe.commands.read import (
     dask_get_all
 )
 from spinta.datasets.backends.dataframe.ufuncs.query.components import DaskDataFrameQueryBuilder
-from spinta.datasets.utils import iterparams
 from spinta.dimensions.param.components import ResolvedParams
 from spinta.exceptions import SoapRequestBodyParseError
 from spinta.typing import ObjectData
@@ -100,10 +99,8 @@ def getall(
     )
     bases = list(bases)
 
-    resource_params = next(iterparams(context, model, model.manifest, model.external.resource.params))
-
     builder = backend.query_builder_class(context)
-    builder = builder.init(backend=backend, model=model, resource_params=resource_params, query_params=params)
+    builder = builder.init(backend=backend, model=model, query_params=params)
     query = builder.resolve(query)
     builder.build()
 
