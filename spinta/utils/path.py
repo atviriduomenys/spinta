@@ -1,5 +1,7 @@
 import pathlib
 
+# Remove when support for Python 3.9 is dropped.
+# TODO: https://github.com/atviriduomenys/spinta/issues/1374
 try:
     # for Python >=3.10
     from importlib import resources
