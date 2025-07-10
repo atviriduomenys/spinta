@@ -630,7 +630,7 @@ class ClientAlreadyExists(UserError):
 
 
 class ClientValidationError(UserError):
-    template = "Errors validating client request."
+    template = "Errors occurred while validating client request."
 
 
 class UnknownRequestQuery(UserError):

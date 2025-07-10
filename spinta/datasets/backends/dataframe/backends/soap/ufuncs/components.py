@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from spinta.components import Model
 from spinta.datasets.backends.dataframe.backends.soap.components import Soap
+from spinta.datasets.components import Param
 from spinta.ufuncs.querybuilder.components import QueryBuilder, QueryParams
 
 
@@ -15,7 +16,7 @@ class SoapQueryBuilder(QueryBuilder):
         self,
         backend: Soap,
         model: Model,
-        resource_params: dict,
+        resource_params: list[Param],
         query_params: QueryParams,
     ) -> SoapQueryBuilder:
         builder = self(

@@ -172,6 +172,7 @@ class Param(ExtraMetaData):
     sources: List[Any]
     formulas: List[Expr]
     dependencies: set
+    soap_body: dict[str, Any]  # Used to store result of input() function
 
     # Given values
     source: List[Any]
