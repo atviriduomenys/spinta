@@ -621,15 +621,6 @@ class InsufficientPermission(UserError):
     template = "You need to have {scope!r} in order to access this API endpoint."
 
 
-class InsufficientPermissionForUpdate(UserError):
-    status_code = 403
-    template = "You do not have a permission to update '{field}' field."
-
-
-class UnknownPropertyInRequest(UserError):
-    template = "Property '{property}' is not part of allowed properties: '{properties}'"
-
-
 class ClientWithNameAlreadyExists(UserError):
     template = "Client with name '{client_name}' already exists."
 
@@ -638,8 +629,8 @@ class ClientAlreadyExists(UserError):
     template = "Client '{client_id}' already exists."
 
 
-class EmptyPassword(UserError):
-    template = "Client password cannot be empty."
+class ClientValidationError(UserError):
+    template = "Errors validating client request."
 
 
 class UnknownRequestQuery(UserError):
