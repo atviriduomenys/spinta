@@ -967,6 +967,14 @@ class InvalidScopes(UserError):
     template = "Request contains invalid, unknown or malformed scopes: {scopes}."
 
 
+class InvalidClientBackend(UserError):
+    template = '''Backend "{backend_name}" does not exist in configured client's backends.'''
+
+
+class InvalidClientBackendCredentials(UserError):
+    template = '''Credential "{key}" does not exist in client's backend "{backend_name}".'''
+
+
 class DirectRefValueUnassignment(UserError):
     template = '''
     Cannot directly set ref's _id value to None.
