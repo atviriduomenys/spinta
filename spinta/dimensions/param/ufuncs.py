@@ -7,9 +7,9 @@ from spinta.core.ufuncs import Bind, Expr
 from spinta.core.ufuncs import Env
 from spinta.core.ufuncs import ufunc
 from spinta.datasets.components import Param
-from spinta.dimensions.param.components import ParamBuilder, ParamLoader, ResolvedResourceParam
+from spinta.dimensions.param.components import ParamBuilder, ParamLoader
 from spinta.exceptions import PropertyNotFound, KeyNotFound, ModelNotFound, InvalidParamSource
-from spinta.utils.schema import NotAvailable, NA
+from spinta.utils.schema import NotAvailable
 
 
 @ufunc.resolver(Env, Bind)
@@ -68,26 +68,6 @@ def getattr_(env: ParamBuilder, data: dict, bind: Bind):
 @ufunc.resolver(ParamBuilder, NotAvailable, name="getattr")
 def getattr_(env: ParamBuilder, _: NotAvailable):
     return env.this
-
-
-@ufunc.resolver(ParamBuilder, Expr, name="input")
-def input_(env: ParamBuilder, expr: Expr) -> ResolvedResourceParam:
-    args, kwargs = expr.resolve(env)
-    prep_value = args[0] if args else NA
-
-    resolved_dict = env.call("input", env.this, prep_value)
-
-    return ResolvedResourceParam(**{"target": env.target_param, **resolved_dict})
-
-
-@ufunc.resolver(ParamBuilder, str, str, name="input")
-def input_(env: ParamBuilder, param_source: str, prep_value: str) -> dict:
-    return {"source": param_source, "value": prep_value}
-
-
-@ufunc.resolver(ParamBuilder, str, NotAvailable, name="input")
-def input_(env: ParamBuilder, param_source: str, _: NotAvailable) -> dict:
-    return {"source": param_source, "value": None}
 
 
 # {'name': 'getattr', 'args': [{'name': 'loop', 'args': [{'name': 'read', 'args': []}], 'type': 'method'}, {'name': 'bind', 'args': ['more']}]}
