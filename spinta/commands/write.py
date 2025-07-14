@@ -1,8 +1,8 @@
-import cgi
 import itertools
 import json
 import pathlib
 import typing
+from email.message import Message
 from typing import Any
 from typing import AsyncIterator, Union, Optional
 from typing import Dict
@@ -231,7 +231,9 @@ def _stream_group_key(data: DataItem):
 def is_streaming_request(request: Request):
     content_type = request.headers.get('content-type')
     if content_type:
-        content_type = cgi.parse_header(content_type)[0]
+        message = Message()
+        message['Content-Type'] = content_type
+        content_type = message.get_content_type()
     return content_type in STREAMING_CONTENT_TYPES
 
 
