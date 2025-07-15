@@ -147,12 +147,14 @@ class Property:
     ):
         self.basename: str = basename
         self.json_schema: dict = json_schema
-        self.name = to_property_name(basename)
-        self.title = json_schema.get("title", "")
-        self.description = json_schema.get("description", "")
-        self.source = basename if source is None else source
-        self.datatype = datatype or self.get_datatype()
-        self.ref = ref_model
+        self.name: str = to_property_name(basename)
+        self.title: str = json_schema.get("title", "")
+        self.description: str = json_schema.get("description", "")
+        self.source: str = basename if source is None else source
+        self.datatype: str = datatype or self.get_datatype()
+        self.ref: Model = ref_model
+        self.enum: dict = self.get_enums(self.json_schema.get("enum", []))
+
 
     def get_datatype(self) -> str:
         """
@@ -180,6 +182,14 @@ class Property:
                 return date_time_types[string_format]
 
         return "string"
+    
+    def get_enums(self, items:list) -> dict:
+        enum = {}
+        for item in items:
+            if isinstance(item,(list, dict)):  # Only handling primitive type enums
+                return {}
+            enum[item] = {"source": item}
+        return enum
 
     def get_node_schema_dict(self) -> dict:
         schema = {
@@ -191,6 +201,9 @@ class Property:
 
         if self.datatype in ["ref", "backref"]:
             schema["model"] = self.ref.name
+
+        if self.enum:
+            schema['enums'] = {"": self.enum}
 
         return schema
 
@@ -238,7 +251,6 @@ def get_dataset_schemas(data: dict, dataset_prefix: str) -> Generator[tuple[None
     for api_endpoint, api_metadata in data.get("paths", {}).items():
         for http_method, http_method_metadata in api_metadata.items():
             tags = http_method_metadata.get("tags", [])
-
             dataset_name = to_dataset_name("_".join(tags)) or DEFAULT_DATASET_NAME  # Default dataset if no tags given.
             if dataset_name not in datasets:
                 datasets[dataset_name] = {
