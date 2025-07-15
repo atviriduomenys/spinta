@@ -6,7 +6,7 @@ from collections.abc import Generator
 from pathlib import Path
 
 from spinta.core.ufuncs import Expr
-from spinta.utils.naming import to_code_name, to_dataset_name, to_model_name
+from spinta.utils.naming import Deduplicator, to_code_name, to_dataset_name, to_model_name
 
 SUPPORTED_PARAMETER_LOCATIONS = {"query", "header", "path"}
 DEFAULT_DATASET_NAME = "default"
@@ -23,6 +23,20 @@ def replace_url_parameters(endpoint: str) -> str:
 def read_file_data_and_transform_to_json(path: Path) -> dict:
     with Path(path).open() as file:
         return json.load(file)
+
+
+def resolve_refs(schema: dict, root: dict) -> dict:
+    if isinstance(schema, dict):
+        if "$ref" in schema:
+            ref_path = schema["$ref"].lstrip("#/").split("/")
+            resolved = root
+            for part in ref_path:
+                resolved = resolved[part]
+            return resolve_refs(resolved, root)
+
+        return {key: resolve_refs(value, root) for key, value in schema.items()}
+
+    return schema
 
 
 def get_namespace_schema(info: dict, title: str, dataset_prefix: str) -> Generator[tuple[None, dict], None, None]:
@@ -52,6 +66,7 @@ def get_resource_parameters(parameters: list[dict]) -> dict[str, dict]:
 
     return resource_parameters
 
+model_deduplicator = Deduplicator()
 
 class Model:
     def __init__(
@@ -65,7 +80,7 @@ class Model:
         self.source: str = source
         self.title: str = self.json_schema.get("title")
         self.description: str = self.json_schema.get("description")
-        self.name: str = f"{self.dataset}/{to_model_name(self.basename)}"
+        self.name: str = model_deduplicator(f"{self.dataset}/{to_model_name(self.basename)}")
         self.children: list[Model] = []
         self.properties: list[Property] = []
         self.extract_children()
@@ -103,27 +118,39 @@ class Property:
     pass
 
 
-def get_model_schemas(dataset_name: str, resource_name: str, response_200: dict) -> list[dict]:
-    if not (json_schema := response_200.get("content", {}).get("application/json", {}).get("schema", {})):
-        return []
-
-    json_type = json_schema.get("type")
-
-    basename = json_schema.get("title", response_200["description"])
-
-    if json_type == "object":
-        schema = json_schema
-        source = "."
-
-    elif json_type == "array" and json_schema.get("items", {}).get("type") == "object":
-        schema = json_schema.get("items", {})
-        source = ".[]"
+def get_schema_from_response(response: dict, root: dict) -> dict:
+    json_schema = {}
+    if "openapi" in root:
+        for content_type, content in response.get("content", {}).items():
+            if content_type == "application/json" or content_type.endswith("+json"):
+                json_schema = resolve_refs(content.get("schema", {}), root)
+                break
+    elif "swagger" in root:
+        json_schema = resolve_refs(response.get("schema", {}), root)
     else:
+        raise ValueError("Unknown specification type. Only OpenAPI 3.* and Swagger 2.0 allowed.")
+
+    return json_schema
+
+
+def get_model_schemas(dataset_name: str, resource_name: str, response_200: dict, root: dict) -> list[dict]:
+    if not (json_schema := get_schema_from_response(response_200, root)):
         return []
 
-    model = Model(dataset_name, resource_name, basename, source, schema)
+    if json_schema.get("type") == "array":
+        json_schema = resolve_refs(json_schema.get("items", {}), root)
+        root_source = ".[]"
+    else:
+        root_source = "."
 
-    return model.get_node_schema_dicts()
+    if json_schema.get("type") == "object":
+        basename = json_schema.get("title", response_200["description"]) or f"{dataset_name} {resource_name}"
+        model_schema = json_schema
+        model = Model(dataset_name, resource_name, basename, root_source, model_schema)
+
+        return model.get_node_schema_dicts()
+
+    return []
 
 
 def get_dataset_schemas(data: dict, dataset_prefix: str) -> Generator[tuple[None, dict]]:
@@ -158,7 +185,7 @@ def get_dataset_schemas(data: dict, dataset_prefix: str) -> Generator[tuple[None
                 "description": http_method_metadata.get("description", ""),
             }
             response_200 = http_method_metadata.get("responses", {}).get("200", {})
-            models += get_model_schemas(f"{dataset_prefix}/{dataset_name}", resource_name, response_200)
+            models += get_model_schemas(f"{dataset_prefix}/{dataset_name}", resource_name, response_200, data)
 
     if not datasets:
         dataset_name = DEFAULT_DATASET_NAME
