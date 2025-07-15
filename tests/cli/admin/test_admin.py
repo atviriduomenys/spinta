@@ -80,7 +80,7 @@ def test_admin_multiple(
         Script.CHANGELOG.value,
         Script.DEDUPLICATE.value,
         '-c',
-        '--extra', f'models-list={tmp_path / "modellist.txt"}'
+        '--input', f'{tmp_path / "modellist.txt"}'
     ])
     assert result.exit_code == 0
 

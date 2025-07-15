@@ -102,7 +102,7 @@ def test_admin_changelog_requires_redirect(
         'admin',
         Script.CHANGELOG.value,
         '-c',
-        '--extra', f'models-list={tmp_path / "modellist.txt"}'
+        '--input', f'{tmp_path / "modellist.txt"}'
     ])
     assert result.exit_code == 0
     assert script_check_status_message(Script.CHANGELOG.value, ScriptStatus.PASSED) in result.stdout
@@ -184,7 +184,7 @@ def test_admin_changelog_requires_deduplicate(
     result = cli.invoke(context.get('rc'), [
         'admin',
         Script.CHANGELOG.value,
-        '--extra', f'models-list={tmp_path / "modellist.txt"}'
+        '--input', f'{tmp_path / "modellist.txt"}'
     ])
     assert result.exit_code == 0
     assert script_check_status_message(Script.CHANGELOG.value, ScriptStatus.PASSED) in result.stdout
@@ -315,7 +315,7 @@ def test_admin_changelog_old_deleted_entries(
     result = cli.invoke(context.get('rc'), [
         'admin',
         Script.CHANGELOG.value,
-        '--extra', f'models-list={tmp_path / "modellist.txt"}'
+        '--input', f'{tmp_path / "modellist.txt"}'
     ])
     assert result.exit_code == 0
     assert script_check_status_message(Script.CHANGELOG.value, ScriptStatus.REQUIRED) in result.stdout
