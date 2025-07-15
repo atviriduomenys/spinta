@@ -6,7 +6,7 @@ from collections.abc import Generator
 from pathlib import Path
 
 from spinta.core.ufuncs import Expr
-from spinta.utils.naming import Deduplicator, to_code_name, to_dataset_name, to_model_name
+from spinta.utils.naming import Deduplicator, to_code_name, to_dataset_name, to_model_name, to_property_name
 
 SUPPORTED_PARAMETER_LOCATIONS = {"query", "header", "path"}
 DEFAULT_DATASET_NAME = "default"
@@ -66,37 +66,58 @@ def get_resource_parameters(parameters: list[dict]) -> dict[str, dict]:
 
     return resource_parameters
 
+
 model_deduplicator = Deduplicator()
 
 class Model:
     def __init__(
-        self, dataset: str, resource: str, basename: str, source: str, json_schema: dict, parent: Model | None = None
+        self, dataset: str, resource: str, basename: str, json_schema: dict, source: str | None = None
     ) -> None:
         self.dataset: str = dataset
         self.resource: str = resource
         self.basename: str = basename
         self.json_schema: dict = json_schema
-        self.parent: Model | None = parent
-        self.source: str = source
+        self.source: str = source or basename
         self.title: str = self.json_schema.get("title")
         self.description: str = self.json_schema.get("description")
         self.name: str = model_deduplicator(f"{self.dataset}/{to_model_name(self.basename)}")
         self.children: list[Model] = []
         self.properties: list[Property] = []
-        self.extract_children()
+        self.add_properties()
 
-    def add_children(self, basename: str, json_schema: dict) -> None:
-        self.children.append(Model(self.dataset, self.resource, basename, basename, json_schema, self))
-
-    def extract_children(self) -> None:
+    def add_properties(self) -> None:
         for property_name, property_metadata in self.json_schema.get("properties", {}).items():
+            prop = Property(property_name, property_metadata)
+
             if property_metadata.get("type") == "object":
-                self.add_children(property_name, property_metadata)
+                self._add_ref_model(prop)
+
             elif property_metadata.get("items", {}).get("type") == "object":
-                self.add_children(property_name, property_metadata["items"])
+                self._add_backref_model(prop)
+
+            self.properties.append(prop)
+
+    def _add_ref_model(self, parent_prop: Property) -> None:
+        child_model = Model(self.dataset, self.resource, parent_prop.basename, parent_prop.json_schema)
+        parent_prop.ref = child_model
+        self.children.append(child_model)
+
+    def _add_backref_model(self, parent_prop: Property) -> None:
+        json_schema = parent_prop.json_schema.get("items", {})
+        child_model = Model(self.dataset, self.resource, parent_prop.basename, json_schema)
+
+        backref_prop = Property(parent_prop.basename, {}, datatype="backref", source=".", ref_model=child_model)
+        backref_prop.name += "[]"
+        self.properties.append(backref_prop)
+
+        ref_prop = Property(self.basename, {}, datatype="ref", source="", ref_model=self)
+        ref_prop.ref = self
+        child_model.properties.append(ref_prop)
+
+        self.children.append(child_model)
 
     def get_node_schema_dicts(self) -> list[dict]:
-        result = [
+        schena_dict = [
             {
                 "type": "model",
                 "name": self.name,
@@ -104,18 +125,74 @@ class Model:
                 "description": self.description,
                 "access": "open",
                 "external": {"dataset": self.dataset, "resource": self.resource, "name": self.source},
+                "properties": {prop.name: prop.get_node_schema_dict() for prop in self.properties},
             }
         ]
         for child in self.children:
-            result.extend(child.get_node_schema_dicts())
-        return result
+            schena_dict.extend(child.get_node_schema_dicts())
+        return schena_dict
 
     def __repr__(self) -> str:
         return f"<Model {self.name}>"
 
 
 class Property:
-    pass
+    def __init__(
+        self,
+        basename: str,
+        json_schema: dict,
+        datatype: str | None = None,
+        source: str | None = None,
+        ref_model: Model | None = None,
+    ):
+        self.basename: str = basename
+        self.json_schema: dict = json_schema
+        self.name = to_property_name(basename)
+        self.title = json_schema.get("title", "")
+        self.description = json_schema.get("description", "")
+        self.source = basename if source is None else source
+        self.datatype = datatype or self.get_datatype()
+        self.ref = ref_model
+
+    def get_datatype(self) -> str:
+        """
+        Returns Property datatype as a string. If type cannot be detected, defaults to "string"
+        """
+        datatype = self.json_schema.get("type", "string")
+
+        basic_types = {
+            "boolean": "boolean",
+            "integer": "integer",
+            "number": "number",
+            "array": "array",
+            "object": "ref",
+        }
+
+        date_time_types = {"date-time": "datetime", "date": "date", "time": "time"}
+
+        if datatype in basic_types:
+            return basic_types[datatype]
+
+        if datatype == "string":
+            if self.json_schema.get("contentEncoding") == "base64":
+                return "binary"
+            if (string_format := self.json_schema.get("format")) in date_time_types:
+                return date_time_types[string_format]
+
+        return "string"
+
+    def get_node_schema_dict(self) -> dict:
+        schema = {
+            "type": self.datatype,
+            "title": self.title,
+            "description": self.description,
+            "external": {"name": self.source},
+        }
+
+        if self.datatype in ["ref", "backref"]:
+            schema["model"] = self.ref.name
+
+        return schema
 
 
 def get_schema_from_response(response: dict, root: dict) -> dict:
@@ -146,14 +223,14 @@ def get_model_schemas(dataset_name: str, resource_name: str, response_200: dict,
     if json_schema.get("type") == "object":
         basename = json_schema.get("title", response_200["description"]) or f"{dataset_name} {resource_name}"
         model_schema = json_schema
-        model = Model(dataset_name, resource_name, basename, root_source, model_schema)
+        model = Model(dataset_name, resource_name, basename, model_schema, source=root_source)
 
         return model.get_node_schema_dicts()
 
     return []
 
 
-def get_dataset_schemas(data: dict, dataset_prefix: str) -> Generator[tuple[None, dict]]:
+def get_dataset_schemas(data: dict, dataset_prefix: str) -> Generator[tuple[None, dict]]:  # noqa: C901
     datasets = {}
     models = []
     tag_metadata = {tag["name"]: tag.get("description", "") for tag in data.get("tags", {})}
@@ -184,8 +261,8 @@ def get_dataset_schemas(data: dict, dataset_prefix: str) -> Generator[tuple[None
                 "params": resource_parameters,
                 "description": http_method_metadata.get("description", ""),
             }
-            response_200 = http_method_metadata.get("responses", {}).get("200", {})
-            models += get_model_schemas(f"{dataset_prefix}/{dataset_name}", resource_name, response_200, data)
+            if response_200 := http_method_metadata.get("responses", {}).get("200", {}):
+                models += get_model_schemas(f"{dataset_prefix}/{dataset_name}", resource_name, response_200, data)
 
     if not datasets:
         dataset_name = DEFAULT_DATASET_NAME
@@ -200,9 +277,8 @@ def get_dataset_schemas(data: dict, dataset_prefix: str) -> Generator[tuple[None
     for dataset in datasets.values():
         yield None, dataset
 
-    if models:
-        for model in models:
-            yield None, model
+    for model in models:
+        yield None, model
 
 
 def read_open_api_manifest(path: Path) -> Generator[tuple[None, dict]]:
