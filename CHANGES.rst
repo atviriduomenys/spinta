@@ -70,6 +70,18 @@ Bug fixes:
 
 - Fixed `postgresql` `update` action updating `_created`, instead of `_updated` value (`#1307`_).
 
+- Fixed a bug where `spinta` didn't work with Python version 3.13 (`#986`_, `#1357`_)
+- Updated `pyproj` from version 3.6.1 to 3.7.1 to ensure compatibility with Python version 3.13 (`#1358`_)
+- Updated `pandas` from 2.0.3 to 2.3.1 to support Python versions 3.9–3.13 (`#1380`_)
+- Updated `dask` to version 2024.12.1 for use with Python 3.10–3.13 (`#1380`_)
+- Updated `numpy` from 1.24.4 to version 2.3.1 for use with Python 3.11–3.13 (`#1380`_)
+
+  
+  .. _#986: https://github.com/atviriduomenys/spinta/issues/986
+  .. _#1357: https://github.com/atviriduomenys/spinta/issues/1357
+  .. _#1358: https://github.com/atviriduomenys/spinta/issues/1358
+  .. _#1380: https://github.com/atviriduomenys/spinta/issues/1380
+
 
 0.1.85 (2025-04-08)
 ===================
