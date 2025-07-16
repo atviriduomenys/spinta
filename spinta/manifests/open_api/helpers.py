@@ -71,7 +71,13 @@ model_deduplicator = Deduplicator()
 
 class Model:
     def __init__(
-        self, dataset: str, resource: str, basename: str, json_schema: dict, source: str | None = None
+        self,
+        dataset: str,
+        resource: str,
+        basename: str,
+        json_schema: dict,
+        source: str | None = None,
+        parent: Model | None = None
     ) -> None:
         self.dataset: str = dataset
         self.resource: str = resource
@@ -83,6 +89,7 @@ class Model:
         self.name: str = model_deduplicator(f"{self.dataset}/{to_model_name(self.basename)}")
         self.children: list[Model] = []
         self.properties: list[Property] = []
+        self.parent = parent
         self.add_properties()
 
     def add_properties(self) -> None:
@@ -102,7 +109,7 @@ class Model:
         TODO: Children model "source" should be empty and name should have "/:part" suffix. e.g. f"{self.name}/:part"
         Link to task https://github.com/atviriduomenys/spinta/issues/997
         """
-        model = Model(self.dataset, self.resource, basename, json_schema)
+        model = Model(self.dataset, self.resource, basename, json_schema, parent=self)
         self.children.append(model)
         return model
 
@@ -129,7 +136,12 @@ class Model:
                 "title": self.title,
                 "description": self.description,
                 "access": "open",
-                "external": {"dataset": self.dataset, "resource": self.resource, "name": self.source},
+                "external": {
+                    "dataset": self.dataset,
+                    "resource": self.resource,
+                    "name": self.source,
+                    "prepare": Expr("expand") if self.parent else ""
+                    },
                 "properties": {prop.name: prop.get_node_schema_dict() for prop in self.properties},
             }
         ]
