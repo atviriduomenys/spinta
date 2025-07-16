@@ -123,7 +123,12 @@ class Model:
         backref_prop = Property(parent_prop.basename, {}, datatype="backref", source=".", ref_model=child_model)
         backref_prop.name += "[]"
         self.properties.append(backref_prop)
+        """
+        TODO: Temporary workaround — adds a ref to the backref's model. 
+        This should be removed once proper backref handling is implemented.
 
+        See task: https://github.com/atviriduomenys/spinta/issues/1314
+        """
         ref_prop = Property(self.basename, {}, datatype="ref", source="", ref_model=self)
         ref_prop.ref = self
         child_model.properties.append(ref_prop)
