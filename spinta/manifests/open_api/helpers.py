@@ -97,14 +97,21 @@ class Model:
 
             self.properties.append(prop)
 
+    def add_child(self, basename:str, json_schema: dict) -> Model:
+        """
+        TODO: Children model "source" should be empty and name should have "/:part" suffix. e.g. f"{self.name}/:part"
+        Link to task https://github.com/atviriduomenys/spinta/issues/997
+        """
+        model = Model(self.dataset, self.resource, basename, json_schema)
+        self.children.append(model)
+        return model
+
     def _add_ref_model(self, parent_prop: Property) -> None:
-        child_model = Model(self.dataset, self.resource, parent_prop.basename, parent_prop.json_schema)
-        parent_prop.ref = child_model
-        self.children.append(child_model)
+        parent_prop.ref = self.add_child(parent_prop.basename, parent_prop.json_schema)
 
     def _add_backref_model(self, parent_prop: Property) -> None:
         json_schema = parent_prop.json_schema.get("items", {})
-        child_model = Model(self.dataset, self.resource, parent_prop.basename, json_schema)
+        child_model = self.add_child(parent_prop.basename, json_schema)
 
         backref_prop = Property(parent_prop.basename, {}, datatype="backref", source=".", ref_model=child_model)
         backref_prop.name += "[]"
@@ -113,8 +120,6 @@ class Model:
         ref_prop = Property(self.basename, {}, datatype="ref", source="", ref_model=self)
         ref_prop.ref = self
         child_model.properties.append(ref_prop)
-
-        self.children.append(child_model)
 
     def get_node_schema_dicts(self) -> list[dict]:
         schena_dict = [
