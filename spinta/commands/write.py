@@ -237,6 +237,13 @@ def is_streaming_request(request: Request):
     return content_type in STREAMING_CONTENT_TYPES
 
 
+def get_filename(request: Request) -> Union[str, None]:
+    if 'Content-Disposition' in request.headers:
+        message = Message()
+        message['Content-Disposition'] = request.headers['Content-Disposition']
+        return message.get_filename()
+
+
 async def is_batch(request: Request, node: Node):
     if is_streaming_request(request):
         return True

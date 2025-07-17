@@ -1,6 +1,5 @@
 import pathlib
 import typing
-from email.message import Message
 
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
@@ -13,7 +12,6 @@ from spinta.renderer import render
 from spinta.utils.aiotools import aiter
 from spinta.components import Context, UrlParams, DataItem
 from spinta.core.enums import Action
-from spinta.commands.write import prepare_patch, simple_response, validate_data
 from spinta.types.datatype import File
 from spinta.backends.fs.components import FileSystem
 
@@ -62,13 +60,8 @@ async def push(
 
     if 'revision' in request.headers:
         data.given['_revision'] = request.headers.get('revision')
-    if 'content-disposition' in request.headers:
-        message = Message()
-        message['Content-Disposition'] = request.headers['content-disposition']
-        parameters = dict(message.get_params(header='Content-Disposition'))
-        filename = parameters.get('filename')
-        if filename:
-            data.given[prop.name]['_id'] = filename
+
+    data.given[prop.name]['_id'] = get_filename(request)
 
     require_content_length = (
         Action.INSERT,
