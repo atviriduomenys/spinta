@@ -3939,19 +3939,6 @@ pure-eval = "*"
 tests = ["cython", "littleutils", "pygments", "pytest", "typeguard"]
 
 [[package]]
-name = "standard-cgi"
-version = "3.13.0"
-description = "Standard library cgi redistribution. \"dead battery\"."
-optional = false
-python-versions = "*"
-groups = ["main"]
-markers = "python_version == \"3.13\""
-files = [
-    {file = "standard_cgi-3.13.0-py3-none-any.whl", hash = "sha256:3770017d2e43b4ef94b16b50206aeb3bb33b31429e7f47e9d4c2eeb0c7800902"},
-    {file = "standard_cgi-3.13.0.tar.gz", hash = "sha256:7ba8089fdcbd7d7a46a737e24cb5e4e2892db48678ad0e5f8726699a9d4ed53a"},
-]
-
-[[package]]
 name = "starlette"
 version = "0.47.0"
 description = "The little ASGI library that shines."
@@ -4678,4 +4665,4 @@ migrations = ["alembic"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.9"
-content-hash = "174a0b4607cc4c49459320efc8617f3ca33e1835dc27d920ced270429cc0eaf2"
+content-hash = "2e653fe724b4bdd1f7d0ed5465a7fefed155382963252550248fb00f88af4ac6"
