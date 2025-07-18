@@ -59,7 +59,7 @@ yml.explicit_start = False
 CLIENT_FILE_CACHE_SIZE_LIMIT = 1000
 KEYMAP_CACHE_SIZE_LIMIT = 1
 DEFAULT_CLIENT_ID_CACHE_SIZE_LIMIT = 1
-
+DEFAULT_CREDENTIALS_SECTION = "default"
 
 class KeyType(enum.Enum):
     public = 'public'
