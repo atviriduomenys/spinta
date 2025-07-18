@@ -93,16 +93,24 @@ class Model:
         self.add_properties()
 
     def add_properties(self) -> None:
-        for property_name, property_metadata in self.json_schema.get("properties", {}).items():
-            prop = Property(property_name, property_metadata)
+        for property_name, json_schema in self.json_schema.get("properties", {}).items():
+            prop = self.add_property(property_name, json_schema)
 
-            if property_metadata.get("type") == "object":
+            if json_schema.get("type") == "object":
                 self._add_ref_model(prop)
 
-            elif property_metadata.get("items", {}).get("type") == "object":
-                self._add_backref_model(prop)
+            elif json_schema.get("type") == "array":
+                json_schema = json_schema.get("items", {})
+                if json_schema.get("type") == "object":
+                    self._add_backref_model(prop)
+                else:
+                    prop = self.add_property(property_name, json_schema, source="")
+                    prop.name += "[]"
 
-            self.properties.append(prop)
+    def add_property(self, name:str, json_schema:dict, **kwargs) -> Property:
+        prop = Property(name, json_schema, **kwargs)
+        self.properties.append(prop)
+        return prop
 
     def add_child(self, basename:str, json_schema: dict) -> Model:
         """
@@ -120,18 +128,16 @@ class Model:
         json_schema = parent_prop.json_schema.get("items", {})
         child_model = self.add_child(parent_prop.basename, json_schema)
 
-        backref_prop = Property(parent_prop.basename, {}, datatype="backref", source=".", ref_model=child_model)
+        backref_prop = self.add_property(parent_prop.basename, {}, datatype="backref", source=".", ref_model=child_model)
         backref_prop.name += "[]"
-        self.properties.append(backref_prop)
         """
         TODO: Temporary workaround — adds a ref to the backref's model. 
         This should be removed once proper backref handling is implemented.
 
         See task: https://github.com/atviriduomenys/spinta/issues/1314
         """
-        ref_prop = Property(self.basename, {}, datatype="ref", source="", ref_model=self)
-        ref_prop.ref = self
-        child_model.properties.append(ref_prop)
+        child_model.add_property(self.basename, {}, datatype="ref", source="", ref_model=self)
+
 
     def get_node_schema_dicts(self) -> list[dict]:
         schena_dict = [
