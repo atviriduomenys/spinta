@@ -135,7 +135,7 @@ class AuthorizationServer(rfc6749.AuthorizationServer):
     def _generate_token(self, client: Client, grant_type, user, scope, **kwargs):
         expires_in = self._get_expires_in(client, grant_type)
         scopes = scope.split() if scope else []
-        return create_access_token(self._context, self._private_key, client.id, expires_in, scopes)
+        return create_access_token(self._context, self._private_key, client.id, expires_in, scopes, client.organization_id)
 
 
 class ResourceProtector(rfc6749.ResourceProtector):
@@ -173,6 +173,7 @@ class Client(rfc6749.ClientMixin):
     secret_hash: str
     scopes: Set[str]
     backends: dict[str, dict[str, Any]]
+    organization_id: str|None
 
     def __init__(
         self,
@@ -182,12 +183,14 @@ class Client(rfc6749.ClientMixin):
         secret_hash: str,
         scopes: list[str],
         backends: dict[str, dict[str, Any]],
+        organization_id: str|None = None,
     ) -> None:
         self.id = id_
         self.name = name_
         self.secret_hash = secret_hash
         self.scopes = set(scopes)
         self.backends = backends
+        self.organization_id = organization_id
 
     def __repr__(self):
         cls = type(self)
@@ -411,6 +414,7 @@ def create_access_token(
     client: str,
     expires_in: int = None,
     scopes: Set[str] = None,
+    organization_id: int | str = None,
 ):
     config = context.get('config')
 
@@ -433,7 +437,8 @@ def create_access_token(
         'iat': iat,
         'exp': exp,
         'scope': scopes,
-        'jti': jti
+        'jti': jti,
+        'organization_id': organization_id,
     }
     return jwt.encode(header, payload, private_key).decode('ascii')
 
@@ -649,6 +654,7 @@ def create_client_file(
     backends: dict[str, dict[str, str]] | None = None,
     *,
     add_secret: bool = False,
+    organization_id: str | None= None,
 ) -> tuple[pathlib.Path, dict]:
     client_file = get_client_file_path(path, client_id)
     if client_file.exists():
@@ -670,14 +676,16 @@ def create_client_file(
     secret = secret or passwords.gensecret(32)
     secret_hash = passwords.crypt(secret)
 
+    organization_claim = {'organization_id': organization_id } if organization_id else {}
+
     data = write = {
         'client_id': client_id,
         'client_name': name,
         'client_secret': secret,
         'client_secret_hash': secret_hash,
         'scopes': scopes or [],
-        'backends': backends or {},
-    }
+        'backends': backends or {}
+    } | organization_claim
     keymap[name] = client_id
 
     if not add_secret:
@@ -909,6 +917,7 @@ def query_client(path: pathlib.Path, client: str, is_name: bool = False) -> Clie
         secret_hash=data['client_secret_hash'],
         scopes=data['scopes'],
         backends=data['backends'] if data.get('backends') else {},
+        organization_id=data.get('organization_id'),
     )
     return client
 
