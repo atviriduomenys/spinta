@@ -140,7 +140,6 @@ class Model:
                 "name": self.name,
                 "title": self.title,
                 "description": self.description,
-                "access": "open",
                 "external": {
                     "dataset": self.dataset,
                     "resource": self.resource,
@@ -176,6 +175,7 @@ class Property:
         self.datatype: str = datatype or self.get_datatype()
         self.ref: Model = ref_model
         self.enum: dict = self.get_enums(self.json_schema.get("enum", []))
+        self.required: bool = not bool(json_schema.get("nullable", False))
 
 
     def get_datatype(self) -> str:
@@ -219,6 +219,7 @@ class Property:
             "title": self.title,
             "description": self.description,
             "external": {"name": self.source},
+            "required": self.required,
         }
 
         if self.datatype in ["ref", "backref"]:
