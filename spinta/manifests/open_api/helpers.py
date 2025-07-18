@@ -83,7 +83,7 @@ class Model:
         self.resource: str = resource
         self.basename: str = basename
         self.json_schema: dict = json_schema
-        self.source: str = source or basename
+        self.source: str = source if source is not None else basename
         self.title: str = self.json_schema.get("title")
         self.description: str = self.json_schema.get("description")
         self.name: str = model_deduplicator(f"{self.dataset}/{to_model_name(self.basename)}")
@@ -109,7 +109,7 @@ class Model:
         TODO: Children model "source" should be empty and name should have "/:part" suffix. e.g. f"{self.name}/:part"
         Link to task https://github.com/atviriduomenys/spinta/issues/997
         """
-        model = Model(self.dataset, self.resource, basename, json_schema, parent=self)
+        model = Model(self.dataset, self.resource, basename, json_schema, source="", parent=self)
         self.children.append(model)
         return model
 
