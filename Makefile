@@ -24,6 +24,10 @@ test: env
 	poetry run py.test -s --full-trace -vvxra --tb=native --log-level=debug --disable-warnings --doctest-modules spinta
 	poetry run py.test -vvxra --tb=native --log-level=debug --disable-warnings --cov=spinta --cov-report=term-missing tests
 
+.PHONY: test-github
+test-github: 
+	poetry run pytest -vvxra --tb=short --log-level=debug --cov=spinta --cov-report=term-missing tests
+
 .PHONY: run
 run: env
 	poetry run uvicorn spinta.asgi:app --reload --log-level debug --host 0.0.0.0
