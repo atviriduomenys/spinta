@@ -173,7 +173,7 @@ class Client(rfc6749.ClientMixin):
     secret_hash: str
     scopes: Set[str]
     backends: dict[str, dict[str, Any]]
-    organization_id: str|None
+    organization_id: str | None
 
     def __init__(
         self,
@@ -183,7 +183,7 @@ class Client(rfc6749.ClientMixin):
         secret_hash: str,
         scopes: list[str],
         backends: dict[str, dict[str, Any]],
-        organization_id: str|None = None,
+        organization_id: str | None = None,
     ) -> None:
         self.id = id_
         self.name = name_
@@ -438,8 +438,9 @@ def create_access_token(
         'exp': exp,
         'scope': scopes,
         'jti': jti,
-        'organization_id': organization_id,
     }
+    if organization_id:
+        payload['organization_id'] = organization_id
     return jwt.encode(header, payload, private_key).decode('ascii')
 
 
