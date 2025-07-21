@@ -10,6 +10,7 @@ from spinta.utils.naming import Deduplicator, to_code_name, to_dataset_name, to_
 
 SUPPORTED_PARAMETER_LOCATIONS = {"query", "header", "path"}
 DEFAULT_DATASET_NAME = "default"
+SCHEMA_REF_KEY = "$ref"
 
 
 def replace_url_parameters(endpoint: str) -> str:
@@ -25,16 +26,42 @@ def read_file_data_and_transform_to_json(path: Path) -> dict:
         return json.load(file)
 
 
-def resolve_refs(schema: dict, root: dict) -> dict:
+def resolve_refs(schema: dict, root: dict, seen: set[str] = None) -> dict:
+    """
+    Recursively resolves `$ref` references in a JSON schema.
+
+    This function follows and replaces `$ref` keys with their referenced definitions,
+    avoiding infinite recursion caused by circular references.
+
+    Args:
+        schema (dict): The JSON schema (or a portion of it) that may contain `$ref`.
+        root (dict): The full root schema, used to resolve reference paths.
+        seen (set[str], optional): A set of reference paths already visited to prevent cycles.
+
+    Returns:
+        dict: A schema with all `$ref` values replaced by their resolved definitions.
+    """
+    if seen is None:
+        seen = set()
+
     if isinstance(schema, dict):
-        if "$ref" in schema:
-            ref_path = schema["$ref"].lstrip("#/").split("/")
+        if SCHEMA_REF_KEY in schema:
+            ref_path = schema[SCHEMA_REF_KEY].lstrip("#/").split("/")
+
+            #TODO: Temporary workaround to avoid infinite recursion for circular referenced models.
+            # Actual logic TBD.
+            # See task: https://github.com/atviriduomenys/spinta/issues/1396
+            ref_key = "/".join(ref_path)
+            if ref_key in seen:
+                return {}
+            seen.add(ref_key)
+
             resolved = root
             for part in ref_path:
                 resolved = resolved[part]
-            return resolve_refs(resolved, root)
+            return resolve_refs(resolved, root, seen)
 
-        return {key: resolve_refs(value, root) for key, value in schema.items()}
+        return {key: resolve_refs(value, root, seen.copy()) for key, value in schema.items()}
 
     return schema
 
