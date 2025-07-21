@@ -22,7 +22,7 @@ from spinta.testing.context import create_test_context
 from spinta.utils.config import get_keymap_path
 
 
-def test_app(context, app):
+def test_access_token_claims(context, app):
     client_id = 'baa448a8-205c-4faa-a048-a10e4b32a136'
     client_secret = 'joWgziYLap3eKDL6Gk2SnkJoyz0F8ukB'
 
@@ -51,6 +51,38 @@ def test_app(context, app):
         'jti': token['jti'],
         'exp': int(token['exp']),
         'scope': 'profile',
+    }
+
+def test_access_token_organization_id_claim(context, app):
+    client_id = '3388ea36-4a4f-4821-900a-b574c8829d52'
+    client_secret = 'b5DVbOaEY1BGnfbfv82oA0-4XEBgLQuJ'
+
+    resp = app.post('/auth/token', auth=(client_id, client_secret), data={
+        'grant_type': 'client_credentials',
+        'scope': 'spinta_getone',
+    })
+    assert resp.status_code == 200, resp.text
+
+    data = resp.json()
+    assert data == {
+        'token_type': 'Bearer',
+        'expires_in': 864000,
+        'scope': 'spinta_getone',
+        'access_token': data['access_token'],
+    }
+
+    config = context.get('config')
+    key = jwk.loads(json.loads((config.config_path / 'keys/public.json').read_text()))
+    token = jwt.decode(data['access_token'], key)
+    assert token == {
+        'iss': config.server_url,
+        'sub': client_id,
+        'aud': client_id,
+        'iat': int(token['iat']),
+        'jti': token['jti'],
+        'exp': int(token['exp']),
+        'scope': 'spinta_getone',
+        'organization_id': 123,
     }
 
 
