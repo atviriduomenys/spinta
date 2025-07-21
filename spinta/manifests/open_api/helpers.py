@@ -156,7 +156,7 @@ class Model:
         json_schema = parent_prop.json_schema.get("items", {})
         child_model = self.add_child(parent_prop.basename, json_schema)
 
-        backref_prop = self.add_property(parent_prop.basename, {}, datatype="backref", source=".", ref_model=child_model)
+        backref_prop = self.add_property(parent_prop.basename, {}, datatype="backref", source="", ref_model=child_model)
         backref_prop.name += "[]"
         """
         TODO: Temporary workaround — adds a ref to the backref's model. 
