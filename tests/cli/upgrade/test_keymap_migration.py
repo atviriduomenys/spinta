@@ -1,3 +1,5 @@
+import json
+
 import pytest
 import sqlalchemy as sa
 
@@ -345,7 +347,7 @@ def test_upgrade_redirect_migration_from_old_version_with_data(
         for row in keymap.conn.execute('''
             SELECT * FROM "_correct_table"
         '''):
-            value_, hash_ = _hash_value(row['value'])
+            value_, hash_ = _hash_value(json.loads(row['value']))
             keymap.conn.execute(
                 old_table.insert().values(
                     key=row['key'],
@@ -471,7 +473,7 @@ def test_upgrade_redirect_migration_from_old_version_with_multi_column_data(
         for row in keymap.conn.execute('''
             SELECT * FROM "_correct_table"
         '''):
-            value_, hash_ = _hash_value(row['value'])
+            value_, hash_ = _hash_value(json.loads(row['value']))
             keymap.conn.execute(
                 old_table.insert().values(
                     key=row['key'],

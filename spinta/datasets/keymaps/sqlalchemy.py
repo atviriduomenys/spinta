@@ -14,9 +14,9 @@ from sqlalchemy.dialects.sqlite import insert
 
 from spinta import commands
 from spinta.cli.helpers.data import ensure_data_dir
-from spinta.cli.helpers.upgrade.components import ScriptTarget, ScriptTag
-from spinta.cli.helpers.upgrade.helpers import sort_scripts_by_required
-from spinta.cli.helpers.upgrade.registry import get_filtered_scripts
+from spinta.cli.helpers.script.components import ScriptTarget, ScriptTag
+from spinta.cli.helpers.script.helpers import sort_scripts_by_required
+from spinta.cli.helpers.upgrade.registry import upgrade_script_registry
 from spinta.components import Config
 from spinta.components import Context
 from spinta.core.config import RawConfig
@@ -55,13 +55,11 @@ class SqlAlchemyKeyMap(KeyMap):
         return table
 
     def encode(self, name: str, value: object, primary_key=None) -> Optional[str]:
-        # Make value msgpack serializable.
-
         valid_value = _valid_keymap_value(value)
         if not valid_value:
             return None
 
-        prepared_value = _prepare_value(value)
+        prepared_value = prepare_value(value)
         table = self.get_table(name)
         current_key = self.conn.execute(
             sa.select([table.c.key]).where(
@@ -112,7 +110,7 @@ class SqlAlchemyKeyMap(KeyMap):
             return False
 
         table = self.get_table(name)
-        prepared_value = _prepare_value(value)
+        prepared_value = prepare_value(value)
         query = sa.select([sa.func.count()]).where(
             table.c.value == prepared_value
         )
@@ -134,11 +132,16 @@ class SqlAlchemyKeyMap(KeyMap):
         self.conn.execute(query)
 
     def synchronize(self, data: KeymapSyncData):
+        # TODO Backwards compatibility, should remove, when models without primary key are reworked
+        if not data.identifiable:
+            self.__legacy_synchronize(data)
+            return
+
         table: sa.Table = self.get_table(data.name)
         id_ = data.identifier
         redirect = data.redirect
         value_ = data.value
-        prepared_value = _prepare_value(value_)
+        prepared_value = prepare_value(value_)
 
         # Redirect id to another
         if redirect is not None:
@@ -162,6 +165,42 @@ class SqlAlchemyKeyMap(KeyMap):
         else:
             update_query = sa.update(table).values(value=prepared_value, redirect=redirect).where(table.c.key == id_)
             self.conn.execute(update_query)
+
+    def __legacy_synchronize(self, data: KeymapSyncData):
+        """
+        Do not run this method anymore, it is here only for backward compatibility.
+        Models without a primary key should not be synchronized, but this feature is still not implemented.
+        For that reason we still need to run this code (even though it can create duplicate value mapping).
+        """
+        table: sa.Table = self.get_table(data.name)
+        id_ = data.identifier
+        redirect = data.redirect
+        value_ = data.value
+
+        if redirect is not None:
+            return
+
+        valid_value = _valid_keymap_value(value_)
+        if not valid_value:
+            return
+
+        prepared_value = prepare_value(value_)
+        where_condition = sa.or_(table.c.key == id_, table.c.value == prepared_value)
+        select_query = sa.select([sa.func.count()]).select_from(table).where(where_condition)
+        count = self.conn.execute(select_query).scalar()
+        should_insert = True
+        if count == 1:
+            should_insert = False
+            update_query = sa.update(table).values(key=id_, value=prepared_value, redirect=redirect).where(where_condition)
+            self.conn.execute(update_query)
+        else:
+            delete_query = sa.delete(table).where(where_condition)
+            self.conn.execute(delete_query)
+
+        if should_insert:
+            query = insert(table).values(key=id_, value=prepared_value, redirect=redirect)
+            self.conn.execute(query)
+
 
     def has_synced_before(self) -> bool:
         table = self.get_table(self.sync_table_name)
@@ -255,7 +294,7 @@ def _valid_keymap_value(value: object) -> bool:
     return True
 
 
-def _prepare_value(value):
+def prepare_value(value):
     return json.dumps(fix_data_for_json(value))
 
 
@@ -349,7 +388,7 @@ def validate_migrations(context: Context, keymap: SqlAlchemyKeyMap):
     if config.upgrade_mode:
         return
 
-    migration_scripts = get_filtered_scripts(
+    migration_scripts = upgrade_script_registry.get_all(
         targets={ScriptTarget.SQLALCHEMY_KEYMAP.value},
         tags={ScriptTag.DB_MIGRATION.value}
     )
@@ -368,7 +407,7 @@ def initialize_meta_tables(keymap: SqlAlchemyKeyMap):
         keymap.get_table(keymap.migration_table_name)
 
         # Mark all migration scripts as already executed
-        migration_scripts = get_filtered_scripts(
+        migration_scripts = upgrade_script_registry.get_all(
             targets={ScriptTarget.SQLALCHEMY_KEYMAP.value},
             tags={ScriptTag.DB_MIGRATION.value}
         )

@@ -6,7 +6,7 @@ from typer import echo
 import ruamel.yaml
 
 from spinta.cli.helpers.upgrade.components import Script
-from spinta.cli.helpers.upgrade.helpers import script_destructive_warning
+from spinta.cli.helpers.script.helpers import script_destructive_warning
 from spinta.components import Context, Config
 from spinta.core.config import DEFAULT_CONFIG_PATH
 from spinta.utils.config import get_clients_path, get_keymap_path, get_id_path, get_helpers_path
