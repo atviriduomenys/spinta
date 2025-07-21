@@ -11,6 +11,7 @@ from spinta.utils.naming import Deduplicator, to_code_name, to_dataset_name, to_
 SUPPORTED_PARAMETER_LOCATIONS = {"query", "header", "path"}
 DEFAULT_DATASET_NAME = "default"
 SCHEMA_REF_KEY = "$ref"
+DEFAULT_PROPERTY_DATATYPE = "string"
 
 
 def replace_url_parameters(endpoint: str) -> str:
@@ -215,7 +216,7 @@ class Property:
         """
         Returns Property datatype as a string. If type cannot be detected, defaults to "string"
         """
-        datatype = self.json_schema.get("type", "string")
+        datatype = self.json_schema.get("type", DEFAULT_PROPERTY_DATATYPE)
 
         basic_types = {
             "boolean": "boolean",
@@ -236,7 +237,7 @@ class Property:
             if (string_format := self.json_schema.get("format")) in date_time_types:
                 return date_time_types[string_format]
 
-        return "string"
+        return DEFAULT_PROPERTY_DATATYPE
     
     def get_enums(self, items:list) -> dict:
         enum = {}
@@ -279,8 +280,8 @@ def get_schema_from_response(response: dict, root: dict) -> dict:
     return json_schema
 
 
-def get_model_schemas(dataset_name: str, resource_name: str, response_200: dict, root: dict) -> list[dict]:
-    if not (json_schema := get_schema_from_response(response_200, root)):
+def get_model_schemas(dataset_name: str, resource_name: str, response: dict, root: dict) -> list[dict]:
+    if not (json_schema := get_schema_from_response(response, root)):
         return []
 
     if json_schema.get("type") == "array":
@@ -290,7 +291,7 @@ def get_model_schemas(dataset_name: str, resource_name: str, response_200: dict,
         root_source = "."
 
     if json_schema.get("type") == "object":
-        basename = json_schema.get("title", response_200["description"]) or f"{dataset_name} {resource_name}"
+        basename = json_schema.get("title", response["description"]) or f"{dataset_name} {resource_name}"
         model_schema = json_schema
         model = Model(dataset_name, resource_name, basename, model_schema, source=root_source)
 
