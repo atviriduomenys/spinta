@@ -101,6 +101,9 @@ Backwards incompatible:
   it stores all already executed migrations. Each time `spinta` configures keymap, it will check if all of
   required migrations have been executed on it (`#1307`_).
 
+- The `spinta upgrade` command no longer uses the `-r` argument to specify a script. Instead, you can now pass one or more
+  scripts directly as arguments, e.g., `spinta upgrade redirect` or `spinta upgrade clients redirect` (`#1340`_).
+
 Improvements:
 
 - `migrate` command now warns users if there are potential type casting issues (invalid or unsafe).
@@ -118,12 +121,27 @@ Improvements:
 
   .. _#1307: https://github.com/atviriduomenys/spinta/issues/1307
 
+- The `spinta upgrade` and `spinta admin` commands no longer require the `-r` or `--run` argument to specify scripts.
+  Instead, script names can be passed directly as arguments, allowing multiple scripts to be run at once (`#1340`_).
+
+- Reintroduced the legacy `SqlAlchemyKeymap` synchronization mode for models without a primary key.
+  This is a temporary workaround until such models are reworked to restrict access to features that require a primary key (`#1340`_).
+
 New Features:
 
-- Added a `redirect` upgrade script (`spinta upgrade -r redirect`) that checks if the current `backend` supports redirects.
+- Added the `spinta admin` command for running maintenance scripts. Unlike `spinta upgrade`, the `admin` command requires
+  specific scripts to be passed and cannot run all scripts by default (`#1340`_).
+
+- Added the `changelog` admin script (`spinta admin changelog`). This script checks for duplicate entries in the `changelog`
+  (entries with the same local primary key but different global primary keys (`_id`)) and performs a `move` action on them
+  to ensure a single active local-global key pair (`#1340`_).
+
+  .. _#1340: https://github.com/atviriduomenys/spinta/issues/1340
+
+- Added a `redirect` upgrade script (`spinta upgrade redirect`) that checks if the current `backend` supports redirects.
   If not, it will attempt to add the missing features (`#1290`_).
 
-- Added a `deduplicate` upgrade script (`spinta upgrade -r deduplicate`). This checks models with assigned primary keys
+- Added a `deduplicate` admin script (`spinta admin deduplicate`). This checks models with assigned primary keys
   (`model.ref`) to ensure uniqueness is enforced. If not, it scans for duplicates, aggregates them using `model.ref` keys,
   and processes them via the `/:move` endpoint (keeping the oldest entry as the root). It then attempts to enforce
   uniqueness going forward (`#1290`_).

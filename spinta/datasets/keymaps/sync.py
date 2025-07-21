@@ -104,6 +104,7 @@ def process_keymap_data(
     counters: dict,
     dry_run: bool
 ) -> Generator[KeymapSyncData]:
+    identifiable = is_model_identifiable(model)
     for row in data:
         action = action_from_op(model, row)
         if action in (Action.INSERT, Action.UPSERT):
@@ -112,7 +113,8 @@ def process_keymap_data(
                 row=row,
                 primary_keys=primary_keys,
                 counters=counters,
-                dry_run=dry_run
+                dry_run=dry_run,
+                identifiable=identifiable,
             )
         elif action in (Action.UPDATE, Action.PATCH):
             yield from sync_model_update(
@@ -120,19 +122,22 @@ def process_keymap_data(
                 model=model,
                 row=row,
                 counters=counters,
-                dry_run=dry_run
+                dry_run=dry_run,
+                identifiable=identifiable,
             )
         elif action is Action.MOVE:
             yield from sync_model_move(
                 model=model,
                 row=row,
                 counters=counters,
-                dry_run=dry_run
+                dry_run=dry_run,
+                identifiable=identifiable,
             )
 
 
 def sync_model_insert(
     model: Model,
+    identifiable: bool,
     row: dict,
     primary_keys: List[Property],
     counters: dict,
@@ -147,6 +152,7 @@ def sync_model_insert(
     if not dry_run:
         yield KeymapSyncData(
             name=model.model_type(),
+            identifiable=identifiable,
             value=value,
             identifier=id_,
             data=row
@@ -166,6 +172,7 @@ def sync_model_insert(
             if not dry_run:
                 yield KeymapSyncData(
                     name=key,
+                    identifiable=identifiable,
                     value=val,
                     identifier=id_,
                     data=row
@@ -180,6 +187,7 @@ def sync_model_insert(
 def sync_model_update(
     keymap: KeyMap,
     model: Model,
+    identifiable: bool,
     row: dict,
     counters: dict,
     dry_run: bool
@@ -200,7 +208,8 @@ def sync_model_update(
                 name=km,
                 value=val,
                 identifier=id_,
-                data=row
+                data=row,
+                identifiable=identifiable
             )
 
         if model.model_type() in counters and km in counters[model.model_type()]:
@@ -211,6 +220,7 @@ def sync_model_update(
 
 def sync_model_move(
     model: Model,
+    identifiable: bool,
     row: dict,
     counters: dict,
     dry_run: bool
@@ -223,7 +233,8 @@ def sync_model_move(
             value=None,
             identifier=id_,
             data=row,
-            redirect=redirect_id
+            redirect=redirect_id,
+            identifiable=identifiable,
         )
 
     if model.model_type() in counters and model.model_type() in counters[model.model_type()]:
@@ -242,7 +253,8 @@ def sync_model_move(
                     value=None,
                     identifier=id_,
                     data=row,
-                    redirect=redirect_id
+                    redirect=redirect_id,
+                    identifiable=identifiable,
                 )
 
             if model.model_type() in counters and key in counters[model.model_type()]:
@@ -375,3 +387,7 @@ def sync(context: Context, keymap: KeyMap, *, data: Generator[KeymapSyncData]):
     for row in data:
         keymap.synchronize(row)
         yield row
+
+
+def is_model_identifiable(model: Model):
+    return model.external and not model.external.unknown_primary_key

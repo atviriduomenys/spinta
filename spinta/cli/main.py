@@ -21,6 +21,7 @@ from spinta.cli import pii
 from spinta.cli import pull
 from spinta.cli import push
 from spinta.cli import server
+from spinta.cli.admin import admin
 from spinta.cli.keymap import keymap
 from spinta.cli.init import init
 from spinta.cli.show import show
@@ -64,10 +65,12 @@ add(app, 'run', server.run, short_help="Run development server")
 add(app, 'wait', server.wait, short_help="Wait while all backends are up")
 
 add(app, 'upgrade', upgrade, short_help="Run upgrade scripts")
+add(app, 'admin', admin, short_help="Run admin scripts")
 
 add(app, 'keymap', keymap, short_help="Manage keymap database")
 
 add(app, 'getall', get.getall, short_help="Show data from yaml dsn as json")
+
 
 @app.callback(invoke_without_command=True)
 def main(
