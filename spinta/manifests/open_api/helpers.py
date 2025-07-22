@@ -9,6 +9,8 @@ from typing import Any
 from spinta.core.ufuncs import Expr
 from spinta.utils.naming import Deduplicator, to_code_name, to_dataset_name, to_model_name, to_property_name
 
+from spinta.exceptions import NotImplementedFeature
+
 SUPPORTED_PARAMETER_LOCATIONS = {"query", "header", "path"}
 DEFAULT_DATASET_NAME = "default"
 SCHEMA_REF_KEY = "$ref"
@@ -26,46 +28,6 @@ def replace_url_parameters(endpoint: str) -> str:
 def read_file_data_and_transform_to_json(path: Path) -> dict:
     with Path(path).open() as file:
         return json.load(file)
-
-
-def resolve_refs(schema: dict, root: dict, seen: set[str] = None) -> dict:
-    """
-    Recursively resolves `$ref` references in a JSON schema.
-
-    This function follows and replaces `$ref` keys with their referenced definitions,
-    avoiding infinite recursion caused by circular references.
-
-    Args:
-        schema (dict): The JSON schema (or a portion of it) that may contain `$ref`.
-        root (dict): The full root schema, used to resolve reference paths.
-        seen (set[str], optional): A set of reference paths already visited to prevent cycles.
-
-    Returns:
-        dict: A schema with all `$ref` values replaced by their resolved definitions.
-    """
-    if seen is None:
-        seen = set()
-
-    if isinstance(schema, dict):
-        if SCHEMA_REF_KEY in schema:
-            ref_path = schema[SCHEMA_REF_KEY].lstrip("#/").split("/")
-
-            #TODO: Temporary workaround to avoid infinite recursion for circular referenced models.
-            # Actual logic TBD.
-            # See task: https://github.com/atviriduomenys/spinta/issues/1396
-            ref_key = "/".join(ref_path)
-            if ref_key in seen:
-                return {}
-            seen.add(ref_key)
-
-            resolved = root
-            for part in ref_path:
-                resolved = resolved[part]
-            return resolve_refs(resolved, root, seen)
-
-        return {key: resolve_refs(value, root, seen.copy()) for key, value in schema.items()}
-
-    return schema
 
 
 def get_namespace_schema(info: dict, title: str, dataset_prefix: str) -> Generator[tuple[None, dict], None, None]:
@@ -268,13 +230,15 @@ def get_schema_from_response(response: dict, root: dict) -> dict:
     if "openapi" in root:
         for content_type, content in response.get("content", {}).items():
             if content_type == "application/json" or content_type.endswith("+json"):
-                json_schema = resolve_refs(content.get("schema", {}), root)
+                json_schema = content.get("schema", {})
                 break
     elif "swagger" in root:
-        json_schema = resolve_refs(response.get("schema", {}), root)
+        json_schema = response.get("schema", {})
     else:
         raise ValueError("Unknown specification type. Only OpenAPI 3.* and Swagger 2.0 allowed.")
 
+    if SCHEMA_REF_KEY in json_schema:
+        raise NotImplementedFeature(feature="Reading OpenAPI with '$ref' structure")
     return json_schema
 
 def get_model_schemas(dataset_name: str, resource_name: str, response: dict, root: dict) -> list[dict]:
@@ -282,7 +246,7 @@ def get_model_schemas(dataset_name: str, resource_name: str, response: dict, roo
         return []
 
     if json_schema.get("type") == "array":
-        json_schema = resolve_refs(json_schema.get("items", {}), root)
+        json_schema = json_schema.get("items", {})
         root_source = ".[]"
     else:
         root_source = "."
