@@ -4,6 +4,7 @@ import json
 import re
 from collections.abc import Generator
 from pathlib import Path
+from typing import Any
 
 from spinta.core.ufuncs import Expr
 from spinta.utils.naming import Deduplicator, to_code_name, to_dataset_name, to_model_name, to_property_name
@@ -111,14 +112,17 @@ class Model:
         self.resource: str = resource
         self.basename: str = basename
         self.json_schema: dict = json_schema
-        self.source: str = source if source is not None else basename
-        self.title: str = self.json_schema.get("title")
-        self.description: str = self.json_schema.get("description")
+        self.source: str = basename if source is None else source
+        self.title: str = self.json_schema.get("title", "")
+        self.description: str = self.json_schema.get("description", "")
         self.name: str = model_deduplicator(f"{self.dataset}/{to_model_name(self.basename)}")
         self.children: list[Model] = []
         self.properties: list[Property] = []
         self.parent = parent
         self.add_properties()
+    
+    def __repr__(self) -> str:
+        return f"<Model {self.name}>"
 
     def add_properties(self) -> None:
         for property_name, json_schema in self.json_schema.get("properties", {}).items():
@@ -135,12 +139,12 @@ class Model:
                     prop = self.add_property(property_name, json_schema, source="")
                     prop.name += "[]"
 
-    def add_property(self, name:str, json_schema:dict, **kwargs) -> Property:
+    def add_property(self, name: str, json_schema: dict, **kwargs: Any) -> Property:
         prop = Property(name, json_schema, **kwargs)
         self.properties.append(prop)
         return prop
 
-    def add_child(self, basename:str, json_schema: dict) -> Model:
+    def add_child(self, basename: str, json_schema: dict) -> Model:
         """
         TODO: Children model "source" should be empty and name should have "/:part" suffix. e.g. f"{self.name}/:part"
         Link to task https://github.com/atviriduomenys/spinta/issues/997
@@ -166,9 +170,8 @@ class Model:
         """
         child_model.add_property(self.basename, {}, datatype="ref", source="", ref_model=self)
 
-
     def get_node_schema_dicts(self) -> list[dict]:
-        schena_dict = [
+        schema_dict = [
             {
                 "type": "model",
                 "name": self.name,
@@ -184,11 +187,8 @@ class Model:
             }
         ]
         for child in self.children:
-            schena_dict.extend(child.get_node_schema_dicts())
-        return schena_dict
-
-    def __repr__(self) -> str:
-        return f"<Model {self.name}>"
+            schema_dict.extend(child.get_node_schema_dicts())
+        return schema_dict
 
 
 class Property:
@@ -211,12 +211,11 @@ class Property:
         self.enum: dict = self.get_enums(self.json_schema.get("enum", []))
         self.required: bool = not bool(json_schema.get("nullable", False))
 
-
     def get_datatype(self) -> str:
         """
-        Returns Property datatype as a string. If type cannot be detected, defaults to "string"
+        Returns "Property" data type as a string. If type cannot be detected, defaults to "string"
         """
-        datatype = self.json_schema.get("type", DEFAULT_PROPERTY_DATATYPE)
+        data_type = self.json_schema.get("type", DEFAULT_PROPERTY_DATATYPE)
 
         basic_types = {
             "boolean": "boolean",
@@ -228,10 +227,10 @@ class Property:
 
         date_time_types = {"date-time": "datetime", "date": "date", "time": "time"}
 
-        if datatype in basic_types:
-            return basic_types[datatype]
+        if data_type in basic_types:
+            return basic_types[data_type]
 
-        if datatype == "string":
+        if data_type == "string":
             if self.json_schema.get("contentEncoding") == "base64":
                 return "binary"
             if (string_format := self.json_schema.get("format")) in date_time_types:
@@ -239,7 +238,7 @@ class Property:
 
         return DEFAULT_PROPERTY_DATATYPE
     
-    def get_enums(self, items:list) -> dict:
+    def get_enums(self, items: list) -> dict:
         enum = {}
         for item in items:
             if isinstance(item,(list, dict)):  # Only handling primitive type enums
@@ -264,7 +263,6 @@ class Property:
 
         return schema
 
-
 def get_schema_from_response(response: dict, root: dict) -> dict:
     json_schema = {}
     if "openapi" in root:
@@ -278,7 +276,6 @@ def get_schema_from_response(response: dict, root: dict) -> dict:
         raise ValueError("Unknown specification type. Only OpenAPI 3.* and Swagger 2.0 allowed.")
 
     return json_schema
-
 
 def get_model_schemas(dataset_name: str, resource_name: str, response: dict, root: dict) -> list[dict]:
     if not (json_schema := get_schema_from_response(response, root)):
@@ -298,7 +295,6 @@ def get_model_schemas(dataset_name: str, resource_name: str, response: dict, roo
         return model.get_node_schema_dicts()
 
     return []
-
 
 def get_dataset_schemas(data: dict, dataset_prefix: str) -> Generator[tuple[None, dict]]:  # noqa: C901
     datasets = {}
