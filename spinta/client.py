@@ -19,9 +19,9 @@ class RemoteClientCredentials:
     secret: str         # client secret
     server: str         # server URL
     remote: str         # remote name given in credentials.cfg section
-    scopes: List[str]   # remote name given in credentials.cfg section
-    resource_server: Optional[str] = None
-    client_id: Optional[str] = None
+    scopes: List[str]   # allowed scopes given in credentials.cfg section
+    resource_server: Optional[str] = None # host of a server where resources are stored if separate from auth server
+    client_id: Optional[str] = None # identification of client, could be same as client (username)
 
 
 def _parse_client_handle(

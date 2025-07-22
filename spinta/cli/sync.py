@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 def sync(ctx: TyperContext):
-    # TODO update sync logic
+    # TODO update sync logic https://github.com/atviriduomenys/spinta/issues/1310
     context = configure_context(ctx.obj, mode="external")
     prepare_manifest(context, full_load=True)
     config: Config = context.get('config')
