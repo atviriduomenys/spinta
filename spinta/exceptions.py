@@ -1133,3 +1133,17 @@ class KeymapDuplicateMapping(UserError):
     it does not help you might need to fully reset this key's keymap data and rerun synchronization.
     '''
 
+
+class UnexpectedAPIResponse(BaseError):
+    template = """
+        Unexpected status code received while calling the api for operation `{operation}`. 
+        Expected '{expected_status_code}', Got: '{response_status_code}.
+        Due to: {response_data}
+    """
+
+
+class UnexpectedAPIResponseData(BaseError):
+    template = """
+        Unexpected response data received while calling the api for operation `{operation}`.
+        {context}.
+    """
