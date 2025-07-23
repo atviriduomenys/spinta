@@ -18,7 +18,7 @@ from spinta.backends.nobackend.components import NoBackend
 from spinta.commands import authorize
 from spinta.commands import check
 from spinta.commands import load
-from spinta.components import Component, PageBy, Page, PageInfo, PartialModel, UrlParams, pagination_enabled
+from spinta.components import PageBy, Page, PageInfo, FunctionalModel, UrlParams, pagination_enabled
 from spinta.components import Base
 from spinta.components import Context
 from spinta.components import Model
@@ -44,7 +44,6 @@ from spinta.manifests.tabular.components import PropertyRow
 from spinta.nodes import get_node
 from spinta.nodes import load_model_properties
 from spinta.nodes import load_node
-from spinta.spyna import parse
 from spinta.types.helpers import check_model_name
 from spinta.types.helpers import check_property_name
 from spinta.types.namespace import load_namespace_from_name
@@ -161,17 +160,17 @@ def load(
     return model
 
 
-@load.register(Context, PartialModel, dict, Manifest)
+@load.register(Context, FunctionalModel, dict, Manifest)
 def load(
     context: Context,
-    model: PartialModel,
+    model: FunctionalModel,
     data: dict,
     manifest: Manifest,
     *,
     source: Manifest = None,
-) -> PartialModel:
+) -> FunctionalModel:
     parent_model = load[Context, Model, dict, Manifest](context, model, data, manifest, source=source)
-    parent_model.given.url_params = data.get('given_url_params')
+    parent_model.given.params = data.get('given_url_params')
     
     model.parent_model = parent_model
 
@@ -488,8 +487,8 @@ def check(context: Context, model: Model):
         commands.check(context, prop)
 
 
-@check.register(Context, PartialModel)
-def check(context: Context, model: PartialModel):
+@check.register(Context, FunctionalModel)
+def check(context: Context, model: FunctionalModel):
     if not model.parent_model:
         raise exceptions.ParentModelNotFound(model)
 

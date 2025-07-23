@@ -763,11 +763,11 @@ class Model(MetaData):
         return {prop_name: prop for prop_name, prop in self.properties.items() if not prop_name.startswith('_')}
 
 
-class PartialModel(Model):
-    """A partial variant of a model, e.g. 'City/:getone' or 'City/:getall'."""
+class FunctionalModel(Model):
+    """A functional variant of a model, e.g. 'City/:getone' or 'City/:getall'."""
 
-    parent_model: Optional[Model] = None
-    url_params: UrlParams  # `City/:part` would be `url_params.part`
+    parent_model: Model | None = None
+    params: UrlParams  # `City/:part` would be `params.part`
 
     schema = {
         'url_params': {'type': 'object'},

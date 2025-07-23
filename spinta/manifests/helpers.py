@@ -10,7 +10,7 @@ import jsonpatch
 
 from spinta import commands
 from spinta.backends.constants import BackendOrigin
-from spinta.components import Mode, PartialModel
+from spinta.components import Mode, FunctionalModel
 from spinta.backends.helpers import load_backend
 from spinta.components import Model
 from spinta.datasets.components import Dataset

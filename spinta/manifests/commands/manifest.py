@@ -22,7 +22,7 @@ NODE_FUNCTION_MAPPER = {
         set=commands.set_model,
         get_all=commands.get_models
     ),
-    'partial_model': _FunctionTypes(
+    'functional_model': _FunctionTypes(
         has=commands.has_model,
         get=commands.get_model,
         set=commands.set_model,

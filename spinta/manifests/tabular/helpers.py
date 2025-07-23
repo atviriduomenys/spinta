@@ -437,7 +437,7 @@ class BaseReader(TabularReader):
 class ModelReader(TabularReader):
     type: str = 'model'
     data: ModelRow
-    is_partial = False
+    is_functional = False
 
     def read(self, row: Dict[str, str]) -> None:
         dataset = _get_state_obj(self.state.dataset)
@@ -449,7 +449,7 @@ class ModelReader(TabularReader):
         )
 
         # Check for partial model syntax
-        _read_partial_model(self, name)
+        _read_functional_model(self, name)
 
         if self.state.rename_duplicates:
             dup = 1
@@ -464,7 +464,7 @@ class ModelReader(TabularReader):
         self.name = name
 
         self.data = {
-            'type': 'partial_model' if self.is_partial else 'model',
+            'type': 'functional_model' if self.is_functional else 'model',
             'id': row['id'],
             'name': name,
             'base': {
@@ -521,11 +521,11 @@ class ModelReader(TabularReader):
         self.state.model = None
 
 
-def _read_partial_model(model, name) -> None:
+def _read_functional_model(model, name) -> None:
     given_url_params = None
 
     if "/:" in name or "?" in name:
-        model.is_partial = True
+        model.is_functional = True
         if "/:" in name:
             given_url_params = name.rsplit("/:", 1)[1]
         elif "?" in name:
