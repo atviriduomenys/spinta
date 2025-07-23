@@ -20,15 +20,6 @@ backends:
     type: postgresql
     dsn: postgresql://admin:admin123@${DB_HOST:=localhost}:${DB_PORT:=54321}/spinta
 
-manifest: default
-manifests:
-  default:
-    type: csv
-    path: $PWD/${BASEDIR}manifest.csv
-    backend: default
-    keymap: default
-    mode: external
-
 accesslog:
   type: file
   file: stdout
@@ -43,9 +34,6 @@ mkdir manifests
 find demo-saltiniai/manifest -name "*.csv" | xargs -I{} mv "{}" manifests/
 spinta upgrade
 ls manifests | xargs spinta copy -o manifest.csv
-
-ls -al
-pwd
 
 rm -rf demo-saltiniai manifests
 
