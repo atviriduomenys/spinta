@@ -143,7 +143,6 @@ class Model:
                     "dataset": self.dataset,
                     "resource": self.resource,
                     "name": self.source,
-                    "prepare": Expr("expand") if self.parent else ""
                     },
                 "properties": {prop.name: prop.get_node_schema_dict() for prop in self.properties},
             }
@@ -219,6 +218,7 @@ class Property:
 
         if self.datatype in ["ref", "backref"]:
             schema["model"] = self.ref.name
+            schema["external"]["prepare"] = Expr("expand")
 
         if self.enum:
             schema['enums'] = {"": self.enum}
