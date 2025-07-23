@@ -39,7 +39,7 @@ else
 fi
 
 git clone https://github.com/atviriduomenys/demo-saltiniai.git
-mkdir manifest
+mkdir manifests
 find demo-saltiniai/manifest -name "*.csv" | xargs -I{} mv "{}" manifests/
 spinta upgrade
 ls manifests | xargs spinta copy -o manifest.csv
