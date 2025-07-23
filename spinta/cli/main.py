@@ -11,7 +11,7 @@ from typer import Typer
 from typer import echo
 
 import spinta
-from spinta.cli import auth, get
+from spinta.cli import auth, get, sync
 from spinta.cli import config
 from spinta.cli import data
 from spinta.cli import inspect
@@ -70,6 +70,7 @@ add(app, 'admin', admin, short_help="Run admin scripts")
 add(app, 'keymap', keymap, short_help="Manage keymap database")
 
 add(app, 'getall', get.getall, short_help="Show data from yaml dsn as json")
+add(app, 'sync', sync.sync, short_help="Initiate DSA sync with Catalog")
 
 
 @app.callback(invoke_without_command=True)
