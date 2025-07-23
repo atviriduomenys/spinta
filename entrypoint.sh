@@ -24,7 +24,7 @@ manifest: default
 manifests:
   default:
     type: csv
-    path: $PWD/$BASEDIR/manifest.csv
+    path: $PWD/${BASEDIR}manifest.csv
     backend: default
     keymap: default
     mode: external
