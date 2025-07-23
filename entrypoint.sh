@@ -10,11 +10,6 @@ env: test
 data_path: $PWD/$BASEDIR
 default_auth_client: default
 
-keymaps:
-  default:
-    type: sqlalchemy
-    dsn: sqlite:///$PWD/$BASEDIR/keymap.db
-
 backends:
   default:
     type: postgresql
