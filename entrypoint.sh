@@ -44,6 +44,9 @@ find demo-saltiniai/manifest -name "*.csv" | xargs -I{} mv "{}" manifests/
 spinta upgrade
 ls manifests | xargs spinta copy -o manifest.csv
 
+ls -al
+pwd
+
 rm -rf demo-saltiniai manifests
 
 poetry install spinta[all]
