@@ -9,12 +9,22 @@ if [ ! -f "$CONFIG_FILE" ]; then
 env: test
 data_path: $PWD/$BASEDIR
 default_auth_client: default
-
+keymaps:
+  default:
+    type: sqlalchemy
+    dsn: sqlite:///$PWD/$BASEDIR/keymap.db
 backends:
   default:
     type: postgresql
     dsn: postgresql://admin:admin123@${DB_HOST:=localhost}:${DB_PORT:=54321}/spinta
-
+manifest: default
+manifests:
+  default:
+    type: csv
+    path: $PWD/$BASEDIR/manifest.csv
+    backend: default
+    keymap: default
+    mode: external
 accesslog:
   type: file
   file: stdout
