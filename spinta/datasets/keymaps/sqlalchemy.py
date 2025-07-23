@@ -186,6 +186,8 @@ class SqlAlchemyKeyMap(KeyMap):
         redirect = data.redirect
         value_ = data.value
         modified = data.data.get('_created')
+        if modified is not None:
+            modified = datetime.datetime.fromisoformat(modified)
 
         if redirect is not None:
             return
