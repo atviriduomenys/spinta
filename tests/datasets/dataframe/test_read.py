@@ -1262,7 +1262,7 @@ def test_json_read_parametrize_iterate_pages_limit(rc: RawConfig, tmp_path: Path
     ]
     resp = app.get('/example/json/PageDistinct?limit(4)')
     assert listdata(resp, "name", sort=False) == [
-        'Page1', 'Page2', 'Page0'
+        'Page1', 'Page0', 'Page2'
     ]
 
 
@@ -1380,15 +1380,15 @@ def test_xml_json_combined_read_parametrize_advanced_iterate_pages(rc: RawConfig
     ]
     resp = app.get('/example/all/Meta')
     assert listdata(resp, "name", "context", sort=False) == [
+        ('MongoDB', 'MongoDB21'),
         ('PostgresSQL', 'PostgresSQL01'),
+        ('SQLite', 'SQLite13'),
         ('PostgresSQL', 'PostgresSQL02'),
         ('PostgresSQL', 'PostgresSQL03'),
-        ('SQLite', 'SQLite11'),
         ('SQLite', 'SQLite12'),
-        ('SQLite', 'SQLite13'),
-        ('MongoDB', 'MongoDB21'),
-        ('MongoDB', 'MongoDB22'),
         ('MongoDB', 'MongoDB23'),
+        ('MongoDB', 'MongoDB22'),
+        ('SQLite', 'SQLite11'),
     ]
     resp = app.get('/example/all/MetaNotDistinct')
     assert listdata(resp, "name", "context", sort=False) == [
@@ -1539,15 +1539,15 @@ def test_xml_json_csv_combined_read_parametrize_advanced_iterate_pages(rc: RawCo
     ]
     resp = app.get('/example/all/Meta')
     assert listdata(resp, "name", "context", sort=False) == [
+        ('MongoDB', 'MongoDB21'),
         ('PostgresSQL', 'PostgresSQL01'),
+        ('SQLite', 'SQLite13'),
         ('PostgresSQL', 'PostgresSQL02'),
         ('PostgresSQL', 'PostgresSQL03'),
-        ('SQLite', 'SQLite11'),
         ('SQLite', 'SQLite12'),
-        ('SQLite', 'SQLite13'),
-        ('MongoDB', 'MongoDB21'),
-        ('MongoDB', 'MongoDB22'),
         ('MongoDB', 'MongoDB23'),
+        ('MongoDB', 'MongoDB22'),
+        ('SQLite', 'SQLite11'),
     ]
     resp = app.get('/example/all/MetaNotDistinct')
     assert listdata(resp, "name", "context", sort=False) == [
