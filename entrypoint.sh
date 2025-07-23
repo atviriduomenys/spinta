@@ -17,14 +17,6 @@ backends:
   default:
     type: postgresql
     dsn: postgresql://admin:admin123@${DB_HOST:=localhost}:${DB_PORT:=54321}/spinta
-manifest: default
-manifests:
-  default:
-    type: csv
-    path: $PWD/$BASEDIR/manifest.csv
-    backend: default
-    keymap: default
-    mode: external
 accesslog:
   type: file
   file: stdout
