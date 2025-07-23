@@ -1,7 +1,13 @@
 #!/bin/bash
 
-
 CONFIG_FILE="config.yml"
+
+git clone https://github.com/atviriduomenys/demo-saltiniai.git
+mkdir manifests
+find demo-saltiniai/manifest -name "*.csv" | xargs -I{} mv "{}" manifests/
+ls manifests/* | xargs spinta copy -o manifest.csv
+
+rm -rf demo-saltiniai manifests
 
 if [ ! -f "$CONFIG_FILE" ]; then
     export SPINTA_CONFIG=config.yml
@@ -20,22 +26,20 @@ backends:
 accesslog:
   type: file
   file: stdout
+manifest: default
+manifests:
+  default:
+    type: csv
+    path: $PWD/$BASEDIR/manifest.csv
+    backend: default
+    keymap: default
+    mode: external
 EOF
     echo "Created config.yml."
 else
     echo "Found existing config.yml."
 fi
 
-git clone https://github.com/atviriduomenys/demo-saltiniai.git
-mkdir manifests
-find demo-saltiniai/manifest -name "*.csv" | xargs -I{} mv "{}" manifests/
-ls manifests | xargs spinta copy -o manifest.csv
-
-rm -rf demo-saltiniai manifests
-
-env
-cat config.yml manifest.csv
-
-poetry install spinta[all]
+poetry install --all
 spinta upgrade
 make run
