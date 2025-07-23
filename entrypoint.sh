@@ -34,6 +34,9 @@ ls manifests | xargs spinta copy -o manifest.csv
 
 rm -rf demo-saltiniai manifests
 
+env
+cat config.yml manifest.csv
+
 poetry install spinta[all]
 spinta upgrade
 make run
