@@ -653,6 +653,7 @@ def test_upgrade_modified_from_old_version(
         'keymap', 'sync', manifest,
         '-i', remote.url,
         '--credentials', remote.credsfile,
+        '--check-all',
         '--no-progress-bar',
     ])
     assert result.exit_code == 0
@@ -669,11 +670,10 @@ def test_upgrade_modified_from_old_version(
             ALTER TABLE "{country_model}" DROP COLUMN "modified_at";
         ''')
 
-
-
     result = cli.invoke(localrc, [
         'keymap', 'sync', manifest,
         '-i', remote.url,
+        '--check-all',
         '--credentials', remote.credsfile,
         '--no-progress-bar',
     ], fail=False)
@@ -692,10 +692,10 @@ def test_upgrade_modified_from_old_version(
     assert first_entry.redirect is None
     assert first_entry.modified_at is None
 
-
     result = cli.invoke(localrc, [
         'keymap', 'sync', manifest,
         '-i', remote.url,
+        '--check-all',
         '--credentials', remote.credsfile,
         '--no-progress-bar',
     ], fail=False)
@@ -706,4 +706,5 @@ def test_upgrade_modified_from_old_version(
     assert first_entry.identifier == country_id_1
     assert first_entry.value == 2
     assert first_entry.redirect is None
+
     assert first_entry.modified_at == modified_at
