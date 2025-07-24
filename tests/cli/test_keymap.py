@@ -1459,7 +1459,7 @@ def test_keymap_sync_duplicate_warn_only_use_latest(
     table = '''
         d | r | b | m | property | type    | ref                             | source         | level | access
         syncdataset/countries    |         |                                 |                |       |
-          |   |   | Country      |         | code                            |                | 4     |
+          |   |   | Country      |         | code                                |                | 4     |
           |   |   |   | code     | integer |                                 |                | 4     | open
           |   |   |   | name     | string  |                                 |                | 2     | open
     '''
@@ -1495,6 +1495,7 @@ def test_keymap_sync_duplicate_warn_only_use_latest(
     result = cli.invoke(localrc, [
         'keymap', 'sync', manifest,
         '-i', remote.url,
+        '--check-all',
         '--credentials', remote.credsfile,
         '--no-progress-bar',
     ], fail=False)
@@ -1513,6 +1514,7 @@ def test_keymap_sync_duplicate_warn_only_use_latest(
         'keymap', 'sync', manifest,
         '-i', remote.url,
         '--credentials', remote.credsfile,
+        '--check-all',
         '--no-progress-bar',
     ], fail=False)
     assert result.exit_code == 0
