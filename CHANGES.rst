@@ -43,6 +43,13 @@ Improvements:
 - Reintroduced the legacy `SqlAlchemyKeymap` synchronization mode for models without a primary key.
   This is a temporary workaround until such models are reworked to restrict access to features that require a primary key (`#1340`_).
 
+- Introduced `duplicate_warn_only` argument to `keymap` configuration (by default it's disabled). It can be used to supress
+  duplicate error. Only use this if necessary and are aware of possible issues (`#1402`_).
+
+  .. _#1402: https://github.com/atviriduomenys/spinta/issues/1402
+
+- `keymap sync` now has `--check-all` flag, that allows model dependency checks on models that does not have source set (`#1402`_).
+
 New Features:
 
 - Added the `spinta admin` command for running maintenance scripts. Unlike `spinta upgrade`, the `admin` command requires
