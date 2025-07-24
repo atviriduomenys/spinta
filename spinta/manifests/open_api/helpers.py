@@ -5,6 +5,7 @@ import re
 from collections.abc import Generator
 from pathlib import Path
 from typing import Any
+import warnings
 
 from spinta.core.ufuncs import Expr
 from spinta.utils.naming import Deduplicator, to_code_name, to_dataset_name, to_model_name, to_property_name
@@ -225,6 +226,17 @@ class Property:
 
         return schema
 
+def get_schema_from_unknown_structure(json_dict: dict) -> dict:
+    if isinstance(json_dict, dict):
+        for key, value in json_dict.items():
+            if key == "schema":
+                return value
+            schema = get_schema_from_unknown_structure(value)
+            if schema:
+                return schema
+    return {}
+
+
 def get_schema_from_response(response: dict, root: dict) -> dict:
     json_schema = {}
     if "openapi" in root:
@@ -235,7 +247,7 @@ def get_schema_from_response(response: dict, root: dict) -> dict:
     elif "swagger" in root:
         json_schema = response.get("schema", {})
     else:
-        raise ValueError("Unknown specification type. Only OpenAPI 3.* and Swagger 2.0 allowed.")
+        json_schema = get_schema_from_unknown_structure(response)
 
     if SCHEMA_REF_KEY in json_schema:
         raise NotImplementedFeature(feature="Reading OpenAPI with '$ref' structure")
@@ -316,6 +328,9 @@ def read_open_api_manifest(path: Path) -> Generator[tuple[None, dict]]:
     OpenAPI Schema specification: https://spec.openapis.org/oas/latest.html.
     """
     data = read_file_data_and_transform_to_json(path)
+
+    if not any(spec in data for spec in ("openapi", "swagger")):
+        warnings.warn("Unknown specification type. Only OpenAPI 3.* and Swagger 2.0 allowed. Trying to read schema anyway.", UserWarning)
 
     info = data["info"]
     title = info["title"]
