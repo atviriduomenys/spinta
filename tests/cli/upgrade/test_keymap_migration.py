@@ -626,7 +626,7 @@ def test_upgrade_modified_from_old_version(
 ):
     table = '''
             d | r | b | m | property | type    | ref                             | source         | level | access
-            syncdataset/countries    |         |                                 |                |       |
+            migrate/modified         |         |                                 |                |       |
               |   |   | Country      |         | code                            |                | 4     |
               |   |   |   | code     | integer |                                 |                | 4     | open
               |   |   |   | name     | string  |                                 |                | 2     | open
@@ -636,14 +636,16 @@ def test_upgrade_modified_from_old_version(
     remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
     request.addfinalizer(remote.app.context.wipe_all)
 
+    country_model = "migrate/modified/Country"
+
     assert remote.url == 'https://example.com/'
-    remote.app.authmodel('syncdataset/countries/Country', ['insert', 'wipe', 'changes'])
-    resp = remote.app.post('https://example.com/syncdataset/countries/Country', json={
+    remote.app.authmodel(country_model, ['insert', 'wipe', 'changes'])
+    resp = remote.app.post(country_model, json={
         'code': 2,
     })
-    country_model = "syncdataset/countries/Country"
+
     country_id_1 = resp.json()['_id']
-    modified_at = remote.app.get('https://example.com/syncdataset/countries/Country/:changes/-1').json()['_data'][0]['_created']
+    modified_at = remote.app.get(f'{country_model}/:changes/-1').json()['_data'][0]['_created']
     modified_at = datetime.datetime.fromisoformat(modified_at)
 
     keymap: SqlAlchemyKeyMap = remote.app.context.get('store').keymaps['default']
