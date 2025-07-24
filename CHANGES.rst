@@ -132,6 +132,8 @@ Improvements:
 
   .. _#1402: https://github.com/atviriduomenys/spinta/issues/1402
 
+- `keymap sync` now has `--check-all` flag, that allows model dependency checks on models that does not have source set (`#1402`_).
+
 New Features:
 
 - Added the `spinta admin` command for running maintenance scripts. Unlike `spinta upgrade`, the `admin` command requires
