@@ -5,6 +5,7 @@ import json
 import uuid
 from collections.abc import Generator
 from typing import Optional, Any
+from typer import echo
 from uuid import UUID
 
 import msgpack
@@ -31,6 +32,9 @@ class SqlAlchemyKeyMap(KeyMap):
     migration_table_name: str = '_migrations'
     sync_table_name: str = '_synchronize'
     sync_transaction_size: int = None
+
+    # On duplicate validation warn only, instead of raise error
+    duplicate_warn_only: bool = False
 
     def __init__(self, dsn: str = None):
         self.dsn = dsn
@@ -67,7 +71,7 @@ class SqlAlchemyKeyMap(KeyMap):
                     table.c.value == prepared_value,
                     table.c.redirect == None
                 )
-            )
+            ).order_by(table.c.modified_at.desc()).limit(1)
         ).scalar()
 
         # Key was found in the table and no primary was given
@@ -95,6 +99,7 @@ class SqlAlchemyKeyMap(KeyMap):
             'key': current_key,
             'value': prepared_value,
             'redirect': None,
+            'modified_at': datetime.datetime.now(),
         })
         return current_key
 
@@ -142,13 +147,17 @@ class SqlAlchemyKeyMap(KeyMap):
         redirect = data.redirect
         value_ = data.value
         prepared_value = prepare_value(value_)
+        modified = data.data.get('_created')
+        if modified is not None:
+            modified = datetime.datetime.fromisoformat(modified)
 
         # Redirect id to another
         if redirect is not None:
             query = table.update().where(
                 table.c.key == id_
             ).values(
-                redirect=redirect
+                redirect=redirect,
+                modified_at=modified,
             )
             self.conn.execute(query)
             return
@@ -160,10 +169,10 @@ class SqlAlchemyKeyMap(KeyMap):
         select_query = table.select().where(table.c.key == id_)
         entry = self.conn.execute(select_query).scalar()
         if entry is None:
-            query = insert(table).values(key=id_, value=prepared_value)
+            query = insert(table).values(key=id_, value=prepared_value, modified_at=modified)
             self.conn.execute(query)
         else:
-            update_query = sa.update(table).values(value=prepared_value, redirect=redirect).where(table.c.key == id_)
+            update_query = sa.update(table).values(value=prepared_value, redirect=redirect, modified_at=modified).where(table.c.key == id_)
             self.conn.execute(update_query)
 
     def __legacy_synchronize(self, data: KeymapSyncData):
@@ -176,6 +185,9 @@ class SqlAlchemyKeyMap(KeyMap):
         id_ = data.identifier
         redirect = data.redirect
         value_ = data.value
+        modified = data.data.get('_created')
+        if modified is not None:
+            modified = datetime.datetime.fromisoformat(modified)
 
         if redirect is not None:
             return
@@ -191,14 +203,14 @@ class SqlAlchemyKeyMap(KeyMap):
         should_insert = True
         if count == 1:
             should_insert = False
-            update_query = sa.update(table).values(key=id_, value=prepared_value, redirect=redirect).where(where_condition)
+            update_query = sa.update(table).values(key=id_, value=prepared_value, redirect=redirect, modified_at=modified).where(where_condition)
             self.conn.execute(update_query)
         else:
             delete_query = sa.delete(table).where(where_condition)
             self.conn.execute(delete_query)
 
         if should_insert:
-            query = insert(table).values(key=id_, value=prepared_value, redirect=redirect)
+            query = insert(table).values(key=id_, value=prepared_value, redirect=redirect, modified_at=modified)
             self.conn.execute(query)
 
 
@@ -235,7 +247,17 @@ class SqlAlchemyKeyMap(KeyMap):
         affected_row_count = self.conn.execute(affected_row_count_query).scalar_one()
 
         if affected_key_count and affected_row_count:
-            raise KeymapDuplicateMapping(self, key=name, key_count=affected_key_count, affected_count=affected_row_count)
+            if self.duplicate_warn_only:
+                echo( (
+                    f"WARNING: Keymap's ({self.name!r}) {name!r} key contains {affected_key_count} duplicate value combinations.\n"
+                    f"This affects {affected_row_count} keymap entries.\n\n"
+                    "Make sure that synchronizing data is valid and is up to date. If it is, try rerunning keymap synchronization.\n"
+                    "If the issue persists, you may need to reset this key's keymap data and rerun synchronization again.\n"
+                    "If nothing helps contact data provider.\n\n"
+                    "To re-enable this error, you can set `duplicate_warn_only: false` parameter in keymap configuration.\n"
+                ), err=True)
+            else:
+                raise KeymapDuplicateMapping(self, key=name, key_count=affected_key_count, affected_count=affected_row_count)
 
     def contains_migration(self, name: str):
         migrations = self.get_table(self.migration_table_name)
@@ -276,6 +298,7 @@ class SqlAlchemyKeyMap(KeyMap):
                 sa.Column('key', sa.Text, primary_key=True),
                 sa.Column('value', sa.Text, index=True),
                 sa.Column('redirect', sa.Text, index=True),
+                sa.Column('modified_at', sa.DateTime, index=True),
             )
 
         table.create(checkfirst=True)
@@ -349,6 +372,7 @@ def configure(context: Context, keymap: SqlAlchemyKeyMap):
         dsn = dsn.replace('sqlite:///', 'sqlite+spinta:///')
     keymap.sync_transaction_size = sync_transaction_size
     keymap.dsn = dsn
+    keymap.duplicate_warn_only = rc.get('keymaps', keymap.name, 'duplicate_warn_only', cast=bool, default=False)
 
 
 @commands.prepare.register(Context, SqlAlchemyKeyMap)

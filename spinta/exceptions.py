@@ -1129,7 +1129,12 @@ class KeymapDuplicateMapping(UserError):
     Keymap's ({keymap!r}) {key!r} key contains {key_count} duplicate value combinations.
     This affects {affected_count} keymap entries.
     
-    Make sure that synchronizing data is valid and is up to date. If it is try to rerun keymap synchronization. In case
-    it does not help you might need to fully reset this key's keymap data and rerun synchronization.
+    Make sure that synchronizing data is valid and is up to date. If it is, try rerunning keymap synchronization. If the
+    issue persists, you may need to reset this key's keymap data and rerun synchronization again.
+    If nothing helps contact data provider.
+    
+    To suppress this error, you can set `duplicate_warn_only: true` parameter in keymap configuration.
+    Note: Disabling this error is strongly discouraged. This suppression option may be removed in future versions. Only
+    use this feature if you are aware of possible issues."
     '''
 

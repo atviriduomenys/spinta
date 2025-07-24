@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 from spinta.cli.helpers.upgrade.components import Script
 from spinta.cli.helpers.upgrade.scripts.keymaps.sqlalchemy.helpers import requires_migration, \
-    apply_migration_to_outdated_keymaps
+    apply_migration_to_outdated_keymaps, reset_keymap_increment
 from spinta.components import Context
 
 if TYPE_CHECKING:
@@ -34,6 +34,7 @@ def apply_migration(context: Context, keymap: 'SqlAlchemyKeyMap', migration: str
         if set(column_names) == {'key', 'hash', 'value'}:
             km_table = keymap.get_table(table)
             migrate_table(keymap, km_table)
+            reset_keymap_increment(context, keymap, table)
 
 
 def migrate_table(keymap: 'SqlAlchemyKeyMap', table: sa.Table):

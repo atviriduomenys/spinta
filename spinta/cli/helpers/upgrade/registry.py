@@ -7,6 +7,8 @@ from spinta.cli.helpers.script.components import ScriptTarget, ScriptTag
 from spinta.cli.helpers.upgrade.scripts.clients import migrate_clients, cli_requires_clients_migration
 from spinta.cli.helpers.upgrade.scripts.keymaps.sqlalchemy.initial_setup import requires_sql_keymap_initial_migration, \
     sql_keymap_initial_migration
+from spinta.cli.helpers.upgrade.scripts.keymaps.sqlalchemy.modified_time import requires_sql_keymap_modified_migration, \
+    sql_keymap_modified_migration
 from spinta.cli.helpers.upgrade.scripts.keymaps.sqlalchemy.redirect_support import \
     requires_sql_keymap_redirect_migration, sql_keymap_redirect_migration
 from spinta.cli.helpers.upgrade.scripts.redirect import cli_requires_redirect_migration, migrate_redirect
@@ -55,4 +57,13 @@ script_registry.register(
         tags={ScriptTag.DB_MIGRATION.value},
     )
 )
-
+script_registry.register(
+    UpgradeScript(
+        name=Script.SQL_KEYMAP_MODIFIED.value,
+        run=sql_keymap_modified_migration,
+        check=requires_sql_keymap_modified_migration,
+        required=[Script.SQL_KEYMAP_REDIRECT.value],
+        targets={ScriptTarget.SQLALCHEMY_KEYMAP.value},
+        tags={ScriptTag.DB_MIGRATION.value},
+    )
+)
