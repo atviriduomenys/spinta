@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
     g++ \
     cmake \
     make \
+    git \
     libboost-all-dev \
     libsnappy-dev \
     libgflags-dev \
