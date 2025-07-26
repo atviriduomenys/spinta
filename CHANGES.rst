@@ -14,6 +14,13 @@ New Features:
   .. _#1274: https://github.com/atviriduomenys/spinta/issues/1274
   .. _#1275: https://github.com/atviriduomenys/spinta/issues/1275
 
+Bug fixes:
+
+- Fixed situation where nested properties in `ref` column were giving an error. (`#981`_)
+
+  .. _#981: https://github.com/atviriduomenys/spinta/issues/981
+
+
 0.2dev3
 =======
 
