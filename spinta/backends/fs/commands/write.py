@@ -1,4 +1,3 @@
-import cgi
 import pathlib
 import typing
 
@@ -13,7 +12,7 @@ from spinta.renderer import render
 from spinta.utils.aiotools import aiter
 from spinta.components import Context, UrlParams, DataItem
 from spinta.core.enums import Action
-from spinta.commands.write import prepare_patch, simple_response, validate_data
+from spinta.commands.write import prepare_patch, simple_response, validate_data, get_filename
 from spinta.types.datatype import File
 from spinta.backends.fs.components import FileSystem
 
@@ -62,8 +61,9 @@ async def push(
 
     if 'revision' in request.headers:
         data.given['_revision'] = request.headers.get('revision')
-    if 'content-disposition' in request.headers:
-        data.given[prop.name]['_id'] = cgi.parse_header(request.headers['content-disposition'])[1]['filename']
+
+    data.given[prop.name]['_id'] = get_filename(request)
+
     require_content_length = (
         Action.INSERT,
         Action.UPSERT,

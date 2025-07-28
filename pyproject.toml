@@ -20,9 +20,7 @@ classifiers = [
     "Topic :: Database :: Database Engines/Servers",
     "Topic :: Database :: Front-Ends",
 ]
-packages = [
-    { include = "spinta" },
-]
+packages = [{ include = "spinta" }]
 
 
 [tool.poetry.urls]
