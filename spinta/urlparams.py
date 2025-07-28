@@ -1,4 +1,3 @@
-import cgi
 import re
 import urllib.parse
 from collections import OrderedDict
@@ -383,8 +382,14 @@ def get_response_type(
             for media_type in exporter.accept_types:
                 formats[media_type] = name
 
-        media_types, _ = cgi.parse_header(request.headers['accept'])
-        for media_type in media_types.lower().split(','):
+        # Parse the Accept header manually
+        accept_header = request.headers['accept']
+        media_types = [
+            media.split(';')[0].strip()  # Extract main media type, ignoring parameters
+            for media in accept_header.split(',')
+        ]
+
+        for media_type in media_types:
             if media_type in formats:
                 return formats[media_type]
 
