@@ -210,13 +210,10 @@ def _select_prop(
     props: Dict[str, Property],
     node: Union[Namespace, Model, Property],
 ) -> Optional[Property]:
-    if key not in props:
-        # FIXME: We should check select list at the very beginning of
-        #        request, not when returning results.
-        raise exceptions.FieldNotInResource(node, property=key)
-    prop = props[key]
-    if not prop.hidden:
-        return prop
+    if not (prop := props.get(key)) or prop.hidden:
+        return None
+
+    return prop
 
 
 def select_keys(
