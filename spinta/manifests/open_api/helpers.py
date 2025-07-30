@@ -174,9 +174,8 @@ class Property:
         self.required: bool = not bool(json_schema.get("nullable", False))
 
     def get_datatype(self) -> str:
-        """
-        Returns "Property" data type as a string. If type cannot be detected, defaults to "string"
-        """
+        """Returns "Property" data type as a string. If type cannot be detected, defaults to "string"."""
+
         data_type = self.json_schema.get("type", DEFAULT_PROPERTY_DATATYPE)
 
         basic_types = {
@@ -203,7 +202,7 @@ class Property:
     def get_enums(self, items: list) -> dict:
         enum = {}
         for item in items:
-            if isinstance(item,(list, dict)):  # Only handling primitive type enums
+            if isinstance(item, (list, dict)):  # Only handling primitive type enums
                 return {}
             enum[item] = {"source": item}
         return enum
@@ -227,14 +226,14 @@ class Property:
         return schema
 
 def get_schema_from_unknown_structure(json_dict: dict) -> dict:
-    if isinstance(json_dict, dict):
-        for key, value in json_dict.items():
-            if key == "schema":
-                return value
-            schema = get_schema_from_unknown_structure(value)
-            if schema:
-                return schema
-    return {}
+    if not isinstance(json_dict, dict):
+        return {}
+    for key, value in json_dict.items():
+        if key == "schema":
+            return value
+        schema = get_schema_from_unknown_structure(value)
+        if schema:
+            return schema
 
 
 def get_schema_from_response(response: dict, root: dict) -> dict:
