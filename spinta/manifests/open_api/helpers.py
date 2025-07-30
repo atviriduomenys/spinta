@@ -225,15 +225,16 @@ class Property:
 
         return schema
 
-def get_schema_from_unknown_structure(json_dict: dict) -> dict:
-    if not isinstance(json_dict, dict):
-        return {}
-    for key, value in json_dict.items():
-        if key == "schema":
+def get_nested_value(search_key: str, data: dict) -> Any:
+    if not isinstance(data, dict):
+        return None
+    for key, value in data.items():
+        if key == search_key:
             return value
-        schema = get_schema_from_unknown_structure(value)
-        if schema:
-            return schema
+        result = get_nested_value(search_key, value)
+        if result is not None:
+            return result
+    return None
 
 
 def get_schema_from_response(response: dict, root: dict) -> dict:
@@ -246,9 +247,9 @@ def get_schema_from_response(response: dict, root: dict) -> dict:
     elif "swagger" in root:
         json_schema = response.get("schema", {})
     else:
-        json_schema = get_schema_from_unknown_structure(response)
+        json_schema = get_nested_value("schema", response) or {}
 
-    if SCHEMA_REF_KEY in json_schema:
+    if get_nested_value(SCHEMA_REF_KEY, json_schema):
         raise NotImplementedFeature(feature="Reading OpenAPI with '$ref' structure")
     return json_schema
 
