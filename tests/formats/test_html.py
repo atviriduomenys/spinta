@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import uuid
 from pathlib import Path
 
 from lxml import html
@@ -14,6 +15,8 @@ from starlette.requests import Request
 from starlette.datastructures import Headers
 
 from spinta import commands
+from spinta.backends.constants import TableType
+from spinta.backends.postgresql.components import PostgreSQL
 from spinta.core.enums import Action
 from spinta.components import Config
 from spinta.components import Context
@@ -1162,3 +1165,112 @@ def test_html_changes_text_one(
     assert second['name@en'] == {'value': 'England'}
     assert second['name@lt'] == {'value': 'Anglija'}
     assert second['name@C'] == {'value': 'UK'}
+
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_html_changes_corrupt_data(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property     | type    | ref     | access  | level | uri
+    example/html/changes/corrupt |         |         |         |       | 
+      |   |   | City             |         | name    | open    |       | 
+      |   |   |   | id           | integer |         |         |       |
+      |   |   |   | name         | string  |         |         |       |
+      |   |   |   | country      | ref     | Country |         |       |
+      |   |   |   | country.test | string  |         |         |       |
+      |   |   |   | obj          | object  |         |         |       |
+      |   |   |   | obj.test     | string  |         |         |       |
+      |   |   | Country          |         | name    | open    |       | 
+      |   |   |   | id           | integer |         |         |       |
+      |   |   |   | name         | string  |         |         |       |
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    app = create_test_client(context, scope=['spinta_set_meta_fields'])
+    app.authmodel('example/html', ['insert', 'getall', 'search', 'changes'])
+    country_id = str(uuid.uuid4())
+    city_id = str(uuid.uuid4())
+    pushdata(app, f'/example/html/changes/corrupt/Country', {
+        '_id': country_id,
+        'id': 0,
+        'name': 'Lietuva'
+    })
+    pushdata(app, f'/example/html/changes/corrupt/City', {
+        '_id': city_id,
+        'id': 0,
+        'name': 'Vilnius',
+        'country': {
+            '_id': country_id,
+            'test': 't_lt'
+        },
+        'obj': {
+            'test': 't_obj'
+        }
+    })
+
+    resp = app.get("/example/html/changes/corrupt/City/:changes/-10/:format/html")
+    table = _table_with_header(resp)
+    data = table[0]
+    # Exclude reserved properties
+    value = {key: value for key, value in data.items() if not key.startswith('_')}
+    assert list(value.keys()) == ['id', 'name', 'country._id', 'country.test',  'obj.test']
+    assert value['id'] == {'value': 0}
+    assert value['name'] == {'value': 'Vilnius'}
+    assert value['country._id'] == {
+        'value': country_id[:8],
+        'link': '/example/html/changes/corrupt/Country/' + country_id
+    }
+    assert value['country.test'] == {'value': 't_lt'}
+    assert value['obj.test'] == {'value': 't_obj'}
+
+    # Corrupt changelog data
+    store = context.get('store')
+    backend: PostgreSQL = store.manifest.backend
+    model = commands.get_model(context, store.manifest, 'example/html/changes/corrupt/City')
+    with backend.begin() as transaction:
+        table = backend.get_table(model, TableType.CHANGELOG)
+        transaction.execute(table.update().values(data={
+            'id': 0,
+            'name': 'Vilnius',
+            'new': 'new',
+            'country': {
+                '_id': country_id,
+                'testas': 'testas'
+            },
+            'obj': {
+                'test': 't_obj_updated',
+                'nested': {
+                    'test': 'test'
+                }
+            }
+        }).where(table.c._rid == city_id))
+
+    resp = app.get("/example/html/changes/corrupt/City/:changes/-10/:format/html")
+    table = _table_with_header(resp)
+    data = table[0]
+    # Exclude reserved properties
+    value = {key: value for key, value in data.items() if not key.startswith('_')}
+    assert list(value.keys()) == ['id', 'name', 'country._id', 'country.test', 'obj.test']
+
+    assert value['id'] == {'value': 0}
+    assert value['name'] == {'value': 'Vilnius'}
+    assert value['country._id'] == {
+        'value': country_id[:8],
+        'link': '/example/html/changes/corrupt/Country/' + country_id
+    }
+    assert value['country.test'] == {
+        'color': Color.null.value,
+        'value': ''
+    }
+    assert value['obj.test'] == {'value': 't_obj_updated'}

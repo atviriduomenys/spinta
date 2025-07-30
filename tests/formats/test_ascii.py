@@ -1,6 +1,7 @@
 import base64
 import datetime
 import hashlib
+import uuid
 from pathlib import Path
 from starlette.datastructures import Headers
 import pytest
@@ -8,6 +9,8 @@ from _pytest.fixtures import FixtureRequest
 
 from spinta import commands
 from spinta.auth import AdminToken
+from spinta.backends.constants import TableType
+from spinta.backends.postgresql.components import PostgreSQL
 from spinta.core.enums import Action
 from spinta.components import UrlParams
 from spinta.core.config import RawConfig
@@ -667,3 +670,93 @@ def test_ascii_empty(
     app.authmodel('example/ascii', ['insert', 'getall', 'search', 'changes'])
     resp = app.get("/example/ascii/empty/Country/:format/ascii?select(id,name)").text
     assert resp == ''
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_ascii_changes_corrupt_data(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property     | type    | ref     | access  | level | uri
+    example/ascii/changes/corrupt |         |         |         |       | 
+      |   |   | City             |         | name    | open    |       | 
+      |   |   |   | id           | integer |         |         |       |
+      |   |   |   | name         | string  |         |         |       |
+      |   |   |   | country      | ref     | Country |         |       |
+      |   |   |   | country.test | string  |         |         |       |
+      |   |   |   | obj          | object  |         |         |       |
+      |   |   |   | obj.test     | string  |         |         |       |
+      |   |   | Country          |         | name    | open    |       | 
+      |   |   |   | id           | integer |         |         |       |
+      |   |   |   | name         | string  |         |         |       |
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    app = create_test_client(context, scope=['spinta_set_meta_fields'])
+    app.authmodel('example/ascii', ['insert', 'getall', 'search', 'changes'])
+    country_id = str(uuid.uuid4())
+    city_id = str(uuid.uuid4())
+    pushdata(app, f'/example/ascii/changes/corrupt/Country', {
+        '_id': country_id,
+        'id': 0,
+        'name': 'Lietuva'
+    })
+    pushdata(app, f'/example/ascii/changes/corrupt/City', {
+        '_id': city_id,
+        'id': 0,
+        'name': 'Vilnius',
+        'country': {
+            '_id': country_id,
+            'test': 't_lt'
+        },
+        'obj': {
+            'test': 't_obj'
+        }
+    })
+
+    resp = app.get("/example/ascii/changes/corrupt/City/:changes/-10/:format/ascii?select(_id, id, name, country, obj)").text
+    assert resp == (
+        '------------------------------------  --  -------  ------------------------------------  ------------  --------\n'
+        '_id                                   id  name     country._id                           country.test  obj.test\n'
+        f'{city_id}  0   Vilnius  {country_id}  t_lt          t_obj\n'
+        '------------------------------------  --  -------  ------------------------------------  ------------  --------\n'
+    )
+
+    # Corrupt changelog data
+    store = context.get('store')
+    backend: PostgreSQL = store.manifest.backend
+    model = commands.get_model(context, store.manifest, 'example/ascii/changes/corrupt/City')
+    with backend.begin() as transaction:
+        table = backend.get_table(model, TableType.CHANGELOG)
+        transaction.execute(table.update().values(data={
+            'id': 0,
+            'name': 'Vilnius',
+            'new': 'new',
+            'country': {
+                '_id': country_id,
+                'testas': 'testas'
+            },
+            'obj': {
+                'test': 't_obj_updated',
+                'nested': {
+                    'test': 'test'
+                }
+            }
+        }).where(table.c._rid == city_id))
+
+    resp = app.get("/example/ascii/changes/corrupt/City/:changes/-10/:format/ascii?select(_id, id, name, country, obj)").text
+    assert resp == (
+        '------------------------------------  --  -------  ------------------------------------  ------------  -------------\n'
+        '_id                                   id  name     country._id                           country.test  obj.test     \n'
+        f'{city_id}  0   Vilnius  {country_id}  ∅             t_obj_updated\n'
+        '------------------------------------  --  -------  ------------------------------------  ------------  -------------\n'
+    )
