@@ -95,6 +95,9 @@ Bug fixes:
 
 - Fixed `postgresql` `update` action updating `_created`, instead of `_updated` value (`#1307`_).
 
+- Fixed an error caused by fetching changelog data containing columns no longer declared in the manifest (`#1251`_).
+
+  .. _#1251: https://github.com/atviriduomenys/spinta/issues/1251
 
 0.1.85 (2025-04-08)
 ===================
