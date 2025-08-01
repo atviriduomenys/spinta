@@ -88,7 +88,7 @@ def _fulfills_unique_constraint(context: Context, backend: Backend, model: Model
 
 @dispatch(Context, PostgreSQL, Model)
 def _fulfills_unique_constraint(context: Context, backend: PostgreSQL, model: Model) -> bool:
-    table_name = get_pg_table_name(model.model_type())
+    table_name = get_pg_table_name(model)
     insp = sa.inspect(backend.engine)
     constraints = insp.get_unique_constraints(table_name)
     pkey_columns = list()
@@ -154,7 +154,7 @@ def _add_uniqueness(context: Context, backend: Backend, model: Model):
 
 @dispatch(Context, PostgreSQL, Model)
 def _add_uniqueness(context: Context, backend: PostgreSQL, model: Model):
-    table_name = get_pg_table_name(model.model_type())
+    table_name = get_pg_table_name(model)
     column_name_list = list()
     for prop in model.external.pkeys:
         column_name_list.append(get_pg_column_name(prop.place))

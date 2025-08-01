@@ -7,17 +7,16 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB, BIGINT
 
 from spinta import commands
+from spinta.backends.postgresql.helpers.name import get_pg_table_name
 from spinta.components import Context, Model
 from spinta.backends.constants import TableType
-from spinta.backends.helpers import get_table_name
-from spinta.backends.postgresql.helpers import get_pg_name
 
 if TYPE_CHECKING:
     from spinta.backends.postgresql.components import PostgreSQL
 
 
 def get_changes_table(context: Context, backend: PostgreSQL, model: Model):
-    table_name = get_pg_name(get_table_name(model, TableType.CHANGELOG))
+    table_name = get_pg_table_name(model, TableType.CHANGELOG)
     pkey_type = commands.get_primary_key_type(context, backend)
     table = sa.Table(
         table_name, backend.schema,
