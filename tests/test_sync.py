@@ -22,8 +22,6 @@ def patched_credentials():
         secret="secret",
         server="http://example.com",
         scopes="scope1 scope2",
-        organization_form="org",
-        organization_name="vssa",
     )
     with patch('spinta.cli.sync.get_client_credentials', return_value=credentials):
         yield credentials
@@ -31,7 +29,7 @@ def patched_credentials():
 
 @pytest.fixture
 def base_uapi_url() -> str:
-    # org & vssa parts depend on the organization_form & organization_name defined in `def patched_credentials`.
+    """Static part of the UAPI type URL to reach open data catalog"""
     return "uapi/datasets/org/vssa/isris/dcat"
 
 
