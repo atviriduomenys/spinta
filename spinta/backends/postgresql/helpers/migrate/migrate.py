@@ -7,14 +7,11 @@ import os
 from collections import defaultdict
 from typing import Any, List, Union, Dict, Tuple, Callable
 
-import sqlalchemy as sa
 import geoalchemy2.types
-from spinta.datasets.inspect.helpers import zipitems
-from spinta.manifests.components import Manifest
-from spinta.utils.itertools import ensure_list
+import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import JSONB, BIGINT, ARRAY, JSON
 from sqlalchemy.engine.reflection import Inspector
-from sqlalchemy.dialects import postgresql
 
 import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
@@ -27,10 +24,13 @@ from spinta.backends.postgresql.helpers.name import name_changed, get_pg_constra
     get_pg_table_name, get_pg_column_name
 from spinta.cli.helpers.migrate import MigrationContext
 from spinta.components import Context, Model, Property
+from spinta.datasets.inspect.helpers import zipitems
 from spinta.exceptions import MigrateScalarToRefTooManyKeys, UnableToFindPrimaryKeysNoUniqueConstraints, \
     UnableToFindPrimaryKeysMultipleUniqueConstraints, ModelNotFound, PropertyNotFound, FileNotFound
+from spinta.manifests.components import Manifest
 from spinta.types.datatype import Ref, File, Array, Object, DataType
 from spinta.types.text.components import Text
+from spinta.utils.itertools import ensure_list
 from spinta.utils.nestedstruct import get_root_attr
 from spinta.utils.schema import NA
 
@@ -99,10 +99,25 @@ class CastMatrix:
 class RenameMap:
 
     @dataclasses.dataclass
+    class _Name:
+        normal: str
+        compressed: str
+
+
+    @dataclasses.dataclass
     class _TableRename:
-        name: str
-        new_name: str
+        old: 'RenameMap._Name'
+        new: 'RenameMap._Name' | None
         columns: Dict[str, str]
+
+        def get_new_name(self) -> str | None:
+            if self.new is None:
+                return None
+
+            return self.new.normal
+
+        def get_old_name(self) -> str:
+            return self.old.normal
 
     tables: Dict[str, _TableRename]
 
@@ -110,10 +125,38 @@ class RenameMap:
         self.tables = {}
         self.parse_rename_src(rename_src)
 
-    def insert_table(self, table_name: str):
-        self.tables[table_name] = self._TableRename(
-            name=table_name,
-            new_name=table_name,
+    def _find_new_table(self, name: str, compressed: bool) -> _TableRename | None:
+        if name in self.tables:
+            return self.tables[name]
+
+        for table in self.tables.values():
+            table_name = table.old.compressed if compressed else table.old.normal
+            if table_name == name:
+                return table
+
+        return None
+
+    def _find_old_table(self, name: str, compressed: bool) -> _TableRename | None:
+        for table in self.tables.values():
+            if table.new is None:
+                continue
+
+            table_name = table.new.compressed if compressed else table.new.normal
+            if table_name == name:
+                return table
+
+        return None
+
+    def insert_table(self, old_name: str, new_name: str | None = None):
+        self.tables[old_name] = self._TableRename(
+            old = self._Name(
+                normal=old_name,
+                compressed=get_pg_table_name(old_name)
+            ),
+            new=self._Name(
+                normal=new_name,
+                compressed=get_pg_table_name(new_name)
+            ) if new_name else None,
             columns={}
         )
 
@@ -121,9 +164,13 @@ class RenameMap:
         if table_name not in self.tables.keys():
             self.insert_table(table_name)
         if column_name == "":
-            self.tables[table_name].new_name = new_column_name
-        else:
-            self.tables[table_name].columns[column_name] = new_column_name
+            self.tables[table_name].new = self._Name(
+                normal=new_column_name,
+                compressed=get_pg_table_name(new_column_name)
+            )
+            return
+
+        self.tables[table_name].columns[column_name] = new_column_name
 
     def get_column_name(self, table_name: str, column_name: str, root_only: bool = False, root_value: str = ""):
         # If table does not have renamed, return given column
@@ -162,34 +209,44 @@ class RenameMap:
                 return old_name
         return column_name
 
-    def get_table_name(self, table_name: str):
-        if table_name in self.tables.keys():
-            return self.tables[table_name].new_name
+    # Compressed default True, because in most cases we want new name from old tables, which are compressed
+    def get_table_name(self, table_name: str, compressed: bool = True) -> str:
+        table = self._find_new_table(table_name, compressed=compressed)
+        if table is None:
+            return table_name
+
+        name = table.get_new_name()
+        if name is not None:
+            table_name = name
+
         return table_name
 
-    def get_old_table_name(self, table_name: str):
-        for key, data in self.tables.items():
-            if data.new_name == table_name:
-                return key
-        return table_name
+    # Compressed default False, because in most cases we want old name from model name, which is not compressed
+    def get_old_table_name(self, table_name: str, compressed: bool = False) -> str:
+        table = self._find_old_table(table_name, compressed=compressed)
+        if table is None:
+            return table_name
+
+        return table.get_old_name()
 
     def parse_rename_src(self, rename_src: str | dict):
+        def _parse_dict(src: dict):
+            for table, table_data in src.items():
+                table_rename = table_data.pop('', None)
+                self.insert_table(table, table_rename)
+                for column, column_data in table_data.items():
+                    self.insert_column(table, column, column_data)
+
         if rename_src:
             if isinstance(rename_src, str):
                 if os.path.exists(rename_src):
                     with open(rename_src, 'r') as f:
                         data = json.loads(f.read())
-                        for table, table_data in data.items():
-                            self.insert_table(table)
-                            for column, column_data in table_data.items():
-                                self.insert_column(table, column, column_data)
+                        _parse_dict(data)
                 else:
                     raise FileNotFound(file=rename_src)
             else:
-                for table, table_data in rename_src.items():
-                    self.insert_table(table)
-                    for column, column_data in table_data.items():
-                        self.insert_column(table, column, column_data)
+                _parse_dict(rename_src)
 
 
 @dataclasses.dataclass
@@ -1287,3 +1344,22 @@ def contains_any_table(
     inspector: Inspector,
 ) -> bool:
     return any(inspector.has_table(table) for table in tables)
+
+
+def recreate_all_reserved_table_names(
+    model: Model,
+    old_name: str,
+    new_name: str,
+    table_type: TableType,
+    rename: RenameMap,
+) -> (str, str):
+    renamed = name_changed(old_name, new_name)
+    if not renamed:
+        table = get_pg_table_name(model, table_type)
+        return table, table
+
+    old_full_name = rename.get_old_table_name(model.name)
+    old_table_name = get_pg_table_name(old_full_name, table_type)
+    new_table_name = get_pg_table_name(model, table_type)
+    return old_table_name, new_table_name
+
