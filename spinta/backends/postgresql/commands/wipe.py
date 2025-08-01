@@ -34,13 +34,13 @@ def wipe(context: Context, model: Model, backend: PostgreSQL):
     connection = context.get('transaction').connection
     insp = sa.inspect(backend.engine)
     # Delete redirect table
-    redirect_table_name = get_pg_table_name(model.name, TableType.REDIRECT)
+    redirect_table_name = get_pg_table_name(model, TableType.REDIRECT)
     if insp.has_table(redirect_table_name):
         table = backend.get_table(model, TableType.REDIRECT)
         connection.execute(table.delete())
 
     # Delete changelog table
-    changelog_table_name = get_pg_table_name(model.name, TableType.CHANGELOG)
+    changelog_table_name = get_pg_table_name(model, TableType.CHANGELOG)
     if insp.has_table(changelog_table_name):
         table = backend.get_table(model, TableType.CHANGELOG)
         connection.execute(table.delete())
