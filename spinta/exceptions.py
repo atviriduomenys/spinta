@@ -1138,3 +1138,17 @@ class KeymapDuplicateMapping(UserError):
     use this feature if you are aware of possible issues."
     '''
 
+
+class UnexpectedAPIResponse(BaseError):
+    template = """
+        Unexpected status code received while calling the api for operation `{operation}`. 
+        Expected '{expected_status_code}', Got: '{response_status_code}.
+        Due to: {response_data}
+    """
+
+
+class UnexpectedAPIResponseData(BaseError):
+    template = """
+        Unexpected response data received while calling the api for operation `{operation}`.
+        {context}.
+    """
