@@ -46,13 +46,18 @@ def name_changed(
     return old_table_name != new_table_name or old_property_name != new_property_name
 
 
-@dispatch(str, TableType)
-def get_pg_table_name(table_name: str, ttype: TableType, *args: str) -> str:
-    args_str = ""
-    if args:
-        args_str = f"/{'/'.join(args)}"
+@dispatch(str, TableType, str)
+def get_pg_table_name(table_name: str, ttype: TableType, arg: str) -> str:
+    args_str = arg or ""
+    if args_str and not args_str.startswith('/'):
+        args_str = f'/{arg}'
 
     return get_pg_table_name(f"{table_name}{ttype.value}{args_str}")
+
+
+@dispatch(str, TableType)
+def get_pg_table_name(table_name: str, ttype: TableType) -> str:
+    return get_pg_table_name(f"{table_name}{ttype.value}")
 
 
 @dispatch(Model, TableType)
