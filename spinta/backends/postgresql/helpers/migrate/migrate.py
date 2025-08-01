@@ -110,8 +110,11 @@ class RenameMap:
         new: 'RenameMap._Name' | None
         columns: Dict[str, str]
 
-        def get_new_name(self) -> str | None:
+        def get_new_name(self, fallback: bool = False) -> str | None:
             if self.new is None:
+                if fallback:
+                    return self.get_old_name()
+
                 return None
 
             return self.new.normal
@@ -1322,9 +1325,10 @@ def validate_rename_map(context: Context, rename: RenameMap, manifest: Manifest)
     tables = rename.tables.values()
     for table in tables:
         models = commands.get_models(context, manifest)
-        if table.new_name not in models.keys():
-            raise ModelNotFound(model=table.new_name)
-        model = commands.get_model(context, manifest, table.new_name)
+        name = table.get_new_name(fallback=True)
+        if name not in models.keys():
+            raise ModelNotFound(model=name)
+        model = models.get(name)
         for column in table.columns.values():
             if column not in model.flatprops.keys():
                 raise PropertyNotFound(property=column)
