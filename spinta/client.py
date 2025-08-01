@@ -22,8 +22,6 @@ class RemoteClientCredentials:
     scopes: List[str]   # allowed scopes given in credentials.cfg section
     resource_server: Optional[str] = None # host of a server where resources are stored if separate from auth server
     client_id: Optional[str] = None # identification of client, could be same as client (username)
-    organization_name: Optional[str] = None
-    organization_form: Optional[str] = None
 
 
 def _parse_client_handle(
@@ -83,8 +81,6 @@ def get_client_credentials(
                 creds.scopes = config.get(creds.section, 'scopes', fallback=[])
                 creds.client_id = creds.client_id or config.get(creds.section, 'client_id', fallback=creds.client)
                 creds.resource_server = creds.resource_server or config.get(creds.section, 'resource_server', fallback=creds.server)
-                creds.organization_name = creds.organization_name or config.get(creds.section, "organization_name", fallback=None)
-                creds.organization_form = creds.organization_form or config.get(creds.section, "organization_form", fallback=None)
 
             elif check:
                 raise RemoteClientCredentialsNotFound(
@@ -142,7 +138,6 @@ def add_client_credentials(
         'client': client or creds.client or '',
         'secret': secret or creds.secret or '',
         'scopes': scopes,
-
     }
 
     with credsfile.open('w') as f:
