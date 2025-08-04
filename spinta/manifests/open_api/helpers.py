@@ -16,6 +16,8 @@ SUPPORTED_PARAMETER_LOCATIONS = {"query", "header", "path"}
 DEFAULT_DATASET_NAME = "default"
 SCHEMA_REF_KEY = "$ref"
 DEFAULT_PROPERTY_DATATYPE = "string"
+OPENAPI = "openapi"
+SWAGGER = "swagger"
 
 
 def replace_url_parameters(endpoint: str) -> str:
@@ -239,12 +241,12 @@ def get_nested_value(search_key: str, data: dict) -> Any:
 
 def get_schema_from_response(response: dict, root: dict) -> dict:
     json_schema = {}
-    if "openapi" in root:
+    if OPENAPI in root:
         for content_type, content in response.get("content", {}).items():
             if content_type == "application/json" or content_type.endswith("+json"):
                 json_schema = content.get("schema", {})
                 break
-    elif "swagger" in root:
+    elif SWAGGER in root:
         json_schema = response.get("schema", {})
     else:
         json_schema = get_nested_value("schema", response) or {}
@@ -256,7 +258,7 @@ def get_schema_from_response(response: dict, root: dict) -> dict:
 def get_model_schemas(dataset_name: str, resource_name: str, response: dict, root: dict) -> list[dict]:
     if not (json_schema := get_schema_from_response(response, root)):
         return []
-
+    
     if json_schema.get("type") == "array":
         json_schema = json_schema.get("items", {})
         root_source = ".[]"
