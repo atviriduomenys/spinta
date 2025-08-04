@@ -6,13 +6,16 @@ Changes
 ====================
 
 New Features:
+
 - Added support for specifying SOAP request body in SOAP requests.(`#1274`_)
 - Allow `Client` POST and PATCH endpoints to save variable `backends` that can store
   extra authentication data. Implement `.creds("key")` prepare function to read values
   from saved `backends`. (`#1275`_)
+- Implement the skeleton of `spinta sync` command. (`#1378`_)
 
   .. _#1274: https://github.com/atviriduomenys/spinta/issues/1274
   .. _#1275: https://github.com/atviriduomenys/spinta/issues/1275
+  .. _#1378: https://github.com/atviriduomenys/spinta/issues/1378
 
 Bug fixes:
 
