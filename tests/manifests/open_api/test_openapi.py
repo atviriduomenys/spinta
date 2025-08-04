@@ -3,6 +3,7 @@ from pathlib import Path
 
 from spinta.core.config import RawConfig
 from spinta.testing.manifest import load_manifest
+from spinta.manifests.open_api.helpers import model_deduplicator
 
 
 def test_open_api_manifest(rc: RawConfig, tmp_path: Path):
@@ -128,14 +129,19 @@ def test_open_api_manifest_title_with_slashes(rc: RawConfig, tmp_path: Path):
 
 def test_open_api_manifest_root_model(rc: RawConfig, tmp_path: Path):
     data = json.dumps({
-        "openapi": "3.0.0",
-        "info": {"title": "Vilnius API", "version": "1.0.0"},
-        "paths": {
-            "/api/spis/relations/child": {
-                "get": {
+        'openapi': '3.0.0',
+        'info': {
+            'title': 'Example API',
+            'version': '1.0.0',
+            'summary': 'Example of an API',
+            'description': 'Intricate description'
+        },
+        'paths': {
+            '/api/countries': {
+                'get': {
                     "responses": {
                         "200": {
-                            "description": "Relationship",
+                            "description": "Country",
                             "content": {
                                 "application/json": {
                                     "schema": {
@@ -143,34 +149,32 @@ def test_open_api_manifest_root_model(rc: RawConfig, tmp_path: Path):
                                             "id": {
                                                 "type": "integer",
                                             },
-                                            "created_at": {
-                                                "type": "string",
-                                                "format": "date-time",
-                                                "example": "2025-02-19T07:00:11.000000Z",
+                                            "name": {
+                                                "type": "string"
                                             },
                                         },
-                                        "type": "object",
+                                        "type": "object"
                                     }
                                 }
-                            },
+                            }
                         }
                     }
                 }
             }
-        },
+        }
     })
 
     table = """
     id | d | r | b | m | property                | type              | ref | source                    | source.type | prepare                           | origin | count | level | status  | visibility | access | uri | eli | title       | description
-       | services/vilnius_api                    | ns                |     |                           |             |                                   |        |       |       |         |            |        |     |     | Vilnius API |
+       | services/example_api                    | ns                |     |                           |             |                                   |        |       |       |         |            |        |     |     | Example of an API | Intricate description
        |                                         |                   |     |                           |             |                                   |        |       |       |         |            |        |     |     |             |
-       | services/vilnius_api/default            |                   |     |                           |             |                                   |        |       |       |         |            |        |     |     |             |
-       |   | api_spis_relations_child_get        | dask/json         |     | /api/spis/relations/child |             | http(method: 'GET', body: 'form') |        |       |       |         |            |        |     |     |             |
+       | services/example_api/default            |                   |     |                           |             |                                   |        |       |       |         |            |        |     |     |             |
+       |   | api_countries_get                   | dask/json         |     | /api/countries            |             | http(method: 'GET', body: 'form') |        |       |       |         |            |        |     |     |             |
        |                                         |                   |     |                           |             |                                   |        |       |       |         |            |        |     |     |             |
-       |   |   |   | Relationship                |                   |     | .                         |             |                                   |        |       |       | develop | private    |        |     |     |             |
+       |   |   |   | Country                     |                   |     | .                         |             |                                   |        |       |       | develop | private    |        |     |     |             |
        |   |   |   |   | id                      | integer required  |     | id                        |             |                                   |        |       |       | develop | private    |        |     |     |             |
-       |   |   |   |   | created_at              | datetime required |     | created_at                |             |                                   |        |       |       | develop | private    |        |     |     |             |
-       """
+       |   |   |   |   | name                    | string required   |     | name                      |             |                                   |        |       |       | develop | private    |        |     |     |             |
+   """
 
 
     path = tmp_path / 'manifest.json'
@@ -184,79 +188,81 @@ def test_open_api_manifest_root_model(rc: RawConfig, tmp_path: Path):
 
 def test_open_api_manifest_nested_models(rc: RawConfig, tmp_path: Path):
     data = json.dumps({
-        "openapi": "3.0.0",
-        "info": {"title": "Vilnius API", "version": "1.0.0"},
-        "paths": {
-            "/api/spis/relations/child": {
-                "get": {
+        'openapi': '3.0.0',
+        'info': {
+            'title': 'Example API',
+            'version': '1.0.0',
+            'summary': 'Example of an API',
+            'description': 'Intricate description'
+        },
+        'paths': {
+            '/api/countries': {
+                'get': {
                     "responses": {
                         "200": {
-                            "description": "Relation with child and parents",
+                            "description": "List of Countries",
                             "content": {
                                 "application/json": {
                                     "schema": {
                                         "type": "array",
                                         "items": {
                                             "properties": {
-                                                "data": {
-                                                    "properties": {
-                                                        "Child_Person": {
-                                                            "properties": {
-                                                                "siblings": {
-                                                                    "type": "array",
-                                                                    "items": {
-                                                                        "type": "object",
-                                                                        "properties": {},
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "cities": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "name": {"type": "string" },
+                                                            "counties": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "properties": {
+                                                                        "name": {"type": "string"}
                                                                     },
+                                                                    "type": "object"
                                                                 }
-                                                            },
-                                                            "type": "object",
+                                                            }
                                                         },
-                                                        "parents_legal": {
-                                                            "type": "array",
-                                                            "items": {"type": "object"},
-                                                        },
-                                                    },
-                                                    "type": "object",
+                                                        "type": "object"
+                                                    }
                                                 }
                                             },
-                                            "type": "object",
-                                        },
+                                            "type": "object"
+                                        }
                                     }
                                 }
-                            },
+                            }
                         }
                     }
                 }
             }
-        },
+        }
     })
 
     table = """
     id | d | r | b | m | property                | type              | ref | source                    | source.type | prepare                           | origin | count | level | status  | visibility | access | uri | eli | title       | description
-       | services/vilnius_api                    | ns                |     |                           |             |                                   |        |       |       |         |            |        |     |     | Vilnius API |
+       | services/example_api                    | ns                |     |                           |             |                                   |        |       |       |         |            |        |     |     | Example of an API | Intricate description
        |                                         |                   |     |                           |             |                                   |        |       |       |         |            |        |     |     |             |
-       | services/vilnius_api/default            |                   |     |                           |             |                                   |        |       |       |         |            |        |     |     |             |
-       |   | api_spis_relations_child_get        | dask/json         |     | /api/spis/relations/child |             | http(method: 'GET', body: 'form') |        |       |       |         |            |        |     |     |             |
+       | services/example_api/default            |                   |     |                           |             |                                   |        |       |       |         |            |        |     |     |             |
+       |   | api_countries_get                   | dask/json         |     | /api/countries            |             | http(method: 'GET', body: 'form') |        |       |       |         |            |        |     |     |             |
        |                                         |                   |     |                           |             |                                   |        |       |       |         |            |        |     |     |             |
-       |   |   |   | RelationWithChildAndParents |                   |     | .[]                       |             |                                   |        |       |       | develop | private    |        |     |     |             |
-       |   |   |   |   | data                    | ref required      | Data | data                      |             | expand()                          |        |       |       | develop | private    |        |     |     |             |
+       |   |   |   | ListOfCountries             |                   |     | .[]                       |             |                                   |        |       |       | develop | private    |        |     |     |             |
+       |   |   |   |   | name                    | string required   |     | name                      |             |                                   |        |       |       | develop | private    |        |     |     |             |
+       |   |   |   |   | cities                  | array required    |     | cities                    |             |                                   |        |       |       | develop | private    |        |     |     |             |
+       |   |   |   |   | cities[]                | backref required  | Cities |                           |             | expand()                          |        |       |       | develop | private    |        |     |     |             |
        |                                         |                   |     |                           |             |                                   |        |       |       |         |            |        |     |     |             |
-       |   |   |   | Data                        |                   |     |                           |             |                                   |        |       |       | develop | private    |        |     |     |             |
-       |   |   |   |   | child_person            | ref required      | ChildPerson | Child_Person              |             | expand()                          |        |       |       | develop | private    |        |     |     |             |
-       |   |   |   |   | parents_legal           | array required    |     | parents_legal             |             |                                   |        |       |       | develop | private    |        |     |     |             |
-       |   |   |   |   | parents_legal[]         | backref required  | ParentsLegal |                           |             | expand()                          |        |       |       | develop | private    |        |     |     |             |
+       |   |   |   | Cities                      |                   |     |                           |             |                                   |        |       |       | develop | private    |        |     |     |             |
+       |   |   |   |   | name                    | string required   |     | name                      |             |                                   |        |       |       | develop | private    |        |     |     |             |
+       |   |   |   |   | counties                | array required    |     | counties                  |             |                                   |        |       |       | develop | private    |        |     |     |             |
+       |   |   |   |   | counties[]              | backref required  | Counties |                           |             | expand()                          |        |       |       | develop | private    |        |     |     |             |
+       |   |   |   |   | list_of_countries       | ref required      | ListOfCountries |                           |             | expand()                          |        |       |       | develop | private    |        |     |     |             |
        |                                         |                   |     |                           |             |                                   |        |       |       |         |            |        |     |     |             |
-       |   |   |   | ChildPerson                 |                   |     |                           |             |                                   |        |       |       | develop | private    |        |     |     |             |
-       |   |   |   |   | siblings                | array required    |     | siblings                  |             |                                   |        |       |       | develop | private    |        |     |     |             |
-       |   |   |   |   | siblings[]              | backref required  | Siblings |                           |             | expand()                          |        |       |       | develop | private    |        |     |     |             |
-       |                                         |                   |     |                           |             |                                   |        |       |       |         |            |        |     |     |             |
-       |   |   |   | Siblings                    |                   |     |                           |             |                                   |        |       |       | develop | private    |        |     |     |             |
-       |   |   |   |   | child_person            | ref required      | ChildPerson |                           |             | expand()                          |        |       |       | develop | private    |        |     |     |             |
-       |                                         |                   |     |                           |             |                                   |        |       |       |         |            |        |     |     |             |
-       |   |   |   | ParentsLegal                |                   |     |                           |             |                                   |        |       |       | develop | private    |        |     |     |             |
-       |   |   |   |   | data                    | ref required      | Data |                           |             | expand()                          |        |       |       | develop | private    |        |     |     |             |
-   """
+       |   |   |   | Counties                    |                   |     |                           |             |                                   |        |       |       | develop | private    |        |     |     |             |
+       |   |   |   |   | name                    | string required   |     | name                      |             |                                   |        |       |       | develop | private    |        |     |     |             |
+       |   |   |   |   | cities                  | ref required      | Cities |                           |             | expand()                          |        |       |       | develop | private    |        |     |     |             |
+       """
 
  
     path = tmp_path / 'manifest.json'
@@ -269,29 +275,32 @@ def test_open_api_manifest_nested_models(rc: RawConfig, tmp_path: Path):
     assert manifest == table
 
 def test_open_api_manifest_enum(rc: RawConfig, tmp_path: Path):
+    model_deduplicator._names.clear()
     data = json.dumps({
-        "openapi": "3.0.0",
-        "info": {"title": "Example", "version": "1.0.0"},
-        "paths": {
-            "/api/spis/relations/child": {
-                "get": {
+        'openapi': '3.0.0',
+        'info': {
+            'title': 'Example API',
+            'version': '1.0.0',
+            'summary': 'Example of an API',
+            'description': 'Intricate description'
+        },
+        'paths': {
+            '/api/countries': {
+                'get': {
                     "responses": {
                         "200": {
-                            "description": "Relation",
+                            "description": "Country",
                             "content": {
                                 "application/json": {
                                     "schema": {
                                         "properties": {
-                                            "relation_type": {
+                                            "name": {"type": "string"},
+                                            "region": {
                                                 "type": "string",
-                                                "enum": [
-                                                    "biological",
-                                                    "adoptive",
-                                                    "foster",
-                                                ]
+                                                "enum": ["Europe", "Asia", "Africa", "Americas", "Oceania"]
                                             }
                                         },
-                                        "type": "object",
+                                        "type": "object"
                                     }
                                 }
                             }
@@ -300,21 +309,23 @@ def test_open_api_manifest_enum(rc: RawConfig, tmp_path: Path):
                 }
             }
         }
-    }
-    )
+    })
 
     table = """
     id | d | r | b | m | property                | type              | ref | source                    | source.type | prepare                           | origin | count | level | status  | visibility | access | uri | eli | title       | description
-       | services/example                        | ns                |     |                           |             |                                   |        |       |       |         |            |        |     |     | Example     |
+       | services/example_api                    | ns                |     |                           |             |                                   |        |       |       |         |            |        |     |     | Example of an API | Intricate description
        |                                         |                   |     |                           |             |                                   |        |       |       |         |            |        |     |     |             |
-       | services/example/default                |                   |     |                           |             |                                   |        |       |       |         |            |        |     |     |             |
-       |   | api_spis_relations_child_get        | dask/json         |     | /api/spis/relations/child |             | http(method: 'GET', body: 'form') |        |       |       |         |            |        |     |     |             |
+       | services/example_api/default            |                   |     |                           |             |                                   |        |       |       |         |            |        |     |     |             |
+       |   | api_countries_get                   | dask/json         |     | /api/countries            |             | http(method: 'GET', body: 'form') |        |       |       |         |            |        |     |     |             |
        |                                         |                   |     |                           |             |                                   |        |       |       |         |            |        |     |     |             |
-       |   |   |   | Relation                    |                   |     | .                         |             |                                   |        |       |       | develop | private    |        |     |     |             |
-       |   |   |   |   | relation_type           | string required   |     | relation_type             |             |                                   |        |       |       | develop | private    |        |     |     |             |
-       |                                         | enum              |     | biological                |             |                                   |        |       |       | develop | private    |        |     |     |             |
-       |                                         |                   |     | adoptive                  |             |                                   |        |       |       | develop | private    |        |     |     |             |
-       |                                         |                   |     | foster                    |             |                                   |        |       |       | develop | private    |        |     |     |             |
+       |   |   |   | Country                     |                   |     | .                         |             |                                   |        |       |       | develop | private    |        |     |     |             |
+       |   |   |   |   | name                    | string required   |     | name                      |             |                                   |        |       |       | develop | private    |        |     |     |             |
+       |   |   |   |   | region                  | string required   |     | region                    |             |                                   |        |       |       | develop | private    |        |     |     |             |
+       |                                         | enum              |     | Europe                    |             |                                   |        |       |       | develop | private    |        |     |     |             |
+       |                                         |                   |     | Asia                      |             |                                   |        |       |       | develop | private    |        |     |     |             |
+       |                                         |                   |     | Africa                    |             |                                   |        |       |       | develop | private    |        |     |     |             |
+       |                                         |                   |     | Americas                  |             |                                   |        |       |       | develop | private    |        |     |     |             |
+       |                                         |                   |     | Oceania                   |             |                                   |        |       |       | develop | private    |        |     |     |             |
        """
  
     path = tmp_path / 'manifest.json'
@@ -327,45 +338,53 @@ def test_open_api_manifest_enum(rc: RawConfig, tmp_path: Path):
     assert manifest == table
 
 def test_open_api_manifest_datatypes(rc: RawConfig, tmp_path: Path):
+    model_deduplicator._names.clear()
     data = json.dumps({
         "openapi": "3.0.0",
-        "info": {"title": "Example", "version": "1.0.0"},
+        "info": {
+            "title": "Example API",
+            "version": "1.0.0",
+            "summary": "Example of an API",
+            "description": "Intricate description",
+        },
         "paths": {
-            "/api/datatypes": {
+            "/api/countries": {
                 "get": {
                     "responses": {
                         "200": {
-                            "description": "Example of datatypes",
+                            "description": "Country",
                             "content": {
                                 "application/json": {
                                     "schema": {
                                         "type": "object",
                                         "properties": {
-                                            "id": {"type": "integer", "example": 1},
-                                            "active_from": {
-                                                "type": "string",
-                                                "format": "date",
-                                                "example": "2019-12-31",
+                                            "name": {
+                                                "type": "string"
                                             },
-                                            "active_to": {
-                                                "nullable": True,
+                                            "independence_date": {
                                                 "type": "string",
+                                                "format": "date"
                                             },
-                                            "created_at": {
+                                            "timezone_offset": {
                                                 "type": "string",
-                                                "format": "date-time",
-                                                "example": "2025-02-19T07:00:11.000000Z",
+                                                "format": "time"
                                             },
-                                            "Subscribed": {"type": "boolean"},
-                                            "weight": {"type": "number"},
-                                            "attachment": {
+                                            "last_updated": {
+                                                "type": "string",
+                                                "format": "date-time"
+                                            },
+                                            "is_member_of_un": {
+                                                "type": "boolean"
+                                            },
+                                            "population": {
+                                                "type": "integer"
+                                            },
+                                            "gdp": {
+                                                "type": "number"
+                                            },
+                                            "flag_base64": {
                                                 "type": "string",
                                                 "contentEncoding": "base64",
-                                            },
-                                            "meeting_time": {
-                                                "type": "string",
-                                                "format": "time",
-                                                "example": "14:30:00",
                                             }
                                         }
                                     }
@@ -378,22 +397,23 @@ def test_open_api_manifest_datatypes(rc: RawConfig, tmp_path: Path):
         }
     })
 
+
     table = """
     id | d | r | b | m | property                | type              | ref | source                    | source.type | prepare                           | origin | count | level | status  | visibility | access | uri | eli | title       | description
-       | services/example                        | ns                |     |                           |             |                                   |        |       |       |         |            |        |     |     | Example     |
+       | services/example_api                    | ns                |     |                           |             |                                   |        |       |       |         |            |        |     |     | Example of an API | Intricate description
        |                                         |                   |     |                           |             |                                   |        |       |       |         |            |        |     |     |             |
-       | services/example/default                |                   |     |                           |             |                                   |        |       |       |         |            |        |     |     |             |
-       |   | api_datatypes_get                   | dask/json         |     | /api/datatypes            |             | http(method: 'GET', body: 'form') |        |       |       |         |            |        |     |     |             |
+       | services/example_api/default            |                   |     |                           |             |                                   |        |       |       |         |            |        |     |     |             |
+       |   | api_countries_get                   | dask/json         |     | /api/countries            |             | http(method: 'GET', body: 'form') |        |       |       |         |            |        |     |     |             |
        |                                         |                   |     |                           |             |                                   |        |       |       |         |            |        |     |     |             |
-       |   |   |   | ExampleOfDatatypes          |                   |     | .                         |             |                                   |        |       |       | develop | private    |        |     |     |             |
-       |   |   |   |   | id                      | integer required  |     | id                        |             |                                   |        |       |       | develop | private    |        |     |     |             |
-       |   |   |   |   | active_from             | date required     |     | active_from               |             |                                   |        |       |       | develop | private    |        |     |     |             |
-       |   |   |   |   | active_to               | string            |     | active_to                 |             |                                   |        |       |       | develop | private    |        |     |     |             |
-       |   |   |   |   | created_at              | datetime required |     | created_at                |             |                                   |        |       |       | develop | private    |        |     |     |             |
-       |   |   |   |   | subscribed              | boolean required  |     | Subscribed                |             |                                   |        |       |       | develop | private    |        |     |     |             |
-       |   |   |   |   | weight                  | number required   |     | weight                    |             |                                   |        |       |       | develop | private    |        |     |     |             |
-       |   |   |   |   | attachment              | binary required   |     | attachment                |             |                                   |        |       |       | develop | private    |        |     |     |             |
-       |   |   |   |   | meeting_time            | time required     |     | meeting_time              |             |                                   |        |       |       | develop | private    |        |     |     |             |
+       |   |   |   | Country                     |                   |     | .                         |             |                                   |        |       |       | develop | private    |        |     |     |             |
+       |   |   |   |   | name                    | string required   |     | name                      |             |                                   |        |       |       | develop | private    |        |     |     |             |
+       |   |   |   |   | independence_date       | date required     |     | independence_date         |             |                                   |        |       |       | develop | private    |        |     |     |             |
+       |   |   |   |   | timezone_offset         | time required     |     | timezone_offset           |             |                                   |        |       |       | develop | private    |        |     |     |             |
+       |   |   |   |   | last_updated            | datetime required |     | last_updated              |             |                                   |        |       |       | develop | private    |        |     |     |             |
+       |   |   |   |   | is_member_of_un         | boolean required  |     | is_member_of_un           |             |                                   |        |       |       | develop | private    |        |     |     |             |
+       |   |   |   |   | population              | integer required  |     | population                |             |                                   |        |       |       | develop | private    |        |     |     |             |
+       |   |   |   |   | gdp                     | number required   |     | gdp                       |             |                                   |        |       |       | develop | private    |        |     |     |             |
+       |   |   |   |   | flag_base64             | binary required   |     | flag_base64               |             |                                   |        |       |       | develop | private    |        |     |     |             |
        """
  
     path = tmp_path / 'manifest.json'
@@ -406,27 +426,34 @@ def test_open_api_manifest_datatypes(rc: RawConfig, tmp_path: Path):
     assert manifest == table
 
 def test_open_api_manifest_array_of_primitives(rc: RawConfig, tmp_path: Path):
+    model_deduplicator._names.clear()
     data = json.dumps({
         "openapi": "3.0.0",
-        "info": {"title": "Test API", "version": "1.0.0"},
+        "info": {
+            "title": "Example API",
+            "version": "1.0.0",
+            "summary": "Example of an API",
+            "description": "Intricate description",
+        },
         "paths": {
-            "/api/array": {
+            "/api/countries": {
                 "get": {
                     "responses": {
                         "200": {
-                            "description": "Masyvas",
+                            "description": "Country",
                             "content": {
                                 "application/json": {
                                     "schema": {
                                         "type": "object",
                                         "properties": {
-                                            "notes": {
-                                                "type": "array",
-                                                "items": {"type": "string"}
+                                            "name": {
+                                                "type": "string"
                                             },
-                                            "numbers": {
+                                            "city_names": {
                                                 "type": "array",
-                                                "items": {"type": "integer"}
+                                                "items": {
+                                                    "type": "string"
+                                                }
                                             }
                                         }
                                     }
@@ -441,17 +468,16 @@ def test_open_api_manifest_array_of_primitives(rc: RawConfig, tmp_path: Path):
 
     table = """
     id | d | r | b | m | property                | type              | ref | source                    | source.type | prepare                           | origin | count | level | status  | visibility | access | uri | eli | title       | description
-       | services/test_api                       | ns                |     |                           |             |                                   |        |       |       |         |            |        |     |     | Test API    |
+       | services/example_api                    | ns                |     |                           |             |                                   |        |       |       |         |            |        |     |     | Example of an API | Intricate description
        |                                         |                   |     |                           |             |                                   |        |       |       |         |            |        |     |     |             |
-       | services/test_api/default               |                   |     |                           |             |                                   |        |       |       |         |            |        |     |     |             |
-       |   | api_array_get                       | dask/json         |     | /api/array                |             | http(method: 'GET', body: 'form') |        |       |       |         |            |        |     |     |             |
+       | services/example_api/default            |                   |     |                           |             |                                   |        |       |       |         |            |        |     |     |             |
+       |   | api_countries_get                   | dask/json         |     | /api/countries            |             | http(method: 'GET', body: 'form') |        |       |       |         |            |        |     |     |             |
        |                                         |                   |     |                           |             |                                   |        |       |       |         |            |        |     |     |             |
-       |   |   |   | Masyvas                     |                   |     | .                         |             |                                   |        |       |       | develop | private    |        |     |     |             |
-       |   |   |   |   | notes                   | array required    |     | notes                     |             |                                   |        |       |       | develop | private    |        |     |     |             |
-       |   |   |   |   | notes[]                 | string required   |     |                           |             |                                   |        |       |       | develop | private    |        |     |     |             |
-       |   |   |   |   | numbers                 | array required    |     | numbers                   |             |                                   |        |       |       | develop | private    |        |     |     |             |
-       |   |   |   |   | numbers[]               | integer required  |     |                           |             |                                   |        |       |       | develop | private    |        |     |     |             |
-    """
+       |   |   |   | Country                     |                   |     | .                         |             |                                   |        |       |       | develop | private    |        |     |     |             |
+       |   |   |   |   | name                    | string required   |     | name                      |             |                                   |        |       |       | develop | private    |        |     |     |             |
+       |   |   |   |   | city_names              | array required    |     | city_names                |             |                                   |        |       |       | develop | private    |        |     |     |             |
+       |   |   |   |   | city_names[]            | string required   |     |                           |             |                                   |        |       |       | develop | private    |        |     |     |             |
+       """
  
     path = tmp_path / 'manifest.json'
     path_openapi = f'openapi+file://{path}'
