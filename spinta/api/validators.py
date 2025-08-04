@@ -1,4 +1,4 @@
-from typing import Optional, Any, Union
+from typing import Optional, Any
 
 from pydantic import BaseModel, Field, ConfigDict
 
@@ -8,7 +8,6 @@ class ClientAddData(BaseModel):
     secret: str = Field(..., min_length=1)
     scopes: Optional[list[str]] = None
     backends: Optional[dict[str, dict[str, Any]]] = None
-    organization_id: Optional[Union[str, int]] = None
 
     model_config = ConfigDict(extra='forbid')
 

@@ -172,7 +172,6 @@ async def auth_clients_add(request: Request) -> JSONResponse:
         client_data["secret"],
         client_data.get("scopes"),
         client_data.get("backends"),
-        organization_id=client_data.get("organization_id"),
     )
 
     return JSONResponse({
