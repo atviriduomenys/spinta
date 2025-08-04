@@ -12,10 +12,16 @@ New Features:
   extra authentication data. Implement `.creds("key")` prepare function to read values
   from saved `backends`. (`#1275`_)
 - Implement the skeleton of `spinta sync` command. (`#1378`_)
+- Added OpenAPI(and Swagger 2.0) inline schema to DSA conversion `Model` and `ModelProperty` dimensions (`#1260`_) (`#1377`_) (`#1381`_) (`#1382`_) (`#1389`_)
 
   .. _#1274: https://github.com/atviriduomenys/spinta/issues/1274
   .. _#1275: https://github.com/atviriduomenys/spinta/issues/1275
   .. _#1378: https://github.com/atviriduomenys/spinta/issues/1378
+  .. _#1260: https://github.com/atviriduomenys/spinta/issues/1260
+  .. _#1377: https://github.com/atviriduomenys/spinta/issues/1377
+  .. _#1381: https://github.com/atviriduomenys/spinta/issues/1381
+  .. _#1382: https://github.com/atviriduomenys/spinta/issues/1382
+  .. _#1389: https://github.com/atviriduomenys/spinta/issues/1389
 
 Bug fixes:
 
