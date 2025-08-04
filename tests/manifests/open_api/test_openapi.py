@@ -127,6 +127,7 @@ def test_open_api_manifest_title_with_slashes(rc: RawConfig, tmp_path: Path):
 
     assert manifest == table
 
+
 def test_open_api_manifest_root_model(rc: RawConfig, tmp_path: Path):
     data = json.dumps({
         'openapi': '3.0.0',
@@ -185,6 +186,7 @@ def test_open_api_manifest_root_model(rc: RawConfig, tmp_path: Path):
     manifest = load_manifest(rc, path_openapi)
 
     assert manifest == table
+
 
 def test_open_api_manifest_nested_models(rc: RawConfig, tmp_path: Path):
     data = json.dumps({
@@ -274,6 +276,7 @@ def test_open_api_manifest_nested_models(rc: RawConfig, tmp_path: Path):
 
     assert manifest == table
 
+
 def test_open_api_manifest_enum(rc: RawConfig, tmp_path: Path):
     model_deduplicator._names.clear()
     data = json.dumps({
@@ -336,6 +339,7 @@ def test_open_api_manifest_enum(rc: RawConfig, tmp_path: Path):
     manifest = load_manifest(rc, path_openapi)
 
     assert manifest == table
+
 
 def test_open_api_manifest_datatypes(rc: RawConfig, tmp_path: Path):
     model_deduplicator._names.clear()
@@ -424,6 +428,7 @@ def test_open_api_manifest_datatypes(rc: RawConfig, tmp_path: Path):
     manifest = load_manifest(rc, path_openapi)
 
     assert manifest == table
+
 
 def test_open_api_manifest_array_of_primitives(rc: RawConfig, tmp_path: Path):
     model_deduplicator._names.clear()

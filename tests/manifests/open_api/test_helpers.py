@@ -374,7 +374,7 @@ def test_get_dataset_schemas_no_tags_default_dataset():
         }
     ]
 
-SCHEMA = {
+JSON_SCHEMA = {
     "properties": {
         "data": {
             "properties": {
@@ -399,11 +399,11 @@ SCHEMA = {
     "type": "object",
 }
 
-RESPONSE = {
+OPENAPI_RESPONSE = {
     "description": "Relation with child and parents",
     "content": {
         "application/json": {
-            "schema": SCHEMA
+            "schema": JSON_SCHEMA
         }
     },
 }
@@ -426,7 +426,7 @@ OPENAPI_SCHEMA = {
                     }
                 ],
                 "responses": {
-                    "200": RESPONSE
+                    "200": OPENAPI_RESPONSE
                 },
             }
         }
@@ -434,8 +434,9 @@ OPENAPI_SCHEMA = {
 }
 
 @pytest.mark.parametrize("response,schema", [
+    # Swagger 2.0 specification
     (
-        {"description": "User found", "schema": SCHEMA},
+        {"description": "User found", "schema": JSON_SCHEMA},
         {
             "swagger": "2.0",
             "info": {"title": "User API", "version": "1.0.0"},
@@ -443,49 +444,38 @@ OPENAPI_SCHEMA = {
                 "/users/{id}": {
                     "get": {
                         "summary": "Get user by ID",
-                        "responses": {"200": {"description": "User found", "schema": SCHEMA}}
+                        "responses": {"200": {"description": "User found", "schema": JSON_SCHEMA}}
                     }
                 }
             }
         }
     ),
-    (RESPONSE, OPENAPI_SCHEMA),
-])
-def test_get_schema_from_response(response, schema):
-    assert get_schema_from_response(response, schema) == SCHEMA
-
-def test_get_schema_from_unknown_format():
-    {
-        "openapi": "3.0.0",
-        "info": {"title": "Vilnius API", "version": "1.0.0"},
-        "paths": {
-            "/api/spis/relations/child/{personal_code}": {
-                "get": {
-                    "tags": ["SPIS"],
-                    "summary": "Check all SPIS relations for child personal code",
-                    "operationId": "e0e4ad148932d12d438e6a52ebbba641",
-                    "parameters": [
-                        {
-                            "name": "personal_code",
-                            "in": "path",
-                            "description": "Personal code to check",
-                            "required": True,
-                            "schema": {"type": "integer", "example": "30101010018"},
-                        }
-                    ],
-                    "responses": {
-                        "200": RESPONSE
+    # OpenAPI 3.0 specification
+    (OPENAPI_RESPONSE, OPENAPI_SCHEMA),
+    # Unknown specification
+    (
+        OPENAPI_RESPONSE,
+        {
+            "info": {"title": "User API", "version": "1.0.0"},
+            "paths": {
+                "/users/{id}": {
+                    "get": {
+                        "summary": "Get user by ID",
+                        "responses": {"200": {"schema": JSON_SCHEMA}}
                     }
                 }
             }
         }
-    }
-    
+    )
+])
+def test_get_schema_from_response(response, schema):
+    assert get_schema_from_response(response, schema) == JSON_SCHEMA
+
 
 def test_get_model_schemas():
     dataset = "dataset_name"
     resource = "resource_name"
-    result = get_model_schemas(dataset, resource, RESPONSE, OPENAPI_SCHEMA)
+    result = get_model_schemas(dataset, resource, OPENAPI_RESPONSE, OPENAPI_SCHEMA)
 
     expected = [
         {
@@ -552,6 +542,7 @@ def test_get_model_schemas():
 
     assert result == expected
 
+
 def test_basic_model():
     dataset = "dataset_name"
     resource = "resource_name"
@@ -571,7 +562,7 @@ def test_basic_model():
     assert len(model.children) == 0
     assert len(model.properties) == 0
 
-    
+
 def test_model_add_property():
     model = Model("dataset", "resource", "MyModel", {})
 
@@ -581,11 +572,13 @@ def test_model_add_property():
 
     assert model.properties == [prop]
 
+
 def test_model_add_child():
     model = Model("dataset", "resource", "MyModel", {})
     child = model.add_child("Child", {})
     assert model.children == [child]
     assert child.parent == model
+
 
 def test_model_with_ref_property():
     schema = {
@@ -606,6 +599,7 @@ def test_model_with_ref_property():
     assert len(model.children) == 1
     assert prop.ref == child
     assert prop.datatype == "ref"
+
 
 def test_model_with_backref_property():
     schema = {
@@ -641,7 +635,8 @@ def test_model_with_backref_property():
 
     assert child_prop.datatype == "ref"
     assert child_prop.ref == model
-    
+
+
 def test_basic_property():
     schema = {
         "type": "string",
@@ -659,6 +654,7 @@ def test_basic_property():
     assert prop.required is True
     assert prop.enum == {}
 
+
 def test_property_nullable():
     schema = {
         "type": "string",
@@ -666,6 +662,7 @@ def test_property_nullable():
     }
     prop = Property("prop", schema)
     assert prop.required is False
+
 
 def test_property_base64_binary():
     schema = {
@@ -675,6 +672,7 @@ def test_property_base64_binary():
     prop = Property("prop", schema)
     assert prop.datatype == "binary"
 
+
 def test_property_datetime_format():
     schema = {
         "type": "string",
@@ -683,6 +681,7 @@ def test_property_datetime_format():
     prop = Property("prop", schema)
     assert prop.datatype == "datetime"
 
+
 def test_property_enum():
     schema = {
         "type": "string",
@@ -690,6 +689,7 @@ def test_property_enum():
     }
     prop = Property("prop", schema)
     assert prop.enum == {"a": {"source": "a"}, "b": {"source": "b"}, "c": {"source": "c"}}
+
 
 def test_property_enum_invalid_items():
     schema = {
