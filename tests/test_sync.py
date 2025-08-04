@@ -6,7 +6,8 @@ import pytest
 
 from spinta.client import RemoteClientCredentials
 from spinta.core.config import RawConfig
-from spinta.exceptions import NotImplementedFeature, UnexpectedAPIResponse, UnexpectedAPIResponseData
+from spinta.exceptions import NotImplementedFeature, UnexpectedAPIResponse, UnexpectedAPIResponseData, \
+    ManifestFileNotProvided
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.context import ContextForTests
@@ -115,6 +116,15 @@ def test_success_new_dataset(
     cli.invoke(rc, args=["sync", manifest_path], catch_exceptions=False)
 
 
+def test_failure_no_manifest_file_provided(rc: RawConfig, cli: SpintaCliRunner):
+    with pytest.raises(ManifestFileNotProvided) as exception:
+        cli.invoke(rc, args=["sync"], catch_exceptions=False)
+
+    assert exception.value.message == (
+        "A manifest file was not provided. Provide it in the format `spinta <command> <file_path>`."
+    )
+
+
 def test_failure_multiple_datasets(context: ContextForTests, rc: RawConfig, cli: SpintaCliRunner, tmp_path: PosixPath):
     """Checks that multiple dataset support is not yet implemented."""
     manifest = striptable("""
@@ -130,10 +140,10 @@ def test_failure_multiple_datasets(context: ContextForTests, rc: RawConfig, cli:
     manifest_path = tmp_path / 'manifest.csv'
     create_tabular_manifest(context, manifest_path, manifest)
 
-    with pytest.raises(NotImplementedFeature) as exc_info:
+    with pytest.raises(NotImplementedFeature) as exception:
         cli.invoke(rc, args=["sync", manifest_path], catch_exceptions=False)
 
-    assert "Synchronizing more than 1 dataset at a time" in str(exc_info.value)
+    assert exception.value.message == "Synchronizing more than 1 dataset at a time is not implemented yet."
 
 
 def test_failure_get_access_token_api_call(

@@ -14,7 +14,8 @@ from spinta.cli.helpers.manifest import convert_str_to_manifest_path
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.core.enums import Mode
 from spinta.core.context import configure_context
-from spinta.exceptions import NotImplementedFeature, UnexpectedAPIResponse, UnexpectedAPIResponseData
+from spinta.exceptions import NotImplementedFeature, UnexpectedAPIResponse, UnexpectedAPIResponseData, \
+    ManifestFileNotProvided
 from spinta.manifests.components import ManifestPath, Manifest
 
 
@@ -64,6 +65,8 @@ def sync(
     manifests: List[str] = Argument(None, help=("Manifest files to load")),
 ):
     manifests = convert_str_to_manifest_path(manifests)
+    if not manifests:
+        raise ManifestFileNotProvided
     context = configure_context(ctx.obj, manifests, mode=Mode.external)
     store = prepare_manifest(context, verbose=False, full_load=True)
     manifest: Manifest = store.manifest
