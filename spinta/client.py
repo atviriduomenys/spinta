@@ -138,7 +138,6 @@ def add_client_credentials(
         'client': client or creds.client or '',
         'secret': secret or creds.secret or '',
         'scopes': scopes,
-
     }
 
     with credsfile.open('w') as f:
