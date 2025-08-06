@@ -52,7 +52,7 @@ def _validate_redirect_implementation(
     backend: PostgreSQL,
     model: Model
 ):
-    table_name = get_pg_table_name(model.model_type(), TableType.REDIRECT)
+    table_name = get_pg_table_name(model, TableType.REDIRECT)
     insp = sa.inspect(backend.engine)
     return insp.has_table(table_name)
 
