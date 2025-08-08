@@ -1,4 +1,4 @@
-import cgi
+from email.message import Message
 
 from starlette.requests import Request
 
@@ -80,9 +80,17 @@ async def push(
             }
         }
         if 'Content-Disposition' in request.headers:
-            _, cdisp = cgi.parse_header(request.headers['Content-Disposition'])
-            if 'filename' in cdisp:
-                data.given[prop.name]['_id'] = cdisp['filename']
+            # Parse the Content-Disposition header
+            content_disposition = request.headers['Content-Disposition']
+            message = Message()
+            message['Content-Disposition'] = content_disposition
+
+            # Extract parameters from the header
+            parameters = dict(message.get_params(header='Content-Disposition'))
+
+            # Check if 'filename' is present in the parameters
+            if 'filename' in parameters:
+                data.given[prop.name]['_id'] = parameters['filename']
 
     if 'Revision' in request.headers:
         data.given['_revision'] = request.headers['Revision']
