@@ -5,8 +5,9 @@ from _pytest.fixtures import FixtureRequest
 
 from spinta.backends.constants import TableType
 from spinta.backends.postgresql.helpers.name import get_pg_table_name
-from spinta.cli.helpers.upgrade.components import Script, ScriptStatus
-from spinta.cli.helpers.upgrade.helpers import script_check_status_message
+from spinta.cli.helpers.upgrade.components import Script
+from spinta.cli.helpers.script.components import ScriptStatus
+from spinta.cli.helpers.script.helpers import script_check_status_message
 from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.manifests.tabular.helpers import striptable
@@ -58,7 +59,7 @@ def test_upgrade_redirect_pass(
 
     result = cli.invoke(rc, [
         'upgrade',
-        '-r', Script.REDIRECT.value
+        Script.REDIRECT.value
     ])
     assert result.exit_code == 0
     assert script_check_status_message(Script.REDIRECT.value, ScriptStatus.PASSED) in result.stdout
@@ -117,7 +118,7 @@ def test_upgrade_redirect_required(
     assert not insp.has_table(random_redirect)
     result = cli.invoke(context.get('rc'), [
         'upgrade',
-        '-r', Script.REDIRECT.value
+        Script.REDIRECT.value
     ])
     assert result.exit_code == 0
     assert script_check_status_message(Script.REDIRECT.value, ScriptStatus.REQUIRED) in result.stdout

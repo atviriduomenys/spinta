@@ -42,3 +42,6 @@ class KeymapSyncData:
     identifier: str
     data: dict
     redirect: str | None = None
+
+    # States if a given model's key is identifiable (contains model.ref pkey)
+    identifiable: bool = False

@@ -1,3 +1,6 @@
+import datetime
+import json
+
 import pytest
 import sqlalchemy as sa
 
@@ -192,6 +195,87 @@ def test_upgrade_missing_redirect_migration_entry(
     assert keymap_after_sync[0].redirect is None
 
 
+def test_upgrade_missing_modified_migration_entry(
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    geodb,
+    request,
+    reset_keymap
+):
+    table = '''
+            d | r | b | m | property | type    | ref                             | source         | level | access
+            syncdataset             |         |                                 |                |       |
+              | db                   | sql     |                                 |                |       |
+              |   |   | City         |         | id                              | cities         | 4     |
+              |   |   |   | id       | integer |                                 | id             | 4     | open
+              |   |   |   | name     | string  |                                 | name           | 2     | open
+              |   |   |   | country  | ref     | /syncdataset/countries/Country | country        | 4     | open
+              |   |   |   |          |         |                                 |                |       |
+            syncdataset/countries   |         |                                 |                |       |
+              |   |   | Country      |         | code                            |                | 4     |
+              |   |   |   | code     | integer |                                 |                | 4     | open
+              |   |   |   | name     | string  |                                 |                | 2     | open
+            '''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(table))
+    localrc = create_rc(rc, tmp_path, geodb)
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    assert remote.url == 'https://example.com/'
+    remote.app.authmodel('syncdataset/countries/Country', ['insert', 'wipe', 'changes'])
+    resp = remote.app.post('https://example.com/syncdataset/countries/Country', json={
+        'code': 2,
+    })
+
+    country_id_1 = resp.json()['_id']
+    modified_at = remote.app.get('https://example.com/syncdataset/countries/Country/:changes/-1').json()['_data'][0]['_created']
+    modified_at = datetime.datetime.fromisoformat(modified_at)
+    keymap: SqlAlchemyKeyMap = remote.app.context.get('store').keymaps['default']
+    with keymap:
+        migration_table = keymap.get_table(keymap.migration_table_name)
+        keymap.conn.execute(migration_table.delete().where(
+            migration_table.c.migration == Script.SQL_KEYMAP_MODIFIED.value
+        ))
+
+    # Check keymap state before sync for Country
+    keymap_before_sync = check_keymap_state(context, 'syncdataset/countries/Country')
+    assert len(keymap_before_sync) == 0
+
+    manifest = tmp_path / 'manifest.csv'
+
+    result = cli.invoke(localrc, [
+        'keymap', 'sync', manifest,
+        '-i', remote.url,
+        '--credentials', remote.credsfile,
+        '--no-progress-bar',
+    ], fail=False)
+    assert result.exit_code == 1
+    assert isinstance(result.exception, KeymapMigrationRequired)
+
+    result = cli.invoke(localrc, [
+        'upgrade'
+    ])
+    assert result.exit_code == 0
+
+    result = cli.invoke(localrc, [
+        'keymap', 'sync', manifest,
+        '-i', remote.url,
+        '--credentials', remote.credsfile,
+        '--no-progress-bar',
+    ], fail=False)
+    assert result.exit_code == 0
+    keymap_after_sync = check_keymap_state(context, 'syncdataset/countries/Country')
+    assert len(keymap_after_sync) == 1
+    assert keymap_after_sync[0].identifier == country_id_1
+    assert keymap_after_sync[0].value == 2
+    assert keymap_after_sync[0].redirect is None
+    assert keymap_after_sync[0].modified_at == modified_at
+
+
 def test_upgrade_redirect_migration_from_old_version(
     context,
     postgresql,
@@ -345,7 +429,7 @@ def test_upgrade_redirect_migration_from_old_version_with_data(
         for row in keymap.conn.execute('''
             SELECT * FROM "_correct_table"
         '''):
-            value_, hash_ = _hash_value(row['value'])
+            value_, hash_ = _hash_value(json.loads(row['value']))
             keymap.conn.execute(
                 old_table.insert().values(
                     key=row['key'],
@@ -471,7 +555,7 @@ def test_upgrade_redirect_migration_from_old_version_with_multi_column_data(
         for row in keymap.conn.execute('''
             SELECT * FROM "_correct_table"
         '''):
-            value_, hash_ = _hash_value(row['value'])
+            value_, hash_ = _hash_value(json.loads(row['value']))
             keymap.conn.execute(
                 old_table.insert().values(
                     key=row['key'],
@@ -527,3 +611,102 @@ def test_upgrade_redirect_migration_from_old_version_with_multi_column_data(
     assert third_entry.identifier == third_entry_id
     assert third_entry.value == [10, "Siauliai", country_id_1]
     assert third_entry.redirect is None
+
+
+def test_upgrade_modified_from_old_version(
+    context,
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    geodb,
+    request,
+    reset_keymap
+):
+    table = '''
+            d | r | b | m | property | type    | ref                             | source         | level | access
+            migrate/modified         |         |                                 |                |       |
+              |   |   | Country      |         | code                            |                | 4     |
+              |   |   |   | code     | integer |                                 |                | 4     | open
+              |   |   |   | name     | string  |                                 |                | 2     | open
+            '''
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(table))
+    localrc = create_rc(rc, tmp_path, geodb)
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    country_model = "migrate/modified/Country"
+
+    assert remote.url == 'https://example.com/'
+    remote.app.authmodel(country_model, ['insert', 'wipe', 'changes'])
+    resp = remote.app.post(country_model, json={
+        'code': 2,
+    })
+
+    country_id_1 = resp.json()['_id']
+    modified_at = remote.app.get(f'{country_model}/:changes/-1').json()['_data'][0]['_created']
+    modified_at = datetime.datetime.fromisoformat(modified_at)
+
+    keymap: SqlAlchemyKeyMap = remote.app.context.get('store').keymaps['default']
+
+    manifest = tmp_path / 'manifest.csv'
+    result = cli.invoke(localrc, [
+        'keymap', 'sync', manifest,
+        '-i', remote.url,
+        '--credentials', remote.credsfile,
+        '--check-all',
+        '--no-progress-bar',
+    ])
+    assert result.exit_code == 0
+
+    with keymap:
+        migration_table = keymap.get_table(keymap.migration_table_name)
+        keymap.conn.execute(migration_table.delete().where(
+            migration_table.c.migration == Script.SQL_KEYMAP_MODIFIED.value
+        ))
+        keymap.conn.execute(f'''
+            DROP INDEX "ix_{country_model}_modified_at";
+        ''')
+        keymap.conn.execute(f'''
+            ALTER TABLE "{country_model}" DROP COLUMN "modified_at";
+        ''')
+
+    result = cli.invoke(localrc, [
+        'keymap', 'sync', manifest,
+        '-i', remote.url,
+        '--check-all',
+        '--credentials', remote.credsfile,
+        '--no-progress-bar',
+    ], fail=False)
+    assert result.exit_code == 1
+    assert isinstance(result.exception, KeymapMigrationRequired)
+
+    result = cli.invoke(localrc, [
+        'upgrade'
+    ])
+    assert result.exit_code == 0
+    keymap_after_sync = check_keymap_state(context, country_model)
+    assert len(keymap_after_sync) == 1
+    first_entry = keymap_after_sync[0]
+    assert first_entry.identifier == country_id_1
+    assert first_entry.value == 2
+    assert first_entry.redirect is None
+    assert first_entry.modified_at is None
+
+    result = cli.invoke(localrc, [
+        'keymap', 'sync', manifest,
+        '-i', remote.url,
+        '--check-all',
+        '--credentials', remote.credsfile,
+        '--no-progress-bar',
+    ], fail=False)
+    assert result.exit_code == 0
+    keymap_after_sync = check_keymap_state(context, country_model)
+    assert len(keymap_after_sync) == 1
+    first_entry = keymap_after_sync[0]
+    assert first_entry.identifier == country_id_1
+    assert first_entry.value == 2
+    assert first_entry.redirect is None
+
+    assert first_entry.modified_at == modified_at
