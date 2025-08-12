@@ -34,7 +34,7 @@ spinta = "spinta.cli.main:app"
 
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.9"
 aiofiles = "*"
 authlib = "~0.11"
 jinja2 = "*"
@@ -60,10 +60,14 @@ unidecode = "*"
 sqlparse = "*"
 pprintpp = "*"
 rdflib = "*"
-numpy = "*"
+numpy = [
+    {version = "1.24.4", python = "<=3.11"}, 
+    {version = "^1.26.0", python = "==3.12"},
+    {version = ">=2.0.0", python = ">=3.13"}
+    ]
 
 # CLI tool
-click = "*"
+click = "8.1.8"
 typer = { version = "*", extras = ["all"] }
 
 # API server dependencies
@@ -100,10 +104,10 @@ GeoAlchemy2 = "*"
 Shapely = "*"
 aiohttp = "*"
 fsspec = "*"
-dask = { version = "*", extras = ["dataframe"] }
+dask = { version = "^2024.8.0", extras = ["dataframe"] }
 psutil = "*"
 tabulate = "*"
-pyproj = "*"
+pyproj = [{version = ">=3.7.0", python = ">=3.13"}, {version = "3.6.1", python = "<3.13"}]
 xmltodict = "*"
 sqlean-py = "*"
 cachetools = "*"
