@@ -6,7 +6,9 @@ from pathlib import Path
 import sqlalchemy as sa
 from sqlalchemy.engine.url import make_url, URL
 
+from spinta.backends.constants import TableType
 from spinta.backends.postgresql.helpers import get_pg_name
+from spinta.backends.postgresql.helpers.name import get_pg_table_name
 from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.exceptions import UnableToCastColumnTypes
@@ -2238,3 +2240,168 @@ def test_migrate_unsafe_cast_warning(
             assert item["_id"] == "197109d9-add8-49a5-ab19-3ddc7589ce7e"
             assert item["someInt"] == 50
         cleanup_table_list(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog'])
+
+
+def test_migrate_long_name_no_changes(
+    postgresql_migration: URL,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    cleanup_tables(postgresql_migration)
+    initial_manifest = '''
+     d               | r | b | m    | property | type   | ref | source
+     datasets/gov/migrate/example/very/long/dataset/name |   |   |      |          |        |     |
+                     |   |   | LongModelName |          |        |     |
+                     |   |   |      | someInt  | integer |     |
+    '''
+    context, rc = configure_migrate(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+    table_name = get_pg_table_name('datasets/gov/migrate/example/very/long/dataset/name/LongModelName')
+    changelog_name = get_pg_table_name('datasets/gov/migrate/example/very/long/dataset/name/LongModelName', TableType.CHANGELOG)
+
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {table_name, changelog_name}.issubset(
+            tables.keys())
+        table = tables[table_name]
+        conn.execute(table.insert().values({
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7e",
+            "someInt": 50,
+        }))
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p',
+    ])
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'COMMIT;\n'
+        '\n')
+
+    cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv'
+    ])
+
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+
+        table = tables[table_name]
+
+        result = conn.execute(table.select())
+        for item in result:
+            assert item["_id"] == "197109d9-add8-49a5-ab19-3ddc7589ce7e"
+            assert item["someInt"] == 50
+        cleanup_table_list(meta, [table_name, changelog_name])
+
+
+def test_migrate_long_name_rename(
+    postgresql_migration: URL,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    cleanup_tables(postgresql_migration)
+    initial_manifest = '''
+     d               | r | b | m             | property | type    | ref     | source
+     datasets/gov/migrate/example/very/long/dataset/name |   |   |      |          |        |     |
+                     |   |   | LongModelName |          |         | someInt |
+                     |   |   |               | someInt  | integer |         |
+    '''
+    context, rc = configure_migrate(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+    table_name = get_pg_table_name('datasets/gov/migrate/example/very/long/dataset/name/LongModelName')
+    changelog_name = get_pg_table_name('datasets/gov/migrate/example/very/long/dataset/name/LongModelName', TableType.CHANGELOG)
+
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {table_name, changelog_name}.issubset(
+            tables.keys())
+        table = tables[table_name]
+        conn.execute(table.insert().values({
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7e",
+            "someInt": 50,
+        }))
+
+    rename_file = {
+        "datasets/gov/migrate/example/very/long/dataset/name/LongModelName": {
+            "": "datasets/gov/migrate/example/very/long/dataset/name/EvenLongerModelName",
+            "someInt": "actualInt",
+        },
+    }
+    path = tmp_path / 'rename.json'
+    path.write_text(json.dumps(rename_file))
+
+    override_manifest(context, tmp_path, '''
+     d               | r | b | m             | property | type    | ref     | source
+     datasets/gov/migrate/example/very/long/dataset/name |   |   |      |          |        |     |
+                     |   |   | EvenLongerModelName |          |         | actualInt |
+                     |   |   |               | actualInt | integer |         |
+    ''')
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p',
+        '-r', path
+    ])
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'ALTER TABLE '
+        '"datasets/gov/migrate/example/very/lon_2895f72f_me/LongModelName" RENAME TO '
+        '"datasets/gov/migrate/example/very/lon_e74a0ea2_nLongerModelName";\n'
+        '\n'
+        'ALTER TABLE '
+        '"datasets/gov/migrate/example/very/lon_c3b41b6d_lName/:changelog" RENAME TO '
+        '"datasets/gov/migrate/example/very/lon_5bf0f407_lName/:changelog";\n'
+        '\n'
+        'ALTER SEQUENCE '
+        '"datasets/gov/migrate/example/very/lon_c3b41b6d_lName/:c__id_seq" RENAME TO '
+        '"datasets/gov/migrate/example/very/lon_5bf0f407_lName/:c__id_seq";\n'
+        '\n'
+        'ALTER TABLE '
+        '"datasets/gov/migrate/example/very/lon_a8ca9fad_elName/:redirect" RENAME TO '
+        '"datasets/gov/migrate/example/very/lon_6f0bc85c_elName/:redirect";\n'
+        '\n'
+        'ALTER TABLE '
+        '"datasets/gov/migrate/example/very/lon_e74a0ea2_nLongerModelName" RENAME '
+        '"someInt" TO "actualInt";\n'
+        '\n'
+        'ALTER TABLE '
+        '"datasets/gov/migrate/example/very/lon_e74a0ea2_nLongerModelName" RENAME '
+        'CONSTRAINT "uq_datasets/gov/migrate/example/very/_97f03b18_odelName_someInt" '
+        'TO "uq_datasets/gov/migrate/example/very/_d7fdbe46_elName_actualInt";\n'
+        '\n'
+        'COMMIT;\n'
+        '\n')
+
+    cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv'
+    ])
+
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+
+        renamed = get_pg_table_name('datasets/gov/migrate/example/very/long/dataset/name/EvenLongerModelName')
+        renamed_changelog = get_pg_table_name('datasets/gov/migrate/example/very/long/dataset/name/EvenLongerModelName', TableType.CHANGELOG)
+
+        table = tables[renamed]
+        assert renamed_changelog in tables
+        result = conn.execute(table.select())
+        for item in result:
+            assert item["_id"] == "197109d9-add8-49a5-ab19-3ddc7589ce7e"
+            assert item["someInt"] == 50
+        cleanup_table_list(meta, [renamed, renamed_changelog])

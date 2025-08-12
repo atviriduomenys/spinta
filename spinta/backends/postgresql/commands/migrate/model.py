@@ -12,7 +12,7 @@ from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
 from spinta.backends.postgresql.helpers.migrate.migrate import drop_all_indexes_and_constraints, handle_new_file_type, \
     get_prop_names, create_changelog_table, PostgresqlMigrationContext, \
     ModelMigrationContext, zip_and_migrate_properties, constraint_with_name, RenameMap, \
-    PropertyMigrationContext, create_redirect_table, contains_any_table
+    PropertyMigrationContext, create_redirect_table, contains_any_table, recreate_all_reserved_table_names
 from spinta.backends.postgresql.helpers.name import name_changed, get_pg_column_name, get_pg_constraint_name, \
     get_pg_removed_name, is_removed, get_pg_table_name, \
     get_pg_foreign_key_name
@@ -53,7 +53,8 @@ def migrate(
         old_name=old_table_name,
         new_name=new_table_name,
         inspector=inspector,
-        handler=handler
+        handler=handler,
+        rename=rename
     )
 
     properties = list(new.properties.values())
@@ -311,11 +312,10 @@ def _handle_model_unique_constraints(
         for prop in property_combination:
             for name in get_prop_names(prop):
                 column_name_list.append(get_pg_column_name(name))
-                old_column_name_list.append(get_pg_column_name(rename.get_old_column_name(new_model.name, name)))
+                old_column_name_list.append(get_pg_column_name(rename.get_old_column_name(old_table.name, name)))
 
         constraints = inspector.get_unique_constraints(old_table.name)
         constraint_name = get_pg_constraint_name(table_name, column_name_list)
-
         if model_context.unique_constraint_states[constraint_name]:
             continue
 
@@ -583,11 +583,18 @@ def _handle_reserved_tables(
     old_name: str,
     new_name: str,
     inspector: Inspector,
-    handler: MigrationHandler
+    handler: MigrationHandler,
+    rename: RenameMap,
 ):
     # Changelog
-    old_changelog_table_name = get_pg_table_name(old_name, TableType.CHANGELOG)
-    changelog_table_name = get_pg_table_name(new_name, TableType.CHANGELOG)
+    old_changelog_table_name, changelog_table_name = recreate_all_reserved_table_names(
+        model=model,
+        old_name=old_name,
+        new_name=new_name,
+        table_type=TableType.CHANGELOG,
+        rename=rename
+    )
+
     if not contains_any_table(old_changelog_table_name, changelog_table_name, inspector=inspector):
         create_changelog_table(context, model, handler)
     else:
@@ -601,8 +608,14 @@ def _handle_reserved_tables(
             ))
 
     # Redirect
-    old_redirect_table_name = get_pg_table_name(old_name, TableType.REDIRECT)
-    redirect_table_name = get_pg_table_name(new_name, TableType.REDIRECT)
+    old_redirect_table_name, redirect_table_name = recreate_all_reserved_table_names(
+        model=model,
+        old_name=old_name,
+        new_name=new_name,
+        table_type=TableType.REDIRECT,
+        rename=rename
+    )
+
     if not contains_any_table(old_redirect_table_name, redirect_table_name, inspector=inspector):
         create_redirect_table(context, model, handler)
     else:
