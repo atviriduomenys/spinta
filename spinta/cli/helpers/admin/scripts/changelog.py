@@ -270,7 +270,7 @@ def _gather_corrupted_changelog_entities(context: Context, backend: PostgreSQL, 
 
     yield from fetch_corrupted_changelog_entities(
         backend.engine,
-        get_pg_table_name(model.model_type(), TableType.CHANGELOG),
+        get_pg_table_name(model, TableType.CHANGELOG),
         pkey_columns
     )
 
@@ -298,7 +298,7 @@ def _changelog_contains_corrupted_data(context: Context, backend: PostgreSQL, mo
         for name in get_prop_names(pkey):
             pkey_columns.append(get_pg_column_name(name))
 
-    table_name = get_pg_table_name(model.model_type(), TableType.CHANGELOG)
+    table_name = get_pg_table_name(model, TableType.CHANGELOG)
     if check_if_corrupted_changelog_exists(backend.engine, table_name, pkey_columns):
         return True
     return False

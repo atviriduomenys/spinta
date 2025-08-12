@@ -108,6 +108,10 @@ Bug fixes:
 
   .. _#1251: https://github.com/atviriduomenys/spinta/issues/1251
 
+- Fixed `migration` script sometimes applying name compression twice (`#1409`_).
+
+  .. _#1409: https://github.com/atviriduomenys/spinta/issues/1409
+
 0.1.85 (2025-04-08)
 ===================
 
