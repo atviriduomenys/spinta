@@ -312,11 +312,10 @@ def _handle_model_unique_constraints(
         for prop in property_combination:
             for name in get_prop_names(prop):
                 column_name_list.append(get_pg_column_name(name))
-                old_column_name_list.append(get_pg_column_name(rename.get_old_column_name(new_model.name, name)))
+                old_column_name_list.append(get_pg_column_name(rename.get_old_column_name(old_table.name, name)))
 
         constraints = inspector.get_unique_constraints(old_table.name)
         constraint_name = get_pg_constraint_name(table_name, column_name_list)
-
         if model_context.unique_constraint_states[constraint_name]:
             continue
 
