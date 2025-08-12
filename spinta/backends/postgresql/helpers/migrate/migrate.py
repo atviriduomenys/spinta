@@ -177,10 +177,10 @@ class RenameMap:
 
     def get_column_name(self, table_name: str, column_name: str, root_only: bool = False, root_value: str = ""):
         # If table does not have renamed, return given column
-        if table_name not in self.tables:
+        table = self._find_new_table(table_name, compressed=True)
+        if table is None:
             return column_name
 
-        table = self.tables[table_name]
         columns = table.columns
 
         if column_name in columns:
@@ -199,10 +199,10 @@ class RenameMap:
         return column_name
 
     def get_old_column_name(self, table_name: str, column_name: str, root_only: bool = False, root_value: str = ""):
-        if table_name not in self.tables:
+        table = self._find_new_table(table_name, compressed=True)
+        if table is None:
             return column_name
 
-        table = self.tables[table_name]
         given_name = get_root_attr(column_name, initial_root=root_value) if root_only else column_name
         for old_column_column, new_column_name in table.columns.items():
             target_name = get_root_attr(new_column_name, initial_root=root_value) if root_only else new_column_name
@@ -577,7 +577,6 @@ def property_and_column_name_key(
         name = item.name
         new_name = rename.get_column_name(table.name, name, True, root_value=root_name)
         full_name = rename.get_column_name(table.name, name)
-
         column_renamed = name_changed(name, new_name)
         column_directly_renamed = name_changed(name, full_name)
 
@@ -620,6 +619,7 @@ def property_and_column_name_key(
                     return get_root_attr(old_name, initial_root=root_name)
 
         return get_root_attr(name, initial_root=root_name)
+    return None
 
 
 def _reserved_constraint(constraint: dict) -> bool:
