@@ -54,6 +54,10 @@ def keymap_sync(
     no_progress_bar: bool = Option(False, '--no-progress-bar', help=(
         "Skip counting total rows to improve performance."
     )),
+    check_all: bool = Option(False, '--check-all', help=(
+        "Only check dependencies of all models (with or without source. By default sync only checks model dependencies"
+        "if source is specified."
+    )),
     read_timeout: float = Option(300, '--read-timeout', help=(
         "Timeout for reading a response, default: 5 minutes (300s). The value is in seconds."
     )),
@@ -106,7 +110,7 @@ def keymap_sync(
         attach_keymaps(context, store)
         error_counter = ErrorCounter(max_count=max_error_count)
 
-        models = commands.traverse_ns_models(context, ns, manifest, Action.SEARCH, dataset_=dataset, source_check=True)
+        models = commands.traverse_ns_models(context, ns, manifest, Action.SEARCH, dataset_=dataset, source_check=not check_all)
         models = sort_models_by_ref_and_base(list(models))
 
         # Synchronize keymaps

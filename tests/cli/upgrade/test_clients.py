@@ -3,8 +3,9 @@ import pathlib
 from collections import Counter
 
 from spinta.auth import ensure_client_folders_exist, get_client_file_path
-from spinta.cli.helpers.upgrade.components import Script, ScriptStatus
-from spinta.cli.helpers.upgrade.helpers import script_check_status_message
+from spinta.cli.helpers.upgrade.components import Script
+from spinta.cli.helpers.script.components import ScriptStatus
+from spinta.cli.helpers.script.helpers import script_check_status_message
 from spinta.cli.helpers.upgrade.scripts.clients import client_migration_status_message, CLIENT_STATUS_SUCCESS, \
     CLIENT_STATUS_FAILED_INVALID, CLIENT_STATUS_FAILED_MISSING_ID, CLIENT_STATUS_FAILED_MISSING_SECRET, \
     CLIENT_STATUS_FAILED_MISSING_SCOPES, CLIENT_STATUS_SKIPPED_MIGRATED
@@ -42,7 +43,7 @@ def test_upgrade_clients_detect_upgrade(
 
     result = cli.invoke(rc, [
         'upgrade',
-        '-r', Script.CLIENTS.value
+        Script.CLIENTS.value
     ])
     assert result.exit_code == 0
     assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.REQUIRED) in result.stdout
@@ -115,7 +116,7 @@ def test_upgrade_clients_detect_upgrade_multiple(
 
     result = cli.invoke(rc, [
         'upgrade',
-        '-r', Script.CLIENTS.value
+        Script.CLIENTS.value
     ])
     assert result.exit_code == 0
     assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.REQUIRED) in result.stdout
@@ -212,7 +213,7 @@ def test_upgrade_clients_detect_upgrade_folders_already_exist(
     # Run upgrade in normal mode
     result = cli.invoke(rc, [
         'upgrade',
-        '-r', Script.CLIENTS.value
+        Script.CLIENTS.value
     ])
     assert result.exit_code == 0
     assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.REQUIRED) in result.stdout
@@ -268,7 +269,7 @@ def test_upgrade_clients_skip_upgrade(
     )
     result = cli.invoke(rc, [
         'upgrade',
-        '-r', Script.CLIENTS.value
+        Script.CLIENTS.value
     ])
     assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.REQUIRED) in result.stdout
     assert client_migration_status_message('TEST.yml', CLIENT_STATUS_SUCCESS) in result.stdout
@@ -277,7 +278,7 @@ def test_upgrade_clients_skip_upgrade(
     # Run again
     result = cli.invoke(rc, [
         'upgrade',
-        '-r', Script.CLIENTS.value
+        Script.CLIENTS.value
     ])
     assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.PASSED) in result.stdout
     assert "Created keymap" not in result.stdout
@@ -294,7 +295,7 @@ def test_upgrade_clients_skip_upgrade(
     )
     result = cli.invoke(rc, [
         'upgrade',
-        '-r', Script.CLIENTS.value
+        Script.CLIENTS.value
     ])
     assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.PASSED) in result.stdout
     assert "Created keymap" not in result.stdout
@@ -328,7 +329,7 @@ def test_upgrade_clients_invalid_client(
 
     result = cli.invoke(rc, [
         'upgrade',
-        '-r', Script.CLIENTS.value
+        Script.CLIENTS.value
     ])
     assert result.exit_code == 0
     assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.REQUIRED) in result.stdout
@@ -378,7 +379,7 @@ def test_upgrade_clients_invalid_client_missing_id(
 
     result = cli.invoke(rc, [
         'upgrade',
-        '-r', Script.CLIENTS.value
+        Script.CLIENTS.value
     ])
     assert result.exit_code == 0
     assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.REQUIRED) in result.stdout
@@ -428,7 +429,7 @@ def test_upgrade_clients_invalid_client_missing_secret(
 
     result = cli.invoke(rc, [
         'upgrade',
-        '-r', Script.CLIENTS.value
+        Script.CLIENTS.value
     ])
     assert result.exit_code == 0
     assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.REQUIRED) in result.stdout
@@ -476,7 +477,7 @@ def test_upgrade_clients_invalid_client_missing_scopes(
 
     result = cli.invoke(rc, [
         'upgrade',
-        '-r', Script.CLIENTS.value
+        Script.CLIENTS.value
     ])
     assert result.exit_code == 0
     assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.REQUIRED) in result.stdout
@@ -527,7 +528,7 @@ def test_upgrade_clients_force_upgrade(
     )
     result = cli.invoke(rc, [
         'upgrade',
-        '-r', Script.CLIENTS.value
+        Script.CLIENTS.value
     ])
     assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.REQUIRED) in result.stdout
 
@@ -543,7 +544,7 @@ def test_upgrade_clients_force_upgrade(
     )
     result = cli.invoke(rc, [
         'upgrade',
-        '-r', Script.CLIENTS.value
+        Script.CLIENTS.value
     ])
     assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.PASSED) in result.stdout
 
@@ -556,7 +557,7 @@ def test_upgrade_clients_force_upgrade(
     # Force check
     result = cli.invoke(rc, [
         'upgrade',
-        '-r', Script.CLIENTS.value,
+        Script.CLIENTS.value,
         '-f'
     ])
     assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.FORCED) in result.stdout
@@ -616,7 +617,7 @@ def test_upgrade_clients_force_upgrade_destructive(
     )
     result = cli.invoke(rc, [
         'upgrade',
-        '-r', Script.CLIENTS.value
+        Script.CLIENTS.value
     ])
     assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.REQUIRED) in result.stdout
 
@@ -642,13 +643,13 @@ def test_upgrade_clients_force_upgrade_destructive(
     )
     result = cli.invoke(rc, [
         'upgrade',
-        '-r', Script.CLIENTS.value
+        Script.CLIENTS.value
     ])
     assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.PASSED) in result.stdout
 
     result = cli.invoke(rc, [
         'upgrade',
-        '-r', Script.CLIENTS.value,
+        Script.CLIENTS.value,
         '-f'
     ])
     assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.FORCED) in result.stdout
@@ -657,7 +658,7 @@ def test_upgrade_clients_force_upgrade_destructive(
     # Force check
     result = cli.invoke(rc, [
         'upgrade',
-        '-r', Script.CLIENTS.value,
+        Script.CLIENTS.value,
         '-f', '-d'
     ])
     assert script_check_status_message(Script.CLIENTS.value, ScriptStatus.FORCED) in result.stdout

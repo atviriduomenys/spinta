@@ -32,11 +32,11 @@ def check(context: Context, resource: Resource):
     pass
 
 
-@commands.identifiable.register()
+@commands.identifiable.register(Dataset)
 def identifiable(dataset: Dataset):
     return dataset.level is None or dataset.level >= Level.identifiable
 
 
-@commands.identifiable.register()
+@commands.identifiable.register(Resource)
 def identifiable(resource: Resource):
     return resource.level is None or resource.level >= Level.identifiable

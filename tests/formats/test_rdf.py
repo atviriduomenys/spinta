@@ -1,8 +1,12 @@
 import base64
+import uuid
 from pathlib import Path
 
 from _pytest.fixtures import FixtureRequest
 
+from spinta import commands
+from spinta.backends.constants import TableType
+from spinta.backends.postgresql.components import PostgreSQL
 from spinta.core.config import RawConfig
 from spinta.testing.client import create_test_client
 from spinta.testing.data import pushdata, encode_page_values_manually
@@ -895,4 +899,138 @@ def test_rdf_empty(
                    f' xmlns:dcat="http://www.dcat.com"\n' \
                    f' xmlns:dct="http://dct.com"\n' \
                    f' xmlns="https://testserver/">\n' \
+                   f'</rdf:RDF>\n'
+
+
+@pytest.mark.skip(reason="Requires #925 to be implemented (Denorm, Object types)")
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_rdf_changes_corrupt_data(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property     | type    | ref     | access  | level | uri
+    example/rdf/changes/corrupt |         |         |         |       | 
+      |   |   |   |          | prefix  | rdf     |         |       | http://www.rdf.com
+      |   |   |   |          |         | pav     |         |       | http://purl.org/pav/
+      |   |   |   |          |         | dcat    |         |       | http://www.dcat.com
+      |   |   |   |          |         | dct     |         |       | http://dct.com
+      |   |   | City             |         | name    | open    |       | 
+      |   |   |   | id           | integer |         |         |       |
+      |   |   |   | name         | string  |         |         |       |
+      |   |   |   | country      | ref     | Country |         |       |
+      |   |   |   | country.test | string  |         |         |       |
+      |   |   |   | obj          | object  |         |         |       |
+      |   |   |   | obj.test     | string  |         |         |       |
+      |   |   | Country          |         | name    | open    |       | 
+      |   |   |   | id           | integer |         |         |       |
+      |   |   |   | name         | string  |         |         |       |
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    app = create_test_client(context, scope=['spinta_set_meta_fields'])
+    app.authmodel('example/rdf', ['insert', 'getall', 'search', 'changes'])
+    country_id = str(uuid.uuid4())
+    city_id = str(uuid.uuid4())
+    pushdata(app, f'/example/rdf/changes/corrupt/Country', {
+        '_id': country_id,
+        'id': 0,
+        'name': 'Lietuva'
+    })
+    pushdata(app, f'/example/rdf/changes/corrupt/City', {
+        '_id': city_id,
+        'id': 0,
+        'name': 'Vilnius',
+        'country': {
+            '_id': country_id,
+            'test': 't_lt'
+        },
+        'obj': {
+            'test': 't_obj'
+        }
+    })
+
+    resp = app.get("/example/rdf/changes/corrupt/City/:changes/-10/:format/rdf?select(_id, id, name, country, obj)").text
+    assert resp == f'<?xml version="1.0" encoding="UTF-8"?>\n' \
+                   f'<rdf:RDF\n' \
+                   f' xmlns:rdf="http://www.rdf.com"\n' \
+                   f' xmlns:pav="http://purl.org/pav/"\n' \
+                   f' xmlns:xml="http://www.w3.org/XML/1998/namespace"\n' \
+                   f' xmlns:dcat="http://www.dcat.com"\n' \
+                   f' xmlns:dct="http://dct.com"\n' \
+                   f' xmlns="https://testserver/">\n' \
+                   f'<rdf:Description ' \
+                        f'rdf:about="/example/rdf/changes/corrupt/City/{city_id}" '\
+                        'rdf:type="example/rdf/changes/corrupt/City"' \
+                   '>\n' \
+                   f'  <id>0</id>\n' \
+                   f'  <name>Vilnius</name>\n' \
+                   f'  <country>\n' \
+                    '    <rdf:Description '\
+                          f'rdf:about="/example/rdf/changes/corrupt/Country/{country_id}" ' \
+                           'rdf:type="example/rdf/changes/corrupt/Country">\n' \
+                    '      <test>t_lt</test>\n' \
+                    '    </rdf:Description>\n' \
+                    '  </country>\n' \
+                    '  <obj>\n' \
+                    '    <test>t_obj</test>\n' \
+                    '  </obj>\n' \
+                   f'</rdf:Description>\n' \
+                   f'</rdf:RDF>\n'
+
+    # Corrupt changelog data
+    store = context.get('store')
+    backend: PostgreSQL = store.manifest.backend
+    model = commands.get_model(context, store.manifest, 'example/rdf/changes/corrupt/City')
+    with backend.begin() as transaction:
+        table = backend.get_table(model, TableType.CHANGELOG)
+        transaction.execute(table.update().values(data={
+            'id': 0,
+            'name': 'Vilnius',
+            'new': 'new',
+            'country': {
+                '_id': country_id,
+                'testas': 'testas'
+            },
+            'obj': {
+                'test': 't_obj_updated',
+                'nested': {
+                    'test': 'test'
+                }
+            }
+        }).where(table.c._rid == city_id))
+
+    resp = app.get("/example/rdf/changes/corrupt/City/:changes/-10/:format/rdf").text
+    assert resp == f'<?xml version="1.0" encoding="UTF-8"?>\n' \
+                   f'<rdf:RDF\n' \
+                   f' xmlns:rdf="http://www.rdf.com"\n' \
+                   f' xmlns:pav="http://purl.org/pav/"\n' \
+                   f' xmlns:xml="http://www.w3.org/XML/1998/namespace"\n' \
+                   f' xmlns:dcat="http://www.dcat.com"\n' \
+                   f' xmlns:dct="http://dct.com"\n' \
+                   f' xmlns="https://testserver/">\n' \
+                   f'<rdf:Description ' \
+                        f'rdf:about="/example/rdf/changes/corrupt/City/{city_id}" '\
+                        'rdf:type="example/rdf/changes/corrupt/City"' \
+                   '>\n' \
+                   f'  <id>0</id>\n' \
+                   f'  <name>Vilnius</name>\n' \
+                   f'  <country>\n' \
+                    '    <rdf:Description '\
+                          f'rdf:about="/example/rdf/changes/corrupt/Country/{country_id}" ' \
+                           'rdf:type="example/rdf/changes/corrupt/Country">\n' \
+                    '    </rdf:Description>\n' \
+                    '  </country>\n' \
+                    '  <obj>\n' \
+                    '    <test>t_obj_updated</test>\n' \
+                    '  </obj>\n' \
+                   f'</rdf:Description>\n' \
                    f'</rdf:RDF>\n'

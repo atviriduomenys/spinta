@@ -66,7 +66,7 @@ def changes(
 
     result = connection.execute(qry)
     for row in result:
-        data = dict(row[table.c['data']])
+        data = dict(row[table.c['data']] or {})
         if row[table.c['action']] == 'move':
             data = {'_same_as': data.get('_id')}
         yield {

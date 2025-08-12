@@ -1,9 +1,13 @@
 import base64
+import uuid
 from pathlib import Path
 import pytest
 from _pytest.fixtures import FixtureRequest
 from starlette.datastructures import Headers
 
+from spinta import commands
+from spinta.backends.constants import TableType
+from spinta.backends.postgresql.components import PostgreSQL
 from spinta.core.config import RawConfig
 from spinta.testing.client import TestClient
 from spinta.testing.client import create_test_client
@@ -510,4 +514,88 @@ def test_csv_empty(
 
     assert parse_csv(app.get("/example/csv/empty/Country/:format/csv?select(id,name)")) == [
         ['id', 'name'],
+    ]
+
+
+@pytest.mark.manifests('internal_sql', 'csv')
+def test_csv_changes_corrupt_data(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(
+        rc, '''
+    d | r | b | m | property     | type    | ref     | access  | level | uri
+    example/csv/changes/corrupt |         |         |         |       | 
+      |   |   | City             |         | name    | open    |       | 
+      |   |   |   | id           | integer |         |         |       |
+      |   |   |   | name         | string  |         |         |       |
+      |   |   |   | country      | ref     | Country |         |       |
+      |   |   |   | country.test | string  |         |         |       |
+      |   |   |   | obj          | object  |         |         |       |
+      |   |   |   | obj.test     | string  |         |         |       |
+      |   |   | Country          |         | name    | open    |       | 
+      |   |   |   | id           | integer |         |         |       |
+      |   |   |   | name         | string  |         |         |       |
+    ''',
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True
+    )
+    app = create_test_client(context, scope=['spinta_set_meta_fields'])
+    app.authmodel('example/csv', ['insert', 'getall', 'search', 'changes'])
+    country_id = str(uuid.uuid4())
+    city_id = str(uuid.uuid4())
+    pushdata(app, f'/example/csv/changes/corrupt/Country', {
+        '_id': country_id,
+        'id': 0,
+        'name': 'Lietuva'
+    })
+    pushdata(app, f'/example/csv/changes/corrupt/City', {
+        '_id': city_id,
+        'id': 0,
+        'name': 'Vilnius',
+        'country': {
+            '_id': country_id,
+            'test': 't_lt'
+        },
+        'obj': {
+            'test': 't_obj'
+        }
+    })
+
+    assert parse_csv(app.get("/example/csv/changes/corrupt/City/:changes/:format/csv?select(_id, id, name, country, obj)&sort(id)")) == [
+        ['_id', 'id', 'name', 'country._id', 'country.test', 'obj.test'],
+        [city_id, '0', 'Vilnius', country_id, 't_lt', 't_obj'],
+    ]
+
+    # Corrupt changelog data
+    store = context.get('store')
+    backend: PostgreSQL = store.manifest.backend
+    model = commands.get_model(context, store.manifest, 'example/csv/changes/corrupt/City')
+    with backend.begin() as transaction:
+        table = backend.get_table(model, TableType.CHANGELOG)
+        transaction.execute(table.update().values(data={
+            'id': 0,
+            'name': 'Vilnius',
+            'new': 'new',
+            'country': {
+                '_id': country_id,
+                'testas': 'testas'
+            },
+            'obj': {
+                'test': 't_obj_updated',
+                'nested': {
+                    'test': 'test'
+                }
+            }
+        }).where(table.c._rid == city_id))
+
+    assert parse_csv(app.get("/example/csv/changes/corrupt/City/:changes/:format/csv?select(_id, id, name, country, obj)&sort(id)")) == [
+        ['_id', 'id', 'name', 'country._id', 'country.test', 'obj.test'],
+        [city_id, '0', 'Vilnius', country_id, '', 't_obj_updated'],
     ]

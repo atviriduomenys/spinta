@@ -129,6 +129,7 @@ responses = "*"
 snoop = "*"
 python-dotenv = "*"
 docutils = "*"
+requests-mock = "^1.11.0"
 
 # Starlette
 httpx = "*"

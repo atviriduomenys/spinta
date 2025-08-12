@@ -251,3 +251,50 @@ def test_check_nested_Backref(context: Context, rc, cli: SpintaCliRunner, tmp_pa
         tmp_path / 'manifest.csv'
     ])
 
+def test_check_dot_in_ref(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+ d | r | b | m | property   | type    | ref                     | source
+ test_dataset               |         |                         |
+   | resource1              | xml     |                         |
+                            |         |                         |
+   |   |   | Area           |         | id                      |
+   |   |   |   | name       | string  |                         | name/text()
+   |   |   |   | id         | integer |                         | name/text()
+   |   |   |   | area       | string  |                         | name/text()
+ test_dataset2              |         |                         |
+   | resource2              | xml     |                         |
+                            |         |                         |
+   |   | /test_dataset/Area |         | area                    |
+   |   |   | Country        |         | area.id                 | Country    
+   |   |   |   | name       | string  |                         | name/text()
+   |   |   |   | code       | string  |                         | code/text()
+   |   |   |   | area       | ref     | /test_dataset/Area[id]  | area/text()
+   |   |   |   | area.id    | integer |                         | area/text()
+    '''))
+
+    cli.invoke(rc, [
+        'check',
+        tmp_path / 'manifest.csv',
+    ])
+
+
+def test_check_nested_ref_and_prepare(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+d | r | b | m | property        | type    | ref                              | prepare         | source
+test_dataset                    |         |                                  |                 |
+  | resource1                   | xml     |                                  |                 |
+  |   |   | City                |         |                                  |                 | City
+  |   |   |   | name            | string  |                                  |                 | name/text()
+  |   |   |   | code            | string  |                                  |                 | code/text()
+  |   |   |   | mayor           | ref     | Mayor                            |                 | mayor
+  |   |   |   | mayor.name      | string  |                                  |                 | name/text()
+  |   |   | Mayor               |         |                                  |                 | Mayor
+  |   |   |   | name            | string  |                                  |                 | name/text()
+  |   |   |   | city            | ref     | City[mayor.name, code]           | name, city.code | city/text()
+  |   |   |   | city.code       | string  |                                  |                 | city/text()
+    '''))
+
+    cli.invoke(rc, [
+        'check',
+        tmp_path / 'manifest.csv',
+    ])
