@@ -75,6 +75,12 @@ def prepare(context: Context, backend: PostgreSQL, model: Model, ignore_duplicat
     if main_table_name == 'country':
         pp(model.manifest.path)
     backend.add_table(main_table, model)
+
+    # Reserved models should not have additional generic tables.
+    if model.name.startswith('_'):
+        return
+
+    # Add additional generic reserved tables
     # Create changes table.
     changelog_table = get_changes_table(context, backend, model)
     backend.add_table(changelog_table, model, TableType.CHANGELOG)
