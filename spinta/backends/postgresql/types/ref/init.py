@@ -4,7 +4,6 @@ import sqlalchemy as sa
 from sqlalchemy.sql.type_api import TypeEngine
 
 from spinta import commands
-from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_column_name
 from spinta.backends.postgresql.helpers.name import get_pg_column_name, get_pg_table_name
@@ -20,7 +19,7 @@ def prepare(context: Context, backend: PostgreSQL, dtype: Ref, propagate: bool =
     if not dtype.inherited:
         columns = get_pg_foreign_key(
             dtype.prop,
-            table_name=get_pg_table_name(get_table_name(dtype.model)),
+            table_name=get_pg_table_name(dtype.model),
             model_name=dtype.prop.model.name,
             column_type=pkey_type,
         )

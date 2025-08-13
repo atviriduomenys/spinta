@@ -9,7 +9,6 @@ from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.constants import UNSUPPORTED_TYPES
 from spinta.backends.postgresql.helpers import get_column_name
-from spinta.backends.postgresql.helpers import get_pg_name
 from spinta.backends.postgresql.helpers.changes import get_changes_table
 from spinta.backends.postgresql.helpers.name import PG_NAMING_CONVENTION, get_pg_table_name
 from spinta.backends.postgresql.helpers.redirect import get_redirect_table
@@ -32,7 +31,7 @@ def prepare(context: Context, backend: PostgreSQL, manifest: Manifest, **kwargs)
 @commands.prepare.register(Context, PostgreSQL, Model)
 def prepare(context: Context, backend: PostgreSQL, model: Model, ignore_duplicate: bool = False, **kwargs):
     table_name = get_table_name(model)
-    main_table_name = get_pg_name(table_name)
+    main_table_name = get_pg_table_name(table_name)
     if table_name in backend.tables and ignore_duplicate:
         return
 
@@ -131,12 +130,13 @@ def prepare(context: Context, backend: PostgreSQL, dtype: PrimaryKey, **kwargs):
     pkey_type = commands.get_primary_key_type(context, backend)
     base = dtype.prop.model.base
     if base and commands.identifiable(base):
+        ref_table = get_pg_table_name(base.parent)
         return [
             sa.Column('_id', pkey_type, primary_key=True),
             sa.ForeignKeyConstraint(
-                ['_id'], [f'{get_pg_table_name(get_table_name(base.parent))}._id'],
+                ['_id'], [f'{ref_table}._id'],
                 name=PG_NAMING_CONVENTION[Convention.FK] % {
-                    "table_name": get_pg_table_name(get_table_name(base.parent)),
+                    "table_name": ref_table,
                     "column_0_N_name": "_id"
                 }
             )

@@ -10,7 +10,7 @@ from spinta.backends import Backend
 from spinta.backends.constants import TableType
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers.name import get_pg_table_name
-from spinta.cli.helpers.upgrade.helpers import ensure_store_is_loaded
+from spinta.cli.helpers.script.helpers import ensure_store_is_loaded
 from spinta.components import Context, Model
 
 
@@ -52,7 +52,7 @@ def _validate_redirect_implementation(
     backend: PostgreSQL,
     model: Model
 ):
-    table_name = get_pg_table_name(model.model_type(), TableType.REDIRECT)
+    table_name = get_pg_table_name(model, TableType.REDIRECT)
     insp = sa.inspect(backend.engine)
     return insp.has_table(table_name)
 

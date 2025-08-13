@@ -58,7 +58,7 @@ def test_detect_upgrade_clients_no_keymap(
 
     cli.invoke(rc, [
         'upgrade',
-        '-r', Script.CLIENTS.value
+        Script.CLIENTS.value
     ])
 
     keymap_path = get_keymap_path(clients_path)
@@ -100,7 +100,7 @@ def test_detect_upgrade_clients_no_id(
 
     cli.invoke(rc, [
         'upgrade',
-        '-r', Script.CLIENTS.value
+        Script.CLIENTS.value
     ])
 
     keymap_path = get_keymap_path(clients_path)
@@ -142,7 +142,7 @@ def test_detect_upgrade_clients_empty_keymap(
 
     cli.invoke(rc, [
         'upgrade',
-        '-r', Script.CLIENTS.value
+        Script.CLIENTS.value
     ])
 
     keymap_path = get_keymap_path(clients_path)
@@ -184,7 +184,7 @@ def test_detect_upgrade_clients_empty_id(
 
     cli.invoke(rc, [
         'upgrade',
-        '-r', Script.CLIENTS.value
+        Script.CLIENTS.value
     ])
 
     keymap_path = get_keymap_path(clients_path)

@@ -24,6 +24,7 @@ services:
   app:
     volumes:
       - ./entrypoint.sh:/app/entrypoint.sh
+    image: spinta:local
     build:
       context: .
       dockerfile: Dockerfile

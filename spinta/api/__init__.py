@@ -6,6 +6,7 @@ import logging
 
 from authlib.common.errors import AuthlibHTTPError
 from authlib.oauth2.rfc6750.errors import InsufficientScopeError
+from pydantic import ValidationError
 
 from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
@@ -18,8 +19,9 @@ from starlette.routing import Route, Mount
 from starlette.middleware import Middleware
 
 from spinta import components, commands
+from spinta.api.validators import ClientAddData, ClientPatchData, ClientSecretPatchData
 from spinta.auth import AuthorizationServer, check_scope, query_client, get_clients_list, \
-    client_exists, create_client_file, delete_client_file, update_client_file, get_clients_path, Scopes, Token, \
+    client_exists, create_client_file, delete_client_file, update_client_file, get_clients_path, Scopes, \
     authenticate_token
 from spinta.auth import ResourceProtector
 from spinta.auth import BearerTokenValidator
@@ -28,7 +30,7 @@ from spinta.auth import get_auth_token
 from spinta.commands import prepare, get_version
 from spinta.components import Context, UrlParams
 from spinta.exceptions import BaseError, MultipleErrors, error_response, InsufficientPermission, \
-    UnknownPropertyInRequest, InsufficientPermissionForUpdate, EmptyPassword
+    ClientValidationError
 from spinta.middlewares import ContextMiddleware
 from spinta.urlparams import Version
 from spinta.urlparams import get_response_type
@@ -132,155 +134,162 @@ def _auth_client_context(request: Request) -> Context:
     return context
 
 
-async def auth_clients_add(request: Request):
+async def auth_clients_add(request: Request) -> JSONResponse:
+    context = _auth_client_context(request)
+
     try:
-        context = _auth_client_context(request)
         check_scope(context, Scopes.AUTH_CLIENTS)
-        config = context.get('config')
-        commands.load(context, config)
+    except InsufficientScopeError:
+        raise InsufficientPermission(scope=Scopes.AUTH_CLIENTS)
 
-        path = get_clients_path(config)
-        data = await request.json()
-        for key in data.keys():
-            if key not in ('client_name', 'secret', 'scopes'):
-                raise UnknownPropertyInRequest(property=key, properties=('client_name', 'secret', 'scopes'))
-        client_id = str(uuid.uuid4())
-        name = data["client_name"] if ("client_name" in data.keys() and data["client_name"]) else client_id
+    config = context.get('config')
+    commands.load(context, config)
 
-        while client_exists(path, client_id):
-            client_id = str(uuid.uuid4())
-
-        if "secret" in data.keys() and not data["secret"] or "secret" not in data.keys():
-            raise EmptyPassword
-
-        client_file, client_ = create_client_file(
-            path,
-            name,
-            client_id,
-            data["secret"],
-            data["scopes"] if "scopes" in data.keys() else None,
+    data = await request.json()
+    try:
+        client_data = ClientAddData.model_validate(data).model_dump(exclude_unset=True)
+    except ValidationError as e:
+        if "secret" in data.keys():
+            data["secret"] = "..."
+        error_dict = {",".join(err["loc"]): err["msg"] for err in e.errors()}
+        raise ClientValidationError(
+            request_data=data,
+            errors=error_dict,
+            inputs=list(ClientAddData.model_fields.keys())
         )
 
-        return JSONResponse({
-            "client_id": client_["client_id"],
-            "client_name": name,
-            "scopes": client_["scopes"]
-        })
+    client_id = str(uuid.uuid4())
+    name = client_data.get("client_name") or client_id
 
-    except InsufficientScopeError:
-        raise InsufficientPermission(scope=Scopes.AUTH_CLIENTS)
+    path = get_clients_path(config)
+    while client_exists(path, client_id):
+        client_id = str(uuid.uuid4())
+
+    client_file, client_ = create_client_file(
+        path,
+        name,
+        client_id,
+        client_data["secret"],
+        client_data.get("scopes"),
+        client_data.get("backends"),
+    )
+
+    return JSONResponse({
+        "client_id": client_["client_id"],
+        "client_name": name,
+        "scopes": client_["scopes"],
+        "backends": client_["backends"],
+    })
 
 
-async def auth_clients_get_all(request: Request):
+async def auth_clients_get_all(request: Request) -> JSONResponse:
+    context = _auth_client_context(request)
     try:
-        context = _auth_client_context(request)
         check_scope(context, Scopes.AUTH_CLIENTS)
-        config = context.get('config')
-        commands.load(context, config)
-
-        path = get_clients_path(config)
-        ids = get_clients_list(path)
-        return_values = []
-        for client_path in ids:
-            client = query_client(path, client_path)
-            return_values.append({
-                "client_id": client.id,
-                "client_name": client.name
-            })
-        return JSONResponse(return_values)
-
     except InsufficientScopeError:
         raise InsufficientPermission(scope=Scopes.AUTH_CLIENTS)
 
+    config = context.get('config')
+    commands.load(context, config)
 
-async def auth_clients_get_specific(request: Request):
+    path = get_clients_path(config)
+    ids = get_clients_list(path)
+    return_values = []
+    for client_path in ids:
+        client = query_client(path, client_path)
+        return_values.append({
+            "client_id": client.id,
+            "client_name": client.name
+        })
+    return JSONResponse(return_values)
+
+
+async def auth_clients_get_specific(request: Request) -> JSONResponse:
+    context = _auth_client_context(request)
+    token = context.get('auth.token')
+    config = context.get('config')
+    commands.load(context, config)
+
     try:
-        context = _auth_client_context(request)
-        token = context.get('auth.token')
-        config = context.get('config')
-        commands.load(context, config)
-
         client_id = request.path_params["client"]
         if client_id != token.get_client_id():
             check_scope(context, Scopes.AUTH_CLIENTS)
-
-        path = get_clients_path(config)
-        client = query_client(path, client_id)
-        return_value = {
-            "client_id": client.id,
-            "client_name": client.name,
-            "scopes": list(client.scopes)
-        }
-        return JSONResponse(return_value)
-
     except InsufficientScopeError:
         raise InsufficientPermission(scope=Scopes.AUTH_CLIENTS)
 
+    path = get_clients_path(config)
+    client = query_client(path, client_id)
+    return_value = {
+        "client_id": client.id,
+        "client_name": client.name,
+        "scopes": list(client.scopes)
+    }
+    return JSONResponse(return_value)
 
-async def auth_clients_delete_specific(request: Request):
+
+async def auth_clients_delete_specific(request: Request) -> Response:
     try:
         context = _auth_client_context(request)
-        client_id = request.path_params["client"]
         check_scope(context, Scopes.AUTH_CLIENTS)
-        config = context.get('config')
-        commands.load(context, config)
-
-        path = get_clients_path(config)
-        delete_client_file(path, client_id)
-        return Response(status_code=204)
-
     except InsufficientScopeError:
         raise InsufficientPermission(scope=Scopes.AUTH_CLIENTS)
 
+    config = context.get('config')
+    commands.load(context, config)
 
-async def auth_clients_patch_specific(request: Request):
+    path = get_clients_path(config)
+    client_id = request.path_params["client"]
+    delete_client_file(path, client_id)
+    return Response(status_code=204)
+
+
+async def auth_clients_patch_specific(request: Request) -> JSONResponse:
+    context = _auth_client_context(request)
+    token = context.get('auth.token')
+    client_id = request.path_params["client"]
+
+    validator_class = ClientPatchData
     try:
-        context = _auth_client_context(request)
-        token = context.get('auth.token')
-        client_id = request.path_params["client"]
-
-        config = context.get('config')
-        commands.load(context, config)
-        path = get_clients_path(config)
-
-        has_permission = True
-        try:
-            check_scope(context, Scopes.AUTH_CLIENTS)
-        except InsufficientScopeError:
-            has_permission = False
-        if client_id != token.get_client_id() and not has_permission:
-            raise InsufficientScopeError
-
-        data = await request.json()
-        for key in data.keys():
-            if key not in ('client_name', 'secret', 'scopes'):
-                properties = ('secret')
-                if has_permission:
-                    properties = ('client_name', 'secret', 'scopes')
-                raise UnknownPropertyInRequest(property=key, properties=properties)
-            elif key != 'secret' and not has_permission:
-                raise InsufficientPermissionForUpdate(field=key)
-
-        if "secret" in data.keys() and not data["secret"]:
-            raise EmptyPassword
-
-        new_data = update_client_file(
-            context,
-            path,
-            client_id,
-            name=data["client_name"] if "client_name" in data.keys() and data["client_name"] else None,
-            secret=data["secret"] if "secret" in data.keys() and data["secret"] else None,
-            scopes=data["scopes"] if "scopes" in data.keys() and data["scopes"] is not None else None,
-        )
-        return_value = {
-            "client_id": new_data["client_id"],
-            "client_name": new_data["client_name"],
-            "scopes": list(new_data["scopes"])
-        }
-        return JSONResponse(return_value)
-
+        check_scope(context, Scopes.AUTH_CLIENTS)
     except InsufficientScopeError:
-        raise InsufficientPermission(scope=Scopes.AUTH_CLIENTS)
+        validator_class = ClientSecretPatchData
+        # Requests without AUTH_CLIENTS scope can only change its own secret
+        if client_id != token.get_client_id():
+            raise InsufficientPermission(scope=Scopes.AUTH_CLIENTS)
+
+    config = context.get('config')
+    commands.load(context, config)
+    path = get_clients_path(config)
+
+    data = await request.json()
+    try:
+        client_data = validator_class.model_validate(data).model_dump(exclude_unset=True)
+    except ValidationError as e:
+        if "secret" in data.keys():
+            data["secret"] = "..."
+        error_dict = {",".join(err["loc"]): err["msg"] for err in e.errors()}
+        raise ClientValidationError(
+            request_data=data,
+            errors=error_dict,
+            inputs=list(validator_class.model_fields.keys())
+        )
+
+    new_data = update_client_file(
+        context,
+        path,
+        client_id,
+        name=client_data.get("client_name", None),
+        secret=client_data.get("secret", None),
+        scopes=client_data.get("scopes", None),
+        backends=client_data.get("backends", None),
+    )
+    return_value = {
+        "client_id": new_data["client_id"],
+        "client_name": new_data["client_name"],
+        "scopes": list(new_data["scopes"]),
+        "backends": new_data["backends"],
+    }
+    return JSONResponse(return_value)
 
 
 async def homepage(request: Request):

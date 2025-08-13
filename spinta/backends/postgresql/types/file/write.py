@@ -1,5 +1,3 @@
-import cgi
-
 from starlette.requests import Request
 
 from spinta import commands
@@ -13,7 +11,7 @@ from spinta.renderer import render
 from spinta.components import UrlParams, DataItem
 from spinta.core.enums import Action
 from spinta.types.datatype import DataType, File
-from spinta.commands.write import prepare_patch, simple_response, validate_data
+from spinta.commands.write import prepare_patch, simple_response, validate_data, get_filename
 from spinta.components import Context, DataSubItem
 from spinta.backends.constants import TableType
 from spinta.backends.postgresql.files import DatabaseFile
@@ -79,10 +77,7 @@ async def push(
                 '_content': await request.body(),
             }
         }
-        if 'Content-Disposition' in request.headers:
-            _, cdisp = cgi.parse_header(request.headers['Content-Disposition'])
-            if 'filename' in cdisp:
-                data.given[prop.name]['_id'] = cdisp['filename']
+        data.given[prop.name]['_id'] = get_filename(request)
 
     if 'Revision' in request.headers:
         data.given['_revision'] = request.headers['Revision']

@@ -1,8 +1,12 @@
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from spinta.components import Context, Store
 
 from typer import echo
+
+if TYPE_CHECKING:
+    from spinta.datasets.keymaps.sqlalchemy import SqlAlchemyKeyMap
 
 
 def outdated_keymaps(context: Context, migration: str, additional_check: Callable = None, **kwargs):
@@ -38,3 +42,10 @@ def requires_migration(context: Context, migration: str, additional_check: Calla
         return True
 
     return False
+
+
+def reset_keymap_increment(context: Context, keymap: 'SqlAlchemyKeyMap', key: str):
+    table = keymap.get_table(keymap.sync_table_name)
+    keymap.conn.execute(
+        table.update().values(cid=0, updated=None).where(table.c.model == key)
+    )
