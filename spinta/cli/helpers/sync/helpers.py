@@ -5,13 +5,29 @@ from typer import Context as TyperContext
 from spinta.auth import DEFAULT_CREDENTIALS_SECTION
 from spinta.cli.helpers.manifest import convert_str_to_manifest_path
 from spinta.cli.helpers.store import prepare_manifest
+from spinta.cli.helpers.sync import IDENTIFIER
 from spinta.client import get_client_credentials, RemoteClientCredentials, get_access_token
 from spinta.components import Config, Context
 from spinta import commands
 from spinta.core.context import configure_context
 from spinta.core.enums import Mode
-from spinta.exceptions import NotImplementedFeature, ManifestFileNotProvided
+from spinta.exceptions import (
+    NotImplementedFeature,
+    ManifestFileNotProvided,
+    UnexpectedAPIResponse,
+    UnexpectedAPIResponseData,
+)
 from spinta.manifests.components import ManifestPath, Manifest
+
+
+def check_api_response(response, expected_status_codes, operation):
+    if response.status_code not in expected_status_codes:
+        raise UnexpectedAPIResponse(
+            operation=operation,
+            expected_status_code=expected_status_codes,
+            response_status_code=response.status_code,
+            response_data=format_error_response_data(response.json())
+        )
 
 
 def get_manifest_paths(manifests: List[str]):
@@ -60,3 +76,19 @@ def get_base_path_and_headers(context: Context) -> Tuple[str, Dict[str, str]]:
 def format_error_response_data(data: dict) -> dict:
     data.pop("context", None)
     return data
+
+
+def extract_dataset_id(response, response_type):
+    dataset_id = None
+    if response_type == "list":
+        dataset_id = response.json().get("_data", [{}])[0].get(IDENTIFIER)
+    elif response_type == "detail":
+        dataset_id = response.json().get(IDENTIFIER)
+
+    if not dataset_id:
+        raise UnexpectedAPIResponseData(
+            operation=f"Retrieve dataset `{IDENTIFIER}`",
+            context=f"Dataset did not return the `{IDENTIFIER}` field which can be used to identify the dataset."
+        )
+
+    return dataset_id
