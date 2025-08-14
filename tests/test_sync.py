@@ -7,7 +7,7 @@ import pytest
 from spinta.client import RemoteClientCredentials
 from spinta.core.config import RawConfig
 from spinta.exceptions import NotImplementedFeature, UnexpectedAPIResponse, UnexpectedAPIResponseData, \
-    ManifestFileNotProvided
+ManifestFileNotProvided
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.context import ContextForTests
@@ -24,7 +24,7 @@ def patched_credentials():
         server="http://example.com",
         scopes="scope1 scope2",
     )
-    with patch('spinta.cli.sync.get_client_credentials', return_value=credentials):
+    with patch('spinta.cli.helpers.sync.helpers.get_client_credentials', return_value=credentials):
         yield credentials
 
 
@@ -288,7 +288,7 @@ def test_failure_post_dataset_returns_unexpected_status_code(
     assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
     assert exception.value.context == {
         "operation": "Create dataset",
-        "expected_status_code": HTTPStatus.CREATED,
+        "expected_status_code": str({HTTPStatus.CREATED}),
         "response_status_code": HTTPStatus.INTERNAL_SERVER_ERROR,
         "response_data": str({})
     }
@@ -356,8 +356,8 @@ def test_failure_post_distribution_returns_unexpected_status_code(
 
     assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
     assert exception.value.context == {
-        "operation": "Create dataset distribution",
-        "expected_status_code": HTTPStatus.CREATED,
+        "operation": "Create distribution",
+        "expected_status_code": str({HTTPStatus.CREATED}),
         "response_status_code": HTTPStatus.INTERNAL_SERVER_ERROR,
         "response_data": str({})
     }
@@ -399,8 +399,8 @@ def test_failure_post_dsa_returns_unexpected_status_code(
 
     assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
     assert exception.value.context == {
-        "operation": "Create DSA for dataset",
-        "expected_status_code": HTTPStatus.CREATED,
+        "operation": "Create DSA",
+        "expected_status_code": str({HTTPStatus.NO_CONTENT}),
         "response_status_code": HTTPStatus.INTERNAL_SERVER_ERROR,
         "response_data": str({})
     }
