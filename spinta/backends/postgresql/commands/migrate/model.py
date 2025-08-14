@@ -171,6 +171,10 @@ def migrate(
         ]
     ))
 
+    # Reserved tables do not need additional tables
+    if new.name.startswith('_'):
+        return
+
     # Create changelog table
     create_changelog_table(context, new, handler)
     # Create redirect table
@@ -586,6 +590,10 @@ def _handle_reserved_tables(
     handler: MigrationHandler,
     rename: RenameMap,
 ):
+    # Reserved models should not create additional reserved tables
+    if model.name.startswith('_'):
+        return
+
     # Changelog
     old_changelog_table_name, changelog_table_name = recreate_all_reserved_table_names(
         model=model,

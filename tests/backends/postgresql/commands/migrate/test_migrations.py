@@ -6,9 +6,11 @@ from pathlib import Path
 import sqlalchemy as sa
 from sqlalchemy.engine.url import make_url, URL
 
+from spinta import commands
 from spinta.backends.constants import TableType
 from spinta.backends.postgresql.helpers import get_pg_name
 from spinta.backends.postgresql.helpers.name import get_pg_table_name
+from spinta.cli.helpers.store import load_store
 from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.exceptions import UnableToCastColumnTypes
@@ -26,7 +28,7 @@ def configure_migrate(rc, path, manifest):
         'manifests': {
             'default': {
                 'type': 'tabular',
-                'path': str(path),
+                'path': str(path / 'manifest.csv'),
                 'backend': 'default',
                 'keymap': 'default',
                 'mode': 'external',
@@ -2405,3 +2407,36 @@ def test_migrate_long_name_rename(
             assert item["_id"] == "197109d9-add8-49a5-ab19-3ddc7589ce7e"
             assert item["someInt"] == 50
         cleanup_table_list(meta, [renamed, renamed_changelog])
+
+
+def test_migrate_reserved_model_additional_tables(
+    postgresql_migration: URL,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    cleanup_tables(postgresql_migration)
+    initial_manifest = '''
+     d               | r | b | m    | property     | type | ref | level
+    '''
+    context, rc = configure_migrate(rc, tmp_path, initial_manifest)
+    store = load_store(context, verbose=False, ensure_config_dir=True)
+    manifest = store.manifest
+
+    commands.load(context, manifest)
+    commands.link(context, manifest)
+
+    cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv'
+    ])
+    models = commands.get_models(context, manifest)
+    reserved_models = [model for model in models.keys() if model.startswith('_')]
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+
+        for model in reserved_models:
+            assert model in tables
+            assert get_pg_table_name(model, TableType.CHANGELOG) not in tables
+            assert get_pg_table_name(model, TableType.REDIRECT) not in tables
