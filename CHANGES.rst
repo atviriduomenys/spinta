@@ -50,6 +50,10 @@ Improvements:
 
 - `keymap sync` now has `--check-all` flag, that allows model dependency checks on models that does not have source set (`#1402`_).
 
+- Reserved models, no longer generate additional meta tables for `postgresql` backend (`#1419`_).
+
+  .. _#1419: https://github.com/atviriduomenys/spinta/issues/1419
+
 New Features:
 
 - Added the `spinta admin` command for running maintenance scripts. Unlike `spinta upgrade`, the `admin` command requires
