@@ -1,6 +1,9 @@
-from typing import List, Tuple, Dict
+from __future__ import annotations
+from http import HTTPStatus
+from typing import Any, cast
 
-from typer import Context as TyperContext
+from click.core import Context as ClickContext
+from requests import Response
 
 from spinta.auth import DEFAULT_CREDENTIALS_SECTION
 from spinta.cli.helpers.manifest import convert_str_to_manifest_path
@@ -17,10 +20,11 @@ from spinta.exceptions import (
     UnexpectedAPIResponse,
     UnexpectedAPIResponseData,
 )
-from spinta.manifests.components import ManifestPath, Manifest
+from spinta.manifests.components import ManifestPath
+from spinta.manifests.yaml.components import InlineManifest
 
 
-def check_api_response(response, expected_status_codes, operation):
+def validate_api_response(response: Response, expected_status_codes: set[HTTPStatus], operation: str) -> None:
     if response.status_code not in expected_status_codes:
         raise UnexpectedAPIResponse(
             operation=operation,
@@ -30,21 +34,24 @@ def check_api_response(response, expected_status_codes, operation):
         )
 
 
-def get_manifest_paths(manifests: List[str]):
-    manifests = convert_str_to_manifest_path(manifests)
+def get_manifest_paths(manifests: list[str]) -> list[ManifestPath]:
+    manifest_paths = convert_str_to_manifest_path(manifests)
     if not manifests:
         raise ManifestFileNotProvided
 
-    return manifests
+    if isinstance(manifest_paths, ManifestPath):
+        return [manifest_paths]
+
+    return manifest_paths
 
 
-def build_manifest_and_context(ctx: TyperContext, manifests: List[str]) -> Tuple[Context, Manifest]:
+def build_manifest_and_context(ctx: ClickContext, manifests: list[ManifestPath]) -> tuple[Context, InlineManifest]:
     context = configure_context(ctx.obj, manifests, mode=Mode.external)
     store = prepare_manifest(context, verbose=False, full_load=True)
-    return context, store.manifest
+    return context, cast(InlineManifest, store.manifest)
 
 
-def get_dataset_name(context: Context, manifest: Manifest) -> str:
+def get_dataset_name(context: Context, manifest: InlineManifest) -> str:
     datasets = commands.get_datasets(context, manifest)
     if len(datasets) > 1:
         # TODO: https://github.com/atviriduomenys/spinta/issues/1404
@@ -53,14 +60,14 @@ def get_dataset_name(context: Context, manifest: Manifest) -> str:
     return next(iter(datasets))
 
 
-def get_file_bytes_and_decoded_content(manifests: List[ManifestPath]) -> Tuple[bytes, str]:
+def get_file_bytes_and_decoded_content(manifests: list[ManifestPath]) -> tuple[bytes, str]:
     with open(manifests[0].path, "rb") as file:
         file_bytes = file.read()
         content = file_bytes.decode("utf-8")
     return file_bytes, content
 
 
-def get_base_path_and_headers(context: Context) -> Tuple[str, Dict[str, str]]:
+def get_base_path_and_headers(context: Context) -> tuple[str, dict[str, str]]:
     config: Config = context.get("config")
     credentials: RemoteClientCredentials = get_client_credentials(config.credentials_file, DEFAULT_CREDENTIALS_SECTION)
 
@@ -73,7 +80,7 @@ def get_base_path_and_headers(context: Context) -> Tuple[str, Dict[str, str]]:
     return base_path, headers
 
 
-def format_error_response_data(data: dict) -> dict:
+def format_error_response_data(data: dict[str, Any]) -> dict:
     data.pop("context", None)
     return data
 

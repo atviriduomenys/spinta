@@ -1,22 +1,23 @@
+from __future__ import annotations
 from http import HTTPStatus
 
 import requests
 
 from spinta.cli.helpers.sync import CONTENT_TYPE_TEXT_CSV
-from spinta.cli.helpers.sync.helpers import check_api_response
+from spinta.cli.helpers.sync.helpers import validate_api_response
 from spinta.exceptions import NotImplementedFeature
 
 
-def create_dsa(base_path, headers, dataset_id, content):
+def create_dsa(base_path: str, headers: dict[str, str], dataset_id: str, content: str) -> None:
     response = requests.post(
         f"{base_path}/Dataset/{dataset_id}/dsa/",
         headers={"Content-Type": CONTENT_TYPE_TEXT_CSV, **headers},
         data=content,
     )
-    check_api_response(response, {HTTPStatus.NO_CONTENT}, "Create DSA")
+    validate_api_response(response, {HTTPStatus.NO_CONTENT}, "Create DSA")
 
 
-def update_dsa(base_path, headers, dataset_id):
+def update_dsa(base_path: str, headers: dict[str, str], dataset_id: str) -> None:
     # TODO: Unfinished: implement w/ https://github.com/atviriduomenys/katalogas/issues/1600.
     response = requests.put(f"{base_path}/Dataset/{dataset_id}/dsa/", headers=headers)
     raise NotImplementedFeature(
