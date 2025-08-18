@@ -12,7 +12,8 @@ from spinta.cli.helpers.sync.helpers import (
     get_file_bytes_and_decoded_content,
     get_base_path_and_headers,
     get_manifest_paths,
-    build_manifest_and_context, extract_dataset_id,
+    build_manifest_and_context,
+    extract_dataset_id,
 )
 from spinta.manifests.components import ManifestPath
 

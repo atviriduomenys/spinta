@@ -25,7 +25,7 @@ def create_dataset(base_path: str, headers: dict[str, str], dataset_name: str) -
             "title": dataset_name,
             "description": "",
             "name": dataset_name,
-        }
+        },
     )
     validate_api_response(response, {HTTPStatus.CREATED}, "Create dataset")
     return response

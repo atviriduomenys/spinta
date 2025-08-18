@@ -9,7 +9,14 @@ from spinta.cli.helpers.sync.helpers import validate_api_response
 from spinta.manifests.components import ManifestPath
 
 
-def create_distribution(base_path: str, headers: dict[str, str], dataset_name: str, file_bytes: bytes, dataset_id: str, manifests: list[ManifestPath]) -> None:
+def create_distribution(
+    base_path: str,
+    headers: dict[str, str],
+    dataset_name: str,
+    file_bytes: bytes,
+    dataset_id: str,
+    manifests: list[ManifestPath],
+) -> None:
     response = requests.post(
         f"{base_path}/Distribution/",
         headers=headers,
@@ -19,6 +26,6 @@ def create_distribution(base_path: str, headers: dict[str, str], dataset_name: s
         },
         files={
             "file": (manifests[0].path, BytesIO(file_bytes), CONTENT_TYPE_TEXT_CSV),
-        }
+        },
     )
     validate_api_response(response, {HTTPStatus.CREATED}, "Create distribution")

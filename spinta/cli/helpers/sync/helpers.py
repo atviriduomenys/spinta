@@ -30,7 +30,7 @@ def validate_api_response(response: Response, expected_status_codes: set[HTTPSta
             operation=operation,
             expected_status_code=expected_status_codes,
             response_status_code=response.status_code,
-            response_data=format_error_response_data(response.json())
+            response_data=format_error_response_data(response.json()),
         )
 
 
@@ -85,7 +85,7 @@ def format_error_response_data(data: dict[str, Any]) -> dict:
     return data
 
 
-def extract_dataset_id(response, response_type):
+def extract_dataset_id(response: Response, response_type: str) -> str:
     dataset_id = None
     if response_type == "list":
         dataset_id = response.json().get("_data", [{}])[0].get(IDENTIFIER)
@@ -95,7 +95,7 @@ def extract_dataset_id(response, response_type):
     if not dataset_id:
         raise UnexpectedAPIResponseData(
             operation=f"Retrieve dataset `{IDENTIFIER}`",
-            context=f"Dataset did not return the `{IDENTIFIER}` field which can be used to identify the dataset."
+            context=f"Dataset did not return the `{IDENTIFIER}` field which can be used to identify the dataset.",
         )
 
     return dataset_id
