@@ -17,6 +17,25 @@ def create_distribution(
     dataset_id: str,
     manifests: list[ManifestPath],
 ) -> None:
+    """Create a distribution for a dataset with a CSV file.
+
+    Sends a POST request to the Distribution API, attaching the given CSV file.
+    The distribution is linked to the dataset identified by `dataset_id`.
+
+    Args:
+        base_path: Base URL of the API.
+        headers: HTTP headers to include in the request.
+        dataset_name: Name/title of the dataset for which the distribution is created.
+        file_bytes: Content of the CSV file to upload as bytes.
+        dataset_id: ID of the dataset to link the distribution to.
+        manifests: List of ManifestPath objects representing file paths.
+
+    Returns:
+        None
+
+    Raises:
+        requests.HTTPError: If the response status is not `201 Created`.
+    """
     response = requests.post(
         f"{base_path}/Distribution/",
         headers=headers,
