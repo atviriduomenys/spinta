@@ -2,11 +2,11 @@ import json
 from pathlib import Path
 
 import pytest
-
 import sqlalchemy as sa
+from sqlalchemy.engine import URL
+
 from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
-from sqlalchemy.engine import URL
 from tests.backends.postgresql.commands.migrate.test_migrations import cleanup_tables, configure_migrate, \
     override_manifest, cleanup_table_list, get_table_foreign_key_constraint_columns
 
