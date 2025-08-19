@@ -40,7 +40,7 @@ def validate_api_response(response: Response, expected_status_codes: set[HTTPSta
     if response.status_code not in expected_status_codes:
         raise UnexpectedAPIResponse(
             operation=operation,
-            expected_status_code=expected_status_codes,
+            expected_status_code={code.value for code in expected_status_codes},
             response_status_code=response.status_code,
             response_data=format_error_response_data(response.json()),
         )

@@ -76,7 +76,7 @@ def test_success_existing_dataset(
 
     assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
     assert exception.value.context == {
-        "status": HTTPStatus.NOT_IMPLEMENTED,
+        "status": HTTPStatus.NOT_IMPLEMENTED.value,
         "dataset_id": 1,
         "feature": "Updates on existing Datasets"
     }
@@ -159,7 +159,7 @@ def test_failure_get_access_token_api_call(
     with pytest.raises(Exception) as exception:
         cli.invoke(rc, args=["sync", manifest_path], catch_exceptions=False)
 
-    assert exception.value.response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
+    assert exception.value.response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
 
 
 def test_failure_get_dataset_returns_unexpected_status_code(
@@ -179,7 +179,7 @@ def test_failure_get_dataset_returns_unexpected_status_code(
             "type": "DatasetNotFound",
             "template": "The requested Dataset could not be found.",
             "message": f"No dataset matched the provided query.",
-            "status_code": HTTPStatus.INTERNAL_SERVER_ERROR,
+            "status_code": HTTPStatus.INTERNAL_SERVER_ERROR.value,
         }
     )
 
@@ -189,8 +189,8 @@ def test_failure_get_dataset_returns_unexpected_status_code(
     assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
     assert exception.value.context == {
         "operation": "Get dataset",
-        "expected_status_code": str({HTTPStatus.OK, HTTPStatus.NOT_FOUND}),
-        "response_status_code": HTTPStatus.INTERNAL_SERVER_ERROR,
+        "expected_status_code": str({HTTPStatus.OK.value, HTTPStatus.NOT_FOUND.value}),
+        "response_status_code": HTTPStatus.INTERNAL_SERVER_ERROR.value,
         "response_data": str({
             "code": "dataset_not_found",
             "type": "DatasetNotFound",
@@ -219,7 +219,7 @@ def test_failure_get_dataset_returns_invalid_data(
     with pytest.raises(UnexpectedAPIResponseData) as exception:
         cli.invoke(rc, args=["sync", manifest_path], catch_exceptions=False)
 
-    assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
+    assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
     assert exception.value.context == {
         "operation": "Retrieve dataset `_id`",
         "context": "Dataset did not return the `_id` field which can be used to identify the dataset."
@@ -255,7 +255,7 @@ def test_failure_put_dataset_returns_invalid_data(
 
     assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
     assert exception.value.context == {
-        "status": HTTPStatus.INTERNAL_SERVER_ERROR,
+        "status": HTTPStatus.INTERNAL_SERVER_ERROR.value,
         "dataset_id": 1,
         "feature": "Updates on existing Datasets"
     }
@@ -288,8 +288,8 @@ def test_failure_post_dataset_returns_unexpected_status_code(
     assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
     assert exception.value.context == {
         "operation": "Create dataset",
-        "expected_status_code": str({HTTPStatus.CREATED}),
-        "response_status_code": HTTPStatus.INTERNAL_SERVER_ERROR,
+        "expected_status_code": str({HTTPStatus.CREATED.value}),
+        "response_status_code": HTTPStatus.INTERNAL_SERVER_ERROR.value,
         "response_data": str({})
     }
 
@@ -357,8 +357,8 @@ def test_failure_post_distribution_returns_unexpected_status_code(
     assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
     assert exception.value.context == {
         "operation": "Create distribution",
-        "expected_status_code": str({HTTPStatus.CREATED}),
-        "response_status_code": HTTPStatus.INTERNAL_SERVER_ERROR,
+        "expected_status_code": str({HTTPStatus.CREATED.value}),
+        "response_status_code": HTTPStatus.INTERNAL_SERVER_ERROR.value,
         "response_data": str({})
     }
 
@@ -400,7 +400,7 @@ def test_failure_post_dsa_returns_unexpected_status_code(
     assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
     assert exception.value.context == {
         "operation": "Create DSA",
-        "expected_status_code": str({HTTPStatus.NO_CONTENT}),
-        "response_status_code": HTTPStatus.INTERNAL_SERVER_ERROR,
+        "expected_status_code": str({HTTPStatus.NO_CONTENT.value}),
+        "response_status_code": HTTPStatus.INTERNAL_SERVER_ERROR.value,
         "response_data": str({})
     }
