@@ -2803,3 +2803,388 @@ def test_migrate_adjust_ref_levels_no_pkey(
 
         cleanup_table_list(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog', 'migrate/example/Ref',
                                   'migrate/example/Ref/:changelog'])
+
+
+def test_migrate_adjust_ref_levels_no_pkey_previously_given_key(
+    postgresql_migration: URL,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    cleanup_tables(postgresql_migration)
+    initial_manifest = '''
+     d               | r | b | m      | property     | type          | ref            | level
+     migrate/example |   |   |        |              |               |                |
+                     |   |   | Test   |              |               |                |
+                     |   |   |        | someText     | string        |                |
+                     |   |   |        | someInteger  | integer       |                |
+                     |   |   |        | someNumber   | number        |                |
+                     |   |   |        |              |               |                |
+                     |   |   | Ref    |              |               |                |
+                     |   |   |        | someText     | string        |                |
+                     |   |   |        | someRef      | ref           | Test[someText] | 3
+    '''
+    context, rc = configure_migrate(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+    insert_values = [
+        {
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7e",
+            "someText": "test1",
+            "someInteger": 0,
+            "someNumber": 1.0
+        },
+        {
+            "_id": "b574111d-bd2f-4c94-9249-d9a0de49bd5b",
+            "someText": "test2",
+            "someInteger": 1,
+            "someNumber": 2.0
+        },
+        {
+            "_id": "1686c00c-0c59-413a-aa30-f5605488cc77",
+            "someText": "test3",
+            "someInteger": 0,
+            "someNumber": 1.0
+        },
+    ]
+    ref_insert = [
+        {
+            "_id": "350e7a87-28a5-4645-a659-2daa8e4bbe55",
+            "someRef.someText": "test1"
+        },
+        {
+            "_id": "72d5dc33-a074-43f0-882f-e06abd34113b",
+            "someRef.someText": "test2"
+        },
+        {
+            "_id": "478be0be-6ab9-4c03-8551-53d881567743",
+            "someRef.someText": "test3"
+        },
+    ]
+
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        table = tables['migrate/example/Test']
+        for item in insert_values:
+            conn.execute(table.insert().values(item))
+
+        result = conn.execute(table.select())
+        for i, item in enumerate(result):
+            item = dict(item)
+            assert item["_id"] == insert_values[i]["_id"]
+            assert item["someText"] == insert_values[i]["someText"]
+            assert item["someInteger"] == insert_values[i]["someInteger"]
+            assert item["someNumber"] == insert_values[i]["someNumber"]
+
+        assert {'migrate/example/Test', 'migrate/example/Test/:changelog', 'migrate/example/Ref',
+                'migrate/example/Ref/:changelog'}.issubset(tables.keys())
+        columns = table.columns
+        assert {'someText', 'someNumber', 'someInteger'}.issubset(columns.keys())
+
+        table = tables['migrate/example/Ref']
+        for item in ref_insert:
+            conn.execute(table.insert().values(item))
+
+        result = conn.execute(table.select())
+        for i, item in enumerate(result):
+            item = dict(item)
+            assert item["_id"] == ref_insert[i]["_id"]
+            assert item["someRef.someText"] == insert_values[i]["someText"]
+        columns = table.columns
+        assert {'someText', 'someRef.someText'}.issubset(columns.keys())
+
+    override_manifest(context, tmp_path, '''
+     d               | r | b | m      | property     | type          | ref  | level
+     migrate/example |   |   |        |              |               |      |
+                     |   |   | Test   |              |               |      |
+                     |   |   |        | someText     | string        |      |
+                     |   |   |        | someInteger  | integer       |      |
+                     |   |   |        | someNumber   | number        |      |
+                     |   |   |        |              |               |      |
+                     |   |   | Ref    |              |               |      |
+                     |   |   |        | someText     | string        |      |
+                     |   |   |        | someRef      | ref           | Test | 4
+    ''')
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p'
+    ])
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Ref" ADD COLUMN "someRef._id" UUID;\n'
+        '\n'
+        'CREATE INDEX "ix_migrate/example/Ref_someRef._id" ON "migrate/example/Ref" '
+        '("someRef._id");\n'
+        '\n'
+        'UPDATE "migrate/example/Ref" SET "someRef._id"="migrate/example/Test"._id '
+        'FROM "migrate/example/Test" WHERE "migrate/example/Ref"."someRef.someText" = '
+        '"migrate/example/Test"."someText";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Ref" RENAME "someRef.someText" TO '
+        '"__someRef.someText";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Ref" ADD CONSTRAINT '
+        '"fk_migrate/example/Ref_someRef._id" FOREIGN KEY("someRef._id") REFERENCES '
+        '"migrate/example/Test" (_id);\n'
+        '\n'
+        'COMMIT;\n'
+        '\n')
+
+    cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv'
+    ])
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        table = tables['migrate/example/Ref']
+        columns = table.columns
+        assert {'someText', 'someRef._id'}.issubset(columns.keys())
+
+        columns = get_table_foreign_key_constraint_columns(table)
+        assert any(
+            [['someRef._id'], ['_id']] == [constraint["column_names"], constraint["referred_column_names"]] for
+            constraint in columns
+        )
+
+        result = conn.execute(table.select())
+        for i, item in enumerate(result):
+            item = dict(item)
+            assert item["_id"] == ref_insert[i]["_id"]
+            assert item["someRef._id"] == insert_values[i]["_id"]
+
+    override_manifest(context, tmp_path, '''
+     d               | r | b | m      | property     | type          | ref            | level
+     migrate/example |   |   |        |              |               |                |
+                     |   |   | Test   |              |               |                |
+                     |   |   |        | someText     | string        |                |
+                     |   |   |        | someInteger  | integer       |                |
+                     |   |   |        | someNumber   | number        |                |
+                     |   |   |        |              |               |                |
+                     |   |   | Ref    |              |               |                |
+                     |   |   |        | someText     | string        |                |
+                     |   |   |        | someRef      | ref           | Test[someText] | 3
+    ''')
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p'
+    ])
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Ref" ADD COLUMN "someRef.someText" TEXT;\n'
+        '\n'
+        'UPDATE "migrate/example/Ref" SET '
+        '"someRef.someText"="migrate/example/Test"."someText" FROM '
+        '"migrate/example/Test" WHERE "migrate/example/Ref"."someRef._id" = '
+        '"migrate/example/Test"._id;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Ref" RENAME "someRef._id" TO "__someRef._id";\n'
+        '\n'
+        'DROP INDEX "ix_migrate/example/Ref_someRef._id";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Ref" DROP CONSTRAINT '
+        '"fk_migrate/example/Ref_someRef._id";\n'
+        '\n'
+        'COMMIT;\n'
+        '\n')
+
+    cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv'
+    ])
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+
+        table = tables['migrate/example/Ref']
+        columns = table.columns
+        assert {'someText', 'someRef.someText'}.issubset(
+            columns.keys())
+
+        columns = get_table_foreign_key_constraint_columns(table)
+        assert not any(
+            [['someRef._id'], ['_id']] == [constraint["column_names"], constraint["referred_column_names"]] for
+            constraint in columns
+        )
+
+        result = conn.execute(table.select())
+        for i, item in enumerate(result):
+            item = dict(item)
+            assert item["_id"] == ref_insert[i]["_id"]
+            assert item["someRef.someText"] == insert_values[i]["someText"]
+
+        cleanup_table_list(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog', 'migrate/example/Ref',
+                                  'migrate/example/Ref/:changelog'])
+
+
+
+def test_migrate_adjust_ref_levels_no_pkey_previously_given_key_with_denorm(
+    postgresql_migration: URL,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    cleanup_tables(postgresql_migration)
+    initial_manifest = '''
+     d               | r | b | m      | property            | type    | ref            | level
+     migrate/example |   |   |        |                     |         |                |
+                     |   |   | Test   |                     |         |                |
+                     |   |   |        | someText            | string  |                |
+                     |   |   |        | someInteger         | integer |                |
+                     |   |   |        | someNumber          | number  |                |
+                     |   |   |        |                     |         |                |
+                     |   |   | Ref    |                     |         |                |
+                     |   |   |        | someText            | string  |                |
+                     |   |   |        | someRef             | ref     | Test[someText] | 3
+                     |   |   |        | someRef.new         | string  |                | 
+                     |   |   |        | someRef.someInteger |         |                | 
+                     |   |   |        | someRef.someNumber  | number  |                | 
+    '''
+    context, rc = configure_migrate(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+    insert_values = [
+        {
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7e",
+            "someText": "test1",
+            "someInteger": 0,
+            "someNumber": 1.0
+        },
+        {
+            "_id": "b574111d-bd2f-4c94-9249-d9a0de49bd5b",
+            "someText": "test2",
+            "someInteger": 1,
+            "someNumber": 2.0
+        },
+        {
+            "_id": "1686c00c-0c59-413a-aa30-f5605488cc77",
+            "someText": "test3",
+            "someInteger": 0,
+            "someNumber": 1.0
+        },
+    ]
+    ref_insert = [
+        {
+            "_id": "350e7a87-28a5-4645-a659-2daa8e4bbe55",
+            "someRef.someText": "test1"
+        },
+        {
+            "_id": "72d5dc33-a074-43f0-882f-e06abd34113b",
+            "someRef.someText": "test2"
+        },
+        {
+            "_id": "478be0be-6ab9-4c03-8551-53d881567743",
+            "someRef.someText": "test3"
+        },
+    ]
+
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        table = tables['migrate/example/Test']
+        for item in insert_values:
+            conn.execute(table.insert().values(item))
+
+        result = conn.execute(table.select())
+        for i, item in enumerate(result):
+            item = dict(item)
+            assert item["_id"] == insert_values[i]["_id"]
+            assert item["someText"] == insert_values[i]["someText"]
+            assert item["someInteger"] == insert_values[i]["someInteger"]
+            assert item["someNumber"] == insert_values[i]["someNumber"]
+
+        assert {'migrate/example/Test', 'migrate/example/Test/:changelog', 'migrate/example/Ref',
+                'migrate/example/Ref/:changelog'}.issubset(tables.keys())
+        columns = table.columns
+        assert {'someText', 'someNumber', 'someInteger'}.issubset(columns.keys())
+
+        table = tables['migrate/example/Ref']
+        for item in ref_insert:
+            conn.execute(table.insert().values(item))
+
+        result = conn.execute(table.select())
+        for i, item in enumerate(result):
+            item = dict(item)
+            assert item["_id"] == ref_insert[i]["_id"]
+            assert item["someRef.someText"] == insert_values[i]["someText"]
+        columns = table.columns
+        assert {'someText', 'someRef.someText'}.issubset(columns.keys())
+
+    override_manifest(context, tmp_path, '''
+     d               | r | b | m      | property            | type    | ref            | level
+     migrate/example |   |   |        |                     |         |                |
+                     |   |   | Test   |                     |         |                |
+                     |   |   |        | someText            | string  |                |
+                     |   |   |        | someInteger         | integer |                |
+                     |   |   |        | someNumber          | number  |                |
+                     |   |   |        |                     |         |                |
+                     |   |   | Ref    |                     |         |                |
+                     |   |   |        | someText            | string  |                |
+                     |   |   |        | someRef             | ref     | Test[someText] | 4
+    ''')
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p'
+    ])
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Ref" ADD COLUMN "someRef._id" UUID;\n'
+        '\n'
+        'CREATE INDEX "ix_migrate/example/Ref_someRef._id" ON "migrate/example/Ref" '
+        '("someRef._id");\n'
+        '\n'
+        'UPDATE "migrate/example/Ref" SET "someRef._id"="migrate/example/Test"._id '
+        'FROM "migrate/example/Test" WHERE "migrate/example/Ref"."someRef.someText" = '
+        '"migrate/example/Test"."someText";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Ref" RENAME "someRef.someText" TO '
+        '"__someRef.someText";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Ref" ADD CONSTRAINT '
+        '"fk_migrate/example/Ref_someRef._id" FOREIGN KEY("someRef._id") REFERENCES '
+        '"migrate/example/Test" (_id);\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Ref" RENAME "someRef.new" TO "__someRef.new";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Ref" RENAME "someRef.someNumber" TO '
+        '"__someRef.someNumber";\n'
+        '\n'
+        'COMMIT;\n'
+        '\n')
+
+    cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv'
+    ])
+    with sa.create_engine(postgresql_migration).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        table = tables['migrate/example/Ref']
+        columns = table.columns
+        assert {'someText', 'someRef._id'}.issubset(columns.keys())
+
+        columns = get_table_foreign_key_constraint_columns(table)
+        assert any(
+            [['someRef._id'], ['_id']] == [constraint["column_names"], constraint["referred_column_names"]] for
+            constraint in columns
+        )
+
+        result = conn.execute(table.select())
+        for i, item in enumerate(result):
+            item = dict(item)
+            assert item["_id"] == ref_insert[i]["_id"]
+            assert item["someRef._id"] == insert_values[i]["_id"]
+
+
+        cleanup_table_list(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog', 'migrate/example/Ref',
+                                  'migrate/example/Ref/:changelog'])
