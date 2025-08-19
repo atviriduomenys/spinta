@@ -24,10 +24,6 @@ steps:
       - docker compose -p spinta-${DRONE_BRANCH/\//-} -f docker-compose.${DRONE_BRANCH/\//-}.yml down || true
       - docker compose -p spinta-${DRONE_BRANCH/\//-} -f docker-compose.${DRONE_BRANCH/\//-}.yml up -d
       - docker image prune -a -f
-      - sleep 15
-      - docker compose -p spinta-${DRONE_BRANCH/\//-} -f docker-compose.${DRONE_BRANCH/\//-}.yml logs spinta-${DRONE_BRANCH/\//-}
-      - sleep 60
-      - docker compose -p spinta-${DRONE_BRANCH/\//-} -f docker-compose.${DRONE_BRANCH/\//-}.yml logs spinta-${DRONE_BRANCH/\//-}
 volumes:
 - name: docker_sock
   host:
