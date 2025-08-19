@@ -36,9 +36,9 @@ git clone https://github.com/atviriduomenys/demo-saltiniai.git
 mkdir manifests
 find demo-saltiniai/manifest -name "*.csv" | xargs -I{} mv "{}" manifests/
 rm -f manifests/kdsa.csv
-ls manifests/* | xargs spinta copy -o manifest.csv
+ls manifests/* | xargs poetry run spinta copy -o manifest.csv
 
 rm -rf demo-saltiniai manifests
 
-spinta upgrade
+poetry run spinta upgrade
 make run
