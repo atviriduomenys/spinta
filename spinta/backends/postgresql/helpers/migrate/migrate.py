@@ -1212,7 +1212,7 @@ def split_columns(
             columns=old_columns,
             old_base_name=old_base_name,
             new_base_name=new_base_name,
-            primary_column_names=ref_table_primary_column_names
+            primary_column_names=new_primary_column_names,
         )
 
     if all_children_match:
@@ -1221,7 +1221,7 @@ def split_columns(
             old_base_name=old_base_name,
             new_base_name=new_base_name,
             children_column_names=new_children_column_names,
-            ref_table_primary_column_names=ref_table_primary_column_names
+            ref_table_primary_column_names=ref_table_primary_column_names,
         )
 
     return _split_columns_by_inference(
