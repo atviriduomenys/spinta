@@ -123,7 +123,7 @@ def get_namespace_name_list(context: Context, manifest: InternalSQLManifest, loa
             yield row['mpath']
 
 
-def _get_dataset_name_list(context: Context, manifest: InternalSQLManifest, loaded: bool):
+def get_dataset_name_list(context: Context, manifest: InternalSQLManifest, loaded: bool):
     manifest = get_manifest(context, manifest)
     table = manifest.table
     conn = get_transaction_connection(context)
@@ -433,7 +433,7 @@ def get_dataset(context: Context, manifest: InternalSQLManifest, dataset: str, *
 
 @commands.get_datasets.register(Context, InternalSQLManifest)
 def get_datasets(context: Context, manifest: InternalSQLManifest, loaded: bool = False, **kwargs):
-    dataset_names = _get_dataset_name_list(context, manifest, loaded)
+    dataset_names = get_dataset_name_list(context, manifest, loaded)
     objs = manifest.get_objects()
     for name in dataset_names:
         # get_dataset loads the dataset if it has not been loaded

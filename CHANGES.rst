@@ -13,6 +13,7 @@ New Features:
   from saved `backends`. (`#1275`_)
 - Implement the skeleton of `spinta sync` command. (`#1378`_)
 - Added OpenAPI(and Swagger 2.0) inline schema to DSA conversion `Model` and `ModelProperty` dimensions (`#1260`_) (`#1377`_) (`#1381`_) (`#1382`_) (`#1389`_)
+- Refactored `spinta sync` into separate functions to improve readability and maintainability. (`#1415_`)
 
   .. _#1274: https://github.com/atviriduomenys/spinta/issues/1274
   .. _#1275: https://github.com/atviriduomenys/spinta/issues/1275
@@ -22,19 +23,16 @@ New Features:
   .. _#1381: https://github.com/atviriduomenys/spinta/issues/1381
   .. _#1382: https://github.com/atviriduomenys/spinta/issues/1382
   .. _#1389: https://github.com/atviriduomenys/spinta/issues/1389
+  .. _#1415: https://github.com/atviriduomenys/spinta/issues/1415
+
 
 Bug fixes:
 
 - Fixed situation where nested properties in `ref` column were giving an error. (`#981`_)
-
-  .. _#981: https://github.com/atviriduomenys/spinta/issues/981
-
-
-Bug fixes:
-
 - Fixed a bug where `spinta` didn't work with Python version 3.13 (`#986`_, `#1357`_)
 - Updated `pyproj` from version 3.6.1 to 3.7.1 to ensure compatibility with Python version 3.13 (`1358`_)
-  
+
+  .. _#981: https://github.com/atviriduomenys/spinta/issues/981
   .. _#986: https://github.com/atviriduomenys/spinta/issues/986
   .. _#1357: https://github.com/atviriduomenys/spinta/issues/1357
   .. _#1358: https://github.com/atviriduomenys/spinta/issues/1358
