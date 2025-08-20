@@ -26,16 +26,12 @@ Improvements:
   Can add `--raise` argument to raise `Exception` instead of warning (only applies to invalid casts, unsafe cast do not
   raise `Exception`, like `TEXT` to `INTEGER`, which potentially can be valid) (`#1254`_).
 
-  .. _#1254: https://github.com/atviriduomenys/spinta/issues/1254
-
 - The `upgrade` command now support `-c` or `--check` flag, which performs only the script check without executing
   any scripts. This is useful for previewing required upgrades without applying them (`#1290`_).
 
 - Deobfuscated `SqlAlchemyKeymap` database values, they are no longer hashed (`#1307`_).
 
 - `keymap sync` now supports `move` changelog action (`#1307`_).
-
-  .. _#1307: https://github.com/atviriduomenys/spinta/issues/1307
 
 - The `spinta upgrade` and `spinta admin` commands no longer require the `-r` or `--run` argument to specify scripts.
   Instead, script names can be passed directly as arguments, allowing multiple scripts to be run at once (`#1340`_).
@@ -46,13 +42,17 @@ Improvements:
 - Introduced `duplicate_warn_only` argument to `keymap` configuration (by default it's disabled). It can be used to supress
   duplicate error. Only use this if necessary and are aware of possible issues (`#1402`_).
 
-  .. _#1402: https://github.com/atviriduomenys/spinta/issues/1402
-
 - `keymap sync` now has `--check-all` flag, that allows model dependency checks on models that does not have source set (`#1402`_).
 
 - Reserved models, no longer generate additional meta tables for `postgresql` backend (`#1419`_).
 
+- `spinta migrate` now is able to better map `ref` type migrations (`#1230`_).
+
   .. _#1419: https://github.com/atviriduomenys/spinta/issues/1419
+  .. _#1254: https://github.com/atviriduomenys/spinta/issues/1254
+  .. _#1402: https://github.com/atviriduomenys/spinta/issues/1402
+  .. _#1307: https://github.com/atviriduomenys/spinta/issues/1307
+  .. _#1230: https://github.com/atviriduomenys/spinta/issues/1230
 
 New Features:
 
@@ -62,8 +62,6 @@ New Features:
 - Added the `changelog` admin script (`spinta admin changelog`). This script checks for duplicate entries in the `changelog`
   (entries with the same local primary key but different global primary keys (`_id`)) and performs a `move` action on them
   to ensure a single active local-global key pair (`#1340`_).
-
-  .. _#1340: https://github.com/atviriduomenys/spinta/issues/1340
 
 - Added a `redirect` upgrade script (`spinta upgrade redirect`) that checks if the current `backend` supports redirects.
   If not, it will attempt to add the missing features (`#1290`_).
@@ -80,41 +78,43 @@ New Features:
   the `redirect` table (`#1290`_).
 
   .. _#1290: https://github.com/atviriduomenys/spinta/issues/1290
+  .. _#1340: https://github.com/atviriduomenys/spinta/issues/1340
 
 Bug fixes:
 
 - Fixed `migrate` cast not including right column types while generating `USING` code part (`#1254`_).
 
 - Fixed `keymap sync` ignoring `upsert` action (`#1269`_).
+
 - Fixed a bug where `spinta` didn't work with Python versions > 3.10. (`#1326`_)
 
-  .. _#1326: https://github.com/atviriduomenys/spinta/issues/1326
-
 - Fixed a bug where an error was thrown when nested property was a `ref` followed by a `backref`. (`#1302`_)
-
-  .. _#1269: https://github.com/atviriduomenys/spinta/issues/1269
-  .. _#1302: https://github.com/atviriduomenys/spinta/issues/1302
 
 - Fixed `postgresql` `update` action updating `_created`, instead of `_updated` value (`#1307`_).
 
 - Fixed a bug where `spinta` didn't work with Python version 3.13 (`#986`_, `#1357`_)
+
 - Updated `pyproj` from version 3.6.1 to 3.7.1 to ensure compatibility with Python version 3.13 (`#1358`_)
+
 - Updated `pandas` from 2.0.3 to 2.3.1 to support Python versions 3.9–3.13 (`#1380`_)
+
 - Updated `dask` to version 2024.12.1 for use with Python 3.10–3.13 (`#1380`_)
+
 - Updated `numpy` from 1.24.4 to version 2.3.1 for use with Python 3.11–3.13 (`#1380`_)
- 
-  .. _#986: https://github.com/atviriduomenys/spinta/issues/986
-  .. _#1357: https://github.com/atviriduomenys/spinta/issues/1357
-  .. _#1358: https://github.com/atviriduomenys/spinta/issues/1358
-  .. _#1380: https://github.com/atviriduomenys/spinta/issues/1380
 
 - Fixed an error caused by fetching changelog data containing columns no longer declared in the manifest (`#1251`_).
-
-  .. _#1251: https://github.com/atviriduomenys/spinta/issues/1251
 
 - Fixed `migration` script sometimes applying name compression twice (`#1409`_).
 
   .. _#1409: https://github.com/atviriduomenys/spinta/issues/1409
+  .. _#1269: https://github.com/atviriduomenys/spinta/issues/1269
+  .. _#1251: https://github.com/atviriduomenys/spinta/issues/1251
+  .. _#986: https://github.com/atviriduomenys/spinta/issues/986
+  .. _#1357: https://github.com/atviriduomenys/spinta/issues/1357
+  .. _#1358: https://github.com/atviriduomenys/spinta/issues/1358
+  .. _#1380: https://github.com/atviriduomenys/spinta/issues/1380
+  .. _#1326: https://github.com/atviriduomenys/spinta/issues/1326
+  .. _#1302: https://github.com/atviriduomenys/spinta/issues/1302
 
 0.1.85 (2025-04-08)
 ===================
