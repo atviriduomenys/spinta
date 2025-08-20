@@ -14,7 +14,7 @@ from spinta.backends.postgresql.helpers.migrate.migrate import name_key, Postgre
     extract_sqlalchemy_columns, is_internal, split_columns, get_spinta_primary_keys, remap_and_rename_columns, \
     remove_property_prefix_from_column_name, zip_and_migrate_properties, contains_constraint_name, \
     ModelMigrationContext, \
-    constraint_with_name, RenameMap, PropertyMigrationContext
+    constraint_with_name, RenameMap, PropertyMigrationContext, get_model_column_names, get_explicit_primary_keys
 from spinta.backends.postgresql.helpers.name import get_pg_column_name, get_pg_table_name, get_pg_foreign_key_name
 from spinta.components import Context
 from spinta.datasets.inspect.helpers import zipitems
@@ -309,6 +309,14 @@ def migrate(
     old_prop_name = get_pg_column_name(rename.get_old_column_name(table.name, get_column_name(new.prop)))
 
     new_name = get_pg_column_name(new.prop.place)
+    ref_model_columns = get_model_column_names(
+        table_name=old_ref_table,
+        inspector=inspector
+    )
+    ref_model_explicit_keys=get_explicit_primary_keys(
+        ref=new,
+        rename=rename
+    )
     ref_model_primary_keys = get_spinta_primary_keys(
         table_name=old_ref_table,
         model=new.model,
@@ -322,15 +330,16 @@ def migrate(
         inspector=inspector
     )
     old_primary_columns, old_children_columns = split_columns(
-        columns=old,
-        base_name=old_prop_name,
-        target_base_name=new_name,
-        ref_table_primary_key_names=ref_model_primary_keys,
-        target_primary_column_names=new_primary_column_names,
-        target_children_column_names=new_children_column_names,
-        internal=old_columns_internal
+        old_columns=old,
+        old_base_name=old_prop_name,
+        new_base_name=new_name,
+        internal=old_columns_internal,
+        new_primary_column_names=new_primary_column_names,
+        new_children_column_names=new_children_column_names,
+        ref_table_column_names=ref_model_columns,
+        ref_table_primary_column_names=ref_model_primary_keys,
+        ref_explicit_primary_column_names=ref_model_explicit_keys
     )
-
     if old_columns_internal:
         # Handle internal ref migration
         commands.migrate(
@@ -517,6 +526,14 @@ def migrate(
     new_children_column_names = [column.name for column in new_children_columns]
 
     new_name = get_pg_column_name(new.prop.place)
+    ref_model_columns = get_model_column_names(
+        table_name=old_ref_table,
+        inspector=inspector
+    )
+    ref_model_explicit_keys=get_explicit_primary_keys(
+        ref=new,
+        rename=rename
+    )
     ref_model_primary_keys = get_spinta_primary_keys(
         table_name=old_ref_table,
         model=new.model,
@@ -530,15 +547,16 @@ def migrate(
         inspector=inspector
     )
     old_primary_columns, old_children_columns = split_columns(
-        columns=old,
-        base_name=old_prop_name,
-        target_base_name=new_name,
-        ref_table_primary_key_names=ref_model_primary_keys,
-        target_primary_column_names=list(new_primary_column_name_mapping.keys()),
-        target_children_column_names=new_children_column_names,
-        internal=old_columns_internal
+        old_columns=old,
+        old_base_name=old_prop_name,
+        new_base_name=new_name,
+        internal=old_columns_internal,
+        new_primary_column_names=list(new_primary_column_name_mapping.keys()),
+        new_children_column_names=new_children_column_names,
+        ref_table_column_names=ref_model_columns,
+        ref_table_primary_column_names=ref_model_primary_keys,
+        ref_explicit_primary_column_names=ref_model_explicit_keys
     )
-
     # Check to see if migration has already been achieved
     migrated = False
     if len(old_primary_columns) == 1:
