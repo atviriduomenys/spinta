@@ -13,7 +13,7 @@ from spinta.cli.helpers.sync.helpers import (
     get_base_path_and_headers,
     get_manifest_paths,
     build_manifest_and_context,
-    extract_dataset_id,
+    extract_dataset_id, get_configuration_credentials,
 )
 from spinta.manifests.components import ManifestPath
 
@@ -57,7 +57,8 @@ def sync(
 
     dataset_name = get_dataset_name(context, manifest)
     file_bytes, content = get_file_bytes_and_decoded_content(manifest_objects)
-    base_path, headers = get_base_path_and_headers(context)
+    credentials = get_configuration_credentials(context)
+    base_path, headers = get_base_path_and_headers(credentials)
 
     response_get_dataset = get_dataset(base_path, headers, dataset_name)
     if response_get_dataset.status_code == HTTPStatus.OK:

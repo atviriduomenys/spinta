@@ -124,7 +124,13 @@ def get_file_bytes_and_decoded_content(manifests: list[ManifestPath]) -> tuple[b
     return file_bytes, content
 
 
-def get_base_path_and_headers(context: Context) -> tuple[str, dict[str, str]]:
+def get_configuration_credentials(context: Context) -> RemoteClientCredentials:
+    config: Config = context.get("config")
+    credentials: RemoteClientCredentials = get_client_credentials(config.credentials_file, DEFAULT_CREDENTIALS_SECTION)
+    return credentials
+
+
+def get_base_path_and_headers(credentials: RemoteClientCredentials) -> tuple[str, dict[str, str]]:
     """Construct the API base path and authentication headers.
 
     Retrieves client credentials, fetches an access token, and prepares
@@ -138,9 +144,6 @@ def get_base_path_and_headers(context: Context) -> tuple[str, dict[str, str]]:
             - `base_path`: The base URL for the dataset API.
             - `headers`: Dictionary with Authorization header including Bearer token.
     """
-    config: Config = context.get("config")
-    credentials: RemoteClientCredentials = get_client_credentials(config.credentials_file, DEFAULT_CREDENTIALS_SECTION)
-
     access_token = get_access_token(credentials)
     headers = {"Authorization": f"Bearer {access_token}"}
 

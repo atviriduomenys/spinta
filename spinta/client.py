@@ -20,8 +20,10 @@ class RemoteClientCredentials:
     server: str         # server URL
     remote: str         # remote name given in credentials.cfg section
     scopes: List[str]   # allowed scopes given in credentials.cfg section
-    resource_server: Optional[str] = None # host of a server where resources are stored if separate from auth server
-    client_id: Optional[str] = None # identification of client, could be same as client (username)
+    resource_server: Optional[str] = None  # host of a server where resources are stored if separate from auth server
+    client_id: Optional[str] = None  # identification of client, could be same as client (username)
+    organization: Optional[str] = None  # name of the clients organization
+    organization_type: Optional[str] = None  # type of the clients organization
 
 
 def _parse_client_handle(
@@ -81,6 +83,8 @@ def get_client_credentials(
                 creds.scopes = config.get(creds.section, 'scopes', fallback=[])
                 creds.client_id = creds.client_id or config.get(creds.section, 'client_id', fallback=creds.client)
                 creds.resource_server = creds.resource_server or config.get(creds.section, 'resource_server', fallback=creds.server)
+                creds.organization = creds.organization or config.get(creds.section, 'organization', fallback=None)
+                creds.organization_type = creds.organization_type or config.get(creds.section, 'organization_type', fallback=None)
 
             elif check:
                 raise RemoteClientCredentialsNotFound(
