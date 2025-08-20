@@ -1166,6 +1166,16 @@ def _split_columns_by_inference(
             children_columns.append(column)
         return primary_columns, children_columns
 
+    # Check for scalar to ref convertion (it must contain 1 column that matches ref name
+    if (scalar_column := next((column for column in columns if column.name == old_base_name), None)) is not None:
+        primary_columns.append(scalar_column)
+
+        for column in columns:
+            if column != scalar_column:
+                children_columns.append(column)
+        return primary_columns, children_columns
+
+
     # If nothing worked, then we assume that all columns are foreign keys, that exist on target table
     # Filter columns that can be found on a target model (removing denorm columns)
 
