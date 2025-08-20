@@ -152,7 +152,7 @@ class RenameMap:
 
     def insert_table(self, old_name: str, new_name: str | None = None):
         self.tables[old_name] = self._TableRename(
-            old = self._Name(
+            old=self._Name(
                 normal=old_name,
                 compressed=get_pg_table_name(old_name)
             ),
@@ -1041,103 +1041,207 @@ def is_internal(
     return contains_foreign_key_with_table_columns(foreign_keys, ref_table_name, [column_name])
 
 
-def split_columns(
+def _split_columns_by_reserved_internal_column(
     columns: List[sa.Column],
-    base_name: str,
-    target_base_name: str,
-    internal: bool,
-    ref_table_primary_key_names: List[str],
-    target_primary_column_names: List[str],
-    target_children_column_names: List[str]
+    old_base_name: str,
 ):
-    all_column_names = [column.name for column in columns]
     primary_columns = []
     children_columns = []
 
     # If we know that old columns contain internal ref key, that means we can extract it and everything else are children
-    if internal:
-        for column in columns:
-            column_name = column.name
-            if column_name.endswith('_id') and column_name.replace(f'{base_name}.', '') == '_id':
-                primary_columns = [column]
-                continue
+    for column in columns:
+        column_name = column.name
+        if column_name.endswith('_id') and column_name.replace(f'{old_base_name}.', '') == '_id':
+            primary_columns = [column]
+            continue
 
-            children_columns.append(column)
-        return primary_columns, children_columns
+        children_columns.append(column)
+    return primary_columns, children_columns
 
-    # Check if all old columns contain all target children columns
-    all_children_match = all(column_name.replace(target_base_name, base_name) in all_column_names for column_name in
-                             target_children_column_names)
 
-    # Check if all old columns contain all target primary key columns
-    all_primary_match = all(column_name.replace(target_base_name, base_name) in all_column_names for column_name in
-                            target_primary_column_names)
+def _split_columns_by_primary_columns(
+    columns: List[sa.Column],
+    old_base_name: str,
+    new_base_name: str,
+    primary_column_names: List[str]
+) -> (List[str], List[str]):
+    # Primary keys are priority so if they all match we assume:
+    # primary_columns = all target_primary_columns
+    # children_columns = everything else
+    primary_columns = []
+    children_columns = []
+    for column in columns:
+        column_name = column.name.replace(old_base_name, new_base_name)
+        if column_name in primary_column_names:
+            primary_columns.append(column)
+            continue
 
-    if all_primary_match:
-        # Primary keys are priority so if they all match we assume:
-        # primary_columns = all target_primary_columns
+        children_columns.append(column)
+    return primary_columns, children_columns
+
+
+def _split_columns_by_children_columns(
+    columns: List[sa.Column],
+    old_base_name: str,
+    new_base_name: str,
+    children_column_names: List[str],
+    ref_table_primary_column_names: List[str]
+) -> (List[str], List[str]):
+    # If all primary keys do not match, but children do, we need to figure out what is the foreign key
+    primary_columns = []
+    children_columns = []
+
+    remaining_column_names = [column.name for column in columns if
+                              column.name.replace(old_base_name, new_base_name) not in children_column_names]
+    all_remaining_match = all(
+        f'{old_base_name}.{column_name}' in remaining_column_names for column_name in
+        ref_table_primary_column_names) if ref_table_primary_column_names else False
+    if all_remaining_match:
+        # If all renaming columns, after children, match ref tables primary keys, we assume that foreign keys
+        # are ref table primary keys
+        # primary_columns = all ref primary keys
         # children_columns = everything else
         for column in columns:
-            column_name = column.name.replace(base_name, target_base_name)
-            if column_name in target_primary_column_names:
+            column_name = column.name.replace(f'{old_base_name}.', '')
+            if column_name in ref_table_primary_column_names:
                 primary_columns.append(column)
                 continue
 
             children_columns.append(column)
         return primary_columns, children_columns
 
-    elif all_children_match:
-        # If all primary keys do not match, but children do, we need to figure out what is the foreign key
-        remaining_column_names = [column.name for column in columns if
-                                  column.name.replace(base_name, target_base_name) not in target_children_column_names]
-        all_remaining_match = all(
-            f'{base_name}.{column_name}' in remaining_column_names for column_name in ref_table_primary_key_names)
+    # We could not find primary key source, so we assume that everything that remains is primary key
+    for column in columns:
+        column_name = column.name
+        if column_name in remaining_column_names:
+            primary_columns.append(column)
+            continue
 
-        if all_remaining_match:
-            # If all renaming columns, after children, match ref tables primary keys, we assume that foreign keys
-            # are ref table primary keys
-            # primary_columns = all ref primary keys
-            # children_columns = everything else
-            for column in columns:
-                column_name = column.name.replace(f'{base_name}.', '')
-                if column_name in ref_table_primary_key_names:
-                    primary_columns.append(column)
-                    continue
+        children_columns.append(column)
+    return primary_columns, children_columns
 
-                children_columns.append(column)
-            return primary_columns, children_columns
 
-        # We could not find primary key source, so we assume that everything that remains is primary key
+def _split_columns_by_inference(
+    columns: List[sa.Column],
+    old_base_name: str,
+    all_column_names: List[str],
+    ref_table_column_names: List[str],
+    ref_table_explicit_column_names: List[str],
+    ref_table_primary_column_names: List[str],
+):
+    # Nothing matches we can only try to guess
+    primary_columns = []
+    children_columns = []
+
+    converted_ref_names = [f'{old_base_name}.{column_name}' for column_name in ref_table_primary_column_names]
+    converted_explicit_ref_names = [f'{old_base_name}.{column_name}' for column_name in ref_table_explicit_column_names]
+
+    all_ref_explicit_keys_match = all(
+        column_name in all_column_names for column_name in converted_explicit_ref_names
+    ) if converted_explicit_ref_names else False
+    if all_ref_explicit_keys_match:
+        # If all explicit ref keys match, we assume that foreign keys are explicit ref keys
+        # primary_columns = all explicit ref keys
+        # children_columns = everything else
         for column in columns:
             column_name = column.name
-            if column_name in remaining_column_names:
+            if column_name in converted_explicit_ref_names:
                 primary_columns.append(column)
                 continue
 
             children_columns.append(column)
         return primary_columns, children_columns
 
-    else:
-        # Nothing matches we can only try to guess
-        converted_ref_names = [f'{base_name}.{column_name}' for column_name in ref_table_primary_key_names]
-        all_ref_primary_keys_match = all(
-            column_name in all_column_names for column_name in converted_ref_names)
+    all_ref_primary_keys_match = all(
+        column_name in all_column_names for column_name in converted_ref_names
+    ) if converted_ref_names else False
+    if all_ref_primary_keys_match:
+        # Since all ref model's primary keys are in the list, we can assume, that this is the foreign key
+        for column in columns:
+            column_name = column.name
+            if column_name in converted_ref_names:
+                primary_columns.append(column)
+                continue
 
-        if all_ref_primary_keys_match:
-            # Since all ref model's primary keys are in the list, we can assume, that this is the foreign key
-            for column in columns:
-                column_name = column.name
-                if column_name in converted_ref_names:
-                    primary_columns.append(column)
-                    continue
+            children_columns.append(column)
+        return primary_columns, children_columns
 
+    # Check for scalar to ref convertion (it must contain 1 column that matches ref name
+    if (scalar_column := next((column for column in columns if column.name == old_base_name), None)) is not None:
+        primary_columns.append(scalar_column)
+
+        for column in columns:
+            if column != scalar_column:
                 children_columns.append(column)
-            return primary_columns, children_columns
+        return primary_columns, children_columns
 
-    # If nothing worked then we assume that all columns are foreign keys
+
+    # If nothing worked, then we assume that all columns are foreign keys, that exist on target table
+    # Filter columns that can be found on a target model (removing denorm columns)
+
     for column in columns:
-        primary_columns.append(column.name)
+        column_name = column.name.replace(f'{old_base_name}.', '')
+        if column_name in ref_table_column_names:
+            primary_columns.append(column)
+        else:
+            children_columns.append(column)
+
     return primary_columns, children_columns
+
+
+def split_columns(
+    old_columns: List[sa.Column],
+    old_base_name: str,
+    new_base_name: str,
+    internal: bool,
+    new_primary_column_names: List[str],
+    new_children_column_names: List[str],
+    ref_table_column_names: List[str],
+    ref_table_primary_column_names: List[str],
+    ref_explicit_primary_column_names: List[str],
+):
+    # If we know that old columns contain internal ref key, that means we can extract it and everything else are children
+    if internal:
+        return _split_columns_by_reserved_internal_column(
+            columns=old_columns,
+            old_base_name=old_base_name,
+        )
+
+    all_column_names = [column.name for column in old_columns]
+    # Check if all old columns contain all target children columns
+    all_children_match = all(column_name.replace(new_base_name, old_base_name) in all_column_names for column_name in
+                             new_children_column_names) if new_children_column_names else False
+
+    # Check if all old columns contain all target primary key columns
+    all_primary_match = all(
+        column_name.replace(new_base_name, old_base_name) in all_column_names for column_name in new_primary_column_names
+    ) if new_primary_column_names else False
+
+    if all_primary_match:
+        return _split_columns_by_primary_columns(
+            columns=old_columns,
+            old_base_name=old_base_name,
+            new_base_name=new_base_name,
+            primary_column_names=new_primary_column_names,
+        )
+
+    if all_children_match:
+        return _split_columns_by_children_columns(
+            columns=old_columns,
+            old_base_name=old_base_name,
+            new_base_name=new_base_name,
+            children_column_names=new_children_column_names,
+            ref_table_primary_column_names=ref_table_primary_column_names,
+        )
+
+    return _split_columns_by_inference(
+        columns=old_columns,
+        old_base_name=old_base_name,
+        all_column_names=all_column_names,
+        ref_table_column_names=ref_table_column_names,
+        ref_table_primary_column_names=ref_table_primary_column_names,
+        ref_table_explicit_column_names=ref_explicit_primary_column_names,
+    )
 
 
 def _format_multiple_unique_constraints_error_msg(
@@ -1147,6 +1251,19 @@ def _format_multiple_unique_constraints_error_msg(
     for constraint in constraints:
         result += f"\t'{constraint['name']}' [{', '.join(constraint['column_names'])}]\n"
     return result
+
+
+def get_explicit_primary_keys(
+    ref: Ref,
+    rename: RenameMap
+) -> List[str]:
+    if not ref.explicit:
+        return []
+
+    props = ref.refprops
+    old_ref_table_name = rename.get_old_table_name(get_table_name(ref.model))
+    old_names = [rename.get_old_column_name(old_ref_table_name, prop.name) for prop in props]
+    return old_names
 
 
 def get_spinta_primary_keys(
@@ -1201,6 +1318,14 @@ def get_spinta_primary_keys(
         )
 
     return []
+
+
+def get_model_column_names(
+    table_name: str,
+    inspector: Inspector,
+):
+    columns = inspector.get_columns(table_name)
+    return list(column['name'] for column in columns)
 
 
 def nested_column_rename(column_name: str, table_name: str, rename: RenameMap) -> str:
@@ -1366,4 +1491,3 @@ def recreate_all_reserved_table_names(
     old_table_name = get_pg_table_name(old_full_name, table_type)
     new_table_name = get_pg_table_name(model, table_type)
     return old_table_name, new_table_name
-
