@@ -23,6 +23,8 @@ def patched_credentials():
         secret="secret",
         server="http://example.com",
         scopes="scope1 scope2",
+        organization="vssa",
+        organization_type="gov",
     )
     with patch('spinta.cli.helpers.sync.helpers.get_client_credentials', return_value=credentials):
         yield credentials

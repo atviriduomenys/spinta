@@ -15,6 +15,7 @@ New Features:
 - Added OpenAPI(and Swagger 2.0) inline schema to DSA conversion `Model` and `ModelProperty` dimensions (`#1260`_) (`#1377`_) (`#1381`_) (`#1382`_) (`#1389`_)
 - Refactored `spinta sync` into separate functions to improve readability and maintainability. (`#1415`_)
 - During synchronization, create a Data Service and not a Dataset as was done initially. (`#1415`_)
+- Adjust synchronization credentials retrieve, to include organization name & type. (`#1415`_)
 
 
   .. _#1274: https://github.com/atviriduomenys/spinta/issues/1274
