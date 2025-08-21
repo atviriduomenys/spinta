@@ -59,13 +59,17 @@ def test_success_existing_dataset(
     patched_credentials: RemoteClientCredentials,
     base_uapi_url: str,
 ):
-    requests_mock.post(f"{patched_credentials.server}/auth/token", status_code=HTTPStatus.OK, json={"access_token": "test-token"})
-    requests_mock.get(
+    mock_auth_token_post = requests_mock.post(
+        f"{patched_credentials.server}/auth/token",
+        status_code=HTTPStatus.OK,
+        json={"access_token": "test-token"},
+    )
+    mock_dataset_get = requests_mock.get(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
         status_code = HTTPStatus.OK,
-        json = {"_data": [{"_id": 1}]}
+        json = {"_data": [{"_id": 1}]},
     )
-    requests_mock.put(
+    mock_dataset_put = requests_mock.put(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/1/dsa/",
         status_code=HTTPStatus.NOT_IMPLEMENTED,
         json={},
@@ -81,6 +85,10 @@ def test_success_existing_dataset(
         "feature": "Updates on existing Datasets"
     }
 
+    assert mock_auth_token_post.call_count == 1
+    assert mock_dataset_get.call_count == 1
+    assert mock_dataset_put.call_count == 1
+
 
 def test_success_new_dataset(
     rc: RawConfig,
@@ -90,23 +98,27 @@ def test_success_new_dataset(
     patched_credentials: RemoteClientCredentials,
     base_uapi_url: str,
 ):
-    requests_mock.post(f"{patched_credentials.server}/auth/token", status_code=HTTPStatus.OK, json={"access_token": "test-token"})
-    requests_mock.get(
+    mock_auth_token_post = requests_mock.post(
+        f"{patched_credentials.server}/auth/token",
+        status_code=HTTPStatus.OK,
+        json={"access_token": "test-token"},
+    )
+    mock_dataset_get = requests_mock.get(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
         status_code=HTTPStatus.NOT_FOUND,
         json={},
     )
-    requests_mock.post(
+    mock_dataset_post = requests_mock.post(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
         status_code=HTTPStatus.CREATED,
         json={"_id": 1},
     )
-    requests_mock.post(
+    mock_distribution_post = requests_mock.post(
         f"{patched_credentials.server}/{base_uapi_url}/Distribution/",
         status_code=HTTPStatus.CREATED,
         json={"_id": 1},
     )
-    requests_mock.post(
+    mock_dsa_post = requests_mock.post(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/1/dsa/",
         status_code=HTTPStatus.NO_CONTENT,
         json={},
@@ -114,6 +126,12 @@ def test_success_new_dataset(
 
     # Should not raise any error.
     cli.invoke(rc, args=["sync", manifest_path], catch_exceptions=False)
+
+    assert mock_auth_token_post.call_count == 1
+    assert mock_dataset_get.call_count == 1
+    assert mock_dataset_post.call_count == 1
+    assert mock_distribution_post.call_count == 1
+    assert mock_dsa_post.call_count == 1
 
 
 def test_failure_no_manifest_file_provided(rc: RawConfig, cli: SpintaCliRunner):
@@ -154,12 +172,18 @@ def test_failure_get_access_token_api_call(
     patched_credentials: RemoteClientCredentials,
 ):
     token_url = f"{patched_credentials.server}/auth/token"
-    requests_mock.post(token_url, status_code=HTTPStatus.INTERNAL_SERVER_ERROR, json={"error": "server error"})
+    mock_auth_token_post = requests_mock.post(
+        token_url,
+        status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+        json={"error": "server error"},
+    )
 
     with pytest.raises(Exception) as exception:
         cli.invoke(rc, args=["sync", manifest_path], catch_exceptions=False)
 
     assert exception.value.response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
+
+    assert mock_auth_token_post.call_count == 1
 
 
 def test_failure_get_dataset_returns_unexpected_status_code(
@@ -170,8 +194,12 @@ def test_failure_get_dataset_returns_unexpected_status_code(
     patched_credentials: RemoteClientCredentials,
     base_uapi_url: str,
 ):
-    requests_mock.post(f"{patched_credentials.server}/auth/token", status_code=HTTPStatus.OK, json={"access_token": "test-token"})
-    requests_mock.get(
+    mock_auth_token_post = requests_mock.post(
+        f"{patched_credentials.server}/auth/token",
+        status_code=HTTPStatus.OK,
+        json={"access_token": "test-token"},
+    )
+    mock_dataset_get = requests_mock.get(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
         status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
         json={
@@ -180,7 +208,7 @@ def test_failure_get_dataset_returns_unexpected_status_code(
             "template": "The requested Dataset could not be found.",
             "message": f"No dataset matched the provided query.",
             "status_code": HTTPStatus.INTERNAL_SERVER_ERROR.value,
-        }
+        },
     )
 
     with pytest.raises(UnexpectedAPIResponse) as exception:
@@ -200,6 +228,9 @@ def test_failure_get_dataset_returns_unexpected_status_code(
         }),
     }
 
+    assert mock_auth_token_post.call_count == 1
+    assert mock_dataset_get.call_count == 1
+
 
 def test_failure_get_dataset_returns_invalid_data(
     rc: RawConfig,
@@ -209,11 +240,15 @@ def test_failure_get_dataset_returns_invalid_data(
     patched_credentials: RemoteClientCredentials,
     base_uapi_url: str,
 ):
-    requests_mock.post(f"{patched_credentials.server}/auth/token", status_code=HTTPStatus.OK, json={"access_token": "test-token"})
-    requests_mock.get(
+    mock_auth_token_post = requests_mock.post(
+        f"{patched_credentials.server}/auth/token",
+        status_code=HTTPStatus.OK,
+        json={"access_token": "test-token"},
+    )
+    mock_dataset_get = requests_mock.get(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
         status_code = HTTPStatus.OK,
-        json = {}
+        json = {},
     )
 
     with pytest.raises(UnexpectedAPIResponseData) as exception:
@@ -224,6 +259,9 @@ def test_failure_get_dataset_returns_invalid_data(
         "operation": "Retrieve dataset `_id`",
         "context": "Dataset did not return the `_id` field which can be used to identify the dataset."
     }
+
+    assert mock_auth_token_post.call_count == 1
+    assert mock_dataset_get.call_count == 1
 
 
 def test_failure_put_dataset_returns_invalid_data(
@@ -236,16 +274,20 @@ def test_failure_put_dataset_returns_invalid_data(
 ):
     """Check the workflow, when DSA put endpoint returns an invalid response.
 
-    Since it is not implemented, it will return an internal server error for now, but when it will be implemented, this
+    Since it is not implemented, it will return an internal server error for now, but when it is implemented, this
     test will need to be updated.
     """
-    requests_mock.post(f"{patched_credentials.server}/auth/token", status_code=HTTPStatus.OK, json={"access_token": "test-token"})
-    requests_mock.get(
+    mock_auth_token_post = requests_mock.post(
+        f"{patched_credentials.server}/auth/token",
+        status_code=HTTPStatus.OK,
+        json={"access_token": "test-token"},
+    )
+    mock_dataset_get = requests_mock.get(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
         status_code = HTTPStatus.OK,
-        json = {"_data": [{"_id": 1}]}
+        json = {"_data": [{"_id": 1}]},
     )
-    requests_mock.put(
+    mock_dataset_post = requests_mock.put(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/1/dsa/",
         status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
     )
@@ -260,6 +302,10 @@ def test_failure_put_dataset_returns_invalid_data(
         "feature": "Updates on existing Datasets"
     }
 
+    assert mock_auth_token_post.call_count == 1
+    assert mock_dataset_get.call_count == 1
+    assert mock_dataset_post.call_count == 1
+
 
 def test_failure_post_dataset_returns_unexpected_status_code(
     rc: RawConfig,
@@ -269,14 +315,17 @@ def test_failure_post_dataset_returns_unexpected_status_code(
     patched_credentials: RemoteClientCredentials,
     base_uapi_url: str,
 ):
-    requests_mock.post(f"{patched_credentials.server}/auth/token", status_code=HTTPStatus.OK,
-                       json={"access_token": "test-token"})
-    requests_mock.get(
+    mock_auth_token_post = requests_mock.post(
+        f"{patched_credentials.server}/auth/token",
+        status_code=HTTPStatus.OK,
+        json={"access_token": "test-token"},
+    )
+    mock_dataset_get = requests_mock.get(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
         status_code=HTTPStatus.NOT_FOUND,
         json={},
     )
-    requests_mock.post(
+    mock_dataset_post = requests_mock.post(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
         status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
         json={},
@@ -293,6 +342,10 @@ def test_failure_post_dataset_returns_unexpected_status_code(
         "response_data": str({})
     }
 
+    assert mock_auth_token_post.call_count == 1
+    assert mock_dataset_get.call_count == 1
+    assert mock_dataset_post.call_count == 1
+
 
 def test_failure_post_dataset_returns_invalid_data(
     rc: RawConfig,
@@ -302,14 +355,17 @@ def test_failure_post_dataset_returns_invalid_data(
     patched_credentials: RemoteClientCredentials,
     base_uapi_url: str,
 ):
-    requests_mock.post(f"{patched_credentials.server}/auth/token", status_code=HTTPStatus.OK,
-                       json={"access_token": "test-token"})
-    requests_mock.get(
+    mock_auth_token_post = requests_mock.post(
+        f"{patched_credentials.server}/auth/token",
+        status_code=HTTPStatus.OK,
+        json={"access_token": "test-token"},
+    )
+    mock_dataset_get = requests_mock.get(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
         status_code=HTTPStatus.NOT_FOUND,
         json={},
     )
-    requests_mock.post(
+    mock_dataset_post = requests_mock.post(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
         status_code=HTTPStatus.CREATED,
         json={},
@@ -324,6 +380,10 @@ def test_failure_post_dataset_returns_invalid_data(
         "context": f"Dataset did not return the `_id` field which can be used to identify the dataset."
     }
 
+    assert mock_auth_token_post.call_count == 1
+    assert mock_dataset_get.call_count == 1
+    assert mock_dataset_post.call_count == 1
+
 
 def test_failure_post_distribution_returns_unexpected_status_code(
     rc: RawConfig,
@@ -333,19 +393,22 @@ def test_failure_post_distribution_returns_unexpected_status_code(
     patched_credentials: RemoteClientCredentials,
     base_uapi_url: str,
 ):
-    requests_mock.post(f"{patched_credentials.server}/auth/token", status_code=HTTPStatus.OK,
-                       json={"access_token": "test-token"})
-    requests_mock.get(
+    mock_auth_token_post = requests_mock.post(
+        f"{patched_credentials.server}/auth/token",
+        status_code=HTTPStatus.OK,
+        json={"access_token": "test-token"},
+    )
+    mock_dataset_get = requests_mock.get(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
         status_code=HTTPStatus.NOT_FOUND,
         json={},
     )
-    requests_mock.post(
+    mock_dataset_post = requests_mock.post(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
         status_code=HTTPStatus.CREATED,
         json={"_id": 1},
     )
-    requests_mock.post(
+    mock_distribution_post = requests_mock.post(
         f"{patched_credentials.server}/{base_uapi_url}/Distribution/",
         status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
         json={},
@@ -362,6 +425,10 @@ def test_failure_post_distribution_returns_unexpected_status_code(
         "response_data": str({})
     }
 
+    assert mock_auth_token_post.call_count == 1
+    assert mock_dataset_get.call_count == 1
+    assert mock_dataset_post.call_count == 1
+    assert mock_distribution_post.call_count == 1
 
 def test_failure_post_dsa_returns_unexpected_status_code(
     rc: RawConfig,
@@ -371,24 +438,27 @@ def test_failure_post_dsa_returns_unexpected_status_code(
     patched_credentials: RemoteClientCredentials,
     base_uapi_url: str,
 ):
-    requests_mock.post(f"{patched_credentials.server}/auth/token", status_code=HTTPStatus.OK,
-                       json={"access_token": "test-token"})
-    requests_mock.get(
+    mock_auth_token_post = requests_mock.post(
+        f"{patched_credentials.server}/auth/token",
+        status_code=HTTPStatus.OK,
+        json={"access_token": "test-token"},
+    )
+    mock_dataset_get = requests_mock.get(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
         status_code=HTTPStatus.NOT_FOUND,
         json={},
     )
-    requests_mock.post(
+    mock_dataset_post = requests_mock.post(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
         status_code=HTTPStatus.CREATED,
         json={"_id": 1},
     )
-    requests_mock.post(
+    mock_distribution_post = requests_mock.post(
         f"{patched_credentials.server}/{base_uapi_url}/Distribution/",
         status_code=HTTPStatus.CREATED,
         json={"_id": 1},
     )
-    requests_mock.post(
+    mock_dsa_post = requests_mock.post(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/1/dsa/",
         status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
         json={},
@@ -404,3 +474,9 @@ def test_failure_post_dsa_returns_unexpected_status_code(
         "response_status_code": HTTPStatus.INTERNAL_SERVER_ERROR.value,
         "response_data": str({})
     }
+    assert mock_auth_token_post.call_count == 1
+    assert mock_dataset_get.call_count == 1
+    assert mock_dataset_post.call_count == 1
+    assert mock_distribution_post.call_count == 1
+    assert mock_dsa_post.call_count == 1
+

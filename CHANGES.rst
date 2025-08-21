@@ -13,7 +13,9 @@ New Features:
   from saved `backends`. (`#1275`_)
 - Implement the skeleton of `spinta sync` command. (`#1378`_)
 - Added OpenAPI(and Swagger 2.0) inline schema to DSA conversion `Model` and `ModelProperty` dimensions (`#1260`_) (`#1377`_) (`#1381`_) (`#1382`_) (`#1389`_)
-- Refactored `spinta sync` into separate functions to improve readability and maintainability. (`#1415_`)
+- Refactored `spinta sync` into separate functions to improve readability and maintainability. (`#1415`_)
+- During synchronization, create a Data Service and not a Dataset as was done initially. (`#1415`_)
+
 
   .. _#1274: https://github.com/atviriduomenys/spinta/issues/1274
   .. _#1275: https://github.com/atviriduomenys/spinta/issues/1275
