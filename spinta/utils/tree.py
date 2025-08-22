@@ -12,8 +12,8 @@ def build_path_tree(*paths):
 
 def add_path_to_tree(tree: dict, path: str):
     parent: List[str] = []
-    for part in path.split('/'):
-        name = '/'.join(parent)
+    for part in path.split("/"):
+        name = "/".join(parent)
         parent.append(part)
 
         if name not in tree:
@@ -22,6 +22,6 @@ def add_path_to_tree(tree: dict, path: str):
             tree[name].append(part)
             tree[name].sort()
 
-    name = '/'.join(parent)
+    name = "/".join(parent)
     if name not in tree:
         tree[name] = []

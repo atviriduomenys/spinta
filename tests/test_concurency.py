@@ -4,8 +4,8 @@ import pytest
 
 
 @pytest.mark.models(
-    'backends/postgres/Report',
-    'backends/mongo/Report',
+    "backends/postgres/Report",
+    "backends/mongo/Report",
 )
 def test_concurency(model, app):
     app.authmodel(model, ["insert", "getone"])
@@ -21,10 +21,7 @@ def test_concurency(model, app):
     max_workers = len(data)
 
     with ThreadPoolExecutor(max_workers) as executor:
-        futures = {
-            executor.submit(app.post, f"/{model}", json=d): d["count"]
-            for d in data
-        }
+        futures = {executor.submit(app.post, f"/{model}", json=d): d["count"] for d in data}
 
     responses = {}
     for future in as_completed(futures):
@@ -41,12 +38,9 @@ def test_concurency(model, app):
         5: 201,
     }
 
-    ids = {count: r.json()['_id'] for count, r in responses.items()}
+    ids = {count: r.json()["_id"] for count, r in responses.items()}
     with ThreadPoolExecutor(max_workers) as executor:
-        futures = {
-            executor.submit(app.get, f'/{model}/{id_}'): count
-            for count, id_ in ids.items()
-        }
+        futures = {executor.submit(app.get, f"/{model}/{id_}"): count for count, id_ in ids.items()}
 
     responses = {}
     for future in as_completed(futures):

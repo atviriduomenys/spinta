@@ -25,10 +25,7 @@ class DaskDataFrameQueryBuilder(Env):
             dataframe=dataframe,
             resolved={},
             selected=None,
-            sort={
-                "desc": [],
-                "asc": []
-            },
+            sort={"desc": [], "asc": []},
             limit=None,
             offset=None,
             params=params,
@@ -36,21 +33,21 @@ class DaskDataFrameQueryBuilder(Env):
 
     def build(self, where):
         if self.selected is None:
-            self.call('select', Expr('select'))
+            self.call("select", Expr("select"))
         df = self.dataframe
 
         if self.limit is not None:
             df = df.head(self.limit, npartitions=-1, compute=False)
 
         if self.offset is not None:
-            df = df.loc[self.offset:]
+            df = df.loc[self.offset :]
 
         if where is not None:
             df = df[where]
         return df
 
     def execute(self, expr: Any):
-        expr = self.call('_resolve_unresolved', expr)
+        expr = self.call("_resolve_unresolved", expr)
         return super().execute(expr)
 
     def default_resolver(self, expr, *args, **kwargs):

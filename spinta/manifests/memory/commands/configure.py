@@ -6,5 +6,5 @@ from spinta.manifests.memory.components import MemoryManifest
 
 @commands.configure.register(Context, MemoryManifest)
 def configure(context: Context, manifest: MemoryManifest):
-     rc: RawConfig = context.get('rc')
-     manifest.path = rc.get('manifests', manifest.name, 'path')
+    rc: RawConfig = context.get("rc")
+    manifest.path = rc.get("manifests", manifest.name, "path")

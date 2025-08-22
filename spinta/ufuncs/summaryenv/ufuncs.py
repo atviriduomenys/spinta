@@ -3,26 +3,21 @@ from spinta.exceptions import PropertyNotFound, InvalidRequestQuery, SummaryWith
 from spinta.ufuncs.summaryenv.components import SummaryEnv, BBox
 
 
-@ufunc.resolver(SummaryEnv, Expr, name='bbox')
+@ufunc.resolver(SummaryEnv, Expr, name="bbox")
 def bbox(env, expr):
     args, kwargs = expr.resolve(env)
     if len(args) == 4:
-        env.bbox = BBox(
-            x_min=args[0],
-            y_min=args[1],
-            x_max=args[2],
-            y_max=args[3]
-        )
+        env.bbox = BBox(x_min=args[0], y_min=args[1], x_max=args[2], y_max=args[3])
     else:
         raise InvalidRequestQuery(query="bbox", format="bbox(min_lon, min_lat, max_lon, max_lat)")
 
 
-@ufunc.resolver(SummaryEnv, Expr, name='and')
+@ufunc.resolver(SummaryEnv, Expr, name="and")
 def and_(env, expr):
     expr.resolve(env)
 
 
-@ufunc.resolver(SummaryEnv, Expr, name='select')
+@ufunc.resolver(SummaryEnv, Expr, name="select")
 def select(env, expr):
     args, kwargs = expr.resolve(env)
     prop = None
@@ -34,4 +29,3 @@ def select(env, expr):
         else:
             raise PropertyNotFound(env.model, property=args[0])
     env.prop = prop
-

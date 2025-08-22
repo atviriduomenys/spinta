@@ -22,10 +22,12 @@ def check(
     dtype: DataType,
     value: Any,
 ) -> None:
-    raise InvalidValue(dtype, error=(
-        f"Given enum value {value} of {type(value)} type does not match "
-        f"property type, which is {dtype.name!r}."
-    ))
+    raise InvalidValue(
+        dtype,
+        error=(
+            f"Given enum value {value} of {type(value)} type does not match property type, which is {dtype.name!r}."
+        ),
+    )
 
 
 @overload
@@ -48,6 +50,7 @@ def check(
     value: Expr,
 ):
     pass
+
 
 @overload
 @commands.check.register(Context, EnumItem, DataType, type(None))

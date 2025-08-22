@@ -16,12 +16,12 @@ def get_enum_by_name(enum, value):
 
 
 def enum_by_name(
-    component: 'spinta.components.Component',
+    component: "spinta.components.Component",
     param: Optional[str],  # component param
     enum: Type[Enum],
     name: Any,
 ) -> Optional[Enum]:
-    if name is None or name == '':
+    if name is None or name == "":
         return None
     for item in enum:
         if item.name == name:
@@ -30,16 +30,14 @@ def enum_by_name(
 
 
 def enum_by_value(
-    component: 'spinta.components.Component',
+    component: "spinta.components.Component",
     param: Optional[str],  # component param
     enum: Type[Enum],
     value: Any,
 ) -> Optional[Enum]:
-    if value is None or value == '':
+    if value is None or value == "":
         return None
     for item in enum:
         if item.value == value:
             return item
     raise exceptions.InvalidValue(component, param=param, given=value)
-
-

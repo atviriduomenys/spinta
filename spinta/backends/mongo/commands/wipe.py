@@ -10,7 +10,7 @@ def wipe(context: Context, model: Model, backend: Mongo):
         wipe(context, prop.dtype, backend)
 
     table_main = backend.db[model.model_type()]
-    table_changelog = backend.db[model.model_type() + '__changelog']
+    table_changelog = backend.db[model.model_type() + "__changelog"]
     table_main.delete_many({})
     table_changelog.delete_many({})
 

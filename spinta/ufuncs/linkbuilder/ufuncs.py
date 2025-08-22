@@ -13,19 +13,11 @@ def wsdl(env: LinkBuilder, parent_resource_bind: Bind) -> None:
     resource_name = parent_resource_bind.name
 
     if resource_name == env.resource.name:
-        raise InvalidValue(
-            message=f"wsdl() argument {resource_name} must be name of another wsdl type resource."
-        )
+        raise InvalidValue(message=f"wsdl() argument {resource_name} must be name of another wsdl type resource.")
 
-    wsdl_resources = (
-        res_name
-        for res_name, res in env.dataset.resources.items()
-        if res.backend.type == "wsdl"
-    )
+    wsdl_resources = (res_name for res_name, res in env.dataset.resources.items() if res.backend.type == "wsdl")
     if resource_name not in wsdl_resources:
-        raise InvalidValue(
-            message=f"wsdl() argument {resource_name} must be wsdl type resource."
-        )
+        raise InvalidValue(message=f"wsdl() argument {resource_name} must be wsdl type resource.")
 
     return env.call("wsdl", env.dataset.resources[resource_name].backend)
 

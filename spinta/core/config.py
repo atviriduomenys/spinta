@@ -25,40 +25,39 @@ if typing.TYPE_CHECKING:
 Schema = Dict[str, Any]
 Key = Tuple[str]
 
-yaml = YAML(typ='safe')
+yaml = YAML(typ="safe")
 
 log = logging.getLogger(__name__)
 
 SCHEMA = {
-    'type': 'object',
-    'items': yaml.load(
-        resource_filename('spinta', 'config.yml').
-        read_text()
-    ),
+    "type": "object",
+    "items": yaml.load(resource_filename("spinta", "config.yml").read_text()),
 }
 
 
 def read_config(args=None, envfile=None):
     rc = RawConfig()
-    rc.read([
-        Path('spinta', 'spinta.config:CONFIG'),
-        EnvFile('envfile', envfile or '.env'),
-        EnvVars('envvars', os.environ),
-        CliArgs('cliargs', args or []),
-    ])
+    rc.read(
+        [
+            Path("spinta", "spinta.config:CONFIG"),
+            EnvFile("envfile", envfile or ".env"),
+            EnvVars("envvars", os.environ),
+            CliArgs("cliargs", args or []),
+        ]
+    )
 
     # Inject extension provided defaults
-    configs = rc.get('config', cast=list, default=[])
+    configs = rc.get("config", cast=list, default=[])
     if configs:
-        rc.read([Path(c, c) for c in configs], after='spinta')
+        rc.read([Path(c, c) for c in configs], after="spinta")
 
     return rc
 
 
 class KeyFormat(str, enum.Enum):
-    cfg = 'cfg'
-    cli = 'cli'
-    env = 'env'
+    cfg = "cfg"
+    cli = "cli"
+    env = "env"
 
 
 class ConfigSource:
@@ -72,7 +71,7 @@ class ConfigSource:
         return self.name
 
     def __repr__(self):
-        return type(self).__module__ + '.' + type(self).__name__ + '(' + repr(self.name) + ')'
+        return type(self).__module__ + "." + type(self).__name__ + "(" + repr(self.name) + ")"
 
     def getname(self, name):
         return name or self.name or type(self).__name__
@@ -88,39 +87,34 @@ class ConfigSource:
     def keys(self, env: str = None):
         if env:
             for key in self.config:
-                if key[:2] == ('environments', env):
+                if key[:2] == ("environments", env):
                     yield key[2:]
         else:
             for key in self.config:
-                if key[:1] != ('environments',):
+                if key[:1] != ("environments",):
                     yield key
 
     def get(self, key: tuple, env: str = None):
         if env:
-            return self.config.get(('environments', env) + key, NA)
+            return self.config.get(("environments", env) + key, NA)
         else:
             return self.config.get(key, NA)
 
 
 class PyDict(ConfigSource):
-
     def read(self, schema: Schema):
-        envs = self.config.pop('environments', {})
-        config = {
-            tuple(k.split('.')): v
-            for k, v in self.config.items()
-        }
+        envs = self.config.pop("environments", {})
+        config = {tuple(k.split(".")): v for k, v in self.config.items()}
         for env, values in envs.items():
             for k, v in values.items():
-                config[('environments', env) + tuple(k.split('.'))] = v
+                config[("environments", env) + tuple(k.split("."))] = v
         self.config = config
         super().read(schema)
 
 
 class Path(PyDict):
-
     def read(self, schema: Schema):
-        if self.config.endswith(('.yml', '.yaml')):
+        if self.config.endswith((".yml", ".yaml")):
             path = pathlib.Path(self.config)
             self.config = yaml.load(path.read_text())
         else:
@@ -129,52 +123,51 @@ class Path(PyDict):
 
 
 class CliArgs(PyDict):
-    name = 'cli'
+    name = "cli"
 
     def read(self, schema: Schema):
         config = {}
         for arg in self.config:
-            key, val = arg.split('=', 1)
-            if ',' in val:
-                val = [v.strip() for v in val.split(',')]
+            key, val = arg.split("=", 1)
+            if "," in val:
+                val = [v.strip() for v in val.split(",")]
             config[key] = val
         self.config = config
         super().read(schema)
 
 
 class EnvVars(ConfigSource):
-    name = 'env'
+    name = "env"
 
     def read(self, schema: Schema):
         config = {}
         for key, val in self.config.items():
-            if not key.startswith('SPINTA_'):
+            if not key.startswith("SPINTA_"):
                 continue
-            key = key[len('SPINTA_'):]
-            key = tuple(key.lower().split('__'))
-            if len(key) > 1 and key[0] not in schema['items'] and key[1] in schema['items']:
-                key = ('environments',) + key
+            key = key[len("SPINTA_") :]
+            key = tuple(key.lower().split("__"))
+            if len(key) > 1 and key[0] not in schema["items"] and key[1] in schema["items"]:
+                key = ("environments",) + key
             config[key] = val
         self.config = config
         super().read(schema)
 
 
 class EnvFile(EnvVars):
-
     def read(self, schema: Schema):
         config = {}
         path = pathlib.Path(self.config)
         if path.exists():
             with path.open() as f:
                 for line in f:
-                    if line.startswith('#'):
+                    if line.startswith("#"):
                         continue
                     line = line.strip()
-                    if line == '':
+                    if line == "":
                         continue
-                    if '=' not in line:
+                    if "=" not in line:
                         continue
-                    name, value = line.split('=', 1)
+                    name, value = line.split("=", 1)
                     config[name] = value
         self.config = config
         super().read(schema)
@@ -197,6 +190,7 @@ class RawConfig:
         sources: List of sources to read configuration options from.
 
     """
+
     sources: List[ConfigSource]
 
     def __init__(self, sources: Optional[ConfigSource] = None):
@@ -211,10 +205,7 @@ class RawConfig:
         after: Optional[str] = None,
     ):
         if self._locked:
-            raise Exception(
-                "Configuration is locked, use `rc.fork()` if you need to "
-                "change configuration."
-            )
+            raise Exception("Configuration is locked, use `rc.fork()` if you need to change configuration.")
 
         for config in sources:
             log.info(f"Reading config from {config.name}.")
@@ -240,7 +231,7 @@ class RawConfig:
         rc = RawConfig(list(self.sources))
         if sources:
             if isinstance(sources, dict):
-                rc.add('fork', sources)
+                rc.add("fork", sources)
             else:
                 rc.read(sources, after)
         else:
@@ -262,12 +253,12 @@ class RawConfig:
         exists=False,
         origin=False,
     ) -> Any:
-        env, _ = self._get_config_value(('env',), default=None)
+        env, _ = self._get_config_value(("env",), default=None)
         value, config = self._get_config_value(key, default, env)
 
         if cast is not None:
             if cast is list and isinstance(value, str):
-                value = value.split(',') if value else []
+                value = value.split(",") if value else []
             elif value is not None:
                 value = cast(value)
             else:
@@ -275,25 +266,22 @@ class RawConfig:
                 value = default or []
 
         if required and value is None:
-            name = '.'.join(key)
+            name = ".".join(key)
             raise Exception(f"{name!r} is a required configuration option.")
 
         if exists and isinstance(value, pathlib.Path) and not value.exists():
-            name = '.'.join(key)
+            name = ".".join(key)
             raise Exception(f"{name} ({value}) path does not exist.")
 
         if origin:
             if config:
                 return value, config.name
             else:
-                return value, ''
+                return value, ""
         else:
             return value
 
-    def keys(self, *key, origin=False) -> Union[
-        List[str],
-        Tuple[List[str], str]
-    ]:
+    def keys(self, *key, origin=False) -> Union[List[str], Tuple[List[str], str]]:
         config, keys = self._keys.get(key, (None, []))
         return (keys, config.name) if origin else keys
 
@@ -308,25 +296,25 @@ class RawConfig:
             yield (key,) + res
 
     def dump(self, *names, fmt: KeyFormat = KeyFormat.cfg, file=sys.stdout):
-        table = [('Origin', 'Name', 'Value')]
+        table = [("Origin", "Name", "Value")]
         sizes = [len(x) for x in table[0]]
         for key, val, origin in self.getall(origin=True):
             if names:
                 for name in names:
-                    it = enumerate(name.split('.'))
+                    it = enumerate(name.split("."))
                     if all(key[i].startswith(k) for i, k in it if k):
                         break
                 else:
                     continue
 
             if fmt == KeyFormat.env:
-                key = 'SPINTA_' + '__'.join(key).upper()
+                key = "SPINTA_" + "__".join(key).upper()
             else:
-                key = '.'.join(key)
+                key = ".".join(key)
 
             if isinstance(val, list):
                 for i, v in enumerate(val):
-                    row = (origin, key + f'.{i}', v)
+                    row = (origin, key + f".{i}", v)
                     table.append(row)
                     sizes = [max(x) for x in zip(sizes, map(len, map(str, row)))]
             else:
@@ -334,28 +322,24 @@ class RawConfig:
                 table.append(row)
                 sizes = [max(x) for x in zip(sizes, map(len, map(str, row)))]
 
-        table = (
-            table[:1] +
-            [tuple(['-' * s for s in sizes])] +
-            table[1:]
-        )
+        table = table[:1] + [tuple(["-" * s for s in sizes])] + table[1:]
         if file:
             for row in table:
-                print('  '.join([str(x).ljust(s) for x, s in zip(row, sizes)]), file=file)
+                print("  ".join([str(x).ljust(s) for x, s in zip(row, sizes)]), file=file)
         else:
             return table
 
     def to_dict(self, *names: str) -> Dict[str, Any]:
         result = {}
         for key, val in self.getall(*names):
-            key = '.'.join(key[len(names):])
+            key = ".".join(key[len(names) :])
             result[key] = val
         return result
 
     def _update_keys(self) -> Dict[Key, List[str]]:
         """Update inner keys respecting already set values."""
         keys = {}
-        env, _ = self._get_config_value(('env',), default=None)
+        env, _ = self._get_config_value(("env",), default=None)
         for config in self.sources:
             self._update_config_keys(keys, config, config.keys())
             if env:
@@ -373,7 +357,7 @@ class RawConfig:
             schema = self._schema
             for i in range(1, n + 1):
                 schema = self._get_key_schema(schema, key[i - 1])
-                if schema is None or schema['type'] != 'object':
+                if schema is None or schema["type"] != "object":
                     # Skip all non object keys, only objects can have keys.
                     break
                 k = tuple(key[:i])
@@ -381,7 +365,7 @@ class RawConfig:
                 if v is not NA:
                     # Source has explicit value set.
                     if isinstance(v, str):
-                        v = [x.strip() for x in v.split(',')]
+                        v = [x.strip() for x in v.split(",")]
                     else:
                         v = list(v)
                     keys[k] = config, v
@@ -393,16 +377,16 @@ class RawConfig:
                         keys[k][1].append(key[i])
 
     def _get_key_schema(self, schema: Schema, key: str):
-        if schema['type'] == 'object':
-            if 'items' in schema:
-                if key in schema['items']:
-                    return schema['items'][key]
-            if 'case' in schema:
-                for items in schema['case'].values():
+        if schema["type"] == "object":
+            if "items" in schema:
+                if key in schema["items"]:
+                    return schema["items"][key]
+            if "case" in schema:
+                for items in schema["case"].values():
                     if key in items:
                         return items[key]
-            if 'keys' in schema and schema['keys']['type'] == 'string':
-                return schema['values']
+            if "keys" in schema and schema["keys"]["type"] == "string":
+                return schema["values"]
 
     def _get_config_value(self, key: Key, default: Any = NA, env: str = None):
         assert isinstance(key, tuple)
@@ -421,7 +405,7 @@ class RawConfig:
                 if schema is None:
                     break
             else:
-                default = schema.get('default', NA)
+                default = schema.get("default", NA)
             if default is NA:
                 default = None
         return default, None
@@ -507,17 +491,17 @@ def _get_inner_keys(config: Dict[tuple, Any], depth=1):
 
 def _get_from_prefix(config: dict, prefix: tuple):
     for k, v in config.items():
-        if k[:len(prefix)] == prefix:
-            yield k[len(prefix):], v
+        if k[: len(prefix)] == prefix:
+            yield k[len(prefix) :], v
 
 
 def _get_default_dir(name, default):
     path = os.environ.get(name, default)
-    return pathlib.Path(path).expanduser() / 'spinta'
+    return pathlib.Path(path).expanduser() / "spinta"
 
 
-DEFAULT_CONFIG_PATH = _get_default_dir('XDG_CONFIG_HOME', '~/.config')
-DEFAULT_DATA_PATH = _get_default_dir('XDG_DATA_HOME', '~/.local/share')
+DEFAULT_CONFIG_PATH = _get_default_dir("XDG_CONFIG_HOME", "~/.config")
+DEFAULT_DATA_PATH = _get_default_dir("XDG_DATA_HOME", "~/.local/share")
 
 
 class ResourceTuple(NamedTuple):
@@ -535,11 +519,7 @@ def parse_resource_args(
     formula: Optional[str] = None,
 ) -> Optional[ResourceTuple]:
     resource = ResourceTuple(resource_type, resource_source, formula)
-    if (
-        resource.type is None and
-        resource.external is None and
-        not resource.prepare
-    ):
+    if resource.type is None and resource.external is None and not resource.prepare:
         return None
     return [resource]
 
@@ -549,9 +529,11 @@ def parse_manifest_path(
     path: Union[str, ManifestPath, ResourceTuple],
 ) -> ManifestPath:
     from spinta.manifests.components import ManifestPath
+
     if isinstance(path, ManifestPath):
         return path
     from spinta.manifests.helpers import detect_manifest_from_path
+
     if isinstance(path, ResourceTuple):
         path = path.external
     Manifest_ = detect_manifest_from_path(rc, path)
@@ -559,7 +541,7 @@ def parse_manifest_path(
 
 
 def check_if_manifest_valid(rc: RawConfig, manifest: str):
-    names = rc.keys('components', 'manifests')
+    names = rc.keys("components", "manifests")
     return manifest in names
 
 
@@ -567,20 +549,17 @@ def _get_resource_config(
     rc: RawConfig,
     resource: ResourceTuple,
 ) -> Dict[str, str]:
-    if (
-        resource.external and
-        resource.external in rc.get('backends', default={})
-    ):
+    if resource.external and resource.external in rc.get("backends", default={}):
         return {
-            'type': resource.type,
-            'backend': resource.external,
-            'prepare': resource.prepare,
+            "type": resource.type,
+            "backend": resource.external,
+            "prepare": resource.prepare,
         }
     else:
         return {
-            'type': resource.type,
-            'external': resource.external,
-            'prepare': resource.prepare,
+            "type": resource.type,
+            "external": resource.external,
+            "prepare": resource.prepare,
         }
 
 
@@ -594,91 +573,91 @@ def configure_rc(
     backend: str | None = None,
     resources: List[ResourceTuple] = None,
     dataset: str = None,
-    manifest_type: str = 'inline'
+    manifest_type: str = "inline",
 ) -> RawConfig:
-
     config: Dict[str, Any] = {}
 
     if backend:
         # TODO: Parse backend string to detect type. Currently type is hardcoded
         #       to 'postgresql'.
         if backend_type:
-            config['backends.default'] = {
-                'type': backend_type,
-                'dsn': backend,
+            config["backends.default"] = {
+                "type": backend_type,
+                "dsn": backend,
             }
-        elif backend == 'memory':
-            config['backends.default'] = {
-                'type': 'memory',
+        elif backend == "memory":
+            config["backends.default"] = {
+                "type": "memory",
             }
         else:
-            config['backends.default'] = {
-                'type': 'postgresql',
-                'dsn': backend,
+            config["backends.default"] = {
+                "type": "postgresql",
+                "dsn": backend,
             }
-    elif 'default' not in rc.get('backends', default={}):
-        config['backends.default'] = {
-            'type': 'memory',
+    elif "default" not in rc.get("backends", default={}):
+        config["backends.default"] = {
+            "type": "memory",
         }
 
-    if not rc.get('keymaps', 'default'):
-        config['keymaps.default'] = {
-            'type': 'sqlalchemy',
-            'dsn': 'sqlite:///{data_dir}/keymap.db',
+    if not rc.get("keymaps", "default"):
+        config["keymaps.default"] = {
+            "type": "sqlalchemy",
+            "dsn": "sqlite:///{data_dir}/keymap.db",
         }
 
     if manifests or resources:
         sync = []
         inline = []
         if dataset:
-            config['given_dataset_name'] = dataset
+            config["given_dataset_name"] = dataset
 
         if resources:
-            inline.append({
-                'type': 'dataset',
-                'name': 'datasets/gov/example',
-                'resources': {
-                    f'resource{i}': _get_resource_config(rc, resource)
-                    for i, resource in enumerate(resources, 1)
-                },
-            })
+            inline.append(
+                {
+                    "type": "dataset",
+                    "name": "datasets/gov/example",
+                    "resources": {
+                        f"resource{i}": _get_resource_config(rc, resource) for i, resource in enumerate(resources, 1)
+                    },
+                }
+            )
 
-        if manifest_type != 'inline':
+        if manifest_type != "inline":
             manifest = parse_manifest_path(rc, manifests[0])
-            config['manifests.default'] = {
-                'type': manifest_type,
-                'backend': 'default',
-                'keymap': 'default',
-                'mode': mode.value,
-                'path': manifest.path,
-                'file': manifest.file,
-                'manifest': inline
+            config["manifests.default"] = {
+                "type": manifest_type,
+                "backend": "default",
+                "keymap": "default",
+                "mode": mode.value,
+                "path": manifest.path,
+                "file": manifest.file,
+                "manifest": inline,
             }
         else:
             if manifests:
                 for i, path in enumerate(manifests):
-                    manifest_name = f'manifest{i}'
+                    manifest_name = f"manifest{i}"
                     manifest = parse_manifest_path(rc, path)
-                    config[f'manifests.{manifest_name}'] = {
-                        'type': manifest.type,
-                        'path': manifest.path,
-                        'file': manifest.file,
-                        'prepare': manifest.prepare
+                    config[f"manifests.{manifest_name}"] = {
+                        "type": manifest.type,
+                        "path": manifest.path,
+                        "file": manifest.file,
+                        "prepare": manifest.prepare,
                     }
                     sync.append(manifest_name)
 
-            config['manifests.default'] = {
-                'type': manifest_type,
-                'backend': 'default',
-                'keymap': 'default',
-                'mode': mode.value,
-                'sync': sync,
-                'manifest': inline,
+            config["manifests.default"] = {
+                "type": manifest_type,
+                "backend": "default",
+                "keymap": "default",
+                "mode": mode.value,
+                "sync": sync,
+                "manifest": inline,
             }
-        config['manifest'] = 'default'
+        config["manifest"] = "default"
 
         if check_names is not None:
-            config['check.names'] = check_names
+            config["check.names"] = check_names
 
     if config:
         rc = rc.fork(config)

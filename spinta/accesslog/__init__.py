@@ -61,24 +61,24 @@ class AccessLog:
         self.start = self._get_time()
         self.memory = self._get_memory()
         message = {
-            'time': datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            'pid': os.getpid(),
-            'type': 'request',
-            'method': method or self.method,
-            'action': action,
-            'ns': ns,
-            'model': model,
-            'prop': prop,
-            'id': id_,
-            'rev': rev,
-            'txn': txn,
-            'rctype': self.content_type,
-            'format': self.format,
-            'url': self.url,
-            'client': self.client,
-            'token': self.token,
-            'reason': reason or self.reason,
-            'agent': self.agent,
+            "time": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "pid": os.getpid(),
+            "type": "request",
+            "method": method or self.method,
+            "action": action,
+            "ns": ns,
+            "model": model,
+            "prop": prop,
+            "id": id_,
+            "rev": rev,
+            "txn": txn,
+            "rctype": self.content_type,
+            "format": self.format,
+            "url": self.url,
+            "client": self.client,
+            "token": self.token,
+            "reason": reason or self.reason,
+            "agent": self.agent,
         }
         message = {k: v for k, v in message.items() if v is not None}
         self.log(message)
@@ -91,12 +91,12 @@ class AccessLog:
         delta = self._get_time() - self.start
         memory = self._get_memory() - self.memory
         message = {
-            'time': datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            'type': 'response',
-            'delta': delta,
-            'memory': memory,
-            'objects': objects,
-            'txn': self.txn,
+            "time": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "type": "response",
+            "delta": delta,
+            "memory": memory,
+            "objects": objects,
+            "txn": self.txn,
         }
 
         self.log(message)
@@ -107,17 +107,17 @@ class AccessLog:
         reason: str = None,
     ):
         message = {
-            'time': datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            'type': 'auth',
-            'client': self.client,
-            'token': self.token,
-            'scope': self.scopes,
-            'reason': reason or self.reason,
-            'method': self.method,
-            'rctype': self.content_type,
-            'format': self.format,
-            'url': self.url,
-            'agent': self.agent,
+            "time": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "type": "auth",
+            "client": self.client,
+            "token": self.token,
+            "scope": self.scopes,
+            "reason": reason or self.reason,
+            "method": self.method,
+            "rctype": self.content_type,
+            "format": self.format,
+            "url": self.url,
+            "agent": self.agent,
         }
         message = {k: v for k, v in message.items() if v is not None}
         self.log(message)
@@ -135,7 +135,9 @@ class AccessLog:
 @commands.load.register(Context, AccessLog, Config)
 def load(context: Context, accesslog: AccessLog, config: Config):
     accesslog.buffer_size = config.rc.get(
-        'accesslog', 'buffer_size', required=True,
+        "accesslog",
+        "buffer_size",
+        required=True,
     )
 
 
@@ -145,7 +147,7 @@ def load(context: Context, accesslog: AccessLog, token: Token):  # noqa
     accesslog.client = token.get_sub()
 
     client_id = token.get_client_id()
-    config = context.get('config')
+    config = context.get("config")
     if client_id != get_default_auth_client_id(context):
         if config.scope_log:
             accesslog.scopes = token.get_scope()
@@ -157,14 +159,14 @@ def load(context: Context, accesslog: AccessLog, token: Token):  # noqa
 def load(context: Context, accesslog: AccessLog, request: Request):  # noqa
     accesslog.method = request.method
     accesslog.url = str(request.url)
-    accesslog.content_type = request.headers.get('content-type')
-    accesslog.agent = request.headers.get('user-agent')
+    accesslog.content_type = request.headers.get("content-type")
+    accesslog.agent = request.headers.get("user-agent")
 
 
 @overload
 @commands.load.register(Context, AccessLog, UrlParams)
 def load(context: Context, accesslog: AccessLog, params: UrlParams):  # noqa
-    accesslog.format = params.format if params.format else 'json'
+    accesslog.format = params.format if params.format else "json"
 
 
 def create_accesslog(
@@ -173,7 +175,7 @@ def create_accesslog(
     method: str = None,
     loaders: List[Any],
 ) -> AccessLog:
-    config: Config = context.get('config')
+    config: Config = context.get("config")
     # XXX: Probably we should clone store.accesslog here, instead of creating
     #      completely new AccessLog instance.
     accesslog: AccessLog = config.AccessLog()
@@ -183,7 +185,7 @@ def create_accesslog(
     return accesslog
 
 
-TRow = TypeVar('TRow')
+TRow = TypeVar("TRow")
 
 
 def log_response(
@@ -194,7 +196,7 @@ def log_response(
     for row in rows:
         objects += 1
         yield row
-    accesslog: AccessLog = context.get('accesslog')
+    accesslog: AccessLog = context.get("accesslog")
     accesslog.response(objects=objects)
 
 
@@ -206,5 +208,5 @@ async def log_async_response(
     async for row in rows:
         objects += 1
         yield row
-    accesslog: AccessLog = context.get('accesslog')
+    accesslog: AccessLog = context.get("accesslog")
     accesslog.response(objects=objects)
