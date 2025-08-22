@@ -33,17 +33,19 @@ def patched_credentials():
 
 @pytest.fixture
 def sqlite_instance(sqlite: Sqlite):
-    sqlite.init({
-        'COUNTRY': [
-            sa.Column('ID', sa.Integer, primary_key=True),
-            sa.Column('CODE', sa.Text),
-            sa.Column('NAME', sa.Text),
-        ],
-        'CITY': [
-            sa.Column('NAME', sa.Text),
-            sa.Column('COUNTRY_ID', sa.Integer, sa.ForeignKey("COUNTRY.ID")),
-        ],
-    })
+    sqlite.init(
+        {
+            "COUNTRY": [
+                sa.Column("ID", sa.Integer, primary_key=True),
+                sa.Column("CODE", sa.Text),
+                sa.Column("NAME", sa.Text),
+            ],
+            "CITY": [
+                sa.Column("NAME", sa.Text),
+                sa.Column("COUNTRY_ID", sa.Integer, sa.ForeignKey("COUNTRY.ID")),
+            ],
+        }
+    )
     return sqlite
 
 
