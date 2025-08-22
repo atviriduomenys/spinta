@@ -1126,7 +1126,3 @@ class UnexpectedAPIResponseData(BaseError):
         Unexpected response data received while calling the api for operation `{operation}`.
         {context}.
     """
-
-
-class ManifestFileNotProvided(BaseError):
-    template = "A manifest file was not provided. Provide it in the format `spinta <command> <file_path>`."
