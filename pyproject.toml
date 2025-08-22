@@ -168,6 +168,5 @@ line-length = 120
 quote-style = "double"
 
 
-
 [tool.ruff.lint]
 ignore = ["F811"]
