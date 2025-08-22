@@ -62,7 +62,9 @@ def sync(
         https://atviriduomenys.readthedocs.io/agentas.html#sinchronizacija
     """
     manifest = convert_str_to_manifest_path(manifest)
-    context, manifest = get_context_and_manifest(ctx, manifest, resource, formula, backend, auth, priority)
+    context, manifest = get_context_and_manifest(
+        ctx, manifest, resource, formula, backend, auth, priority
+    )
     dataset_data = prepare_synchronization_manifests(context, manifest)
 
     credentials = get_configuration_credentials(context)
@@ -79,8 +81,7 @@ def sync(
             dataset_id = extract_dataset_id(response_create_dataset, "detail")
             for distribution in dataset["resources"]:
                 file_bytes = render_content_from_manifest(context, distribution["manifest"], ContentType.BYTES)
-                create_distribution(
-                    base_path, headers, f"{dataset_name}/{distribution['name']}", file_bytes, dataset_id
+                create_distribution(base_path, headers, f"{dataset_name}/{distribution['name']}", file_bytes, dataset_id
                 )
             content = render_content_from_manifest(context, dataset["dataset_manifest"], ContentType.CSV)
             create_dsa(base_path, headers, dataset_id, content)
