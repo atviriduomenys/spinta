@@ -63,9 +63,7 @@ def sync(
         https://atviriduomenys.readthedocs.io/agentas.html#sinchronizacija
     """
     manifest = convert_str_to_manifest_path(manifest)
-    context, manifest = get_context_and_manifest(
-        ctx, manifest, resource, formula, backend, auth, priority
-    )
+    context, manifest = get_context_and_manifest(ctx, manifest, resource, formula, backend, auth, priority)
     dataset_data = prepare_synchronization_manifests(context, manifest)
 
     credentials = get_configuration_credentials(context)
