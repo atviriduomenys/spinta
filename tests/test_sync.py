@@ -3,22 +3,23 @@ from pathlib import PosixPath
 from unittest.mock import patch, MagicMock
 
 import pytest
+import sqlalchemy as sa
 
 from spinta.client import RemoteClientCredentials
 from spinta.core.config import RawConfig
-from spinta.exceptions import NotImplementedFeature, UnexpectedAPIResponse, UnexpectedAPIResponseData, \
-ManifestFileNotProvided
+from spinta.exceptions import NotImplementedFeature, UnexpectedAPIResponse, UnexpectedAPIResponseData
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.context import ContextForTests
+from spinta.testing.datasets import Sqlite
 from spinta.testing.tabular import create_tabular_manifest
 
 
 @pytest.fixture
 def patched_credentials():
     credentials = RemoteClientCredentials(
-        section='default',
-        remote='origin',
+        section="default",
+        remote="origin",
         client="client-id",
         secret="secret",
         server="http://example.com",
@@ -26,8 +27,26 @@ def patched_credentials():
         organization="vssa",
         organization_type="gov",
     )
-    with patch('spinta.cli.helpers.sync.helpers.get_client_credentials', return_value=credentials):
+    with patch("spinta.cli.helpers.sync.helpers.get_client_credentials", return_value=credentials):
         yield credentials
+
+
+@pytest.fixture
+def sqlite_instance(sqlite: Sqlite):
+    sqlite.init(
+        {
+            "COUNTRY": [
+                sa.Column("ID", sa.Integer, primary_key=True),
+                sa.Column("CODE", sa.Text),
+                sa.Column("NAME", sa.Text),
+            ],
+            "CITY": [
+                sa.Column("NAME", sa.Text),
+                sa.Column("COUNTRY_ID", sa.Integer, sa.ForeignKey("COUNTRY.ID")),
+            ],
+        }
+    )
+    return sqlite
 
 
 @pytest.fixture
@@ -48,7 +67,7 @@ def manifest_path(context: ContextForTests, tmp_path: PosixPath) -> PosixPath:
            |   |   |   |   | id            | integer |         | id     |       |           |            |        |       |
            |   |   |   |   | full_name     | string  |         | name   |       |           |            |        |       |
         """)
-    manifest_path = tmp_path / 'manifest.csv'
+    manifest_path = tmp_path / "manifest.csv"
     create_tabular_manifest(context, manifest_path, manifest)
     return manifest_path
 
@@ -60,6 +79,7 @@ def test_success_existing_dataset(
     requests_mock: MagicMock,
     patched_credentials: RemoteClientCredentials,
     base_uapi_url: str,
+    sqlite_instance: Sqlite,
 ):
     mock_auth_token_post = requests_mock.post(
         f"{patched_credentials.server}/auth/token",
@@ -68,8 +88,8 @@ def test_success_existing_dataset(
     )
     mock_dataset_get = requests_mock.get(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        status_code = HTTPStatus.OK,
-        json = {"_data": [{"_id": 1}]},
+        status_code=HTTPStatus.OK,
+        json={"_data": [{"_id": 1}]},
     )
     mock_dataset_put = requests_mock.put(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/1/dsa/",
@@ -78,13 +98,13 @@ def test_success_existing_dataset(
     )
 
     with pytest.raises(NotImplementedFeature) as exception:
-        cli.invoke(rc, args=["sync", manifest_path], catch_exceptions=False)
+        cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
 
     assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
     assert exception.value.context == {
         "status": HTTPStatus.NOT_IMPLEMENTED.value,
         "dataset_id": 1,
-        "feature": "Updates on existing Datasets"
+        "feature": "Updates on existing Datasets",
     }
 
     assert mock_auth_token_post.call_count == 1
@@ -99,6 +119,7 @@ def test_success_new_dataset(
     requests_mock: MagicMock,
     patched_credentials: RemoteClientCredentials,
     base_uapi_url: str,
+    sqlite_instance: Sqlite,
 ):
     mock_auth_token_post = requests_mock.post(
         f"{patched_credentials.server}/auth/token",
@@ -127,43 +148,13 @@ def test_success_new_dataset(
     )
 
     # Should not raise any error.
-    cli.invoke(rc, args=["sync", manifest_path], catch_exceptions=False)
+    cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
 
     assert mock_auth_token_post.call_count == 1
-    assert mock_dataset_get.call_count == 1
-    assert mock_dataset_post.call_count == 1
-    assert mock_distribution_post.call_count == 1
-    assert mock_dsa_post.call_count == 1
-
-
-def test_failure_no_manifest_file_provided(rc: RawConfig, cli: SpintaCliRunner):
-    with pytest.raises(ManifestFileNotProvided) as exception:
-        cli.invoke(rc, args=["sync"], catch_exceptions=False)
-
-    assert exception.value.message == (
-        "A manifest file was not provided. Provide it in the format `spinta <command> <file_path>`."
-    )
-
-
-def test_failure_multiple_datasets(context: ContextForTests, rc: RawConfig, cli: SpintaCliRunner, tmp_path: PosixPath):
-    """Checks that multiple dataset support is not yet implemented."""
-    manifest = striptable("""
-        id | d | r | b | m | property      | type    | ref     | source | level | status    | visibility | access | title | description
-           | example                       |         |         |        |       |           |            |        |       |
-           |   | cities                    |         | default |        |       |           |            |        |       |
-           |                               |         |         |        |       |           |            |        |       |
-           |   |   |   | City              |         | id      | users  | 4     | completed | package    | open   | Name  |
-           |   |   |   |   | id            | integer |         | id     |       |           |            |        |       |
-           |   |   |   |   | full_name     | string  |         | name   |       |           |            |        |       |
-           | example2                      |         |         |        |       |           |            |        |       |
-    """)
-    manifest_path = tmp_path / 'manifest.csv'
-    create_tabular_manifest(context, manifest_path, manifest)
-
-    with pytest.raises(NotImplementedFeature) as exception:
-        cli.invoke(rc, args=["sync", manifest_path], catch_exceptions=False)
-
-    assert exception.value.message == "Synchronizing more than 1 dataset at a time is not implemented yet."
+    assert mock_dataset_get.call_count == 2
+    assert mock_dataset_post.call_count == 2
+    assert mock_distribution_post.call_count == 2
+    assert mock_dsa_post.call_count == 2
 
 
 def test_failure_get_access_token_api_call(
@@ -172,6 +163,7 @@ def test_failure_get_access_token_api_call(
     manifest_path: PosixPath,
     requests_mock: MagicMock,
     patched_credentials: RemoteClientCredentials,
+    sqlite_instance: Sqlite,
 ):
     token_url = f"{patched_credentials.server}/auth/token"
     mock_auth_token_post = requests_mock.post(
@@ -181,7 +173,7 @@ def test_failure_get_access_token_api_call(
     )
 
     with pytest.raises(Exception) as exception:
-        cli.invoke(rc, args=["sync", manifest_path], catch_exceptions=False)
+        cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
 
     assert exception.value.response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
 
@@ -195,6 +187,7 @@ def test_failure_get_dataset_returns_unexpected_status_code(
     requests_mock: MagicMock,
     patched_credentials: RemoteClientCredentials,
     base_uapi_url: str,
+    sqlite_instance: Sqlite,
 ):
     mock_auth_token_post = requests_mock.post(
         f"{patched_credentials.server}/auth/token",
@@ -214,20 +207,22 @@ def test_failure_get_dataset_returns_unexpected_status_code(
     )
 
     with pytest.raises(UnexpectedAPIResponse) as exception:
-        cli.invoke(rc, args=["sync", manifest_path], catch_exceptions=False)
+        cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
 
     assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
     assert exception.value.context == {
         "operation": "Get dataset",
         "expected_status_code": str({HTTPStatus.OK.value, HTTPStatus.NOT_FOUND.value}),
         "response_status_code": HTTPStatus.INTERNAL_SERVER_ERROR.value,
-        "response_data": str({
-            "code": "dataset_not_found",
-            "type": "DatasetNotFound",
-            "template": "The requested Dataset could not be found.",
-            "message": "No dataset matched the provided query.",
-            "status_code": HTTPStatus.INTERNAL_SERVER_ERROR.value,
-        }),
+        "response_data": str(
+            {
+                "code": "dataset_not_found",
+                "type": "DatasetNotFound",
+                "template": "The requested Dataset could not be found.",
+                "message": "No dataset matched the provided query.",
+                "status_code": HTTPStatus.INTERNAL_SERVER_ERROR.value,
+            }
+        ),
     }
 
     assert mock_auth_token_post.call_count == 1
@@ -241,6 +236,7 @@ def test_failure_get_dataset_returns_invalid_data(
     requests_mock: MagicMock,
     patched_credentials: RemoteClientCredentials,
     base_uapi_url: str,
+    sqlite_instance: Sqlite,
 ):
     mock_auth_token_post = requests_mock.post(
         f"{patched_credentials.server}/auth/token",
@@ -249,17 +245,17 @@ def test_failure_get_dataset_returns_invalid_data(
     )
     mock_dataset_get = requests_mock.get(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        status_code = HTTPStatus.OK,
-        json = {},
+        status_code=HTTPStatus.OK,
+        json={},
     )
 
     with pytest.raises(UnexpectedAPIResponseData) as exception:
-        cli.invoke(rc, args=["sync", manifest_path], catch_exceptions=False)
+        cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
 
     assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
     assert exception.value.context == {
         "operation": "Retrieve dataset `_id`",
-        "context": "Dataset did not return the `_id` field which can be used to identify the dataset."
+        "context": "Dataset did not return the `_id` field which can be used to identify the dataset.",
     }
 
     assert mock_auth_token_post.call_count == 1
@@ -273,6 +269,7 @@ def test_failure_put_dataset_returns_invalid_data(
     requests_mock: MagicMock,
     patched_credentials: RemoteClientCredentials,
     base_uapi_url: str,
+    sqlite_instance: Sqlite,
 ):
     """Check the workflow, when DSA put endpoint returns an invalid response.
 
@@ -286,8 +283,8 @@ def test_failure_put_dataset_returns_invalid_data(
     )
     mock_dataset_get = requests_mock.get(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        status_code = HTTPStatus.OK,
-        json = {"_data": [{"_id": 1}]},
+        status_code=HTTPStatus.OK,
+        json={"_data": [{"_id": 1}]},
     )
     mock_dataset_post = requests_mock.put(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/1/dsa/",
@@ -295,13 +292,13 @@ def test_failure_put_dataset_returns_invalid_data(
     )
 
     with pytest.raises(NotImplementedFeature) as exception:
-        cli.invoke(rc, args=["sync", manifest_path], catch_exceptions=False)
+        cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
 
     assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
     assert exception.value.context == {
         "status": HTTPStatus.INTERNAL_SERVER_ERROR.value,
         "dataset_id": 1,
-        "feature": "Updates on existing Datasets"
+        "feature": "Updates on existing Datasets",
     }
 
     assert mock_auth_token_post.call_count == 1
@@ -316,6 +313,7 @@ def test_failure_post_dataset_returns_unexpected_status_code(
     requests_mock: MagicMock,
     patched_credentials: RemoteClientCredentials,
     base_uapi_url: str,
+    sqlite_instance: Sqlite,
 ):
     mock_auth_token_post = requests_mock.post(
         f"{patched_credentials.server}/auth/token",
@@ -334,14 +332,14 @@ def test_failure_post_dataset_returns_unexpected_status_code(
     )
 
     with pytest.raises(UnexpectedAPIResponse) as exception:
-        cli.invoke(rc, args=["sync", manifest_path], catch_exceptions=False)
+        cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
 
     assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
     assert exception.value.context == {
         "operation": "Create dataset",
         "expected_status_code": str({HTTPStatus.CREATED.value}),
         "response_status_code": HTTPStatus.INTERNAL_SERVER_ERROR.value,
-        "response_data": str({})
+        "response_data": str({}),
     }
 
     assert mock_auth_token_post.call_count == 1
@@ -356,6 +354,7 @@ def test_failure_post_dataset_returns_invalid_data(
     requests_mock: MagicMock,
     patched_credentials: RemoteClientCredentials,
     base_uapi_url: str,
+    sqlite_instance: Sqlite,
 ):
     mock_auth_token_post = requests_mock.post(
         f"{patched_credentials.server}/auth/token",
@@ -374,12 +373,12 @@ def test_failure_post_dataset_returns_invalid_data(
     )
 
     with pytest.raises(UnexpectedAPIResponseData) as exception:
-        cli.invoke(rc, args=["sync", manifest_path], catch_exceptions=False)
+        cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
 
     assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
     assert exception.value.context == {
         "operation": f"Retrieve dataset `_id`",
-        "context": f"Dataset did not return the `_id` field which can be used to identify the dataset."
+        "context": f"Dataset did not return the `_id` field which can be used to identify the dataset.",
     }
 
     assert mock_auth_token_post.call_count == 1
@@ -394,6 +393,7 @@ def test_failure_post_distribution_returns_unexpected_status_code(
     requests_mock: MagicMock,
     patched_credentials: RemoteClientCredentials,
     base_uapi_url: str,
+    sqlite_instance: Sqlite,
 ):
     mock_auth_token_post = requests_mock.post(
         f"{patched_credentials.server}/auth/token",
@@ -417,20 +417,21 @@ def test_failure_post_distribution_returns_unexpected_status_code(
     )
 
     with pytest.raises(UnexpectedAPIResponse) as exception:
-        cli.invoke(rc, args=["sync", manifest_path], catch_exceptions=False)
+        cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
 
     assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
     assert exception.value.context == {
         "operation": "Create distribution",
         "expected_status_code": str({HTTPStatus.CREATED.value}),
         "response_status_code": HTTPStatus.INTERNAL_SERVER_ERROR.value,
-        "response_data": str({})
+        "response_data": str({}),
     }
 
     assert mock_auth_token_post.call_count == 1
     assert mock_dataset_get.call_count == 1
     assert mock_dataset_post.call_count == 1
     assert mock_distribution_post.call_count == 1
+
 
 def test_failure_post_dsa_returns_unexpected_status_code(
     rc: RawConfig,
@@ -439,6 +440,7 @@ def test_failure_post_dsa_returns_unexpected_status_code(
     requests_mock: MagicMock,
     patched_credentials: RemoteClientCredentials,
     base_uapi_url: str,
+    sqlite_instance: Sqlite,
 ):
     mock_auth_token_post = requests_mock.post(
         f"{patched_credentials.server}/auth/token",
@@ -467,18 +469,17 @@ def test_failure_post_dsa_returns_unexpected_status_code(
     )
 
     with pytest.raises(UnexpectedAPIResponse) as exception:
-        cli.invoke(rc, args=["sync", manifest_path], catch_exceptions=False)
+        cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
 
     assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
     assert exception.value.context == {
         "operation": "Create DSA",
         "expected_status_code": str({HTTPStatus.NO_CONTENT.value}),
         "response_status_code": HTTPStatus.INTERNAL_SERVER_ERROR.value,
-        "response_data": str({})
+        "response_data": str({}),
     }
     assert mock_auth_token_post.call_count == 1
     assert mock_dataset_get.call_count == 1
     assert mock_dataset_post.call_count == 1
     assert mock_distribution_post.call_count == 1
     assert mock_dsa_post.call_count == 1
-

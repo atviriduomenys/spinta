@@ -1,26 +1,26 @@
 from __future__ import annotations
 from http import HTTPStatus
-from typing import Any, cast
+from typing import Any, Optional
 
-from typer import Context as TyperContext
+from typer import echo, Context as TyperContext
 from requests import Response
 
 from spinta.auth import DEFAULT_CREDENTIALS_SECTION
-from spinta.cli.helpers.manifest import convert_str_to_manifest_path
-from spinta.cli.helpers.store import prepare_manifest
-from spinta.cli.helpers.sync import IDENTIFIER
+from spinta.cli.helpers.sync import IDENTIFIER, ContentType
 from spinta.client import get_client_credentials, RemoteClientCredentials, get_access_token
 from spinta.components import Config, Context
 from spinta import commands
-from spinta.core.context import configure_context
-from spinta.core.enums import Mode
+from spinta.datasets.inspect.helpers import create_manifest_from_inspect
 from spinta.exceptions import (
     NotImplementedFeature,
-    ManifestFileNotProvided,
     UnexpectedAPIResponse,
     UnexpectedAPIResponseData,
 )
-from spinta.manifests.components import ManifestPath
+from spinta.formats.csv.commands import _render_manifest_csv
+from spinta.manifests.components import ManifestPath, Manifest
+from spinta.manifests.helpers import init_manifest
+from spinta.manifests.tabular.constants import DATASET
+from spinta.manifests.tabular.helpers import datasets_to_tabular
 from spinta.manifests.yaml.components import InlineManifest
 
 
@@ -46,85 +46,124 @@ def validate_api_response(response: Response, expected_status_codes: set[HTTPSta
         )
 
 
-def get_manifest_paths(manifests: list[str]) -> list[ManifestPath]:
-    """Convert a list of manifest strings to `ManifestPath` objects.
+def get_context_and_manifest(
+    ctx: TyperContext,
+    manifest: ManifestPath,
+    resource: Optional[tuple[str, str]],
+    formula: str,
+    backend: Optional[str],
+    auth: Optional[str],
+    priority: str,
+) -> tuple[Context, Manifest]:
+    """Create a context and manifest for synchronization.
 
-    Args:
-        manifests: List of manifest file paths or strings.
-
-    Returns:
-        List of `ManifestPath` objects.
-
-    Raises:
-        ManifestFileNotProvided: If no manifest file is provided.
-    """
-    manifest_paths = convert_str_to_manifest_path(manifests)
-    if not manifests:
-        raise ManifestFileNotProvided
-
-    if isinstance(manifest_paths, ManifestPath):
-        return [manifest_paths]
-
-    return manifest_paths
-
-
-def build_manifest_and_context(ctx: TyperContext, manifests: list[ManifestPath]) -> tuple[Context, InlineManifest]:
-    """Build a Spinta context and load the corresponding manifest.
-
-    Args:
-        ctx: Context containing CLI state.
-        manifests: List of `ManifestPath` objects to load.
-
-    Returns:
-        Tuple of `Context` (Spinta) and `InlineManifest` (loaded manifest).
-    """
-    context = configure_context(ctx.obj, manifests, mode=Mode.external)
-    store = prepare_manifest(context, verbose=False, full_load=True)
-    return context, cast(InlineManifest, store.manifest)
-
-
-def get_dataset_name(context: Context, manifest: InlineManifest) -> str:
-    """Retrieve the dataset name from a manifest.
-
-    Raises an error if more than one dataset is present, since multi-dataset
-    synchronization is not implemented.
+    This function inspects and builds a manifest from provided resources,
+    formula, backend, and authentication settings. The `priority` determines
+    whether manifest or external data should take precedence.
 
     Args:
         context: Spinta runtime context.
-        manifest: Loaded manifest.
-
-    Returns:
-        The single dataset name as a string.
-
-    Raises:
-        NotImplementedFeature: If more than one dataset is found.
-    """
-    datasets = commands.get_datasets(context, manifest)
-    if len(datasets) > 1:
-        # TODO: https://github.com/atviriduomenys/spinta/issues/1404
-        raise NotImplementedFeature(feature="Synchronizing more than 1 dataset at a time")
-
-    return next(iter(datasets))
-
-
-def get_file_bytes_and_decoded_content(manifests: list[ManifestPath]) -> tuple[bytes, str]:
-    """Read the first manifest file as bytes and decode it as UTF-8 text.
-
-    Args:
-        manifests: List of `ManifestPath` objects.
+        manifest: Path or identifier of the manifest to inspect.
+        resource: Resource definitions to include in the manifest.
+        formula: Formula definitions for derived data.
+        backend: Backend configuration for the manifest.
+        auth: Authentication configuration.
+        priority: Either ``"manifest"`` or ``"external"`` indicating which data takes precedence.
 
     Returns:
         Tuple containing:
-            - The raw bytes of the file.
-            - The UTF-8 decoded string content of the file.
+            - context: Spinta runtime context.
+            - manifest: Generated manifest object.
     """
-    with open(manifests[0].path, "rb") as file:
-        file_bytes = file.read()
-        content = file_bytes.decode("utf-8")
-    return file_bytes, content
+    if priority not in ["manifest", "external"]:
+        echo(
+            f"Priority '{priority}' does not exist, there can only be 'manifest' or 'external', it will be set to default 'manifest'."
+        )
+        priority = "manifest"
+
+    context, manifest = create_manifest_from_inspect(
+        context=ctx.obj,
+        manifest=manifest,
+        resources=resource,
+        formula=formula,
+        backend=backend,
+        auth=auth,
+        priority=priority,
+    )
+
+    return context, manifest
+
+
+def prepare_synchronization_manifests(context: Context, manifest: Manifest) -> list[dict[str, Any]]:
+    """Prepare dataset and resource manifests for synchronization.
+
+    Iterates through datasets and their resources to construct separate
+    manifests for each dataset and its resources, along with their models.
+
+    Args:
+        context: Spinta runtime context.
+        manifest: Root manifest containing dataset definitions.
+
+    Returns:
+        List of dataset metadata dictionaries, each containing:
+            - ``name``: Dataset name.
+            - ``dataset_manifest``: Manifest object for the dataset.
+            - ``resources``: List of resource dictionaries with:
+                - ``name``: Resource name.
+                - ``manifest``: Manifest object for the resource.
+    """
+    dataset_data = []
+    datasets = commands.get_datasets(context, manifest)
+    for dataset_name, dataset_object in datasets.items():
+        dataset_manifest = Manifest()
+        init_manifest(context, dataset_manifest, "sync_dataset_manifest")
+
+        dataset_manifest_models = []
+        resource_data = []
+
+        for resource_name, resource_object in dataset_object.resources.items():
+            resource_manifest = Manifest()
+            init_manifest(context, resource_manifest, "sync_resource_manifest")
+
+            resource_models = resource_object.models
+            commands.set_models(context, resource_manifest, resource_models)
+            dataset_manifest_models.append(resource_models)
+
+            resource_data.append(
+                {
+                    "name": resource_name,
+                    "manifest": resource_manifest,
+                }
+            )
+
+        dataset_models = {}
+        for model in dataset_manifest_models:
+            dataset_models.update(model)
+        commands.set_models(context, dataset_manifest, dataset_models)
+
+        dataset_data.append(
+            {
+                "name": dataset_name,
+                "dataset_manifest": dataset_manifest,
+                "resources": resource_data,
+            }
+        )
+
+    return dataset_data
 
 
 def get_configuration_credentials(context: Context) -> RemoteClientCredentials:
+    """Retrieve remote client credentials from configuration.
+
+    Reads the credentials file specified in the Spinta configuration and
+    loads client credentials from the default section.
+
+    Args:
+        context: Spinta runtime context containing configuration.
+
+    Returns:
+        RemoteClientCredentials object with client ID, secret, and server details.
+    """
     config: Config = context.get("config")
     credentials: RemoteClientCredentials = get_client_credentials(config.credentials_file, DEFAULT_CREDENTIALS_SECTION)
     return credentials
@@ -192,3 +231,33 @@ def extract_dataset_id(response: Response, response_type: str) -> str:
         )
 
     return dataset_id
+
+
+def render_content_from_manifest(context: Context, manifest: InlineManifest, content_type: ContentType) -> bytes | str:
+    """Render manifest content in the requested format.
+
+    Converts dataset information from a manifest into tabular rows and serializes it into:
+        - CSV;
+        - UTF-8 encoded bytes.
+
+    Args:
+        context: Spinta runtime context.
+        manifest: Loaded manifest to render.
+        content_type: Desired content type, either ``ContentType.CSV`` or ``ContentType.BYTES``.
+
+    Returns:
+        Rendered content as a CSV string or UTF-8 encoded bytes.
+
+    Raises:
+        NotImplementedFeature: If the provided content type is not supported.
+    """
+    rows = datasets_to_tabular(context, manifest)
+    rows = ({c: row[c] for c in DATASET} for row in rows)
+
+    rendered_rows = "".join(_render_manifest_csv(rows))
+    if content_type == ContentType.CSV:
+        return rendered_rows
+    elif content_type == ContentType.BYTES:
+        return rendered_rows.encode("utf-8")
+    else:
+        raise NotImplementedFeature()
