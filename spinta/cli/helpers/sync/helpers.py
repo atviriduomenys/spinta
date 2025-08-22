@@ -57,18 +57,18 @@ def get_context_and_manifest(
 ) -> tuple[Context, Manifest]:
     """Create a context and manifest for synchronization.
 
-    This function inspects and builds a manifest from provided resources,
-    formula, backend, and authentication settings. The `priority` determines
-    whether manifest or external data should take precedence.
+        This function inspects and builds a manifest from provided resources,
+        formula, backend, and authentication settings. The `priority` determines
+        whether manifest or external data should take precedence.
 
-    Args:
-        context: Spinta runtime context.
-        manifest: Path or identifier of the manifest to inspect.
-        resource: Resource definitions to include in the manifest.
-        formula: Formula definitions for derived data.
-        backend: Backend configuration for the manifest.
-        auth: Authentication configuration.
-        priority: Either ``"manifest"`` or ``"external"`` indicating which data takes precedence.
+        Args:
+            context: Spinta runtime context.
+            manifest: Path or identifier of the manifest to inspect.
+            resource: Resource definitions to include in the manifest.
+            formula: Formula definitions for derived data.
+            backend: Backend configuration for the manifest.
+            auth: Authentication configuration.
+            priority: Either ``"manifest"`` or ``"external"`` indicating which data takes precedence.
 
     Returns:
         Tuple containing:
@@ -129,25 +129,21 @@ def prepare_synchronization_manifests(context: Context, manifest: Manifest) -> l
             commands.set_models(context, resource_manifest, resource_models)
             dataset_manifest_models.append(resource_models)
 
-            resource_data.append(
-                {
-                    "name": resource_name,
-                    "manifest": resource_manifest,
-                }
-            )
+            resource_data.append({
+                "name": resource_name,
+                "manifest": resource_manifest,
+            })
 
         dataset_models = {}
         for model in dataset_manifest_models:
             dataset_models.update(model)
         commands.set_models(context, dataset_manifest, dataset_models)
 
-        dataset_data.append(
-            {
-                "name": dataset_name,
-                "dataset_manifest": dataset_manifest,
-                "resources": resource_data,
-            }
-        )
+        dataset_data.append({
+            "name": dataset_name,
+            "dataset_manifest": dataset_manifest,
+            "resources": resource_data,
+        })
 
     return dataset_data
 
