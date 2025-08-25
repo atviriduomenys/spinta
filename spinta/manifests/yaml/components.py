@@ -7,7 +7,7 @@ from spinta.manifests.components import Manifest
 
 
 class YamlManifest(Manifest):
-    type = 'yaml'
+    type = "yaml"
     path: Path = None
 
 
@@ -15,5 +15,5 @@ InlineManifestData = List[Dict[str, Any]]
 
 
 class InlineManifest(YamlManifest):
-    type = 'inline'
+    type = "inline"
     manifest: InlineManifestData

@@ -18,20 +18,13 @@ def get_redirect_table(context: Context, backend: PostgreSQL, model: Model):
     table_name = get_pg_name(get_table_name(model, TableType.REDIRECT))
     pkey_type = commands.get_primary_key_type(context, backend)
     table = sa.Table(
-        table_name, backend.schema,
-        sa.Column('_id', pkey_type, primary_key=True),
-        sa.Column('redirect', pkey_type, index=True),
+        table_name,
+        backend.schema,
+        sa.Column("_id", pkey_type, primary_key=True),
+        sa.Column("redirect", pkey_type, index=True),
     )
     return table
 
 
-def remove_from_redirect(
-    conn: sa.engine.Connection,
-    table: sa.Table,
-    pk: str
-):
-    conn.execute(
-        table.delete().where(
-            table.columns['_id'] == pk
-        )
-    )
+def remove_from_redirect(conn: sa.engine.Connection, table: sa.Table, pk: str):
+    conn.execute(table.delete().where(table.columns["_id"] == pk))

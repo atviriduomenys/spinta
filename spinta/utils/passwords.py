@@ -7,11 +7,11 @@ import random
 
 
 def _bencode(value: bytes) -> str:
-    return base64.urlsafe_b64encode(value).decode().rstrip('=')
+    return base64.urlsafe_b64encode(value).decode().rstrip("=")
 
 
 def _bdecode(value: str) -> bytes:
-    value = value.ljust(math.ceil(len(value) / 4) * 4, '=')
+    value = value.ljust(math.ceil(len(value) / 4) * 4, "=")
     return base64.urlsafe_b64decode(value)
 
 
@@ -24,18 +24,18 @@ def crypt(password, iterations=None, salt=None):
         salt = salt.encode()
     if isinstance(password, str):
         password = password.encode()
-    hash = hashlib.pbkdf2_hmac('sha256', password, salt, iterations)
+    hash = hashlib.pbkdf2_hmac("sha256", password, salt, iterations)
     hash = _bencode(hash)
     salt = _bencode(salt)
-    return f'pbkdf2$sha256${iterations}${salt}${hash}'
+    return f"pbkdf2$sha256${iterations}${salt}${hash}"
 
 
 def verify(password, hash):
     if isinstance(password, str):
         password = password.encode()
 
-    hasher, *args = hash.split('$')
-    if hasher == 'pbkdf2':
+    hasher, *args = hash.split("$")
+    if hasher == "pbkdf2":
         hash_name, iterations, salt, hash = args
         iterations = int(iterations)
         salt = _bdecode(salt)

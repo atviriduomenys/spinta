@@ -28,8 +28,11 @@ def test_admin_changelog_requires_redirect(
     request: FixtureRequest,
     cli: SpintaCliRunner,
 ):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(
-        '''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable(
+            """
         d | r | b | m | property      | type    | ref     | prepare | access | level
         datasets/deduplicate/cli/req  |         |         |         |        |
           |   |   | Country           |         | id      |         |        |
@@ -43,18 +46,15 @@ def test_admin_changelog_requires_redirect(
           |   |   | Random            |         | id      |         |        |
           |   |   |   | id            | integer |         |         | open   |
           |   |   |   | name          | string  |         |         | open   |
-        '''
-    ))
-
-    context = bootstrap_manifest(
-        rc, tmp_path / 'manifest.csv',
-        backend=postgresql,
-        tmp_path=tmp_path,
-        request=request,
-        full_load=True
+        """
+        ),
     )
 
-    store = context.get('store')
+    context = bootstrap_manifest(
+        rc, tmp_path / "manifest.csv", backend=postgresql, tmp_path=tmp_path, request=request, full_load=True
+    )
+
+    store = context.get("store")
     backend = store.manifest.backend
     insp = sa.inspect(backend.engine)
     country_redirect = get_pg_table_name("datasets/deduplicate/cli/req/Country", TableType.REDIRECT)
@@ -71,10 +71,7 @@ def test_admin_changelog_requires_redirect(
     assert not insp.has_table(country_redirect)
     assert not insp.has_table(city_redirect)
     assert not insp.has_table(random_redirect)
-    result = cli.invoke(context.get('rc'), [
-        'admin',
-        Script.CHANGELOG.value
-    ])
+    result = cli.invoke(context.get("rc"), ["admin", Script.CHANGELOG.value])
     assert result.exit_code == 0
     assert script_check_status_message(Script.CHANGELOG.value, ScriptStatus.SKIPPED) in result.stdout
 
@@ -82,10 +79,7 @@ def test_admin_changelog_requires_redirect(
     assert not insp.has_table(city_redirect)
     assert not insp.has_table(random_redirect)
 
-    result = cli.invoke(context.get('rc'), [
-        'upgrade',
-        UpgradeScript.REDIRECT.value
-    ])
+    result = cli.invoke(context.get("rc"), ["upgrade", UpgradeScript.REDIRECT.value])
     assert result.exit_code == 0
     assert script_check_status_message(UpgradeScript.REDIRECT.value, ScriptStatus.REQUIRED) in result.stdout
 
@@ -93,17 +87,14 @@ def test_admin_changelog_requires_redirect(
     assert insp.has_table(city_redirect)
     assert insp.has_table(random_redirect)
 
-    with open(tmp_path / 'modellist.txt', 'w') as f:
-        f.write('datasets/deduplicate/cli/req/Country\n')
-        f.write('datasets/deduplicate/cli/req/City\n')
-        f.write('datasets/deduplicate/rand/req/Random\n')
+    with open(tmp_path / "modellist.txt", "w") as f:
+        f.write("datasets/deduplicate/cli/req/Country\n")
+        f.write("datasets/deduplicate/cli/req/City\n")
+        f.write("datasets/deduplicate/rand/req/Random\n")
 
-    result = cli.invoke(context.get('rc'), [
-        'admin',
-        Script.CHANGELOG.value,
-        '-c',
-        '--input', f'{tmp_path / "modellist.txt"}'
-    ])
+    result = cli.invoke(
+        context.get("rc"), ["admin", Script.CHANGELOG.value, "-c", "--input", f"{tmp_path / 'modellist.txt'}"]
+    )
     assert result.exit_code == 0
     assert script_check_status_message(Script.CHANGELOG.value, ScriptStatus.PASSED) in result.stdout
 
@@ -116,8 +107,11 @@ def test_admin_changelog_requires_deduplicate(
     request: FixtureRequest,
     cli: SpintaCliRunner,
 ):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(
-        '''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable(
+            """
         d | r | b | m | property  | type    | ref                           | prepare | access | level
         datasets/deduplicate/cli  |         |                               |         |        |
           |   |   | Country       |         | id                            |         |        |
@@ -132,18 +126,15 @@ def test_admin_changelog_requires_deduplicate(
           |   |   |   | id        | integer |                               |         | open   |
           |   |   |   | name      | string  |                               |         | open   |
           |   |   |   | city      | ref     | datasets/deduplicate/cli/City |         | open   |
-        '''
-    ))
-
-    context = bootstrap_manifest(
-        rc, tmp_path / 'manifest.csv',
-        backend=postgresql,
-        tmp_path=tmp_path,
-        request=request,
-        full_load=True
+        """
+        ),
     )
 
-    store = context.get('store')
+    context = bootstrap_manifest(
+        rc, tmp_path / "manifest.csv", backend=postgresql, tmp_path=tmp_path, request=request, full_load=True
+    )
+
+    store = context.get("store")
     manifest = store.manifest
     backend = manifest.backend
     insp = sa.inspect(backend.engine)
@@ -158,34 +149,25 @@ def test_admin_changelog_requires_deduplicate(
     insp = sa.inspect(backend.engine)
     assert not any(uq_city_constraint == constraint["name"] for constraint in insp.get_unique_constraints(city_name))
 
-
-    result = cli.invoke(context.get('rc'), [
-        'admin',
-         Script.CHANGELOG.value
-    ])
+    result = cli.invoke(context.get("rc"), ["admin", Script.CHANGELOG.value])
     assert result.exit_code == 0
     assert script_check_status_message(Script.CHANGELOG.value, ScriptStatus.SKIPPED) in result.stdout
 
-    result = cli.invoke(context.get('rc'), [
-        'admin',
-         Script.DEDUPLICATE.value
-    ])
+    result = cli.invoke(context.get("rc"), ["admin", Script.DEDUPLICATE.value])
     assert result.exit_code == 0
     assert script_check_status_message(Script.DEDUPLICATE.value, ScriptStatus.REQUIRED) in result.stdout
 
     insp = sa.inspect(backend.engine)
     assert any(uq_city_constraint == constraint["name"] for constraint in insp.get_unique_constraints(city_name))
 
-    with open(tmp_path / 'modellist.txt', 'w') as f:
-        f.write('datasets/deduplicate/cli/Country\n')
-        f.write('datasets/deduplicate/cli/City\n')
-        f.write('datasets/deduplicate/rand/Random\n')
+    with open(tmp_path / "modellist.txt", "w") as f:
+        f.write("datasets/deduplicate/cli/Country\n")
+        f.write("datasets/deduplicate/cli/City\n")
+        f.write("datasets/deduplicate/rand/Random\n")
 
-    result = cli.invoke(context.get('rc'), [
-        'admin',
-        Script.CHANGELOG.value,
-        '--input', f'{tmp_path / "modellist.txt"}'
-    ])
+    result = cli.invoke(
+        context.get("rc"), ["admin", Script.CHANGELOG.value, "--input", f"{tmp_path / 'modellist.txt'}"]
+    )
     assert result.exit_code == 0
     assert script_check_status_message(Script.CHANGELOG.value, ScriptStatus.PASSED) in result.stdout
 
@@ -198,36 +180,38 @@ def test_admin_changelog_old_deleted_entries(
     request: FixtureRequest,
     cli: SpintaCliRunner,
 ):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(
-        '''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable(
+            """
         d | r | b | m | property       | type    | ref                           | prepare | access | level
         datasets/deduplicate/changelog |         |                               |         |        |
           |   |   | Country            |         | id                            |         |        |
           |   |   |   | id             | integer |                               |         | open   |
           |   |   |   | name           | string  |                               |         | open   |
-        '''
-    ))
+        """
+        ),
+    )
 
     context = bootstrap_manifest(
-        rc, tmp_path / 'manifest.csv',
-        backend=postgresql,
-        tmp_path=tmp_path,
-        request=request,
-        full_load=True
+        rc, tmp_path / "manifest.csv", backend=postgresql, tmp_path=tmp_path, request=request, full_load=True
     )
 
     app = create_test_client(context)
-    app.authorize([
-        'spinta_insert',
-        'spinta_getone',
-        'spinta_delete',
-        'spinta_wipe',
-        'spinta_search',
-        'spinta_set_meta_fields',
-        'spinta_move',
-        'spinta_getall',
-        'spinta_changes'
-    ])
+    app.authorize(
+        [
+            "spinta_insert",
+            "spinta_getone",
+            "spinta_delete",
+            "spinta_wipe",
+            "spinta_search",
+            "spinta_set_meta_fields",
+            "spinta_move",
+            "spinta_getall",
+            "spinta_changes",
+        ]
+    )
     c_0 = str(uuid.uuid4())
     c_1 = str(uuid.uuid4())
     c_2 = str(uuid.uuid4())
@@ -237,10 +221,10 @@ def test_admin_changelog_old_deleted_entries(
     c_1_1 = str(uuid.uuid4())
 
     data = [
-        {'_id': c_0, 'id': 0, 'name': 'C0'},
-        {'_id': c_1, 'id': 1, 'name': 'C1'},
-        {'_id': c_2, 'id': 2, 'name': 'C2'},
-        {'_id': c_3, 'id': 3, 'name': 'C3'},
+        {"_id": c_0, "id": 0, "name": "C0"},
+        {"_id": c_1, "id": 1, "name": "C1"},
+        {"_id": c_2, "id": 2, "name": "C2"},
+        {"_id": c_3, "id": 3, "name": "C3"},
     ]
 
     """
@@ -263,73 +247,58 @@ def test_admin_changelog_old_deleted_entries(
             c_3
     """
 
-
     for row in data:
-        app.post('/datasets/deduplicate/changelog/Country', json=row)
+        app.post("/datasets/deduplicate/changelog/Country", json=row)
 
-    app.delete(f'/datasets/deduplicate/changelog/Country/{c_0}')
-    app.post('/datasets/deduplicate/changelog/Country', json={
-        '_id': c_0_1,
-        'id': 0,
-        'name': 'C0'
-    })
-    app.delete(f'/datasets/deduplicate/changelog/Country/{c_0_1}')
-    app.post('/datasets/deduplicate/changelog/Country', json={
-        '_id': c_0_2,
-        'id': 0,
-        'name': 'C0'
-    })
-    app.delete(f'/datasets/deduplicate/changelog/Country/{c_1}')
-    app.post('/datasets/deduplicate/changelog/Country', json={
-        '_id': c_1_1,
-        'id': 1,
-        'name': 'C1'
-    })
-    app.delete(f'/datasets/deduplicate/changelog/Country/{c_1_1}')
+    app.delete(f"/datasets/deduplicate/changelog/Country/{c_0}")
+    app.post("/datasets/deduplicate/changelog/Country", json={"_id": c_0_1, "id": 0, "name": "C0"})
+    app.delete(f"/datasets/deduplicate/changelog/Country/{c_0_1}")
+    app.post("/datasets/deduplicate/changelog/Country", json={"_id": c_0_2, "id": 0, "name": "C0"})
+    app.delete(f"/datasets/deduplicate/changelog/Country/{c_1}")
+    app.post("/datasets/deduplicate/changelog/Country", json={"_id": c_1_1, "id": 1, "name": "C1"})
+    app.delete(f"/datasets/deduplicate/changelog/Country/{c_1_1}")
 
-    result = app.get('/datasets/deduplicate/changelog/Country')
+    result = app.get("/datasets/deduplicate/changelog/Country")
     assert listdata(result, "_id", "id", "name", sort="id", full=True) == [
-        {'_id': c_0_2, 'id': 0, 'name': 'C0'},
-        {'_id': c_2, 'id': 2, 'name': 'C2'},
-        {'_id': c_3, 'id': 3, 'name': 'C3'},
+        {"_id": c_0_2, "id": 0, "name": "C0"},
+        {"_id": c_2, "id": 2, "name": "C2"},
+        {"_id": c_3, "id": 3, "name": "C3"},
     ]
 
-    result = app.get('/datasets/deduplicate/changelog/Country/:changes')
-    assert listdata(result, '_cid', '_op', '_id', '_same_as', 'id', 'name', sort="_cid", full=True) == [
-        {'_cid': 1, '_op': 'insert', '_id': c_0, 'id': 0, 'name': 'C0'},
-        {'_cid': 2, '_op': 'insert', '_id': c_1, 'id': 1, 'name': 'C1'},
-        {'_cid': 3, '_op': 'insert', '_id': c_2, 'id': 2, 'name': 'C2'},
-        {'_cid': 4, '_op': 'insert', '_id': c_3, 'id': 3, 'name': 'C3'},
-        {'_cid': 5, '_op': 'delete', '_id': c_0},
-        {'_cid': 6, '_op': 'insert', '_id': c_0_1, 'id': 0, 'name': 'C0'},
-        {'_cid': 7, '_op': 'delete', '_id': c_0_1},
-        {'_cid': 8, '_op': 'insert', '_id': c_0_2, 'id': 0, 'name': 'C0'},
-        {'_cid': 9, '_op': 'delete', '_id': c_1},
-        {'_cid': 10, '_op': 'insert', '_id': c_1_1, 'id': 1, 'name': 'C1'},
-        {'_cid': 11, '_op': 'delete', '_id': c_1_1},
+    result = app.get("/datasets/deduplicate/changelog/Country/:changes")
+    assert listdata(result, "_cid", "_op", "_id", "_same_as", "id", "name", sort="_cid", full=True) == [
+        {"_cid": 1, "_op": "insert", "_id": c_0, "id": 0, "name": "C0"},
+        {"_cid": 2, "_op": "insert", "_id": c_1, "id": 1, "name": "C1"},
+        {"_cid": 3, "_op": "insert", "_id": c_2, "id": 2, "name": "C2"},
+        {"_cid": 4, "_op": "insert", "_id": c_3, "id": 3, "name": "C3"},
+        {"_cid": 5, "_op": "delete", "_id": c_0},
+        {"_cid": 6, "_op": "insert", "_id": c_0_1, "id": 0, "name": "C0"},
+        {"_cid": 7, "_op": "delete", "_id": c_0_1},
+        {"_cid": 8, "_op": "insert", "_id": c_0_2, "id": 0, "name": "C0"},
+        {"_cid": 9, "_op": "delete", "_id": c_1},
+        {"_cid": 10, "_op": "insert", "_id": c_1_1, "id": 1, "name": "C1"},
+        {"_cid": 11, "_op": "delete", "_id": c_1_1},
     ]
 
-    with open(tmp_path / 'modellist.txt', 'w') as f:
-        f.write('datasets/deduplicate/changelog/Country')
+    with open(tmp_path / "modellist.txt", "w") as f:
+        f.write("datasets/deduplicate/changelog/Country")
 
-    result = cli.invoke(context.get('rc'), [
-        'admin',
-        Script.CHANGELOG.value,
-        '--input', f'{tmp_path / "modellist.txt"}'
-    ])
+    result = cli.invoke(
+        context.get("rc"), ["admin", Script.CHANGELOG.value, "--input", f"{tmp_path / 'modellist.txt'}"]
+    )
     assert result.exit_code == 0
     assert script_check_status_message(Script.CHANGELOG.value, ScriptStatus.REQUIRED) in result.stdout
 
-    result = app.get('/datasets/deduplicate/changelog/Country')
+    result = app.get("/datasets/deduplicate/changelog/Country")
     assert listdata(result, "_id", "id", "name", sort="id", full=True) == [
-        {'_id': c_0_2, 'id': 0, 'name': 'C0'},
-        {'_id': c_2, 'id': 2, 'name': 'C2'},
-        {'_id': c_3, 'id': 3, 'name': 'C3'},
+        {"_id": c_0_2, "id": 0, "name": "C0"},
+        {"_id": c_2, "id": 2, "name": "C2"},
+        {"_id": c_3, "id": 3, "name": "C3"},
     ]
 
-    result = app.get('/datasets/deduplicate/changelog/Country/:changes/-3')
-    assert listdata(result, '_cid', '_op', '_id', '_same_as', 'id', 'name', sort="_cid", full=True) == [
-        {'_cid': 12, '_op': 'move', '_id': c_0_1, '_same_as': c_0_2},
-        {'_cid': 13, '_op': 'move', '_id': c_0, '_same_as': c_0_2},
-        {'_cid': 14, '_op': 'move', '_id': c_1, '_same_as': c_1_1},
+    result = app.get("/datasets/deduplicate/changelog/Country/:changes/-3")
+    assert listdata(result, "_cid", "_op", "_id", "_same_as", "id", "name", sort="_cid", full=True) == [
+        {"_cid": 12, "_op": "move", "_id": c_0_1, "_same_as": c_0_2},
+        {"_cid": 13, "_op": "move", "_id": c_0, "_same_as": c_0_2},
+        {"_cid": 14, "_op": "move", "_id": c_1, "_same_as": c_1_1},
     ]

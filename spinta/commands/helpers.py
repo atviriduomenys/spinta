@@ -27,7 +27,7 @@ def chain():
     pass
 
 
-@command('all')
+@command("all")
 def all_():
     pass
 
@@ -42,7 +42,7 @@ def unstack():
     pass
 
 
-@command('list')
+@command("list")
 def list_():
     pass
 
@@ -61,7 +61,7 @@ def url():
     pass
 
 
-@command('range')
+@command("range")
 def range_():
     pass
 

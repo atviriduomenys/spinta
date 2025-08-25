@@ -18,11 +18,15 @@ class CounterManager:
 
         total = sum([value for value in totals.values()])
 
-        self.total_counter = tqdm.tqdm(
-            desc="Export total",
-            total=total,
-            ascii=True,
-        ) if enabled else None
+        self.total_counter = (
+            tqdm.tqdm(
+                desc="Export total",
+                total=total,
+                ascii=True,
+            )
+            if enabled
+            else None
+        )
 
     def __enter__(self):
         return self
@@ -36,11 +40,7 @@ class CounterManager:
             return
 
         key = model.model_type()
-        self.counters[key][desc] = tqdm.tqdm(
-            desc=desc,
-            total=self.totals[key],
-            ascii=True
-        )
+        self.counters[key][desc] = tqdm.tqdm(desc=desc, total=self.totals[key], ascii=True)
 
     def update_total(self, value: int):
         if not self.enabled:

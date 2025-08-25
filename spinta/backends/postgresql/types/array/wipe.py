@@ -9,5 +9,5 @@ from spinta.backends.postgresql.components import PostgreSQL
 def wipe(context: Context, dtype: Array, backend: PostgreSQL):
     wipe(context, dtype.items.dtype, backend)
     table = backend.get_table(dtype.prop, TableType.LIST)
-    connection = context.get('transaction').connection
+    connection = context.get("transaction").connection
     connection.execute(table.delete())

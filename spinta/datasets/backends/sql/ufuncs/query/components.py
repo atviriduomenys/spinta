@@ -16,8 +16,11 @@ from spinta.core.ufuncs import Expr
 from spinta.exceptions import UnknownMethod
 from spinta.types.datatype import Array
 from spinta.ufuncs.querybuilder.components import QueryBuilder, QueryPage, QueryParams
-from spinta.ufuncs.querybuilder.helpers import merge_with_page_selected_list, \
-    merge_with_page_sort, merge_with_page_limit
+from spinta.ufuncs.querybuilder.helpers import (
+    merge_with_page_selected_list,
+    merge_with_page_sort,
+    merge_with_page_limit,
+)
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.itertools import ensure_list
 
@@ -54,7 +57,7 @@ class SqlFrom:
                 # Use the main table, without alias.
                 ltable = self.backend.get_table(lmodel)
             lenv = env(model=lmodel, table=ltable)
-            lfkeys = lenv.call('join_table_on', fpr.left.prop)
+            lfkeys = lenv.call("join_table_on", fpr.left.prop)
             lfkeys = ensure_list(lfkeys)
 
             # Right table primary keys
@@ -63,9 +66,7 @@ class SqlFrom:
             rtable = self.backend.get_table(rmodel).alias()
             renv = env(model=rmodel, table=rtable)
             for rpk in fpr.left.refprops:
-                rpkeys += ensure_list(
-                    renv.call('join_table_on', rpk)
-                )
+                rpkeys += ensure_list(renv.call("join_table_on", rpk))
 
             # Number of keys on both left and right must be equal.
             assert len(lfkeys) == len(rpkeys), (lfkeys, rpkeys)
@@ -85,7 +86,8 @@ class SqlFrom:
 
         return self.joins[fpr.name]
 
-    def get_intermediate_table(self,
+    def get_intermediate_table(
+        self,
         env: SqlQueryBuilder,
         dtype: Array,
     ) -> sa.Table:
@@ -97,7 +99,7 @@ class SqlFrom:
         ltable = self.backend.get_table(lmodel).alias()
         lenv = env(model=lmodel, table=ltable)
 
-        lfkeys = lenv.call('join_table_on', dtype.left_prop)
+        lfkeys = lenv.call("join_table_on", dtype.left_prop)
         lfkeys = ensure_list(lfkeys)
 
         rpkeys = []
@@ -107,9 +109,7 @@ class SqlFrom:
         renv = env(model=rmodel, table=rtable)
 
         for rpk in dtype.left_prop.dtype.refprops:
-            rpkeys += ensure_list(
-                renv.call('join_table_on', rpk)
-            )
+            rpkeys += ensure_list(renv.call("join_table_on", rpk))
 
         # Number of keys on both left and right must be equal.
         assert len(lfkeys) == len(rpkeys), (lfkeys, rpkeys)
@@ -159,7 +159,7 @@ class SqlQueryBuilder(QueryBuilder):
         if self.selected is None:
             # If select list was not explicitly given by client, then select all
             # properties.
-            self.call('select', Expr('select'))
+            self.call("select", Expr("select"))
         merged_selected = merge_with_page_selected_list(self.columns, self.page)
         merged_sorted = merge_with_page_sort(self.sort, self.page)
         merged_limit = merge_with_page_limit(self.limit, self.page)
@@ -185,7 +185,7 @@ class SqlQueryBuilder(QueryBuilder):
         return qry
 
     def execute(self, expr: Any):
-        expr = self.call('_resolve_unresolved', expr)
+        expr = self.call("_resolve_unresolved", expr)
         return super().execute(expr)
 
     def default_resolver(self, expr, *args, **kwargs):

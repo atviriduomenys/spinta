@@ -2,4 +2,4 @@ from spinta.manifests.components import Manifest
 
 
 class MemoryManifest(Manifest):
-    type: str = 'memory'
+    type: str = "memory"

@@ -24,12 +24,7 @@ from spinta.utils.nestedstruct import flatten
 
 
 def get_keys_for_row(keys, row: dict):
-    return keys or sorted({
-        k
-        for d in flatten(row, omit_none=False)
-        for k in d
-        if not k.startswith('_')
-    })
+    return keys or sorted({k for d in flatten(row, omit_none=False) for k in d if not k.startswith("_")})
 
 
 def listdata(
@@ -94,35 +89,35 @@ def listdata(
     if isinstance(resp, list):
         data = resp
 
-    elif resp.headers['content-type'].startswith('text/html'):
+    elif resp.headers["content-type"].startswith("text/html"):
         data = resp.context
-        assert resp.status_code >= 200 and resp.status_code < 400, pformat({
-            'status': resp.status_code,
-            'resp': data,
-        })
-        assert 'data' in data, pformat(data)
-        assert 'header' in data, pformat(data)
-        header = data['header']
-        keys = keys or [k for k in header if not k.startswith('_')]
-        data = [
-            {k: v.value for k, v in zip(header, row)}
-            for row in cast(List[List[Cell]], data['data'])
-        ]
+        assert resp.status_code >= 200 and resp.status_code < 400, pformat(
+            {
+                "status": resp.status_code,
+                "resp": data,
+            }
+        )
+        assert "data" in data, pformat(data)
+        assert "header" in data, pformat(data)
+        header = data["header"]
+        keys = keys or [k for k in header if not k.startswith("_")]
+        data = [{k: v.value for k, v in zip(header, row)} for row in cast(List[List[Cell]], data["data"])]
 
     else:
         data = resp.json()
-        assert resp.status_code >= 200 and resp.status_code < 400, pformat({
-            'status': resp.status_code,
-            'resp': data,
-        })
-        if '_id' in data:
+        assert resp.status_code >= 200 and resp.status_code < 400, pformat(
+            {
+                "status": resp.status_code,
+                "resp": data,
+            }
+        )
+        if "_id" in data:
             data = [data]
         else:
-            assert '_data' in data, pformat(data)
-            data = data['_data']
+            assert "_data" in data, pformat(data)
+            data = data["_data"]
 
         keys = get_keys_for_row(old_keys, data)
-
 
     # Clean data
     if full:
@@ -152,27 +147,22 @@ def pushdata(app: TestClient, *args) -> Union[dict, list]:
     if len(args) == 2:
         model, data = args
     else:
-        model = '/'
-        data, = args
+        model = "/"
+        (data,) = args
     multiple = isinstance(data, list)
     if multiple:
-        data = {'_data': data}
+        data = {"_data": data}
         resp = app.post(model, json=data)
     else:
         resp = app.post(model, json=data)
     try:
         resp.raise_for_status()
     except requests.HTTPError as e:
-        dump = indent(pformat(data), '  ').strip()
-        raise Exception(
-            f"pushdata error:\n"
-            f"  model={model},\n"
-            f"  error={e},\n  "
-            f"data: {dump}"
-        )
+        dump = indent(pformat(data), "  ").strip()
+        raise Exception(f"pushdata error:\n  model={model},\n  error={e},\n  data: {dump}")
     data = resp.json()
     if multiple:
-        return sorted(data['_data'], key=lambda x: x['_id'])
+        return sorted(data["_data"], key=lambda x: x["_id"])
     else:
         return data
 
@@ -193,8 +183,8 @@ class Data(NamedTuple):
 
 def _obj_from_dict(data: Dict[str, Any]) -> Data:
     return Data(
-        id=data.pop('_id', None),
-        rev=data.pop('_revision', None),
+        id=data.pop("_id", None),
+        rev=data.pop("_revision", None),
         data=data,
     )
 
@@ -216,26 +206,29 @@ def send(
     if data is not None:
         obj = obj.update(data)
 
-    if action == 'insert':
+    if action == "insert":
         resp = app.post(model, json=obj.data)
-    elif action in 'patch':
-        resp = app.patch(f'{model}/{obj.id}', json={
-            **obj.data,
-            '_revision': obj.rev,
-        })
-    elif action in 'delete':
-        resp = app.delete(f'{model}/{obj.id}')
-    elif action == 'changes':
+    elif action in "patch":
+        resp = app.patch(
+            f"{model}/{obj.id}",
+            json={
+                **obj.data,
+                "_revision": obj.rev,
+            },
+        )
+    elif action in "delete":
+        resp = app.delete(f"{model}/{obj.id}")
+    elif action == "changes":
         if obj:
-            resp = app.get(f'{model}/{obj.id}/:changes')
+            resp = app.get(f"{model}/{obj.id}/:changes")
         else:
-            resp = app.get(f'{model}/:changes')
-    elif action == 'getall':
+            resp = app.get(f"{model}/:changes")
+    elif action == "getall":
         resp = app.get(model)
-    elif action == 'getone':
-        resp = app.get(f'{model}/{obj.id}')
+    elif action == "getone":
+        resp = app.get(f"{model}/{obj.id}")
     else:
-        resp = app.get(f'{model}/{action}')
+        resp = app.get(f"{model}/{action}")
 
     if select is not None or sort is not None or full is not None:
         if select is None:
@@ -249,26 +242,20 @@ def send(
     try:
         resp.raise_for_status()
     except httpx.HTTPStatusError as e:
-        dump = indent(pformat(obj.data), '  ').strip()
-        raise Exception(
-            f"send error:\n"
-            f"  model={model},\n"
-            f"  action={action},\n"
-            f"  error={e},\n  "
-            f"data: {dump}"
-        )
+        dump = indent(pformat(obj.data), "  ").strip()
+        raise Exception(f"send error:\n  model={model},\n  action={action},\n  error={e},\n  data: {dump}")
 
     result = resp.json()
 
-    if '_data' in result:
-        return [_obj_from_dict(data) for data in result['_data']]
+    if "_data" in result:
+        return [_obj_from_dict(data) for data in result["_data"]]
 
     else:
         return _obj_from_dict(result)
 
 
 def encode_page_values_manually(row: dict):
-    return base64.urlsafe_b64encode(json.dumps(list(row.values())).encode('ascii')).decode('ascii')
+    return base64.urlsafe_b64encode(json.dumps(list(row.values())).encode("ascii")).decode("ascii")
 
 
 def are_lists_of_dicts_equal(list1, list2):

@@ -30,7 +30,10 @@ async def push(
 ):
     if params.propref:
         return await push[type(context), Request, DataType, type(backend)](
-            context, request, dtype, backend,
+            context,
+            request,
+            dtype,
+            backend,
             action=action,
             params=params,
         )
@@ -43,14 +46,14 @@ async def push(
 
     commands.authorize(context, action, prop)
 
-    transaction: WriteTransaction = context.get('transaction')
-    accesslog: AccessLog = context.get('accesslog')
+    transaction: WriteTransaction = context.get("transaction")
+    accesslog: AccessLog = context.get("accesslog")
     accesslog.request(
         model=prop.model.model_type(),
         prop=prop.place,
         action=action.value,
         id_=params.pk,
-        rev=request.headers.get('revision'),
+        rev=request.headers.get("revision"),
         txn=transaction.id,
     )
 
@@ -65,22 +68,22 @@ async def push(
     if action == Action.DELETE:
         data.given = {
             prop.name: {
-                '_id': None,
-                '_content_type': None,
-                '_content': None,
+                "_id": None,
+                "_content_type": None,
+                "_content": None,
             }
         }
     else:
         data.given = {
             prop.name: {
-                '_content_type': request.headers.get('content-type'),
-                '_content': await request.body(),
+                "_content_type": request.headers.get("content-type"),
+                "_content": await request.body(),
             }
         }
-        data.given[prop.name]['_id'] = get_filename(request)
+        data.given[prop.name]["_id"] = get_filename(request)
 
-    if 'Revision' in request.headers:
-        data.given['_revision'] = request.headers['Revision']
+    if "Revision" in request.headers:
+        data.given["_revision"] = request.headers["Revision"]
 
     commands.simple_data_check(context, data, data.prop, data.model.backend)
 
@@ -92,14 +95,20 @@ async def push(
     if action in (Action.UPDATE, Action.PATCH, Action.DELETE):
         dstream = commands.update(context, prop, dtype, prop.model.backend, dstream=dstream)
         dstream = commands.create_changelog_entry(
-            context, prop.model, prop.model.backend, dstream=dstream,
+            context,
+            prop.model,
+            prop.model.backend,
+            dstream=dstream,
         )
     # XXX: This will never be executed, due to previous conditional.
     #      How it should be done correctly?
     elif action == Action.DELETE:
         dstream = commands.delete(context, prop, dtype, prop.model.backend, dstream=dstream)
         dstream = commands.create_changelog_entry(
-            context, prop.model, prop.model.backend, dstream=dstream,
+            context,
+            prop.model,
+            prop.model.backend,
+            dstream=dstream,
         )
 
     else:
@@ -117,24 +126,22 @@ def before_write(
     *,
     data: DataSubItem,
 ):
-    content = take('_content', data.patch)
+    content = take("_content", data.patch)
     if isinstance(content, bytes) and isinstance(dtype.backend, PostgreSQL):
-        transaction = context.get('transaction')
+        transaction = context.get("transaction")
         connection = transaction.connection
         prop = dtype.prop
         table = backend.get_table(prop, TableType.FILE)
-        with DatabaseFile(connection, table, mode='w') as f:
-            f.write(data.patch['_content'])
-            data.patch['_size'] = f.size
-            data.patch['_blocks'] = f.blocks
-            data.patch['_bsize'] = f.bsize
+        with DatabaseFile(connection, table, mode="w") as f:
+            f.write(data.patch["_content"])
+            data.patch["_size"] = f.size
+            data.patch["_blocks"] = f.blocks
+            data.patch["_bsize"] = f.bsize
     elif isinstance(content, bytes) and isinstance(dtype.backend, FileSystem):
-        filepath = dtype.backend.path / data.given['_id']
-        with open(filepath, 'wb') as f:
+        filepath = dtype.backend.path / data.given["_id"]
+        with open(filepath, "wb") as f:
             f.write(content)
 
     patch = prepare_patch_data(dtype, data)
 
-    return {
-        f'{dtype.prop.place}.{k}': v for k, v in patch.items()
-    }
+    return {f"{dtype.prop.place}.{k}": v for k, v in patch.items()}

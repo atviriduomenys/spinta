@@ -39,19 +39,17 @@ class Expr:
         return isinstance(other, Expr) and self.todict() == other.todict()
 
     def todict(self) -> dict:
-        args = [
-            v.todict() if isinstance(v, Expr) else v
-            for v in self.args
-        ]
+        args = [v.todict() if isinstance(v, Expr) else v for v in self.args]
         kwargs = [
             {
-                'name': 'bind',
-                'args': [k, v.todict() if isinstance(v, Expr) else v],
-            } for k, v in self.kwargs.items()
+                "name": "bind",
+                "args": [k, v.todict() if isinstance(v, Expr) else v],
+            }
+            for k, v in self.kwargs.items()
         ]
         return {
-            'name': self.name,
-            'args': args + kwargs,
+            "name": self.name,
+            "args": args + kwargs,
         }
 
     def __call__(self, *args, **kwargs) -> Expr:
@@ -81,7 +79,7 @@ class ShortExpr(Expr):
     def todict(self) -> dict:
         return {
             **super().todict(),
-            'type': 'expression',
+            "type": "expression",
         }
 
 
@@ -94,7 +92,7 @@ class MethodExpr(Expr):
     def todict(self) -> dict:
         return {
             **super().todict(),
-            'type': 'method',
+            "type": "method",
         }
 
 
@@ -109,14 +107,12 @@ def unparse(expr: Any):
 
 
 class Ufunc(Command):
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.autoargs = True
 
 
 class UFuncRegistry:
-
     def __init__(self, ufuncs=None):
         self._ufuncs = ufuncs or []
 
@@ -134,6 +130,7 @@ class UFuncRegistry:
                     func_ = _inject_name(func, name_)
                     self._ufuncs.append((name_, func_, types))
             return func
+
         return decorator
 
     def collect(self, modules: List[str]):
@@ -151,11 +148,7 @@ class UFuncRegistry:
                 ufuncs[name] = Ufunc(name)
             dispatcher = ufuncs[name]
             dispatcher.add(types, func)
-            if (
-                len(types) > 1 and
-                not isinstance(types[1], tuple) and
-                issubclass(types[1], Expr)
-            ):
+            if len(types) > 1 and not isinstance(types[1], tuple) and issubclass(types[1], Expr):
                 # If function is registered with @resolve(Env, Expr), then
                 # disable autoargs. This means, that arguments must be resolved
                 # manually by calling ufunc(env, expr).
@@ -166,6 +159,7 @@ class UFuncRegistry:
 def _inject_name(func, name):
     def wrapper(env, *args, **kwargs):
         return func(env, name, *args, **kwargs)
+
     return wrapper
 
 
@@ -186,7 +180,7 @@ class Env:
         scope=None,
     ):
         if resolvers is None or executors is None:
-            config = context.get('config')
+            config = context.get("config")
             resolvers = resolvers or config.resolvers
             executors = executors or config.executors
         self.context = context
@@ -263,14 +257,14 @@ class Env:
 
 def asttoexpr(ast) -> Expr:
     if isinstance(ast, dict):
-        args = [asttoexpr(x) for x in ast['args']]
-        typ = ast.get('type')
-        if typ == 'expression':
-            return ShortExpr(ast['name'], *args)
-        elif typ == 'method':
-            return MethodExpr(ast['name'], *args)
+        args = [asttoexpr(x) for x in ast["args"]]
+        typ = ast.get("type")
+        if typ == "expression":
+            return ShortExpr(ast["name"], *args)
+        elif typ == "method":
+            return MethodExpr(ast["name"], *args)
         else:
-            return Expr(ast['name'], *args)
+            return Expr(ast["name"], *args)
     else:
         return ast
 
@@ -280,7 +274,6 @@ class Unresolved:
 
 
 class Bind(Unresolved):
-
     def __init__(self, name):
         self.name = name
 
@@ -292,13 +285,12 @@ class Bind(Unresolved):
 
 
 class Pair(Unresolved):
-
     def __init__(self, name, value):
         self.name = name
         self.value = value
 
     def __repr__(self):
-        return f'{self.name}: {self.value!r}'
+        return f"{self.name}: {self.value!r}"
 
 
 class Negative(Bind):
@@ -315,18 +307,15 @@ class GetAttr(Unresolved):
     name: Union[GetAttr, Bind]
 
     def __str__(self):
-        return f'{self.obj}.{str(self.name)}'
+        return f"{self.obj}.{str(self.name)}"
 
 
-bind = functools.partial(Expr, 'bind')
+bind = functools.partial(Expr, "bind")
 
 
 class NoOp(Expr):
     def __init__(self):
-        self.name = 'noop'
+        self.name = "noop"
 
     def todict(self) -> dict:
-        return {
-            'name': self.name,
-            'args': []
-        }
+        return {"name": self.name, "args": []}

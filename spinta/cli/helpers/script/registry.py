@@ -8,10 +8,6 @@ from mypy.checkexpr import defaultdict
 from spinta.cli.helpers.script.components import ScriptBase
 from spinta.exceptions import ScriptNotFound
 
-try:
-    from typing import Optional, Concatenate, ParamSpec
-except ImportError:
-    from typing_extensions import Optional, Concatenate, ParamSpec
 
 class _ScriptRegistryView:
     registry: _ScriptRegistry
@@ -50,18 +46,11 @@ class _ScriptRegistry:
         scripts = self._registry[script_type]
         if script_name not in scripts:
             raise ScriptNotFound(
-                script_type=script_type,
-                script=script_name,
-                available_scripts=self.get_all_names(script_type)
+                script_type=script_type, script=script_name, available_scripts=self.get_all_names(script_type)
             )
         return scripts[script_name]
 
-    def get_all(
-        self,
-        script_type: str,
-        targets: set | None = None,
-        tags: set | None = None
-    ) -> dict[str, ScriptBase]:
+    def get_all(self, script_type: str, targets: set | None = None, tags: set | None = None) -> dict[str, ScriptBase]:
         scripts = self._registry[script_type]
         if not targets and not tags:
             return scripts
@@ -78,12 +67,7 @@ class _ScriptRegistry:
 
         return filtered_scripts
 
-    def get_all_names(
-        self,
-        script_type: str,
-        targets: set | None = None,
-        tags: set | None = None
-    ) -> tuple[str]:
+    def get_all_names(self, script_type: str, targets: set | None = None, tags: set | None = None) -> tuple[str]:
         scripts = self.get_all(script_type, targets, tags)
         return tuple(scripts.keys())
 
@@ -96,6 +80,7 @@ class _ScriptRegistry:
 
 script_registry = _ScriptRegistry()
 
+
 # You can set what module to import first (in case scripts are defined in multiple modules),
 # Or you can call script_registry.register(script) manually
 def import_all_modules_from(package_name: str):
@@ -104,5 +89,5 @@ def import_all_modules_from(package_name: str):
         importlib.import_module(modname)
 
 
-import_all_modules_from('spinta.cli.helpers.upgrade')
-import_all_modules_from('spinta.cli.helpers.admin')
+import_all_modules_from("spinta.cli.helpers.upgrade")
+import_all_modules_from("spinta.cli.helpers.admin")

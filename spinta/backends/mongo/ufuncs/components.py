@@ -10,27 +10,21 @@ from spinta.core.ufuncs import Expr
 from spinta.exceptions import UnknownMethod
 from spinta.types.datatype import DataType
 from spinta.ufuncs.querybuilder.components import QueryBuilder, QueryPage
-from spinta.ufuncs.querybuilder.helpers import merge_with_page_selected_list, merge_with_page_sort, \
-    merge_with_page_limit
+from spinta.ufuncs.querybuilder.helpers import (
+    merge_with_page_selected_list,
+    merge_with_page_sort,
+    merge_with_page_limit,
+)
 from spinta.backends.mongo.components import Mongo
 
 
 class MongoQueryBuilder(QueryBuilder):
-
     def init(self, backend: Mongo, table: pymongo.collection.Collection):
-        return self(
-            backend=backend,
-            table=table,
-            select=None,
-            sort=[],
-            limit=None,
-            offset=None,
-            page=QueryPage()
-        )
+        return self(backend=backend, table=table, select=None, sort=[], limit=None, offset=None, page=QueryPage())
 
     def build(self, where: list):
         if self.select is None:
-            self.call('select', Expr('select'))
+            self.call("select", Expr("select"))
 
         select = []
         merged_selected = merge_with_page_selected_list(list(self.select.values()), self.page)
@@ -43,9 +37,9 @@ class MongoQueryBuilder(QueryBuilder):
                 select.append(sel.item)
 
         select = {k: 1 for k in select}
-        select['_id'] = 0
-        select['__id'] = 1
-        select['_revision'] = 1
+        select["_id"] = 0
+        select["__id"] = 1
+        select["_revision"] = 1
 
         where = where or {}
 
@@ -67,20 +61,19 @@ class MongoQueryBuilder(QueryBuilder):
 
 
 class ForeignProperty:
-
     def __init__(self, fpr: ForeignProperty, left: Property, right: Property):
         if fpr is None:
             self.name = left.place
             self.chain = [self]
         else:
-            self.name += '->' + left.place
+            self.name += "->" + left.place
             self.chain = fpr.chain + [self]
 
         self.left = left
         self.right = right
 
     def __repr__(self):
-        return f'<{self.name}->{self.right.name}:{self.right.dtype.name}>'
+        return f"<{self.name}->{self.right.name}:{self.right.dtype.name}>"
 
 
 class Func:

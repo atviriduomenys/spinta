@@ -29,8 +29,8 @@ async def insert(
     dstream: AsyncIterator[DataItem],
     stop_on_error: bool = True,
 ):
-    transaction = context.get('transaction')
-    config = context.get('config')
+    transaction = context.get("transaction")
+    config = context.get("config")
     connection = transaction.connection
     table = backend.get_table(model)
 
@@ -48,8 +48,8 @@ async def insert(
             patch = commands.before_write(context, model, backend, data=data)
             # TODO: Refactor this to insert batches with single query.
             qry = table.insert().values(
-                _id=patch['_id'],
-                _revision=patch['_revision'],
+                _id=patch["_id"],
+                _revision=patch["_revision"],
                 _txn=transaction.id,
                 _created=utcnow(),
             )
@@ -57,7 +57,7 @@ async def insert(
             commands.after_write(context, model, backend, data=data)
 
             # On insert remove redirect entry if _id already exists
-            remove_from_redirect(connection, redirect_table, patch['_id'])
+            remove_from_redirect(connection, redirect_table, patch["_id"])
             savepoint.commit()
         except exc.DatabaseError as error:
             rollback_full = True
@@ -86,8 +86,8 @@ async def update(
     dstream: dict,
     stop_on_error: bool = True,
 ):
-    transaction = context.get('transaction')
-    config = context.get('config')
+    transaction = context.get("transaction")
+    config = context.get("config")
     connection = transaction.connection
     table = backend.get_table(model)
 
@@ -102,21 +102,18 @@ async def update(
             continue
         try:
             savepoint = connection.begin_nested()
-            pk = data.saved['_id']
+            pk = data.saved["_id"]
             patch = commands.before_write(context, model, backend, data=data)
             result = connection.execute(
-                table.update().
-                where(table.c._id == pk).
-                where(table.c._revision == data.saved['_revision']).
-                values(patch)
+                table.update()
+                .where(table.c._id == pk)
+                .where(table.c._revision == data.saved["_revision"])
+                .values(patch)
             )
             if result.rowcount == 0:
                 raise Exception(f"Update failed, {model} with {pk} not found.")
             elif result.rowcount > 1:
-                raise Exception(
-                    f"Update failed, {model} with {pk} has found and update "
-                    f"{result.rowcount} rows."
-                )
+                raise Exception(f"Update failed, {model} with {pk} has found and update {result.rowcount} rows.")
             commands.after_write(context, model, backend, data=data)
             savepoint.commit()
         except exc.DatabaseError as error:
@@ -147,8 +144,8 @@ async def delete(
     dstream: AsyncIterator[DataItem],
     stop_on_error: bool = True,
 ):
-    transaction = context.get('transaction')
-    config = context.get('config')
+    transaction = context.get("transaction")
+    config = context.get("config")
     connection = transaction.connection
     table = backend.get_table(model)
 
@@ -161,10 +158,7 @@ async def delete(
         try:
             savepoint = connection.begin_nested()
             commands.before_write(context, model, backend, data=data)
-            connection.execute(
-                table.delete().
-                where(table.c._id == data.saved['_id'])
-            )
+            connection.execute(table.delete().where(table.c._id == data.saved["_id"]))
             commands.after_write(context, model, backend, data=data)
             savepoint.commit()
         except exc.DatabaseError as error:
@@ -195,9 +189,9 @@ def _get_data_action(data: DataSubItem | DataItem) -> Action:
 
 def _apply_action_parameters(patch: dict, action: Action):
     if action in (Action.INSERT, Action.UPSERT):
-        patch['_created'] = utcnow()
+        patch["_created"] = utcnow()
     elif action in (Action.UPDATE, Action.PATCH, Action.MOVE):
-        patch['_updated'] = utcnow()
+        patch["_updated"] = utcnow()
 
 
 @commands.before_write.register(Context, Model, PostgreSQL)
@@ -208,9 +202,9 @@ def before_write(
     *,
     data: DataSubItem,
 ) -> dict:
-    patch = take(['_id'], data.patch)
-    patch['_revision'] = take('_revision', data.patch, data.saved)
-    patch['_txn'] = context.get('transaction').id
+    patch = take(["_id"], data.patch)
+    patch["_revision"] = take("_revision", data.patch, data.saved)
+    patch["_txn"] = context.get("transaction").id
     _apply_action_parameters(patch, _get_data_action(data))
     for prop in take(model.properties).values():
         if not prop.dtype.inherited:
@@ -247,8 +241,8 @@ async def move(
     dstream: AsyncIterator[DataItem],
     stop_on_error: bool = True,
 ):
-    transaction = context.get('transaction')
-    config = context.get('config')
+    transaction = context.get("transaction")
+    config = context.get("config")
     connection = transaction.connection
     table = backend.get_table(model)
 
@@ -258,28 +252,17 @@ async def move(
     savepoint_transaction_start = connection.begin_nested()
     rollback_full = False
 
-    affected_models = list(_gather_affected_reference_model_properties(
-        context,
-        model
-    ))
+    affected_models = list(_gather_affected_reference_model_properties(context, model))
 
     async for data in dstream:
         try:
             savepoint = connection.begin_nested()
             patch = commands.before_write(context, model, backend, data=data)
-            pk = data.saved.get('_id')
+            pk = data.saved.get("_id")
             await update_affected_reference_values(
-                context,
-                backend,
-                model,
-                str(pk),
-                str(patch.get('_id')),
-                affected_models
+                context, backend, model, str(pk), str(patch.get("_id")), affected_models
             )
-            connection.execute(
-                table.delete().
-                where(table.c._id == pk)
-            )
+            connection.execute(table.delete().where(table.c._id == pk))
 
             commands.after_write(context, model, backend, data=data)
             savepoint.commit()
@@ -302,87 +285,57 @@ async def move(
     savepoint_transaction_start.commit()
 
 
-def _gather_affected_reference_model_properties(
-    context: Context,
-    model: Model
-):
-    store: Store = context.get('store')
+def _gather_affected_reference_model_properties(context: Context, model: Model):
+    store: Store = context.get("store")
     manifest = store.manifest
 
     for model_ in commands.get_models(context, manifest).values():
         props = []
         for prop in model_.flatprops.values():
-            if isinstance(prop.dtype, Ref) and commands.identifiable(prop) and prop.dtype.model.model_type() == model.model_type():
+            if (
+                isinstance(prop.dtype, Ref)
+                and commands.identifiable(prop)
+                and prop.dtype.model.model_type() == model.model_type()
+            ):
                 props.append(prop)
         if props:
-            yield {
-                'model': model_,
-                'properties': props
-            }
+            yield {"model": model_, "properties": props}
 
 
 async def update_affected_reference_values(
-    context: Context,
-    backend: PostgreSQL,
-    model: Model,
-    old_pk: str,
-    pk_: str,
-    affected_models: list[dict]
+    context: Context, backend: PostgreSQL, model: Model, old_pk: str, pk_: str, affected_models: list[dict]
 ):
     for model_data in affected_models:
-        model_ = model_data.get('model')
-        props = model_data.get('properties', [])
+        model_ = model_data.get("model")
+        props = model_data.get("properties", [])
         query = _build_select_query(props, old_pk)
         rows = commands.getall(context, model_, backend, query=query)
         rows = flatten(rows)
-        dataitems = _build_dataitems(
-            context,
-            model_,
-            props,
-            rows,
-            old_pk,
-            pk_
-        )
+        dataitems = _build_dataitems(context, model_, props, rows, old_pk, pk_)
         dstream = push_stream(context, dataitems)
         await adrain(dstream)
     pass
 
 
 async def _build_dataitems(
-    context: Context,
-    model: Model,
-    props: list[Property],
-    rows: list[dict],
-    old_pk: str,
-    new_pk: str
+    context: Context, model: Model, props: list[Property], rows: list[dict], old_pk: str, new_pk: str
 ):
     for row in rows:
-        patch = {
-            '_where': f'eq(_id, "{row.get("_id")}")',
-            '_op': Action.PATCH.value,
-            '_revision': row.get('_revision')
-        }
+        patch = {"_where": f'eq(_id, "{row.get("_id")}")', "_op": Action.PATCH.value, "_revision": row.get("_revision")}
         for prop in props:
-            prop_place = f'{prop.place}._id'
+            prop_place = f"{prop.place}._id"
             if prop_place in row and row[prop_place] == old_pk:
                 patch[prop_place] = new_pk
-        yield dataitem_from_payload(
-            context,
-            model,
-            flat_dicts_to_nested(patch)
-        )
+        yield dataitem_from_payload(context, model, flat_dicts_to_nested(patch))
 
 
-def _build_select_query(
-    props: list[Property],
-    old_pk: str
-) -> Expr:
-    result_str = ''
+def _build_select_query(props: list[Property], old_pk: str) -> Expr:
+    result_str = ""
     for prop in props:
         query = f'{prop.place}._id.eq("{old_pk}")'
 
         if result_str:
-            result_str = f'{result_str}|{query}'
+            result_str = f"{result_str}|{query}"
         else:
             result_str = query
     return asttoexpr(spyna.parse(result_str))

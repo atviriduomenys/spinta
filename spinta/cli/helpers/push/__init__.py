@@ -6,8 +6,8 @@ from decimal import Decimal
 import dateutil.parser
 from multipledispatch import dispatch
 
-from spinta.components import Context, Page, Model, Property
-from spinta.types.datatype import DataType, DateTime, Number, Date, Time, URL, URI
+from spinta.components import Context, Model, Property
+from spinta.types.datatype import DataType, DateTime, Date, Time
 from spinta.utils.json import fix_data_for_json
 
 
@@ -68,6 +68,3 @@ def prepare_data_for_push_state(context: Context, dtype: Time, data: str):
         return datetime.time.fromisoformat(data)
     except ValueError:
         return dateutil.parser.parse(data).time()
-
-
-

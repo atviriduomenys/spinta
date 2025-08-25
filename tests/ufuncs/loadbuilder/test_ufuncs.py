@@ -14,14 +14,11 @@ from spinta.utils.schema import NA
         ("foo", 'input("default")', {"foo": "default"}),
         ("foo/bar", 'input("default")', {"foo/bar": "default"}),
         ("foo", 'input("default1", "default2", "default3")', {"foo": "default1"}),
-        ("foo", 'input()', {"foo": NA}),
-    ]
+        ("foo", "input()", {"foo": NA}),
+    ],
 )
 def test_input_command_populates_param_soap_body(
-    context: Context,
-    param_source: str,
-    param_prepare: str,
-    result: dict
+    context: Context, param_source: str, param_prepare: str, result: dict
 ) -> None:
     param = Param()
 

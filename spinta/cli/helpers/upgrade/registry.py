@@ -5,12 +5,18 @@ from spinta.cli.helpers.script.registry import script_registry
 from spinta.cli.helpers.upgrade.components import Script, UpgradeScript, UPGRADE_SCRIPT_TYPE
 from spinta.cli.helpers.script.components import ScriptTarget, ScriptTag
 from spinta.cli.helpers.upgrade.scripts.clients import migrate_clients, cli_requires_clients_migration
-from spinta.cli.helpers.upgrade.scripts.keymaps.sqlalchemy.initial_setup import requires_sql_keymap_initial_migration, \
-    sql_keymap_initial_migration
-from spinta.cli.helpers.upgrade.scripts.keymaps.sqlalchemy.modified_time import requires_sql_keymap_modified_migration, \
-    sql_keymap_modified_migration
-from spinta.cli.helpers.upgrade.scripts.keymaps.sqlalchemy.redirect_support import \
-    requires_sql_keymap_redirect_migration, sql_keymap_redirect_migration
+from spinta.cli.helpers.upgrade.scripts.keymaps.sqlalchemy.initial_setup import (
+    requires_sql_keymap_initial_migration,
+    sql_keymap_initial_migration,
+)
+from spinta.cli.helpers.upgrade.scripts.keymaps.sqlalchemy.modified_time import (
+    requires_sql_keymap_modified_migration,
+    sql_keymap_modified_migration,
+)
+from spinta.cli.helpers.upgrade.scripts.keymaps.sqlalchemy.redirect_support import (
+    requires_sql_keymap_redirect_migration,
+    sql_keymap_redirect_migration,
+)
 from spinta.cli.helpers.upgrade.scripts.redirect import cli_requires_redirect_migration, migrate_redirect
 
 # For convenience, easier access to upgrade scripts
@@ -21,10 +27,7 @@ script_registry.register(
         name=Script.CLIENTS.value,
         run=migrate_clients,
         check=cli_requires_clients_migration,
-        targets={
-            ScriptTarget.AUTH.value,
-            ScriptTarget.FS.value
-        },
+        targets={ScriptTarget.AUTH.value, ScriptTarget.FS.value},
     )
 )
 script_registry.register(

@@ -43,15 +43,9 @@ class PostgresqlExportMetadata:
         extra_fields = extract_extra_fields(table_data.prop.dtype, data)
         if isinstance(table_data.data, list):
             for value in table_data.data:
-                await self.writer.writerow({
-                    **extra_fields,
-                    **value
-                })
+                await self.writer.writerow({**extra_fields, **value})
         else:
-            await self.writer.writerow({
-                **extra_fields,
-                **table_data.data
-            })
+            await self.writer.writerow({**extra_fields, **table_data.data})
 
 
 @dispatch(DataType)
@@ -61,7 +55,4 @@ def extract_extra_fields(dtype: DataType, data: dict) -> dict:
 
 @dispatch(Array)
 def extract_extra_fields(dtype: Array, data: dict) -> dict:
-    return {
-        '_txn': data['_txn'],
-        '_rid': data['_id']
-    }
+    return {"_txn": data["_txn"], "_rid": data["_id"]}

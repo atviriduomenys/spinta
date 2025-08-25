@@ -2,12 +2,12 @@ import enum
 
 
 class TableType(enum.Enum):
-    MAIN = ''
-    LIST = '/:list'
-    CHANGELOG = '/:changelog'
-    CACHE = '/:cache'
-    FILE = '/:file'
-    REDIRECT = '/:redirect'
+    MAIN = ""
+    LIST = "/:list"
+    CHANGELOG = "/:changelog"
+    CACHE = "/:cache"
+    FILE = "/:file"
+    REDIRECT = "/:redirect"
 
 
 class BackendOrigin(enum.Enum):
@@ -17,21 +17,21 @@ class BackendOrigin(enum.Enum):
     defined in a configuration file or inline in manifest.
     """
 
-    config = 'config'
-    manifest = 'manifest'
-    resource = 'resource'
+    config = "config"
+    manifest = "manifest"
+    resource = "resource"
 
 
 class BackendFeatures(enum.Enum):
     # Files are stored in blocks and file metadata must include _bsize and
     # _blocks properties.
-    FILE_BLOCKS = 'FILE_BLOCKS'
+    FILE_BLOCKS = "FILE_BLOCKS"
 
     # Backend supports write operations.
-    WRITE = 'WRITE'
+    WRITE = "WRITE"
 
     # Backend supports pagination when reading data
-    PAGINATION = 'PAGINATION'
+    PAGINATION = "PAGINATION"
 
     # Backend supports
-    EXPAND = 'EXPAND'
+    EXPAND = "EXPAND"

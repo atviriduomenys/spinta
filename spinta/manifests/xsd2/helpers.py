@@ -24,7 +24,6 @@ DATATYPES_MAPPING = {
     "decimal": "number",
     "float": "number",
     "double": "number",
-
     # duration has to be mapped to integer. In addition to this, we need a prepare function.
     # This prepare function takes in given duration and turns it into integer (timedelta).
     # More about time entities here:
@@ -32,7 +31,6 @@ DATATYPES_MAPPING = {
     # TODO: add prepare function for duration
     #  https://github.com/atviriduomenys/spinta/issues/594
     "duration": "string",
-
     "dateTime": "datetime",
     "time": "time",
     "date": "date",
@@ -124,6 +122,7 @@ class XSDType:
     def __init__(self, name: str = ""):
         self.name = name
 
+
 """
 Example of a property:
 
@@ -164,13 +163,13 @@ class XSDProperty:
     xsd_type_to: str | None = None  # if it's type is of another complexType, so ref to that type
 
     def __init__(
-            self,
-            required: bool = False,
-            enums: dict[str, dict[str, str]] | None = None,
-            xsd_name: str | None = None,
-            property_type: XSDType | None = None,
-            source: str | None = None,
-            is_array: bool = False,
+        self,
+        required: bool = False,
+        enums: dict[str, dict[str, str]] | None = None,
+        xsd_name: str | None = None,
+        property_type: XSDType | None = None,
+        source: str | None = None,
+        is_array: bool = False,
     ):
         self.required = required
         self.enums = {}
@@ -183,10 +182,9 @@ class XSDProperty:
     def get_data(self) -> dict[str, Any]:
         data = {
             "type": self.type.name,
-            "external":
-                {
-                    "name": self.source,
-                }
+            "external": {
+                "name": self.source,
+            },
         }
 
         if self.type.name in ("ref", "backref", "ref_backref"):
@@ -194,7 +192,7 @@ class XSDProperty:
             if self.type.name == "ref_backref":
                 data["type"] = "ref"
             else:
-                data["external"]["prepare"] = Expr(f'expand')
+                data["external"]["prepare"] = Expr("expand")
 
         if self.required is not None:
             data["required"] = self.required
@@ -206,7 +204,7 @@ class XSDProperty:
                 data["external"]["prepare"] = Expr(self.type.prepare)
 
         if self.type.enums is not None:
-                data["enums"] = self.type.enums
+            data["enums"] = self.type.enums
 
         if self.type.description:
             self.description += f" - {self.type.description}"
@@ -251,16 +249,13 @@ class XSDModel:
         self.name = f"{self.dataset_resource.dataset_name}/{name}"
 
     def get_data(self):
-
         model_data: dict = {
             "type": "model",
-            "external":
-                {
-                    "name": self.source,
-                    "dataset": self.dataset_resource.dataset_name,
-                    "resource": self.dataset_resource.resource_name,
-                }
-
+            "external": {
+                "name": self.source,
+                "dataset": self.dataset_resource.dataset_name,
+                "resource": self.dataset_resource.resource_name,
+            },
         }
 
         if self.is_partial:
@@ -281,7 +276,7 @@ class XSDModel:
             model_data["uri"] = self.uri
 
         if self.extends_model:
-            model_data["external"]["prepare"] = Expr(f'extends', self.extends_model.basename)
+            model_data["external"]["prepare"] = Expr("extends", self.extends_model.basename)
 
         return model_data
 
@@ -292,21 +287,21 @@ class XSDDatasetResource:
     resource_name: str | None = None
     dataset_given_name: str | None = None
 
-    def __init__(self, dataset_name: str = None, resource_name: str = "resource1", dataset_given_name: str | None = None):
+    def __init__(
+        self, dataset_name: str = None, resource_name: str = "resource1", dataset_given_name: str | None = None
+    ):
         self.dataset_name = dataset_name
         self.resource_name = resource_name
         self.dataset_given_name = dataset_given_name
 
     def get_data(self):
         return {
-            'type': 'dataset',
-            'name': self.dataset_name,
-            'resources': {
-                self.resource_name: {
-                    'type': 'dask/xml'
-                },
+            "type": "dataset",
+            "name": self.dataset_name,
+            "resources": {
+                self.resource_name: {"type": "dask/xml"},
             },
-            'given_name': self.dataset_given_name
+            "given_name": self.dataset_given_name,
         }
 
 
@@ -341,7 +336,7 @@ class XSDReader:
         self.properties_xsd_type_to_set = set()
 
     def register_simple_types(self, state: State) -> None:
-        custom_types_nodes = self.root.xpath(f'./*[local-name() = "simpleType"]')
+        custom_types_nodes = self.root.xpath('./*[local-name() = "simpleType"]')
         for node in custom_types_nodes:
             custom_type = self.process_simple_type(node, state)
             self.custom_types[custom_type.xsd_type] = custom_type
@@ -355,7 +350,7 @@ class XSDReader:
             path = self._path.split("://")[-1]
             with open(path) as file:
                 text = file.read()
-                self.root = etree.fromstring(bytes(text, encoding='utf-8'))
+                self.root = etree.fromstring(bytes(text, encoding="utf-8"))
 
     def _create_resource_model(self):
         self.resource_model = XSDModel(dataset_resource=self.dataset_resource)
@@ -364,11 +359,12 @@ class XSDReader:
         self.resource_model.source = "/"
         self.resource_model.description = "Įvairūs duomenys"
         self.resource_model.uri = "http://www.w3.org/2000/01/rdf-schema#Resource"
+
     #     resource model will be added to models at the end, if it has any peoperties
 
     def _is_referenced(self, node):
         # if this node is referenced by some other node
-        node_name = node.get('name')
+        node_name = node.get("name")
         xpath_search_string = f'//*[@ref="{node_name}"]'
         references = self.root.xpath(xpath_search_string)
 
@@ -387,7 +383,7 @@ class XSDReader:
 
     def _post_process_resource_model(self):
         if self.resource_model.properties:
-            self.resource_model.set_name(self.deduplicate_model_name(f"Resource"))
+            self.resource_model.set_name(self.deduplicate_model_name("Resource"))
             self.models.append(self.resource_model)
 
     def _post_process_refs(self):
@@ -418,7 +414,7 @@ class XSDReader:
                                 prop_found = True
                         if not prop_found:
                             raise KeyError(f"Reference to a non-existing model: {prop.xsd_ref_to}")
-                    
+
                 elif prop.xsd_type_to:
                     try:
                         # if we had choice inside an element, more than one model was created out of it
@@ -554,7 +550,7 @@ class XSDReader:
             elif QName(node).localname == "import":
                 logger.warning(f"tag {QName(node).localname} not supported yet")
             else:
-                raise RuntimeError(f'This node type cannot be at the top level: {QName(node).localname}')
+                raise RuntimeError(f"This node type cannot be at the top level: {QName(node).localname}")
 
     #  XSD nodes processors
     def process_element(self, node: _Element, state: State, is_array=False, is_root=False) -> list[XSDProperty]:
@@ -577,15 +573,20 @@ class XSDReader:
                 property_type = XSDType(name="backref")
             else:
                 property_type = XSDType(name="ref")
-            prop = XSDProperty(xsd_name=property_name, property_type=property_type, required=is_required,
-                               source=property_name, is_array=is_array)
+            prop = XSDProperty(
+                xsd_name=property_name,
+                property_type=property_type,
+                required=is_required,
+                source=property_name,
+                is_array=is_array,
+            )
             prop.xsd_ref_to = property_ref_to
             return [prop]
 
         elif node.attrib.get("name"):
             property_name = node.attrib["name"]
         else:
-            raise RuntimeError(f'Element has to have either name or ref')
+            raise RuntimeError("Element has to have either name or ref")
 
         if not (node.xpath('./*[local-name()="complexType"]') or node.xpath('./*[local-name()="simpleType"]')):
             # XSD rules are that element should have type, but life's not always what we want it to be
@@ -613,7 +614,13 @@ class XSDReader:
             else:
                 source = f"{property_name}/text()"
 
-            prop = XSDProperty(xsd_name=property_name, property_type=property_type, required=is_required, source=source, is_array=is_array)
+            prop = XSDProperty(
+                xsd_name=property_name,
+                property_type=property_type,
+                required=is_required,
+                source=source,
+                is_array=is_array,
+            )
             prop.xsd_type_to = property_type_to
             props.append(prop)
 
@@ -640,7 +647,9 @@ class XSDReader:
                         model.is_partial = False
                         model.is_entry_model = True
                         model.source = f"/{property_name}"
-                    prop = XSDProperty(xsd_name=property_name, required=is_required, source=property_name, is_array=is_array)
+                    prop = XSDProperty(
+                        xsd_name=property_name, required=is_required, source=property_name, is_array=is_array
+                    )
                     prop.ref_model = model
                     if is_array:
                         property_type = "backref"
@@ -666,7 +675,7 @@ class XSDReader:
                 for prop in props:
                     prop.description = description
                 for model in models:
-                    model.description = f'{model.description or ""}{description}'
+                    model.description = f"{model.description or ''}{description}"
 
         if not props:
             raise RuntimeError(f"Element couldn't be turned into a property: {node.get('name') or node.get('ref')}")
@@ -674,7 +683,6 @@ class XSDReader:
         return props
 
     def process_complex_type(self, node: _Element, state: State) -> list[XSDModel]:
-
         # preparation for building model
         models = []
         name = node.attrib.get("name")
@@ -735,7 +743,7 @@ class XSDReader:
                         new_property_groups.append(combined_group)
                 property_groups = new_property_groups
 
-                if hasattr(state, 'extends_model'):
+                if hasattr(state, "extends_model"):
                     extends_model: str = state.extends_model
                     del state.extends_model
                 else:
@@ -776,7 +784,7 @@ class XSDReader:
                 else:
                     self.top_level_complex_type_models[model.xsd_name] = [model]
 
-            if 'extends_model' in locals() and extends_model:
+            if "extends_model" in locals() and extends_model:
                 model.extends_model = extends_model
 
             models.append(model)
@@ -803,7 +811,7 @@ class XSDReader:
     def process_attribute(self, node: _Element, state: State) -> XSDProperty:
         prop = XSDProperty()
         prop.source = f"@{node.attrib.get('name')}"
-        prop.xsd_name = node.attrib.get('name')
+        prop.xsd_name = node.attrib.get("name")
 
         attribute_type = node.attrib.get("type")
 
@@ -851,7 +859,7 @@ class XSDReader:
                     property_type.xsd_type = node.attrib.get("name")
             elif QName(child).localname == "annotation":
                 description = self.process_annotation(child, state)
-            elif QName(child).localname == 'union':
+            elif QName(child).localname == "union":
                 property_type = self.process_union(child, state)
             else:
                 raise RuntimeError(f"Unexpected element type inside simpleType element: {QName(child).localname}")
@@ -896,7 +904,7 @@ class XSDReader:
                         prop.type.name = "backref"
 
         return property_groups
-    
+
     def process_choice(self, node: _Element, state: State) -> list[list[XSDProperty]]:
         """
         Returns a list of lists. Each list inside the main list is for the separate choice.
@@ -1032,7 +1040,7 @@ class XSDReader:
                 property_type=XSDType(name="string"),
                 required=False,
                 source="text()",
-                is_array=False
+                is_array=False,
             )
             for group in property_groups:
                 group.append(text_prop)
@@ -1189,8 +1197,8 @@ class XSDReader:
         member_types: list = []
 
         # Handle memberTypes attribute if present
-        if 'memberTypes' in node.attrib:
-            types = node.attrib['memberTypes'].split()
+        if "memberTypes" in node.attrib:
+            types = node.attrib["memberTypes"].split()
             for type_name in types:
                 base_type_name = type_name.split(":")[-1]
                 base_type = self._map_type(base_type_name)
@@ -1200,7 +1208,7 @@ class XSDReader:
             if isinstance(child, etree._Comment):
                 continue
             local_name = QName(child).localname
-            if local_name == 'simpleType':
+            if local_name == "simpleType":
                 base_type: XSDType = self.process_simple_type(child, state)
                 member_types.append(base_type)
             else:
@@ -1208,21 +1216,21 @@ class XSDReader:
 
         generic_type: XSDType = self._get_most_generic_type(member_types)
         return generic_type
-    
+
     def _get_most_generic_type(self, types: List[XSDType]) -> XSDType:
         """
         Determines the most generic type from a list of XSDType instances,
         using the types from DATATYPES_MAPPING.
         """
         # Define a type hierarchy from most specific to most generic
-        type_hierarchy: list[str] = ['boolean', 'integer', 'number', 'string']
-        
+        type_hierarchy: list[str] = ["boolean", "integer", "number", "string"]
+
         for generic_type_name in reversed(type_hierarchy):
-            mapped_types: List[str] = [t.name.split(';')[0] for t in types]
+            mapped_types: List[str] = [t.name.split(";")[0] for t in types]
             if generic_type_name in mapped_types:
                 return XSDType(name=generic_type_name)
-        
-        return XSDType(name='string')
+
+        return XSDType(name="string")
 
     def process_length(self, node: _Element, state: State) -> None:
         pass
@@ -1262,12 +1270,8 @@ class State:
 
 
 def read_schema(
-        context: Context,
-        path: str,
-        prepare: str = None,
-        dataset_name: str = ''
+    context: Context, path: str, prepare: str = None, dataset_name: str = ""
 ) -> dict[Any, dict[str, str | dict[str, str | bool | dict[str, str | dict[str, Any]]]]]:
-
     xsd = XSDReader(path, dataset_name)
 
     xsd.start()

@@ -5,7 +5,7 @@ from spinta.manifests.components import Manifest
 
 @commands.prepare.register(Context, Manifest)
 def prepare(context: Context, manifest: Manifest, **kwargs):
-    store = context.get('store')
+    store = context.get("store")
 
     for keymap in store.keymaps.values():
         commands.prepare(context, keymap, **kwargs)

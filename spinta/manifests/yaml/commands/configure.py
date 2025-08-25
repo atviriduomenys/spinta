@@ -9,9 +9,11 @@ from spinta.manifests.yaml.helpers import yaml_config_params
 
 @commands.configure.register(Context, YamlManifest)
 def configure(context: Context, manifest: YamlManifest):
-    rc = context.get('rc')
+    rc = context.get("rc")
     manifest.path = rc.get(
-        'manifests', manifest.name, 'path',
+        "manifests",
+        manifest.name,
+        "path",
         cast=pathlib.Path,
         required=True,
     )
@@ -20,9 +22,11 @@ def configure(context: Context, manifest: YamlManifest):
 
 @commands.configure.register(Context, InlineManifest)
 def configure(context: Context, manifest: InlineManifest):
-    rc = context.get('rc')
+    rc = context.get("rc")
     manifest.path = None
     manifest.manifest = rc.get(
-        'manifests', manifest.name, 'manifest',
+        "manifests",
+        manifest.name,
+        "manifest",
         required=True,
     )

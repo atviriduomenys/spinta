@@ -30,36 +30,36 @@ def _get_soap_query_builder(
 ) -> SoapQueryBuilder:
     query_params = query_params or QueryParams()
 
-    model = get_model(context, manifest, 'example/City')
+    model = get_model(context, manifest, "example/City")
     load_query_builder_class(context.get("config"), model.backend)
     query_builder = model.backend.query_builder_class(context)
 
     return query_builder.init(model.backend, model, query_params)
 
 
-def _set_auth_token_with_client_file(
-    context: Context, clients_path: pathlib.Path, client_backends: dict
-) -> None:
+def _set_auth_token_with_client_file(context: Context, clients_path: pathlib.Path, client_backends: dict) -> None:
     ensure_client_folders_exist(clients_path)
     client_id = uuid.uuid4()
     auth.create_client_file(
         clients_path,
         name=str(client_id),
         client_id=str(client_id),
-        secret='secret',
-        scopes=['spinta_getall'],
+        secret="secret",
+        scopes=["spinta_getall"],
         backends=client_backends,
         add_secret=True,
     )
 
     pkey = auth.load_key(context, auth.KeyType.private)
-    token = auth.create_access_token(context, pkey, str(client_id), scopes={'spinta_getall'})
+    token = auth.create_access_token(context, pkey, str(client_id), scopes={"spinta_getall"})
     token = auth.Token(token, BearerTokenValidator(context))
-    context.set('auth.token', token)
+    context.set("auth.token", token)
 
 
 def _get_wsdl_soap_manifest(rc: RawConfig) -> tuple[Context, Manifest]:
-    return prepare_manifest(rc, """
+    return prepare_manifest(
+        rc,
+        """
         d | r | b | m | property | type    | ref        | source                                          | access | prepare
         example                  | dataset |            |                                                 |        |
           | wsdl_resource        | wsdl    |            | tests/datasets/backends/wsdl/data/wsdl.xml      |        |
@@ -70,7 +70,9 @@ def _get_wsdl_soap_manifest(rc: RawConfig) -> tuple[Context, Manifest]:
           |   |   |   | id       | integer |            | id                                              |        |
           |   |   |   | p1       | integer |            |                                                 |        | param(parameter1)
           |   |   |   | p2       | integer |            |                                                 |        | param(parameter2)
-        """, mode=Mode.external)
+        """,
+        mode=Mode.external,
+    )
 
 
 class TestEq:
@@ -94,7 +96,7 @@ class TestEq:
         context, manifest = _get_wsdl_soap_manifest(rc)
         soap_query_builder = _get_soap_query_builder(context, manifest)
 
-        expr = asttoexpr(parse('p1=test'))
+        expr = asttoexpr(parse("p1=test"))
         with pytest.raises(UnknownMethod, match="Unknown method 'eq' with args"):
             soap_query_builder.resolve(expr)
 
@@ -133,7 +135,9 @@ class TestAnd:
 
 class TestSoapRequestBody:
     def test_only_read_url_values_for_authorized_properties(self, rc: RawConfig) -> None:
-        context, manifest = prepare_manifest(rc, """
+        context, manifest = prepare_manifest(
+            rc,
+            """
             d | r | b | m | property | type    | ref        | source                                          | access | prepare
             example                  | dataset |            |                                                 |        |
               | wsdl_resource        | wsdl    |            | tests/datasets/backends/wsdl/data/wsdl.xml      |        |
@@ -142,13 +146,15 @@ class TestSoapRequestBody:
               |   |   | City         |         | id         | /                                               | open   |
               |   |   |   | id       | integer |            | id                                              |        |
               |   |   |   | p1       | integer |            |                                                 |        | param(parameter1)
-            """, mode=Mode.external)
+            """,
+            mode=Mode.external,
+        )
 
         # Create auth.token without scope
         pkey = auth.load_key(context, auth.KeyType.private)
         token = auth.create_access_token(context, pkey, "test-client", scopes=None)
         token = auth.Token(token, BearerTokenValidator(context))
-        context.set('auth.token', token)
+        context.set("auth.token", token)
 
         query_params = QueryParams()
         query_params.url_params = {"p1": "url_value"}
@@ -159,7 +165,9 @@ class TestSoapRequestBody:
         assert soap_query_builder.property_values == {}
 
     def test_skip_url_param_reading_if_property_has_external_name(self, rc: RawConfig) -> None:
-        context, manifest = prepare_manifest(rc, """
+        context, manifest = prepare_manifest(
+            rc,
+            """
             d | r | b | m | property | type    | ref        | source                                          | access | prepare
             example                  | dataset |            |                                                 |        |
               | wsdl_resource        | wsdl    |            | tests/datasets/backends/wsdl/data/wsdl.xml      |        |
@@ -168,8 +176,10 @@ class TestSoapRequestBody:
               |   |   | City         |         | id         | /                                               | open   |
               |   |   |   | id       | integer |            | id                                              |        |
               |   |   |   | p1       | integer |            | any-name                                        |        | param(parameter1)
-            """, mode=Mode.external)
-        context.set('auth.token', AdminToken())
+            """,
+            mode=Mode.external,
+        )
+        context.set("auth.token", AdminToken())
 
         query_params = QueryParams()
         query_params.url_params = {"p1": "url_value"}
@@ -180,7 +190,9 @@ class TestSoapRequestBody:
         assert soap_query_builder.property_values == {}
 
     def test_skip_url_param_reading_if_property_has_no_expression_in_prepare(self, rc: RawConfig) -> None:
-        context, manifest = prepare_manifest(rc, """
+        context, manifest = prepare_manifest(
+            rc,
+            """
             d | r | b | m | property | type    | ref        | source                                          | access | prepare
             example                  | dataset |            |                                                 |        |
               | wsdl_resource        | wsdl    |            | tests/datasets/backends/wsdl/data/wsdl.xml      |        |
@@ -189,8 +201,10 @@ class TestSoapRequestBody:
               |   |   | City         |         | id         | /                                               | open   |
               |   |   |   | id       | integer |            | id                                              |        |
               |   |   |   | p1       | integer |            |                                                 |        |
-            """, mode=Mode.external)
-        context.set('auth.token', AdminToken())
+            """,
+            mode=Mode.external,
+        )
+        context.set("auth.token", AdminToken())
 
         query_params = QueryParams()
         query_params.url_params = {"p1": "url_value"}
@@ -201,7 +215,9 @@ class TestSoapRequestBody:
         assert soap_query_builder.property_values == {}
 
     def test_build_body_from_request_param_source_and_default_value_if_url_param_not_given(self, rc: RawConfig) -> None:
-        context, manifest = prepare_manifest(rc, """
+        context, manifest = prepare_manifest(
+            rc,
+            """
             d | r | b | m | property | type    | ref        | source                                          | access | prepare
             example                  | dataset |            |                                                 |        |
               | wsdl_resource        | wsdl    |            | tests/datasets/backends/wsdl/data/wsdl.xml      |        |
@@ -210,8 +226,10 @@ class TestSoapRequestBody:
               |   |   | City         |         | id         | /                                               | open   |
               |   |   |   | id       | integer |            | id                                              |        |
               |   |   |   | p1       | integer |            |                                                 |        | param(parameter1)
-            """, mode=Mode.external)
-        context.set('auth.token', AdminToken())
+            """,
+            mode=Mode.external,
+        )
+        context.set("auth.token", AdminToken())
 
         soap_query_builder = _get_soap_query_builder(context, manifest)
         soap_query_builder.build()
@@ -220,7 +238,9 @@ class TestSoapRequestBody:
         assert soap_query_builder.property_values == {"parameter1": "default_val"}
 
     def test_build_body_from_request_param_source_and_url_param_if_url_param_given(self, rc: RawConfig) -> None:
-        context, manifest = prepare_manifest(rc, """
+        context, manifest = prepare_manifest(
+            rc,
+            """
             d | r | b | m | property | type    | ref        | source                                          | access | prepare
             example                  | dataset |            |                                                 |        |
               | wsdl_resource        | wsdl    |            | tests/datasets/backends/wsdl/data/wsdl.xml      |        |
@@ -229,14 +249,14 @@ class TestSoapRequestBody:
               |   |   | City         |         | id         | /                                               | open   |
               |   |   |   | id       | integer |            | id                                              |        |
               |   |   |   | p1       | integer |            |                                                 |        | param(parameter1)
-            """, mode=Mode.external)
-        context.set('auth.token', AdminToken())
+            """,
+            mode=Mode.external,
+        )
+        context.set("auth.token", AdminToken())
 
         query_params = QueryParams()
         query_params.url_params = {"p1": "url_value"}
-        soap_query_builder = _get_soap_query_builder(
-            context, manifest, query_params=query_params
-        )
+        soap_query_builder = _get_soap_query_builder(context, manifest, query_params=query_params)
         soap_query_builder.build()
 
         assert soap_query_builder.soap_request_body == {"request_model/param1": "url_value"}
@@ -245,7 +265,9 @@ class TestSoapRequestBody:
     def test_build_body_from_request_if_param_source_without_default_and_no_url_param_given(
         self, rc: RawConfig
     ) -> None:
-        context, manifest = prepare_manifest(rc, """
+        context, manifest = prepare_manifest(
+            rc,
+            """
             d | r | b | m | property | type    | ref        | source                                          | access | prepare
             example                  | dataset |            |                                                 |        |
               | wsdl_resource        | wsdl    |            | tests/datasets/backends/wsdl/data/wsdl.xml      |        |
@@ -254,8 +276,10 @@ class TestSoapRequestBody:
               |   |   | City         |         | id         | /                                               | open   |
               |   |   |   | id       | integer |            | id                                              |        |
               |   |   |   | p1       | integer |            |                                                 |        | param(parameter1)
-            """, mode=Mode.external)
-        context.set('auth.token', AdminToken())
+            """,
+            mode=Mode.external,
+        )
+        context.set("auth.token", AdminToken())
 
         soap_query_builder = _get_soap_query_builder(context, manifest)
         soap_query_builder.build()
@@ -266,7 +290,9 @@ class TestSoapRequestBody:
     def test_build_body_from_params_without_property_defined(
         self, rc: RawConfig, tmp_path: pathlib.Path, mocker: MockerFixture
     ) -> None:
-        context, manifest = prepare_manifest(rc, """
+        context, manifest = prepare_manifest(
+            rc,
+            """
             d | r | b | m | property | type    | ref        | source                                          | access | prepare
             example                  | dataset |            |                                                 |        |
               | wsdl_resource        | wsdl    |            | tests/datasets/backends/wsdl/data/wsdl.xml      |        |
@@ -274,12 +300,13 @@ class TestSoapRequestBody:
               |   |   |   |          | param   | parameter1 | request_model/param1                            | open   | creds("foo").input()
               |   |   | City         |         | id         | /                                               | open   |
               |   |   |   | id       | integer |            | id                                              |        |
-            """, mode=Mode.external)
+            """,
+            mode=Mode.external,
+        )
 
         clients_path = get_clients_path(tmp_path)
         mocker.patch(
-            "spinta.datasets.backends.dataframe.backends.soap.ufuncs.ufuncs.get_clients_path",
-            return_value=clients_path
+            "spinta.datasets.backends.dataframe.backends.soap.ufuncs.ufuncs.get_clients_path", return_value=clients_path
         )
         _set_auth_token_with_client_file(
             context, clients_path, client_backends={"soap_resource": {"foo": "foo_result"}}
@@ -294,7 +321,9 @@ class TestSoapRequestBody:
     def test_skip_build_body_if_soap_body_does_not_exist(
         self, rc: RawConfig, tmp_path: pathlib.Path, mocker: MockerFixture
     ) -> None:
-        context, manifest = prepare_manifest(rc, """
+        context, manifest = prepare_manifest(
+            rc,
+            """
             d | r | b | m | property | type    | ref        | source                                          | access | prepare
             example                  | dataset |            |                                                 |        |
               | wsdl_resource        | wsdl    |            | tests/datasets/backends/wsdl/data/wsdl.xml      |        |
@@ -302,12 +331,13 @@ class TestSoapRequestBody:
               |   |   |   |          | param   | parameter1 | request_model/param1                            | open   | creds("foo")
               |   |   | City         |         | id         | /                                               | open   |
               |   |   |   | id       | integer |            | id                                              |        |
-            """, mode=Mode.external)
+            """,
+            mode=Mode.external,
+        )
 
         clients_path = get_clients_path(tmp_path)
         mocker.patch(
-            "spinta.datasets.backends.dataframe.backends.soap.ufuncs.ufuncs.get_clients_path",
-            return_value=clients_path
+            "spinta.datasets.backends.dataframe.backends.soap.ufuncs.ufuncs.get_clients_path", return_value=clients_path
         )
         _set_auth_token_with_client_file(
             context, clients_path, client_backends={"soap_resource": {"foo": "foo_result"}}
@@ -322,7 +352,9 @@ class TestSoapRequestBody:
     def test_soap_request_body_values_does_not_persist_between_multiple_calls(
         self, rc: RawConfig, tmp_path: pathlib.Path, mocker: MockerFixture
     ) -> None:
-        context, manifest = prepare_manifest(rc, """
+        context, manifest = prepare_manifest(
+            rc,
+            """
         d | r | b | m | property | type    | ref        | source                                          | access | prepare
         example                  | dataset |            |                                                 |        |
           | wsdl_resource        | wsdl    |            | tests/datasets/backends/wsdl/data/wsdl.xml      |        |
@@ -331,12 +363,13 @@ class TestSoapRequestBody:
           |   |   | City         |         | id         | /                                               | open   |
           |   |   |   | id       | integer |            | id                                              |        |
           |   |   |   | p1       | integer |            |                                                 |        | param(parameter1)
-        """, mode=Mode.external)
+        """,
+            mode=Mode.external,
+        )
 
         clients_path = get_clients_path(tmp_path)
         mocker.patch(
-            "spinta.datasets.backends.dataframe.backends.soap.ufuncs.ufuncs.get_clients_path",
-            return_value=clients_path
+            "spinta.datasets.backends.dataframe.backends.soap.ufuncs.ufuncs.get_clients_path", return_value=clients_path
         )
         _set_auth_token_with_client_file(
             context, clients_path, client_backends={"soap_resource": {"par1": "cred_value"}}
@@ -363,8 +396,7 @@ class TestCreds:
 
         clients_path = get_clients_path(tmp_path)
         mocker.patch(
-            "spinta.datasets.backends.dataframe.backends.soap.ufuncs.ufuncs.get_clients_path",
-            return_value=clients_path
+            "spinta.datasets.backends.dataframe.backends.soap.ufuncs.ufuncs.get_clients_path", return_value=clients_path
         )
         _set_auth_token_with_client_file(
             context, clients_path, client_backends={"soap_resource": {"foo": "foo_result"}}
@@ -382,8 +414,7 @@ class TestCreds:
 
         clients_path = get_clients_path(tmp_path)
         mocker.patch(
-            "spinta.datasets.backends.dataframe.backends.soap.ufuncs.ufuncs.get_clients_path",
-            return_value=clients_path
+            "spinta.datasets.backends.dataframe.backends.soap.ufuncs.ufuncs.get_clients_path", return_value=clients_path
         )
         _set_auth_token_with_client_file(
             context, clients_path, client_backends={"test_resource": {"foo": "foo_result"}}
@@ -402,8 +433,7 @@ class TestCreds:
 
         clients_path = get_clients_path(tmp_path)
         mocker.patch(
-            "spinta.datasets.backends.dataframe.backends.soap.ufuncs.ufuncs.get_clients_path",
-            return_value=clients_path
+            "spinta.datasets.backends.dataframe.backends.soap.ufuncs.ufuncs.get_clients_path", return_value=clients_path
         )
         _set_auth_token_with_client_file(
             context, clients_path, client_backends={"soap_resource": {"bar": "bar_result"}}
@@ -422,8 +452,7 @@ class TestCreds:
 
         clients_path = get_clients_path(tmp_path)
         mocker.patch(
-            "spinta.datasets.backends.dataframe.backends.soap.ufuncs.ufuncs.get_clients_path",
-            return_value=clients_path
+            "spinta.datasets.backends.dataframe.backends.soap.ufuncs.ufuncs.get_clients_path", return_value=clients_path
         )
         _set_auth_token_with_client_file(
             context, clients_path, client_backends={"soap_resource": {"bar": "bar_result"}}
@@ -431,6 +460,6 @@ class TestCreds:
 
         soap_query_builder = _get_soap_query_builder(context, manifest)
 
-        expr = asttoexpr(parse('creds()'))
+        expr = asttoexpr(parse("creds()"))
         with pytest.raises(UnknownMethod, match="Unknown method 'creds' with args"):
             soap_query_builder.resolve(expr)

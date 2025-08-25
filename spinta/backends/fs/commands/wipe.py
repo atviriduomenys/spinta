@@ -1,8 +1,6 @@
-from typing import Union
-
 from spinta import commands
 from spinta.commands import getall
-from spinta.components import Context, Model
+from spinta.components import Context
 from spinta.backends.fs.components import FileSystem
 from spinta.types.datatype import File
 from spinta.utils.data import take
@@ -12,7 +10,7 @@ from spinta.utils.data import take
 def wipe(context: Context, dtype: File, backend: FileSystem):
     rows = getall(context, dtype.prop.model, dtype.prop.model.backend)
     for r in rows:
-        fn = take(dtype.prop.place + '._id', r)
+        fn = take(dtype.prop.place + "._id", r)
         if fn:
             fpath = backend.path / fn
             if fpath.exists():

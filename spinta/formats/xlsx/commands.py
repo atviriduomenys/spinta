@@ -37,7 +37,7 @@ def render(
     headers: Dict[str, str] = None,
 ) -> Response:
     headers = headers or {}
-    headers['Content-Disposition'] = f'attachment; filename="{model.basename}.xlsx"'
+    headers["Content-Disposition"] = f'attachment; filename="{model.basename}.xlsx"'
 
     rows = flatten(data, sepgetter(model))
     cols = get_model_tabular_header(context, model, action, params)
@@ -59,13 +59,13 @@ def render(
     params: UrlParams = None,
     status_code: int = 200,
     headers: Dict[str, str] = None,
-    path: str = None
+    path: str = None,
 ) -> Response:
     rows = datasets_to_tabular(context, manifest)
     rows = ({c: row[c] for c in DATASET} for row in rows)
     if not path:
         headers = headers or {}
-        headers['Content-Disposition'] = f'attachment; filename="{manifest.name}.xlsx"'
+        headers["Content-Disposition"] = f'attachment; filename="{manifest.name}.xlsx"'
         return StreamingResponse(
             aiter(_render_xlsx(rows, DATASET)),
             status_code=status_code,
@@ -76,10 +76,7 @@ def render(
         write_xlsx(pathlib.Path(path), rows, DATASET)
 
 
-def _render_xlsx(
-    rows: Iterator[ManifestRow],
-    cols: list
-):
+def _render_xlsx(rows: Iterator[ManifestRow], cols: list):
     stream = io.BytesIO()
     write_xlsx(stream, rows, cols)
     stream.seek(0)

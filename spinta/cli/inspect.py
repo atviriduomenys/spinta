@@ -16,32 +16,23 @@ def inspect(
     ctx: TyperContext,
     manifest: Optional[str] = Argument(None, help="Path to manifest."),
     resource: Optional[Tuple[str, str]] = Option(
-        (None, None), '-r', '--resource',
-        help=(
-            "Resource type and source URI "
-            "(-r sql sqlite:////tmp/db.sqlite)"
-        ),
+        (None, None),
+        "-r",
+        "--resource",
+        help=("Resource type and source URI (-r sql sqlite:////tmp/db.sqlite)"),
     ),
-    formula: str = Option('', '-f', '--formula', help=(
-        "Formula if needed, to prepare resource for reading"
-    )),
-    backend: Optional[str] = Option(None, '-b', '--backend', help=(
-        "Backend connection string"
-    )),
-    output: Optional[str] = Option(None, '-o', '--output', help=(
-        "Output tabular manifest in a specified file"
-    )),
-    auth: Optional[str] = Option(None, '-a', '--auth', help=(
-        "Authorize as a client"
-    )),
-    priority: str = Option('manifest', '-p', '--priority', help=(
-        "Merge property priority ('manifest' or 'external')"
-    ))
+    formula: str = Option("", "-f", "--formula", help=("Formula if needed, to prepare resource for reading")),
+    backend: Optional[str] = Option(None, "-b", "--backend", help=("Backend connection string")),
+    output: Optional[str] = Option(None, "-o", "--output", help=("Output tabular manifest in a specified file")),
+    auth: Optional[str] = Option(None, "-a", "--auth", help=("Authorize as a client")),
+    priority: str = Option("manifest", "-p", "--priority", help=("Merge property priority ('manifest' or 'external')")),
 ):
     """Update manifest schema from an external data source"""
-    if priority not in ['manifest', 'external']:
-        echo(f"Priority \'{priority}\' does not exist, there can only be \'manifest\' or \'external\', it will be set to default 'manifest'.")
-        priority = 'manifest'
+    if priority not in ["manifest", "external"]:
+        echo(
+            f"Priority '{priority}' does not exist, there can only be 'manifest' or 'external', it will be set to default 'manifest'."
+        )
+        priority = "manifest"
 
     manifest = convert_str_to_manifest_path(manifest)
     context, manifest = create_manifest_from_inspect(
@@ -51,7 +42,7 @@ def inspect(
         formula=formula,
         backend=backend,
         auth=auth,
-        priority=priority
+        priority=priority,
     )
 
     if output:

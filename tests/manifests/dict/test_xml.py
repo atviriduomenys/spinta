@@ -3,11 +3,11 @@ from spinta.core.config import RawConfig
 
 from pathlib import Path
 
-from spinta.testing.manifest import load_manifest, compare_manifest, load_manifest_and_context
+from spinta.testing.manifest import compare_manifest, load_manifest_and_context
 
 
 def test_xml_normal(rc: RawConfig, tmp_path: Path):
-    xml = '''
+    xml = """
         <countries>
             <country code="lt" name="Lietuva"/>
             <country name="Latvija">
@@ -21,13 +21,15 @@ def test_xml_normal(rc: RawConfig, tmp_path: Path):
                     <lat>4</lat>
                 </location>
             </country>
-        </countries>'''
-    path = tmp_path / 'manifest.xml'
+        </countries>"""
+    path = tmp_path / "manifest.xml"
     path.write_text(xml)
 
     context, manifest = load_manifest_and_context(rc, path)
     commands.get_dataset(context, manifest, "dataset").resources["resource"].external = "manifest.xml"
-    a, b = compare_manifest(manifest, f'''
+    a, b = compare_manifest(
+        manifest,
+        """
 d | r | model | property     | type           | ref     | source
 dataset                  |                |         |
   | resource             | dask/xml       |         | manifest.xml
@@ -38,12 +40,14 @@ dataset                  |                |         |
   |   |   | location_lon | integer unique |         | location/lon
   |   |   | location_lat | integer unique |         | location/lat
 
-''', context)
+""",
+        context,
+    )
     assert a == b
 
 
 def test_xml_single_entry_initial_model(rc: RawConfig, tmp_path: Path):
-    xml = '''
+    xml = """
     <galaxy name="Milky">
         <solar_system name="Solar">
             <planet name="Earth">
@@ -67,13 +71,15 @@ def test_xml_single_entry_initial_model(rc: RawConfig, tmp_path: Path):
             </planet>
         </solar_system>
     </galaxy>
-    '''
-    path = tmp_path / 'manifest.xml'
+    """
+    path = tmp_path / "manifest.xml"
     path.write_text(xml)
 
     context, manifest = load_manifest_and_context(rc, path)
     commands.get_dataset(context, manifest, "dataset").resources["resource"].external = "manifest.xml"
-    a, b = compare_manifest(manifest, f'''
+    a, b = compare_manifest(
+        manifest,
+        """
 d | r | model   | property                        | type                    | ref    | source
 dataset                                     |                         |        |
   | resource                                | dask/xml                |        | manifest.xml
@@ -90,12 +96,14 @@ dataset                                     |                         |        |
   |   |   | location_lon                    | integer required unique |        | location/@lon
   |   |   | galaxy                          | ref                     | Galaxy | ../../../..
 
-''', context)
+""",
+        context,
+    )
     assert a == b
 
 
 def test_xml_allowed_namespace(rc: RawConfig, tmp_path: Path):
-    xml = '''
+    xml = """
         <countries xmlns:xsi="http://www.example.com/xmlns/xsi" xmlns="http://www.example.com/xmlns" xmlns:new="http://www.example.com/xmlns/new">
             <new:country xsi:code="lt" name="Lietuva"/>
             <new:country name="Latvija">
@@ -109,13 +117,15 @@ def test_xml_allowed_namespace(rc: RawConfig, tmp_path: Path):
                     <test:lat>4</test:lat>
                 </location>
             </new:country>
-        </countries>'''
-    path = tmp_path / 'manifest.xml'
+        </countries>"""
+    path = tmp_path / "manifest.xml"
     path.write_text(xml)
 
     context, manifest = load_manifest_and_context(rc, path)
     commands.get_dataset(context, manifest, "dataset").resources["resource"].external = "manifest.xml"
-    a, b = compare_manifest(manifest, f'''
+    a, b = compare_manifest(
+        manifest,
+        """
 d | r | model   | property     | type           | ref   | source                 | uri
 dataset                  |                |       |                        |
                          | prefix         | xsi   |                        | http://www.example.com/xmlns/xsi
@@ -131,12 +141,14 @@ dataset                  |                |       |                        |
   |   |   | location_lon | integer unique |       | location/test:lon      |
   |   |   | location_lat | integer unique |       | location/test:lat      |
 
-''', context)
+""",
+        context,
+    )
     assert a == b
 
 
 def test_xml_disallowed_namespace(rc: RawConfig, tmp_path: Path):
-    xml = '''
+    xml = """
         <countries test:xsi="http://www.example.com/xmlns/xsi" xmlns="http://www.example.com/xmlns" xmlns:new="http://www.example.com/xmlns/new">
             <new:country xsi:code="lt" name="Lietuva"/>
             <new:country name="Latvija">
@@ -150,13 +162,15 @@ def test_xml_disallowed_namespace(rc: RawConfig, tmp_path: Path):
                     <test:lat>4</test:lat>
                 </location>
             </new:country>
-        </countries>'''
-    path = tmp_path / 'manifest.xml'
+        </countries>"""
+    path = tmp_path / "manifest.xml"
     path.write_text(xml)
 
     context, manifest = load_manifest_and_context(rc, path)
     commands.get_dataset(context, manifest, "dataset").resources["resource"].external = "manifest.xml"
-    a, b = compare_manifest(manifest, f'''
+    a, b = compare_manifest(
+        manifest,
+        """
 d | r | model   | property      | type                | ref       | source                 | uri
 dataset                   |                     |           |                        |
                           | prefix              | xmlns     |                        | http://www.example.com/xmlns
@@ -175,12 +189,14 @@ dataset                   |                     |           |                   
   |   |   | location_lat  | integer unique      |           | location/test:lat      |
   |   |   | countries     | ref                 | Countries | ..                     |
 
-''', context)
+""",
+        context,
+    )
     assert a == b
 
 
 def test_xml_inherit_nested(rc: RawConfig, tmp_path: Path):
-    xml = '''
+    xml = """
     <countries>
         <country name="Lithuania" code="LT">
             <location test="nope">
@@ -211,13 +227,15 @@ def test_xml_inherit_nested(rc: RawConfig, tmp_path: Path):
                 <city name="Empty"></city>
             </cities>
         </country>
-    </countries>'''
-    path = tmp_path / 'manifest.xml'
+    </countries>"""
+    path = tmp_path / "manifest.xml"
     path.write_text(xml)
 
     context, manifest = load_manifest_and_context(rc, path)
     commands.get_dataset(context, manifest, "dataset").resources["resource"].external = "manifest.xml"
-    a, b = compare_manifest(manifest, f'''
+    a, b = compare_manifest(
+        manifest,
+        """
 d | r | m | property          | type                    | ref     | source
 dataset                       |                         |         |
   | resource                  | dask/xml                |         | manifest.xml
@@ -240,5 +258,7 @@ dataset                       |                         |         |
   |   |   | name              | string required unique  |         | @name
   |   |   | location_coords[] | number                  |         | location/coords
   |   |   | country           | ref                     | Country | ../..
-''', context)
+""",
+        context,
+    )
     assert a == b

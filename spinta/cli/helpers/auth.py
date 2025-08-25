@@ -15,14 +15,19 @@ def require_auth(context: Context, client: str = None):
     if client is None:
         token = AdminToken()
     else:
-        if client == 'default':
-            config = context.get('config')
+        if client == "default":
+            config = context.get("config")
             client = get_default_auth_client_id(context)
             client = client if client else config.default_auth_client
         token = create_client_access_token(context, client)
         token = Token(token, BearerTokenValidator(context))
-    context.set('auth.token', token)
-    context.attach('accesslog', create_accesslog, context, loaders=(
-        context.get('store'),
-        context.get("auth.token"),
-    ))
+    context.set("auth.token", token)
+    context.attach(
+        "accesslog",
+        create_accesslog,
+        context,
+        loaders=(
+            context.get("store"),
+            context.get("auth.token"),
+        ),
+    )

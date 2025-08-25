@@ -20,16 +20,14 @@ def config(
 ):
     """Show current configuration values"""
     context = configure_context(ctx.obj)
-    rc = context.get('rc')
+    rc = context.get("rc")
     rc.dump(*name, fmt=fmt)
 
 
 def check(
     ctx: TyperContext,
-    manifests: Optional[List[str]] = Argument(None, help=(
-        "Manifest files to load"
-    )),
-    mode: Mode = Option('internal', help="Mode of backend operation"),
+    manifests: Optional[List[str]] = Argument(None, help=("Manifest files to load")),
+    mode: Mode = Option("internal", help="Mode of backend operation"),
     check_names: bool = Option(None, help="To check dataset, model and property names"),
 ):
     """Check configuration and manifests"""

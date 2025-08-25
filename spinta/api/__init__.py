@@ -20,17 +20,26 @@ from starlette.middleware import Middleware
 
 from spinta import components, commands
 from spinta.api.validators import ClientAddData, ClientPatchData, ClientSecretPatchData
-from spinta.auth import AuthorizationServer, check_scope, query_client, get_clients_list, \
-    client_exists, create_client_file, delete_client_file, update_client_file, get_clients_path, Scopes, \
-    authenticate_token
+from spinta.auth import (
+    AuthorizationServer,
+    check_scope,
+    query_client,
+    get_clients_list,
+    client_exists,
+    create_client_file,
+    delete_client_file,
+    update_client_file,
+    get_clients_path,
+    Scopes,
+    authenticate_token,
+)
 from spinta.auth import ResourceProtector
 from spinta.auth import BearerTokenValidator
 from spinta.auth import get_auth_request
 from spinta.auth import get_auth_token
 from spinta.commands import prepare, get_version
 from spinta.components import Context, UrlParams
-from spinta.exceptions import BaseError, MultipleErrors, error_response, InsufficientPermission, \
-    ClientValidationError
+from spinta.exceptions import BaseError, MultipleErrors, error_response, InsufficientPermission, ClientValidationError
 from spinta.middlewares import ContextMiddleware
 from spinta.urlparams import Version
 from spinta.urlparams import get_response_type
@@ -41,21 +50,23 @@ from spinta.utils.path import resource_filename
 log = logging.getLogger(__name__)
 
 templates = Jinja2Templates(
-    directory=str(resource_filename('spinta', 'templates')),
+    directory=str(resource_filename("spinta", "templates")),
 )
 
 
 async def favicon(request: Request):
-    return Response('', media_type='text/plain', status_code=404)
+    return Response("", media_type="text/plain", status_code=404)
 
 
 async def robots(request: Request):
-    content = '\n'.join([
-        'User-Agent: *',
-        'Allow: /',
-        '',
-    ])
-    return Response(content, media_type='text/plain', status_code=200)
+    content = "\n".join(
+        [
+            "User-Agent: *",
+            "Allow: /",
+            "",
+        ]
+    )
+    return Response(content, media_type="text/plain", status_code=200)
 
 
 async def version(request: Request):
@@ -65,72 +76,65 @@ async def version(request: Request):
 
 async def auth_token(request: Request):
     context = request.state.context
-    auth_server = context.get('auth.server')
+    auth_server = context.get("auth.server")
     if auth_server.enabled():
-        resp: JSONResponse = auth_server.create_token_response({
-            'method': request.method,
-            'url': str(request.url.replace(query='')),
-            'body': dict(await request.form()),
-            'headers': request.headers,
-        })
+        resp: JSONResponse = auth_server.create_token_response(
+            {
+                "method": request.method,
+                "url": str(request.url.replace(query="")),
+                "body": dict(await request.form()),
+                "headers": request.headers,
+            }
+        )
 
         payload = json.loads(resp.body.decode("utf-8"))
-        _auth_accesslog(
-            context,
-            request,
-            payload,
-            'json'
-        )
+        _auth_accesslog(context, request, payload, "json")
 
         return resp
     else:
         raise NoAuthServer()
 
 
-def _auth_accesslog(
-    context: Context,
-    request: Request,
-    payload: dict,
-    output_format: str
-):
-    access_token = payload.get('access_token')
+def _auth_accesslog(context: Context, request: Request, payload: dict, output_format: str):
+    access_token = payload.get("access_token")
     if not access_token:
         return
 
-    token = payload['access_token']
-    type_ = payload['token_type']
+    token = payload["access_token"]
+    type_ = payload["token_type"]
 
-    resource_protector = context.get('auth.resource_protector')
-    token = authenticate_token(
-        resource_protector,
-        token=token,
-        type_=type_
-    )
+    resource_protector = context.get("auth.resource_protector")
+    token = authenticate_token(resource_protector, token=token, type_=type_)
     params = UrlParams()
     params.format = output_format
-    context.attach('accesslog', create_accesslog, context, loaders=(
-        context.get('store'),
-        request,
-        token,
-        params
-    ))
-    accesslog = context.get('accesslog')
+    context.attach("accesslog", create_accesslog, context, loaders=(context.get("store"), request, token, params))
+    accesslog = context.get("accesslog")
     accesslog.auth()
 
 
 def _auth_client_context(request: Request) -> Context:
     context: Context = request.state.context
-    context.set('auth.request', get_auth_request({
-        'method': request.method,
-        'url': str(request.url.replace(query='')),
-        'body': None,
-        'headers': request.headers,
-    }))
-    context.set('auth.token', get_auth_token(context))
-    context.attach('accesslog', create_accesslog, context, loaders=(
-        context.get('store'),
-        context.get("auth.token"),
-    ))
+    context.set(
+        "auth.request",
+        get_auth_request(
+            {
+                "method": request.method,
+                "url": str(request.url.replace(query="")),
+                "body": None,
+                "headers": request.headers,
+            }
+        ),
+    )
+    context.set("auth.token", get_auth_token(context))
+    context.attach(
+        "accesslog",
+        create_accesslog,
+        context,
+        loaders=(
+            context.get("store"),
+            context.get("auth.token"),
+        ),
+    )
     return context
 
 
@@ -142,7 +146,7 @@ async def auth_clients_add(request: Request) -> JSONResponse:
     except InsufficientScopeError:
         raise InsufficientPermission(scope=Scopes.AUTH_CLIENTS)
 
-    config = context.get('config')
+    config = context.get("config")
     commands.load(context, config)
 
     data = await request.json()
@@ -153,9 +157,7 @@ async def auth_clients_add(request: Request) -> JSONResponse:
             data["secret"] = "..."
         error_dict = {",".join(err["loc"]): err["msg"] for err in e.errors()}
         raise ClientValidationError(
-            request_data=data,
-            errors=error_dict,
-            inputs=list(ClientAddData.model_fields.keys())
+            request_data=data, errors=error_dict, inputs=list(ClientAddData.model_fields.keys())
         )
 
     client_id = str(uuid.uuid4())
@@ -174,12 +176,14 @@ async def auth_clients_add(request: Request) -> JSONResponse:
         client_data.get("backends"),
     )
 
-    return JSONResponse({
-        "client_id": client_["client_id"],
-        "client_name": name,
-        "scopes": client_["scopes"],
-        "backends": client_["backends"],
-    })
+    return JSONResponse(
+        {
+            "client_id": client_["client_id"],
+            "client_name": name,
+            "scopes": client_["scopes"],
+            "backends": client_["backends"],
+        }
+    )
 
 
 async def auth_clients_get_all(request: Request) -> JSONResponse:
@@ -189,7 +193,7 @@ async def auth_clients_get_all(request: Request) -> JSONResponse:
     except InsufficientScopeError:
         raise InsufficientPermission(scope=Scopes.AUTH_CLIENTS)
 
-    config = context.get('config')
+    config = context.get("config")
     commands.load(context, config)
 
     path = get_clients_path(config)
@@ -197,17 +201,14 @@ async def auth_clients_get_all(request: Request) -> JSONResponse:
     return_values = []
     for client_path in ids:
         client = query_client(path, client_path)
-        return_values.append({
-            "client_id": client.id,
-            "client_name": client.name
-        })
+        return_values.append({"client_id": client.id, "client_name": client.name})
     return JSONResponse(return_values)
 
 
 async def auth_clients_get_specific(request: Request) -> JSONResponse:
     context = _auth_client_context(request)
-    token = context.get('auth.token')
-    config = context.get('config')
+    token = context.get("auth.token")
+    config = context.get("config")
     commands.load(context, config)
 
     try:
@@ -219,11 +220,7 @@ async def auth_clients_get_specific(request: Request) -> JSONResponse:
 
     path = get_clients_path(config)
     client = query_client(path, client_id)
-    return_value = {
-        "client_id": client.id,
-        "client_name": client.name,
-        "scopes": list(client.scopes)
-    }
+    return_value = {"client_id": client.id, "client_name": client.name, "scopes": list(client.scopes)}
     return JSONResponse(return_value)
 
 
@@ -234,7 +231,7 @@ async def auth_clients_delete_specific(request: Request) -> Response:
     except InsufficientScopeError:
         raise InsufficientPermission(scope=Scopes.AUTH_CLIENTS)
 
-    config = context.get('config')
+    config = context.get("config")
     commands.load(context, config)
 
     path = get_clients_path(config)
@@ -245,7 +242,7 @@ async def auth_clients_delete_specific(request: Request) -> Response:
 
 async def auth_clients_patch_specific(request: Request) -> JSONResponse:
     context = _auth_client_context(request)
-    token = context.get('auth.token')
+    token = context.get("auth.token")
     client_id = request.path_params["client"]
 
     validator_class = ClientPatchData
@@ -257,7 +254,7 @@ async def auth_clients_patch_specific(request: Request) -> JSONResponse:
         if client_id != token.get_client_id():
             raise InsufficientPermission(scope=Scopes.AUTH_CLIENTS)
 
-    config = context.get('config')
+    config = context.get("config")
     commands.load(context, config)
     path = get_clients_path(config)
 
@@ -269,9 +266,7 @@ async def auth_clients_patch_specific(request: Request) -> JSONResponse:
             data["secret"] = "..."
         error_dict = {",".join(err["loc"]): err["msg"] for err in e.errors()}
         raise ClientValidationError(
-            request_data=data,
-            errors=error_dict,
-            inputs=list(validator_class.model_fields.keys())
+            request_data=data, errors=error_dict, inputs=list(validator_class.model_fields.keys())
         )
 
     new_data = update_client_file(
@@ -294,39 +289,50 @@ async def auth_clients_patch_specific(request: Request) -> JSONResponse:
 
 async def homepage(request: Request):
     from spinta.utils.response import create_http_response
+
     context: Context = request.state.context
 
-    context.set('auth.request', get_auth_request({
-        'method': request.method,
-        'url': str(request.url.replace(query='')),
-        'body': None,
-        'headers': request.headers,
-    }))
-    context.set('auth.token', get_auth_token(context))
+    context.set(
+        "auth.request",
+        get_auth_request(
+            {
+                "method": request.method,
+                "url": str(request.url.replace(query="")),
+                "body": None,
+                "headers": request.headers,
+            }
+        ),
+    )
+    context.set("auth.token", get_auth_token(context))
 
-    config = context.get('config')
+    config = context.get("config")
     UrlParams: Type[components.UrlParams]
-    UrlParams = config.components['urlparams']['component']
-    store = context.get('store')
+    UrlParams = config.components["urlparams"]["component"]
+    store = context.get("store")
 
     # Currently need to initialize the manifest and then add missing models
     # otherwise, manifest never gets created and becomes infinite loop
     manifest = commands.create_request_manifest(context, store.manifest)
-    context.set('request.manifest', manifest)
+    context.set("request.manifest", manifest)
     commands.load_for_request(context, manifest)
     commands.reload_backend_metadata(context, manifest, manifest.backend)
     params: UrlParams = prepare(context, UrlParams(), Version(), request)
-    context.attach('accesslog', create_accesslog, context, loaders=(
-        store,
-        context.get("auth.token"),
-        request,
-        params,
-    ))
+    context.attach(
+        "accesslog",
+        create_accesslog,
+        context,
+        loaders=(
+            store,
+            context.get("auth.token"),
+            request,
+            params,
+        ),
+    )
     return await create_http_response(context, params, request)
 
 
 async def error(request, exc):
-    log.exception('Error: %s', exc)
+    log.exception("Error: %s", exc)
 
     headers = {}
 
@@ -353,29 +359,29 @@ async def error(request, exc):
             status_code = exc.status_code
             if exc.description:
                 # show overridden description
-                message = str(f'{exc.error}: {exc.description}')
+                message = str(f"{exc.error}: {exc.description}")
             elif exc.get_error_description():
                 # show dynamic description
-                message = str(f'{exc.error}: {exc.get_error_description()}')
+                message = str(f"{exc.error}: {exc.get_error_description()}")
             else:
                 # if no description, show plain error string
                 message = exc.error
-            headers['www-authenticate'] = f'Bearer error="{exc.error}"'
+            headers["www-authenticate"] = f'Bearer error="{exc.error}"'
         else:
             status_code = 500
             message = str(exc)
 
         errors = [
             {
-                'code': type(exc).__name__,
-                'message': message,
+                "code": type(exc).__name__,
+                "message": message,
             }
         ]
 
-    response = {'errors': errors}
+    response = {"errors": errors}
 
     fmt = get_response_type(request.state.context, request)
-    if fmt == 'json' or fmt is None:
+    if fmt == "json" or fmt is None:
         return JSONResponse(
             response,
             status_code=status_code,
@@ -384,11 +390,11 @@ async def error(request, exc):
     else:
         response = {
             **response,
-            'request': request,
+            "request": request,
         }
 
         return templates.TemplateResponse(
-            'error.html',
+            "error.html",
             response,
             status_code=status_code,
             headers=headers,
@@ -399,9 +405,9 @@ async def srid_check(request: Request):
     from shapely.geometry import Point
     from spinta.backends.postgresql.types.geometry.helpers import get_osm_link
 
-    srid = request.path_params['srid']
-    x = request.path_params['x']
-    y = request.path_params['y']
+    srid = request.path_params["srid"]
+    x = request.path_params["x"]
+    y = request.path_params["y"]
 
     point = Point(x, y)
     osm_link = get_osm_link(point, srid)
@@ -409,41 +415,32 @@ async def srid_check(request: Request):
 
 
 def init(context: Context):
-    config = context.get('config')
+    config = context.get("config")
 
     routes = [
-        Route('/robots.txt', robots, methods=['GET']),
-        Route('/favicon.ico', favicon, methods=['GET']),
-        Route('/version', version, methods=['GET']),
-        Route('/auth/token', auth_token, methods=['POST']),
-        Route('/_srid/{srid:int}/{x:spinta_float}/{y:spinta_float}', srid_check, methods=['GET']),
-        Route('/auth/clients', auth_clients_get_all, methods=['GET']),
-        Route('/auth/clients', auth_clients_add, methods=['POST']),
-        Route('/auth/clients/{client}', auth_clients_get_specific, methods=['GET']),
-        Route('/auth/clients/{client}', auth_clients_delete_specific, methods=['DELETE']),
-        Route('/auth/clients/{client}', auth_clients_patch_specific, methods=['PATCH'])
+        Route("/robots.txt", robots, methods=["GET"]),
+        Route("/favicon.ico", favicon, methods=["GET"]),
+        Route("/version", version, methods=["GET"]),
+        Route("/auth/token", auth_token, methods=["POST"]),
+        Route("/_srid/{srid:int}/{x:spinta_float}/{y:spinta_float}", srid_check, methods=["GET"]),
+        Route("/auth/clients", auth_clients_get_all, methods=["GET"]),
+        Route("/auth/clients", auth_clients_add, methods=["POST"]),
+        Route("/auth/clients/{client}", auth_clients_get_specific, methods=["GET"]),
+        Route("/auth/clients/{client}", auth_clients_delete_specific, methods=["DELETE"]),
+        Route("/auth/clients/{client}", auth_clients_patch_specific, methods=["PATCH"]),
     ]
 
     if config.docs_path:
         routes += [
-            Mount('/docs', StaticFiles(directory=config.docs_path, html=True)),
+            Mount("/docs", StaticFiles(directory=config.docs_path, html=True)),
         ]
 
     # This route matches everything, so it must be added last.
     routes += [
-        Route('/{path:path}', homepage, methods=[
-            'HEAD',
-            'GET',
-            'POST',
-            'PUT',
-            'PATCH',
-            'DELETE'
-        ]),
+        Route("/{path:path}", homepage, methods=["HEAD", "GET", "POST", "PUT", "PATCH", "DELETE"]),
     ]
 
-    middleware = [
-        Middleware(ContextMiddleware, context=context)
-    ]
+    middleware = [Middleware(ContextMiddleware, context=context)]
 
     exception_handlers = {
         Exception: error,
@@ -463,9 +460,9 @@ def init(context: Context):
     # Add context to state in order to pass it to request handlers
     app.state.context = context
 
-    context.bind('auth.server', AuthorizationServer, context)
+    context.bind("auth.server", AuthorizationServer, context)
     context.bind(
-        'auth.resource_protector',
+        "auth.resource_protector",
         ResourceProtector,
         context,
         BearerTokenValidator,

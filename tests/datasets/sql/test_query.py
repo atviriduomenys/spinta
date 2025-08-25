@@ -25,24 +25,21 @@ from spinta.ufuncs.helpers import merge_formulas
 from spinta.ufuncs.loadbuilder.helpers import page_contains_unsupported_keys
 from spinta.ufuncs.querybuilder.helpers import add_page_expr
 
-_SUPPORT_NULLS = ['sql/postgresql', 'sql/oracle', 'sql/sqlite']
-_DEFAULT_NULL_IMPL = ['sql', 'sql/mysql', 'sql/mariadb', 'sql/mssql']
+_SUPPORT_NULLS = ["sql/postgresql", "sql/oracle", "sql/sqlite"]
+_DEFAULT_NULL_IMPL = ["sql", "sql/mysql", "sql/mariadb", "sql/mssql"]
 
-_DEFAULT_FLIP_IMPL = ['sql', 'sql/sqlite', 'sql/mysql', 'sql/mssql', 'sql/mariadb', 'sql/oracle']
+_DEFAULT_FLIP_IMPL = ["sql", "sql/sqlite", "sql/mysql", "sql/mssql", "sql/mariadb", "sql/oracle"]
 
 
 def _qry(qry: Select, indent: int = 4) -> str:
-    ln = '\n'
-    indent_ = ' ' * indent
+    ln = "\n"
+    indent_ = " " * indent
     qry = str(qry)
-    qry = qry.replace('SELECT ', 'SELECT\n  ')
+    qry = qry.replace("SELECT ", "SELECT\n  ")
     qry = qry.replace('", "', '",\n  "')
-    qry = qry.replace(' LEFT OUTER JOIN ', '\nLEFT OUTER JOIN ')
-    qry = qry.replace(' AND ', '\n  AND ')
-    qry = '\n'.join([
-        line.rstrip()
-        for line in qry.splitlines()
-    ])
+    qry = qry.replace(" LEFT OUTER JOIN ", "\nLEFT OUTER JOIN ")
+    qry = qry.replace(" AND ", "\n  AND ")
+    qry = "\n".join([line.rstrip() for line in qry.splitlines()])
     return ln + textwrap.indent(qry, indent_) + ln + indent_
 
 
@@ -70,11 +67,7 @@ def _meta_from_manifest(context: Context, manifest: Manifest) -> sa.MetaData:
         columns = [
             sa.Column(prop.external.name, _get_sql_type(prop.dtype))
             for name, prop in model.properties.items()
-            if (
-                prop.external and
-                prop.external.name and
-                not prop.is_reserved()
-            )
+            if (prop.external and prop.external.name and not prop.is_reserved())
         ]
         sa.Table(_get_model_db_name(model), meta, *columns)
     return meta
@@ -89,12 +82,12 @@ def _build(
     page_mapping: dict = None,
 ) -> str:
     context, manifest = load_manifest_and_context(rc, manifest, mode=Mode.external)
-    context.set('auth.token', AdminToken())
+    context.set("auth.token", AdminToken())
     model = commands.get_model(context, manifest, model_name)
     meta = _meta_from_manifest(context, manifest)
     backend = model.backend
     if not isinstance(backend, Sql):
-        backend = create_empty_backend(context, 'sql')
+        backend = create_empty_backend(context, "sql")
 
     backend.schema = meta
     query = asttoexpr(spyna.parse(query))
@@ -103,7 +96,7 @@ def _build(
         page = commands.create_page(model.page)
         if page.enabled:
             for key, value in page_mapping.items():
-                cleaned = key[1:] if key.startswith('-') else key
+                cleaned = key[1:] if key.startswith("-") else key
                 page.update_value(key, model.properties.get(cleaned), value)
             if page_contains_unsupported_keys(page):
                 page.enabled = False
@@ -120,7 +113,10 @@ def _build(
 
 
 def test_unresolved(rc: RawConfig):
-    assert _build(rc, '''
+    assert (
+        _build(
+            rc,
+            """
     d | r | b | m | property   | type    | ref     | source     | prepare    | access
     example                    |         |         |            |            |
       |   |   | Country        |         | name    | COUNTRY    | democratic |
@@ -129,17 +125,24 @@ def test_unresolved(rc: RawConfig):
       |   |   | City           |         | name    | CITY       |            |
       |   |   |   | name       | string  |         | NAME       |            | open
       |   |   |   | country    | ref     | Country | COUNTRY    |            | open
-    ''', 'example/Country') == '''
+    """,
+            "example/Country",
+        )
+        == """
     SELECT
       "COUNTRY"."NAME",
       "COUNTRY"."DEMOCRATIC"
     FROM "COUNTRY"
     WHERE "COUNTRY"."DEMOCRATIC"
-    '''
+    """
+    )
 
 
 def test_unresolved_getattr(rc: RawConfig):
-    assert _build(rc, '''
+    assert (
+        _build(
+            rc,
+            """
     d | r | b | m | property   | type    | ref     | source     | prepare            | access
     example                    |         |         |            |                    |
       |   |   | Country        |         | name    | COUNTRY    |                    |
@@ -148,18 +151,25 @@ def test_unresolved_getattr(rc: RawConfig):
       |   |   | City           |         | name    | CITY       | country.democratic |
       |   |   |   | name       | string  |         | NAME       |                    | open
       |   |   |   | country    | ref     | Country | COUNTRY    |                    | open
-    ''', 'example/City') == '''
+    """,
+            "example/City",
+        )
+        == """
     SELECT
       "CITY"."NAME",
       "CITY"."COUNTRY"
     FROM "CITY"
     LEFT OUTER JOIN "COUNTRY" AS "COUNTRY_1" ON "CITY"."COUNTRY" = "COUNTRY_1"."NAME"
     WHERE "COUNTRY_1"."DEMOCRATIC"
-    '''
+    """
+    )
 
 
 def test_join_aliases(rc: RawConfig):
-    assert _build(rc, '''
+    assert (
+        _build(
+            rc,
+            """
     d | r | b | m | property | type   | ref     | source     | prepare          | access
     example                  |        |         |            |                  |
       | data                 | sql    |         |            |                  |
@@ -186,7 +196,10 @@ def test_join_aliases(rc: RawConfig):
       |   |   |   | city     | ref    | City    | CITY_ID    |                  | open
       |   |   |   | country  | ref    | Country | COUNTRY_ID |                  | open
       |   |   |   | planet   | ref    | Planet  | PLANET_ID  |                  | open
-    ''', 'example/Street') == '''
+    """,
+            "example/Street",
+        )
+        == """
     SELECT
       "STREET"."NAME",
       "STREET"."CITY_ID",
@@ -207,11 +220,15 @@ def test_join_aliases(rc: RawConfig):
       AND ("COUNTRY_2"."CODE" IS NULL OR "COUNTRY_2"."CODE" = :CODE_4)
       AND ("PLANET_3"."CODE" IS NULL OR "PLANET_3"."CODE" = :CODE_5)
       AND ("PLANET_4"."CODE" IS NULL OR "PLANET_4"."CODE" = :CODE_6)
-    '''
+    """
+    )
 
 
 def test_group(rc: RawConfig):
-    assert _build(rc, '''
+    assert (
+        _build(
+            rc,
+            """
     d | r | b | m | property | type   | ref | source  | prepare                       | access
     example                  |        |     |         |                               |
       | data                 | sql    |     |         |                               |
@@ -219,18 +236,25 @@ def test_group(rc: RawConfig):
       |   |   |   | id       | string |     | ID      |                               | open
       |   |   |   | code     | string |     | CODE    |                               | open
       |   |   |   | name     | string |     | NAME    |                               | open
-    ''', 'example/Country') == '''
+    """,
+            "example/Country",
+        )
+        == """
     SELECT
       "COUNTRY"."ID",
       "COUNTRY"."CODE",
       "COUNTRY"."NAME"
     FROM "COUNTRY"
     WHERE "COUNTRY"."CODE" IS NULL OR "COUNTRY"."CODE" = :CODE_1
-    '''
+    """
+    )
 
 
 def test_group_2(rc: RawConfig):
-    assert _build(rc, '''
+    assert (
+        _build(
+            rc,
+            """
     d | r | b | m | property | type   | ref | source  | prepare                                                | access
     example                  |        |     |         |                                                        |
       | data                 | sql    |     |         |                                                        |
@@ -238,7 +262,10 @@ def test_group_2(rc: RawConfig):
       |   |   |   | id       | string |     | ID      |                                                        | open
       |   |   |   | code     | string |     | CODE    |                                                        | open
       |   |   |   | name     | string |     | NAME    |                                                        | open
-    ''', 'example/Country') == '''
+    """,
+            "example/Country",
+        )
+        == """
     SELECT
       "COUNTRY"."ID",
       "COUNTRY"."CODE",
@@ -246,11 +273,15 @@ def test_group_2(rc: RawConfig):
     FROM "COUNTRY"
     WHERE ("COUNTRY"."CODE" IS NULL OR "COUNTRY"."CODE" = :CODE_1)
       AND ("COUNTRY"."NAME" IS NULL OR "COUNTRY"."NAME")
-    '''
+    """
+    )
 
 
 def test_explicit_ref(rc: RawConfig):
-    assert _build(rc, '''
+    assert (
+        _build(
+            rc,
+            """
     d | r | b | m | property   | type    | ref           | source     | access
     example                    |         |               |            |
       |   |   | Country        |         | id            | COUNTRY    |
@@ -259,17 +290,24 @@ def test_explicit_ref(rc: RawConfig):
       |   |   | City           |         | name          | CITY       |
       |   |   |   | name       | string  |               | NAME       | open
       |   |   |   | country    | ref     | Country[code] | COUNTRY_ID | open
-    ''', 'example/City') == '''
+    """,
+            "example/City",
+        )
+        == """
     SELECT
       "CITY"."NAME",
       "CITY"."COUNTRY_ID"
     FROM "CITY"
-    '''
+    """
+    )
 
 
-@pytest.mark.parametrize('db_dialect', _SUPPORT_NULLS)
+@pytest.mark.parametrize("db_dialect", _SUPPORT_NULLS)
 def test_paginate_none_values(db_dialect: str, rc: RawConfig):
-    assert _build(rc, f'''
+    assert (
+        _build(
+            rc,
+            f"""
     d | r | b | m | property | type         | ref     | source     | prepare | access
     example                  |              |         |            |         |
       | data                 | {db_dialect} |         |            |         |
@@ -278,21 +316,27 @@ def test_paginate_none_values(db_dialect: str, rc: RawConfig):
       |   |   |   | id       | string       |         | ID         |         | open
       |   |   |   | code     | string       |         | CODE       |         | open
       |   |   |   | name     | string       |         | NAME       |         | open
-        ''', 'example/Planet', page_mapping={
-        'id': None
-    }) == '''
+        """,
+            "example/Planet",
+            page_mapping={"id": None},
+        )
+        == """
     SELECT
       "PLANET"."ID",
       "PLANET"."CODE",
       "PLANET"."NAME"
     FROM "PLANET" ORDER BY "PLANET"."ID" ASC NULLS LAST
      LIMIT :param_1
-    '''
+    """
+    )
 
 
-@pytest.mark.parametrize('db_dialect', _DEFAULT_NULL_IMPL)
+@pytest.mark.parametrize("db_dialect", _DEFAULT_NULL_IMPL)
 def test_paginate_none_values(db_dialect: str, rc: RawConfig):
-    assert _build(rc, f'''
+    assert (
+        _build(
+            rc,
+            f"""
     d | r | b | m | property | type         | ref     | source     | prepare | access
     example                  |              |         |            |         |
       | data                 | {db_dialect} |         |            |         |
@@ -301,20 +345,26 @@ def test_paginate_none_values(db_dialect: str, rc: RawConfig):
       |   |   |   | id       | string       |         | ID         |         | open
       |   |   |   | code     | string       |         | CODE       |         | open
       |   |   |   | name     | string       |         | NAME       |         | open
-        ''', 'example/Planet', page_mapping={
-        'id': None
-    }) == '''
+        """,
+            "example/Planet",
+            page_mapping={"id": None},
+        )
+        == """
     SELECT
       "PLANET"."ID",
       "PLANET"."CODE",
       "PLANET"."NAME"
     FROM "PLANET" ORDER BY CASE WHEN ("PLANET"."ID" IS NULL) THEN 1 ELSE 0 END, "PLANET"."ID" ASC
      LIMIT :param_1
-    '''
+    """
+    )
 
 
 def test_paginate_given_values_page_and_ref_not_given(rc: RawConfig):
-    assert _build(rc, '''
+    assert (
+        _build(
+            rc,
+            """
     d | r | b | m | property | type   | ref     | source     | prepare | access
     example                  |        |         |            |         |
       | data                 | sql    |         |            |         |
@@ -323,19 +373,26 @@ def test_paginate_given_values_page_and_ref_not_given(rc: RawConfig):
       |   |   |   | id       | string |         | ID         |         | open
       |   |   |   | code     | string |         | CODE       |         | open
       |   |   |   | name     | string |         | NAME       |         | open
-        ''', 'example/Planet', page_mapping={
-    }) == '''
+        """,
+            "example/Planet",
+            page_mapping={},
+        )
+        == """
     SELECT
       "PLANET"."CODE",
       "PLANET"."ID",
       "PLANET"."NAME"
     FROM "PLANET"
-    '''
+    """
+    )
 
 
-@pytest.mark.parametrize('db_dialect', _SUPPORT_NULLS)
+@pytest.mark.parametrize("db_dialect", _SUPPORT_NULLS)
 def test_paginate_given_values_page_not_given(db_dialect: str, rc: RawConfig):
-    assert _build(rc, f'''
+    assert (
+        _build(
+            rc,
+            f"""
     d | r | b | m | property | type         | ref     | source     | prepare | access
     example                  |              |         |            |         |
       | data                 | {db_dialect} |         |            |         |
@@ -344,9 +401,11 @@ def test_paginate_given_values_page_not_given(db_dialect: str, rc: RawConfig):
       |   |   |   | id       | string       |         | ID         |         | open
       |   |   |   | code     | string       |         | CODE       |         | open
       |   |   |   | name     | string       |         | NAME       |         | open
-        ''', 'example/Planet', page_mapping={
-        'name': 'test'
-    }) == '''
+        """,
+            "example/Planet",
+            page_mapping={"name": "test"},
+        )
+        == """
     SELECT
       "PLANET"."NAME",
       "PLANET"."ID",
@@ -354,12 +413,16 @@ def test_paginate_given_values_page_not_given(db_dialect: str, rc: RawConfig):
     FROM "PLANET"
     WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL ORDER BY "PLANET"."NAME" ASC NULLS LAST
      LIMIT :param_1
-    '''
+    """
+    )
 
 
-@pytest.mark.parametrize('db_dialect', _DEFAULT_NULL_IMPL)
+@pytest.mark.parametrize("db_dialect", _DEFAULT_NULL_IMPL)
 def test_paginate_given_values_page_not_given(db_dialect: str, rc: RawConfig):
-    assert _build(rc, f'''
+    assert (
+        _build(
+            rc,
+            f"""
     d | r | b | m | property | type         | ref     | source     | prepare | access
     example                  |              |         |            |         |
       | data                 | {db_dialect} |         |            |         |
@@ -368,9 +431,11 @@ def test_paginate_given_values_page_not_given(db_dialect: str, rc: RawConfig):
       |   |   |   | id       | string       |         | ID         |         | open
       |   |   |   | code     | string       |         | CODE       |         | open
       |   |   |   | name     | string       |         | NAME       |         | open
-        ''', 'example/Planet', page_mapping={
-        'name': 'test'
-    }) == '''
+        """,
+            "example/Planet",
+            page_mapping={"name": "test"},
+        )
+        == """
     SELECT
       "PLANET"."NAME",
       "PLANET"."ID",
@@ -378,12 +443,16 @@ def test_paginate_given_values_page_not_given(db_dialect: str, rc: RawConfig):
     FROM "PLANET"
     WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL ORDER BY CASE WHEN ("PLANET"."NAME" IS NULL) THEN 1 ELSE 0 END, "PLANET"."NAME" ASC
      LIMIT :param_1
-    '''
+    """
+    )
 
 
-@pytest.mark.parametrize('db_dialect', _SUPPORT_NULLS)
+@pytest.mark.parametrize("db_dialect", _SUPPORT_NULLS)
 def test_paginate_given_values_size_given(db_dialect: str, rc: RawConfig):
-    assert _build(rc, f'''
+    assert (
+        _build(
+            rc,
+            f"""
     d | r | b | m | property | type         | ref     | source     | prepare             | access
     example                  |              |         |            |                     |
       | data                 | {db_dialect} |         |            |                     |
@@ -392,9 +461,11 @@ def test_paginate_given_values_size_given(db_dialect: str, rc: RawConfig):
       |   |   |   | id       | string       |         | ID         |                     | open
       |   |   |   | code     | string       |         | CODE       |                     | open
       |   |   |   | name     | string       |         | NAME       |                     | open
-        ''', 'example/Planet', page_mapping={
-        'name': 'test'
-    }) == '''
+        """,
+            "example/Planet",
+            page_mapping={"name": "test"},
+        )
+        == """
     SELECT
       "PLANET"."NAME",
       "PLANET"."ID",
@@ -402,12 +473,16 @@ def test_paginate_given_values_size_given(db_dialect: str, rc: RawConfig):
     FROM "PLANET"
     WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL ORDER BY "PLANET"."NAME" ASC NULLS LAST
      LIMIT :param_1
-    '''
+    """
+    )
 
 
-@pytest.mark.parametrize('db_dialect', _DEFAULT_NULL_IMPL)
+@pytest.mark.parametrize("db_dialect", _DEFAULT_NULL_IMPL)
 def test_paginate_given_values_size_given(db_dialect: str, rc: RawConfig):
-    assert _build(rc, f'''
+    assert (
+        _build(
+            rc,
+            f"""
     d | r | b | m | property | type         | ref     | source     | prepare             | access
     example                  |              |         |            |                     |
       | data                 | {db_dialect} |         |            |                     |
@@ -416,9 +491,11 @@ def test_paginate_given_values_size_given(db_dialect: str, rc: RawConfig):
       |   |   |   | id       | string       |         | ID         |                     | open
       |   |   |   | code     | string       |         | CODE       |                     | open
       |   |   |   | name     | string       |         | NAME       |                     | open
-        ''', 'example/Planet', page_mapping={
-        'name': 'test'
-    }) == '''
+        """,
+            "example/Planet",
+            page_mapping={"name": "test"},
+        )
+        == """
     SELECT
       "PLANET"."NAME",
       "PLANET"."ID",
@@ -426,12 +503,16 @@ def test_paginate_given_values_size_given(db_dialect: str, rc: RawConfig):
     FROM "PLANET"
     WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL ORDER BY CASE WHEN ("PLANET"."NAME" IS NULL) THEN 1 ELSE 0 END, "PLANET"."NAME" ASC
      LIMIT :param_1
-    '''
+    """
+    )
 
 
-@pytest.mark.parametrize('db_dialect', _SUPPORT_NULLS)
+@pytest.mark.parametrize("db_dialect", _SUPPORT_NULLS)
 def test_paginate_given_values_private(db_dialect: str, rc: RawConfig):
-    assert _build(rc, f'''
+    assert (
+        _build(
+            rc,
+            f"""
     d | r | b | m | property | type         | ref     | source     | prepare          | access
     example                  |              |         |            |                  |
       | data                 | {db_dialect} |         |            |                  |
@@ -440,10 +521,14 @@ def test_paginate_given_values_private(db_dialect: str, rc: RawConfig):
       |   |   |   | id       | string       |         | ID         |                  | open
       |   |   |   | code     | string       |         | CODE       |                  | private
       |   |   |   | name     | string       |         | NAME       |                  | open
-        ''', 'example/Planet', page_mapping={
-        'name': 'test',
-        'code': 5,
-    }) == '''
+        """,
+            "example/Planet",
+            page_mapping={
+                "name": "test",
+                "code": 5,
+            },
+        )
+        == """
     SELECT
       "PLANET"."NAME",
       "PLANET"."ID",
@@ -452,12 +537,16 @@ def test_paginate_given_values_private(db_dialect: str, rc: RawConfig):
     WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL OR "PLANET"."NAME" = :NAME_2
       AND ("PLANET"."CODE" > :CODE_1 OR "PLANET"."CODE" IS NULL) ORDER BY "PLANET"."NAME" ASC NULLS LAST, "PLANET"."CODE" ASC NULLS LAST
       LIMIT :param_1
-    '''
+    """
+    )
 
 
-@pytest.mark.parametrize('db_dialect', _DEFAULT_NULL_IMPL)
+@pytest.mark.parametrize("db_dialect", _DEFAULT_NULL_IMPL)
 def test_paginate_given_values_private(db_dialect: str, rc: RawConfig):
-    assert _build(rc, f'''
+    assert (
+        _build(
+            rc,
+            f"""
     d | r | b | m | property | type         | ref     | source     | prepare          | access
     example                  |              |         |            |                  |
       | data                 | {db_dialect} |         |            |                  |
@@ -466,10 +555,14 @@ def test_paginate_given_values_private(db_dialect: str, rc: RawConfig):
       |   |   |   | id       | string       |         | ID         |                  | open
       |   |   |   | code     | string       |         | CODE       |                  | private
       |   |   |   | name     | string       |         | NAME       |                  | open
-        ''', 'example/Planet', page_mapping={
-        'name': 'test',
-        'code': 5,
-    }) == '''
+        """,
+            "example/Planet",
+            page_mapping={
+                "name": "test",
+                "code": 5,
+            },
+        )
+        == """
     SELECT
       "PLANET"."NAME",
       "PLANET"."ID",
@@ -478,12 +571,16 @@ def test_paginate_given_values_private(db_dialect: str, rc: RawConfig):
     WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL OR "PLANET"."NAME" = :NAME_2
       AND ("PLANET"."CODE" > :CODE_1 OR "PLANET"."CODE" IS NULL) ORDER BY CASE WHEN ("PLANET"."NAME" IS NULL) THEN 1 ELSE 0 END, "PLANET"."NAME" ASC, CASE WHEN ("PLANET"."CODE" IS NULL) THEN 1 ELSE 0 END, "PLANET"."CODE" ASC
      LIMIT :param_1
-    '''
+    """
+    )
 
 
-@pytest.mark.parametrize('db_dialect', _SUPPORT_NULLS)
+@pytest.mark.parametrize("db_dialect", _SUPPORT_NULLS)
 def test_paginate_given_values_two_keys(db_dialect: str, rc: RawConfig):
-    assert _build(rc, f'''
+    assert (
+        _build(
+            rc,
+            f"""
     d | r | b | m | property | type         | ref     | source     | prepare          | access
     example                  |              |         |            |                  |
       | data                 | {db_dialect} |         |            |                  |
@@ -492,10 +589,14 @@ def test_paginate_given_values_two_keys(db_dialect: str, rc: RawConfig):
       |   |   |   | id       | string       |         | ID         |                  | open
       |   |   |   | code     | string       |         | CODE       |                  | open
       |   |   |   | name     | string       |         | NAME       |                  | open
-        ''', 'example/Planet', page_mapping={
-        'name': 'test',
-        'code': 5,
-    }) == '''
+        """,
+            "example/Planet",
+            page_mapping={
+                "name": "test",
+                "code": 5,
+            },
+        )
+        == """
     SELECT
       "PLANET"."NAME",
       "PLANET"."ID",
@@ -504,12 +605,16 @@ def test_paginate_given_values_two_keys(db_dialect: str, rc: RawConfig):
     WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL OR "PLANET"."NAME" = :NAME_2
       AND ("PLANET"."CODE" > :CODE_1 OR "PLANET"."CODE" IS NULL) ORDER BY "PLANET"."NAME" ASC NULLS LAST, "PLANET"."CODE" ASC NULLS LAST
      LIMIT :param_1
-    '''
+    """
+    )
 
 
-@pytest.mark.parametrize('db_dialect', _DEFAULT_NULL_IMPL)
+@pytest.mark.parametrize("db_dialect", _DEFAULT_NULL_IMPL)
 def test_paginate_given_values_two_keys(db_dialect: str, rc: RawConfig):
-    assert _build(rc, f'''
+    assert (
+        _build(
+            rc,
+            f"""
     d | r | b | m | property | type         | ref     | source     | prepare          | access
     example                  |              |         |            |                  |
       | data                 | {db_dialect} |         |            |                  |
@@ -518,10 +623,14 @@ def test_paginate_given_values_two_keys(db_dialect: str, rc: RawConfig):
       |   |   |   | id       | string       |         | ID         |                  | open
       |   |   |   | code     | string       |         | CODE       |                  | open
       |   |   |   | name     | string       |         | NAME       |                  | open
-        ''', 'example/Planet', page_mapping={
-        'name': 'test',
-        'code': 5,
-    }) == '''
+        """,
+            "example/Planet",
+            page_mapping={
+                "name": "test",
+                "code": 5,
+            },
+        )
+        == """
     SELECT
       "PLANET"."NAME",
       "PLANET"."ID",
@@ -530,12 +639,16 @@ def test_paginate_given_values_two_keys(db_dialect: str, rc: RawConfig):
     WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL OR "PLANET"."NAME" = :NAME_2
       AND ("PLANET"."CODE" > :CODE_1 OR "PLANET"."CODE" IS NULL) ORDER BY CASE WHEN ("PLANET"."NAME" IS NULL) THEN 1 ELSE 0 END, "PLANET"."NAME" ASC, CASE WHEN ("PLANET"."CODE" IS NULL) THEN 1 ELSE 0 END, "PLANET"."CODE" ASC
      LIMIT :param_1
-    '''
+    """
+    )
 
 
-@pytest.mark.parametrize('db_dialect', _SUPPORT_NULLS)
+@pytest.mark.parametrize("db_dialect", _SUPPORT_NULLS)
 def test_paginate_given_values_two_keys_ref_not_given(db_dialect: str, rc: RawConfig):
-    assert _build(rc, f'''
+    assert (
+        _build(
+            rc,
+            f"""
     d | r | b | m | property | type         | ref     | source     | prepare          | access
     example                  |              |         |            |                  |
       | data                 | {db_dialect} |         |            |                  |
@@ -544,10 +657,14 @@ def test_paginate_given_values_two_keys_ref_not_given(db_dialect: str, rc: RawCo
       |   |   |   | id       | string       |         | ID         |                  | open
       |   |   |   | code     | string       |         | CODE       |                  | open
       |   |   |   | name     | string       |         | NAME       |                  | open
-        ''', 'example/Planet', page_mapping={
-        'name': 'test',
-        'code': 5,
-    }) == '''
+        """,
+            "example/Planet",
+            page_mapping={
+                "name": "test",
+                "code": 5,
+            },
+        )
+        == """
     SELECT
       "PLANET"."CODE",
       "PLANET"."ID",
@@ -556,12 +673,16 @@ def test_paginate_given_values_two_keys_ref_not_given(db_dialect: str, rc: RawCo
     WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL OR "PLANET"."NAME" = :NAME_2
       AND ("PLANET"."CODE" > :CODE_1 OR "PLANET"."CODE" IS NULL) ORDER BY "PLANET"."NAME" ASC NULLS LAST, "PLANET"."CODE" ASC NULLS LAST
      LIMIT :param_1
-    '''
+    """
+    )
 
 
-@pytest.mark.parametrize('db_dialect', _DEFAULT_NULL_IMPL)
+@pytest.mark.parametrize("db_dialect", _DEFAULT_NULL_IMPL)
 def test_paginate_given_values_two_keys_ref_not_given(db_dialect: str, rc: RawConfig):
-    assert _build(rc, f'''
+    assert (
+        _build(
+            rc,
+            f"""
     d | r | b | m | property | type         | ref     | source     | prepare          | access
     example                  |              |         |            |                  |
       | data                 | {db_dialect} |         |            |                  |
@@ -570,10 +691,14 @@ def test_paginate_given_values_two_keys_ref_not_given(db_dialect: str, rc: RawCo
       |   |   |   | id       | string       |         | ID         |                  | open
       |   |   |   | code     | string       |         | CODE       |                  | open
       |   |   |   | name     | string       |         | NAME       |                  | open
-        ''', 'example/Planet', page_mapping={
-        'name': 'test',
-        'code': 5,
-    }) == '''
+        """,
+            "example/Planet",
+            page_mapping={
+                "name": "test",
+                "code": 5,
+            },
+        )
+        == """
     SELECT
       "PLANET"."CODE",
       "PLANET"."ID",
@@ -582,12 +707,16 @@ def test_paginate_given_values_two_keys_ref_not_given(db_dialect: str, rc: RawCo
     WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL OR "PLANET"."NAME" = :NAME_2
       AND ("PLANET"."CODE" > :CODE_1 OR "PLANET"."CODE" IS NULL) ORDER BY CASE WHEN ("PLANET"."NAME" IS NULL) THEN 1 ELSE 0 END, "PLANET"."NAME" ASC, CASE WHEN ("PLANET"."CODE" IS NULL) THEN 1 ELSE 0 END, "PLANET"."CODE" ASC
      LIMIT :param_1
-    '''
+    """
+    )
 
 
-@pytest.mark.parametrize('db_dialect', _SUPPORT_NULLS)
+@pytest.mark.parametrize("db_dialect", _SUPPORT_NULLS)
 def test_paginate_desc(db_dialect: str, rc: RawConfig):
-    assert _build(rc, f'''
+    assert (
+        _build(
+            rc,
+            f"""
     d | r | b | m | property | type         | ref     | source     | prepare          | access
     example                  |              |         |            |                  |
       | data                 | {db_dialect} |         |            |                  |
@@ -596,10 +725,14 @@ def test_paginate_desc(db_dialect: str, rc: RawConfig):
       |   |   |   | id       | string       |         | ID         |                  | open
       |   |   |   | code     | string       |         | CODE       |                  | open
       |   |   |   | name     | string       |         | NAME       |                  | open
-        ''', 'example/Planet', page_mapping={
-        'name': 'test',
-        '-code': 5,
-    }) == '''
+        """,
+            "example/Planet",
+            page_mapping={
+                "name": "test",
+                "-code": 5,
+            },
+        )
+        == """
     SELECT
       "PLANET"."CODE",
       "PLANET"."ID",
@@ -608,12 +741,16 @@ def test_paginate_desc(db_dialect: str, rc: RawConfig):
     WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL OR "PLANET"."NAME" = :NAME_2
       AND "PLANET"."CODE" < :CODE_1 ORDER BY "PLANET"."NAME" ASC NULLS LAST, "PLANET"."CODE" DESC NULLS FIRST
      LIMIT :param_1
-    '''
+    """
+    )
 
 
-@pytest.mark.parametrize('db_dialect', _DEFAULT_NULL_IMPL)
+@pytest.mark.parametrize("db_dialect", _DEFAULT_NULL_IMPL)
 def test_paginate_desc(db_dialect: str, rc: RawConfig):
-    assert _build(rc, f'''
+    assert (
+        _build(
+            rc,
+            f"""
     d | r | b | m | property | type         | ref     | source     | prepare          | access
     example                  |              |         |            |                  |
       | data                 | {db_dialect} |         |            |                  |
@@ -622,10 +759,14 @@ def test_paginate_desc(db_dialect: str, rc: RawConfig):
       |   |   |   | id       | string       |         | ID         |                  | open
       |   |   |   | code     | string       |         | CODE       |                  | open
       |   |   |   | name     | string       |         | NAME       |                  | open
-        ''', 'example/Planet', page_mapping={
-        'name': 'test',
-        '-code': 5,
-    }) == '''
+        """,
+            "example/Planet",
+            page_mapping={
+                "name": "test",
+                "-code": 5,
+            },
+        )
+        == """
     SELECT
       "PLANET"."CODE",
       "PLANET"."ID",
@@ -634,11 +775,15 @@ def test_paginate_desc(db_dialect: str, rc: RawConfig):
     WHERE "PLANET"."NAME" > :NAME_1 OR "PLANET"."NAME" IS NULL OR "PLANET"."NAME" = :NAME_2
       AND "PLANET"."CODE" < :CODE_1 ORDER BY CASE WHEN ("PLANET"."NAME" IS NULL) THEN 1 ELSE 0 END, "PLANET"."NAME" ASC, CASE WHEN ("PLANET"."CODE" IS NOT NULL) THEN 1 ELSE 0 END, "PLANET"."CODE" DESC
      LIMIT :param_1
-    '''
+    """
+    )
 
 
 def test_paginate_disabled(rc: RawConfig):
-    assert _build(rc, '''
+    assert (
+        _build(
+            rc,
+            """
     d | r | b | m | property | type   | ref     | source     | prepare          | access
     example                  |        |         |            |                  |
       | data                 | sql    |         |            |                  |
@@ -647,19 +792,25 @@ def test_paginate_disabled(rc: RawConfig):
       |   |   |   | id       | string |         | ID         |                  | open
       |   |   |   | code     | string |         | CODE       |                  | open
       |   |   |   | name     | string |         | NAME       |                  | open
-        ''', 'example/Planet', page_mapping={
-        'name': 'test'
-    }) == '''
+        """,
+            "example/Planet",
+            page_mapping={"name": "test"},
+        )
+        == """
     SELECT
       "PLANET"."NAME",
       "PLANET"."ID",
       "PLANET"."CODE"
     FROM "PLANET"
-    '''
+    """
+    )
 
 
 def test_composite_non_pk_ref_with_literal(rc: RawConfig):
-    assert _build(rc, '''
+    assert (
+        _build(
+            rc,
+            """
 d | r | b | m | property | type    | ref                       | source       | prepare  | access
 example                  |         |                           |              |          |
   |   |   | Translation  |         | id                        | TRANSLATION  |          | open
@@ -674,7 +825,10 @@ example                  |         |                           |              | 
   |   |   |   | name_en  | string  |                           |              | en.name  |
   |   |   |   | lt       | ref     | Translation[city_id,lang] |              | id, "lt" |
   |   |   |   | name_lt  | string  |                           |              | lt.name  |
-        ''', 'example/City') == '''
+        """,
+            "example/City",
+        )
+        == """
     SELECT
       "CITY"."ID",
       "TRANSLATION_1"."NAME",
@@ -684,12 +838,16 @@ example                  |         |                           |              | 
       AND "TRANSLATION_1"."LANG" = :LANG_1
     LEFT OUTER JOIN "TRANSLATION" AS "TRANSLATION_2" ON "CITY"."ID" = "TRANSLATION_2"."CITY_ID"
       AND "TRANSLATION_2"."LANG" = :LANG_2
-    '''
+    """
+    )
 
 
-@pytest.mark.parametrize('db_dialect', _DEFAULT_FLIP_IMPL)
+@pytest.mark.parametrize("db_dialect", _DEFAULT_FLIP_IMPL)
 def test_flip_result_builder(db_dialect: str, rc: RawConfig):
-    assert _build(rc, f'''
+    assert (
+        _build(
+            rc,
+            f"""
     d | r | b | m | property | type         | ref     | source     | prepare          | access
     example                  |              |         |            |                  |
       | data                 | {db_dialect} |         |            |                  |
@@ -698,20 +856,28 @@ def test_flip_result_builder(db_dialect: str, rc: RawConfig):
       |   |   |   | id       | string       |         | ID         |                  | open
       |   |   |   | code     | string       |         | CODE       |                  | open
       |   |   |   | geo      | geometry     |         | GEO        | flip()           | open
-        ''', 'example/Planet', page_mapping={
-        'name': 'test',
-        '-code': 5,
-    }) == '''
+        """,
+            "example/Planet",
+            page_mapping={
+                "name": "test",
+                "-code": 5,
+            },
+        )
+        == """
     SELECT
       "PLANET"."CODE",
       "PLANET"."GEO",
       "PLANET"."ID"
     FROM "PLANET"
-    '''
+    """
+    )
 
 
 def test_flip_postgresql(rc: RawConfig):
-    assert _build(rc, '''
+    assert (
+        _build(
+            rc,
+            """
     d | r | b | m | property | type           | ref     | source     | prepare          | access
     example                  |                |         |            |                  |
       | data                 | sql/postgresql |         |            |                  |
@@ -720,19 +886,27 @@ def test_flip_postgresql(rc: RawConfig):
       |   |   |   | id       | string         |         | ID         |                  | open
       |   |   |   | code     | string         |         | CODE       |                  | open
       |   |   |   | geo      | geometry       |         | GEO        | flip()           | open
-        ''', 'example/Planet', page_mapping={
-        'name': 'test',
-        '-code': 5,
-    }) == '''
+        """,
+            "example/Planet",
+            page_mapping={
+                "name": "test",
+                "-code": 5,
+            },
+        )
+        == """
     SELECT
       "PLANET"."CODE", ST_AsEWKB(ST_FlipCoordinates("PLANET"."GEO")) AS "ST_FlipCoordinates_1",
       "PLANET"."ID"
     FROM "PLANET"
-    '''
+    """
+    )
 
 
 def test_flip_postgresql_select(rc: RawConfig):
-    assert _build(rc, '''
+    assert (
+        _build(
+            rc,
+            """
     d | r | b | m | property | type           | ref     | source     | prepare | access
     example                  |                |         |            |         |
       | data                 | sql/postgresql |         |            |         |
@@ -741,15 +915,23 @@ def test_flip_postgresql_select(rc: RawConfig):
       |   |   |   | id       | string         |         | ID         |         | open
       |   |   |   | code     | string         |         | CODE       |         | open
       |   |   |   | geo      | geometry       |         | GEO        |         | open
-        ''', 'example/Planet', query='select(flip(geo))') == '''
+        """,
+            "example/Planet",
+            query="select(flip(geo))",
+        )
+        == """
     SELECT
       ST_AsEWKB(ST_FlipCoordinates("PLANET"."GEO")) AS "ST_FlipCoordinates_1"
     FROM "PLANET"
-    '''
+    """
+    )
 
 
 def test_flip_postgresql_combined(rc: RawConfig):
-    assert _build(rc, '''
+    assert (
+        _build(
+            rc,
+            """
     d | r | b | m | property | type           | ref     | source     | prepare | access
     example                  |                |         |            |         |
       | data                 | sql/postgresql |         |            |         |
@@ -758,15 +940,23 @@ def test_flip_postgresql_combined(rc: RawConfig):
       |   |   |   | id       | string         |         | ID         |         | open
       |   |   |   | code     | string         |         | CODE       |         | open
       |   |   |   | geo      | geometry       |         | GEO        | flip()  | open
-        ''', 'example/Planet', query='select(flip(geo))') == '''
+        """,
+            "example/Planet",
+            query="select(flip(geo))",
+        )
+        == """
     SELECT
       "PLANET"."GEO"
     FROM "PLANET"
-    '''
+    """
+    )
 
 
 def test_flip_postgresql_geometry_denorm(rc: RawConfig):
-    assert _build(rc, '''
+    assert (
+        _build(
+            rc,
+            """
     d | r | b | m | property    | type           | ref     | source     | prepare | access
     example                     |                |         |            |         |
       | data                    | sql/postgresql |         |            |         |
@@ -779,18 +969,25 @@ def test_flip_postgresql_geometry_denorm(rc: RawConfig):
       |   |   |   | code        | string         |         | CODE       |         | open
       |   |   |   | geodata     | ref            | Geodata | GEO_ID     |         | open
       |   |   |   | geodata.geo |                |         |            |         | open
-        ''', 'example/Planet') == '''
+        """,
+            "example/Planet",
+        )
+        == """
     SELECT
       "PLANET"."CODE",
       "PLANET"."GEO_ID", ST_AsEWKB(ST_FlipCoordinates("GEODATA_1"."GEO")) AS "ST_FlipCoordinates_1",
       "PLANET"."ID"
     FROM "PLANET"
     LEFT OUTER JOIN "GEODATA" AS "GEODATA_1" ON "PLANET"."GEO_ID" = "GEODATA_1"."ID"
-    '''
+    """
+    )
 
 
 def test_flip_postgresql_geometry_select_denorm_flip(rc: RawConfig):
-    assert _build(rc, '''
+    assert (
+        _build(
+            rc,
+            """
     d | r | b | m | property    | type           | ref     | source     | prepare | access
     example                     |                |         |            |         |
       | data                    | sql/postgresql |         |            |         |
@@ -803,16 +1000,24 @@ def test_flip_postgresql_geometry_select_denorm_flip(rc: RawConfig):
       |   |   |   | code        | string         |         | CODE       |         | open
       |   |   |   | geodata     | ref            | Geodata | GEO_ID     |         | open
       |   |   |   | geodata.geo |                |         |            |         | open
-        ''', 'example/Planet', query='select(flip(geodata.geo))') == '''
+        """,
+            "example/Planet",
+            query="select(flip(geodata.geo))",
+        )
+        == """
     SELECT
       ST_AsEWKB(ST_FlipCoordinates("GEODATA_1"."GEO")) AS "ST_FlipCoordinates_1"
     FROM "PLANET"
     LEFT OUTER JOIN "GEODATA" AS "GEODATA_1" ON "PLANET"."GEO_ID" = "GEODATA_1"."ID"
-    '''
+    """
+    )
 
 
 def test_flip_postgresql_geometry_combined_denorm_flip(rc: RawConfig):
-    assert _build(rc, '''
+    assert (
+        _build(
+            rc,
+            """
     d | r | b | m | property    | type           | ref     | source     | prepare | access
     example                     |                |         |            |         |
       | data                    | sql/postgresql |         |            |         |
@@ -825,17 +1030,25 @@ def test_flip_postgresql_geometry_combined_denorm_flip(rc: RawConfig):
       |   |   |   | code        | string         |         | CODE       |         | open
       |   |   |   | geodata     | ref            | Geodata | GEO_ID     |         | open
       |   |   |   | geodata.geo |                |         |            |         | open
-        ''', 'example/Planet', query='select(geodata.geo,flip(geodata.geo),flip(flip(geodata.geo)))') == '''
+        """,
+            "example/Planet",
+            query="select(geodata.geo,flip(geodata.geo),flip(flip(geodata.geo)))",
+        )
+        == """
     SELECT
       ST_AsEWKB(ST_FlipCoordinates("GEODATA_1"."GEO")) AS "ST_FlipCoordinates_1",
       "GEODATA_1"."GEO", ST_AsEWKB(ST_FlipCoordinates("GEODATA_1"."GEO")) AS "ST_FlipCoordinates_2"
     FROM "PLANET"
     LEFT OUTER JOIN "GEODATA" AS "GEODATA_1" ON "PLANET"."GEO_ID" = "GEODATA_1"."ID"
-    '''
+    """
+    )
 
 
 def test_array_intermediate_table_sqlite(rc: RawConfig):
-    assert _build(rc, '''
+    assert (
+        _build(
+            rc,
+            """
     d | r | b | m | property    | type       | ref             | source          | prepare | access
     example                     |            |                 |                 |         |
       | data                    | sql/sqlite |                 |                 |         |
@@ -853,18 +1066,25 @@ def test_array_intermediate_table_sqlite(rc: RawConfig):
       |   |   | CountryLanguage |            |                 | COUNTRYLANGUAGE |         |
       |   |   |   | country     | ref        | Country         | COUNTRY         |         | open
       |   |   |   | language    | ref        | Language        | LANGUAGE        |         | open
-        ''', 'example/Country') == '''
+        """,
+            "example/Country",
+        )
+        == """
     SELECT
       "COUNTRY"."ID",
       "COUNTRY"."CODE", json_group_array("COUNTRYLANGUAGE_1"."LANGUAGE") AS json_group_array_1
     FROM "COUNTRY"
     LEFT OUTER JOIN "COUNTRYLANGUAGE" AS "COUNTRYLANGUAGE_1" ON "COUNTRYLANGUAGE_1"."COUNTRY" = "COUNTRY"."ID" GROUP BY "COUNTRY"."ID",
       "COUNTRY"."CODE"
-    '''
+    """
+    )
 
 
 def test_array_intermediate_table_postgresql(rc: RawConfig):
-    assert _build(rc, '''
+    assert (
+        _build(
+            rc,
+            """
     d | r | b | m | property    | type           | ref             | source          | prepare | access
     example                     |                |                 |                 |         |
       | data                    | sql/postgresql |                 |                 |         |
@@ -882,18 +1102,25 @@ def test_array_intermediate_table_postgresql(rc: RawConfig):
       |   |   | CountryLanguage |                |                 | COUNTRYLANGUAGE |         |
       |   |   |   | country     | ref            | Country         | COUNTRY         |         | open
       |   |   |   | language    | ref            | Language        | LANGUAGE        |         | open
-        ''', 'example/Country') == '''
+        """,
+            "example/Country",
+        )
+        == """
     SELECT
       "COUNTRY"."ID",
       "COUNTRY"."CODE", jsonb_agg("COUNTRYLANGUAGE_1"."LANGUAGE") AS jsonb_agg_1
     FROM "COUNTRY"
     LEFT OUTER JOIN "COUNTRYLANGUAGE" AS "COUNTRYLANGUAGE_1" ON "COUNTRYLANGUAGE_1"."COUNTRY" = "COUNTRY"."ID" GROUP BY "COUNTRY"."ID",
       "COUNTRY"."CODE"
-    '''
+    """
+    )
 
 
 def test_array_intermediate_table_mysql(rc: RawConfig):
-    assert _build(rc, '''
+    assert (
+        _build(
+            rc,
+            """
     d | r | b | m | property    | type      | ref             | source          | prepare | access
     example                     |           |                 |                 |         |
       | data                    | sql/mysql |                 |                 |         |
@@ -911,18 +1138,25 @@ def test_array_intermediate_table_mysql(rc: RawConfig):
       |   |   | CountryLanguage |           |                 | COUNTRYLANGUAGE |         |
       |   |   |   | country     | ref       | Country         | COUNTRY         |         | open
       |   |   |   | language    | ref       | Language        | LANGUAGE        |         | open
-        ''', 'example/Country') == '''
+        """,
+            "example/Country",
+        )
+        == """
     SELECT
       "COUNTRY"."ID",
       "COUNTRY"."CODE", json_arrayagg("COUNTRYLANGUAGE_1"."LANGUAGE") AS json_arrayagg_1
     FROM "COUNTRY"
     LEFT OUTER JOIN "COUNTRYLANGUAGE" AS "COUNTRYLANGUAGE_1" ON "COUNTRYLANGUAGE_1"."COUNTRY" = "COUNTRY"."ID" GROUP BY "COUNTRY"."ID",
       "COUNTRY"."CODE"
-    '''
+    """
+    )
 
 
 def test_array_intermediate_table_mariadb(rc: RawConfig):
-    assert _build(rc, '''
+    assert (
+        _build(
+            rc,
+            """
     d | r | b | m | property    | type        | ref             | source          | prepare | access
     example                     |             |                 |                 |         |
       | data                    | sql/mariadb |                 |                 |         |
@@ -940,18 +1174,25 @@ def test_array_intermediate_table_mariadb(rc: RawConfig):
       |   |   | CountryLanguage |             |                 | COUNTRYLANGUAGE |         |
       |   |   |   | country     | ref         | Country         | COUNTRY         |         | open
       |   |   |   | language    | ref         | Language        | LANGUAGE        |         | open
-        ''', 'example/Country') == '''
+        """,
+            "example/Country",
+        )
+        == """
     SELECT
       "COUNTRY"."ID",
       "COUNTRY"."CODE", json_arrayagg("COUNTRYLANGUAGE_1"."LANGUAGE") AS json_arrayagg_1
     FROM "COUNTRY"
     LEFT OUTER JOIN "COUNTRYLANGUAGE" AS "COUNTRYLANGUAGE_1" ON "COUNTRYLANGUAGE_1"."COUNTRY" = "COUNTRY"."ID" GROUP BY "COUNTRY"."ID",
       "COUNTRY"."CODE"
-    '''
+    """
+    )
 
 
 def test_array_intermediate_table_mssql(rc: RawConfig):
-    assert _build(rc, '''
+    assert (
+        _build(
+            rc,
+            """
     d | r | b | m | property    | type      | ref             | source          | prepare | access
     example                     |           |                 |                 |         |
       | data                    | sql/mssql |                 |                 |         |
@@ -969,18 +1210,25 @@ def test_array_intermediate_table_mssql(rc: RawConfig):
       |   |   | CountryLanguage |           |                 | COUNTRYLANGUAGE |         |
       |   |   |   | country     | ref       | Country         | COUNTRY         |         | open
       |   |   |   | language    | ref       | Language        | LANGUAGE        |         | open
-        ''', 'example/Country') == '''
+        """,
+            "example/Country",
+        )
+        == """
     SELECT
       "COUNTRY"."ID",
       "COUNTRY"."CODE", concat(:concat_2, "COUNTRYLANGUAGE_1"."LANGUAGE", :concat_3) AS concat_1
     FROM "COUNTRY"
     LEFT OUTER JOIN "COUNTRYLANGUAGE" AS "COUNTRYLANGUAGE_1" ON "COUNTRYLANGUAGE_1"."COUNTRY" = "COUNTRY"."ID" GROUP BY "COUNTRY"."ID",
       "COUNTRY"."CODE"
-    '''
+    """
+    )
 
 
 def test_array_intermediate_table_multi_column_sqlite(rc: RawConfig):
-    assert _build(rc, '''
+    assert (
+        _build(
+            rc,
+            """
     d | r | b | m | property      | type       | ref             | source          | prepare                    | access | level
     example                       |            |                 |                 |                            |        |
       | data                      | sql/sqlite |                 |                 |                            |        |
@@ -1000,7 +1248,10 @@ def test_array_intermediate_table_multi_column_sqlite(rc: RawConfig):
       |   |   |   | language_code | string     |                 | LANGUAGECODE    |                            | open   |    
       |   |   |   | country       | ref        | Country         | COUNTRY         |                            | open   |    
       |   |   |   | language      | ref        | Language        |                 | language_id, language_code | open   | 3   
-        ''', 'example/Country') == '''
+        """,
+            "example/Country",
+        )
+        == """
     SELECT
       "COUNTRY"."ID",
       "COUNTRY"."CODE", json_group_array(json_array("COUNTRYLANGUAGE_1"."LANGUAGEID",
@@ -1008,11 +1259,15 @@ def test_array_intermediate_table_multi_column_sqlite(rc: RawConfig):
     FROM "COUNTRY"
     LEFT OUTER JOIN "COUNTRYLANGUAGE" AS "COUNTRYLANGUAGE_1" ON "COUNTRYLANGUAGE_1"."COUNTRY" = "COUNTRY"."ID" GROUP BY "COUNTRY"."ID",
       "COUNTRY"."CODE"
-    '''
+    """
+    )
 
 
 def test_array_intermediate_table_multi_column_postgresql(rc: RawConfig):
-    assert _build(rc, '''
+    assert (
+        _build(
+            rc,
+            """
     d | r | b | m | property      | type           | ref             | source          | prepare                    | access | level
     example                       |                |                 |                 |                            |        |
       | data                      | sql/postgresql |                 |                 |                            |        |
@@ -1032,7 +1287,10 @@ def test_array_intermediate_table_multi_column_postgresql(rc: RawConfig):
       |   |   |   | language_code | string         |                 | LANGUAGECODE    |                            | open   |    
       |   |   |   | country       | ref            | Country         | COUNTRY         |                            | open   |    
       |   |   |   | language      | ref            | Language        |                 | language_id, language_code | open   | 3   
-        ''', 'example/Country') == '''
+        """,
+            "example/Country",
+        )
+        == """
     SELECT
       "COUNTRY"."ID",
       "COUNTRY"."CODE", jsonb_agg(jsonb_build_array("COUNTRYLANGUAGE_1"."LANGUAGEID",
@@ -1040,11 +1298,15 @@ def test_array_intermediate_table_multi_column_postgresql(rc: RawConfig):
     FROM "COUNTRY"
     LEFT OUTER JOIN "COUNTRYLANGUAGE" AS "COUNTRYLANGUAGE_1" ON "COUNTRYLANGUAGE_1"."COUNTRY" = "COUNTRY"."ID" GROUP BY "COUNTRY"."ID",
       "COUNTRY"."CODE"
-    '''
+    """
+    )
 
 
 def test_array_intermediate_table_multi_column_mysql(rc: RawConfig):
-    assert _build(rc, '''
+    assert (
+        _build(
+            rc,
+            """
     d | r | b | m | property      | type      | ref             | source          | prepare                    | access | level
     example                       |           |                 |                 |                            |        |
       | data                      | sql/mysql |                 |                 |                            |        |
@@ -1064,7 +1326,10 @@ def test_array_intermediate_table_multi_column_mysql(rc: RawConfig):
       |   |   |   | language_code | string    |                 | LANGUAGECODE    |                            | open   |    
       |   |   |   | country       | ref       | Country         | COUNTRY         |                            | open   |    
       |   |   |   | language      | ref       | Language        |                 | language_id, language_code | open   | 3   
-        ''', 'example/Country') == '''
+        """,
+            "example/Country",
+        )
+        == """
     SELECT
       "COUNTRY"."ID",
       "COUNTRY"."CODE", json_arrayagg(json_array("COUNTRYLANGUAGE_1"."LANGUAGEID",
@@ -1072,11 +1337,15 @@ def test_array_intermediate_table_multi_column_mysql(rc: RawConfig):
     FROM "COUNTRY"
     LEFT OUTER JOIN "COUNTRYLANGUAGE" AS "COUNTRYLANGUAGE_1" ON "COUNTRYLANGUAGE_1"."COUNTRY" = "COUNTRY"."ID" GROUP BY "COUNTRY"."ID",
       "COUNTRY"."CODE"
-    '''
+    """
+    )
 
 
 def test_array_intermediate_table_multi_column_mariadb(rc: RawConfig):
-    assert _build(rc, '''
+    assert (
+        _build(
+            rc,
+            """
     d | r | b | m | property      | type        | ref             | source          | prepare                    | access | level
     example                       |             |                 |                 |                            |        |
       | data                      | sql/mariadb |                 |                 |                            |        |
@@ -1096,7 +1365,10 @@ def test_array_intermediate_table_multi_column_mariadb(rc: RawConfig):
       |   |   |   | language_code | string      |                 | LANGUAGECODE    |                            | open   |    
       |   |   |   | country       | ref         | Country         | COUNTRY         |                            | open   |    
       |   |   |   | language      | ref         | Language        |                 | language_id, language_code | open   | 3   
-        ''', 'example/Country') == '''
+        """,
+            "example/Country",
+        )
+        == """
     SELECT
       "COUNTRY"."ID",
       "COUNTRY"."CODE", json_arrayagg(json_array("COUNTRYLANGUAGE_1"."LANGUAGEID",
@@ -1104,11 +1376,15 @@ def test_array_intermediate_table_multi_column_mariadb(rc: RawConfig):
     FROM "COUNTRY"
     LEFT OUTER JOIN "COUNTRYLANGUAGE" AS "COUNTRYLANGUAGE_1" ON "COUNTRYLANGUAGE_1"."COUNTRY" = "COUNTRY"."ID" GROUP BY "COUNTRY"."ID",
       "COUNTRY"."CODE"
-    '''
+    """
+    )
 
 
 def test_array_intermediate_table_multi_column_mssql(rc: RawConfig):
-    assert _build(rc, '''
+    assert (
+        _build(
+            rc,
+            """
     d | r | b | m | property      | type      | ref             | source          | prepare                    | access | level
     example                       |           |                 |                 |                            |        |
       | data                      | sql/mssql |                 |                 |                            |        |
@@ -1128,7 +1404,10 @@ def test_array_intermediate_table_multi_column_mssql(rc: RawConfig):
       |   |   |   | language_code | string    |                 | LANGUAGECODE    |                            | open   |    
       |   |   |   | country       | ref       | Country         | COUNTRY         |                            | open   |    
       |   |   |   | language      | ref       | Language        |                 | language_id, language_code | open   | 3   
-        ''', 'example/Country') == '''
+        """,
+            "example/Country",
+        )
+        == """
     SELECT
       "COUNTRY"."ID",
       "COUNTRY"."CODE", concat(:concat_2, json_array("COUNTRYLANGUAGE_1"."LANGUAGEID",
@@ -1136,4 +1415,5 @@ def test_array_intermediate_table_multi_column_mssql(rc: RawConfig):
     FROM "COUNTRY"
     LEFT OUTER JOIN "COUNTRYLANGUAGE" AS "COUNTRYLANGUAGE_1" ON "COUNTRYLANGUAGE_1"."COUNTRY" = "COUNTRY"."ID" GROUP BY "COUNTRY"."ID",
       "COUNTRY"."CODE"
-    '''
+    """
+    )

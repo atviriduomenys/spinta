@@ -22,8 +22,8 @@ def get_osm_link(value: BaseGeometry, srid: Optional[Union[int, Geometry]]) -> O
 
     if srid and srid != WGS84:
         transformer = Transformer.from_crs(
-            crs_from=CRS(f'EPSG:{srid}'),
-            crs_to=CRS(f'EPSG:{WGS84}'),
+            crs_from=CRS(f"EPSG:{srid}"),
+            crs_to=CRS(f"EPSG:{WGS84}"),
         )
         value = transform(transformer.transform, value)
     centroid = value.centroid
@@ -34,9 +34,9 @@ def get_osm_link(value: BaseGeometry, srid: Optional[Union[int, Geometry]]) -> O
     # y: Axis(name=Geodetic longitude, abbrev=Lon, direction=east, unit_auth_code=EPSG, unit_code=9122, unit_name=degree)
     # Meaning x - lat, y - lon
     lat, lon = centroid.x, centroid.y
-    params = urlencode({'mlat': lat, 'mlon': lon})
+    params = urlencode({"mlat": lat, "mlon": lon})
 
-    return f'https://www.openstreetmap.org/?{params}#map=19/{lat}/{lon}'
+    return f"https://www.openstreetmap.org/?{params}#map=19/{lat}/{lon}"
 
 
 def get_display_value(shape) -> Union[object, str]:

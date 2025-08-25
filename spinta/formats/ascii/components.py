@@ -12,13 +12,13 @@ from spinta.formats.helpers import get_model_tabular_header, rename_page_col
 
 
 class Ascii(Format):
-    content_type = 'text/plain'
+    content_type = "text/plain"
     accept_types = {
-        'text/plain',
+        "text/plain",
     }
     params = {
-        'width': {'type': 'integer'},
-        'colwidth': {'type': 'integer'},
+        "width": {"type": "integer"},
+        "colwidth": {"type": "integer"},
     }
 
     def __call__(
@@ -34,7 +34,7 @@ class Ascii(Format):
         rows_to_check=200,
         separator="  ",
     ):
-        manifest: Manifest = context.get('store').manifest
+        manifest: Manifest = context.get("store").manifest
 
         if action == Action.GETONE:
             data = [data]
@@ -47,27 +47,21 @@ class Ascii(Format):
 
         data = itertools.chain([peek], data)
 
-        if '_type' in peek:
-            groups = itertools.groupby(data, operator.itemgetter('_type'))
+        if "_type" in peek:
+            groups = itertools.groupby(data, operator.itemgetter("_type"))
         else:
             groups = [(None, data)]
 
         for name, group in groups:
             if name:
-                yield f'\n\nTable: {name}\n'
+                yield f"\n\nTable: {name}\n"
                 model = commands.get_model(context, manifest, name)
 
             rows = flatten(group, sepgetter(model))
             rows = rename_page_col(rows)
             cols = get_model_tabular_header(context, model, action, params)
-            cols = [col if col != '_page' else '_page.next' for col in cols]
-            read_rows, widths = get_widths(
-                rows,
-                cols,
-                max_value_length,
-                max_col_width,
-                rows_to_check
-            )
+            cols = [col if col != "_page" else "_page.next" for col in cols]
+            read_rows, widths = get_widths(rows, cols, max_value_length, max_col_width, rows_to_check)
             rows = itertools.chain(read_rows, rows)
             if width:
                 shortened, displayed_cols = get_displayed_cols(widths, width, separator)
@@ -80,21 +74,14 @@ class Ascii(Format):
             memory = next(rows)
             for row in rows:
                 yield draw_row(
-                    {k: v for k, v in memory.items() if k != '_page.next'},
+                    {k: v for k, v in memory.items() if k != "_page.next"},
                     widths,
                     displayed_cols,
                     max_value_length,
                     separator,
-                    shortened
+                    shortened,
                 )
                 memory = row
-            yield draw_row(
-                memory,
-                widths,
-                displayed_cols,
-                max_value_length,
-                separator,
-                shortened
-            )
+            yield draw_row(memory, widths, displayed_cols, max_value_length, separator, shortened)
 
             yield draw_border(widths, displayed_cols, separator, shortened)

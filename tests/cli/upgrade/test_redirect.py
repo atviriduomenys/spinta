@@ -24,8 +24,11 @@ def test_upgrade_redirect_pass(
     request: FixtureRequest,
     cli: SpintaCliRunner,
 ):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(
-        '''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable(
+            """
         d | r | b | m | property   | type     | ref     | prepare | access | level
         datasets/redirect/cli      |          |         |         |        |
           |   |   | Country        |          | id      |         |        |
@@ -39,28 +42,22 @@ def test_upgrade_redirect_pass(
           |   |   | Random         |          | id      |         |        |
           |   |   |   | id         | integer  |         |         | open   |
           |   |   |   | name       | string   |         |         | open   |
-        '''
-    ))
-
-    context = bootstrap_manifest(
-        rc, tmp_path / 'manifest.csv',
-        backend=postgresql,
-        tmp_path=tmp_path,
-        request=request,
-        full_load=True
+        """
+        ),
     )
 
-    store = context.get('store')
+    context = bootstrap_manifest(
+        rc, tmp_path / "manifest.csv", backend=postgresql, tmp_path=tmp_path, request=request, full_load=True
+    )
+
+    store = context.get("store")
     backend = store.manifest.backend
     insp = sa.inspect(backend.engine)
     assert insp.has_table(get_pg_table_name("datasets/redirect/cli/Country", TableType.REDIRECT))
     assert insp.has_table(get_pg_table_name("datasets/redirect/cli/City", TableType.REDIRECT))
     assert insp.has_table(get_pg_table_name("datasets/redirect/rand/Random", TableType.REDIRECT))
 
-    result = cli.invoke(rc, [
-        'upgrade',
-        Script.REDIRECT.value
-    ])
+    result = cli.invoke(rc, ["upgrade", Script.REDIRECT.value])
     assert result.exit_code == 0
     assert script_check_status_message(Script.REDIRECT.value, ScriptStatus.PASSED) in result.stdout
 
@@ -73,8 +70,11 @@ def test_upgrade_redirect_required(
     request: FixtureRequest,
     cli: SpintaCliRunner,
 ):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(
-        '''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable(
+            """
         d | r | b | m | property   | type     | ref     | prepare | access | level
         datasets/redirect/cli/req  |          |         |         |        |
           |   |   | Country        |          | id      |         |        |
@@ -88,18 +88,15 @@ def test_upgrade_redirect_required(
           |   |   | Random         |          | id      |         |        |
           |   |   |   | id         | integer  |         |         | open   |
           |   |   |   | name       | string   |         |         | open   |
-        '''
-    ))
-
-    context = bootstrap_manifest(
-        rc, tmp_path / 'manifest.csv',
-        backend=postgresql,
-        tmp_path=tmp_path,
-        request=request,
-        full_load=True
+        """
+        ),
     )
 
-    store = context.get('store')
+    context = bootstrap_manifest(
+        rc, tmp_path / "manifest.csv", backend=postgresql, tmp_path=tmp_path, request=request, full_load=True
+    )
+
+    store = context.get("store")
     backend = store.manifest.backend
     insp = sa.inspect(backend.engine)
     country_redirect = get_pg_table_name("datasets/redirect/cli/req/Country", TableType.REDIRECT)
@@ -116,10 +113,7 @@ def test_upgrade_redirect_required(
     assert not insp.has_table(country_redirect)
     assert not insp.has_table(city_redirect)
     assert not insp.has_table(random_redirect)
-    result = cli.invoke(context.get('rc'), [
-        'upgrade',
-        Script.REDIRECT.value
-    ])
+    result = cli.invoke(context.get("rc"), ["upgrade", Script.REDIRECT.value])
     assert result.exit_code == 0
     assert script_check_status_message(Script.REDIRECT.value, ScriptStatus.REQUIRED) in result.stdout
 

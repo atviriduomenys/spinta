@@ -17,9 +17,14 @@ class Engine:
     encoding: str = NA
 
     def create(self) -> SaEngine:
-        return sa.create_engine(self.dsn, **take({
-            'encoding': self.encoding,
-        }))
+        return sa.create_engine(
+            self.dsn,
+            **take(
+                {
+                    "encoding": self.encoding,
+                }
+            ),
+        )
 
 
 class SqlResource(Env):
@@ -30,5 +35,5 @@ class SqlResource(Env):
 
 
 class FileSelected(TypedDict):
-    name: Selected      # File name
-    content: Selected   # File content
+    name: Selected  # File name
+    content: Selected  # File content

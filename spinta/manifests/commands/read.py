@@ -23,15 +23,15 @@ def traverse_ns_models(
     resource: Optional[str] = None,
     internal: bool = False,
     source_check: bool = False,
-    **kwargs
+    **kwargs,
 ):
-    models = (ns.models or {})
+    models = ns.models or {}
     for model in models.values():
         if not (source_check and not check_if_model_has_backend_and_source(model)):
             if _model_matches_params(context, model, action, dataset_, resource, internal):
                 yield model
     for ns_ in ns.names.values():
-        if not internal and ns_.name.startswith('_'):
+        if not internal and ns_.name.startswith("_"):
             continue
         yield from commands.traverse_ns_models(
             context,
@@ -41,22 +41,13 @@ def traverse_ns_models(
             dataset_=dataset_,
             resource=resource,
             internal=internal,
-            source_check=source_check
+            source_check=source_check,
         )
 
 
 @commands.getall.register(Context, Namespace, Request, Manifest)
-def getall(
-    context: Context,
-    ns: Namespace,
-    request: Request,
-    manifest: Manifest,
-    *,
-    action: Action,
-    params: UrlParams
-):
+def getall(context: Context, ns: Namespace, request: Request, manifest: Manifest, *, action: Action, params: UrlParams):
     if params.all and params.ns:
-
         for model in commands.traverse_ns_models(context, ns, manifest, action, internal=True):
             commands.authorize(context, action, model)
         return _get_ns_content(
@@ -68,8 +59,6 @@ def getall(
             recursive=True,
         )
     elif params.all:
-        accesslog = context.get('accesslog')
-
         prepare_data_for_response_kwargs = {}
         for model in commands.traverse_ns_models(context, ns, manifest, action, internal=True):
             commands.authorize(context, action, model)
@@ -82,19 +71,19 @@ def getall(
                 select_tree,
             )
             prepare_data_for_response_kwargs[model.model_type()] = {
-                'select': select_tree,
-                'prop_names': prop_names,
+                "select": select_tree,
+                "prop_names": prop_names,
             }
         expr = urlparams_to_expr(params)
         rows = commands.getall(context, ns, action=action, query=expr)
         rows = (
             commands.prepare_data_for_response(
                 context,
-                commands.get_model(context, manifest, row['_type']),
+                commands.get_model(context, manifest, row["_type"]),
                 params.fmt,
                 row,
                 action=action,
-                **prepare_data_for_response_kwargs[row['_type']],
+                **prepare_data_for_response_kwargs[row["_type"]],
             )
             for row in rows
         )
@@ -120,10 +109,10 @@ def _get_ns_content(
     else:
         data = _get_ns_content_data(context, ns, action, dataset_, resource)
 
-    data = sorted(data, key=lambda x: (x.data['_type'] != 'ns', x.data['name']))
+    data = sorted(data, key=lambda x: (x.data["_type"] != "ns", x.data["name"]))
 
-    model = commands.get_model(context, ns.manifest, '_ns')
-    select = params.select or ['name', 'title', 'description']
+    model = commands.get_model(context, ns.manifest, "_ns")
+    select = params.select or ["name", "title", "description"]
     select_tree = get_select_tree(context, action, select)
     prop_names = get_select_prop_names(
         context,
@@ -182,9 +171,12 @@ def _get_ns_content_data(
 
     for item in items:
         if _model_matches_params(context, item, action, dataset_, resource):
-            yield _NodeAndData(item, {
-                '_type': item.node_type(),
-                'name': item.model_type(),
-                'title': item.title,
-                'description': item.description,
-            })
+            yield _NodeAndData(
+                item,
+                {
+                    "_type": item.node_type(),
+                    "name": item.model_type(),
+                    "title": item.title,
+                    "description": item.description,
+                },
+            )

@@ -4,7 +4,7 @@ from spinta.testing.tabular import create_tabular_manifest
 
 
 def test_show(context, rc, cli: SpintaCliRunner, tmp_path):
-    manifest = striptable('''
+    manifest = striptable("""
     id | d | r | b | m | property | type   | ref     | source      | source.type | prepare | origin | count | level | status | visibility | access    | uri | eli | title | description
        | datasets/gov/example     |        |         |             |             |         |        |       |       |        |            | protected |     |     |       |
        |   | data                 | memory | default |             |             |         |        |       |       |        |            | protected |     |     |       |
@@ -20,10 +20,10 @@ def test_show(context, rc, cli: SpintaCliRunner, tmp_path):
        |   |   |   | Capital      |        | name    | miestas     |             |         |        |       |       |        |            | protected |     |     |       |
        |   |   |   |   | name     | string |         | pavadinimas |             |         |        |       |       |        |            | protected |     |     |       |
        |   |   |   |   | country  | ref    | Country | salis       |             |         |        |       |       |        |            | protected |     |     |       |
-    ''')
+    """)
 
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', manifest)
+    create_tabular_manifest(context, tmp_path / "manifest.csv", manifest)
 
-    result = cli.invoke(rc, ['show', tmp_path / 'manifest.csv'])
+    result = cli.invoke(rc, ["show", tmp_path / "manifest.csv"])
 
     assert striptable(result.stdout) == manifest

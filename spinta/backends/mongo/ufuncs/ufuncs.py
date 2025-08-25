@@ -32,19 +32,19 @@ from spinta.utils.data import take
 
 @ufunc.resolver(MongoQueryBuilder, str)
 def op(env, arg: str):
-    if arg == '*':
+    if arg == "*":
         return Star()
     else:
         raise NotImplementedError
 
 
-@ufunc.resolver(MongoQueryBuilder, Bind, Bind, name='getattr')
+@ufunc.resolver(MongoQueryBuilder, Bind, Bind, name="getattr")
 def getattr_(env, field, attr):
     if field.name in env.model.properties:
         prop = env.model.properties[field.name]
     else:
         raise FieldNotInResource(env.model, property=field.anem)
-    return env.call('getattr', prop.dtype, attr)
+    return env.call("getattr", prop.dtype, attr)
 
 
 @ufunc.resolver(MongoQueryBuilder, Object, Bind)
@@ -57,7 +57,7 @@ def getattr(env, dtype, attr):
 
 @ufunc.resolver(MongoQueryBuilder, Array, Bind)
 def getattr(env, dtype, attr):
-    return env.call('getattr', dtype.items.dtype, attr)
+    return env.call("getattr", dtype.items.dtype, attr)
 
 
 @ufunc.resolver(MongoQueryBuilder, Expr)
@@ -70,13 +70,13 @@ def select(env, expr):
 
     if args:
         for key, arg in args:
-            selected = env.call('select', arg)
+            selected = env.call("select", arg)
             if selected is not None:
                 env.select[key] = selected
     else:
-        env.call('select', Star())
+        env.call("select", Star())
 
-    if not (len(args) == 1 and args[0][0] == '_page'):
+    if not (len(args) == 1 and args[0][0] == "_page"):
         assert env.select, args
 
 
@@ -87,17 +87,17 @@ def select(env, arg: Star) -> None:
         # TODO: This line above should come from a getall(request),
         #       because getall can be used internally for example for
         #       writes.
-        env.select[prop.place] = env.call('select', prop.dtype)
+        env.select[prop.place] = env.call("select", prop.dtype)
 
 
 @ufunc.resolver(MongoQueryBuilder, Bind)
 def select(env, field):
-    if field.name == '_page':
+    if field.name == "_page":
         return None
 
     prop = env.resolve_property(field)
     if authorized(env.context, prop, Action.SEARCH):
-        return env.call('select', prop.dtype)
+        return env.call("select", prop.dtype)
     else:
         raise FieldNotInResource(env.model, property=field.name)
 
@@ -119,7 +119,7 @@ def select(env, dtype):
 def select(env, page):
     return_selected = []
     for item in page.by.values():
-        selected = env.call('select', item.prop.dtype)
+        selected = env.call("select", item.prop.dtype)
         return_selected.append(selected)
     return return_selected
 
@@ -134,60 +134,80 @@ def offset(env, n):
     env.offset = n
 
 
-@ufunc.resolver(MongoQueryBuilder, Expr, name='and')
+@ufunc.resolver(MongoQueryBuilder, Expr, name="and")
 def and_(env, expr):
     args, kwargs = expr.resolve(env)
     args = [a for a in args if a is not None]
-    return env.call('and', args)
+    return env.call("and", args)
 
 
-@ufunc.resolver(MongoQueryBuilder, list, name='and')
+@ufunc.resolver(MongoQueryBuilder, list, name="and")
 def and_(env, args):
     if len(args) > 1:
-        return {'$and': args}
+        return {"$and": args}
     elif args:
         return args[0]
 
 
-@ufunc.resolver(MongoQueryBuilder, Expr, name='or')
+@ufunc.resolver(MongoQueryBuilder, Expr, name="or")
 def or_(env, expr):
     args, kwargs = expr.resolve(env)
     args = [a for a in args if a is not None]
-    return env.call('or', args)
+    return env.call("or", args)
 
 
-@ufunc.resolver(MongoQueryBuilder, list, name='or')
+@ufunc.resolver(MongoQueryBuilder, list, name="or")
 def or_(env, args):
     if len(args) > 1:
-        return {'$or': args}
+        return {"$or": args}
     elif args:
         return args[0]
 
 
 COMPARE = [
-    'eq',
-    'ne',
-    'lt',
-    'le',
-    'gt',
-    'ge',
-    'startswith',
-    'contains',
+    "eq",
+    "ne",
+    "lt",
+    "le",
+    "gt",
+    "ge",
+    "startswith",
+    "contains",
 ]
 
 
-@ufunc.resolver(MongoQueryBuilder, DataType, object, names=[
-    'eq', 'lt', 'le', 'gt', 'ge', 'contains', 'startswith',
-])
+@ufunc.resolver(
+    MongoQueryBuilder,
+    DataType,
+    object,
+    names=[
+        "eq",
+        "lt",
+        "le",
+        "gt",
+        "ge",
+        "contains",
+        "startswith",
+    ],
+)
 def compare(env, op, dtype, value):
     raise exceptions.InvalidValue(dtype, op=op, value=type(value))
 
 
-@ufunc.resolver(MongoQueryBuilder, PrimaryKey, (object, type(None)), names=[
-    'eq', 'lt', 'le', 'gt', 'ge',
-])
+@ufunc.resolver(
+    MongoQueryBuilder,
+    PrimaryKey,
+    (object, type(None)),
+    names=[
+        "eq",
+        "lt",
+        "le",
+        "gt",
+        "ge",
+    ],
+)
 def compare(env, op, dtype, value):
-    return _mongo_compare(op, '__id', value)
+    return _mongo_compare(op, "__id", value)
 
 
 @ufunc.resolver(MongoQueryBuilder, DataType, type(None))
@@ -197,27 +217,54 @@ def eq(env, dtype, value):
 
 @ufunc.resolver(MongoQueryBuilder, String, (str, re.Pattern))
 def eq(env, dtype, value):
-    return _mongo_compare('eq', dtype.prop.place, value)
+    return _mongo_compare("eq", dtype.prop.place, value)
 
 
-@ufunc.resolver(MongoQueryBuilder, (Integer, Number), (int, float), names=[
-    'eq', 'lt', 'le', 'gt', 'ge',
-])
+@ufunc.resolver(
+    MongoQueryBuilder,
+    (Integer, Number),
+    (int, float),
+    names=[
+        "eq",
+        "lt",
+        "le",
+        "gt",
+        "ge",
+    ],
+)
 def compare(env, op, dtype, value):
     return _mongo_compare(op, dtype.prop.place, value)
 
 
-@ufunc.resolver(MongoQueryBuilder, DateTime, str, names=[
-    'eq', 'lt', 'le', 'gt', 'ge',
-])
+@ufunc.resolver(
+    MongoQueryBuilder,
+    DateTime,
+    str,
+    names=[
+        "eq",
+        "lt",
+        "le",
+        "gt",
+        "ge",
+    ],
+)
 def compare(env, op, dtype, value):
     value = datetime.datetime.fromisoformat(value)
     return _mongo_compare(op, dtype.prop.place, value)
 
 
-@ufunc.resolver(MongoQueryBuilder, Date, str, names=[
-    'eq', 'lt', 'le', 'gt', 'ge',
-])
+@ufunc.resolver(
+    MongoQueryBuilder,
+    Date,
+    str,
+    names=[
+        "eq",
+        "lt",
+        "le",
+        "gt",
+        "ge",
+    ],
+)
 def compare(env, op, dtype, value):
     value = datetime.date.fromisoformat(value)
     value = datetime.datetime.combine(value, datetime.datetime.min.time())
@@ -225,15 +272,15 @@ def compare(env, op, dtype, value):
 
 
 MONGO_OPERATORS = {
-    'lt': '$lt',
-    'le': '$lte',
-    'gt': '$gt',
-    'ge': '$gte',
+    "lt": "$lt",
+    "le": "$lte",
+    "gt": "$gt",
+    "ge": "$gte",
 }
 
 
 def _mongo_compare(op, column, value):
-    if op == 'eq':
+    if op == "eq":
         return {column: value}
     else:
         return {column: {MONGO_OPERATORS[op]: value}}
@@ -242,17 +289,17 @@ def _mongo_compare(op, column, value):
 @ufunc.resolver(MongoQueryBuilder, Lower, str)
 def eq(env, fn, value):
     value = re.escape(value)
-    value = re.compile(f'^{value}$', re.IGNORECASE)
-    return env.call('eq', fn.dtype, value)
+    value = re.compile(f"^{value}$", re.IGNORECASE)
+    return env.call("eq", fn.dtype, value)
 
 
 @ufunc.resolver(MongoQueryBuilder, DataType, object)
 def ne(env, dtype, value):
     key = dtype.prop.place
     return {
-        '$and': [
-            {key: {'$ne': value, '$exists': True}},
-            {key: {'$ne': None, '$exists': True}},
+        "$and": [
+            {key: {"$ne": value, "$exists": True}},
+            {key: {"$ne": None, "$exists": True}},
         ]
     }
 
@@ -260,9 +307,9 @@ def ne(env, dtype, value):
 @ufunc.resolver(MongoQueryBuilder, PrimaryKey, object)
 def ne(env, dtype, value):
     return {
-        '$and': [
-            {'__id': {'$ne': value, '$exists': True}},
-            {'__id': {'$ne': None, '$exists': True}},
+        "$and": [
+            {"__id": {"$ne": value, "$exists": True}},
+            {"__id": {"$ne": None, "$exists": True}},
         ]
     }
 
@@ -270,52 +317,64 @@ def ne(env, dtype, value):
 @ufunc.resolver(MongoQueryBuilder, DateTime, str)
 def ne(env, dtype, value):
     value = datetime.datetime.fromisoformat(value)
-    return env.call('ne', dtype, value)
+    return env.call("ne", dtype, value)
 
 
 @ufunc.resolver(MongoQueryBuilder, Date, str)
 def ne(env, dtype, value):
     value = datetime.date.fromisoformat(value)
     value = datetime.datetime.combine(value, datetime.datetime.min.time())
-    return env.call('ne', dtype, value)
+    return env.call("ne", dtype, value)
 
 
 @ufunc.resolver(MongoQueryBuilder, Lower, str)
 def ne(env, fn, value):
     key = fn.dtype.prop.place
     value = re.escape(value)
-    value = re.compile(f'^{value}$', re.IGNORECASE)
+    value = re.compile(f"^{value}$", re.IGNORECASE)
     return {
-        '$and': [
-            {key: {'$not': value, '$exists': True}},
-            {key: {'$ne': None, '$exists': True}},
+        "$and": [
+            {key: {"$not": value, "$exists": True}},
+            {key: {"$ne": None, "$exists": True}},
         ]
     }
 
 
 def _ensure_non_empty(op, s):
-    if s == '':
+    if s == "":
         raise EmptyStringSearch(op=op)
 
 
 @ufunc.resolver(MongoQueryBuilder, String, str)
 def contains(env, dtype, value):
-    _ensure_non_empty('contains', value)
+    _ensure_non_empty("contains", value)
     value = re.escape(value)
     value = re.compile(value)
     return {dtype.prop.place: value}
 
 
-@ufunc.resolver(MongoQueryBuilder, Array, (object, type(None)), names=[
-    'eq', 'ne', 'lt', 'le', 'gt', 'ge', 'contains', 'startswith',
-])
+@ufunc.resolver(
+    MongoQueryBuilder,
+    Array,
+    (object, type(None)),
+    names=[
+        "eq",
+        "ne",
+        "lt",
+        "le",
+        "gt",
+        "ge",
+        "contains",
+        "startswith",
+    ],
+)
 def compare(env, op, dtype, value):
     return env.call(op, dtype.items.dtype, value)
 
 
 @ufunc.resolver(MongoQueryBuilder, Lower, str)
 def contains(env, fn, value):
-    _ensure_non_empty('contains', value)
+    _ensure_non_empty("contains", value)
     value = re.escape(value)
     value = re.compile(value, re.IGNORECASE)
     return {fn.dtype.prop.place: value}
@@ -323,40 +382,40 @@ def contains(env, fn, value):
 
 @ufunc.resolver(MongoQueryBuilder, PrimaryKey, str)
 def contains(env, dtype, value):
-    _ensure_non_empty('contains', value)
+    _ensure_non_empty("contains", value)
     value = re.escape(value)
     value = re.compile(value)
-    return {'__id': value}
+    return {"__id": value}
 
 
 @ufunc.resolver(MongoQueryBuilder, String, str)
 def startswith(env, dtype, value):
-    _ensure_non_empty('startswith', value)
+    _ensure_non_empty("startswith", value)
     value = re.escape(value)
-    value = re.compile('^' + value)
+    value = re.compile("^" + value)
     return {dtype.prop.place: value}
 
 
 @ufunc.resolver(MongoQueryBuilder, Lower, str)
 def startswith(env, fn, value):
-    _ensure_non_empty('startswith', value)
+    _ensure_non_empty("startswith", value)
     value = re.escape(value)
-    value = re.compile('^' + value, re.IGNORECASE)
+    value = re.compile("^" + value, re.IGNORECASE)
     return {fn.dtype.prop.place: value}
 
 
 @ufunc.resolver(MongoQueryBuilder, PrimaryKey, str)
 def startswith(env, dtype, value):
-    _ensure_non_empty('startswith', value)
+    _ensure_non_empty("startswith", value)
     value = re.escape(value)
-    value = re.compile('^' + value)
-    return {'__id': value}
+    value = re.compile("^" + value)
+    return {"__id": value}
 
 
 FUNCS = [
-    'lower',
-    'upper',
-    'recurse',
+    "lower",
+    "upper",
+    "recurse",
 ]
 
 
@@ -373,7 +432,7 @@ def lower(env, dtype):
 
 @ufunc.resolver(MongoQueryBuilder, Recurse)
 def lower(env, recurse):
-    return Recurse([env.call('lower', arg) for arg in recurse.args])
+    return Recurse([env.call("lower", arg) for arg in recurse.args])
 
 
 @ufunc.resolver(MongoQueryBuilder, Bind)
@@ -384,50 +443,54 @@ def recurse(env, field):
         raise exceptions.FieldNotInResource(env.model, property=field.name)
 
 
-@ufunc.resolver(MongoQueryBuilder, Recurse, object, names=[
-    'eq', 'ne', 'lt', 'le', 'gt', 'ge', 'contains', 'startswith',
-])
+@ufunc.resolver(
+    MongoQueryBuilder,
+    Recurse,
+    object,
+    names=[
+        "eq",
+        "ne",
+        "lt",
+        "le",
+        "gt",
+        "ge",
+        "contains",
+        "startswith",
+    ],
+)
 def recurse(env, op, recurse, value):
-    return env.call('or', [
-        env.call(op, arg, value)
-        for arg in recurse.args
-    ])
+    return env.call("or", [env.call(op, arg, value) for arg in recurse.args])
 
 
-@ufunc.resolver(MongoQueryBuilder, Expr, name='any')
+@ufunc.resolver(MongoQueryBuilder, Expr, name="any")
 def any_(env, expr):
     args, kwargs = expr.resolve(env)
     op, field, *args = args
     if isinstance(op, Bind):
         op = op.name
-    return env.call('or', [
-        env.call(op, field, arg)
-        for arg in args
-    ])
+    return env.call("or", [env.call(op, field, arg) for arg in args])
 
 
 @ufunc.resolver(MongoQueryBuilder, Expr)
 def sort(env, expr):
     args, kwargs = expr.resolve(env)
-    env.sort = [
-        env.call('sort', arg) for arg in args
-    ]
+    env.sort = [env.call("sort", arg) for arg in args]
 
 
 @ufunc.resolver(MongoQueryBuilder, Bind)
 def sort(env, field):
     prop = env.resolve_property(field)
-    return env.call('asc', prop.dtype)
+    return env.call("asc", prop.dtype)
 
 
 @ufunc.resolver(MongoQueryBuilder, Positive)
 def sort(env, sign):
-    return env.call('asc', sign.arg)
+    return env.call("asc", sign.arg)
 
 
 @ufunc.resolver(MongoQueryBuilder, Negative)
 def sort(env, sign):
-    return env.call('desc', sign.arg)
+    return env.call("desc", sign.arg)
 
 
 @ufunc.resolver(MongoQueryBuilder, DataType)
@@ -442,12 +505,12 @@ def desc(env, dtype):
 
 @ufunc.resolver(MongoQueryBuilder, PrimaryKey)
 def asc(env, dtype):
-    return '__id', pymongo.ASCENDING
+    return "__id", pymongo.ASCENDING
 
 
 @ufunc.resolver(MongoQueryBuilder, PrimaryKey)
 def desc(env, dtype):
-    return '__id', pymongo.DESCENDING
+    return "__id", pymongo.DESCENDING
 
 
 @ufunc.resolver(MongoQueryBuilder, Bind)

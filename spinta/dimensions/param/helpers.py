@@ -40,8 +40,8 @@ def load_params(context: Context, manifest: Manifest, param_data: Any) -> List[P
         for key, data in param_data.items():
             param = Param()
             load_node(context, param, data)
-            load_param_formulas_and_sources(context, param, data['prepare'], data['source'].copy())
-            param.name = data['name']
+            load_param_formulas_and_sources(context, param, data["prepare"], data["source"].copy())
+            param.name = data["name"]
             params.append(param)
     elif isinstance(param_data, list):
         for item in param_data:
@@ -51,16 +51,10 @@ def load_params(context: Context, manifest: Manifest, param_data: Any) -> List[P
                 prepare = item[name]
                 if isinstance(prepare, str):
                     prepare = spyna.unparse(prepare)
-                data = {
-                    'name': name,
-                    'source': [NA],
-                    'prepare': [prepare],
-                    'title': '',
-                    'description': ''
-                }
+                data = {"name": name, "source": [NA], "prepare": [prepare], "title": "", "description": ""}
                 load_node(context, param, data)
-                load_param_formulas_and_sources(context, param, data['prepare'], data['source'].copy())
-                param.name = data['name']
+                load_param_formulas_and_sources(context, param, data["prepare"], data["source"].copy())
+                param.name = data["name"]
                 params.append(param)
 
     return params

@@ -8,23 +8,23 @@ from spinta.components import Context
 
 @get_version.register(Context)
 def get_version(context: Context):
-    version = importlib.metadata.version('spinta')
+    version = importlib.metadata.version("spinta")
     if version is None:
         version = get_scm_version()
 
     return {
-        'implementation': {
-            'name': 'Spinta',
-            'version': version,
+        "implementation": {
+            "name": "Spinta",
+            "version": version,
         },
-        'uapi': {
+        "uapi": {
             # Supported UAPI version:
             # https://ivpk.github.io/uapi/
-            'version': '0.1.0',
+            "version": "0.1.0",
         },
-        'dsa': {
+        "dsa": {
             # Supported DSA version:
             # https://ivpk.github.io/dsa/
-            'version': '0.1.0',
-        }
+            "version": "0.1.0",
+        },
     }

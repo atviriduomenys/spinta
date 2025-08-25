@@ -9,7 +9,7 @@ from spinta.types.text.components import Text
 def load(context: Context, dtype: Text, data: dict, manifest: Manifest) -> DataType:
     props = {}
     for name, params in (dtype.langs or {}).items():
-        place = dtype.prop.place + '@' + name
+        place = dtype.prop.place + "@" + name
         prop = dtype.prop.__class__()
         prop.name = name
         prop.place = place

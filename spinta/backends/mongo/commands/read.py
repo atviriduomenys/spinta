@@ -25,14 +25,14 @@ def getone(
 ) -> ObjectData:
     table = backend.db[model.model_type()]
     keys = {k: 1 for k in model.flatprops}
-    keys['__id'] = 1
-    keys['_id'] = 0
-    query = {'__id': id_}
+    keys["__id"] = 1
+    keys["_id"] = 0
+    query = {"__id": id_}
     data = table.find_one(query, keys)
     if data is None:
         raise ItemDoesNotExist(model, id=id_)
-    data['_id'] = data['__id']
-    data['_type'] = model.model_type()
+    data["_id"] = data["__id"]
+    data["_type"] = model.model_type()
     return commands.cast_backend_to_python(context, model, backend, data)
 
 
@@ -47,17 +47,20 @@ def getone(
     id_: str,
 ) -> ObjectData:
     table = backend.db[prop.model.model_type()]
-    data = table.find_one({'__id': id_}, {
-        '__id': 1,
-        '_revision': 1,
-        prop.name: 1,
-    })
+    data = table.find_one(
+        {"__id": id_},
+        {
+            "__id": 1,
+            "_revision": 1,
+            prop.name: 1,
+        },
+    )
     if data is None:
         raise ItemDoesNotExist(prop, id=id_)
     result = {
-        '_id': data['__id'],
-        '_revision': data['_revision'],
-        '_type': prop.model_type(),
+        "_id": data["__id"],
+        "_revision": data["_revision"],
+        "_type": prop.model_type(),
         prop.name: (data.get(prop.name) or {}),
     }
     return commands.cast_backend_to_python(context, prop, backend, result)
@@ -74,26 +77,29 @@ def getone(
     id_: str,
 ) -> FileObjectData:
     table = backend.db[prop.model.model_type()]
-    data = table.find_one({'__id': id_}, {
-        '__id': 1,
-        '_revision': 1,
-        prop.name: 1,
-    })
+    data = table.find_one(
+        {"__id": id_},
+        {
+            "__id": 1,
+            "_revision": 1,
+            prop.name: 1,
+        },
+    )
     if data is None:
         raise ItemDoesNotExist(prop, id=id_)
     # merge file property data with defaults
     file_data = {
         **{
-            '_content_type': None,
-            '_id': None,
-            '_size': None,
+            "_content_type": None,
+            "_id": None,
+            "_size": None,
         },
         **data.get(prop.name, {}),
     }
     result = {
-        '_id': data['__id'],
-        '_revision': data['_revision'],
-        '_type': prop.model_type(),
+        "_id": data["__id"],
+        "_revision": data["_revision"],
+        "_type": prop.model_type(),
         prop.name: file_data,
     }
     return commands.cast_backend_to_python(context, prop, backend, result)
@@ -107,7 +113,7 @@ def getall(
     *,
     query: Expr = None,
     extra_properties: dict[str, Property] = None,
-    **kwargs
+    **kwargs,
 ) -> Iterator[ObjectData]:
     builder = backend.query_builder_class(context)
     builder.update(model=model)
@@ -117,9 +123,9 @@ def getall(
     where = env.execute(expr)
     cursor = env.build(where)
     for row in cursor:
-        if '__id' in row:
-            row['_id'] = row.pop('__id')
-        row['_type'] = model.model_type()
+        if "__id" in row:
+            row["_id"] = row.pop("__id")
+        row["_type"] = model.model_type()
         if env.page.page_.enabled:
-            row['_page'] = get_page_values(env, row)
+            row["_page"] = get_page_values(env, row)
         yield commands.cast_backend_to_python(context, model, backend, row, extra_properties=extra_properties)

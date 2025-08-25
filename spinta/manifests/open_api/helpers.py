@@ -63,6 +63,7 @@ def get_resource_parameters(parameters: list[dict]) -> dict[str, dict]:
 
 model_deduplicator = Deduplicator()
 
+
 class Model:
     def __init__(
         self,
@@ -71,7 +72,7 @@ class Model:
         basename: str,
         json_schema: dict,
         source: str | None = None,
-        parent: Model | None = None
+        parent: Model | None = None,
     ) -> None:
         self.dataset: str = dataset
         self.resource: str = resource
@@ -85,7 +86,7 @@ class Model:
         self.properties: list[Property] = []
         self.parent = parent
         self.add_properties()
-    
+
     def __repr__(self) -> str:
         return f"<Model {self.name}>"
 
@@ -146,7 +147,7 @@ class Model:
                     "dataset": self.dataset,
                     "resource": self.resource,
                     "name": self.source,
-                    },
+                },
                 "properties": {prop.name: prop.get_node_schema_dict() for prop in self.properties},
             }
         ]
@@ -200,7 +201,7 @@ class Property:
                 return date_time_types[string_format]
 
         return DEFAULT_PROPERTY_DATATYPE
-    
+
     def get_enums(self, items: list) -> dict:
         enum = {}
         for item in items:
@@ -223,9 +224,10 @@ class Property:
             schema["external"]["prepare"] = Expr("expand")
 
         if self.enum:
-            schema['enums'] = {"": self.enum}
+            schema["enums"] = {"": self.enum}
 
         return schema
+
 
 def get_nested_value(search_key: str, data: dict) -> Any:
     if not isinstance(data, dict):
@@ -255,10 +257,11 @@ def get_schema_from_response(response: dict, root: dict) -> dict:
         raise NotImplementedFeature(feature="Reading OpenAPI with '$ref' structure")
     return json_schema
 
+
 def get_model_schemas(dataset_name: str, resource_name: str, response: dict, root: dict) -> list[dict]:
     if not (json_schema := get_schema_from_response(response, root)):
         return []
-    
+
     if json_schema.get("type") == "array":
         json_schema = json_schema.get("items", {})
         root_source = ".[]"
@@ -273,6 +276,7 @@ def get_model_schemas(dataset_name: str, resource_name: str, response: dict, roo
         return model.get_node_schema_dicts()
 
     return []
+
 
 def get_dataset_schemas(data: dict, dataset_prefix: str) -> Generator[tuple[None, dict]]:  # noqa: C901
     datasets = {}
@@ -332,7 +336,10 @@ def read_open_api_manifest(path: Path) -> Generator[tuple[None, dict]]:
     data = read_file_data_and_transform_to_json(path)
 
     if not any(spec in data for spec in ("openapi", "swagger")):
-        warnings.warn("Unknown specification type. Only OpenAPI 3.* and Swagger 2.0 allowed. Trying to read schema anyway.", UserWarning)
+        warnings.warn(
+            "Unknown specification type. Only OpenAPI 3.* and Swagger 2.0 allowed. Trying to read schema anyway.",
+            UserWarning,
+        )
 
     info = data["info"]
     title = info["title"]

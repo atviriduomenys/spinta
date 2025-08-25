@@ -25,6 +25,4 @@ class EnumResultBuilder(Env):
     has_value_changed: bool = False
 
     def init(self, this: EnumItem):
-        return self(
-            this=this
-        )
+        return self(this=this)

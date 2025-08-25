@@ -50,9 +50,9 @@ class TestExpandDictKeys:
                         "e": "result3",
                     },
                     "f": "result4",
-                }
+                },
             ),
-        ]
+        ],
     )
     def test_expand_keys(self, target: dict, result: dict) -> None:
         assert _expand_dict_keys(target) == result
@@ -64,30 +64,32 @@ class TestExpandDictKeys:
             {"a": "result2", "a/b": "result"},
             {"a/b/c": "result", "a/b": "result2"},
             {"a/b": "result2", "a/b/c": "result"},
-            ({"a/": "result2"})
-        ]
+            ({"a/": "result2"}),
+        ],
     )
     def test_raise_error_when_impossible_to_expand_keys(self, target: dict) -> None:
         with pytest.raises(ValueError):
             _expand_dict_keys(target)
 
 
-def test_soap_read_calls_soap_operation_with_empty_request_body(
-    rc: RawConfig, mocker: MockerFixture
-) -> None:
+def test_soap_read_calls_soap_operation_with_empty_request_body(rc: RawConfig, mocker: MockerFixture) -> None:
     soap_data_mock = mocker.patch(
         "spinta.datasets.backends.dataframe.backends.soap.commands.read._get_data_soap",
         return_value=[],
     )
     source = "CityService.CityPort.CityPortType.CityOperation"
-    context, manifest = prepare_manifest(rc, f"""
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
         d | r | b | m | property | type    | ref | source                                     | access | prepare
         example                  | dataset |     |                                            |        |
           | wsdl_resource        | wsdl    |     | tests/datasets/backends/wsdl/data/wsdl.xml |        |
           | soap_resource        | soap    |     | {source}                                   |        | wsdl(wsdl_resource)
           |   |   | City         |         | id  | /                                          | open   |
           |   |   |   | id       | integer |     | id                                         |        |
-        """, mode=Mode.external)
+        """,
+        mode=Mode.external,
+    )
 
     context.loaded = True
     app = create_test_client(context)
@@ -97,9 +99,7 @@ def test_soap_read_calls_soap_operation_with_empty_request_body(
     soap_data_mock.assert_called_with(source, backend=ANY, soap_request={})
 
 
-def test_soap_read_calls_soap_operation_with_default_request_body_values(
-    rc: RawConfig, mocker: MockerFixture
-) -> None:
+def test_soap_read_calls_soap_operation_with_default_request_body_values(rc: RawConfig, mocker: MockerFixture) -> None:
     soap_data_mock = mocker.patch(
         "spinta.datasets.backends.dataframe.backends.soap.commands.read._get_data_soap",
         return_value=[],
@@ -121,9 +121,7 @@ def test_soap_read_calls_soap_operation_with_default_request_body_values(
     soap_data_mock.assert_called_with(source, backend=ANY, soap_request=expected_soap_request)
 
 
-def test_soap_read_calls_soap_operation_with_request_body_values_from_url(
-    rc: RawConfig, mocker: MockerFixture
-) -> None:
+def test_soap_read_calls_soap_operation_with_request_body_values_from_url(rc: RawConfig, mocker: MockerFixture) -> None:
     soap_data_mock = mocker.patch(
         "spinta.datasets.backends.dataframe.backends.soap.commands.read._get_data_soap",
         return_value=[],
@@ -146,7 +144,9 @@ def test_soap_read_calls_soap_operation_with_request_body_values_from_url(
 
 
 def test_soap_read_raise_error_if_manifest_resource_param_source_cannot_be_parsed(rc: RawConfig) -> None:
-    context, manifest = prepare_manifest(rc, """
+    context, manifest = prepare_manifest(
+        rc,
+        """
         d | r | b | m | property | type    | ref        | source                                          | access | prepare
         example                  | dataset |            |                                                 |        |
           | wsdl_resource        | wsdl    |            | tests/datasets/backends/wsdl/data/wsdl.xml      |        |
@@ -157,7 +157,9 @@ def test_soap_read_raise_error_if_manifest_resource_param_source_cannot_be_parse
           |   |   |   | id       | integer |            | id                                              |        |
           |   |   |   | p1       | integer |            |                                                 |        | param(parameter1)
           |   |   |   | p2       | integer |            |                                                 |        | param(parameter2)
-        """, mode=Mode.external)
+        """,
+        mode=Mode.external,
+    )
 
     context.loaded = True
     app = create_test_client(context)
@@ -177,7 +179,7 @@ def test_soap_read_http_404_if_url_param_does_not_exist_as_property(rc: RawConfi
 
     response = app.get("/example/City/?p3='foo'")
     assert response.status_code == 404
-    assert get_error_codes(response.json()) == ['PropertyNotFound']
+    assert get_error_codes(response.json()) == ["PropertyNotFound"]
 
 
 def test_soap_read(rc: RawConfig, responses: RequestsMock) -> None:
@@ -198,9 +200,11 @@ def test_soap_read(rc: RawConfig, responses: RequestsMock) -> None:
             </ns0:Body>
         </ns0:Envelope>
     """
-    responses.add(POST, endpoint_url, status=200, content_type='text/plain; charset=utf-8', body=soap_response)
+    responses.add(POST, endpoint_url, status=200, content_type="text/plain; charset=utf-8", body=soap_response)
 
-    context, manifest = prepare_manifest(rc, """
+    context, manifest = prepare_manifest(
+        rc,
+        """
         d | r | b | m | property | type    | ref | source                                          | access | prepare
         example                  | dataset |     |                                                 |        |
           | wsdl_resource        | wsdl    |     | tests/datasets/backends/wsdl/data/wsdl.xml      |        |
@@ -208,7 +212,9 @@ def test_soap_read(rc: RawConfig, responses: RequestsMock) -> None:
           |   |   | City         |         | id  | /                                               | open   |
           |   |   |   | id       | integer |     | id                                              |        |
           |   |   |   | name     | string  |     | name                                            |        |
-        """, mode=Mode.external)
+        """,
+        mode=Mode.external,
+    )
 
     context.loaded = True
     app = create_test_client(context)
@@ -223,7 +229,7 @@ def test_soap_read(rc: RawConfig, responses: RequestsMock) -> None:
         {
             "id": 101,
             "name": "Name Two",
-        }
+        },
     ]
 
 
@@ -243,7 +249,7 @@ def test_soap_read_with_default_soap_request_params(rc: RawConfig, responses: Re
             </ns0:Body>
         </ns0:Envelope>
     """
-    responses.add(POST, endpoint_url, status=200, content_type='text/plain; charset=utf-8', body=soap_response)
+    responses.add(POST, endpoint_url, status=200, content_type="text/plain; charset=utf-8", body=soap_response)
 
     source = "CityService.CityPort.CityPortType.CityOperation"
     context, manifest = prepare_manifest(rc, WSDL_SOAP_PARAM_MANIFEST.format(source=source), mode=Mode.external)
@@ -264,7 +270,7 @@ def test_soap_read_with_default_soap_request_params(rc: RawConfig, responses: Re
             "id": 101,
             "p1": "default_val",
             "p2": "default_val",
-        }
+        },
     ]
 
 
@@ -284,7 +290,7 @@ def test_soap_read_with_soap_request_params_from_url(rc: RawConfig, responses: R
             </ns0:Body>
         </ns0:Envelope>
     """
-    responses.add(POST, endpoint_url, status=200, content_type='text/plain; charset=utf-8', body=soap_response)
+    responses.add(POST, endpoint_url, status=200, content_type="text/plain; charset=utf-8", body=soap_response)
 
     source = "CityService.CityPort.CityPortType.CityOperation"
     context, manifest = prepare_manifest(rc, WSDL_SOAP_PARAM_MANIFEST.format(source=source), mode=Mode.external)
@@ -305,5 +311,5 @@ def test_soap_read_with_soap_request_params_from_url(rc: RawConfig, responses: R
             "id": 101,
             "p1": "foo",
             "p2": "bar",
-        }
+        },
     ]

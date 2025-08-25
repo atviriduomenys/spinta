@@ -16,10 +16,10 @@ from spinta.manifests.components import Manifest
 
 
 class TabularFormat(Enum):
-    CSV = 'csv'
-    ASCII = 'ascii'
-    XLSX = 'xlsx'
-    GSHEETS = 'gsheets'
+    CSV = "csv"
+    ASCII = "ascii"
+    XLSX = "xlsx"
+    GSHEETS = "gsheets"
 
 
 class TabularManifest(Manifest):
@@ -28,87 +28,87 @@ class TabularManifest(Manifest):
 
 
 class CsvManifest(TabularManifest):
-    type = 'csv'
+    type = "csv"
     format: TabularFormat = TabularFormat.CSV
     file: IO[str] = None
 
     @staticmethod
     def detect_from_path(path: str) -> bool:
-        return path.endswith('.csv')
+        return path.endswith(".csv")
 
 
 class AsciiManifest(TabularManifest):
-    type = 'ascii'
+    type = "ascii"
     format: TabularFormat = TabularFormat.ASCII
     file: IO[str] = None
 
     @staticmethod
     def detect_from_path(path: str) -> bool:
-        return path.endswith('.txt')
+        return path.endswith(".txt")
 
 
 class XlsxManifest(TabularManifest):
-    type = 'xlsx'
+    type = "xlsx"
     format: TabularFormat = TabularFormat.XLSX
 
     @staticmethod
     def detect_from_path(path: str) -> bool:
-        return path.endswith('.xlsx')
+        return path.endswith(".xlsx")
 
 
 class GsheetsManifest(TabularManifest):
-    type = 'gsheets'
+    type = "gsheets"
     format: TabularFormat = TabularFormat.GSHEETS
 
     @staticmethod
     def detect_from_path(path: str) -> bool:
-        return path.startswith('https://docs.google.com/spreadsheets/')
+        return path.startswith("https://docs.google.com/spreadsheets/")
 
 
-ID: Final = 'id'
-DATASET: Final = 'dataset'
-RESOURCE: Final = 'resource'
-BASE: Final = 'base'
-MODEL: Final = 'model'
-PROPERTY: Final = 'property'
-TYPE: Final = 'type'
-REF: Final = 'ref'
-SOURCE: Final = 'source'
-SOURCE_TYPE: Final = 'source.type'
-PREPARE: Final = 'prepare'
-LEVEL: Final = 'level'
-ACCESS: Final = 'access'
-URI: Final = 'uri'
-TITLE: Final = 'title'
-DESCRIPTION: Final = 'description'
-STATUS: Final = 'status'
-VISIBILITY: Final = 'visibility'
-ELI: Final = 'eli'
-COUNT: Final = 'count'
-ORIGIN: Final = 'origin'
+ID: Final = "id"
+DATASET: Final = "dataset"
+RESOURCE: Final = "resource"
+BASE: Final = "base"
+MODEL: Final = "model"
+PROPERTY: Final = "property"
+TYPE: Final = "type"
+REF: Final = "ref"
+SOURCE: Final = "source"
+SOURCE_TYPE: Final = "source.type"
+PREPARE: Final = "prepare"
+LEVEL: Final = "level"
+ACCESS: Final = "access"
+URI: Final = "uri"
+TITLE: Final = "title"
+DESCRIPTION: Final = "description"
+STATUS: Final = "status"
+VISIBILITY: Final = "visibility"
+ELI: Final = "eli"
+COUNT: Final = "count"
+ORIGIN: Final = "origin"
 
 ManifestColumn = Literal[
-    'id',
-    'dataset',
-    'resource',
-    'base',
-    'model',
-    'property',
-    'type',
-    'ref',
-    'source',
-    'source.type',
-    'prepare',
-    'origin',
-    'count',
-    'level',
-    'status',
-    'visibility',
-    'access',
-    'uri',
-    'eli',
-    'title',
-    'description',
+    "id",
+    "dataset",
+    "resource",
+    "base",
+    "model",
+    "property",
+    "type",
+    "ref",
+    "source",
+    "source.type",
+    "prepare",
+    "origin",
+    "count",
+    "level",
+    "status",
+    "visibility",
+    "access",
+    "uri",
+    "eli",
+    "title",
+    "description",
 ]
 MANIFEST_COLUMNS: List[ManifestColumn] = [
     ID,
@@ -186,9 +186,9 @@ class BaseRow(TypedDict, total=False):
 
 class ParamRow(TypedDict):
     id: str
-    name: str                   # param name
-    source: List[str]           # list of `self` for prepare formulas
-    prepare: List[Any]          # list of formulas
+    name: str  # param name
+    source: List[str]  # list of `self` for prepare formulas
+    prepare: List[Any]  # list of formulas
     title: str
     description: str
 

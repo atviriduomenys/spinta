@@ -30,12 +30,11 @@ def _prepare_args(args: List[Any]) -> List[str]:
     for arg in args:
         if not isinstance(arg, list):
             arg = [arg]
-        result += ['' if a is None else str(a) for a in arg]
+        result += ["" if a is None else str(a) for a in arg]
     return result
 
 
 class SpintaCliRunner(CliRunner):
-
     def invoke(
         self,
         rc: RawConfig,
@@ -44,22 +43,22 @@ class SpintaCliRunner(CliRunner):
         **kwargs,
     ):
         assert isinstance(rc, RawConfig)
-        if 'obj' not in kwargs:
-            context = create_test_context(rc, name='pytest/cli')
-            kwargs['obj'] = context
+        if "obj" not in kwargs:
+            context = create_test_context(rc, name="pytest/cli")
+            kwargs["obj"] = context
 
         args = _prepare_args(args)
         result = super().invoke(main.app, args, **kwargs)
         if result.exc_info is not None:
             t, e, tb = result.exc_info
             if not isinstance(e, SystemExit):
-                exc = ''.join(traceback.format_exception(t, e, tb))
-                exc = exc.replace(os.getcwd() + '/', '')
+                exc = "".join(traceback.format_exception(t, e, tb))
+                exc = exc.replace(os.getcwd() + "/", "")
                 print(exc, file=sys.stderr)
         if result.exit_code != 0:
             print(result.stdout)
             print(result.stderr, file=sys.stderr)
-            cmd = ' '.join(['spinta'] + (args or []))
+            cmd = " ".join(["spinta"] + (args or []))
             if fail:
                 pytest.fail(f"Command `{cmd}` failed, exit code {result.exit_code}.")
         else:

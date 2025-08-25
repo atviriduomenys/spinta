@@ -13,7 +13,7 @@ from spinta.ufuncs.resultbuilder.components import ResultBuilder
 
 class Backend:
     metadata = {
-        'name': 'backend',
+        "name": "backend",
     }
 
     type: str
@@ -29,20 +29,17 @@ class Backend:
 
     # Query builder's type in config.components['querybuilders']
     # by default, '' is QueryBuilder
-    query_builder_type: str = ''
+    query_builder_type: str = ""
     # Later on type should be changed to `QueryBuilder`
     query_builder_class: Type[Env]
 
     # Result builder's type in config.components['resultbuilders']
     # by default, '' is ResultBuilder
-    result_builder_type: str = ''
+    result_builder_type: str = ""
     result_builder_class: Type[ResultBuilder]
 
     def __repr__(self):
-        return (
-            f'<{self.__class__.__module__}.{self.__class__.__name__}'
-            f'(name={self.name!r}) at 0x{id(self):02x}>'
-        )
+        return f"<{self.__class__.__module__}.{self.__class__.__name__}(name={self.name!r}) at 0x{id(self):02x}>"
 
     @contextlib.contextmanager
     def transaction(self):
@@ -60,4 +57,4 @@ class Backend:
         return feature in self.features
 
 
-SelectTree = Optional[Dict[str, 'SelectTree']]
+SelectTree = Optional[Dict[str, "SelectTree"]]

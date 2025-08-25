@@ -24,14 +24,12 @@ def freeze(context: Context, current: YamlManifest):
     # Read current nodes, get freezed versions and freeze changes between
     # current and previously freezed node into a new version.
     for ntype in get_manifest_object_names():
-
-        if ntype == 'ns':
+        if ntype == "ns":
             # Namespaces do not have physical form, yet, se there is no need to
             # freeze them.
             continue
 
         for name, cnode in commands.get_nodes(context, current, ntype).items():
-
             # Get freezed node
             if commands.has_node(context, freezed, ntype, name):
                 fnode = commands.get_node(context, freezed, ntype, name)

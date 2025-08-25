@@ -23,7 +23,7 @@ def _get_seperator(target):
 
 @dispatch((Model, DataType))
 def _get_seperator(target):
-    return '.'
+    return "."
 
 
 @dispatch(Property)
@@ -33,7 +33,7 @@ def _get_seperator(target: Property):
 
 @dispatch(Text)
 def _get_seperator(target: Text):
-    return '@'
+    return "@"
 
 
 @dispatch((Model, Object, Partial), str)
@@ -66,11 +66,11 @@ def _get_child(parent: Ref, name: str):
     if name in parent.properties:
         return parent.properties[name]
 
-    if commands.identifiable(parent.prop) and name == '_id':
-        return parent.model.properties['_id']
+    if commands.identifiable(parent.prop) and name == "_id":
+        return parent.model.properties["_id"]
 
     if parent.model.external and parent.model.external.unknown_primary_key:
-        return parent.model.properties['_id']
+        return parent.model.properties["_id"]
 
 
 @dispatch(Text, str)
@@ -79,7 +79,7 @@ def _get_child(parent: Text, name: str):
         return parent.langs[name]
 
 
-def sepgetter(parent: Any = None, default_seperator='.') -> SEP_GETTER_TYPE:
+def sepgetter(parent: Any = None, default_seperator=".") -> SEP_GETTER_TYPE:
     def _sepgetter(target: str):
         child = _get_child(parent, target)
         seperator = _get_seperator(parent)
@@ -99,7 +99,7 @@ def get_separated_name(parent: DataType, parent_name: str, child_name: str):
 @dispatch(str, str, str)
 def get_separated_name(seperator: str, parent_name: str, child_name: str):
     if parent_name:
-        return f'{parent_name}{seperator}{child_name}'
+        return f"{parent_name}{seperator}{child_name}"
     return child_name
 
 
@@ -115,10 +115,7 @@ def flatten(value, sep_getter: SEP_GETTER_TYPE = sepgetter(), omit_none: bool = 
     elif lists:
         keys, lists = zip(*lists)
         for vals in itertools.product(*lists):
-            val = {
-                k: v
-                for k, v in zip(keys, vals) if v is not None or not omit_none
-            }
+            val = {k: v for k, v in zip(keys, vals) if v is not None or not omit_none}
             val.update(value)
             yield from flatten(val, sep_getter, omit_none=omit_none)
 
@@ -126,7 +123,7 @@ def flatten(value, sep_getter: SEP_GETTER_TYPE = sepgetter(), omit_none: bool = 
         yield value
 
 
-def _flatten(value, sep_getter: SEP_GETTER_TYPE, key: str = '', omit_none: bool = True):
+def _flatten(value, sep_getter: SEP_GETTER_TYPE, key: str = "", omit_none: bool = True):
     if isinstance(value, dict):
         data = {}
         lists = []
@@ -142,7 +139,7 @@ def _flatten(value, sep_getter: SEP_GETTER_TYPE, key: str = '', omit_none: bool 
     elif isinstance(value, (list, Iterator)):
         if value:
             if key:
-                key = f'{key}[]'
+                key = f"{key}[]"
             return None, [(key, value)] if value is not None or not omit_none else []
         else:
             return None, []
@@ -161,7 +158,7 @@ def build_select_tree(select: List[str]) -> Dict[str, Set[Optional[str]]]:
                 tree[name] = set()
             if node:
                 tree[name].add(node)
-            split = name.rsplit('.', 1)
+            split = name.rsplit(".", 1)
     return tree
 
 
@@ -175,7 +172,7 @@ def flat_dicts_to_nested(value, list_keys: list = None):
             return
 
         key = keys[depth]
-        place = '.'.join(keys[:depth + 1])
+        place = ".".join(keys[: depth + 1])
 
         is_array = place in list_keys
         is_last = len(keys) - 1 == depth
@@ -203,12 +200,12 @@ def flat_dicts_to_nested(value, list_keys: list = None):
                 res_[key] = data
 
     for k, v in dict(value).items():
-        names = split_excluding_parentheses(k, '.')
+        names = split_excluding_parentheses(k, ".")
         recursive_nesting(v, res, names, 0)
     return res
 
 
-def split_excluding_parentheses(string: str, separator: str = '.') -> list[str]:
+def split_excluding_parentheses(string: str, separator: str = ".") -> list[str]:
     """Split string value while excluding data in parentheses
 
     Example:
@@ -220,7 +217,7 @@ def split_excluding_parentheses(string: str, separator: str = '.') -> list[str]:
     values = string.split(separator)
 
     # Optimization, skip looping if there is no need
-    if '(' not in string or ')' not in string or len(values) == 1:
+    if "(" not in string or ")" not in string or len(values) == 1:
         return values
 
     result = []
@@ -228,17 +225,17 @@ def split_excluding_parentheses(string: str, separator: str = '.') -> list[str]:
     ending_i = 0
     count = 0
     for i, value in enumerate(values):
-        if '(' in value:
+        if "(" in value:
             if count <= 0:
                 starting_i = i
-            count += value.count('(')
-        if ')' in value:
-            count -= value.count(')')
+            count += value.count("(")
+        if ")" in value:
+            count -= value.count(")")
             if count <= 0:
                 ending_i = i
 
         if count <= 0:
-            result.append(separator.join(values[starting_i:ending_i + 1]))
+            result.append(separator.join(values[starting_i : ending_i + 1]))
 
     if count > 0:
         result.append(separator.join(values[starting_i:]))
@@ -251,19 +248,19 @@ def flatten_value(value, parent: Property, sep=".", key=""):
 
 
 def get_root_attr(value: str, initial_root: str = "") -> str:
-    value = value.split('@')[0]
+    value = value.split("@")[0]
     if not initial_root:
-        return value.split('.')[0]
+        return value.split(".")[0]
 
     contains_prefix = False
-    value = value.replace(initial_root, '', 1)
+    value = value.replace(initial_root, "", 1)
 
-    if value.startswith('.'):
+    if value.startswith("."):
         contains_prefix = True
-        value = value.removeprefix('.')
+        value = value.removeprefix(".")
 
-    value = value.split('.')[0]
-    root = f'{initial_root}.' if contains_prefix else initial_root
+    value = value.split(".")[0]
+    root = f"{initial_root}." if contains_prefix else initial_root
 
     return root + value
 

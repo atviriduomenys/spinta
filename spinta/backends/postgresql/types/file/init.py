@@ -31,9 +31,10 @@ def prepare(context: Context, backend: PostgreSQL, dtype: File, **kwargs):
         # columns.
         table_name = get_pg_name(get_table_name(prop, TableType.FILE))
         table = sa.Table(
-            table_name, model.backend.schema,
-            sa.Column('_id', pkey_type, primary_key=True),
-            sa.Column('_block', sa.LargeBinary),
+            table_name,
+            model.backend.schema,
+            sa.Column("_id", pkey_type, primary_key=True),
+            sa.Column("_block", sa.LargeBinary),
         )
         model.backend.add_table(table, prop, TableType.FILE)
 
@@ -42,16 +43,22 @@ def prepare(context: Context, backend: PostgreSQL, dtype: File, **kwargs):
 
     # Required file metadata on any backend.
     columns = [
-        sa.Column(f'{name}._id', sa.String, nullable=nullable),
-        sa.Column(f'{name}._content_type', sa.String, nullable=nullable),
-        sa.Column(f'{name}._size', BIGINT, nullable=nullable),
+        sa.Column(f"{name}._id", sa.String, nullable=nullable),
+        sa.Column(f"{name}._content_type", sa.String, nullable=nullable),
+        sa.Column(f"{name}._size", BIGINT, nullable=nullable),
     ]
 
     # Optional file metadata, depending on backend supported features.
     if same_backend or BackendFeatures.FILE_BLOCKS in dtype.backend.features:
         columns += [
-            sa.Column(f'{name}._bsize', sa.Integer, nullable=nullable),
-            sa.Column(f'{name}._blocks', ARRAY(pkey_type, ), nullable=nullable),
+            sa.Column(f"{name}._bsize", sa.Integer, nullable=nullable),
+            sa.Column(
+                f"{name}._blocks",
+                ARRAY(
+                    pkey_type,
+                ),
+                nullable=nullable,
+            ),
         ]
 
     return columns

@@ -21,8 +21,13 @@ from spinta.components import Property
 from spinta.core.enums import Action
 from spinta.core.ufuncs import Expr
 from spinta.exceptions import ItemDoesNotExist, RedirectFeatureMissing, MultipleErrors
-from spinta.exceptions import UnavailableSubresource, InfiniteLoopWithPagination, BackendNotGiven, TooShortPageSize, \
-    TooShortPageSizeKeyRepetition
+from spinta.exceptions import (
+    UnavailableSubresource,
+    InfiniteLoopWithPagination,
+    BackendNotGiven,
+    TooShortPageSize,
+    TooShortPageSizeKeyRepetition,
+)
 from spinta.renderer import render
 from spinta.types.datatype import DataType
 from spinta.types.datatype import File
@@ -53,7 +58,7 @@ async def getall(
     expr = urlparams_to_expr(params)
     query_params = QueryParams()
     update_query_with_url_params(query_params, params)
-    accesslog: AccessLog = context.get('accesslog')
+    accesslog: AccessLog = context.get("accesslog")
     accesslog.request(
         # XXX: Read operations does not have a transaction, but it
         #      is needed for loging.
@@ -78,7 +83,7 @@ async def getall(
                 limit=params.limit,
                 default_expand=False,
                 params=query_params,
-                extra_properties=func_properties
+                extra_properties=func_properties,
             )
         else:
             rows = commands.getall(
@@ -88,7 +93,7 @@ async def getall(
                 params=query_params,
                 query=expr,
                 default_expand=False,
-                extra_properties=func_properties
+                extra_properties=func_properties,
             )
 
     rows = prepare_data_for_response(
@@ -105,39 +110,22 @@ async def getall(
 
 
 @commands.getall.register(Context, Model, Page)
-def getall(
-    context: Context,
-    model: Model,
-    page: Page,
-    *,
-    query: Expr = None,
-    limit: int = None,
-    **kwargs
-) -> Iterator:
+def getall(context: Context, model: Model, page: Page, *, query: Expr = None, limit: int = None, **kwargs) -> Iterator:
     backend = model.backend
     if isinstance(backend, NoBackend):
         raise BackendNotGiven(model)
 
-    config = context.get('config')
+    config = context.get("config")
     size = get_page_size(config, model, page)
 
     # Add 1 to see future value (to see if it finished, check for infinite loops and page size miss matches).
     page.size = size + 1
 
-    page_meta = PaginationMetaData(
-        page_size=size,
-        limit=limit
-    )
+    page_meta = PaginationMetaData(page_size=size, limit=limit)
     while not page_meta.is_finished:
         page_meta.is_finished = True
         query = add_page_expr(query, page)
-        rows = commands.getall(
-            context,
-            model,
-            backend,
-            query=query,
-            **kwargs
-        )
+        rows = commands.getall(context, model, backend, query=query, **kwargs)
 
         yield from get_paginated_values(page, page_meta, rows, extract_source_page_keys)
 
@@ -161,11 +149,11 @@ def prepare_data_for_response(
 
     if reserved is None:
         if action == Action.SEARCH:
-            reserved = ['_type', '_id', '_revision', '_base']
+            reserved = ["_type", "_id", "_revision", "_base"]
         else:
-            reserved = ['_type', '_id', '_revision']
+            reserved = ["_type", "_id", "_revision"]
         if pagination_enabled(model, params):
-            reserved.append('_page')
+            reserved.append("_page")
     prop_names = get_select_prop_names(
         context,
         model,
@@ -195,7 +183,7 @@ def prepare_data_for_response(
                     row[key],
                     data=row,
                     action=action,
-                    select=func_select_tree
+                    select=func_select_tree,
                 )
         yield result
 
@@ -209,8 +197,8 @@ def _is_iter_last_potential_value(it: int, total: int):
 
 
 def extract_source_page_keys(row: dict):
-    if '_page' in row:
-        return row['_page']
+    if "_page" in row:
+        return row["_page"]
     return []
 
 
@@ -256,11 +244,7 @@ def get_paginated_values(model_page: Page, meta: PaginationMetaData, rows, extra
         if _is_iter_last_potential_value(i, size):
             meta.is_finished = False
             if flag_for_potential_key_repetition:
-                raise TooShortPageSize(
-                    model_page,
-                    page_size=size,
-                    page_values=previous_value
-                )
+                raise TooShortPageSize(model_page, page_size=size, page_values=previous_value)
             if key_repetition[1] > 0:
                 raise TooShortPageSizeKeyRepetition(
                     model_page,
@@ -279,11 +263,7 @@ def get_paginated_values(model_page: Page, meta: PaginationMetaData, rows, extra
         if current_first_value is None:
             current_first_value = row
             if current_first_value == meta.previous_first_value:
-                raise InfiniteLoopWithPagination(
-                    model_page,
-                    page_size=size,
-                    page_values=current_first_value
-                )
+                raise InfiniteLoopWithPagination(model_page, page_size=size, page_values=current_first_value)
             meta.previous_first_value = current_first_value
 
         model_page.update_values_from_list(keys)
@@ -297,12 +277,7 @@ def get_paginated_values(model_page: Page, meta: PaginationMetaData, rows, extra
         yield row
 
 
-def _update_expr_args(
-    expr: Expr,
-    name: str,
-    args: List,
-    override: bool = False
-) -> Tuple[bool, Expr]:
+def _update_expr_args(expr: Expr, name: str, args: List, override: bool = False) -> Tuple[bool, Expr]:
     updated = False
     expr.args = list(expr.args)
     if expr.name == name:
@@ -363,7 +338,7 @@ async def getone(
             params=params,
         )
 
-    accesslog: AccessLog = context.get('accesslog')
+    accesslog: AccessLog = context.get("accesslog")
     accesslog.response(objects=1)
 
     return resp
@@ -397,7 +372,7 @@ async def getone(
 ) -> Response:
     commands.authorize(context, action, model)
 
-    accesslog: AccessLog = context.get('accesslog')
+    accesslog: AccessLog = context.get("accesslog")
     accesslog.request(
         # XXX: Read operations does not have a transaction, but it
         #      is needed for loging.
@@ -413,14 +388,16 @@ async def getone(
     except ItemDoesNotExist as e:
         try:
             if redirect_id := commands.redirect(context, backend, model, params.pk):
-                ptree = params.changed_parsetree({
-                    'path': (
-                        model.name.split('/') +
-                        [redirect_id] +
-                        ([params.prop.place] if params.prop is not None else [])
-                    )
-                })
-                result = '/' + build_url_path(ptree)
+                ptree = params.changed_parsetree(
+                    {
+                        "path": (
+                            model.name.split("/")
+                            + [redirect_id]
+                            + ([params.prop.place] if params.prop is not None else [])
+                        )
+                    }
+                )
+                result = "/" + build_url_path(ptree)
                 return RedirectResponse(result, status_code=301)
         except RedirectFeatureMissing as r_e:
             raise MultipleErrors([r_e, e])
@@ -441,7 +418,7 @@ async def getone(
 ) -> Response:
     commands.authorize(context, action, prop)
 
-    accesslog: AccessLog = context.get('accesslog')
+    accesslog: AccessLog = context.get("accesslog")
     accesslog.request(
         # XXX: Read operations does not have a transaction, but it
         #      is needed for loging.
@@ -484,7 +461,7 @@ async def getone(
 ) -> Response:
     commands.authorize(context, action, prop)
 
-    accesslog: AccessLog = context.get('accesslog')
+    accesslog: AccessLog = context.get("accesslog")
     accesslog.request(
         # XXX: Read operations does not have a transaction, but it
         #      is needed for loging.
@@ -530,7 +507,7 @@ async def getone(
         if file is None:
             raise ItemDoesNotExist(dtype, id=params.pk)
 
-        filename = value['_id']
+        filename = value["_id"]
 
         if isinstance(file, bytes):
             ResponseClass = Response
@@ -541,14 +518,10 @@ async def getone(
 
         return ResponseClass(
             file,
-            media_type=value.get('_content_type'),
+            media_type=value.get("_content_type"),
             headers={
-                'Revision': data['_revision'],
-                'Content-Disposition': (
-                    f'attachment; filename="{filename}"'
-                    if filename else
-                    'attachment'
-                )
+                "Revision": data["_revision"],
+                "Content-Disposition": (f'attachment; filename="{filename}"' if filename else "attachment"),
             },
         )
 
@@ -567,7 +540,7 @@ async def changes(
     if params.head:
         rows = []
     else:
-        accesslog = context.get('accesslog')
+        accesslog = context.get("accesslog")
         accesslog.request(
             # XXX: Read operations does not have a transaction, but it
             #      is needed for loging.
@@ -585,15 +558,14 @@ async def changes(
             offset=params.changes_offset,
         )
 
-    rows = prepare_data_for_response(context, model, action, params, rows, reserved=[
-        '_cid',
-        '_created',
-        '_op',
-        '_id',
-        '_txn',
-        '_revision',
-        '_same_as'
-    ])
+    rows = prepare_data_for_response(
+        context,
+        model,
+        action,
+        params,
+        rows,
+        reserved=["_cid", "_created", "_op", "_id", "_txn", "_revision", "_same_as"],
+    )
 
     return render(context, request, model, params, rows, action=action)
 
@@ -610,7 +582,7 @@ async def summary(
     commands.authorize(context, action, model)
     backend = model.backend
 
-    accesslog: AccessLog = context.get('accesslog')
+    accesslog: AccessLog = context.get("accesslog")
     accesslog.request(
         # XXX: Read operations does not have a transaction, but it
         #      is needed for loging.

@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Dict
 from typing import Iterable
 from typing import List
 
@@ -21,13 +21,7 @@ def get_deleted_rows(
     metadata: sa.MetaData,
     no_progress_bar: bool = False,
 ):
-    counts = (
-        _get_deleted_row_counts(
-            models,
-            context,
-            metadata
-        )
-    )
+    counts = _get_deleted_row_counts(models, context, metadata)
     total_count = sum(counts.values())
     if total_count > 0:
         rows = _iter_deleted_rows(
@@ -38,7 +32,7 @@ def get_deleted_rows(
             no_progress_bar,
         )
         if not no_progress_bar:
-            rows = tqdm.tqdm(rows, 'PUSH DELETED', ascii=True, total=total_count)
+            rows = tqdm.tqdm(rows, "PUSH DELETED", ascii=True, total=total_count)
         for row in rows:
             yield row
 
@@ -49,18 +43,12 @@ def _get_deleted_row_counts(
     metadata: sa.MetaData,
 ) -> dict:
     counts = {}
-    conn = context.get('push.state.conn')
+    conn = context.get("push.state.conn")
     for model in models:
         table = metadata.tables[model.name]
 
         row_count = conn.execute(
-            sa.select(sa.func.count(table.c.id)).
-            where(
-                sa.and_(
-                    table.c.pushed.is_(None),
-                    table.c.error.is_(False)
-                )
-            )
+            sa.select(sa.func.count(table.c.id)).where(sa.and_(table.c.pushed.is_(None), table.c.error.is_(False)))
         )
         counts[model.name] = row_count.scalar()
     return counts
@@ -74,8 +62,8 @@ def _iter_deleted_rows(
     no_progress_bar: bool = False,
 ) -> Iterable[PushRow]:
     models = reversed(models)
-    config = context.get('config')
-    conn = context.get('push.state.conn')
+    config = context.get("config")
+    conn = context.get("push.state.conn")
     for model in models:
         size = get_page_size(config, model)
         table = metadata.tables[model.name]
@@ -89,21 +77,9 @@ def _iter_deleted_rows(
                 size,
             )
         else:
-            rows = conn.execute(
-                sa.select([table.c.id]).
-                where(
-                    table.c.pushed.is_(None) &
-                    table.c.error.is_(False)
-                )
-            )
+            rows = conn.execute(sa.select([table.c.id]).where(table.c.pushed.is_(None) & table.c.error.is_(False)))
         if not no_progress_bar:
-            rows = tqdm.tqdm(
-                rows,
-                model.name,
-                ascii=True,
-                total=total,
-                leave=False
-            )
+            rows = tqdm.tqdm(rows, model.name, ascii=True, total=total, leave=False)
 
         for row in rows:
             yield prepare_rows_for_deletion(model, row[table.c.id])
@@ -115,7 +91,7 @@ def _get_deleted_rows_with_page(
     table: sa.Table,
     size: int,
 ) -> sa.engine.LegacyCursorResult:
-    conn = context.get('push.state.conn')
+    conn = context.get("push.state.conn")
 
     order_by = []
     page = commands.create_page(model.page)
@@ -124,14 +100,9 @@ def _get_deleted_rows_with_page(
     for page_by in page.by.values():
         order_by.append(sa.asc(table.c[f"page.{page_by.prop.name}"]))
 
-    required_where_cond = sa.and_(
-        table.c.pushed.is_(None),
-        table.c.error.is_(False)
-    )
+    required_where_cond = sa.and_(table.c.pushed.is_(None), table.c.error.is_(False))
 
-    page_meta = PaginationMetaData(
-        page_size=size
-    )
+    page_meta = PaginationMetaData(page_size=size)
 
     while not page_meta.is_finished:
         page_meta.is_finished = True
@@ -143,23 +114,10 @@ def _get_deleted_rows_with_page(
             where_cond = cond
 
         if where_cond is not None:
-            where_cond = sa.and_(
-                required_where_cond,
-                where_cond
-            )
+            where_cond = sa.and_(required_where_cond, where_cond)
         else:
             where_cond = required_where_cond
 
-        rows = conn.execute(
-            sa.select([table]).
-            where(
-                where_cond
-            ).order_by(*order_by).limit(size)
-        )
+        rows = conn.execute(sa.select([table]).where(where_cond).order_by(*order_by).limit(size))
 
         yield from get_paginated_values(page, page_meta, rows, extract_state_page_keys)
-
-
-
-
-

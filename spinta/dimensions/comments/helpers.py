@@ -17,14 +17,16 @@ def load_comments(
     if data:
         for comment_data in data:
             params = comment_data.copy()
-            access_given = params.pop('access')
-            access = enum_by_name(parent, 'access', Access, access_given)
+            access_given = params.pop("access")
+            access = enum_by_name(parent, "access", Access, access_given)
             access = access or Access.private
-            comments.append(Comment(
-                access=access,
-                given=CommentGiven(
-                    access=access_given,
-                ),
-                **params,
-            ))
+            comments.append(
+                Comment(
+                    access=access,
+                    given=CommentGiven(
+                        access=access_given,
+                    ),
+                    **params,
+                )
+            )
     return comments

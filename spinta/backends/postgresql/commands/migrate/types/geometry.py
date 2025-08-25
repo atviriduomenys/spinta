@@ -8,7 +8,9 @@ from spinta.types.datatype import DataType
 from spinta.types.geometry.components import Geometry
 
 
-@commands.migrate.register(Context, PostgreSQL, PostgresqlMigrationContext, PropertyMigrationContext, sa.Table, sa.Column, Geometry)
+@commands.migrate.register(
+    Context, PostgreSQL, PostgresqlMigrationContext, PropertyMigrationContext, sa.Table, sa.Column, Geometry
+)
 def migrate(
     context: Context,
     backend: PostgreSQL,
@@ -17,7 +19,7 @@ def migrate(
     table: sa.Table,
     old: sa.Column,
     new: DataType,
-    **kwargs
+    **kwargs,
 ):
     columns = commands.prepare(context, backend, new.prop)
     col = None

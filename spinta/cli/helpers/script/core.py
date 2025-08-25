@@ -15,7 +15,7 @@ def run_all_scripts(
     destructive: bool = False,
     force: bool = False,
     check_only: bool = False,
-    **kwargs
+    **kwargs,
 ):
     scripts = script_registry.get_all(script_type)
     sorted_scripts = sort_scripts_by_required(scripts)
@@ -27,7 +27,7 @@ def run_all_scripts(
             destructive=destructive,
             force=force,
             check_only=check_only,
-            **kwargs
+            **kwargs,
         )
 
 
@@ -38,7 +38,7 @@ def run_specific_script(
     destructive: bool = False,
     force: bool = False,
     check_only: bool = False,
-    **kwargs
+    **kwargs,
 ):
     script = script_registry.get(script_type, script_name)
     status = check_script(context, script_type, script, **kwargs)
@@ -50,18 +50,13 @@ def run_specific_script(
         script.run(context, destructive=destructive, **kwargs)
 
 
-def check_script(
-    context: Context,
-    script_type: str,
-    script: str | Script | ScriptBase,
-    **kwargs
-) -> ScriptStatus:
+def check_script(context: Context, script_type: str, script: str | Script | ScriptBase, **kwargs) -> ScriptStatus:
     if not isinstance(script, ScriptBase):
         if isinstance(script, Script):
             script = script.value
 
         if not script_registry.contains(script_type, script):
-            echo(f'Warning: {script_type!r} script {script!r} was not found', err=True)
+            echo(f"Warning: {script_type!r} script {script!r} was not found", err=True)
             return ScriptStatus.SKIPPED
 
         script = script_registry.get(script_type, script)
@@ -72,8 +67,14 @@ def check_script(
                 script_type = required_script[0]
                 required_script = required_script[1]
 
-            if check_script(context, script_type, required_script, **kwargs) in (ScriptStatus.REQUIRED, ScriptStatus.SKIPPED):
-                echo(f'Warning: {script_type!r} script {required_script!r} requirement is not met for {script.name!r} script', err=True)
+            if check_script(context, script_type, required_script, **kwargs) in (
+                ScriptStatus.REQUIRED,
+                ScriptStatus.SKIPPED,
+            ):
+                echo(
+                    f"Warning: {script_type!r} script {required_script!r} requirement is not met for {script.name!r} script",
+                    err=True,
+                )
                 return ScriptStatus.SKIPPED
 
     return ScriptStatus.REQUIRED if script.check(context, **kwargs) else ScriptStatus.PASSED

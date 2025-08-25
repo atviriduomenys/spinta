@@ -18,23 +18,24 @@ def extract_xpaths_from_xsd(path: pathlib.Path):
         return []
 
     root = tree.getroot()
-    namespaces = {'xsd': 'http://www.w3.org/2001/XMLSchema'}
+    namespaces = {"xsd": "http://www.w3.org/2001/XMLSchema"}
 
     # Finding all element and attribute nodes in the XSD file
-    elements = root.xpath('.//xsd:element', namespaces=namespaces)
-    attributes = root.xpath('.//xsd:attribute', namespaces=namespaces)
+    elements = root.xpath(".//xsd:element", namespaces=namespaces)
+    attributes = root.xpath(".//xsd:attribute", namespaces=namespaces)
 
     # Generate XPath for each element and attribute
     xpaths = []
 
     for element in elements:
-        name = element.get('name')  # or etree.tostring(element).decode()
+        name = element.get("name")  # or etree.tostring(element).decode()
         xpaths.append(name)
 
     for attribute in attributes:
-        xpaths.append('@' + attribute.get('name'))
+        xpaths.append("@" + attribute.get("name"))
 
     return xpaths
+
 
 def compare_dsa_to_csv(directory, xsd_file_name, dsa_file_name):
     # extract all paths that xsd document describes.

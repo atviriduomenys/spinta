@@ -19,7 +19,8 @@ def get_changes_table(context: Context, backend: PostgreSQL, model: Model):
     table_name = get_pg_table_name(model, TableType.CHANGELOG)
     pkey_type = commands.get_primary_key_type(context, backend)
     table = sa.Table(
-        table_name, backend.schema,
+        table_name,
+        backend.schema,
         # XXX: This will not work with multi master setup. Consider changing it
         #      to UUID or something like that.
         #
@@ -28,13 +29,13 @@ def get_changes_table(context: Context, backend: PostgreSQL, model: Model):
         #      previous `change_id` and increment it by one. This will create
         #      duplicates, but we simply know, that these changes happened at at
         #      the same time. So that's probably OK.
-        sa.Column('_id', BIGINT, primary_key=True),
-        sa.Column('_revision', sa.String),
-        sa.Column('_txn', pkey_type, index=True),
-        sa.Column('_rid', pkey_type),  # reference to main table
-        sa.Column('datetime', sa.DateTime),
+        sa.Column("_id", BIGINT, primary_key=True),
+        sa.Column("_revision", sa.String),
+        sa.Column("_txn", pkey_type, index=True),
+        sa.Column("_rid", pkey_type),  # reference to main table
+        sa.Column("datetime", sa.DateTime),
         # FIXME: Change `action` to `_op` for consistency.
-        sa.Column('action', sa.String(8)),  # insert, update, delete
-        sa.Column('data', JSONB),
+        sa.Column("action", sa.String(8)),  # insert, update, delete
+        sa.Column("data", JSONB),
     )
     return table

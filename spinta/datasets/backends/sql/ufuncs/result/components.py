@@ -6,9 +6,9 @@ from sqlalchemy.engine.row import RowProxy
 
 
 class SqlResultBuilder(ResultBuilder):
-    this: Any           # A selected value.
-    prop: Property      # Model property.
-    data: RowProxy      # Whole row from database.
+    this: Any  # A selected value.
+    prop: Property  # Model property.
+    data: RowProxy  # Whole row from database.
 
     def init(self, this: Any, prop: Property, data: RowProxy):
         return self(

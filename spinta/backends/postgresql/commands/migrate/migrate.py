@@ -11,10 +11,20 @@ from spinta.backends.postgresql.commands.migrate.constants import EXCLUDED_MODEL
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_column_name
 from spinta.backends.postgresql.helpers.migrate.actions import MigrationHandler
-from spinta.backends.postgresql.helpers.migrate.migrate import drop_all_indexes_and_constraints, model_name_key, \
-    PostgresqlMigrationContext, CastMatrix, validate_rename_map, RenameMap
-from spinta.backends.postgresql.helpers.name import get_pg_table_name, get_pg_column_name, \
-    get_pg_foreign_key_name, PG_NAMING_CONVENTION
+from spinta.backends.postgresql.helpers.migrate.migrate import (
+    drop_all_indexes_and_constraints,
+    model_name_key,
+    PostgresqlMigrationContext,
+    CastMatrix,
+    validate_rename_map,
+    RenameMap,
+)
+from spinta.backends.postgresql.helpers.name import (
+    get_pg_table_name,
+    get_pg_column_name,
+    get_pg_foreign_key_name,
+    PG_NAMING_CONVENTION,
+)
 from spinta.cli.helpers.migrate import MigrationConfig
 from spinta.commands import create_exception
 from spinta.components import Context, Model
@@ -31,31 +41,27 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migration
     from alembic.migration import MigrationContext
     from alembic.operations import Operations
 
-    conn = context.get(f'transaction.{backend.name}')
-    ctx = MigrationContext.configure(conn, opts={
-        "as_sql": migration_config.plan,
-        "literal_binds": migration_config.plan,
-        "target_metadata": backend.schema
-    })
+    conn = context.get(f"transaction.{backend.name}")
+    ctx = MigrationContext.configure(
+        conn,
+        opts={
+            "as_sql": migration_config.plan,
+            "literal_binds": migration_config.plan,
+            "target_metadata": backend.schema,
+        },
+    )
     op = Operations(ctx)
     inspector = sa.inspect(conn)
     metadata = sa.MetaData(bind=conn, naming_convention=get_metadata_naming_convention(PG_NAMING_CONVENTION))
-    metadata.reflect(
-        only=_filter_reflect_datasets(
-            inspector,
-            migration_config.datasets
-        )
-    )
+    metadata.reflect(only=_filter_reflect_datasets(inspector, migration_config.datasets))
 
     handler = MigrationHandler()
     migration_ctx = PostgresqlMigrationContext(
         config=migration_config,
         inspector=inspector,
         handler=handler,
-        rename=RenameMap(
-            rename_src=migration_config.rename_src
-        ),
-        cast_matrix=CastMatrix(backend.engine)
+        rename=RenameMap(rename_src=migration_config.rename_src),
+        cast_matrix=CastMatrix(backend.engine),
     )
     validate_rename_map(context, migration_ctx.rename, manifest)
 
@@ -64,27 +70,20 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migration
         models=models,
         existing_tables=inspector.get_table_names(),
         filtered_datasets=migration_config.datasets,
-        rename=migration_ctx.rename
+        rename=migration_ctx.rename,
     )
 
     sorted_models = sort_models_by_ref_and_base(list(models.values()))
     sorted_model_names = list([model.name for model in sorted_models])
     # Do reverse zip, to ensure that sorted models get selected first
-    zipped_names = zipitems(
-        sorted_model_names,
-        tables,
-        model_name_key
-    )
+    zipped_names = zipitems(sorted_model_names, tables, model_name_key)
 
     for zipped_name in zipped_names:
         for new_model_name, old_table_name in zipped_name:
             # Skip special table migrations, because this is done in DataType migration section
             if old_table_name and any(
-                value in old_table_name for value in (
-                    TableType.CHANGELOG.value,
-                    TableType.FILE.value,
-                    TableType.REDIRECT.value
-                )
+                value in old_table_name
+                for value in (TableType.CHANGELOG.value, TableType.FILE.value, TableType.REDIRECT.value)
             ):
                 continue
 
@@ -106,11 +105,14 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migration
         if migration_config.autocommit:
             # Recreate new connection, that auto commits
             with backend.engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
-                ctx = MigrationContext.configure(conn, opts={
-                    "as_sql": migration_config.plan,
-                    "literal_binds": migration_config.plan,
-                    "target_metadata": backend.schema
-                })
+                ctx = MigrationContext.configure(
+                    conn,
+                    opts={
+                        "as_sql": migration_config.plan,
+                        "literal_binds": migration_config.plan,
+                        "target_metadata": backend.schema,
+                    },
+                )
                 op = Operations(ctx)
                 handler.run_migrations(op)
             return
@@ -146,10 +148,7 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migration
         raise exception
 
 
-def _filter_reflect_datasets(
-    inspector: Inspector,
-    datasets: list
-):
+def _filter_reflect_datasets(inspector: Inspector, datasets: list):
     if not datasets:
         return None
 
@@ -158,10 +157,7 @@ def _filter_reflect_datasets(
 
 
 def _filter_models_and_tables(
-    models: Dict[str, Model],
-    existing_tables: List[str],
-    filtered_datasets: List[str],
-    rename: RenameMap
+    models: Dict[str, Model], existing_tables: List[str], filtered_datasets: List[str], rename: RenameMap
 ) -> Tuple[Dict[str, Model], List[str]]:
     tables = []
 
@@ -176,10 +172,10 @@ def _filter_models_and_tables(
         filtered_names = []
         for table_name in existing_tables:
             for dataset_name in filtered_datasets:
-                if table_name.startswith(f'{dataset_name}/'):
+                if table_name.startswith(f"{dataset_name}/"):
                     # Check if its model or another sub dataset
-                    additional_check = table_name.replace(f'{dataset_name}/', '', 1)
-                    if '/' not in additional_check:
+                    additional_check = table_name.replace(f"{dataset_name}/", "", 1)
+                    if "/" not in additional_check:
                         filtered_names.append(table_name)
         existing_tables = filtered_names
 
@@ -194,10 +190,7 @@ def _filter_models_and_tables(
 
 
 def _handle_foreign_key_constraints(
-    inspector: Inspector,
-    models: List[Model],
-    handler: MigrationHandler,
-    rename: RenameMap
+    inspector: Inspector, models: List[Model], handler: MigrationHandler, rename: RenameMap
 ):
     existing_table_names = set(inspector.get_table_names())
 
@@ -222,10 +215,12 @@ def _handle_foreign_key_constraints(
                 if id_constraint["name"] == fk_name and id_constraint["referred_table"] == referent_table:
                     add_constraint = False
                 else:
-                    handler.add_action(ma.DropConstraintMigrationAction(
-                        table_name=source_table,
-                        constraint_name=id_constraint["name"]
-                    ), True)
+                    handler.add_action(
+                        ma.DropConstraintMigrationAction(
+                            table_name=source_table, constraint_name=id_constraint["name"]
+                        ),
+                        True,
+                    )
 
             if add_constraint:
                 handler.add_action(
@@ -234,15 +229,16 @@ def _handle_foreign_key_constraints(
                         referent_table=referent_table,
                         constraint_name=fk_name,
                         local_cols=["_id"],
-                        remote_cols=["_id"]
-                    ), True
+                        remote_cols=["_id"],
+                    ),
+                    True,
                 )
         else:
             if id_constraint is not None:
-                handler.add_action(ma.DropConstraintMigrationAction(
-                    table_name=source_table,
-                    constraint_name=id_constraint["name"]
-                ), True)
+                handler.add_action(
+                    ma.DropConstraintMigrationAction(table_name=source_table, constraint_name=id_constraint["name"]),
+                    True,
+                )
 
         # Handle Ref foreign key constraints
         required_ref_props = {}
@@ -255,38 +251,39 @@ def _handle_foreign_key_constraints(
                         "name": name,
                         "constrained_columns": [column_name],
                         "referred_table": get_pg_table_name(get_table_name(prop.dtype.model)),
-                        "referred_columns": ["_id"]
+                        "referred_columns": ["_id"],
                     }
 
         for foreign_key in foreign_keys:
             if foreign_key["name"] not in required_ref_props.keys():
-                handler.add_action(ma.DropConstraintMigrationAction(
-                    table_name=source_table,
-                    constraint_name=foreign_key["name"]
-                ), True)
+                handler.add_action(
+                    ma.DropConstraintMigrationAction(table_name=source_table, constraint_name=foreign_key["name"]), True
+                )
                 continue
 
             constraint = required_ref_props[foreign_key["name"]]
             if (
-                foreign_key["constrained_columns"] == constraint["constrained_columns"] and
-                foreign_key["referred_table"] == constraint["referred_table"] and
-                foreign_key["referred_columns"] == constraint["referred_columns"]
+                foreign_key["constrained_columns"] == constraint["constrained_columns"]
+                and foreign_key["referred_table"] == constraint["referred_table"]
+                and foreign_key["referred_columns"] == constraint["referred_columns"]
             ):
                 del required_ref_props[foreign_key["name"]]
             else:
-                handler.add_action(ma.DropConstraintMigrationAction(
-                    table_name=source_table,
-                    constraint_name=foreign_key["name"]
-                ), True)
+                handler.add_action(
+                    ma.DropConstraintMigrationAction(table_name=source_table, constraint_name=foreign_key["name"]), True
+                )
 
         for prop in required_ref_props.values():
-            handler.add_action(ma.CreateForeignKeyMigrationAction(
-                source_table=source_table,
-                referent_table=prop["referred_table"],
-                constraint_name=prop["name"],
-                local_cols=prop["constrained_columns"],
-                remote_cols=prop["referred_columns"]
-            ), True)
+            handler.add_action(
+                ma.CreateForeignKeyMigrationAction(
+                    source_table=source_table,
+                    referent_table=prop["referred_table"],
+                    constraint_name=prop["name"],
+                    local_cols=prop["constrained_columns"],
+                    remote_cols=prop["referred_columns"],
+                ),
+                True,
+            )
 
 
 def _clean_up_file_type(inspector: Inspector, models: List[Model], handler: MigrationHandler, rename: RenameMap):
@@ -298,22 +295,15 @@ def _clean_up_file_type(inspector: Inspector, models: List[Model], handler: Migr
             if isinstance(prop.dtype, File):
                 old_table = rename.get_old_table_name(get_table_name(model))
                 old_column = rename.get_old_column_name(old_table, get_column_name(prop))
-                allowed_file_tables.append(
-                    get_pg_table_name(old_table, TableType.FILE, old_column)
-                )
+                allowed_file_tables.append(get_pg_table_name(old_table, TableType.FILE, old_column))
 
     for table in inspector.get_table_names():
         if TableType.FILE.value in table:
-            split = table.split(f'{TableType.FILE.value}/')
+            split = table.split(f"{TableType.FILE.value}/")
             if split[0] in existing_tables:
                 if table not in allowed_file_tables and not split[1].startswith("__"):
-                    new_name = get_pg_table_name(split[0], TableType.FILE, f'__{split[1]}')
+                    new_name = get_pg_table_name(split[0], TableType.FILE, f"__{split[1]}")
                     if inspector.has_table(new_name):
-                        handler.add_action(ma.DropTableMigrationAction(
-                            table_name=new_name
-                        ))
-                    handler.add_action(ma.RenameTableMigrationAction(
-                        old_table_name=table,
-                        new_table_name=new_name
-                    ))
+                        handler.add_action(ma.DropTableMigrationAction(table_name=new_name))
+                    handler.add_action(ma.RenameTableMigrationAction(old_table_name=table, new_table_name=new_name))
                     drop_all_indexes_and_constraints(inspector, table, new_name, handler)

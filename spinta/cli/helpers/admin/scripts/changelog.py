@@ -69,13 +69,8 @@ class _DuplicateChangelogModel:
             yield entry.to_move_mapping()
 
 
-def check_if_corrupted_changelog_exists(
-    engine: Engine,
-    table_name: str,
-    data_keys: List[str]
-) -> bool:
-
-    keys_list = ', '.join(f"('{key}')" for key in data_keys)
+def check_if_corrupted_changelog_exists(engine: Engine, table_name: str, data_keys: List[str]) -> bool:
+    keys_list = ", ".join(f"('{key}')" for key in data_keys)
 
     contains_deleted_stmt = f"""
     SELECT EXISTS (
@@ -84,7 +79,6 @@ def check_if_corrupted_changelog_exists(
         WHERE action = 'delete'
     )
     """
-
 
     filter_stmt = f"""
         WITH kv AS (
@@ -142,12 +136,10 @@ def check_if_corrupted_changelog_exists(
 
 
 def fetch_corrupted_changelog_entities(
-    engine: Engine,
-    table_name: str,
-    data_keys: List[str]
+    engine: Engine, table_name: str, data_keys: List[str]
 ) -> Generator[_DuplicateChangelogEntry]:
     # Safely quote the data_keys for the SQL IN clause
-    keys_list = ', '.join(f"('{key}')" for key in data_keys)
+    keys_list = ", ".join(f"('{key}')" for key in data_keys)
 
     sql = f"""
         WITH
@@ -236,42 +228,44 @@ def fetch_corrupted_changelog_entities(
         current_key = None
         current_entry = None
         for row in result:
-            key = row['final_data']
+            key = row["final_data"]
             if key != current_key:
                 if current_entry:
                     yield current_entry
                 current_key = key
                 current_entry = _DuplicateChangelogEntry()
 
-            current_entry.add_data(_DuplicateChangelogData(
-                id_=str(row['_rid']),
-                last_action=row['last_action'],
-                last_revision=row['last_revision'],
-                last_datetime=row['last_non_delete_datetime']
-            ))
+            current_entry.add_data(
+                _DuplicateChangelogData(
+                    id_=str(row["_rid"]),
+                    last_action=row["last_action"],
+                    last_revision=row["last_revision"],
+                    last_datetime=row["last_non_delete_datetime"],
+                )
+            )
 
     if current_entry and current_entry.affected_data:
         yield current_entry
 
 
 @dispatch(Context, Backend, Model)
-def _gather_corrupted_changelog_entities(context: Context, backend: Backend, model: Model) -> Generator[
-    _DuplicateChangelogEntry]:
+def _gather_corrupted_changelog_entities(
+    context: Context, backend: Backend, model: Model
+) -> Generator[_DuplicateChangelogEntry]:
     raise Exception("Not implemented")
 
 
 @dispatch(Context, PostgreSQL, Model)
-def _gather_corrupted_changelog_entities(context: Context, backend: PostgreSQL, model: Model) -> Generator[
-    _DuplicateChangelogEntry]:
+def _gather_corrupted_changelog_entities(
+    context: Context, backend: PostgreSQL, model: Model
+) -> Generator[_DuplicateChangelogEntry]:
     pkey_columns = list()
     for pkey in model.external.pkeys:
         for name in get_prop_names(pkey):
             pkey_columns.append(get_pg_column_name(name))
 
     yield from fetch_corrupted_changelog_entities(
-        backend.engine,
-        get_pg_table_name(model, TableType.CHANGELOG),
-        pkey_columns
+        backend.engine, get_pg_table_name(model, TableType.CHANGELOG), pkey_columns
     )
 
 
@@ -305,16 +299,14 @@ def _changelog_contains_corrupted_data(context: Context, backend: PostgreSQL, mo
 
 
 async def _duplicate_mapping_to_dataitem(
-    context: Context,
-    model: Model,
-    mapping: _DuplicateChangelogMoveMapping
+    context: Context, model: Model, mapping: _DuplicateChangelogMoveMapping
 ) -> AsyncIterator[DataItem]:
     for target in mapping.targets:
         payload = {
-            '_where': f'eq(_id, "{target.id_}")',
-            '_op': Action.MOVE.value,
-            '_revision': target.last_revision,
-            '_id': mapping.primary.id_
+            "_where": f'eq(_id, "{target.id_}")',
+            "_op": Action.MOVE.value,
+            "_revision": target.last_revision,
+            "_id": mapping.primary.id_,
         }
         item = dataitem_from_payload(context, model, payload)
         yield item
@@ -325,7 +317,7 @@ def models_with_pkey(context: Context, whitelist: list[str]) -> Generator[Model]
 
     for model_name in whitelist:
         model = commands.get_model(context, store.manifest, model_name)
-        if model.model_type().startswith('_') or model.external.unknown_primary_key:
+        if model.model_type().startswith("_") or model.external.unknown_primary_key:
             continue
 
         yield model
@@ -341,21 +333,15 @@ def cli_requires_changelog_migrations(
     models = list(models_with_pkey(context, models_list))
     for model in models:
         if _changelog_contains_corrupted_data(context, model):
-            echo(f"Corrupted changelog entry found for \"{model.model_type()}\"")
+            echo(f'Corrupted changelog entry found for "{model.model_type()}"')
             return True
 
     return False
 
 
-async def _saved_data(
-    context: Context,
-    dstream: AsyncIterator[DataItem]
-):
+async def _saved_data(context: Context, dstream: AsyncIterator[DataItem]):
     async for data in dstream:
-        data.saved = {
-            '_id': data.given['_where']['args'][1],
-            '_revision': data.given['_revision']
-        }
+        data.saved = {"_id": data.given["_where"]["args"][1], "_revision": data.given["_revision"]}
         yield data
 
 
@@ -373,7 +359,10 @@ async def _migrate_duplicates(
         dstream = prepare_data_for_write(context, dstream, None)
         dstream = commands.create_redirect_entry(context, model, model.backend, dstream=dstream)
         dstream = commands.create_changelog_entry(
-            context, model, model.backend, dstream=dstream,
+            context,
+            model,
+            model.backend,
+            dstream=dstream,
         )
         async for _ in dstream:
             pass
@@ -387,12 +376,12 @@ def migrate_changelog_duplicates(
     models_list = parse_input_path(context, input_path)
 
     models = list(models_with_pkey(context, models_list))
-    counter = tqdm.tqdm(desc='MIGRATING CHANGELOGS WITH DUPLICATES', ascii=True, total=len(models))
-    store = context.get('store')
+    counter = tqdm.tqdm(desc="MIGRATING CHANGELOGS WITH DUPLICATES", ascii=True, total=len(models))
+    store = context.get("store")
     try:
         with context:
             require_auth(context)
-            context.attach('transaction', validate_and_return_transaction, context, store.manifest.backend, write=True)
+            context.attach("transaction", validate_and_return_transaction, context, store.manifest.backend, write=True)
 
             for model in models:
                 dup_model = _gather_corrupted_changelog_model(context, model)
@@ -418,8 +407,8 @@ def parse_input_path(
         input_path = input("Enter model list file path: ")
 
     if not input_path.exists():
-        echo(f"File \"{input_path}\" does not exist.", err=True)
+        echo(f'File "{input_path}" does not exist.', err=True)
         sys.exit(1)
 
-    with input_path.open('r') as f:
+    with input_path.open("r") as f:
         return f.read().splitlines()

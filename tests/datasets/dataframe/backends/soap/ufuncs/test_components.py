@@ -8,7 +8,9 @@ from spinta.ufuncs.querybuilder.components import QueryParams
 
 
 def test_soap_query_builder_has_all_attributes_only_after_init_is_called(rc: RawConfig) -> None:
-    context, manifest = prepare_manifest(rc, """
+    context, manifest = prepare_manifest(
+        rc,
+        """
         d | r | b | m | property | type    | ref    | source                                          | access | prepare
         example                  | dataset |        |                                                 |        |
           | wsdl_resource        | wsdl    |        | tests/datasets/backends/wsdl/data/wsdl.xml      |        |
@@ -16,10 +18,12 @@ def test_soap_query_builder_has_all_attributes_only_after_init_is_called(rc: Raw
           |   |   |   |          | param   | param1 | request_model/param1                            | open   | input('1')
           |   |   | City         |         | id     | /                                               | open   |
           |   |   |   | id       | integer |        | id                                              |        |
-        """, mode=Mode.external)
+        """,
+        mode=Mode.external,
+    )
 
     config = context.get("config")
-    model = get_model(context, manifest, 'example/City')
+    model = get_model(context, manifest, "example/City")
     load_query_builder_class(config, model.backend)
     query_builder = model.backend.query_builder_class(context)
 
@@ -34,7 +38,9 @@ def test_soap_query_builder_has_all_attributes_only_after_init_is_called(rc: Raw
 
 
 def test_soap_query_builder_build_populates_soap_request_body_and_property_values(rc: RawConfig) -> None:
-    context, manifest = prepare_manifest(rc, """
+    context, manifest = prepare_manifest(
+        rc,
+        """
         d | r | b | m | property | type    | ref        | source                                          | access | prepare
         example                  | dataset |            |                                                 |        |
           | wsdl_resource        | wsdl    |            | tests/datasets/backends/wsdl/data/wsdl.xml      |        |
@@ -43,11 +49,13 @@ def test_soap_query_builder_build_populates_soap_request_body_and_property_value
           |   |   | City         |         | id         | /                                               | open   |
           |   |   |   | id       | integer |            | id                                              |        |
           |   |   |   | p1       | integer |            |                                                 |        | param(parameter1)
-        """, mode=Mode.external)
-    context.set('auth.token', AdminToken())
+        """,
+        mode=Mode.external,
+    )
+    context.set("auth.token", AdminToken())
 
     config = context.get("config")
-    model = get_model(context, manifest, 'example/City')
+    model = get_model(context, manifest, "example/City")
     load_query_builder_class(config, model.backend)
     query_builder = model.backend.query_builder_class(context)
 

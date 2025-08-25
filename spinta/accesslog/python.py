@@ -18,7 +18,7 @@ class PythonAccessLog(AccessLog):
 
 @commands.load.register(Context, PythonAccessLog, Store)
 def load(context: Context, accesslog: PythonAccessLog, store: Store):
-    if context.has('accesslog.stream'):
-        accesslog.stream = context.get('accesslog.stream')
+    if context.has("accesslog.stream"):
+        accesslog.stream = context.get("accesslog.stream")
     else:
         accesslog.stream = []

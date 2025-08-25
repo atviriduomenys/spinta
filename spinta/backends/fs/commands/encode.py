@@ -18,24 +18,21 @@ def build_data_patch_for_write(
 ) -> Union[dict, NotAvailable]:
     if insert_action or update_action:
         given = {
-            '_id': given.get('_id', None) if given else None,
-            '_content_type': given.get('_content_type', None) if given else None,
-            '_content': given.get('_content', NA) if given else NA,
+            "_id": given.get("_id", None) if given else None,
+            "_content_type": given.get("_content_type", None) if given else None,
+            "_content": given.get("_content", NA) if given else NA,
         }
     else:
         given = {
-            '_id': given.get('_id', NA) if given else NA,
-            '_content_type': given.get('_content_type', NA) if given else NA,
-            '_content': given.get('_content', NA) if given else NA,
+            "_id": given.get("_id", NA) if given else NA,
+            "_content_type": given.get("_content_type", NA) if given else NA,
+            "_content": given.get("_content", NA) if given else NA,
         }
     saved = {
-        '_id': saved.get('_id', NA) if saved else NA,
-        '_content_type': saved.get('_content_type', NA) if saved else NA,
-        '_content': saved.get('_content', NA) if saved else NA,
+        "_id": saved.get("_id", NA) if saved else NA,
+        "_content_type": saved.get("_content_type", NA) if saved else NA,
+        "_content": saved.get("_content", NA) if saved else NA,
     }
-    given = {
-        k: v for k, v in given.items()
-        if v != saved[k]
-    }
+    given = {k: v for k, v in given.items() if v != saved[k]}
     given = {k: v for k, v in given.items() if v is not NA}
     return given or NA

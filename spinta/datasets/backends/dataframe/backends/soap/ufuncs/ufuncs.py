@@ -33,10 +33,10 @@ def eq_(env: SoapQueryBuilder, field: Bind, value: str) -> None:
 def and_(env: SoapQueryBuilder, expr: Expr) -> list[Any]:
     args, kwargs = expr.resolve(env)
     args = [a for a in args if a is not None]
-    return env.call('and', args)
+    return env.call("and", args)
 
 
-@ufunc.resolver(SoapQueryBuilder, list, name='and')
+@ufunc.resolver(SoapQueryBuilder, list, name="and")
 def and_(env: SoapQueryBuilder, args: list) -> Any:
     if len(args) > 1:
         return ShortExpr("and", *args)
@@ -109,8 +109,7 @@ def soap_request_body(env: SoapQueryBuilder, prop: Property, param: Param) -> No
 @ufunc.resolver(SoapQueryBuilder, str)
 def creds(env: SoapQueryBuilder, credential_key: str) -> Any:
     client_config_file = query_client(
-        get_clients_path(env.context.get('config')),
-        env.context.get('auth.token').get_aud()
+        get_clients_path(env.context.get("config")), env.context.get("auth.token").get_aud()
     )
     backend_name = env.model.external.resource.name
 

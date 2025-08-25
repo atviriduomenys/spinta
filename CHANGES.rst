@@ -158,6 +158,9 @@ Improvements:
 
 - `spinta migrate` now is able to better map `ref` type migrations (`#1230`_).
 
+- Added support for `ruff` linting and code formatting (`#434`_).
+
+  .. _#434: https://github.com/atviriduomenys/spinta/issues/434
   .. _#1419: https://github.com/atviriduomenys/spinta/issues/1419
   .. _#1254: https://github.com/atviriduomenys/spinta/issues/1254
   .. _#1402: https://github.com/atviriduomenys/spinta/issues/1402

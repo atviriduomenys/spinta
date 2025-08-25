@@ -23,8 +23,6 @@ class ErrorCounter:
         return self.count >= self.max_error_count
 
 
-def cli_error(
-    message: str
-):
+def cli_error(message: str):
     echo(message, err=True)
     raise Exit(code=1)

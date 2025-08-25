@@ -36,7 +36,7 @@ def expanded(env: QueryBuilder, prop: Property):
 
 
 def get_language_column(env: QueryBuilder, dtype: Text):
-    default_langs = env.context.get('config').languages
+    default_langs = env.context.get("config").languages
     prop = determine_language_property_for_text(dtype, env.query_params.lang_priority, default_langs)
     column = env.backend.get_column(env.table, prop)
     return column
@@ -92,27 +92,16 @@ def _create_or_condition(condition_info: list):
     page_by = condition_info[1]
     or_null = condition_info[2]
 
-    result = {
-        'name': action,
-        'args': [{
-            'name': 'bind',
-            'args': [page_by.prop.name]
-        }, page_by.value]
-    }
+    result = {"name": action, "args": [{"name": "bind", "args": [page_by.prop.name]}, page_by.value]}
 
     if or_null != -1:
         result = {
-            'name': 'or',
-            'args': [
+            "name": "or",
+            "args": [
                 result,
-                {
-                    'name': 'eq' if or_null == 1 else 'ne',
-                    'args': [{
-                        'name': 'bind',
-                        'args': [page_by.prop.name]
-                    }, None]
-                }
-            ]}
+                {"name": "eq" if or_null == 1 else "ne", "args": [{"name": "bind", "args": [page_by.prop.name]}, None]},
+            ],
+        }
     return result
 
 
@@ -120,7 +109,7 @@ def _get_null_action(by: str, needs_null: bool = False):
     if not needs_null:
         return -1
 
-    if by.startswith('-'):
+    if by.startswith("-"):
         return 0
     return 1
 
@@ -139,19 +128,19 @@ def get_pagination_compare_query(
                 if n >= i:
                     if n == i:
                         if page_by.value is not None:
-                            if by.startswith('-'):
-                                where_list[n].append(('lt', page_by, _get_null_action(by)))
+                            if by.startswith("-"):
+                                where_list[n].append(("lt", page_by, _get_null_action(by)))
                             else:
-                                where_list[n].append(('gt', page_by, _get_null_action(by, True)))
+                                where_list[n].append(("gt", page_by, _get_null_action(by, True)))
                         else:
-                            if by.startswith('-'):
-                                where_list[n].append(('ne', page_by, _get_null_action(by)))
+                            if by.startswith("-"):
+                                where_list[n].append(("ne", page_by, _get_null_action(by)))
                     else:
-                        where_list[n].append(('eq', page_by, _get_null_action(by)))
+                        where_list[n].append(("eq", page_by, _get_null_action(by)))
     remove_list = []
 
     for i, (by, value) in enumerate(filtered.by.items()):
-        if value.value is None and not by.startswith('-'):
+        if value.value is None and not by.startswith("-"):
             remove_list.append(where_list[i])
     for item in remove_list:
         where_list.remove(item)
@@ -162,23 +151,11 @@ def get_pagination_compare_query(
         for item in where:
             condition = _create_or_condition(item)
             if compare:
-                compare = {
-                    'name': 'and',
-                    'args': [
-                        compare,
-                        condition
-                    ]
-                }
+                compare = {"name": "and", "args": [compare, condition]}
             else:
                 compare = condition
         if where_compare:
-            where_compare = {
-                'name': 'or',
-                'args': [
-                    where_compare,
-                    compare
-                ]
-            }
+            where_compare = {"name": "or", "args": [where_compare, compare]}
         else:
             where_compare = compare
 
@@ -190,12 +167,7 @@ def get_pagination_compare_query(
 
 
 def add_page_expr(expr: Expr, page: Page):
-    return merge_formulas(expr, asttoexpr({
-        'name': 'paginate',
-        'args': [
-            page
-        ]
-    }))
+    return merge_formulas(expr, asttoexpr({"name": "paginate", "args": [page]}))
 
 
 def process_literal_value(value: Any) -> Any:
@@ -212,7 +184,11 @@ def denorm_to_foreign_property(dtype: Denorm) -> ForeignProperty | Property:
         if ref.dtype.inherited:
             parent_list = []
             root_ref_parent = ref
-            while root_ref_parent and isinstance(root_ref_parent, Property) and isinstance(root_ref_parent.dtype, (Ref, BackRef)):
+            while (
+                root_ref_parent
+                and isinstance(root_ref_parent, Property)
+                and isinstance(root_ref_parent.dtype, (Ref, BackRef))
+            ):
                 parent_list.append(root_ref_parent)
                 if not root_ref_parent.dtype.inherited:
                     break
