@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import enum
-from typing import Union, Any
+from typing import Union, Any, TYPE_CHECKING
 
 from spinta import exceptions
 from spinta.exceptions import InvalidLevel
 from spinta.utils.enums import enum_by_name, enum_by_value
 from spinta.utils.errors import report_error
+
+if TYPE_CHECKING:
+    from spinta.components import Component
 
 
 class Access(enum.IntEnum):
@@ -135,7 +138,7 @@ class Mode(enum.Enum):
     external = "external"
 
 
-def load_level(component: "spinta.components.Component", given_level: Level | int | str) -> None:
+def load_level(component: Component, given_level: Level | int | str) -> None:
     if given_level:
         if isinstance(given_level, Level):
             level = given_level
@@ -153,7 +156,7 @@ def load_level(component: "spinta.components.Component", given_level: Level | in
 #  enum loaders
 
 
-def load_status(component: "spinta.components.Component", given_status: Status | str) -> None:
+def load_status(component: Component, given_status: Status | str) -> None:
     if isinstance(given_status, Status):
         component.status = given_status
     else:
@@ -161,7 +164,7 @@ def load_status(component: "spinta.components.Component", given_status: Status |
     component.given.status = given_status
 
 
-def load_visibility(component: "spinta.components.Component", given_visibility: Visibility | str) -> None:
+def load_visibility(component: Component, given_visibility: Visibility | str) -> None:
     if isinstance(given_visibility, Visibility):
         component.visibility = given_visibility
     else:

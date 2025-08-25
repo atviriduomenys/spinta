@@ -1,4 +1,3 @@
-
 import pytest
 
 from spinta.testing.utils import get_error_context, get_error_codes

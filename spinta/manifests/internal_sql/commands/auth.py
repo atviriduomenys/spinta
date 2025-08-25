@@ -3,7 +3,7 @@ import sqlalchemy as sa
 
 from spinta import commands
 from spinta.auth import get_default_auth_client_id
-from spinta.components import Context, Config, Namespace
+from spinta.components import Context, Namespace
 from spinta.core.enums import Access, Action
 from spinta.exceptions import AuthorizedClientsOnly
 from spinta.manifests.internal_sql.components import InternalSQLManifest
@@ -56,7 +56,6 @@ def internal_authorized(
     *,
     throw: bool = False,
 ):
-    config: Config = context.get("config")
     token = context.get("auth.token")
 
     # Unauthorized clients can only access open nodes.

@@ -1,4 +1,3 @@
-
 from spinta.components import Context
 from spinta.exceptions import InvalidValue, InvalidManifestFile
 from spinta.testing.cli import SpintaCliRunner
@@ -305,7 +304,7 @@ def test_check_nested_Backref(context: Context, rc, cli: SpintaCliRunner, tmp_pa
     """),
     )
 
-    result = cli.invoke(rc, ["check", tmp_path / "manifest.csv"])
+    cli.invoke(rc, ["check", tmp_path / "manifest.csv"])
 
 
 def test_check_dot_in_ref(context: Context, rc, cli: SpintaCliRunner, tmp_path):

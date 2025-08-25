@@ -220,7 +220,7 @@ def test_external_ref_unassign(
 
     city_model = "datasets/external/ref/m/City"
     country_model = "datasets/external/ref/m/Country"
-    lt = send(app, country_model, "insert", {"code": "LT", "name": "Lithuania"})
+    send(app, country_model, "insert", {"code": "LT", "name": "Lithuania"})
 
     vln = send(app, city_model, "insert", {"name": "Vilnius", "country": {"code": "LT", "name": "Lithuania"}})
 
@@ -265,7 +265,7 @@ def test_external_ref_unassign_invalid(
 
     city_model = "datasets/external/ref/m/City"
     country_model = "datasets/external/ref/m/Country"
-    lt = send(app, country_model, "insert", {"code": "LT", "name": "Lithuania"})
+    send(app, country_model, "insert", {"code": "LT", "name": "Lithuania"})
 
     vln = send(app, city_model, "insert", {"name": "Vilnius", "country": {"code": "LT", "name": "Lithuania"}})
 

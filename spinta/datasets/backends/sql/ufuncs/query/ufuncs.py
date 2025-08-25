@@ -785,7 +785,8 @@ def asc(env, dtype):
 @ufunc.resolver(SqlQueryBuilder, sa.sql.expression.ColumnElement)
 def asc(env, column):
     return sa.case(
-        [(column == None, sa.literal_column("1", type_=sa.Integer))], else_=sa.literal_column("0", type_=sa.Integer)
+        [(column == None, sa.literal_column("1", type_=sa.Integer))],  # noqa E711 We use != None, because of ORM
+        else_=sa.literal_column("0", type_=sa.Integer),
     ), column.asc()
 
 
@@ -807,7 +808,8 @@ def desc(env, dtype):
 @ufunc.resolver(SqlQueryBuilder, sa.sql.expression.ColumnElement)
 def desc(env, column):
     return sa.case(
-        [(column != None, sa.literal_column("1", type_=sa.Integer))], else_=sa.literal_column("0", type_=sa.Integer)
+        [(column != None, sa.literal_column("1", type_=sa.Integer))],  # noqa E711 We use != None, because of ORM
+        else_=sa.literal_column("0", type_=sa.Integer),
     ), column.desc()
 
 

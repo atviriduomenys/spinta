@@ -312,7 +312,7 @@ def get_request(
             if error_counter:
                 error_counter.increase()
             try:
-                recv = resp.json()
+                resp.json()
             except requests.JSONDecodeError:
                 if stop_on_error:
                     raise

@@ -1,4 +1,3 @@
-
 from spinta.utils.nestedstruct import split_excluding_parentheses
 from spinta.utils.schema import NA
 

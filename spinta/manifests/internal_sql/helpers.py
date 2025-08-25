@@ -84,7 +84,7 @@ def select_full_table(table, extra_cols=None):
 def read_initial_schema(context: Context, manifest: InternalSQLManifest):
     conn = context.get("transaction.manifest").connection
     table = manifest.table
-    stmt = select_full_table(table).where(table.c.path == None).order_by(table.c.index)
+    stmt = select_full_table(table).where(table.c.path is None).order_by(table.c.index)
     rows = conn.execute(stmt)
     yield from internal_to_schema(manifest, rows)
 

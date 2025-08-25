@@ -144,7 +144,7 @@ class PgQueryBuilder(QueryBuilder):
             rtable = self.backend.get_table(rmodel).alias()
             rpkey = self.backend.get_refprop_columns(rtable, fpr.left.prop, rmodel)
             lrkey = self.backend.get_column(ltable, fpr.left.prop)
-            if type(lrkey) != type(rpkey):
+            if type(lrkey) is not type(rpkey):
                 raise Exception("COUNT DONT MATCH")
 
             if not isinstance(lrkey, list):
@@ -186,7 +186,7 @@ class PgQueryBuilder(QueryBuilder):
                             condition = sa.and_(condition, key == rpkey[i])
                 else:
                     raise Exception("DOESNT MATCH")
-            elif type(lrkey) != type(rpkey):
+            elif type(lrkey) is not type(rpkey):
                 raise Exception("TYPE DOESNT MATCH")
             else:
                 condition = lrkey == rpkey
@@ -274,7 +274,7 @@ class PgQueryBuilder(QueryBuilder):
                         join_condition = sa.and_(join_condition, key == initial_join_right_keys[i])
             else:
                 raise Exception("DOESNT MATCH")
-        elif type(left_keys) != type(initial_join_right_keys):
+        elif type(left_keys) is not type(initial_join_right_keys):
             raise Exception("TYPE DOESNT MATCH")
         else:
             join_condition = left_keys == initial_join_right_keys

@@ -1046,7 +1046,7 @@ def _ne_compare(env: PgQueryBuilder, prop: Property, column, value):
             [list_table.c._rid],
             distinct=list_table.c._rid,
         )
-        .where(column != None)
+        .where(column != None)  # noqa E711, we use != None, because of ORM
         .  # noqa
         alias()
     )
@@ -1072,8 +1072,8 @@ def _ne_compare(env: PgQueryBuilder, prop: Property, column, value):
     # If field exists and given value does not, then field is not equal to
     # value.
     return sa.and_(
-        subqry1.c._rid != None,  # noqa
-        subqry2.c._rid == None,
+        subqry1.c._rid != None,  # noqa E711, we use != None, because of ORM
+        subqry2.c._rid == None,  # noqa E711, we use == None, because of ORM
     )
 
 

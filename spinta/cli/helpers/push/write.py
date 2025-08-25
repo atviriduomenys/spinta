@@ -300,7 +300,7 @@ def _push_rows(
             next(rows)
         except StopIteration:
             break
-        except:
+        except Exception:
             if error_counter:
                 error_counter.increase()
 

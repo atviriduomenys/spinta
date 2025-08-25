@@ -107,7 +107,7 @@ def test_keymap_sync_dry_run(
 
     assert remote.url == "https://example.com/"
     remote.app.authmodel("syncdataset/countries/Country", ["insert", "wipe"])
-    resp = remote.app.post(
+    remote.app.post(
         "https://example.com/syncdataset/countries/Country",
         json={
             "code": 2,

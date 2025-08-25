@@ -408,7 +408,7 @@ class TypeDetector:
         try:
             datetime.strptime(value, "%Y-%m-%d")
             self.type = "date"
-        except:
+        except Exception:
             self.type = ""
 
     def _assert_datetime(self, value: str):
@@ -416,7 +416,7 @@ class TypeDetector:
             dt_str = value
             datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
             self.type = "datetime"
-        except:
+        except Exception:
             self.type = ""
 
     def _assert_time(self, value: str):
@@ -427,7 +427,7 @@ class TypeDetector:
                 datetime.strptime(value, time_format)
                 new_type = "time"
                 break
-            except:
+            except Exception:
                 continue
         self.type = new_type
 

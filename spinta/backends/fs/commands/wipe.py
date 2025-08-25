@@ -1,4 +1,3 @@
-
 from spinta import commands
 from spinta.commands import getall
 from spinta.components import Context

@@ -1,4 +1,3 @@
-
 from spinta import commands
 from spinta.components import Context
 from spinta.core.access import link_access_param

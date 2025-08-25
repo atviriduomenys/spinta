@@ -1,4 +1,3 @@
-
 import pytest
 
 from spinta.testing.data import listdata

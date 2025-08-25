@@ -329,7 +329,7 @@ def test_export_postgresql(
     localrc = create_rc(rc, tmp_path, export_db, mode="internal")
     dir_path = tmp_path / "data"
     dir_path.mkdir()
-    result = cli.invoke(
+    cli.invoke(
         localrc,
         [
             "export",
@@ -516,7 +516,7 @@ def test_export_postgresql_empty_ref(
     localrc = create_rc(rc, tmp_path, export_db, mode="external")
     dir_path = tmp_path / "data"
     dir_path.mkdir()
-    result = cli.invoke(
+    cli.invoke(
         localrc,
         [
             "export",
@@ -698,7 +698,7 @@ def test_export_postgresql_denorm(
     localrc = create_rc(rc, tmp_path, export_db, mode="external")
     dir_path = tmp_path / "data"
     dir_path.mkdir()
-    result = cli.invoke(
+    cli.invoke(
         localrc,
         [
             "export",
@@ -821,7 +821,7 @@ def test_export_postgresql_text(
     localrc = create_rc(rc, tmp_path, export_db, mode="external")
     dir_path = tmp_path / "data"
     dir_path.mkdir()
-    result = cli.invoke(
+    cli.invoke(
         localrc,
         [
             "export",
@@ -1007,7 +1007,7 @@ def test_export_postgresql_sync_data(
     )
     pl_id = resp.json()["_id"]
 
-    result = cli.invoke(
+    cli.invoke(
         localrc,
         [
             "export",
@@ -1218,7 +1218,7 @@ def test_export_postgresql_access_private(
     localrc = create_rc(rc, tmp_path, export_db, mode="internal")
     dir_path = tmp_path / "data"
     dir_path.mkdir()
-    result = cli.invoke(localrc, ["export", "-b", "postgresql", "-o", dir_path, "--access", "private"])
+    cli.invoke(localrc, ["export", "-b", "postgresql", "-o", dir_path, "--access", "private"])
     _assert_files_exist(
         dir_path,
         [
@@ -1481,7 +1481,7 @@ def test_export_postgresql_access_protected(
     localrc = create_rc(rc, tmp_path, export_db, mode="internal")
     dir_path = tmp_path / "data"
     dir_path.mkdir()
-    result = cli.invoke(localrc, ["export", "-b", "postgresql", "-o", dir_path, "--access", "protected"])
+    cli.invoke(localrc, ["export", "-b", "postgresql", "-o", dir_path, "--access", "protected"])
     _assert_files_exist(
         dir_path,
         [
@@ -1681,7 +1681,7 @@ def test_export_postgresql_access_public(
     localrc = create_rc(rc, tmp_path, export_db, mode="internal")
     dir_path = tmp_path / "data"
     dir_path.mkdir()
-    result = cli.invoke(localrc, ["export", "-b", "postgresql", "-o", dir_path, "--access", "public"])
+    cli.invoke(localrc, ["export", "-b", "postgresql", "-o", dir_path, "--access", "public"])
     _assert_files_exist(
         dir_path,
         [
@@ -1881,7 +1881,7 @@ def test_export_postgresql_access_open(
     localrc = create_rc(rc, tmp_path, export_db, mode="internal")
     dir_path = tmp_path / "data"
     dir_path.mkdir()
-    result = cli.invoke(localrc, ["export", "-b", "postgresql", "-o", dir_path, "--access", "open"])
+    cli.invoke(localrc, ["export", "-b", "postgresql", "-o", dir_path, "--access", "open"])
     _assert_files_exist(
         dir_path,
         [
@@ -2081,7 +2081,7 @@ def test_export_postgresql_access_nested(
     localrc = create_rc(rc, tmp_path, export_db, mode="internal")
     dir_path = tmp_path / "data"
     dir_path.mkdir()
-    result = cli.invoke(localrc, ["export", "-b", "postgresql", "-o", dir_path, "--access", "open"])
+    cli.invoke(localrc, ["export", "-b", "postgresql", "-o", dir_path, "--access", "open"])
     _assert_files_exist(
         dir_path,
         [

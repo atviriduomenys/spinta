@@ -281,9 +281,7 @@ def test_jsonl_text_with_lang(
     app = create_test_client(context)
     app.authmodel("example/jsonl", ["insert", "getall", "search"])
 
-    pushdata(
-        app, "/example/jsonl/text/lang/Country", {"id": 0, "name": {"lt": "Lietuva", "en": "Lithuania", "": "LT"}}
-    )
+    pushdata(app, "/example/jsonl/text/lang/Country", {"id": 0, "name": {"lt": "Lietuva", "en": "Lithuania", "": "LT"}})
     pushdata(app, "/example/jsonl/text/lang/Country", {"id": 1, "name": {"lt": "Anglija", "en": "England", "": "UK"}})
 
     resp = app.get(

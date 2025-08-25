@@ -138,7 +138,7 @@ def construct_where_condition_from_page(page: Page, table: sa.Table, prefix: str
                                 where_list[n].append(
                                     sa.or_(
                                         table.c[f"{prefix}{page_by.prop.name}"] > page_by.value,
-                                        table.c[f"{prefix}{page_by.prop.name}"] == None,
+                                        table.c[f"{prefix}{page_by.prop.name}"] == None,  # noqa E711, we use == None, because of ORM
                                     )
                                 )
                         else:

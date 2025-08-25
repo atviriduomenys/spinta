@@ -73,8 +73,6 @@ def prepare(context: Context, backend: PostgreSQL, model: Model, ignore_duplicat
         sa.Column("_updated", sa.DateTime),
         *columns,
     )
-    if main_table_name == "country":
-        pp(model.manifest.path)
     backend.add_table(main_table, model)
 
     # Reserved models should not have additional generic tables.

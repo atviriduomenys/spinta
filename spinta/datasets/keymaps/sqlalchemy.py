@@ -67,7 +67,7 @@ class SqlAlchemyKeyMap(KeyMap):
         table = self.get_table(name)
         current_key = self.conn.execute(
             sa.select([table.c.key])
-            .where(sa.and_(table.c.value == prepared_value, table.c.redirect == None))
+            .where(sa.and_(table.c.value == prepared_value, table.c.redirect == None))  # noqa E711 We use == None, because of ORM
             .order_by(table.c.modified_at.desc())
             .limit(1)
         ).scalar()

@@ -59,7 +59,7 @@ def migrate_table(keymap: "SqlAlchemyKeyMap", table: sa.Table):
     normal_table_exists = True
     progress = tqdm(desc=f'MIGRATING "{table}" KEYMAP DATA', ascii=True)
     try:
-        with connection.begin() as trx:
+        with connection.begin():
             if temp_table in keymap.metadata.tables:
                 temp_table_exists = True
 

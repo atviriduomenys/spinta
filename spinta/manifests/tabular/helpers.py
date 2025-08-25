@@ -2749,7 +2749,7 @@ def render_tabular_manifest_rows(
         lines.append(line)
 
     lines = [" | ".join(line) for line in lines]
-    lines = [l.rstrip() for l in lines]
+    lines = [line.rstrip() for line in lines]
     return "\n".join(lines)
 
 

@@ -1756,7 +1756,7 @@ def cast_backend_to_python(context: Context, dtype: UUID, backend: Backend, data
     if isinstance(data, str):
         try:
             return uuid.UUID(str(data))
-        except:
+        except Exception:
             return data
     return data
 
@@ -1768,7 +1768,7 @@ def cast_backend_to_python(context: Context, dtype: DateTime, backend: Backend, 
     if isinstance(data, str):
         try:
             return dateutil.parser.isoparse(data)
-        except:
+        except Exception:
             return data
     return data
 
@@ -1781,7 +1781,7 @@ def cast_backend_to_python(context: Context, dtype: Time, backend: Backend, data
         try:
             isoparser = dateutil.parser.isoparser()
             return isoparser.parse_isotime(data)
-        except:
+        except Exception:
             return data
     return data
 
@@ -1794,7 +1794,7 @@ def cast_backend_to_python(context: Context, dtype: Date, backend: Backend, data
         try:
             isoparser = dateutil.parser.isoparser()
             return isoparser.parse_isodate(data)
-        except:
+        except Exception:
             return data
     return data
 
@@ -1811,7 +1811,7 @@ def cast_backend_to_python(context: Context, dtype: Integer, backend: Backend, d
             elif "," in data:
                 new = data.replace(",", "")
             return int(new)
-        except:
+        except Exception:
             return data
     return data
 
@@ -1828,7 +1828,7 @@ def cast_backend_to_python(context: Context, dtype: Number, backend: Backend, da
             elif "," in data:
                 new = data.replace(",", "")
             return float(new)
-        except:
+        except Exception:
             return data
     return data
 
@@ -1852,7 +1852,7 @@ def cast_backend_to_python(context: Context, dtype: Boolean, backend: Backend, d
     if isinstance(data, str):
         try:
             return asbool(data)
-        except:
+        except ValueError:
             return data
     return data
 
@@ -1864,7 +1864,7 @@ def cast_backend_to_python(context: Context, dtype: Geometry, backend: Backend, 
     if isinstance(data, str):
         try:
             return wkt.loads(data)
-        except:
+        except Exception:
             return data
     return data
 

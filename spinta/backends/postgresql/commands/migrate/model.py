@@ -134,7 +134,6 @@ def migrate(
     new: Model,
     **kwargs,
 ):
-    rename = migration_ctx.rename
     handler = migration_ctx.handler
     inspector = migration_ctx.inspector
 

@@ -1029,9 +1029,7 @@ def test_html_text_with_lang(
     app = create_test_client(context)
     app.authmodel("example/html", ["insert", "getall", "search"])
 
-    pushdata(
-        app, "/example/html/text/lang/Country", {"id": 0, "name": {"lt": "Lietuva", "en": "Lithuania", "C": "LT"}}
-    )
+    pushdata(app, "/example/html/text/lang/Country", {"id": 0, "name": {"lt": "Lietuva", "en": "Lithuania", "C": "LT"}})
     pushdata(app, "/example/html/text/lang/Country", {"id": 1, "name": {"lt": "Anglija", "en": "England", "C": "UK"}})
 
     resp = app.get(

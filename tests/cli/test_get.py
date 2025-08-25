@@ -78,7 +78,6 @@ def test_getall(context, rc, cli: SpintaCliRunner, tmp_path):
 
     with temp_yaml_file.open("w") as file:
         file.write(yaml_content())
-    content = temp_yaml_file.read_text(encoding="utf-8")
     create_tabular_manifest(context, temp_manifest_file, manifest)
 
     result = cli.invoke(rc, ["getall", temp_manifest_file, temp_yaml_file, "datasets/gov/example/City"])

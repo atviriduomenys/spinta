@@ -20,7 +20,7 @@ class TestPrepareWsdl:
         dataset = commands.get_dataset(context, manifest, "example")
         backend = dataset.resources["soap_resource"].backend
 
-        assert type(getattr(backend, "soap_operation", None)) == OperationProxy
+        assert isinstance(getattr(backend, "soap_operation", None), OperationProxy)
 
     def test_raise_error_if_wsdl_argument_is_same_resource(self, rc: RawConfig) -> None:
         table = """

@@ -483,9 +483,7 @@ def test_csv_changes_text(
     pushdata(
         app, "/example/csv/text/changes/Country", {"id": 0, "name": {"lt": "Lietuva", "en": "Lithuania", "C": "LT"}}
     )
-    pushdata(
-        app, "/example/csv/text/changes/Country", {"id": 1, "name": {"lt": "Anglija", "en": "England", "C": "UK"}}
-    )
+    pushdata(app, "/example/csv/text/changes/Country", {"id": 1, "name": {"lt": "Anglija", "en": "England", "C": "UK"}})
 
     assert parse_csv(
         app.get(

@@ -1,4 +1,3 @@
-
 from spinta import commands
 from spinta.commands import build_data_patch_for_write as patch
 from spinta.components import Model

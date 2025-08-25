@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any
-from typing import Optional
-from typing import Type
-
+from typing import Any, Optional, Type, TYPE_CHECKING
 from spinta import exceptions
+
+if TYPE_CHECKING:
+    from spinta.components import Component
 
 
 def get_enum_by_name(enum, value):
@@ -16,7 +16,7 @@ def get_enum_by_name(enum, value):
 
 
 def enum_by_name(
-    component: "spinta.components.Component",
+    component: Component,
     param: Optional[str],  # component param
     enum: Type[Enum],
     name: Any,
@@ -30,7 +30,7 @@ def enum_by_name(
 
 
 def enum_by_value(
-    component: "spinta.components.Component",
+    component: Component,
     param: Optional[str],  # component param
     enum: Type[Enum],
     value: Any,

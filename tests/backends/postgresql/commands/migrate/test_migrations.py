@@ -1338,7 +1338,8 @@ def test_migrate_long_names(postgresql_migration: URL, rc: RawConfig, cli: Spint
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
-        table = tables[get_pg_name("migrate/example/very/very/long/dataset/name/ExtremelyLongModelName")]
+        table_name = get_pg_name("migrate/example/very/very/long/dataset/name/ExtremelyLongModelName")
+        assert table_name in tables
 
         cleanup_table_list(
             meta,

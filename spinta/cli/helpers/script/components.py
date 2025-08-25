@@ -4,7 +4,7 @@ import enum
 from collections.abc import Callable
 
 try:
-    from typing import Optional, Concatenate, ParamSpec
+    from typing import Concatenate, ParamSpec
 except ImportError:
     from typing_extensions import Concatenate, ParamSpec
 
