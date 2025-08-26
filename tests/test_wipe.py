@@ -39,7 +39,6 @@ def test_wipe_all(app):
 
     # Get data from all models
     resp = app.get("/:all")
-    data = sorted([(r["_type"], r.get("status")) for r in resp.json()["_data"]])
     assert listdata(resp, "_type", "status") == [
         ("Report", "ok"),
         ("_txn", NA),

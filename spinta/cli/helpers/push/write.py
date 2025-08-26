@@ -300,12 +300,12 @@ def _push_rows(
             next(rows)
         except StopIteration:
             break
-        except:
+        except Exception as e:
             if error_counter:
                 error_counter.increase()
 
             if stop_on_error:
-                raise
+                raise e
             cli_push.log.exception("Error while reading data.")
         if error_counter and error_counter.has_reached_max():
             break

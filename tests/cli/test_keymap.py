@@ -12,7 +12,6 @@ import sqlalchemy as sa
 from spinta.backends.postgresql.helpers.name import get_pg_constraint_name, get_pg_table_name
 from spinta.components import Context
 from spinta.core.enums import Action
-from spinta.datasets.keymaps.sqlalchemy import SqlAlchemyKeyMap
 from spinta.exceptions import KeymapDuplicateMapping
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
@@ -108,7 +107,7 @@ def test_keymap_sync_dry_run(
 
     assert remote.url == "https://example.com/"
     remote.app.authmodel("syncdataset/countries/Country", ["insert", "wipe"])
-    resp = remote.app.post(
+    remote.app.post(
         "https://example.com/syncdataset/countries/Country",
         json={
             "code": 2,

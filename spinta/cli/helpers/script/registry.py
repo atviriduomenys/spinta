@@ -8,11 +8,6 @@ from mypy.checkexpr import defaultdict
 from spinta.cli.helpers.script.components import ScriptBase
 from spinta.exceptions import ScriptNotFound
 
-try:
-    from typing import Optional, Concatenate, ParamSpec
-except ImportError:
-    pass
-
 
 class _ScriptRegistryView:
     registry: _ScriptRegistry

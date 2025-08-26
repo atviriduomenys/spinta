@@ -1288,7 +1288,7 @@ def test_prop_multi_nested_denorm(manifest_type, tmp_path, rc):
 
 @pytest.mark.manifests("internal_sql", "csv")
 def test_prop_multi_nested_error_partial(manifest_type, tmp_path, rc):
-    with pytest.raises(PartialTypeNotFound) as e:
+    with pytest.raises(PartialTypeNotFound):
         check(
             tmp_path,
             rc,

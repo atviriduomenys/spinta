@@ -33,7 +33,7 @@ def download_xsd_files(
         print(f"{file_name} <- {url}")
 
 
-def extract_xsd_files(xpath: str, urls: str):
+def extract_xsd_files(session: requests.Session, xpath: str, urls: str):
     for url in urls:
         response = session.get(url)
         document_list = html.fromstring(response.text)

@@ -646,7 +646,7 @@ def test_change_ref_model(rc, cli: SpintaCliRunner):
         },
     )
 
-    with pytest.raises(NotImplementedError) as e:
+    with pytest.raises(NotImplementedError):
         cli.invoke(rc, ["freeze"], catch_exceptions=False)
 
 

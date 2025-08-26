@@ -421,7 +421,7 @@ def test_copy_order_by_access(context: Context, rc, cli, tmp_path):
     """),
     )
 
-    result = cli.invoke(
+    cli.invoke(
         rc,
         [
             "copy",

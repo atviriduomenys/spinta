@@ -59,8 +59,6 @@ def getall(context: Context, ns: Namespace, request: Request, manifest: Manifest
             recursive=True,
         )
     elif params.all:
-        accesslog = context.get("accesslog")
-
         prepare_data_for_response_kwargs = {}
         for model in commands.traverse_ns_models(context, ns, manifest, action, internal=True):
             commands.authorize(context, action, model)

@@ -29,7 +29,6 @@ from spinta.auth import (
     update_client_file,
     get_clients_path,
     Scopes,
-    Token,
     authenticate_token,
 )
 from spinta.auth import ResourceProtector
