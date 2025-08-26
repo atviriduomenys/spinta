@@ -68,6 +68,3 @@ def prepare_data_for_push_state(context: Context, dtype: Time, data: str):
         return datetime.time.fromisoformat(data)
     except ValueError:
         return dateutil.parser.parse(data).time()
-
-
-

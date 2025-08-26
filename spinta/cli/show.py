@@ -15,10 +15,8 @@ from spinta.manifests.tabular.helpers import render_tabular_manifest
 
 def show(
     ctx: TyperContext,
-    manifests: Optional[List[str]] = Argument(None, help=(
-        "Manifest files to load"
-    )),
-    mode: Mode = Option('internal', help="Mode of backend operation"),
+    manifests: Optional[List[str]] = Argument(None, help=("Manifest files to load")),
+    mode: Mode = Option("internal", help="Mode of backend operation"),
 ):
     """Show manifest as ascii table"""
     manifests = convert_str_to_manifest_path(manifests)
@@ -26,4 +24,3 @@ def show(
     store = prepare_manifest(context, verbose=False, full_load=True)
     manifest = store.manifest
     echo(render_tabular_manifest(context, manifest))
-

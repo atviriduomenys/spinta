@@ -28,16 +28,6 @@ def get_crs_bounding_area(srid: int) -> shapely.geometry.Polygon:
     is_lon_lat = is_crs_always_xy(srid)
 
     if is_lon_lat:
-        return shapely.geometry.box(
-            minx=west,
-            maxx=east,
-            miny=south,
-            maxy=north
-        )
+        return shapely.geometry.box(minx=west, maxx=east, miny=south, maxy=north)
 
-    return shapely.geometry.box(
-        minx=south,
-        maxx=north,
-        miny=west,
-        maxy=east
-    )
+    return shapely.geometry.box(minx=south, maxx=north, miny=west, maxy=east)

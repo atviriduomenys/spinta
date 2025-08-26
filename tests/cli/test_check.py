@@ -5,7 +5,10 @@ from spinta.testing.tabular import create_tabular_manifest
 
 
 def test_check_nested_Backref(context: Context, rc, cli: SpintaCliRunner, tmp_path):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
     d | r | b | m | property                   | type    | ref       | source            | prepare | access | level
     datasets/gov/example                       |         |           |                   |         |        |
       | data                                   | sql     |           |                   |         |        |
@@ -25,9 +28,7 @@ def test_check_nested_Backref(context: Context, rc, cli: SpintaCliRunner, tmp_pa
       |   |   |   | political                  | ref     | Political | ././.             |         | public | 1
       |   |   |   | code                       | string  |           | kodas             |         | public | 1
       |   |   |   | name                       | string  |           | pavadinimas       |         | open   | 2
-    '''))
+    """),
+    )
 
-    cli.invoke(rc, [
-        'check',
-        tmp_path / 'manifest.csv'
-    ])
+    cli.invoke(rc, ["check", tmp_path / "manifest.csv"])

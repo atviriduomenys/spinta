@@ -20,22 +20,18 @@ log = logging.getLogger(__name__)
 
 def run(
     ctx: TyperContext,
-    manifests: Optional[List[str]] = Argument(None, help=(
-        "Manifest files to load"
-    )),
-    mode: Mode = Option('internal', help="Mode of backend operation"),
-    host: str = Option('127.0.0.1', help="Run server on given host"),
+    manifests: Optional[List[str]] = Argument(None, help=("Manifest files to load")),
+    mode: Mode = Option("internal", help="Mode of backend operation"),
+    host: str = Option("127.0.0.1", help="Run server on given host"),
     port: int = Option(8000, help="Run server on given port"),
-    backend: Optional[str] = Option(None, '-b', '--backend', help=(
-        "Backend connection string"
-    )),
+    backend: Optional[str] = Option(None, "-b", "--backend", help=("Backend connection string")),
 ):
     """Run development server"""
     import os
     import uvicorn
     import spinta.api
 
-    os.environ['AUTHLIB_INSECURE_TRANSPORT'] = '1'
+    os.environ["AUTHLIB_INSECURE_TRANSPORT"] = "1"
 
     manifests = convert_str_to_manifest_path(manifests)
     context = configure_context(ctx.obj, manifests, mode=mode, backend=backend)

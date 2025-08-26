@@ -21,30 +21,40 @@ log = logging.getLogger(__name__)
 
 def admin(
     ctx: TyperContext,
-    scripts: Optional[List[str]] = Argument(None, help=(
-        f"""
+    scripts: Optional[List[str]] = Argument(
+        None,
+        help=(
+            f"""
         Specify a scripts to run.
         Available scripts: {admin_script_registry.get_all_names()}
         """
-    )),
-    ensure_config_dir: bool = Option(True, '--ensure-config', help=(
-        "Ensures that all config files are created."
-    )),
-    force: bool = Option(False, '-f', '--force', help=(
-        "Skips all checks when running scripts."
-    )),
-    destructive: bool = Option(False, '-d', '--destructive', help=(
-        """
+        ),
+    ),
+    ensure_config_dir: bool = Option(True, "--ensure-config", help=("Ensures that all config files are created.")),
+    force: bool = Option(False, "-f", "--force", help=("Skips all checks when running scripts.")),
+    destructive: bool = Option(
+        False,
+        "-d",
+        "--destructive",
+        help=(
+            """
         Runs scripts in destructive mode (scripts can now override already migrated files).
         WARNING: only use this if you know what will be changed (recommended to create backups).
         """
-    )),
-    check_only: bool = Option(False, '-c', '--check', help=(
-        "Only runs script checks, skipping execution part (used to find out what scripts are needed to run)."
-    )),
-    input_path: Optional[pathlib.Path] = Option(None, '-i', '--input', help=(
-        "Path to input file (some scripts might require extra data). If not given, script will read from stdin."
-    )),
+        ),
+    ),
+    check_only: bool = Option(
+        False,
+        "-c",
+        "--check",
+        help=("Only runs script checks, skipping execution part (used to find out what scripts are needed to run)."),
+    ),
+    input_path: Optional[pathlib.Path] = Option(
+        None,
+        "-i",
+        "--input",
+        help=("Path to input file (some scripts might require extra data). If not given, script will read from stdin."),
+    ),
 ):
     context = configure_context(ctx.obj)
 
@@ -52,10 +62,7 @@ def admin(
         echo("Cannot run force mode with check only mode", err=True)
         sys.exit(1)
 
-    load_config(
-        context,
-        ensure_config_dir=ensure_config_dir
-    )
+    load_config(context, ensure_config_dir=ensure_config_dir)
 
     if scripts is None:
         echo("At least one script needs to be specified", err=True)

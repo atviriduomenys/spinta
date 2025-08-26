@@ -6,4 +6,3 @@ from spinta.exceptions import FormulaError
 @ufunc.resolver(EnumFormula, str)
 def bind(env: EnumFormula, name: str) -> None:
     raise FormulaError(env.node, formula=name, error="Binds are not supported.")
-

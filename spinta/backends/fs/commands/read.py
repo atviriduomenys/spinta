@@ -38,7 +38,7 @@ def getone(
     data = commands.getone(context, prop, dtype, prop.model.backend, id_=id_)
     if data is None:
         raise ItemDoesNotExist(prop, id=id_)
-    data = (dtype.backend.path / data[prop.name]['_id']).read_bytes()
+    data = (dtype.backend.path / data[prop.name]["_id"]).read_bytes()
     return commands.cast_backend_to_python(context, prop, backend, data)
 
 
@@ -51,7 +51,7 @@ def getfile(
     *,
     data: FileObjectData,
 ) -> Optional[Path]:
-    filename = data['_id']
+    filename = data["_id"]
     if filename is None:
         return None
     else:
