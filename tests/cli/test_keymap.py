@@ -84,25 +84,6 @@ def check_keymap_state(context: Context, table_name: str) -> list[KeymapData]:
         return values
 
 
-@pytest.fixture(scope="function")
-def reset_keymap(context):
-    def _reset_keymap(excluded_tables: list[str] = None):
-        keymap.metadata.reflect()
-        with keymap.engine.connect() as conn:
-            for key, table in keymap.metadata.tables.items():
-                if excluded_tables and key in excluded_tables:
-                    continue
-                conn.execute(table.delete())
-
-    keymap = context.get("store").keymaps["default"]
-    excluded = []
-    if isinstance(keymap, SqlAlchemyKeyMap):
-        excluded.append(keymap.migration_table_name)
-    _reset_keymap(excluded)
-    yield
-    _reset_keymap(excluded)
-
-
 def test_keymap_sync_dry_run(
     context, postgresql, rc: RawConfig, cli: SpintaCliRunner, responses, tmp_path, geodb, request
 ):

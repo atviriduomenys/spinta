@@ -13,6 +13,7 @@ from responses import RequestsMock
 
 from spinta.core.config import RawConfig
 from spinta.core.config import read_config
+from spinta.datasets.keymaps.sqlalchemy import SqlAlchemyKeyMap
 from spinta.manifests.components import Manifest
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.client import TestClient
@@ -276,3 +277,22 @@ def _prepare_migration_postgresql(dsn: URL) -> None:
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis_topology"))
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS fuzzystrmatch"))
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis_tiger_geocoder"))
+
+
+@pytest.fixture(scope="function")
+def reset_keymap(context):
+    def _reset_keymap(excluded_tables: list[str] = None):
+        keymap.metadata.reflect()
+        with keymap.engine.connect() as conn:
+            for key, table in keymap.metadata.tables.items():
+                if excluded_tables and key in excluded_tables:
+                    continue
+                conn.execute(table.delete())
+
+    keymap = context.get("store").keymaps["default"]
+    excluded = []
+    if isinstance(keymap, SqlAlchemyKeyMap):
+        excluded.append(keymap.migration_table_name)
+    _reset_keymap(excluded)
+    yield
+    _reset_keymap(excluded)
