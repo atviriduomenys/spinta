@@ -6,9 +6,11 @@ from sqlalchemy.dialects.postgresql import JSONB
 import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers.migrate.migrate import PostgresqlMigrationContext, ModelMigrationContext, \
-    json_has_key, \
-    adjust_kwargs, PropertyMigrationContext
+from spinta.backends.postgresql.helpers.migrate.migrate import (
+    PostgresqlMigrationContext,
+    json_has_key,
+    PropertyMigrationContext,
+)
 from spinta.backends.postgresql.helpers.name import name_changed, get_pg_removed_name, get_pg_table_name
 from spinta.components import Context
 from spinta.types.text.components import Text
@@ -16,7 +18,9 @@ from spinta.utils.nestedstruct import get_last_attr
 from spinta.utils.schema import NA
 
 
-@commands.migrate.register(Context, PostgreSQL, PostgresqlMigrationContext, PropertyMigrationContext, sa.Table, list, Text)
+@commands.migrate.register(
+    Context, PostgreSQL, PostgresqlMigrationContext, PropertyMigrationContext, sa.Table, list, Text
+)
 def migrate(
     context: Context,
     backend: PostgreSQL,
@@ -25,7 +29,7 @@ def migrate(
     table: sa.Table,
     old: List[sa.Column],
     new: Text,
-    **kwargs
+    **kwargs,
 ):
     rename = migration_ctx.rename
     handler = migration_ctx.handler
@@ -73,19 +77,11 @@ def migrate(
             if json_has_key(backend, json_column, table, key):
                 renamed_key = get_pg_removed_name(key)
                 if json_has_key(backend, json_column, table, renamed_key):
-                    handler.add_action(
-                        ma.RemoveJSONAttributeMigrationAction(table_name, json_column, renamed_key)
-                    )
-                handler.add_action(
-                    ma.RenameJSONAttributeMigrationAction(table_name, json_column, key, renamed_key)
-                )
+                    handler.add_action(ma.RemoveJSONAttributeMigrationAction(table_name, json_column, renamed_key))
+                handler.add_action(ma.RenameJSONAttributeMigrationAction(table_name, json_column, key, renamed_key))
 
         col = json_column if json_column is not None else column
-        handler.add_action(
-            ma.TransferColumnDataToJSONMigrationAction(table_name, col, [
-                (key, item)
-            ])
-        )
+        handler.add_action(ma.TransferColumnDataToJSONMigrationAction(table_name, col, [(key, item)]))
         affected_keys.append(key)
         commands.migrate(context, backend, migration_ctx, property_ctx, table, item, NA, **kwargs)
         columns.remove(item)
@@ -97,22 +93,18 @@ def migrate(
         # Handle renaming of keys
         for key in missing_keys:
             if key not in affected_keys:
-                formatted_name = f'{json_column.name}@{key}'
+                formatted_name = f"{json_column.name}@{key}"
                 new_name = rename.get_column_name(table.name, formatted_name)
                 if name_changed(formatted_name, new_name):
                     extracted_key = get_last_attr(new_name)
-                    json_column_meta.add_new_key(
-                        key, extracted_key
-                    )
+                    json_column_meta.add_new_key(key, extracted_key)
                     affected_keys.append(extracted_key)
         missing_keys -= set(affected_keys)
         for missing_key in missing_keys:
             if missing_key not in json_column_meta.keys:
-                handler.add_action(ma.AddEmptyAttributeToJSONMigrationAction(
-                    table=table_name,
-                    source=json_column,
-                    key=missing_key
-                ))
+                handler.add_action(
+                    ma.AddEmptyAttributeToJSONMigrationAction(table=table_name, source=json_column, key=missing_key)
+                )
             elif missing_key not in json_column_meta.new_keys:
                 json_column_meta.add_new_key(missing_key, get_pg_removed_name(missing_key))
 
@@ -124,7 +116,9 @@ def migrate(
             commands.migrate(context, backend, migration_ctx, property_ctx, table, json_column, column, **kwargs)
 
 
-@commands.migrate.register(Context, PostgreSQL, PostgresqlMigrationContext, PropertyMigrationContext, sa.Table, sa.Column, Text)
+@commands.migrate.register(
+    Context, PostgreSQL, PostgresqlMigrationContext, PropertyMigrationContext, sa.Table, sa.Column, Text
+)
 def migrate(
     context: Context,
     backend: PostgreSQL,
@@ -133,6 +127,6 @@ def migrate(
     table: sa.Table,
     old: sa.Column,
     new: Text,
-    **kwargs
+    **kwargs,
 ):
     commands.migrate(context, backend, migration_ctx, property_ctx, table, [old], new, **kwargs)

@@ -6,14 +6,13 @@ from spinta.backends.helpers import validate_and_return_begin
 from spinta.components import Context, Property
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
-from spinta.datasets.backends.helpers import handle_ref_key_assignment, generate_pk_for_row, handle_external_array_type
+from spinta.datasets.backends.helpers import generate_pk_for_row
 from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.helpers import get_enum_filters
 from spinta.datasets.helpers import get_ref_filters
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.datasets.utils import iterparams
-from spinta.types.datatype import PrimaryKey, Array
-from spinta.types.datatype import Ref
+from spinta.types.datatype import PrimaryKey
 from spinta.typing import ObjectData
 from spinta.ufuncs.querybuilder.components import QueryParams
 from spinta.ufuncs.querybuilder.helpers import get_page_values
@@ -33,16 +32,16 @@ def getall(
     query: Expr = None,
     params: QueryParams = None,
     extra_properties: dict[str, Property] = None,
-    **kwargs
+    **kwargs,
 ) -> Iterator[ObjectData]:
-    conn = context.get(f'transaction.{backend.name}')
+    conn = context.get(f"transaction.{backend.name}")
     builder = backend.query_builder_class(context)
     builder.update(model=model)
     # Merge user passed query with query set in manifest.
     query = merge_formulas(model.external.prepare, query)
     query = merge_formulas(query, get_enum_filters(context, model))
     query = merge_formulas(query, get_ref_filters(context, model))
-    keymap: KeyMap = context.get(f'keymap.{model.keymap.name}')
+    keymap: KeyMap = context.get(f"keymap.{model.keymap.name}")
 
     result_builder_getter = backend_result_builder_getter(context, backend)
 
@@ -69,9 +68,9 @@ def getall(
                         val = generate_pk_for_row(context, sel.prop.model, row, keymap, val)
                 res[key] = val
             if is_page_enabled:
-                res['_page'] = get_page_values(env, row)
+                res["_page"] = get_page_values(env, row)
 
-            res['_type'] = model.model_type()
+            res["_type"] = model.model_type()
             res = flat_dicts_to_nested(res, list_keys=list_keys)
             res = commands.cast_backend_to_python(context, model, backend, res, extra_properties=extra_properties)
             yield res
@@ -85,7 +84,7 @@ def getone(
     *,
     id_: str,
 ) -> ObjectData:
-    keymap: KeyMap = context.get(f'keymap.{model.keymap.name}')
+    keymap: KeyMap = context.get(f"keymap.{model.keymap.name}")
     _id = keymap.decode(model.name, id_)
 
     # preparing query for retrieving item by pk (single column or multi column)
@@ -99,8 +98,8 @@ def getone(
         query[pk] = _id
 
     # building sqlalchemy query
-    context.attach(f'transaction.{backend.name}', validate_and_return_begin, context, backend)
-    conn = context.get(f'transaction.{backend.name}')
+    context.attach(f"transaction.{backend.name}", validate_and_return_begin, context, backend)
+    conn = context.get(f"transaction.{backend.name}")
     table = model.external.name
     table = backend.get_table(model, table)
 
@@ -117,14 +116,11 @@ def getone(
     data = {}
 
     for field in model.properties:
-        if not field.startswith('_'):
+        if not field.startswith("_"):
             value = row[field]
             data[field] = value
 
-    additional_data = {
-        '_type': model.model_type(),
-        '_id': id_
-    }
+    additional_data = {"_type": model.model_type(), "_id": id_}
     data.update(additional_data)
     data = flat_dicts_to_nested(data)
     return commands.cast_backend_to_python(context, model, backend, data)

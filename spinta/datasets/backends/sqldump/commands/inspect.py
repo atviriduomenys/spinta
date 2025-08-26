@@ -20,8 +20,7 @@ from spinta import spyna
 from spinta.components import Context
 from spinta.datasets.backends.sqldump.components import SqlDump
 from spinta.datasets.backends.sqldump.ufuncs.components import File
-from spinta.datasets.backends.sqldump.ufuncs.components import \
-    PrepareFileResource
+from spinta.datasets.backends.sqldump.ufuncs.components import PrepareFileResource
 from spinta.datasets.components import Resource
 from spinta.exceptions import UnexpectedFormulaResult
 from spinta.manifests.components import ManifestSchema
@@ -29,7 +28,6 @@ from spinta.utils.naming import to_model_name
 
 
 class ReadTokens:
-
     def __init__(self, token_list: TokenList, idx=0):
         self.token_list = token_list
         self.idx = idx
@@ -46,25 +44,28 @@ def _read_sql_statement(
     statement: Statement,
 ) -> Iterator[Tuple[int, Dict[str, Any]]]:
     tokens = ReadTokens(statement)
-    if tokens.find(m=(DDL, 'CREATE')) and tokens.find(m=(Keyword, 'TABLE')):
+    if tokens.find(m=(DDL, "CREATE")) and tokens.find(m=(Keyword, "TABLE")):
         identifier: Optional[Identifier] = tokens.find(i=Identifier)
         if identifier is None:
             return
         real_name = identifier.get_real_name()
         name = to_model_name(real_name)
         if resource:
-            name = f'{resource.dataset.name}/{name}'
-        yield 0, {
-            'type': 'model',
-            'name': name,
-            'external': {
-                'dataset': resource.dataset.name if resource else None,
-                'resource': resource.name if resource else None,
-                'name': real_name,
-                'pk': [],
+            name = f"{resource.dataset.name}/{name}"
+        yield (
+            0,
+            {
+                "type": "model",
+                "name": name,
+                "external": {
+                    "dataset": resource.dataset.name if resource else None,
+                    "resource": resource.name if resource else None,
+                    "name": real_name,
+                    "pk": [],
+                },
+                "properties": {},
             },
-            'properties': {},
-        }
+        )
 
 
 def _read_sql_ast(
@@ -82,7 +83,6 @@ def inspect(
     resource: Resource,
     source: Literal[None],
 ) -> Iterator[ManifestSchema]:
-
     if resource.prepare:
         env = PrepareFileResource(context).init(backend.path)
         file = env.resolve(resource.prepare)
@@ -92,7 +92,7 @@ def inspect(
             raise UnexpectedFormulaResult(
                 resource,
                 formula=spyna.unparse(resource.prepare),
-                expected='TextIO',
+                expected="TextIO",
                 received=type(f).__name__,
             )
     else:

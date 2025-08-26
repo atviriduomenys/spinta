@@ -49,27 +49,31 @@ def _render(
     headers,
 ):
     # Format params ar given in RQL query `?format(width(1),max_col_width(1))`.
-    width = params.formatparams.get('width')
-    max_col_width = params.formatparams.get('colwidth')
-    max_value_length = params.formatparams.get('vlen', 100)
+    width = params.formatparams.get("width")
+    max_col_width = params.formatparams.get("colwidth")
+    max_value_length = params.formatparams.get("vlen", 100)
 
     if width is None and max_col_width is None and sys.stdin.isatty():
-        proc = subprocess.run(['stty', 'size'], capture_output=True)
+        proc = subprocess.run(["stty", "size"], capture_output=True)
         _, width = map(int, proc.stdout.split())
     elif width is None and max_col_width is None:
         max_col_width = 42
 
     return StreamingResponse(
-        aiter(peek_and_stream(fmt(
-            context,
-            model,
-            action,
-            params,
-            data,
-            width,
-            max_col_width,
-            max_value_length,
-        ))),
+        aiter(
+            peek_and_stream(
+                fmt(
+                    context,
+                    model,
+                    action,
+                    params,
+                    data,
+                    width,
+                    max_col_width,
+                    max_value_length,
+                )
+            )
+        ),
         status_code=status_code,
         media_type=fmt.content_type,
         headers=headers,

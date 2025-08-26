@@ -15,7 +15,7 @@ from spinta.utils.schema import NA
 def handle_ref_key_assignment(context: Context, keymap: KeyMap, env: Env, value: Any, ref: Ref) -> dict:
     keymap_name = ref.model.model_type()
     if ref.refprops != ref.model.external.pkeys:
-        keymap_name = f'{keymap_name}.{"_".join(prop.name for prop in ref.refprops)}'
+        keymap_name = f"{keymap_name}.{'_'.join(prop.name for prop in ref.refprops)}"
     if isinstance(value, dict):
         new_value = []
         for prop in ref.refprops:
@@ -48,44 +48,37 @@ def handle_ref_key_assignment(context: Context, keymap: KeyMap, env: Env, value:
             contains = keymap.contains(keymap_name, target_value)
         if not contains:
             if target_value is None:
-                return {'_id': None}
+                return {"_id": None}
 
             ref_model = ref.model
 
             # FIXME Quick hack when trying to get `Internal` model keys while running in `External` mode (should probably return error, or None)
             if ref_model.mode == Mode.external and not check_if_model_has_backend_and_source(ref_model):
-                return {
-                    '_id': keymap.encode(keymap_name, target_value)
-                }
+                return {"_id": keymap.encode(keymap_name, target_value)}
 
-            expr_parts = ['select()']
+            expr_parts = ["select()"]
             for i, prop in enumerate(ref.refprops):
                 expr_parts.append(f'{prop.place}="{value[i]}"')
-            expr = asttoexpr(spyna.parse('&'.join(expr_parts)))
-            rows = commands.getall(
-                context,
-                ref_model,
-                ref_model.backend,
-                query=expr
-            )
+            expr = asttoexpr(spyna.parse("&".join(expr_parts)))
+            rows = commands.getall(context, ref_model, ref_model.backend, query=expr)
 
             found_value = False
             for row in rows:
                 if val is not None:
                     raise MultiplePrimaryKeyCandidatesFound(ref, values=target_value)
-                val = row['_id']
+                val = row["_id"]
                 found_value = True
 
             if not found_value:
                 raise NoPrimaryKeyCandidatesFound(ref, values=target_value)
         else:
             val = keymap.encode(keymap_name, target_value)
-        val = {'_id': val}
+        val = {"_id": val}
     else:
         val = {}
         i = 0
         for prop, count in prop_count_mapping.items():
-            values = value[i:i + count]
+            values = value[i : i + count]
             if len(values) == 1:
                 values = values[0]
             val[prop] = values
@@ -95,23 +88,18 @@ def handle_ref_key_assignment(context: Context, keymap: KeyMap, env: Env, value:
 
 def generate_ref_id_using_select(context: Context, dtype: Ref, data: dict) -> str:
     ref_model = dtype.model
-    expr_parts = ['select()']
+    expr_parts = ["select()"]
     for prop in dtype.refprops:
         expr_parts.append(f'{prop.place}="{data[prop.name]}"')
-    expr = asttoexpr(spyna.parse('&'.join(expr_parts)))
-    rows = commands.getall(
-        context,
-        ref_model,
-        ref_model.backend,
-        query=expr
-    )
+    expr = asttoexpr(spyna.parse("&".join(expr_parts)))
+    rows = commands.getall(context, ref_model, ref_model.backend, query=expr)
 
     found_value = False
     val = None
     for row in rows:
         if val is not None:
             raise MultiplePrimaryKeyCandidatesFound(dtype, values=data)
-        val = row['_id']
+        val = row["_id"]
         found_value = True
 
     if not found_value:
@@ -126,15 +114,15 @@ def generate_pk_for_row(context: Context, model: Model, row: Any, keymap, pk_val
         pk_val_base = extract_values_from_row(row, model.base.parent, model.base.pk or model.base.parent.external.pkeys)
         key = model.base.parent.model_type()
         if model.base.pk and model.base.pk != model.base.parent.external.pkeys:
-            joined = '_'.join(pk.name for pk in model.base.pk)
-            key = f'{key}.{joined}'
+            joined = "_".join(pk.name for pk in model.base.pk)
+            key = f"{key}.{joined}"
         pk = keymap.encode(key, pk_val_base)
 
     pk = keymap.encode(model.model_type(), pk_val, pk)
     if pk and model.required_keymap_properties:
         for combination in model.required_keymap_properties:
-            joined = '_'.join(combination)
-            key = f'{model.model_type()}.{joined}'
+            joined = "_".join(combination)
+            key = f"{model.model_type()}.{joined}"
             val = extract_values_from_row(row, model, combination)
             keymap.encode(key, val, pk)
     return pk
@@ -157,13 +145,7 @@ def extract_values_from_row(row: Any, model: Model, keys: list):
     return return_list
 
 
-def handle_external_array_type(
-    context: Context,
-    dtype: Array,
-    keymap: KeyMap,
-    env: Env,
-    val: Any
-):
+def handle_external_array_type(context: Context, dtype: Array, keymap: KeyMap, env: Env, val: Any):
     if isinstance(val, str):
         val = json.loads(val)
 

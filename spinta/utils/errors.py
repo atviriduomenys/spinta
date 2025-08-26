@@ -14,8 +14,8 @@ def report_error(
     *,
     stop_on_error: bool = True,
 ) -> Exception:
-    if data and '_id' in data and isinstance(exc, exceptions.BaseError):
-        exc.context['id'] = data['_id']
+    if data and "_id" in data and isinstance(exc, exceptions.BaseError):
+        exc.context["id"] = data["_id"]
     if stop_on_error:
         raise exc
     else:

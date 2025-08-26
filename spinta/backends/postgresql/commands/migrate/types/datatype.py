@@ -8,13 +8,30 @@ import sqlalchemy as sa
 import spinta.backends.postgresql.helpers.migrate.actions as ma
 from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers.migrate.migrate import PostgresqlMigrationContext, \
-    adjust_kwargs, extract_literal_name_from_column, handle_unique_constraint_migration, contains_unique_constraint, \
-    handle_index_migration, extract_using_from_columns, ModelMigrationContext, contains_constraint_name, \
-    constraint_with_columns, extract_sqlalchemy_columns, reduce_columns, PropertyMigrationContext, \
-    column_cast_warning_message, CastSupport
-from spinta.backends.postgresql.helpers.name import name_changed, get_pg_table_name, get_pg_constraint_name, \
-    get_pg_removed_name, get_pg_index_name
+from spinta.backends.postgresql.helpers.migrate.migrate import (
+    PostgresqlMigrationContext,
+    adjust_kwargs,
+    extract_literal_name_from_column,
+    handle_unique_constraint_migration,
+    contains_unique_constraint,
+    handle_index_migration,
+    extract_using_from_columns,
+    ModelMigrationContext,
+    contains_constraint_name,
+    constraint_with_columns,
+    extract_sqlalchemy_columns,
+    reduce_columns,
+    PropertyMigrationContext,
+    column_cast_warning_message,
+    CastSupport,
+)
+from spinta.backends.postgresql.helpers.name import (
+    name_changed,
+    get_pg_table_name,
+    get_pg_constraint_name,
+    get_pg_removed_name,
+    get_pg_index_name,
+)
 from spinta.components import Context
 from spinta.exceptions import UnableToCastColumnTypes
 from spinta.types.datatype import DataType
@@ -24,7 +41,9 @@ from spinta.utils.schema import NotAvailable, NA
 from typer import echo
 
 
-@commands.migrate.register(Context, PostgreSQL, PostgresqlMigrationContext, PropertyMigrationContext, sa.Table, NotAvailable, DataType)
+@commands.migrate.register(
+    Context, PostgreSQL, PostgresqlMigrationContext, PropertyMigrationContext, sa.Table, NotAvailable, DataType
+)
 def migrate(
     context: Context,
     backend: PostgreSQL,
@@ -33,7 +52,7 @@ def migrate(
     table: sa.Table,
     old: NotAvailable,
     new: DataType,
-    **kwargs
+    **kwargs,
 ):
     columns = commands.prepare(context, backend, new.prop)
     columns = ensure_list(columns)
@@ -43,7 +62,9 @@ def migrate(
         commands.migrate(context, backend, migration_ctx, property_ctx, table, old, columns, **kwargs)
 
 
-@commands.migrate.register(Context, PostgreSQL, PostgresqlMigrationContext, PropertyMigrationContext, sa.Table, sa.Column, DataType)
+@commands.migrate.register(
+    Context, PostgreSQL, PostgresqlMigrationContext, PropertyMigrationContext, sa.Table, sa.Column, DataType
+)
 def migrate(
     context: Context,
     backend: PostgreSQL,
@@ -52,7 +73,7 @@ def migrate(
     table: sa.Table,
     old: sa.Column,
     new: DataType,
-    **kwargs
+    **kwargs,
 ):
     columns = commands.prepare(context, backend, new.prop)
     columns = ensure_list(columns)
@@ -61,7 +82,9 @@ def migrate(
     commands.migrate(context, backend, migration_ctx, property_ctx, table, old, columns, **kwargs)
 
 
-@commands.migrate.register(Context, PostgreSQL, PostgresqlMigrationContext, PropertyMigrationContext, sa.Table, list, DataType)
+@commands.migrate.register(
+    Context, PostgreSQL, PostgresqlMigrationContext, PropertyMigrationContext, sa.Table, list, DataType
+)
 def migrate(
     context: Context,
     backend: PostgreSQL,
@@ -70,7 +93,7 @@ def migrate(
     table: sa.Table,
     old: List[sa.Column],
     new: DataType,
-    **kwargs
+    **kwargs,
 ):
     rename = migration_ctx.rename
 
@@ -90,7 +113,9 @@ def migrate(
         commands.migrate(context, backend, migration_ctx, property_ctx, table, col, column, **kwargs)
 
 
-@commands.migrate.register(Context, PostgreSQL, PostgresqlMigrationContext, PropertyMigrationContext, sa.Table, sa.Column, sa.Column)
+@commands.migrate.register(
+    Context, PostgreSQL, PostgresqlMigrationContext, PropertyMigrationContext, sa.Table, sa.Column, sa.Column
+)
 def migrate(
     context: Context,
     backend: PostgreSQL,
@@ -100,7 +125,7 @@ def migrate(
     old: sa.Column,
     new: sa.Column,
     foreign_key: bool = False,
-    **kwargs
+    **kwargs,
 ):
     rename = migration_ctx.rename
     inspector = migration_ctx.inspector
@@ -120,27 +145,28 @@ def migrate(
         result = cast_matrix.supports(old_type, new_type)
         if result is CastSupport.INVALID:
             if migration_ctx.config.raise_error:
-                raise UnableToCastColumnTypes(property_ctx.prop.dtype, column=column_name, old_type=old_type, new_type=new_type)
+                raise UnableToCastColumnTypes(
+                    property_ctx.prop.dtype, column=column_name, old_type=old_type, new_type=new_type
+                )
             else:
                 echo(column_cast_warning_message(property_ctx.prop.dtype, column_name, old_type, new_type), err=True)
         elif result is CastSupport.UNSAFE:
             echo(column_cast_warning_message(property_ctx.prop.dtype, column_name, old_type, new_type), err=True)
 
-    using = extract_using_from_columns(
-        old,
-        new,
-        type_
-    )
+    using = extract_using_from_columns(old, new, type_)
 
     if nullable is not None or type_ is not None or new_name is not None or using is not None:
-        handler.add_action(ma.AlterColumnMigrationAction(
-            table_name=table_name,
-            column_name=old.name,
-            nullable=nullable,
-            type_=type_,
-            new_column_name=new_name,
-            using=using,
-        ), foreign_key)
+        handler.add_action(
+            ma.AlterColumnMigrationAction(
+                table_name=table_name,
+                column_name=old.name,
+                nullable=nullable,
+                type_=type_,
+                new_column_name=new_name,
+                using=using,
+            ),
+            foreign_key,
+        )
 
     is_renamed = name_changed(table.name, table_name, old.name, new.name)
     # Order has to be UniqueConstraint -> Index
@@ -156,7 +182,7 @@ def migrate(
         inspector,
         foreign_key,
         is_renamed,
-        model_context=property_ctx.model_context
+        model_context=property_ctx.model_context,
     )
     handle_index_migration(
         table,
@@ -168,11 +194,13 @@ def migrate(
         inspector,
         foreign_key,
         is_renamed,
-        model_context=property_ctx.model_context
+        model_context=property_ctx.model_context,
     )
 
 
-@commands.migrate.register(Context, PostgreSQL, PostgresqlMigrationContext, PropertyMigrationContext, sa.Table, NotAvailable, sa.Column)
+@commands.migrate.register(
+    Context, PostgreSQL, PostgresqlMigrationContext, PropertyMigrationContext, sa.Table, NotAvailable, sa.Column
+)
 def migrate(
     context: Context,
     backend: PostgreSQL,
@@ -182,17 +210,20 @@ def migrate(
     old: NotAvailable,
     new: sa.Column,
     foreign_key: bool = False,
-    **kwargs
+    **kwargs,
 ):
     rename = migration_ctx.rename
     inspector = migration_ctx.inspector
     handler = migration_ctx.handler
 
     table_name = get_pg_table_name(rename.get_table_name(table.name))
-    handler.add_action(ma.AddColumnMigrationAction(
-        table_name=table_name,
-        column=new,
-    ), foreign_key)
+    handler.add_action(
+        ma.AddColumnMigrationAction(
+            table_name=table_name,
+            column=new,
+        ),
+        foreign_key,
+    )
 
     new_column_name = new.name
     if new.unique:
@@ -200,34 +231,43 @@ def migrate(
         unique_constraints = inspector.get_unique_constraints(table_name=table_name)
         property_ctx.model_context.mark_unique_constraint_handled(constraint_name)
         if not contains_unique_constraint(unique_constraints, new_column_name):
-            handler.add_action(ma.CreateUniqueConstraintMigrationAction(
-                constraint_name=constraint_name,
-                table_name=table_name,
-                columns=[new_column_name]
-            ))
+            handler.add_action(
+                ma.CreateUniqueConstraintMigrationAction(
+                    constraint_name=constraint_name, table_name=table_name, columns=[new_column_name]
+                )
+            )
         elif not contains_constraint_name(unique_constraints, constraint_name):
             constraint = constraint_with_columns(unique_constraints, [new_column_name])
             if constraint:
-                property_ctx.model_context.mark_unique_constraint_handled(constraint['name'])
-                handler.add_action(ma.RenameConstraintMigrationAction(
-                    table_name=table_name,
-                    old_constraint_name=constraint['name'],
-                    new_constraint_name=constraint_name
-                ))
+                property_ctx.model_context.mark_unique_constraint_handled(constraint["name"])
+                handler.add_action(
+                    ma.RenameConstraintMigrationAction(
+                        table_name=table_name,
+                        old_constraint_name=constraint["name"],
+                        new_constraint_name=constraint_name,
+                    )
+                )
 
     index_required = isinstance(new.type, geoalchemy2.types.Geometry)
     if index_required:
         index_name = get_pg_index_name(table_name, new_column_name)
         property_ctx.model_context.mark_index_handled(index_name)
-        handler.add_action(ma.CreateIndexMigrationAction(
-            table_name=table_name,
-            columns=[new_column_name],
-            index_name=index_name,
-            using='GIST'
-        ))
+        handler.add_action(
+            ma.CreateIndexMigrationAction(
+                table_name=table_name, columns=[new_column_name], index_name=index_name, using="GIST"
+            )
+        )
 
 
-@commands.migrate.register(Context, PostgreSQL, PostgresqlMigrationContext, (PropertyMigrationContext, ModelMigrationContext), sa.Table, list, NotAvailable)
+@commands.migrate.register(
+    Context,
+    PostgreSQL,
+    PostgresqlMigrationContext,
+    (PropertyMigrationContext, ModelMigrationContext),
+    sa.Table,
+    list,
+    NotAvailable,
+)
 def migrate(
     context: Context,
     backend: PostgreSQL,
@@ -237,15 +277,30 @@ def migrate(
     old: list,
     new: NotAvailable,
     foreign_key: bool = False,
-    **kwargs
+    **kwargs,
 ):
     for item in old:
-        commands.migrate(context, backend, migration_ctx, node_ctx, table, item, new, **adjust_kwargs(kwargs, {
-            'foreign_key': foreign_key
-        }))
+        commands.migrate(
+            context,
+            backend,
+            migration_ctx,
+            node_ctx,
+            table,
+            item,
+            new,
+            **adjust_kwargs(kwargs, {"foreign_key": foreign_key}),
+        )
 
 
-@commands.migrate.register(Context, PostgreSQL, PostgresqlMigrationContext, (PropertyMigrationContext, ModelMigrationContext), sa.Table, sa.Column, NotAvailable)
+@commands.migrate.register(
+    Context,
+    PostgreSQL,
+    PostgresqlMigrationContext,
+    (PropertyMigrationContext, ModelMigrationContext),
+    sa.Table,
+    sa.Column,
+    NotAvailable,
+)
 def migrate(
     context: Context,
     backend: PostgreSQL,
@@ -255,7 +310,7 @@ def migrate(
     old: sa.Column,
     new: NotAvailable,
     foreign_key: bool = False,
-    **kwargs
+    **kwargs,
 ):
     model_ctx = node_ctx
     if isinstance(node_ctx, PropertyMigrationContext):
@@ -273,35 +328,39 @@ def migrate(
     remove_name = get_pg_removed_name(old.name)
 
     if any(remove_name == column["name"] for column in columns):
-        handler.add_action(ma.DropColumnMigrationAction(
-            table_name=table_name,
-            column_name=remove_name
-        ), foreign_key)
-    handler.add_action(ma.AlterColumnMigrationAction(
-        table_name=table_name,
-        column_name=old.name,
-        new_column_name=remove_name
-    ), foreign_key)
+        handler.add_action(ma.DropColumnMigrationAction(table_name=table_name, column_name=remove_name), foreign_key)
+    handler.add_action(
+        ma.AlterColumnMigrationAction(table_name=table_name, column_name=old.name, new_column_name=remove_name),
+        foreign_key,
+    )
     indexes = inspector.get_indexes(table_name=table.name)
     for index in indexes:
         if index["column_names"] == [old.name]:
             model_ctx.mark_index_handled(index["name"])
-            handler.add_action(ma.DropIndexMigrationAction(
-                table_name=table_name,
-                index_name=index["name"],
-            ), foreign_key)
+            handler.add_action(
+                ma.DropIndexMigrationAction(
+                    table_name=table_name,
+                    index_name=index["name"],
+                ),
+                foreign_key,
+            )
     if old.unique:
         unique_constraints = inspector.get_unique_constraints(table_name=table.name)
         for constraint in unique_constraints:
             if old.name in constraint["column_names"]:
                 model_ctx.mark_unique_constraint_handled(constraint["name"])
-                handler.add_action(ma.DropConstraintMigrationAction(
-                    table_name=table_name,
-                    constraint_name=constraint["name"],
-                ), foreign_key)
+                handler.add_action(
+                    ma.DropConstraintMigrationAction(
+                        table_name=table_name,
+                        constraint_name=constraint["name"],
+                    ),
+                    foreign_key,
+                )
 
 
-@commands.migrate.register(Context, PostgreSQL, PostgresqlMigrationContext, PropertyMigrationContext, sa.Table, NotAvailable, list)
+@commands.migrate.register(
+    Context, PostgreSQL, PostgresqlMigrationContext, PropertyMigrationContext, sa.Table, NotAvailable, list
+)
 def migrate(
     context: Context,
     backend: PostgreSQL,
@@ -311,7 +370,9 @@ def migrate(
     old: NotAvailable,
     new: List[sa.Column],
     foreign_key: bool = False,
-    **kwargs
+    **kwargs,
 ):
     for column in new:
-        commands.migrate(context, backend, migration_ctx, property_ctx, table, old, column, foreign_key=foreign_key, **kwargs)
+        commands.migrate(
+            context, backend, migration_ctx, property_ctx, table, old, column, foreign_key=foreign_key, **kwargs
+        )

@@ -12,20 +12,13 @@ from spinta.types.geometry.components import Geometry
 from spinta.types.geometry.constants import WGS84
 
 GEOMETRY_TYPES = {
-    'point',
-    'linestring',
-    'polygon',
-    'geometry',
+    "point",
+    "linestring",
+    "polygon",
+    "geometry",
 }
-GEOMETRY_TYPES |= {
-    f'multi{x}'
-    for x in GEOMETRY_TYPES
-}
-GEOMETRY_TYPES |= {
-    x + d
-    for d in ('z', 'm', 'zm')
-    for x in GEOMETRY_TYPES
-}
+GEOMETRY_TYPES |= {f"multi{x}" for x in GEOMETRY_TYPES}
+GEOMETRY_TYPES |= {x + d for d in ("z", "m", "zm") for x in GEOMETRY_TYPES}
 
 
 @commands.load.register(Context, Geometry, dict, Manifest)
@@ -52,14 +45,14 @@ def load(
             if _srid.isdigit():
                 srid = int(_srid)
             else:
-                raise InvalidParameterValue(dtype, parameter='srid')
+                raise InvalidParameterValue(dtype, parameter="srid")
         else:
             raise TooManyParameters(dtype, max_params=2)
 
     if geometry_type:
         geometry_type = geometry_type.lower()
         if geometry_type not in GEOMETRY_TYPES:
-            raise InvalidParameterValue(dtype, parameter='geometry_type')
+            raise InvalidParameterValue(dtype, parameter="geometry_type")
 
     if srid is None:
         srid = WGS84

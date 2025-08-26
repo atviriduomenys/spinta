@@ -22,12 +22,9 @@ def before_write(
     if data.saved and data.patch is not NA:
         prop = dtype.prop
         table = backend.get_table(prop, TableType.LIST)
-        transaction = context.get('transaction')
+        transaction = context.get("transaction")
         connection = transaction.connection
-        connection.execute(
-            table.delete().
-            where(table.c._rid == data.root.saved['_id'])
-        )
+        connection.execute(table.delete().where(table.c._rid == data.root.saved["_id"]))
 
     if dtype.prop.list:
         return {}
@@ -46,9 +43,9 @@ def after_write(
     if data.patch:
         prop = dtype.prop
         table = backend.get_table(prop, TableType.LIST)
-        transaction = context.get('transaction')
+        transaction = context.get("transaction")
         connection = transaction.connection
-        rid = take('_id', data.root.patch, data.root.saved)
+        rid = take("_id", data.root.patch, data.root.saved)
         rows = [
             {
                 _get_list_column_name(prop.place, k): v
@@ -61,10 +58,12 @@ def after_write(
             }
             for d in data.iter(patch=True)
         ]
-        qry = table.insert().values({
-            '_txn': transaction.id,
-            '_rid': rid,
-        })
+        qry = table.insert().values(
+            {
+                "_txn": transaction.id,
+                "_rid": rid,
+            }
+        )
         connection.execute(qry, rows)
 
         for d in data.iter(patch=True):
@@ -79,7 +78,7 @@ def _update_lists_table(
     pk: str,
     patch: dict,
 ) -> None:
-    transaction = context.get('transaction')
+    transaction = context.get("transaction")
     connection = transaction.connection
     rows = _get_lists_data(model, patch)
     sort_key = lambda x: x[0].place  # noqa
@@ -90,14 +89,7 @@ def _update_lists_table(
         if action != Action.INSERT:
             connection.execute(table.delete().where(table.c._rid == pk))
         rows = [
-            {
-                '_txn': transaction.id,
-                '_rid': pk,
-                **{
-                    _get_list_column_name(place, k): v
-                    for k, v in row.items()
-                }
-            }
+            {"_txn": transaction.id, "_rid": pk, **{_get_list_column_name(place, k): v for k, v in row.items()}}
             for prop, row in rows
         ]
         connection.execute(table.insert(), rows)
@@ -105,10 +97,9 @@ def _update_lists_table(
 
 def _get_list_column_name(place, name):
     if place == name:
-        return place.split('.')[-1]
+        return place.split(".")[-1]
     else:
-        return name[len(place) + 1:]
-
+        return name[len(place) + 1 :]
 
 
 def _get_lists_data(

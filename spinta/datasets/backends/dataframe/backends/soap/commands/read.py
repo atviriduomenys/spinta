@@ -7,11 +7,7 @@ from spinta import commands
 from spinta.components import Context, Property, Model
 from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.dataframe.backends.soap.components import Soap
-from spinta.datasets.backends.dataframe.commands.read import (
-    parametrize_bases,
-    get_dask_dataframe_meta,
-    dask_get_all
-)
+from spinta.datasets.backends.dataframe.commands.read import parametrize_bases, get_dask_dataframe_meta, dask_get_all
 from spinta.datasets.backends.dataframe.ufuncs.query.components import DaskDataFrameQueryBuilder
 from spinta.dimensions.param.components import ResolvedParams
 from spinta.exceptions import SoapRequestBodyParseError
@@ -89,14 +85,9 @@ def getall(
     resolved_params: ResolvedParams = None,
     extra_properties: dict[str, Property] = None,
     params: QueryParams,
-    **kwargs
+    **kwargs,
 ) -> Iterator[ObjectData]:
-    bases = parametrize_bases(
-        context,
-        model,
-        model.external.resource,
-        resolved_params
-    )
+    bases = parametrize_bases(context, model, model.external.resource, resolved_params)
     bases = list(bases)
 
     builder = backend.query_builder_class(context)
@@ -110,20 +101,20 @@ def getall(
         raise SoapRequestBodyParseError(err)
 
     meta = get_dask_dataframe_meta(model)
-    df = dask.bag.from_sequence(bases).map(
-        _get_data_soap, backend=backend, soap_request=soap_request,
-    ).flatten().to_dataframe(meta=meta)
+    df = (
+        dask.bag.from_sequence(bases)
+        .map(
+            _get_data_soap,
+            backend=backend,
+            soap_request=soap_request,
+        )
+        .flatten()
+        .to_dataframe(meta=meta)
+    )
 
     dask_dataframe_query_builder = DaskDataFrameQueryBuilder(context)
     dask_dataframe_query_builder.update(model=model)
 
     yield from dask_get_all(
-        context,
-        query,
-        df,
-        backend,
-        model,
-        dask_dataframe_query_builder,
-        extra_properties,
-        builder.property_values
+        context, query, df, backend, model, dask_dataframe_query_builder, extra_properties, builder.property_values
     )

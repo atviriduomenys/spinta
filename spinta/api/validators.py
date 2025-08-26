@@ -9,13 +9,13 @@ class ClientAddData(BaseModel):
     scopes: Optional[list[str]] = None
     backends: Optional[dict[str, dict[str, Any]]] = None
 
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra="forbid")
 
 
 class ClientSecretPatchData(BaseModel):
     secret: Optional[str] = Field(default=None, min_length=1)
 
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra="forbid")
 
 
 class ClientPatchData(ClientSecretPatchData):

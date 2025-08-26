@@ -20,39 +20,34 @@ from spinta.exceptions import MultipleRowsFound, NotFoundError, BackendUnavailab
 
 class PostgreSQL(Backend):
     metadata = {
-        'name': 'postgresql',
-        'properties': {
-            'dsn': {'type': 'string', 'required': True},
+        "name": "postgresql",
+        "properties": {
+            "dsn": {"type": "string", "required": True},
         },
     }
 
-    features = {
-        BackendFeatures.FILE_BLOCKS,
-        BackendFeatures.WRITE,
-        BackendFeatures.EXPAND,
-        BackendFeatures.PAGINATION
-    }
+    features = {BackendFeatures.FILE_BLOCKS, BackendFeatures.WRITE, BackendFeatures.EXPAND, BackendFeatures.PAGINATION}
 
     engine: Engine = None
     schema: sa.MetaData = None
     tables: Dict[str, sa.Table] = None
 
-    query_builder_type = 'postgresql'
-    result_builder_type = 'postgresql'
+    query_builder_type = "postgresql"
+    result_builder_type = "postgresql"
 
     @contextlib.contextmanager
     def transaction(self, write=False):
         try:
             with self.engine.begin() as connection:
                 if write:
-                    table = self.tables['_txn']
+                    table = self.tables["_txn"]
                     result = connection.execute(
                         table.insert().values(
                             # FIXME: commands.gen_object_id should be used here
                             _id=str(uuid.uuid4()),
                             datetime=utcnow(),
-                            client_type='',
-                            client_id='',
+                            client_type="",
+                            client_id="",
                             errors=0,
                         )
                     )
@@ -77,9 +72,7 @@ class PostgreSQL(Backend):
         scalar = isinstance(columns, sa.Column)
         columns = columns if isinstance(columns, list) else [columns]
 
-        result = connection.execute(
-            sa.select(columns).where(condition)
-        )
+        result = connection.execute(sa.select(columns).where(condition))
         result = list(itertools.islice(result, 2))
 
         number_of_rows = len(result)
@@ -121,13 +114,17 @@ class PostgreSQL(Backend):
         else:
             return self.tables.get(name)
 
-    def get_column(self, table: sa.Table, prop: Property, *, select=False, override_table: bool = True, **kwargs) -> Union[sa.Column, List[sa.Column]]:
+    def get_column(
+        self, table: sa.Table, prop: Property, *, select=False, override_table: bool = True, **kwargs
+    ) -> Union[sa.Column, List[sa.Column]]:
         if prop.list is not None and override_table:
             table = self.get_table(prop.list, TableType.LIST)
         column = commands.get_column(self, prop, table=table, **kwargs)
         return column
 
-    def get_refprop_columns(self, table: sa.Table, prop: Property, model: Model, *, select=False, override_table: bool = True, **kwargs ) -> Union[sa.Column, List[sa.Column]]:
+    def get_refprop_columns(
+        self, table: sa.Table, prop: Property, model: Model, *, select=False, override_table: bool = True, **kwargs
+    ) -> Union[sa.Column, List[sa.Column]]:
         columns = commands.get_column(self, prop, model, table=table, **kwargs)
         return columns
 
@@ -136,7 +133,7 @@ class PostgreSQL(Backend):
 
     def bootstrapped(self):
         meta = sa.MetaData(self.engine)
-        table = sa.Table('_schema', meta)
+        table = sa.Table("_schema", meta)
         insp = sa.inspect(self.engine)
         if insp.has_table(table.name):
             with self.engine.begin() as conn:
@@ -154,7 +151,6 @@ class ReadTransaction:
 
 
 class WriteTransaction(ReadTransaction):
-
     def __init__(self, connection, id_: str):
         super().__init__(connection)
         self.id = id_

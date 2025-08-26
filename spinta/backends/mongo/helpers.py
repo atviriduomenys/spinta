@@ -4,7 +4,4 @@ from spinta.core.enums import Action
 
 
 def inserting(data: DataSubItem):
-    return (
-        data.root.action == Action.INSERT or
-        (data.root.action == Action.UPSERT and data.saved is NA)
-    )
+    return data.root.action == Action.INSERT or (data.root.action == Action.UPSERT and data.saved is NA)

@@ -17,4 +17,6 @@ def check(context: Context, dtype: ExternalRef):
         for ref_prop in dtype.refprops:
             if ref_prop.name == prop.name:
                 if not isinstance(ref_prop.dtype, type(prop.dtype)):
-                    raise RefPropTypeMissmatch(prop.dtype, refprop=ref_prop.name, required_type=ref_prop.dtype.name, given_type=prop.dtype.name)
+                    raise RefPropTypeMissmatch(
+                        prop.dtype, refprop=ref_prop.name, required_type=ref_prop.dtype.name, given_type=prop.dtype.name
+                    )

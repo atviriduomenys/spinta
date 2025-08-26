@@ -62,7 +62,7 @@ def test_xsd(rc: RawConfig, tmp_path: Path):
     |   |   |   |   | gyvenviete[]      | backref          | Gyvenviete       | GYVENVIETE        | expand() |       |        |     |       |
 
 """
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
@@ -108,7 +108,7 @@ def test_xsd_backref(rc: RawConfig, tmp_path: Path):
 
 """
 
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
@@ -162,7 +162,7 @@ def test_xsd_ref(rc: RawConfig, tmp_path: Path):
 
 """
 
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
@@ -207,7 +207,7 @@ def test_xsd_resource_model(rc: RawConfig, tmp_path: Path):
 
 """
 
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
@@ -262,7 +262,7 @@ id | d | r | b | m | property            | type            | ref              | 
    |   |   |   |   | skiepijimo_data     | string required |                  | SKIEPIJIMO_DATA/text()         |         |       |        |     |       | Skiepijimo data - Data
 """
 
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
@@ -324,7 +324,7 @@ def test_xsd_choice(rc: RawConfig, tmp_path: Path):
 
 """
 
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
@@ -383,7 +383,7 @@ def test_xsd_choice_max_occurs_unbounded(rc: RawConfig, tmp_path: Path):
 
 """
 
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
@@ -417,7 +417,7 @@ def test_xsd_attributes(rc: RawConfig, tmp_path: Path):
     |   |   |   |   | pavadinimas          | string          |         | @pavadinimas       |         |       |        |     |       |
 """
 
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
@@ -460,7 +460,7 @@ def test_xsd_model_one_property(rc: RawConfig, tmp_path: Path):
     |   |   |   |   | klaida            | ref      | Klaida | klaida                  | expand() |       |        |     |       |
     |   |   |   |   | search_parameters | string   |        | searchParameters/text() |          |       |        |     |       |
 """
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
@@ -515,7 +515,7 @@ def test_xsd_separate_simple_type(rc: RawConfig, tmp_path: Path):
     |   |   |   |   | ct_e200ats_duom_sukurti | string   |     | CT_E200ATS_DUOM_SUKURTI/text() |         |       |        |     |       | E200-ats duomenų sukūrimo data ir laikas
     |   |   |   |   | ct_paciento_spi         | string   |     | CT_PACIENTO_SPI/text()         |         |       |        |     |       | Paciento prisirašymo įstaigos pavadinimas
 """
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
@@ -562,7 +562,7 @@ def test_xsd_sequence_choice_sequence(rc: RawConfig, tmp_path: Path):
     |   |   |   |   | iltu_code     | string   |     | iltu_code/text()    |         |       |        |     |       |
 
 """
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
@@ -599,7 +599,7 @@ def test_xsd_complex_content(rc: RawConfig, tmp_path: Path):
            |                                          |            |     |                    |         |       |        |     |       |
            |   |   |   | BusinessEntityOfBEFULL/:part |            |     |                    |         |       |        |     |       |
     """
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
@@ -653,7 +653,7 @@ def test_xsd_recursion(rc: RawConfig, tmp_path: Path):
     |   |   |   | ResponseData       |                  |              | /responseData |          |       |        |     |       |
     |   |   |   |   | action[]       | backref          | Action       | action        | expand() |       |        |     |       |
 """
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
@@ -704,7 +704,7 @@ def test_xsd_enumeration(rc: RawConfig, tmp_path: Path):
     |   |   |   |   | response_data      | ref             | Action | responseData              | expand() |       |        |     |       |
     |   |   |   |   | response_message   | string          |        | responseMessage/text()    |          |       |        |     |       |
 """
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
@@ -713,7 +713,7 @@ def test_xsd_enumeration(rc: RawConfig, tmp_path: Path):
 
 
 def test_duplicate_removal(rc: RawConfig, tmp_path: Path):
-    xsd = '''
+    xsd = """
         <xs:schema xmlns="http://example" elementFormDefault="qualified" targetNamespace="http://example" xmlns:xs="http://www.w3.org/2001/XMLSchema">
             <xs:element name="Wagon" type="Wagon" />
             <xs:complexType name="Wagon">
@@ -737,9 +737,9 @@ def test_duplicate_removal(rc: RawConfig, tmp_path: Path):
                 </xs:sequence>
             </xs:complexType>
         </xs:schema>
-        '''
+        """
 
-    table = '''
+    table = """
         id | d | r | b | m | property                 | type              | ref     | source                        | prepare  | level | access | uri | title | description
            | manifest                                 |                   |         |                               |          |       |        |     |       |
            |   | resource1                            | dask/xml          |         |                               |          |       |        |     |       |
@@ -758,9 +758,9 @@ def test_duplicate_removal(rc: RawConfig, tmp_path: Path):
            |   |   |   | Wagon1                       |                   |         | /Wagon                        |          |       |        |     |       |
            |   |   |   |   | extract                  | ref               | Extract | extract                       | expand() |       |        |     |       |
            |   |   |   |   | search_parameters        | string required   |         | searchParameters/text()       |          |       |        |     |       |
-    '''
+    """
 
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
@@ -828,7 +828,7 @@ def test_duplicate_removal_backref(rc: RawConfig, tmp_path: Path):
            |   |   |   |   | aprasymas                         | string            |                                 | Aprasymas/text()                              |          |       |        |     |       |
     """
 
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
@@ -837,7 +837,7 @@ def test_duplicate_removal_backref(rc: RawConfig, tmp_path: Path):
 
 
 def test_duplicate_removal_multiple_models(rc: RawConfig, tmp_path: Path):
-    xsd = '''
+    xsd = """
         <xs:schema xmlns="http://eTaarPlat.ServiceContracts/2007/08/Messages" elementFormDefault="qualified" targetNamespace="http://eTaarPlat.ServiceContracts/2007/08/Messages" xmlns:xs="http://www.w3.org/2001/XMLSchema">
             <xs:element name="Wagon" type="Wagon" />
             <xs:complexType name="Wagon">
@@ -871,9 +871,9 @@ def test_duplicate_removal_multiple_models(rc: RawConfig, tmp_path: Path):
                         </xs:sequence>
             </xs:complexType>
         </xs:schema>
-    '''
+    """
 
-    table = '''
+    table = """
         id | d | r | b | m | property                 | type              | ref     | source                        | prepare  | level | access | uri | title | description
            | manifest                                 |                   |         |                               |          |       |        |     |       |
            |   | resource1                            | dask/xml          |         |                               |          |       |        |     |       |
@@ -900,9 +900,9 @@ def test_duplicate_removal_multiple_models(rc: RawConfig, tmp_path: Path):
            |   |   |   | Wagon1                       |                   |         | /Wagon                        |          |       |        |     |       |
            |   |   |   |   | extract                  | ref               | Extract | extract                       | expand() |       |        |     |       |
            |   |   |   |   | search_parameters        | string required   |         | searchParameters/text()       |          |       |        |     |       |
-    '''
+    """
 
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
@@ -978,7 +978,7 @@ def test_duplicate_removal_two_level(rc: RawConfig, tmp_path: Path):
         |   |   |   |   | make                     | string required |               | make/text()                         |          |       |        |     |       |
     """
 
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
@@ -1003,7 +1003,7 @@ def test_xsd_resource_model_only(rc: RawConfig, tmp_path: Path):
            |   |   |   |   | name       | string required  |     | name/text()       |         |       |        |                                               |       |
            |   |   |   |   | population | integer required |     | population/text() |         |       |        |                                               |       |
     """
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)
@@ -1054,7 +1054,7 @@ def test_xsd_different_elements_same_complex_type(rc: RawConfig, tmp_path: Path)
            |   |   |   |   | size       | string required |      | Size/text()       |          |       |        |     |       |
            |   |   |   |   | sub_area   | ref required    | Area | SubArea           | expand() |       |        |     |       |
     """
-    path = tmp_path / 'manifest.xsd'
+    path = tmp_path / "manifest.xsd"
     path_xsd2 = f"xsd2+file://{path}"
     with open(path, "w") as xsd_file:
         xsd_file.write(xsd)

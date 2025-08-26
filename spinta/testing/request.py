@@ -24,22 +24,19 @@ def make_get_request(
     path: str,
     query: Optional[str] = None,
     headers: Optional[Dict[str, str]] = None,
-    method: str = 'GET',
+    method: str = "GET",
 ) -> Request:
-    if not path.startswith('/'):
-        path = '/' + path
+    if not path.startswith("/"):
+        path = "/" + path
     req = {
-        'type': 'http',
-        'method': method,
-        'path': path,
-        'path_params': {'path': path},
-        'headers': [
-            (k.lower().encode(), v.encode())
-            for k, v in (headers or {}).items()
-        ],
+        "type": "http",
+        "method": method,
+        "path": path,
+        "path_params": {"path": path},
+        "headers": [(k.lower().encode(), v.encode()) for k, v in (headers or {}).items()],
     }
     if query:
-        req['query_string'] = query.encode()
+        req["query_string"] = query.encode()
     return Request(req)
 
 
@@ -50,15 +47,15 @@ def render_data(
     query: Optional[str],
     data: ObjectData,
     *,
-    method: str = 'GET',
-    accept: str = 'application/json',
+    method: str = "GET",
+    accept: str = "application/json",
     headers: Optional[Dict[str, str]] = None,
 ) -> Optional[Dict[str, Any]]:
-    context.set('auth.token', AdminToken())
+    context.set("auth.token", AdminToken())
 
     if headers is None:
         headers = {}
-    headers['Accept'] = accept
+    headers["Accept"] = accept
     request = make_get_request(path, query, headers, method)
     params: UrlParams = commands.prepare(
         context,
@@ -69,16 +66,12 @@ def render_data(
     action = params.action
     model = params.model
 
-    data = next(prepare_data_for_response(context, model, action, params, data, reserved=[
-        '_type',
-        '_id',
-        '_revision'
-    ]))
+    data = next(prepare_data_for_response(context, model, action, params, data, reserved=["_type", "_id", "_revision"]))
 
     if params.action in (Action.GETALL, Action.SEARCH):
         data = [data]
 
-    if params.format == 'html':
+    if params.format == "html":
         resp = _get_html_template_context(context, model, action, params, data)
     else:
         resp = render(context, request, model, params, data, action=action)
@@ -94,7 +87,7 @@ def _get_html_template_context(
     rows: Iterable[Dict[str, Cell]],
 ):
     ctx = build_template_context(context, model, action, params, rows)
-    resp = next(ctx['data'], None)
+    resp = next(ctx["data"], None)
     if resp is not None:
-        resp = dict(zip(ctx['header'], resp))
+        resp = dict(zip(ctx["header"], resp))
     return resp
