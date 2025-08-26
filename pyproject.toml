@@ -124,6 +124,7 @@ pytest-mock = "*"
 responses = "*"
 snoop = "*"
 python-dotenv = "*"
+ruff = "^0.12.10"
 
 # Starlette
 httpx = "*"
@@ -150,3 +151,15 @@ disallow_any_unimported = true
 show_error_codes = true
 check_untyped_defs = true
 plugins = "sqlmypy"
+
+
+[tool.ruff]
+line-length = 120
+
+
+[tool.ruff.format]
+quote-style = "double"
+
+
+[tool.ruff.lint]
+ignore = ["F811"]
