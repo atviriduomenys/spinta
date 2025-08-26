@@ -26,7 +26,6 @@ script_registry.register(
         run=migrate_changelog_duplicates,
         check=cli_requires_changelog_migrations,
         required=[Script.DEDUPLICATE.value],
-        targets={ScriptTarget.BACKEND.value}
+        targets={ScriptTarget.BACKEND.value},
     )
 )
-

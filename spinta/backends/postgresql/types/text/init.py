@@ -13,4 +13,6 @@ def prepare(context: Context, backend: PostgreSQL, dtype: Text, **kwargs):
     prop = dtype.prop
     name = get_column_name(prop)
 
-    return sa.Column(name, JSONB, unique=dtype.unique, nullable=False, default=sa.text("'{}'"), server_default=sa.text("'{}'"))
+    return sa.Column(
+        name, JSONB, unique=dtype.unique, nullable=False, default=sa.text("'{}'"), server_default=sa.text("'{}'")
+    )

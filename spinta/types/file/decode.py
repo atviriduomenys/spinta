@@ -20,8 +20,8 @@ def load(context: Context, dtype: File, value: object) -> object:
     # check that given obj does not have more keys, than dtype's schema
     check_no_extra_keys(dtype, dtype.schema, value)
 
-    if '_content' in value and isinstance(value['_content'], str):
-        value['_content'] = base64.b64decode(value['_content'])
+    if "_content" in value and isinstance(value["_content"], str):
+        value["_content"] = base64.b64decode(value["_content"])
 
     return commands.decode(context, Json(), dtype.backend, dtype, value)
 

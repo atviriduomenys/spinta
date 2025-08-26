@@ -30,7 +30,7 @@ from spinta.renderer import render
 
 async def _check_post(context: Context, request: Request, params: UrlParams):
     form = await request.form()
-    field = cast(UploadFile, form['manifest'])
+    field = cast(UploadFile, form["manifest"])
     filename = field.filename
 
     # ---8<----
@@ -49,24 +49,25 @@ async def _check_post(context: Context, request: Request, params: UrlParams):
     from spinta.manifests.helpers import load_manifest_nodes
     from spinta.manifests.tabular.components import TabularManifest
     from spinta.manifests.tabular.helpers import read_tabular_manifest
-    rc: RawConfig = context.get('rc')
+
+    rc: RawConfig = context.get("rc")
     Manifest_ = detect_manifest_from_path(rc, filename)
     if issubclass(Manifest_, TabularManifest):
         schemas = read_tabular_manifest(
             Manifest_.format,
             path=filename,
-            file=TextIOWrapper(field.file, encoding='utf-8'),
+            file=TextIOWrapper(field.file, encoding="utf-8"),
         )
     else:
         return {
-            'status': 'error',
-            'errors': [{
-                'type': 'manifest',
-                'code': 'ValueError',
-                'message': (
-                    "Can't detect manifest type from given path {filename!r}."
-                ),
-            }],
+            "status": "error",
+            "errors": [
+                {
+                    "type": "manifest",
+                    "code": "ValueError",
+                    "message": ("Can't detect manifest type from given path {filename!r}."),
+                }
+            ],
         }
 
     try:
@@ -76,19 +77,19 @@ async def _check_post(context: Context, request: Request, params: UrlParams):
         commands.check(context, manifest)
     except BaseError as e:
         return {
-            'status': 'error',
-            'errors': [error_response(e)],
+            "status": "error",
+            "errors": [error_response(e)],
         }
     else:
         return {
-            'status': 'OK',
+            "status": "OK",
         }
 
 
 async def _check(context: Context, request: Request, params: UrlParams):
     commands.authorize(context, Action.CHECK, params.model)
 
-    if request.method == 'POST':
+    if request.method == "POST":
         data = await _check_post(context, request, params)
     else:
         data = None
@@ -108,34 +109,29 @@ async def create_http_response(
     params: UrlParams,
     request: Request,
 ):
-    store: Store = context.get('store')
+    store: Store = context.get("store")
     manifest = store.manifest
 
     if manifest.backend is None:
         raise NoBackendConfigured(manifest)
 
-    if request.method == 'DELETE' and params.action == Action.MOVE:
-        context.attach('transaction', validate_and_return_transaction, context, manifest.backend, write=True)
+    if request.method == "DELETE" and params.action == Action.MOVE:
+        context.attach("transaction", validate_and_return_transaction, context, manifest.backend, write=True)
         return await commands.move(
-            context,
-            request,
-            params.model,
-            params.model.backend,
-            action=params.action,
-            params=params
+            context, request, params.model, params.model.backend, action=params.action, params=params
         )
 
     if params.action == Action.CHECK:
         return await _check(context, request, params)
 
-    if request.method == 'POST' and params.action == Action.INSPECT:
+    if request.method == "POST" and params.action == Action.INSPECT:
         return await inspect_api(context, request, params)
 
-    if request.method == 'POST' and params.action == Action.SCHEMA:
+    if request.method == "POST" and params.action == Action.SCHEMA:
         return await schema_api(context, request, params)
 
-    if request.method in ('GET', 'HEAD'):
-        context.attach('transaction', validate_and_return_transaction, context, manifest.backend)
+    if request.method in ("GET", "HEAD"):
+        context.attach("transaction", validate_and_return_transaction, context, manifest.backend)
 
         if params.changes:
             _enforce_limit(context, params)
@@ -153,7 +149,7 @@ async def create_http_response(
 
             if model.keymap:
                 context.attach(
-                    f'keymap.{model.keymap.name}',
+                    f"keymap.{model.keymap.name}",
                     lambda: model.keymap,
                 )
 
@@ -167,13 +163,7 @@ async def create_http_response(
         elif params.summary:
             model = params.model
             action = params.action
-            return await commands.summary(
-                context,
-                request,
-                model,
-                action=action,
-                params=params
-            )
+            return await commands.summary(context, request, model, action=action, params=params)
         else:
             _enforce_limit(context, params)
             action = params.action
@@ -184,11 +174,11 @@ async def create_http_response(
 
             if backend is not None:
                 # Namespace nodes do not have backend.
-                context.attach(f'transaction.{backend.name}', validate_and_return_begin, context, backend)
+                context.attach(f"transaction.{backend.name}", validate_and_return_begin, context, backend)
 
             if model.keymap:
                 context.attach(
-                    f'keymap.{model.keymap.name}',
+                    f"keymap.{model.keymap.name}",
                     lambda: model.keymap,
                 )
 
@@ -200,12 +190,12 @@ async def create_http_response(
                 params=params,
             )
 
-    elif request.method == 'DELETE' and params.action == Action.WIPE:
+    elif request.method == "DELETE" and params.action == Action.WIPE:
         if params.pk:
             raise NotImplementedError
         else:
             context.attach(
-                'transaction',
+                "transaction",
                 validate_and_return_transaction,
                 context,
                 manifest.backend,
@@ -221,7 +211,7 @@ async def create_http_response(
             )
 
     else:
-        context.attach('transaction', validate_and_return_transaction, context, manifest.backend, write=True)
+        context.attach("transaction", validate_and_return_transaction, context, manifest.backend, write=True)
         action = params.action
         if params.prop and params.propref:
             return await commands.push(
@@ -278,12 +268,12 @@ async def aiter(stream):
 
 
 async def get_request_data(node: Node, request: Request):
-    ct = request.headers.get('content-type')
-    if ct != 'application/json':
+    ct = request.headers.get("content-type")
+    if ct != "application/json":
         raise exceptions.UnknownContentType(
             node,
             content_type=ct,
-            supported_content_types=['application/json'],
+            supported_content_types=["application/json"],
         )
 
     try:
@@ -308,7 +298,7 @@ def get_request(
 
     try:
         resp = client.request("GET", server, timeout=timeout)
-    except IOError as e:
+    except IOError:
         if error_counter:
             error_counter.increase()
         if stop_on_error:
@@ -322,7 +312,7 @@ def get_request(
             if error_counter:
                 error_counter.increase()
             try:
-                recv = resp.json()
+                resp.json()
             except requests.JSONDecodeError:
                 if stop_on_error:
                     raise

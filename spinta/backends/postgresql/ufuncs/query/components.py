@@ -18,8 +18,11 @@ from spinta.exceptions import PropertyNotFound
 from spinta.exceptions import UnknownMethod
 from spinta.types.datatype import DataType, Denorm
 from spinta.ufuncs.querybuilder.components import QueryBuilder, QueryPage, QueryParams, Func
-from spinta.ufuncs.querybuilder.helpers import merge_with_page_selected_list, merge_with_page_sort, \
-    merge_with_page_limit
+from spinta.ufuncs.querybuilder.helpers import (
+    merge_with_page_selected_list,
+    merge_with_page_sort,
+    merge_with_page_limit,
+)
 from spinta.ufuncs.components import ForeignProperty
 
 if TYPE_CHECKING:
@@ -54,16 +57,14 @@ class PgQueryBuilder(QueryBuilder):
 
     def build(self, where):
         if self.selected is None:
-            self.call('select', Expr('select'))
+            self.call("select", Expr("select"))
 
         if not self.aggregate:
-            self.selected['_id'] = Selected(
-                item=self.add_column(self.table.c['_id']),
-                prop=self.model.properties['_id']
+            self.selected["_id"] = Selected(
+                item=self.add_column(self.table.c["_id"]), prop=self.model.properties["_id"]
             )
-            self.selected['_revision'] = Selected(
-                item=self.add_column(self.table.c['_revision']),
-                prop=self.model.properties['_revision']
+            self.selected["_revision"] = Selected(
+                item=self.add_column(self.table.c["_revision"]), prop=self.model.properties["_revision"]
             )
         merged_selected = merge_with_page_selected_list(self.columns, self.page)
         merged_sorted = merge_with_page_sort(self.sort, self.page)
@@ -118,7 +119,7 @@ class PgQueryBuilder(QueryBuilder):
             else:
                 rtable = self.backend.get_table(rmodel).alias()
 
-            rpkey = self.backend.get_column(rtable, rmodel.properties['_id'])
+            rpkey = self.backend.get_column(rtable, rmodel.properties["_id"])
 
             if isinstance(lrkey, list) and not isinstance(rpkey, list):
                 if len(lrkey) == 1:
@@ -143,7 +144,7 @@ class PgQueryBuilder(QueryBuilder):
             rtable = self.backend.get_table(rmodel).alias()
             rpkey = self.backend.get_refprop_columns(rtable, fpr.left.prop, rmodel)
             lrkey = self.backend.get_column(ltable, fpr.left.prop)
-            if type(lrkey) != type(rpkey):
+            if type(lrkey) is not type(rpkey):
                 raise Exception("COUNT DONT MATCH")
 
             if not isinstance(lrkey, list):
@@ -185,7 +186,7 @@ class PgQueryBuilder(QueryBuilder):
                             condition = sa.and_(condition, key == rpkey[i])
                 else:
                     raise Exception("DOESNT MATCH")
-            elif type(lrkey) != type(rpkey):
+            elif type(lrkey) is not type(rpkey):
                 raise Exception("TYPE DOESNT MATCH")
             else:
                 condition = lrkey == rpkey
@@ -201,10 +202,10 @@ class PgQueryBuilder(QueryBuilder):
             raise PropertyNotFound(model, property=prop)
 
         ltable = self.backend.get_table(inherit_model)
-        lrkey = self.backend.get_column(ltable, inherit_model.properties['_id'])
+        lrkey = self.backend.get_column(ltable, inherit_model.properties["_id"])
 
         rtable = self.backend.get_table(base_model).alias()
-        rpkey = self.backend.get_column(rtable, base_model.properties['_id'])
+        rpkey = self.backend.get_column(rtable, base_model.properties["_id"])
 
         if base_model.name in self.joins:
             if self.joins[base_model.name] == rtable:
@@ -217,8 +218,9 @@ class PgQueryBuilder(QueryBuilder):
 
         return self.joins[base_model.name]
 
-    def generate_backref_select(self, left: Property, right: Property, required_columns: List[Tuple[str, str]],
-                                aggregate: bool = False):
+    def generate_backref_select(
+        self, left: Property, right: Property, required_columns: List[Tuple[str, str]], aggregate: bool = False
+    ):
         select_columns = []
         group_by = []
 
@@ -233,7 +235,7 @@ class PgQueryBuilder(QueryBuilder):
         right_list_keys = None
         if right.list is not None:
             right_list_table = self.backend.get_table(right, TableType.LIST)
-            list_join_condition = right_list_table.c['_rid'] == right_table.c['_id']
+            list_join_condition = right_list_table.c["_rid"] == right_table.c["_id"]
             right_list_keys = self.backend.get_column(right_list_table, right)
         from_ = right_list_table if right_list_table is not None else right_table
         initial_join_right_keys = right_list_keys if right_list_keys is not None else right_keys
@@ -272,7 +274,7 @@ class PgQueryBuilder(QueryBuilder):
                         join_condition = sa.and_(join_condition, key == initial_join_right_keys[i])
             else:
                 raise Exception("DOESNT MATCH")
-        elif type(left_keys) != type(initial_join_right_keys):
+        elif type(left_keys) is not type(initial_join_right_keys):
             raise Exception("TYPE DOESNT MATCH")
         else:
             join_condition = left_keys == initial_join_right_keys
@@ -310,13 +312,7 @@ class Recurse(Func):
 # This might be a hack, to access `_base` property
 # should probably be remade to work with ForeignProperty
 class InheritForeignProperty:
-
-    def __init__(
-        self,
-        model: Model,
-        prop_name: str,
-        base_prop: Property
-    ):
+    def __init__(self, model: Model, prop_name: str, base_prop: Property):
         self.model = model
         self.base_prop = base_prop
         self.prop_name = prop_name

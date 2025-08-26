@@ -41,7 +41,7 @@ def extract_state_page_keys(row: Union[dict, Row]):
         row = row._mapping
 
     for key, value in row.items():
-        if 'page.' in key:
+        if "page." in key:
             result.append(value)
     return result
 
@@ -53,7 +53,7 @@ def extract_state_page_id_key(row: Union[dict, Row]):
         row = row._mapping
 
     for key, value in row.items():
-        if key == 'id':
+        if key == "id":
             result.append(value)
             break
     return result
@@ -65,7 +65,7 @@ def extract_dependant_nodes(context: Context, models: List[Model], filter_pushed
         if model.base:
             if commands.identifiable(model.base):
                 if model.base.parent not in extracted_models:
-                    if filter_pushed and not (model.base.parent in models):
+                    if filter_pushed and model.base.parent not in models:
                         extracted_models.append(model.base.parent)
                     elif not filter_pushed:
                         extracted_models.append(model.base.parent)
@@ -75,7 +75,7 @@ def extract_dependant_nodes(context: Context, models: List[Model], filter_pushed
                 if authorized(context, prop, action=Action.SEARCH):
                     if commands.identifiable(prop):
                         if prop.dtype.model not in extracted_models:
-                            if filter_pushed and not (prop.dtype.model in models):
+                            if filter_pushed and prop.dtype.model not in models:
                                 extracted_models.append(prop.dtype.model)
                             elif not filter_pushed:
                                 extracted_models.append(prop.dtype.model)
@@ -84,17 +84,13 @@ def extract_dependant_nodes(context: Context, models: List[Model], filter_pushed
 
 
 def load_initial_page_data(
-    context: Context,
-    metadata: sa.MetaData,
-    models: List[Model],
-    incremental: bool,
-    override_page: dict
+    context: Context, metadata: sa.MetaData, models: List[Model], incremental: bool, override_page: dict
 ) -> dict:
     if not incremental:
         return {}
 
-    conn = context.get('push.state.conn')
-    table = metadata.tables['_page']
+    conn = context.get("push.state.conn")
+    table = metadata.tables["_page"]
     result = {}
 
     for model in models:
@@ -104,12 +100,7 @@ def load_initial_page_data(
                 result[model_name] = override_page[model_name]
                 continue
 
-            page = conn.execute(
-                sa.select([table.c.value]).
-                where(
-                    table.c.model == model.name
-                )
-            ).scalar()
+            page = conn.execute(sa.select([table.c.value]).where(table.c.model == model.name)).scalar()
             values = json.loads(page) if page else {}
             result[model_name] = values
 
@@ -127,14 +118,10 @@ def update_model_page_with_new(
             val = state_row[model_table.c[f"page.{page_by.prop.name}"]]
             model_page.update_value(by, page_by.prop, val)
     elif data_row:
-        model_page.update_values_from_list(data_row['_page'])
+        model_page.update_values_from_list(data_row["_page"])
 
 
-def construct_where_condition_from_page(
-    page: Page,
-    table: sa.Table,
-    prefix: str = 'page.'
-):
+def construct_where_condition_from_page(page: Page, table: sa.Table, prefix: str = "page."):
     item_count = len(page.by.keys())
     where_list = []
     for i in range(item_count):
@@ -145,17 +132,17 @@ def construct_where_condition_from_page(
                 if n >= i:
                     if n == i:
                         if page_by.value is not None:
-                            if by.startswith('-'):
+                            if by.startswith("-"):
                                 where_list[n].append(table.c[f"{prefix}{page_by.prop.name}"] < page_by.value)
                             else:
                                 where_list[n].append(
                                     sa.or_(
                                         table.c[f"{prefix}{page_by.prop.name}"] > page_by.value,
-                                        table.c[f"{prefix}{page_by.prop.name}"] == None
+                                        table.c[f"{prefix}{page_by.prop.name}"].is_(None),
                                     )
                                 )
                         else:
-                            if by.startswith('-'):
+                            if by.startswith("-"):
                                 where_list[n].append(table.c[f"{prefix}{page_by.prop.name}"] != page_by.value)
                     else:
                         where_list[n].append(table.c[f"{prefix}{page_by.prop.name}"] == page_by.value)
@@ -164,7 +151,7 @@ def construct_where_condition_from_page(
 
     remove_list = []
     for i, (by, value) in enumerate(page.by.items()):
-        if value.value is None and not by.startswith('-'):
+        if value.value is None and not by.startswith("-"):
             remove_list.append(where_list[i])
     for item in remove_list:
         where_list.remove(item)
@@ -173,17 +160,11 @@ def construct_where_condition_from_page(
         condition = None
         for item in where:
             if condition is not None:
-                condition = sa.and_(
-                    condition,
-                    item
-                )
+                condition = sa.and_(condition, item)
             else:
                 condition = item
         if where_condition is not None:
-            where_condition = sa.or_(
-                where_condition,
-                condition
-            )
+            where_condition = sa.or_(where_condition, condition)
         else:
             where_condition = condition
 

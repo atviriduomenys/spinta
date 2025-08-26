@@ -10,7 +10,7 @@ from spinta.core.ufuncs import ufunc
 @overload
 @ufunc.resolver(Env, object, object)
 def swap(env: Env, old: Any, new: Any) -> Any:
-    return env.call('swap', env.this, old, new)
+    return env.call("swap", env.this, old, new)
 
 
 @overload

@@ -9,7 +9,7 @@ from urllib.parse import urlparse
 
 import requests
 
-gsheet_key_re = re.compile('/d/([^/]+)/')
+gsheet_key_re = re.compile("/d/([^/]+)/")
 
 
 def read_gsheets_manifest(path: str) -> Iterator[Tuple[str, List[str]]]:
@@ -20,17 +20,17 @@ def read_gsheets_manifest(path: str) -> Iterator[Tuple[str, List[str]]]:
     else:
         raise RuntimeError(f"Unknown Google Sheet URL {path!r}.")
 
-    url = f'https://docs.google.com/spreadsheets/d/{key}/gviz/tq'
+    url = f"https://docs.google.com/spreadsheets/d/{key}/gviz/tq"
 
     gid = None
     if purl.query:
-        gid = dict(parse_qsl(purl.query)).get('gid')
+        gid = dict(parse_qsl(purl.query)).get("gid")
     if gid is None and purl.fragment:
-        gid = dict(parse_qsl(purl.fragment)).get('gid')
+        gid = dict(parse_qsl(purl.fragment)).get("gid")
 
     params = {
-        'tqx': 'out:csv',
-        'gid': gid,
+        "tqx": "out:csv",
+        "gid": gid,
     }
 
     resp = requests.get(url, params)
@@ -38,4 +38,3 @@ def read_gsheets_manifest(path: str) -> Iterator[Tuple[str, List[str]]]:
     rows = csv.reader(StringIO(resp.text))
     for i, row in enumerate(rows, 2):
         yield str(i), row
-

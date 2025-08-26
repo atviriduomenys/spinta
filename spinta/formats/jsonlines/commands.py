@@ -45,10 +45,7 @@ def render(
 
 def _render(fmt: JsonLines, data, status_code: int, headers: dict):
     return StreamingResponse(
-        aiter(peek_and_stream(fmt(data))),
-        status_code=status_code,
-        media_type=fmt.content_type,
-        headers=headers
+        aiter(peek_and_stream(fmt(data))), status_code=status_code, media_type=fmt.content_type, headers=headers
     )
 
 
@@ -63,12 +60,12 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    if 'C' in value:
-        value[''] = value.pop('C')
+    if "C" in value:
+        value[""] = value.pop("C")
 
     if len(value) == 1 and select:
         for key, data in value.items():
-            key = 'C' if key == '' else key
+            key = "C" if key == "" else key
             if key not in select.keys():
                 return data
 

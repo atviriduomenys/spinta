@@ -17,29 +17,14 @@ from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.tabular import create_tabular_manifest
 
 
-def test_admin_invalid_script_name(
-    context,
-    rc,
-    cli: SpintaCliRunner
-):
+def test_admin_invalid_script_name(context, rc, cli: SpintaCliRunner):
     with pytest.raises(ScriptNotFound):
-        result = cli.invoke(rc, [
-            'admin',
-            'UNAVAILABLE'
-        ], fail=False)
+        result = cli.invoke(rc, ["admin", "UNAVAILABLE"], fail=False)
         raise result.exception
 
 
-def test_admin_all_error(
-    context,
-    rc,
-    cli: SpintaCliRunner,
-    tmp_path: pathlib.Path
-):
-    result = cli.invoke(rc, [
-        'admin',
-        '-c'
-    ], fail=False)
+def test_admin_all_error(context, rc, cli: SpintaCliRunner, tmp_path: pathlib.Path):
+    result = cli.invoke(rc, ["admin", "-c"], fail=False)
     assert result.exit_code == 1
     assert "At least one script needs to be specified" in result.stderr
 
@@ -55,33 +40,30 @@ def test_admin_multiple(
     request: FixtureRequest,
     cli: SpintaCliRunner,
 ):
-    create_tabular_manifest(context, tmp_path / 'manifest.csv', striptable(
-        '''
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable(
+            """
         d | r | b | m | property  | type    | ref                           | prepare | access | level
         datasets/temp             |         |                               |         |        |
           |   |   | Country       |         | id                            |         |        |
           |   |   |   | id        | integer |                               |         | open   |
           |   |   |   | name      | string  |                               |         | open   |
-        '''
-    ))
+        """
+        ),
+    )
 
     context = bootstrap_manifest(
-        rc, tmp_path / 'manifest.csv',
-        backend=postgresql,
-        tmp_path=tmp_path,
-        request=request,
-        full_load=True
+        rc, tmp_path / "manifest.csv", backend=postgresql, tmp_path=tmp_path, request=request, full_load=True
     )
-    with open(tmp_path / 'modellist.txt', 'w') as f:
-        f.write('datasets/temp/Country')
+    with open(tmp_path / "modellist.txt", "w") as f:
+        f.write("datasets/temp/Country")
 
-    result = cli.invoke(context.get('rc'), [
-        'admin',
-        Script.CHANGELOG.value,
-        Script.DEDUPLICATE.value,
-        '-c',
-        '--input', f'{tmp_path / "modellist.txt"}'
-    ])
+    result = cli.invoke(
+        context.get("rc"),
+        ["admin", Script.CHANGELOG.value, Script.DEDUPLICATE.value, "-c", "--input", f"{tmp_path / 'modellist.txt'}"],
+    )
     assert result.exit_code == 0
 
     assert script_check_status_message(Script.DEDUPLICATE.value, ScriptStatus.PASSED) in result.stdout

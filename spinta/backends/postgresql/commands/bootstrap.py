@@ -10,8 +10,5 @@ def bootstrap(context: Context, backend: PostgreSQL):
     #      line.
     # TODO: update appropriate rows in _schema and save `applied` date
     #       of schema migration
-    with (
-        backend.engine.connect().
-        execution_options(isolation_level='AUTOCOMMIT')
-    ) as conn:
+    with backend.engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
         backend.schema.create_all(conn, checkfirst=True)

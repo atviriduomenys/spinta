@@ -1,9 +1,7 @@
 import numbers
 from uuid import UUID
 
-_LITERAL_TYPES = (
-    numbers.Number, type(None), str
-)
+_LITERAL_TYPES = (numbers.Number, type(None), str)
 
 
 def is_str_uuid(value: str) -> bool:

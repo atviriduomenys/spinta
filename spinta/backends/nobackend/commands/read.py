@@ -2,19 +2,12 @@ from spinta.backends.nobackend.components import NoBackend
 from spinta.exceptions import BackendNotGiven
 from spinta import commands
 from spinta.core.ufuncs import Expr
-from spinta.components import Context, UrlParams
+from spinta.components import Context
 from spinta.components import Model
 
 
 @commands.getall.register(Context, Model, NoBackend)
-def getall(
-    context: Context,
-    model: Model,
-    backend: NoBackend,
-    *,
-    query: Expr = None,
-    **kwargs
-):
+def getall(context: Context, model: Model, backend: NoBackend, *, query: Expr = None, **kwargs):
     raise BackendNotGiven(model)
 
 

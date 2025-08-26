@@ -14,11 +14,11 @@ from spinta.manifests.helpers import get_manifest_from_type
 
 @commands.backend_to_manifest_type.register(Context, str)
 def backend_to_manifest_type(context: Context, backend_type: str):
-    config: Config = context.get('config')
+    config: Config = context.get("config")
 
-    if backend_type not in config.components['backends']:
+    if backend_type not in config.components["backends"]:
         raise exceptions.BackendNotFound(name=backend_type)
-    Backend_ = config.components['backends'][backend_type]
+    Backend_ = config.components["backends"][backend_type]
     backend: Backend = Backend_()
     backend.type = backend_type
     return commands.backend_to_manifest_type(context, backend)
@@ -26,7 +26,7 @@ def backend_to_manifest_type(context: Context, backend_type: str):
 
 @commands.backend_to_manifest_type.register(Context, Backend)
 def backend_to_manifest_type(context: Context, backend: Backend):
-    rc: RawConfig = context.get('rc')
+    rc: RawConfig = context.get("rc")
     return get_manifest_from_type(rc, backend.type)
 
 

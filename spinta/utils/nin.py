@@ -39,10 +39,10 @@ def generate_person_code(
     if num is None:
         num = random.randint(1, 999)
 
-    code = f'{cender}{dob:%y%m%d}{num:03}'
+    code = f"{cender}{dob:%y%m%d}{num:03}"
     checksum = _get_nin_lt_checksum(code)
 
-    return f'{code}{checksum}'
+    return f"{code}{checksum}"
 
 
 def is_nin_lt(code: str) -> bool:
@@ -55,7 +55,7 @@ def is_nin_lt(code: str) -> bool:
     if not code.isdigit():
         return False
 
-    if code[0] == '9':
+    if code[0] == "9":
         # This is an exceptional case and might be a valid person code.
         return True
 
@@ -82,4 +82,3 @@ def is_nin_lt(code: str) -> bool:
         return False
 
     return True
-

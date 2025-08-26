@@ -20,10 +20,12 @@ def check(
     dtype: DataType,
     value: Any,
 ):
-    raise InvalidValue(dtype, error=(
-        f"Given enum value {value} of {type(value)} type does not match "
-        f"property type, which is {dtype.name!r}."
-    ))
+    raise InvalidValue(
+        dtype,
+        error=(
+            f"Given enum value {value} of {type(value)} type does not match property type, which is {dtype.name!r}."
+        ),
+    )
 
 
 @overload

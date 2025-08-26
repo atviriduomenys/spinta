@@ -1,0 +1,57 @@
+name: 'Run code linter'
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [master, "[0-9]+.[0-9]+"]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  ruff-lint:
+    name: Ruff (lint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Ruff
+        uses: astral-sh/ruff-action@v3
+        with:
+          version-file: pyproject.toml
+          args: "--version"
+
+      - name: Ruff check
+        id: lint
+        run:
+          ruff check --output-format github
+
+      - name: Ruff summary (only if lint fails)
+        if: failure() && steps.lint.outcome == 'failure'
+        shell: bash
+        run: |
+          stats="$(ruff check --statistics --output-format full . || true)"
+          {
+            echo "### Ruff statistics"
+            echo
+            echo '```'
+            echo "$stats"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  ruff-format:
+    name: Ruff (format)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Ruff
+        uses: astral-sh/ruff-action@v3
+        with:
+          version-file: pyproject.toml
+          args: "--version"
+
+      - name: Ruff format --check --diff
+        run:
+          ruff format --check --diff

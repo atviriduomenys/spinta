@@ -9,8 +9,15 @@ from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.cli.helpers.errors import cli_error
 from spinta.cli.helpers.export.backends.postgresql.components import PostgresqlExportMetadata
-from spinta.cli.helpers.export.backends.postgresql.helpers import split_data, generate_file_paths, \
-    generate_export_metadata, prepare_changelog, generate_csv_headers, generate_table_data, extract_headers
+from spinta.cli.helpers.export.backends.postgresql.helpers import (
+    split_data,
+    generate_file_paths,
+    generate_export_metadata,
+    prepare_changelog,
+    generate_csv_headers,
+    generate_table_data,
+    extract_headers,
+)
 from spinta.cli.helpers.export.components import CounterManager
 from spinta.cli.helpers.export.helpers import create_data_items, prepare_data_without_checks, prepare_export_patch
 from spinta.commands.write import prepare_data_for_write
@@ -33,7 +40,7 @@ async def export_data(
     counter: CounterManager,
     txn: str,
     access: Access,
-    **kwargs
+    **kwargs,
 ):
     params = UrlParams()
     params.action = Action.INSERT
@@ -44,28 +51,24 @@ async def export_data(
     data_headers, dstream = await extract_headers(context, model, backend, dstream, txn=txn)
     file_mapping, property_mapping = generate_file_paths(model, pathlib.Path(path))
     base_key = model.model_type()
-    changes_key = f'{model.model_type()}.changes'
+    changes_key = f"{model.model_type()}.changes"
 
     async with AsyncExitStack() as stack:
         files = {
-            key: await stack.enter_async_context(aiofiles.open(path, 'w+', newline=''))
+            key: await stack.enter_async_context(aiofiles.open(path, "w+", newline=""))
             for key, path in file_mapping.items()
         }
 
         base_export_metadata = generate_export_metadata(
-            model,
-            base_key,
-            files[base_key],
-            fieldnames=data_headers,
-            counter=counter
+            model, base_key, files[base_key], fieldnames=data_headers, counter=counter
         )
 
         changes_export_metadata = generate_export_metadata(
             model,
             changes_key,
             files[changes_key],
-            fieldnames=['_id', '_revision', '_txn', '_rid', 'datetime', 'action', 'data'],
-            counter=counter
+            fieldnames=["_id", "_revision", "_txn", "_rid", "datetime", "action", "data"],
+            counter=counter,
         )
 
         export_metadata: dict[str, PostgresqlExportMetadata] = {
@@ -77,9 +80,11 @@ async def export_data(
                     key,
                     files[key],
                     fieldnames=generate_csv_headers(context, prop.dtype, backend),
-                    counter=counter
-                ) for key, prop in property_mapping.items() if key not in [base_key, changes_key]
-            }
+                    counter=counter,
+                )
+                for key, prop in property_mapping.items()
+                if key not in [base_key, changes_key]
+            },
         }
 
         for meta in export_metadata.values():
@@ -87,14 +92,7 @@ async def export_data(
 
         async for i, item in aenumerate(dstream):
             created_time = datetime.datetime.now()
-            data = commands.before_export(
-                context,
-                model,
-                backend,
-                data=item,
-                txn=txn,
-                created=created_time
-            )
+            data = commands.before_export(context, model, backend, data=item, txn=txn, created=created_time)
             normal_data, table_data = split_data(data)
             change_data = prepare_changelog(item.patch, i + 1, txn, created_time)
             await base_export_metadata.writerow(normal_data, counter)
@@ -114,13 +112,13 @@ def before_export(
     *,
     data: DataSubItem,
     txn: str = "",
-    created: datetime.datetime = datetime.datetime.now()
+    created: datetime.datetime = datetime.datetime.now(),
 ):
-    patch = take(['_id'], data.patch)
-    patch['_revision'] = take('_revision', data.patch, data.saved)
-    patch['_txn'] = txn
-    patch['_created'] = created
-    patch['_updated'] = None
+    patch = take(["_id"], data.patch)
+    patch["_revision"] = take("_revision", data.patch, data.saved)
+    patch["_txn"] = txn
+    patch["_created"] = created
+    patch["_updated"] = None
     for prop in take(model.properties).values():
         if not prop.dtype.inherited:
             prop_data = data[prop.name]
@@ -135,19 +133,9 @@ def before_export(
 
 
 @commands.before_export.register(Context, Geometry, PostgreSQL)
-def before_export(
-    context: Context,
-    dtype: Geometry,
-    backend: PostgreSQL,
-    *,
-    data: DataSubItem
-):
+def before_export(context: Context, dtype: Geometry, backend: PostgreSQL, *, data: DataSubItem):
     value = data.patch
-    if (
-        dtype.srid is not None and
-        value and
-        "SRID" not in value
-    ):
+    if dtype.srid is not None and value and "SRID" not in value:
         value = f"SRID={dtype.srid};{value}"
     return take({dtype.prop.place: value})
 
@@ -166,24 +154,15 @@ def before_export(
         key = dtype.prop.place
         array_data = take({key: data.patch})
         table_data = generate_table_data(dtype, array_data[key])
-        return {
-            **array_data,
-            table_data.name: table_data
-        }
+        return {**array_data, table_data.name: table_data}
 
 
 @commands.validate_export_output.register(Context, PostgreSQL, str)
 def validate_export_output(context: Context, backend: PostgreSQL, output: str):
-    commands.validate_export_output(
-        context,
-        backend,
-        pathlib.Path(output)
-    )
+    commands.validate_export_output(context, backend, pathlib.Path(output))
 
 
 @commands.validate_export_output.register(Context, PostgreSQL, pathlib.Path)
 def validate_export_output(context: Context, backend: PostgreSQL, output: pathlib.Path):
     if not output.exists():
-        cli_error(
-            f"{str(output)!r} directory does not exist."
-        )
+        cli_error(f"{str(output)!r} directory does not exist.")

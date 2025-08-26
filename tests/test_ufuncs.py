@@ -11,7 +11,7 @@ from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import Pair
 from spinta.core.ufuncs import UFuncRegistry
 from spinta.exceptions import IncompatibleForeignProperties
-from spinta.testing.manifest import load_manifest, load_manifest_and_context
+from spinta.testing.manifest import load_manifest_and_context
 from spinta.testing.manifest import load_manifest_get_context
 from spinta.testing.ufuncs import UFuncTester
 from spinta.types.datatype import Ref
@@ -28,39 +28,35 @@ def ufunc():
 
 
 def test_resolve_value(ufunc):
-    assert ufunc('2') == 2
+    assert ufunc("2") == 2
 
 
 def test_resolve_expr(ufunc):
-
     @ufunc.resolver(Env, int, int)
     def add(env, a, b):
         return a + b
 
-    assert ufunc('2 + 2') == 4
+    assert ufunc("2 + 2") == 4
 
 
 def test_resolve_nested_expr(ufunc):
-
     @ufunc.resolver(Env, int, int)
     def add(env, a, b):
         return a + b
 
-    assert ufunc('2 + 2 + 2 + 2') == 8
+    assert ufunc("2 + 2 + 2 + 2") == 8
 
 
 def test_resolve_args(ufunc):
-
     @ufunc.resolver(Env, Expr)
     def add(env, expr):
         args, kwargs = expr.resolve(env)
         return sum(args)
 
-    assert ufunc('add(2, 2, 2, 2)') == 8
+    assert ufunc("add(2, 2, 2, 2)") == 8
 
 
 def test_resolve_kwargs(ufunc):
-
     @ufunc.resolver(Env)
     def kwargs(env, **kwargs):  # noqa
         return kwargs
@@ -69,34 +65,31 @@ def test_resolve_kwargs(ufunc):
     def bind(env, name, value):
         return Pair(name, value)
 
-    assert ufunc('kwargs(a: 2, b: 3)') == {'a': 2, 'b': 3}
+    assert ufunc("kwargs(a: 2, b: 3)") == {"a": 2, "b": 3}
 
 
 def test_execute_expr(ufunc):
-
     @ufunc.executor(Env, int, int)
     def add(env, a, b):  # noqa
         return a + b
 
-    assert ufunc('2 + 2') == 4
+    assert ufunc("2 + 2") == 4
 
 
 def test_execute_this(ufunc):
-
-    @ufunc.executor(Env, name='len')
+    @ufunc.executor(Env, name="len")
     def len_(env):  # noqa
         return len(env.this)
 
-    @ufunc.executor(Env, str, name='len')
+    @ufunc.executor(Env, str, name="len")
     def len_(env, s):  # noqa
         return len(s)
 
-    assert ufunc('len()', this='abc') == 3
-    assert ufunc('len("abcd")', this='abc') == 4
+    assert ufunc("len()", this="abc") == 3
+    assert ufunc('len("abcd")', this="abc") == 4
 
 
 def test_resolve_attrs(ufunc):
-
     @ufunc.resolver(Env, str)
     def bind(env, key):
         return Bind(key)
@@ -114,18 +107,17 @@ def test_resolve_attrs(ufunc):
         return env.this[item.name][bind.name]
 
     data = {
-        'a': {
-            'b': {
-                'c': 2,
-                'd': 6,
+        "a": {
+            "b": {
+                "c": 2,
+                "d": 6,
             }
         }
     }
-    assert ufunc('a.b.c + a.b.d', this=data) == 8
+    assert ufunc("a.b.c + a.b.d", this=data) == 8
 
 
 def test_execute_attrs(ufunc):
-
     @ufunc.resolver(Env, str)
     def bind(env, key):
         return Bind(key)
@@ -143,18 +135,20 @@ def test_execute_attrs(ufunc):
         return env.this[item.name][bind.name]
 
     data = {
-        'a': {
-            'b': {
-                'c': 2,
-                'd': 6,
+        "a": {
+            "b": {
+                "c": 2,
+                "d": 6,
             }
         }
     }
-    assert ufunc('a.b.c + a.b.d', this=data) == 8
+    assert ufunc("a.b.c + a.b.d", this=data) == 8
 
 
 def test_fpr_get_bind_expr(rc: RawConfig):
-    context, manifest = load_manifest_and_context(rc, '''
+    context, manifest = load_manifest_and_context(
+        rc,
+        """
     d | r | m | property  | type   | ref
     datasets/gov/example  |        |
       | resource          | sql    |
@@ -172,35 +166,38 @@ def test_fpr_get_bind_expr(rc: RawConfig):
       |   | City          |        | name
       |   |   | name      | string |
       |   |   | country   | ref    | Country
-    ''')
+    """,
+    )
 
-    planet = commands.get_model(context, manifest, 'datasets/gov/example/Planet')
-    continent = commands.get_model(context, manifest, 'datasets/gov/example/Continent')
-    country = commands.get_model(context, manifest, 'datasets/gov/example/Country')
-    city = commands.get_model(context, manifest, 'datasets/gov/example/City')
+    planet = commands.get_model(context, manifest, "datasets/gov/example/Planet")
+    continent = commands.get_model(context, manifest, "datasets/gov/example/Continent")
+    country = commands.get_model(context, manifest, "datasets/gov/example/Country")
+    city = commands.get_model(context, manifest, "datasets/gov/example/City")
 
     fpr = ForeignProperty(
         None,
-        cast(Ref, city.properties['country'].dtype),
-        country.properties['name'].dtype,
+        cast(Ref, city.properties["country"].dtype),
+        country.properties["name"].dtype,
     )
-    assert str(fpr.get_bind_expr()) == 'country.name'
+    assert str(fpr.get_bind_expr()) == "country.name"
 
-    fpr = fpr.swap(country.properties['continent'])
-    assert str(fpr.get_bind_expr()) == 'country.continent'
+    fpr = fpr.swap(country.properties["continent"])
+    assert str(fpr.get_bind_expr()) == "country.continent"
 
-    fpr = fpr.push(continent.properties['name'])
-    assert str(fpr.get_bind_expr()) == 'country.continent.name'
+    fpr = fpr.push(continent.properties["name"])
+    assert str(fpr.get_bind_expr()) == "country.continent.name"
 
-    fpr = fpr.swap(continent.properties['planet'])
-    assert str(fpr.get_bind_expr()) == 'country.continent.planet'
+    fpr = fpr.swap(continent.properties["planet"])
+    assert str(fpr.get_bind_expr()) == "country.continent.planet"
 
-    fpr = fpr.push(planet.properties['name'])
-    assert str(fpr.get_bind_expr()) == 'country.continent.planet.name'
+    fpr = fpr.push(planet.properties["name"])
+    assert str(fpr.get_bind_expr()) == "country.continent.planet.name"
 
 
 def test_fpr_join(rc: RawConfig):
-    context, manifest = load_manifest_and_context(rc, '''
+    context, manifest = load_manifest_and_context(
+        rc,
+        """
     d | r | m | property  | type   | ref
     datasets/gov/example  |        |
       | resource          | sql    |
@@ -214,32 +211,32 @@ def test_fpr_join(rc: RawConfig):
       |   | City          |        | name
       |   |   | name      | string |
       |   |   | country   | ref    | Country
-    ''')
+    """,
+    )
 
-    continent = commands.get_model(context, manifest, 'datasets/gov/example/Continent')
-    country = commands.get_model(context, manifest, 'datasets/gov/example/Country')
-    city = commands.get_model(context, manifest, 'datasets/gov/example/City')
+    continent = commands.get_model(context, manifest, "datasets/gov/example/Continent")
+    country = commands.get_model(context, manifest, "datasets/gov/example/Country")
+    city = commands.get_model(context, manifest, "datasets/gov/example/City")
 
     fpr1 = ForeignProperty(
         None,
-        cast(Ref, city.properties['country'].dtype),
-        country.properties['continent'].dtype,
+        cast(Ref, city.properties["country"].dtype),
+        country.properties["continent"].dtype,
     )
     fpr2 = ForeignProperty(
         None,
-        cast(Ref, country.properties['continent'].dtype),
-        continent.properties['name'].dtype,
+        cast(Ref, country.properties["continent"].dtype),
+        continent.properties["name"].dtype,
     )
     fpr = fpr1.join(fpr2)
-    assert str(fpr) == (
-        'ForeignProperty(datasets/gov/example/City, '
-        'country -> continent -> name:string)'
-    )
-    assert str(fpr.get_bind_expr()) == 'country.continent.name'
+    assert str(fpr) == ("ForeignProperty(datasets/gov/example/City, country -> continent -> name:string)")
+    assert str(fpr.get_bind_expr()) == "country.continent.name"
 
 
 def test_fpr_join_no_right(rc: RawConfig):
-    context, manifest = load_manifest_and_context(rc, '''
+    context, manifest = load_manifest_and_context(
+        rc,
+        """
     d | r | m | property  | type   | ref
     datasets/gov/example  |        |
       | resource          | sql    |
@@ -253,31 +250,31 @@ def test_fpr_join_no_right(rc: RawConfig):
       |   | City          |        | name
       |   |   | name      | string |
       |   |   | country   | ref    | Country
-    ''')
+    """,
+    )
 
-    continent = commands.get_model(context, manifest, 'datasets/gov/example/Continent')
-    country = commands.get_model(context, manifest, 'datasets/gov/example/Country')
-    city = commands.get_model(context, manifest, 'datasets/gov/example/City')
+    continent = commands.get_model(context, manifest, "datasets/gov/example/Continent")
+    country = commands.get_model(context, manifest, "datasets/gov/example/Country")
+    city = commands.get_model(context, manifest, "datasets/gov/example/City")
 
     fpr1 = ForeignProperty(
         None,
-        cast(Ref, city.properties['country'].dtype),
+        cast(Ref, city.properties["country"].dtype),
     )
     fpr2 = ForeignProperty(
         None,
-        cast(Ref, country.properties['continent'].dtype),
-        continent.properties['name'].dtype,
+        cast(Ref, country.properties["continent"].dtype),
+        continent.properties["name"].dtype,
     )
     fpr = fpr1.join(fpr2)
-    assert str(fpr) == (
-        'ForeignProperty(datasets/gov/example/City, '
-        'country -> continent -> name:string)'
-    )
-    assert str(fpr.get_bind_expr()) == 'country.continent.name'
+    assert str(fpr) == ("ForeignProperty(datasets/gov/example/City, country -> continent -> name:string)")
+    assert str(fpr.get_bind_expr()) == "country.continent.name"
 
 
 def test_fpr_join_incompatible_refs(rc: RawConfig):
-    context, manifest = load_manifest_and_context(rc, '''
+    context, manifest = load_manifest_and_context(
+        rc,
+        """
     d | r | m | property  | type   | ref
     datasets/gov/example  |        |
       | resource          | sql    |
@@ -295,28 +292,31 @@ def test_fpr_join_incompatible_refs(rc: RawConfig):
       |   | City          |        | name
       |   |   | name      | string |
       |   |   | country   | ref    | Country
-    ''')
+    """,
+    )
 
-    continent = commands.get_model(context, manifest, 'datasets/gov/example/Continent')
-    country = commands.get_model(context, manifest, 'datasets/gov/example/Country')
-    city = commands.get_model(context, manifest, 'datasets/gov/example/City')
+    continent = commands.get_model(context, manifest, "datasets/gov/example/Continent")
+    country = commands.get_model(context, manifest, "datasets/gov/example/Country")
+    city = commands.get_model(context, manifest, "datasets/gov/example/City")
 
     fpr1 = ForeignProperty(
         None,
-        cast(Ref, city.properties['country'].dtype),
-        country.properties['name'].dtype,
+        cast(Ref, city.properties["country"].dtype),
+        country.properties["name"].dtype,
     )
     fpr2 = ForeignProperty(
         None,
-        cast(Ref, country.properties['continent'].dtype),
-        continent.properties['name'].dtype,
+        cast(Ref, country.properties["continent"].dtype),
+        continent.properties["name"].dtype,
     )
     with pytest.raises(IncompatibleForeignProperties):
         fpr1.join(fpr2)
 
 
 def test_fpr_join_incompatible_refs_no_right(rc: RawConfig):
-    context, manifest = load_manifest_and_context(rc, '''
+    context, manifest = load_manifest_and_context(
+        rc,
+        """
     d | r | m | property  | type   | ref
     datasets/gov/example  |        |
       | resource          | sql    |
@@ -334,26 +334,29 @@ def test_fpr_join_incompatible_refs_no_right(rc: RawConfig):
       |   | City          |        | name
       |   |   | name      | string |
       |   |   | country   | ref    | Country
-    ''')
+    """,
+    )
 
-    continent = commands.get_model(context, manifest, 'datasets/gov/example/Continent')
-    city = commands.get_model(context, manifest, 'datasets/gov/example/City')
+    continent = commands.get_model(context, manifest, "datasets/gov/example/Continent")
+    city = commands.get_model(context, manifest, "datasets/gov/example/City")
 
     fpr1 = ForeignProperty(
         None,
-        cast(Ref, city.properties['country'].dtype),
+        cast(Ref, city.properties["country"].dtype),
     )
     fpr2 = ForeignProperty(
         None,
-        cast(Ref, continent.properties['planet'].dtype),
-        continent.properties['name'].dtype,
+        cast(Ref, continent.properties["planet"].dtype),
+        continent.properties["name"].dtype,
     )
     with pytest.raises(IncompatibleForeignProperties):
         fpr1.join(fpr2)
 
 
 def test_change_base_model(rc: RawConfig):
-    context = load_manifest_get_context(rc, '''
+    context = load_manifest_get_context(
+        rc,
+        """
     d | r | m | property  | type   | ref       | prepare
     datasets/gov/example  |        |           |
       | resource          | sql    |           |
@@ -367,22 +370,23 @@ def test_change_base_model(rc: RawConfig):
       |   | City          |        | name      |
       |   |   | name      | string |           |
       |   |   | country   | ref    | Country   |
-    ''')
+    """,
+    )
 
-    store: Store = context.get('store')
+    store: Store = context.get("store")
     manifest = store.manifest
 
-    country = commands.get_model(context, manifest, 'datasets/gov/example/Country')
-    city = commands.get_model(context, manifest, 'datasets/gov/example/City')
+    country = commands.get_model(context, manifest, "datasets/gov/example/Country")
+    city = commands.get_model(context, manifest, "datasets/gov/example/City")
 
-    fpr = ForeignProperty(None, cast(Ref, city.properties['country'].dtype))
-    assert str(change_base_model(context, country, fpr)) == (
-        "country.continent.name='Europe'"
-    )
+    fpr = ForeignProperty(None, cast(Ref, city.properties["country"].dtype))
+    assert str(change_base_model(context, country, fpr)) == ("country.continent.name='Europe'")
 
 
 def test_change_base_model_non_ref(rc: RawConfig):
-    context = load_manifest_get_context(rc, '''
+    context = load_manifest_get_context(
+        rc,
+        """
     d | r | m | property  | type   | ref       | prepare
     datasets/gov/example  |        |           |
       | resource          | sql    |           |
@@ -396,18 +400,16 @@ def test_change_base_model_non_ref(rc: RawConfig):
       |   | City          |        | name      |
       |   |   | name      | string |           |
       |   |   | country   | ref    | Country   |
-    ''')
-
-    store: Store = context.get('store')
-    manifest = store.manifest
-
-    continent = commands.get_model(context, manifest, 'datasets/gov/example/Continent')
-    country = commands.get_model(context, manifest, 'datasets/gov/example/Country')
-    city = commands.get_model(context, manifest, 'datasets/gov/example/City')
-
-    fpr = ForeignProperty(None, cast(Ref, city.properties['country'].dtype))
-    fpr = fpr.push(country.properties['continent'])
-    assert str(change_base_model(context, continent, fpr)) == (
-        "country.continent.name='Europe'"
+    """,
     )
 
+    store: Store = context.get("store")
+    manifest = store.manifest
+
+    continent = commands.get_model(context, manifest, "datasets/gov/example/Continent")
+    country = commands.get_model(context, manifest, "datasets/gov/example/Country")
+    city = commands.get_model(context, manifest, "datasets/gov/example/City")
+
+    fpr = ForeignProperty(None, cast(Ref, city.properties["country"].dtype))
+    fpr = fpr.push(country.properties["continent"])
+    assert str(change_base_model(context, continent, fpr)) == ("country.continent.name='Europe'")

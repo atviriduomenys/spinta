@@ -29,19 +29,19 @@ class EnumItem(ExtraMetaData):
     level: str
 
     schema = {
-        'name': {'type': 'string'},
-        'source': {'type': 'string'},
-        'prepare': {'type': 'spyna', 'default': NA},
-        'access': {
-            'type': 'string',
-            'choices': Access,
-            'inherit': 'model.access',
-            'default': 'protected',
+        "name": {"type": "string"},
+        "source": {"type": "string"},
+        "prepare": {"type": "spyna", "default": NA},
+        "access": {
+            "type": "string",
+            "choices": Access,
+            "inherit": "model.access",
+            "default": "protected",
         },
-        'title': {'type': 'string'},
-        'description': {'type': 'string'},
-        'lang': {'type': 'object'},
-        'level': {'type': 'string'},
+        "title": {"type": "string"},
+        "description": {"type": "string"},
+        "lang": {"type": "object"},
+        "level": {"type": "string"},
     }
 
     def __init__(self):

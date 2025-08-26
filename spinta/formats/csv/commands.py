@@ -38,7 +38,7 @@ def render(
     headers: Dict[str, str] = None,
 ) -> Response:
     headers = headers or {}
-    headers['Content-Disposition'] = f'attachment; filename="{model.basename}.csv"'
+    headers["Content-Disposition"] = f'attachment; filename="{model.basename}.csv"'
     return StreamingResponse(
         aiter(_render_model_csv(context, model, action, params, data)),
         status_code=status_code,
@@ -57,13 +57,13 @@ def render(
     params: UrlParams = None,
     status_code: int = 200,
     headers: Dict[str, str] = None,
-    path: str = None
+    path: str = None,
 ) -> Response:
     rows = datasets_to_tabular(context, manifest)
     rows = ({c: row[c] for c in DATASET} for row in rows)
     if not path:
         headers = headers or {}
-        headers['Content-Disposition'] = f'attachment; filename="{manifest.name}.csv"'
+        headers["Content-Disposition"] = f'attachment; filename="{manifest.name}.csv"'
         return StreamingResponse(
             aiter(_render_manifest_csv(rows)),
             status_code=status_code,
@@ -74,9 +74,7 @@ def render(
         write_csv(pathlib.Path(path), rows, DATASET)
 
 
-def _render_manifest_csv(
-    rows: Iterator[ManifestRow]
-):
+def _render_manifest_csv(rows: Iterator[ManifestRow]):
     stream = IterableFile()
     writer = csv.DictWriter(stream, fieldnames=DATASET)
     writer.writeheader()
@@ -95,13 +93,13 @@ def _render_model_csv(
     # Rename _page to _page.next
     rows = rename_page_col(rows)
     cols = get_model_tabular_header(context, model, action, params)
-    cols = [col if col != '_page' else '_page.next' for col in cols]
+    cols = [col if col != "_page" else "_page.next" for col in cols]
     stream = IterableFile()
     writer = csv.DictWriter(stream, fieldnames=cols)
     writer.writeheader()
     memory = next(rows, None)
     for row in rows:
-        writer.writerow({k: v for k, v in memory.items() if k != '_page.next'})
+        writer.writerow({k: v for k, v in memory.items() if k != "_page.next"})
         yield from stream
         memory = row
 

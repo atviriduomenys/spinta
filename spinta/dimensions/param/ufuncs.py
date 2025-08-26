@@ -25,13 +25,15 @@ def read(env: ParamBuilder, model: Model) -> Any:
 @ufunc.resolver(ParamBuilder, str)
 def read(env: ParamBuilder, obj: str):
     new_name = obj
-    if '/' not in obj:
+    if "/" not in obj:
         model_ = env.this
         if isinstance(model_, Model) and model_.external and model_.external.dataset:
-            new_name = '/'.join([
-                model_.external.dataset.name,
-                obj,
-            ])
+            new_name = "/".join(
+                [
+                    model_.external.dataset.name,
+                    obj,
+                ]
+            )
     model = None
     if commands.has_model(env.context, env.manifest, new_name):
         model = commands.get_model(env.context, env.manifest, new_name)
@@ -48,7 +50,9 @@ def read(env: ParamBuilder, obj: str):
 def read(env: ParamBuilder) -> Any:
     if isinstance(env.this, Model):
         return env.call("read", env.this)
-    raise InvalidParamSource(param=env.target_param, source=env.this, given_type=type(env.this), expected_types=[type(Model)])
+    raise InvalidParamSource(
+        param=env.target_param, source=env.this, given_type=type(env.this), expected_types=[type(Model)]
+    )
 
 
 @ufunc.resolver(ParamBuilder, Iterator, Bind, name="getattr")
@@ -100,11 +104,13 @@ def resolve_param(env: ParamLoader, parameter: Param):
         requires_model = env.call("contains_read", formula)
         if isinstance(source, str) and requires_model:
             new_name = source
-            if env.dataset and '/' not in source:
-                new_name = '/'.join([
-                    env.dataset.name,
-                    source,
-                ])
+            if env.dataset and "/" not in source:
+                new_name = "/".join(
+                    [
+                        env.dataset.name,
+                        source,
+                    ]
+                )
             if commands.has_model(env.context, env.manifest, new_name):
                 model = commands.get_model(env.context, env.manifest, new_name)
                 parameter.sources[i] = model
@@ -151,4 +157,3 @@ def read(env: ParamLoader, any_: object):
 @ufunc.resolver(ParamLoader)
 def read(env: ParamLoader):
     return True
-

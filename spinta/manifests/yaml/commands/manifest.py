@@ -36,7 +36,7 @@ def manifest_read_freezed(
     *,
     eid: pathlib.Path,
 ) -> dict:
-    return last(read_schema_versions(eid), default={'schema': None})['schema']
+    return last(read_schema_versions(eid), default={"schema": None})["schema"]
 
 
 @commands.manifest_read_versions.register(Context, YamlManifest)

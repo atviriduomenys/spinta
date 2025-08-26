@@ -46,25 +46,25 @@ class Level(enum.IntEnum):
 
 
 class Action(enum.Enum):
-    INSERT = 'insert'
-    UPSERT = 'upsert'
-    UPDATE = 'update'
-    PATCH = 'patch'
-    DELETE = 'delete'
+    INSERT = "insert"
+    UPSERT = "upsert"
+    UPDATE = "update"
+    PATCH = "patch"
+    DELETE = "delete"
 
-    WIPE = 'wipe'
+    WIPE = "wipe"
 
-    MOVE = 'move'
+    MOVE = "move"
 
-    GETONE = 'getone'
-    GETALL = 'getall'
-    SEARCH = 'search'
+    GETONE = "getone"
+    GETALL = "getall"
+    SEARCH = "search"
 
-    CHANGES = 'changes'
+    CHANGES = "changes"
 
-    CHECK = 'check'
-    INSPECT = 'inspect'
-    SCHEMA = 'schema'
+    CHECK = "check"
+    INSPECT = "inspect"
+    SCHEMA = "schema"
 
     @classmethod
     def has_value(cls, value):
@@ -82,11 +82,11 @@ class Action(enum.Enum):
 class Mode(enum.Enum):
     # Internal mode always use internal backend set on manifest, namespace or
     # model.
-    internal = 'internal'
+    internal = "internal"
 
     # External model always sue external backend set on dataset or model's
     # source entity.
-    external = 'external'
+    external = "external"
 
 
 def action_from_op(
@@ -94,7 +94,7 @@ def action_from_op(
     payload: dict,
     stop_on_error: bool = True,
 ) -> Union[Action, exceptions.UserError]:
-    action = payload.get('_op')
+    action = payload.get("_op")
     if not Action.has_value(action):
         error = exceptions.UnknownAction(
             scope,

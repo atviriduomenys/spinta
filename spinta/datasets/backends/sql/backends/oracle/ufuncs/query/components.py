@@ -6,4 +6,3 @@ from spinta.datasets.backends.sql.backends.oracle.components import Oracle
 
 class OracleQueryBuilder(SqlQueryBuilder):
     backend: Oracle
-

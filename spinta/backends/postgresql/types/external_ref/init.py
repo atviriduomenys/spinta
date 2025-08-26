@@ -34,22 +34,22 @@ def prepare(context: Context, backend: PostgreSQL, dtype: ExternalRef, propagate
                 prop.place = original_place
             if dtype.unique:
                 extracted_columns = [column for column in columns if isinstance(column, sa.Column)]
-                unique_constraint = sa.UniqueConstraint(
-                    *extracted_columns
-                )
+                unique_constraint = sa.UniqueConstraint(*extracted_columns)
                 columns.append(unique_constraint)
 
         else:
-            column_name = get_column_name(dtype.prop) + '._id'
+            column_name = get_column_name(dtype.prop) + "._id"
             if dtype.prop.list and dtype.prop.place == dtype.prop.list.place:
-                column_name = '_id'
+                column_name = "_id"
             column_type = commands.get_primary_key_type(context, backend)
-            columns.append(sa.Column(
-                column_name,
-                column_type,
-                nullable=not dtype.required,
-                unique=dtype.unique,
-            ))
+            columns.append(
+                sa.Column(
+                    column_name,
+                    column_type,
+                    nullable=not dtype.required,
+                    unique=dtype.unique,
+                )
+            )
 
     if propagate:
         for key, value in dtype.properties.items():

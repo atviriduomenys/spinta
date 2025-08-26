@@ -59,11 +59,7 @@ def _render(
     elif action == Action.DELETE:
         return Response(None, status_code=status_code, headers=headers)
     else:
-        return JSONResponse(
-            fmt.data(data),
-            status_code=status_code,
-            headers=headers
-        )
+        return JSONResponse(fmt.data(data), status_code=status_code, headers=headers)
 
 
 @commands.prepare_dtype_for_response.register(Context, Json, Text, dict)
@@ -77,12 +73,12 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    if 'C' in value:
-        value[''] = value.pop('C')
+    if "C" in value:
+        value[""] = value.pop("C")
 
     if len(value) == 1 and select is not None:
         for key, data in value.items():
-            key = 'C' if key == '' else key
+            key = "C" if key == "" else key
             if key not in select.keys():
                 return data
 

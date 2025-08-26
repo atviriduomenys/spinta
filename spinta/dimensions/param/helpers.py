@@ -16,9 +16,9 @@ def load_params(context: Context, manifest: Manifest, param_data: Any) -> List[P
         for key, data in param_data.items():
             param = Param()
             load_node(context, param, data)
-            param.sources = data['source'].copy()
-            param.formulas = [asttoexpr(prep) for prep in data['prepare']]
-            param.name = data['name']
+            param.sources = data["source"].copy()
+            param.formulas = [asttoexpr(prep) for prep in data["prepare"]]
+            param.name = data["name"]
             params.append(param)
     elif isinstance(param_data, list):
         for item in param_data:
@@ -28,17 +28,11 @@ def load_params(context: Context, manifest: Manifest, param_data: Any) -> List[P
                 prepare = item[name]
                 if isinstance(prepare, str):
                     prepare = spyna.unparse(prepare)
-                data = {
-                    'name': name,
-                    'source': [NA],
-                    'prepare': [prepare],
-                    'title': '',
-                    'description': ''
-                }
+                data = {"name": name, "source": [NA], "prepare": [prepare], "title": "", "description": ""}
                 load_node(context, param, data)
-                param.sources = data['source'].copy()
-                param.formulas = [asttoexpr(prep) for prep in data['prepare']]
-                param.name = data['name']
+                param.sources = data["source"].copy()
+                param.formulas = [asttoexpr(prep) for prep in data["prepare"]]
+                param.name = data["name"]
                 params.append(param)
     return params
 
@@ -59,4 +53,3 @@ def finalize_param_link(context, manifest: Manifest):
                         if isinstance(source, Model):
                             if source.external and source.external.resource:
                                 param.dependencies.update(source.external.resource.source_params)
-

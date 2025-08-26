@@ -30,32 +30,18 @@ app = Typer()
 @app.command(short_help="Copy manifest optionally transforming final copy")
 def copy(
     ctx: TyperContext,
-    source: bool = Option(True, help=(
-        "Do not copy external data source metadata"
-    )),
+    source: bool = Option(True, help=("Do not copy external data source metadata")),
     # TODO: Change `str` to `Access`
     #       https://github.com/tiangolo/typer/issues/151
-    access: str = Option('private', help=(
-        "Copy properties with at least specified access"
-    )),
-    format_names: bool = Option(False, help=(
-        "Reformat model and property names."
-    )),
-    output: Optional[str] = Option(None, '-o', '--output', help=(
-        "Output tabular manifest in a specified file"
-    )),
-    columns: Optional[str] = Option(None, '-c', '--columns', help=(
-        "Comma separated list of columns"
-    )),
-    order_by: Optional[str] = Option(None, help=(
-        "Order by a specified column (currently only access column is supported)"
-    )),
-    rename_duplicates: bool = Option(False, help=(
-        "Rename duplicate model names by adding number suffix"
-    )),
-    manifests: List[str] = Argument(None, help=(
-        "Source manifest files to copy from"
-    )),
+    access: str = Option("private", help=("Copy properties with at least specified access")),
+    format_names: bool = Option(False, help=("Reformat model and property names.")),
+    output: Optional[str] = Option(None, "-o", "--output", help=("Output tabular manifest in a specified file")),
+    columns: Optional[str] = Option(None, "-c", "--columns", help=("Comma separated list of columns")),
+    order_by: Optional[str] = Option(
+        None, help=("Order by a specified column (currently only access column is supported)")
+    ),
+    rename_duplicates: bool = Option(False, help=("Rename duplicate model names by adding number suffix")),
+    manifests: List[str] = Argument(None, help=("Source manifest files to copy from")),
 ):
     """Copy models from CSV manifest files into another CSV manifest file"""
     context: Context = ctx.obj
@@ -68,32 +54,32 @@ def copy(
         columns=columns,
         order_by=order_by,
         rename_duplicates=rename_duplicates,
-        manifests=manifests
+        manifests=manifests,
     )
 
 
 def copy_manifest(
     context: Context,
     source: bool = True,
-    access: str = 'private',
+    access: str = "private",
     format_names: bool = False,
     output: Optional[str] = None,
     columns: Optional[str] = None,
     order_by: Optional[str] = None,
     rename_duplicates: bool = False,
     manifests: List[str] = None,
-    output_type: Optional[str] = None
+    output_type: Optional[str] = None,
 ):
     """Copy models from CSV manifest files into another CSV manifest file"""
     access = get_enum_by_name(Access, access)
-    cols = normalizes_columns(columns.split(',')) if columns else None
+    cols = normalizes_columns(columns.split(",")) if columns else None
     internal = False
     verbose = True
     if not output:
         verbose = False
     else:
         if output_type:
-            if output_type == 'internal_sql':
+            if output_type == "internal_sql":
                 internal = True
         else:
             internal = InternalSQLManifest.detect_from_path(output)
@@ -125,7 +111,7 @@ def copy_manifest(
         )
 
     if output:
-        if output_type == 'mermaid':
+        if output_type == "mermaid":
             write_mermaid_manifest(context, output, rows)
         elif internal:
             write_internal_sql_manifest(context, output, rows)
@@ -148,11 +134,7 @@ def _read_and_return_manifest(
 ) -> Iterator[ManifestRow]:
     context = configure_context(context, manifests)
     store = load_manifest(
-        context,
-        rename_duplicates=rename_duplicates,
-        load_internal=False,
-        verbose=verbose,
-        full_load=True
+        context, rename_duplicates=rename_duplicates, load_internal=False, verbose=verbose, full_load=True
     )
 
     if format_names:
@@ -174,11 +156,7 @@ def _read_and_return_rows(
 ) -> Iterator[ManifestRow]:
     context = configure_context(context, manifests)
     store = load_manifest(
-        context,
-        rename_duplicates=rename_duplicates,
-        load_internal=False,
-        verbose=verbose,
-        full_load=True
+        context, rename_duplicates=rename_duplicates, load_internal=False, verbose=verbose, full_load=True
     )
 
     if format_names:
@@ -191,5 +169,3 @@ def _read_and_return_rows(
         access=access,
         order_by=order_by,
     )
-
-
