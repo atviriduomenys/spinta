@@ -299,17 +299,15 @@ def test_failure_get_access_token_api_call(
     # Assert
     assert exception.value.response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
 
-    assert get_request_context(mock_auth_token_post) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/auth/token",
-            "params": {},
-            "data": {
-                "grant_type": ["client_credentials"],
-                "scope": [patched_credentials.scopes],
-            },
-        }
-    ]
+    assert get_request_context(mock_auth_token_post) == [{
+        "method": "POST",
+        "url": f"{patched_credentials.server}/auth/token",
+        "params": {},
+        "data": {
+            "grant_type": ["client_credentials"],
+            "scope": [patched_credentials.scopes],
+        },
+    }]
 
 
 def test_failure_get_dataset_returns_unexpected_status_code(
@@ -359,25 +357,21 @@ def test_failure_get_dataset_returns_unexpected_status_code(
             }
         ),
     }
-    assert get_request_context(mock_auth_token_post) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/auth/token",
-            "params": {},
-            "data": {
-                "grant_type": ["client_credentials"],
-                "scope": [patched_credentials.scopes],
-            },
-        }
-    ]
-    assert get_request_context(mock_dataset_get) == [
-        {
-            "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name=example",
-            "params": {"name": ["example"]},
-            "data": {},
-        }
-    ]
+    assert get_request_context(mock_auth_token_post) == [{
+        "method": "POST",
+        "url": f"{patched_credentials.server}/auth/token",
+        "params": {},
+        "data": {
+            "grant_type": ["client_credentials"],
+            "scope": [patched_credentials.scopes],
+        },
+    }]
+    assert get_request_context(mock_dataset_get) == [{
+        "method": "GET",
+        "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name=example",
+        "params": {"name": ["example"]},
+        "data": {},
+    }]
 
 
 def test_failure_get_dataset_returns_invalid_data(
@@ -412,25 +406,21 @@ def test_failure_get_dataset_returns_invalid_data(
         "context": "Dataset did not return the `_id` field which can be used to identify the dataset.",
     }
 
-    assert get_request_context(mock_auth_token_post) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/auth/token",
-            "params": {},
-            "data": {
-                "grant_type": ["client_credentials"],
-                "scope": [patched_credentials.scopes],
-            },
-        }
-    ]
-    assert get_request_context(mock_dataset_get) == [
-        {
-            "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name=example",
-            "params": {"name": ["example"]},
-            "data": {},
-        }
-    ]
+    assert get_request_context(mock_auth_token_post) == [{
+        "method": "POST",
+        "url": f"{patched_credentials.server}/auth/token",
+        "params": {},
+        "data": {
+            "grant_type": ["client_credentials"],
+            "scope": [patched_credentials.scopes],
+        },
+    }]
+    assert get_request_context(mock_dataset_get) == [{
+        "method": "GET",
+        "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name=example",
+        "params": {"name": ["example"]},
+        "data": {},
+    }]
 
 
 def test_failure_put_dataset_returns_invalid_data(
@@ -475,25 +465,21 @@ def test_failure_put_dataset_returns_invalid_data(
         "feature": "Updates on existing Datasets",
     }
 
-    assert get_request_context(mock_auth_token_post) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/auth/token",
-            "params": {},
-            "data": {
-                "grant_type": ["client_credentials"],
-                "scope": [patched_credentials.scopes],
-            },
-        }
-    ]
-    assert get_request_context(mock_dataset_get) == [
-        {
-            "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name=example",
-            "params": {"name": ["example"]},
-            "data": {},
-        }
-    ]
+    assert get_request_context(mock_auth_token_post) == [{
+        "method": "POST",
+        "url": f"{patched_credentials.server}/auth/token",
+        "params": {},
+        "data": {
+            "grant_type": ["client_credentials"],
+            "scope": [patched_credentials.scopes],
+        },
+    }]
+    assert get_request_context(mock_dataset_get) == [{
+        "method": "GET",
+        "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name=example",
+        "params": {"name": ["example"]},
+        "data": {},
+    }]
     assert get_request_context(mock_dsa_put) == [
         {
             "method": "PUT",
