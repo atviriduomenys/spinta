@@ -764,7 +764,12 @@ class Model(MetaData):
 
 
 class FunctionalModel(Model):
-    """A functional variant of a model, e.g. 'City/:getone' or 'City/:getall'."""
+    """
+    A functional variant of a model, e.g. 'City/:getone' or 'City/:getall'.
+    Possible functions:
+    '/:part` - a partial model that cannot be accessed directly, but only as a part of a parent model';
+    
+    """
 
     parent_model: Model | None = None
     params: UrlParams  # `City/:part` would be `params.part`
