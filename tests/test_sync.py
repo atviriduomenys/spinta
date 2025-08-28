@@ -87,7 +87,7 @@ def dataset_prefix(patched_credentials: RemoteClientCredentials) -> str:
 @pytest.fixture
 def manifest_path(context: ContextForTests, tmp_path: PosixPath) -> PosixPath:
     """Build csv file and returns its path."""
-    manifest = striptable("""
+    manifest = striptable(f"""
         id | d | r | b | m | property      | type    | ref     | source  | level | status    | visibility | access | title | description
            | example                       |         |         |         |       |           |            |        |       |
            |   | cities                    | sql     | default | default |       |           | private    |        |       |
@@ -368,15 +368,17 @@ def test_failure_get_access_token_api_call(
     # Assert
     assert exception.value.response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
 
-    assert get_request_context(mock_auth_token_post) == [{
-        "method": "POST",
-        "url": f"{patched_credentials.server}/auth/token",
-        "params": {},
-        "data": {
-            "grant_type": ["client_credentials"],
-            "scope": [patched_credentials.scopes],
-        },
-    }]
+    assert get_request_context(mock_auth_token_post) == [
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/auth/token",
+            "params": {},
+            "data": {
+                "grant_type": ["client_credentials"],
+                "scope": [patched_credentials.scopes],
+            },
+        }
+    ]
 
 
 def test_failure_get_dataset_returns_unexpected_status_code(
