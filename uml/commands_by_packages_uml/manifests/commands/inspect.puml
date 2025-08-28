@@ -1,0 +1,20 @@
+@startuml
+package inspect <<Rectangle>> {
+
+    object inspect {
+        +context: Context,
+        +backend: Backend,
+        +manifest: Manifest,
+        +source: None,
+        +dataset: Dataset,
+
+    }
+}
+
+inspect *-- Config
+inspect *-- Backend
+inspect *-- Manifest
+inspect *-- Dataset
+
+
+@enduml

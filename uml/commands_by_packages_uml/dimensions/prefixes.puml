@@ -1,0 +1,17 @@
+@startuml
+package prefixes <<Rectangle>> {
+
+    object load {
+        +context: Context,
+        +prefix: UriPrefix,
+        +data: Dict[str, Any],
+        +*,
+        +parent: Node,
+    }
+}
+
+load *-- Context
+load *-- UriPrefix
+load *-- Node
+
+@enduml
