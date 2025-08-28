@@ -161,7 +161,7 @@ def test_schema_invalid_dataset_name(
     app = create_test_client(context)
     app.authorize(["spinta_schema_write"])
 
-    resp = app.post("/api/schema/error/n/:schema")
+    resp = app.post("/api/schema/error/1/:schema")
     assert error(resp, status=400) == "InvalidName"
 
 
