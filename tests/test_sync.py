@@ -87,7 +87,7 @@ def dataset_prefix(patched_credentials: RemoteClientCredentials) -> str:
 @pytest.fixture
 def manifest_path(context: ContextForTests, tmp_path: PosixPath) -> PosixPath:
     """Build csv file and returns its path."""
-    manifest = striptable(f"""
+    manifest = striptable("""
         id | d | r | b | m | property      | type    | ref     | source  | level | status    | visibility | access | title | description
            | example                       |         |         |         |       |           |            |        |       |
            |   | cities                    | sql     | default | default |       |           | private    |        |       |
