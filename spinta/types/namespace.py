@@ -1,5 +1,4 @@
 import collections
-import re
 import uuid
 from typing import Any
 from typing import Dict
@@ -30,8 +29,7 @@ from spinta.exceptions import InvalidName
 from spinta.manifests.components import Manifest
 from spinta.nodes import load_node
 from spinta.types.datatype import Ref, Array
-
-namespace_is_lowercase = re.compile(r"^([a-z][a-z0-9]*)+(/[a-z][a-z0-9]*)+|([a-z][a-z0-9]*)$")
+from spinta.utils.naming import is_valid_namespace_name
 
 RESERVED_NAMES = {
     "_schema",
@@ -120,7 +118,7 @@ def check(context: Context, ns: Namespace):
     if config.check_names:
         name = ns.name
         if name and name not in RESERVED_NAMES:
-            if namespace_is_lowercase.match(name) is None:
+            if not is_valid_namespace_name(name):
                 raise InvalidName(ns, name=name, type="namespace")
 
 
