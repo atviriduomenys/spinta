@@ -23,7 +23,7 @@ from spinta.testing.datasets import Sqlite
 from spinta.testing.tabular import create_tabular_manifest
 
 
-def get_request_context(mocked_request: _Matcher) -> list[dict[str, Any]]:
+def get_request_context(mocked_request: _Matcher, with_text: bool = False) -> list[dict[str, Any]]:
     """Helper method to build context of what the mocked URLs were called with (Content, query params, URL)."""
     calls = []
     for request in mocked_request.request_history:
@@ -39,6 +39,7 @@ def get_request_context(mocked_request: _Matcher) -> list[dict[str, Any]]:
 
 
 def get_full_dataset_name(dataset_prefix: str, dataset_name: str) -> str:
+    """Helper method to build a full dataset name: `prefix + dataset name`."""
     return f"{dataset_prefix}/{dataset_name}"
 
 
@@ -59,7 +60,7 @@ def patched_credentials():
 
 
 @pytest.fixture
-def sqlite_instance(sqlite: Sqlite):
+def sqlite_instance(sqlite: Sqlite) -> Sqlite:
     sqlite.init(
         {
             "COUNTRY": [
@@ -90,14 +91,14 @@ def dataset_prefix(patched_credentials: RemoteClientCredentials) -> str:
 @pytest.fixture
 def manifest_path(context: ContextForTests, tmp_path: PosixPath) -> PosixPath:
     """Build csv file and returns its path."""
-    manifest = striptable(f"""
-        id | d | r | b | m | property      | type    | ref     | source | level | status    | visibility | access | title | description
-           | example                       |         |         |        |       |           |            |        |       |
-           |   | cities                    |         | default |        |       |           |            |        |       |
-           |                               |         |         |        |       |           |            |        |       |
-           |   |   |   | City              |         | id      | users  | 4     | completed | package    | open   | Name  |
-           |   |   |   |   | id            | integer |         | id     |       |           |            |        |       |
-           |   |   |   |   | full_name     | string  |         | name   |       |           |            |        |       |
+    manifest = striptable("""
+        id | d | r | b | m | property      | type    | ref     | source  | level | status    | visibility | access | title | description
+           | example                       |         |         |         |       |           |            |        |       |
+           |   | cities                    | sql     | default | default |       |           | private    |        |       |
+           |                               |         |         |         |       |           |            |        |       |
+           |   |   |   | City              |         | id      | users   | 4     | completed | private    | open   | Name  |
+           |   |   |   |   | id            | integer |         | id      |       |           | private    |        |       |
+           |   |   |   |   | full_name     | string  |         | name    |       |           | private    |        |       |
         """)
     manifest_path = tmp_path / "manifest.csv"
     create_tabular_manifest(context, manifest_path, manifest)
@@ -279,18 +280,37 @@ def test_success_new_dataset(
             "data": ANY,  # DSA content + SQLite content.
         },
     ]
-    assert get_request_context(mock_dsa_post) == [
+    assert get_request_context(mock_dsa_post, with_text=True) == [
         {
             "method": "POST",
             "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/1/dsa/",
             "params": {},
-            "data": ANY,  # DSA Content from file.
+            "data": {},
+            "text": """id,dataset,resource,base,model,property,type,ref,source,source.type,prepare,origin,count,level,status,visibility,access,uri,eli,title,description
+,example,,,,,,,,,,,,,,,,,,,
+,,cities,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,
+,,,,City,,,id,,,,,,4,completed,private,open,,,Name,
+,,,,,id,integer,,,,,,,,,private,,,,,
+,,,,,full_name,string,,,,,,,,,private,,,,,"""
         },
         {
             "method": "POST",
             "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/1/dsa/",
             "params": {},
-            "data": ANY,  # DSA Content from file.
+            "data": {},
+            "text": """id,dataset,resource,base,model,property,type,ref,source,source.type,prepare,origin,count,level,status,visibility,access,uri,eli,title,description
+,db_sqlite,,,,,,,,,,,,,,,,,,,
+,,resource1,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,
+,,,,City,,,,,,,,,,develop,private,,,,,
+,,,,,country_id,ref,Country,,,,,,,develop,private,,,,,
+,,,,,name,string,,,,,,,,develop,private,,,,,
+,,,,,,,,,,,,,,,,,,,,
+,,,,Country,,,id,,,,,,,develop,private,,,,,
+,,,,,code,string,,,,,,,,develop,private,,,,,
+,,,,,id,integer,,,,,,,,develop,private,,,,,
+,,,,,name,string,,,,,,,,develop,private,,,,,"""
         },
     ]
 
