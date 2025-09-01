@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 
 from typing import TYPE_CHECKING, Iterable
 
@@ -11,12 +10,11 @@ from spinta.components import Model
 from spinta.components import Property
 from spinta.exceptions import BackendNotFound
 from spinta.exceptions import InvalidName
+from spinta.utils.naming import is_valid_model_name, is_valid_property_name
 
 if TYPE_CHECKING:
     from spinta.types.datatype import DataType
 
-upper_camel_case = re.compile(r"^[A-Z][A-Za-z0-9]*$")
-snake_case = re.compile(r"^[a-z](_?[a-z0-9]+)*_?$")
 
 RESERVED_PROPERTY_NAMES = {
     "_op",
@@ -65,7 +63,7 @@ def check_model_name(context: Context, model: Model):
         else:
             name = model.name
         if name not in ["_ns", "_txn", "_schema", "_schema/Version"]:
-            if upper_camel_case.match(name) is None:
+            if not is_valid_model_name(name):
                 raise InvalidName(model, name=name, type="model")
 
 
@@ -73,5 +71,5 @@ def check_property_name(context: Context, prop: Property):
     config: Config = context.get("config")
     if config.check_names:
         name = prop.name
-        if name not in RESERVED_PROPERTY_NAMES and snake_case.match(name) is None:
+        if name not in RESERVED_PROPERTY_NAMES and not is_valid_property_name(name):
             raise InvalidName(prop, name=name, type="property")

@@ -11,7 +11,6 @@ from spinta.cli.helpers.migrate import MigrationConfig
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.components import Context, UrlParams, Store, Model, Config, Property
 from spinta.core.context import configure_context, create_context
-from spinta.datasets.commands.check import check_dataset_name
 from spinta.datasets.inspect.helpers import zipitems
 from spinta.exceptions import (
     NotSupportedManifestType,
@@ -26,6 +25,7 @@ from spinta.exceptions import (
 )
 from spinta.manifests.components import ManifestPath, Manifest
 from spinta.manifests.tabular.helpers import datasets_to_tabular
+from spinta.utils.naming import is_valid_namespace_name
 from spinta.utils.schema import NA
 from spinta.utils.types import is_str_uuid
 
@@ -119,7 +119,7 @@ def _parse_and_validate_dataset_name(context: Context, manifest: Manifest, param
             ns = commands.get_namespace(context, manifest, dataset_name)
             raise InvalidSchemaUrlPath(ns)
 
-    if not check_dataset_name(dataset_name):
+    if not is_valid_namespace_name(dataset_name):
         raise InvalidName(name=dataset_name, type="dataset")
 
     return dataset_name

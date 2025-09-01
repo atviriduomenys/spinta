@@ -219,6 +219,9 @@ Bug fixes:
 
 - Fixed `migration` script sometimes applying name compression twice (`#1409`_).
 
+- Fixed several exponential backtracking regex issues (`#1435`_).
+
+  .. _#1435: https://github.com/atviriduomenys/spinta/issues/1435
   .. _#1409: https://github.com/atviriduomenys/spinta/issues/1409
   .. _#1269: https://github.com/atviriduomenys/spinta/issues/1269
   .. _#1251: https://github.com/atviriduomenys/spinta/issues/1251
