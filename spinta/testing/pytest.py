@@ -10,6 +10,8 @@ import sqlalchemy as sa
 import sqlalchemy_utils as su
 from sqlalchemy.engine.url import make_url, URL
 from responses import RequestsMock
+from sqlalchemy import text
+from sqlalchemy.pool import NullPool
 
 from spinta.core.config import RawConfig
 from spinta.core.config import read_config
@@ -68,17 +70,73 @@ def _prepare_postgresql(dsn: str) -> None:
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis_tiger_geocoder"))
 
 
+def _terminate_backends_same_server(target_db_url: str) -> None:
+    """
+    Terminate all sessions connected to the DB indicated by target_db_url,
+    using a connection to a *different* DB on the same server ('postgres' or 'template1').
+    """
+    u = make_url(target_db_url)
+    target_dbname = u.database
+
+    last_err = None
+    for admin_db in ("postgres", "template1"):
+        admin_url = str(u.set(database=admin_db))
+        try:
+            eng = sa.create_engine(admin_url, isolation_level="AUTOCOMMIT", poolclass=NullPool)
+            try:
+                with eng.connect() as c:
+                    # block new connections first
+                    c.execute(text(f'ALTER DATABASE "{target_dbname}" WITH ALLOW_CONNECTIONS = false'))
+                    # kill everyone except ourselves
+                    c.execute(
+                        text("""
+                            SELECT pg_terminate_backend(pid)
+                            FROM pg_stat_activity
+                            WHERE datname = :db AND pid <> pg_backend_pid()
+                        """),
+                        {"db": target_dbname},
+                    )
+            finally:
+                eng.dispose()
+            return  # success
+        except sa.exc.SQLAlchemyError as e:
+            last_err = e
+            continue
+    # If both admin DBs failed to connect/operate, surface the last error
+    if last_err:
+        raise last_err
+
+
 @pytest.fixture(scope="session")
 def postgresql(rc) -> str:
+    """
+    Session-wide base DSN fixture. Monkeypatch su.drop_database so any drop
+    first terminates lingering connections from a *different* DB.
+    """
     dsn: str = rc.get("backends", "default", "dsn", required=True)
-    if su.database_exists(dsn):
+
+    # Wrap sqlalchemy_utils.drop_database globally for this session.
+    original_drop = su.drop_database
+
+    def drop_force(db_url: str):
+        # ensure we are NOT connected to the target DB when altering it
+        _terminate_backends_same_server(db_url)
+        return original_drop(db_url)
+
+    su.drop_database = drop_force  # monkeypatch for the session
+
+    try:
+        if not su.database_exists(dsn):
+            su.create_database(dsn)
         _prepare_postgresql(dsn)
         yield dsn
-    else:
-        su.create_database(dsn)
-        _prepare_postgresql(dsn)
-        yield dsn
-        su.drop_database(dsn)
+    finally:
+        # restore original
+        su.drop_database = original_drop
+        # (optional) if you previously dropped the base DSN at teardown, keep doing so safely
+        if su.database_exists(dsn):
+            _terminate_backends_same_server(dsn)
+            original_drop(dsn)
 
 
 @pytest.fixture(scope="session")
