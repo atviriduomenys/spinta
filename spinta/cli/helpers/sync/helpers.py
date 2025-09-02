@@ -252,32 +252,32 @@ def format_error_response_data(data: dict[str, Any]) -> dict:
     return data
 
 
-def extract_dataset_id(response: Response, response_type: str) -> str:
-    """Extract the dataset ID from an API response.
+def extract_identifier_from_response(response: Response, response_type: str) -> str:
+    """Extract the resource ID from an API response.
 
     Args:
-        response: HTTP response containing dataset data.
+        response: HTTP response containing resource (dataset, data service, etc.) data.
         response_type: Type of response, either 'list' or 'detail'.
 
     Returns:
-        Dataset ID string.
+        Resource ID string.
 
     Raises:
         UnexpectedAPIResponseData: If the `_id` field is missing from the response.
     """
-    dataset_id = None
+    identifier = None
     if response_type == "list":
-        dataset_id = response.json().get("_data", [{}])[0].get(IDENTIFIER)
+        identifier = response.json().get("_data", [{}])[0].get(IDENTIFIER)
     elif response_type == "detail":
-        dataset_id = response.json().get(IDENTIFIER)
+        identifier = response.json().get(IDENTIFIER)
 
-    if not dataset_id:
+    if not identifier:
         raise UnexpectedAPIResponseData(
             operation=f"Retrieve dataset `{IDENTIFIER}`",
             context=f"Dataset did not return the `{IDENTIFIER}` field which can be used to identify the dataset.",
         )
 
-    return dataset_id
+    return identifier
 
 
 def render_content_from_manifest(context: Context, manifest: InlineManifest, content_type: ContentType) -> bytes | str:
