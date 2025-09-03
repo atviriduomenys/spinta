@@ -1,9 +1,13 @@
 Changes
 #######
 
-0.2dev5 (unreleased)
+0.2dev6 (unreleased)
 ====================
 
+0.2dev5 (2025-09-03)
+====================
+
+- Added dependency `mypy`
 
 0.2dev4 (2025-08-28)
 ====================
