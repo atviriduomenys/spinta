@@ -27,14 +27,10 @@ def get_request_context(mocked_request: _Matcher, with_text: bool = False) -> li
     """Helper method to build context of what the mocked URLs were called with (Content, query params, URL)."""
     calls = []
     for request in mocked_request.request_history:
-        calls.append(
-            {
-                "method": request.method,
-                "url": request.url,
-                "params": request.qs,
-                "data": parse_qs(request.text),
-            }
-        )
+        data = {"method": request.method, "url": request.url, "params": request.qs, "data": parse_qs(request.text)}
+        if with_text:
+            data.update({"text": request.text.replace("\r\n", "\n").rstrip("\n")})
+        calls.append(data)
     return calls
 
 
@@ -292,7 +288,7 @@ def test_success_new_dataset(
 ,,,,,,,,,,,,,,,,,,,,
 ,,,,City,,,id,,,,,,4,completed,private,open,,,Name,
 ,,,,,id,integer,,,,,,,,,private,,,,,
-,,,,,full_name,string,,,,,,,,,private,,,,,"""
+,,,,,full_name,string,,,,,,,,,private,,,,,""",
         },
         {
             "method": "POST",
@@ -310,7 +306,7 @@ def test_success_new_dataset(
 ,,,,Country,,,id,,,,,,,develop,private,,,,,
 ,,,,,code,string,,,,,,,,develop,private,,,,,
 ,,,,,id,integer,,,,,,,,develop,private,,,,,
-,,,,,name,string,,,,,,,,develop,private,,,,,"""
+,,,,,name,string,,,,,,,,develop,private,,,,,""",
         },
     ]
 
@@ -817,7 +813,6 @@ def test_failure_post_distribution_returns_unexpected_status_code(
             "data": ANY,  # DSA content + SQLite content.
         },
     ]
-
 
 
 def test_failure_post_dsa_returns_unexpected_status_code(

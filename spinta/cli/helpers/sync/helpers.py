@@ -138,7 +138,6 @@ def clean_private_attributes(resource: Resource) -> dict[str, Model]:
             continue
         model.external.name = ""  # Source column cleanup.
 
-
     return resource_models
 
 
