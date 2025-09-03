@@ -1126,3 +1126,9 @@ class UnexpectedAPIResponseData(BaseError):
         Unexpected response data received while calling the api for operation `{operation}`.
         {context}.
     """
+
+
+class InvalidCredentialsConfigurationException(UserError):
+    template = """
+        Credentials.cfg is missing required configuration credentials. Required credentials: `{required_credentials}`.
+    """

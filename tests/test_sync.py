@@ -10,7 +10,12 @@ from requests_mock.adapter import _Matcher
 
 from spinta.client import RemoteClientCredentials
 from spinta.core.config import RawConfig
-from spinta.exceptions import NotImplementedFeature, UnexpectedAPIResponse, UnexpectedAPIResponseData
+from spinta.exceptions import (
+    NotImplementedFeature,
+    UnexpectedAPIResponse,
+    UnexpectedAPIResponseData,
+    InvalidCredentialsConfigurationException,
+)
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.context import ContextForTests
@@ -85,7 +90,7 @@ def dataset_prefix(patched_credentials: RemoteClientCredentials) -> str:
 @pytest.fixture
 def manifest_path(context: ContextForTests, tmp_path: PosixPath) -> PosixPath:
     """Build csv file and returns its path."""
-    manifest = striptable(f"""
+    manifest = striptable("""
         id | d | r | b | m | property      | type    | ref     | source | level | status    | visibility | access | title | description
            | example                       |         |         |        |       |           |            |        |       |
            |   | cities                    |         | default |        |       |           |            |        |       |
@@ -288,6 +293,40 @@ def test_success_new_dataset(
             "data": ANY,  # DSA Content from file.
         },
     ]
+
+
+def test_failure_configuration_invalid(
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    manifest_path: PosixPath,
+    requests_mock: MagicMock,
+    base_uapi_url: str,
+    sqlite_instance: Sqlite,
+    dataset_prefix: str,
+):
+    # Arrange
+    # No `organization` or `organization_type`
+    credentials = RemoteClientCredentials(
+        section="default",
+        remote="origin",
+        client="client-id",
+        secret="secret",
+        server="http://example.com",
+        scopes="scope1 scope2",
+    )
+    requests_mock.post(
+        f"{credentials.server}/auth/token",
+        status_code=HTTPStatus.OK,
+        json={"access_token": "test-token"},
+    )
+    with patch("spinta.cli.helpers.sync.helpers.get_client_credentials", return_value=credentials):
+        # Act
+        with pytest.raises(InvalidCredentialsConfigurationException) as exception:
+            cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
+
+        # Assert
+        assert exception.value.status_code == 400
+        assert exception.value.context == {"required_credentials": str(["organization_type", "organization"])}
 
 
 def test_failure_get_access_token_api_call(

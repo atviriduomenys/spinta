@@ -15,6 +15,7 @@ from spinta.exceptions import (
     NotImplementedFeature,
     UnexpectedAPIResponse,
     UnexpectedAPIResponseData,
+    InvalidCredentialsConfigurationException,
 )
 from spinta.formats.csv.commands import _render_manifest_csv
 from spinta.manifests.components import ManifestPath, Manifest
@@ -110,6 +111,8 @@ def get_data_service_name_prefix(credentials: RemoteClientCredentials) -> str:
         A string type prefix to add to the beginning of the Data service name.
             - `datasets/<organization_type>/<organization_codename>/<IS>/<subIS>`
     """
+    if not any([credentials.organization_type, credentials.organization]):
+        raise InvalidCredentialsConfigurationException(required_credentials=["organization_type", "organization"])
     prefix = f"datasets/{credentials.organization_type}/{credentials.organization}"
     # TODO: Add IS & subIS, when that information is available (When Agents are related w/ DS and not Organizations).
     return prefix
