@@ -16,6 +16,7 @@ from spinta.cli.helpers.sync.helpers import (
     render_content_from_manifest,
     extract_dataset_id,
     get_configuration_credentials,
+    get_data_service_name_prefix,
 )
 
 logger = logging.getLogger(__name__)
@@ -67,9 +68,10 @@ def sync(
 
     credentials = get_configuration_credentials(context)
     base_path, headers = get_base_path_and_headers(credentials)
+    prefix = get_data_service_name_prefix(credentials)
 
     for dataset in dataset_data:
-        dataset_name = dataset["name"]
+        dataset_name = f"{prefix}/{dataset['name']}"
         response_get_dataset = get_dataset(base_path, headers, dataset_name)
         if response_get_dataset.status_code == HTTPStatus.OK:
             dataset_id = extract_dataset_id(response_get_dataset, "list")

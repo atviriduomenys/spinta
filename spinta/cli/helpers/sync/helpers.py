@@ -15,6 +15,7 @@ from spinta.exceptions import (
     NotImplementedFeature,
     UnexpectedAPIResponse,
     UnexpectedAPIResponseData,
+    InvalidCredentialsConfigurationException,
 )
 from spinta.formats.csv.commands import _render_manifest_csv
 from spinta.manifests.components import ManifestPath, Manifest
@@ -94,6 +95,29 @@ def get_context_and_manifest(
     return context, manifest
 
 
+def get_data_service_name_prefix(credentials: RemoteClientCredentials) -> str:
+    """Build a Dataset prefix for later calls to open data Catalog.
+
+    Building a dataset prefix from:
+        - Organization type;
+        - Organization codename/name;
+        - Information system (IS);
+        - Information subsystem (subIS).
+
+    Args:
+        credentials: RemoteClientCredentials object with client ID, secret, organization info, and server details.
+
+    Returns:
+        A string type prefix to add to the beginning of the Data service name.
+            - `datasets/<organization_type>/<organization_codename>/<IS>/<subIS>`
+    """
+    if not any([credentials.organization_type, credentials.organization]):
+        raise InvalidCredentialsConfigurationException(required_credentials=["organization_type", "organization"])
+    prefix = f"datasets/{credentials.organization_type}/{credentials.organization}"
+    # TODO: Add IS & subIS, when that information is available (When Agents are related w/ DS and not Organizations).
+    return prefix
+
+
 def prepare_synchronization_manifests(context: Context, manifest: Manifest) -> list[dict[str, Any]]:
     """Prepare dataset and resource manifests for synchronization.
 
@@ -155,14 +179,14 @@ def prepare_synchronization_manifests(context: Context, manifest: Manifest) -> l
 def get_configuration_credentials(context: Context) -> RemoteClientCredentials:
     """Retrieve remote client credentials from configuration.
 
-    Reads the credentials file specified in the Spinta configuration and
-    loads client credentials from the default section.
+    Reads the credential file specified in the Spinta configuration and
+     load client credentials from the default section.
 
     Args:
         context: Spinta runtime context containing configuration.
 
     Returns:
-        RemoteClientCredentials object with client ID, secret, and server details.
+        RemoteClientCredentials object with client ID, secret, organization info, and server details.
     """
     config: Config = context.get("config")
     credentials: RemoteClientCredentials = get_client_credentials(config.credentials_file, DEFAULT_CREDENTIALS_SECTION)
