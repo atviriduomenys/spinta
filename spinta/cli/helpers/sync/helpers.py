@@ -8,8 +8,10 @@ from requests import Response
 from spinta.auth import DEFAULT_CREDENTIALS_SECTION
 from spinta.cli.helpers.sync import IDENTIFIER, ContentType
 from spinta.client import get_client_credentials, RemoteClientCredentials, get_access_token
-from spinta.components import Config, Context
+from spinta.components import Config, Context, Model
 from spinta import commands
+from spinta.core.enums import Visibility
+from spinta.datasets.components import Resource
 from spinta.datasets.inspect.helpers import create_manifest_from_inspect
 from spinta.exceptions import (
     NotImplementedFeature,
@@ -118,6 +120,27 @@ def get_data_service_name_prefix(credentials: RemoteClientCredentials) -> str:
     return prefix
 
 
+def clean_private_attributes(resource: Resource) -> dict[str, Model]:
+    resource.external = ""
+    resource.type = ""
+    resource.backend.name = ""
+
+    resource_models = resource.models
+    for model_name, model in resource_models.items():
+        for property_name, property in model.properties.items():
+            if property.basename.startswith("_"):  # Skip
+                continue
+            if property.visibility not in {Visibility.private, None}:
+                continue
+            property.external = ""
+
+        if model.visibility not in {Visibility.private, None}:
+            continue
+        model.external.name = ""  # Source column cleanup.
+
+    return resource_models
+
+
 def prepare_synchronization_manifests(context: Context, manifest: Manifest) -> list[dict[str, Any]]:
     """Prepare dataset and resource manifests for synchronization.
 
@@ -130,11 +153,11 @@ def prepare_synchronization_manifests(context: Context, manifest: Manifest) -> l
 
     Returns:
         List of dataset metadata dictionaries, each containing:
-            - ``name``: Dataset name.
-            - ``dataset_manifest``: Manifest object for the dataset.
-            - ``resources``: List of resource dictionaries with:
-                - ``name``: Resource name.
-                - ``manifest``: Manifest object for the resource.
+            - `name`: Dataset name.
+            - `dataset_manifest`: Manifest object for the dataset.
+            - `resources`: List of resource dictionaries with:
+                - `name`: Resource name.
+                - `manifest`: Manifest object for the resource.
     """
     dataset_data = []
     datasets = commands.get_datasets(context, manifest)
@@ -149,7 +172,7 @@ def prepare_synchronization_manifests(context: Context, manifest: Manifest) -> l
             resource_manifest = Manifest()
             init_manifest(context, resource_manifest, "sync_resource_manifest")
 
-            resource_models = resource_object.models
+            resource_models = clean_private_attributes(resource_object)
             commands.set_models(context, resource_manifest, resource_models)
             dataset_manifest_models.append(resource_models)
 

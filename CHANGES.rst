@@ -19,7 +19,7 @@ New Features:
 - Add `spinta inspect` logic to `spinta sync` & loop through all the datasets from inspection instead of using the first one only. (`#1415`_)
 - Refactor tests for synchronization to be more maintainable + assert what endpoints are called with and not only that they are called. (`#1415`_)
 - Build full dataset name following UDTS conventions. (`#1415`_)
-
+- Remove private source/resource values from DSA. (`#1415`_)
 
   .. _#1274: https://github.com/atviriduomenys/spinta/issues/1274
   .. _#1275: https://github.com/atviriduomenys/spinta/issues/1275
