@@ -23,6 +23,10 @@ New Features:
 - Refactored `spinta sync` into separate functions to improve readability and maintainability. (`#1415`_)
 - During synchronization, create a Data Service and not a Dataset as was done initially. (`#1415`_)
 - Adjust synchronization credentials retrieve, to include organization name & type. (`#1415`_)
+- Add `spinta inspect` logic to `spinta sync` & loop through all the datasets from inspection instead of using the first one only. (`#1415`_)
+- Refactor tests for synchronization to be more maintainable + assert what endpoints are called with and not only that they are called. (`#1415`_)
+- Build full dataset name following UDTS conventions. (`#1415`_)
+- Remove private source/resource values from DSA. (`#1415`_)
 - Added the `spinta admin` command for running maintenance scripts. Unlike `spinta upgrade`, the `admin` command requires
   specific scripts to be passed and cannot run all scripts by default (`#1340`_).
 - Added the `changelog` admin script (`spinta admin changelog`). This script checks for duplicate entries in the `changelog`

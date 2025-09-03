@@ -6,16 +6,14 @@ import requests
 
 from spinta.cli.helpers.sync import CONTENT_TYPE_TEXT_CSV
 from spinta.cli.helpers.sync.helpers import validate_api_response
-from spinta.manifests.components import ManifestPath
 
 
 def create_distribution(
     base_path: str,
     headers: dict[str, str],
-    dataset_name: str,
+    distribution_name: str,
     file_bytes: bytes,
     dataset_id: str,
-    manifests: list[ManifestPath],
 ) -> None:
     """Create a distribution for a dataset with a CSV file.
 
@@ -25,7 +23,7 @@ def create_distribution(
     Args:
         base_path: Base URL of the API.
         headers: HTTP headers to include in the request.
-        dataset_name: Name/title of the dataset for which the distribution is created.
+        distribution_name: Name/title of the distribution.
         file_bytes: Content of the CSV file to upload as bytes.
         dataset_id: ID of the dataset to link the distribution to.
         manifests: List of ManifestPath objects representing file paths.
@@ -41,10 +39,8 @@ def create_distribution(
         headers=headers,
         data={
             "dataset": dataset_id,
-            "title": dataset_name,
+            "title": distribution_name,
         },
-        files={
-            "file": (manifests[0].path, BytesIO(file_bytes), CONTENT_TYPE_TEXT_CSV),
-        },
+        files={"file": (f"{distribution_name}.csv", BytesIO(file_bytes), CONTENT_TYPE_TEXT_CSV)},
     )
     validate_api_response(response, {HTTPStatus.CREATED}, "Create distribution")

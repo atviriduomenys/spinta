@@ -1128,5 +1128,7 @@ class UnexpectedAPIResponseData(BaseError):
     """
 
 
-class ManifestFileNotProvided(BaseError):
-    template = "A manifest file was not provided. Provide it in the format `spinta <command> <file_path>`."
+class InvalidCredentialsConfigurationException(UserError):
+    template = """
+        Credentials.cfg is missing required configuration credentials. Required credentials: `{required_credentials}`.
+    """
