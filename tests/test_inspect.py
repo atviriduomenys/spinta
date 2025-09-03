@@ -2245,7 +2245,7 @@ def test_inspect_with_postgresql_schema(rc_new: RawConfig, cli: SpintaCliRunner,
     su.create_database(db)
     engine = sa.create_engine(db)
     with engine.connect() as conn:
-        engine.execute(sa.schema.CreateSchema("test_schema"))
+        conn.execute(sa.schema.CreateSchema("test_schema"))
         meta = sa.MetaData(conn, schema="test_schema")
         sa.Table("cities", meta, sa.Column("id", sa.Integer), sa.Column("name", sa.Text))
         meta.create_all()
