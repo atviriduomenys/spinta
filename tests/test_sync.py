@@ -1,9 +1,12 @@
 from http import HTTPStatus
 from pathlib import PosixPath
-from unittest.mock import patch, MagicMock
+from typing import Any
+from unittest.mock import patch, MagicMock, ANY
+from urllib.parse import parse_qs
 
 import pytest
 import sqlalchemy as sa
+from requests_mock.adapter import _Matcher
 
 from spinta.client import RemoteClientCredentials
 from spinta.core.config import RawConfig
@@ -13,6 +16,21 @@ from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.context import ContextForTests
 from spinta.testing.datasets import Sqlite
 from spinta.testing.tabular import create_tabular_manifest
+
+
+def get_request_context(mocked_request: _Matcher) -> list[dict[str, Any]]:
+    """Helper method to build context of what the mocked URLs were called with (Content, query params, URL)."""
+    calls = []
+    for request in mocked_request.request_history:
+        calls.append(
+            {
+                "method": request.method,
+                "url": request.url,
+                "params": request.qs,
+                "data": parse_qs(request.text),
+            }
+        )
+    return calls
 
 
 @pytest.fixture
@@ -81,6 +99,7 @@ def test_success_existing_dataset(
     base_uapi_url: str,
     sqlite_instance: Sqlite,
 ):
+    # Arrange
     mock_auth_token_post = requests_mock.post(
         f"{patched_credentials.server}/auth/token",
         status_code=HTTPStatus.OK,
@@ -97,9 +116,11 @@ def test_success_existing_dataset(
         json={},
     )
 
+    # Act
     with pytest.raises(NotImplementedFeature) as exception:
         cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
 
+    # Assert
     assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
     assert exception.value.context == {
         "status": HTTPStatus.NOT_IMPLEMENTED.value,
@@ -107,9 +128,33 @@ def test_success_existing_dataset(
         "feature": "Updates on existing Datasets",
     }
 
-    assert mock_auth_token_post.call_count == 1
-    assert mock_dataset_get.call_count == 1
-    assert mock_dataset_put.call_count == 1
+    assert get_request_context(mock_auth_token_post) == [
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/auth/token",
+            "params": {},
+            "data": {
+                "grant_type": ["client_credentials"],
+                "scope": [patched_credentials.scopes],
+            },
+        }
+    ]
+    assert get_request_context(mock_dataset_get) == [
+        {
+            "method": "GET",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name=example",
+            "params": {"name": ["example"]},
+            "data": {},
+        }
+    ]
+    assert get_request_context(mock_dataset_put) == [
+        {
+            "method": "PUT",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/1/dsa/",
+            "params": {},
+            "data": {},
+        }
+    ]
 
 
 def test_success_new_dataset(
@@ -121,6 +166,7 @@ def test_success_new_dataset(
     base_uapi_url: str,
     sqlite_instance: Sqlite,
 ):
+    # Arrange
     mock_auth_token_post = requests_mock.post(
         f"{patched_credentials.server}/auth/token",
         status_code=HTTPStatus.OK,
@@ -147,14 +193,87 @@ def test_success_new_dataset(
         json={},
     )
 
-    # Should not raise any error.
+    # Act
     cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
 
-    assert mock_auth_token_post.call_count == 1
-    assert mock_dataset_get.call_count == 2
-    assert mock_dataset_post.call_count == 2
-    assert mock_distribution_post.call_count == 2
-    assert mock_dsa_post.call_count == 2
+    # Assert
+    assert get_request_context(mock_auth_token_post) == [
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/auth/token",
+            "params": {},
+            "data": {
+                "grant_type": ["client_credentials"],
+                "scope": [patched_credentials.scopes],
+            },
+        }
+    ]
+    assert get_request_context(mock_dataset_get) == [
+        {
+            "method": "GET",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name=example",
+            "params": {"name": ["example"]},
+            "data": {},
+        },
+        {
+            "method": "GET",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name=db_sqlite",
+            "params": {"name": ["db_sqlite"]},
+            "data": {},
+        },
+    ]
+    assert get_request_context(mock_dataset_post) == [
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
+            "params": {},
+            "data": {
+                "name": ["example"],
+                "title": ["example"],
+                "service": ["True"],
+                "subclass": ["service"],
+            },
+        },
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
+            "params": {},
+            "data": {
+                "name": ["db_sqlite"],
+                "title": ["db_sqlite"],
+                "service": ["True"],
+                "subclass": ["service"],
+            },
+        },
+    ]
+    assert get_request_context(mock_distribution_post) == [
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Distribution/",
+            "params": {},
+            "data": ANY,  # DSA content + SQLite content.
+        },
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Distribution/",
+            "params": {},
+            "data": ANY,  # DSA content + SQLite content.
+        },
+    ]
+    assert get_request_context(mock_dsa_post) == [
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/1/dsa/",
+            "params": {},
+            "data": ANY,  # DSA Content from file.
+        },
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/1/dsa/",
+            "params": {},
+            "data": ANY,  # DSA Content from file.
+        },
+    ]
 
 
 def test_failure_get_access_token_api_call(
@@ -165,6 +284,7 @@ def test_failure_get_access_token_api_call(
     patched_credentials: RemoteClientCredentials,
     sqlite_instance: Sqlite,
 ):
+    # Arrange
     token_url = f"{patched_credentials.server}/auth/token"
     mock_auth_token_post = requests_mock.post(
         token_url,
@@ -172,12 +292,24 @@ def test_failure_get_access_token_api_call(
         json={"error": "server error"},
     )
 
+    # Act
     with pytest.raises(Exception) as exception:
         cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
 
+    # Assert
     assert exception.value.response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
 
-    assert mock_auth_token_post.call_count == 1
+    assert get_request_context(mock_auth_token_post) == [
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/auth/token",
+            "params": {},
+            "data": {
+                "grant_type": ["client_credentials"],
+                "scope": [patched_credentials.scopes],
+            },
+        }
+    ]
 
 
 def test_failure_get_dataset_returns_unexpected_status_code(
@@ -189,6 +321,7 @@ def test_failure_get_dataset_returns_unexpected_status_code(
     base_uapi_url: str,
     sqlite_instance: Sqlite,
 ):
+    # Arrange
     mock_auth_token_post = requests_mock.post(
         f"{patched_credentials.server}/auth/token",
         status_code=HTTPStatus.OK,
@@ -206,9 +339,11 @@ def test_failure_get_dataset_returns_unexpected_status_code(
         },
     )
 
+    # Act
     with pytest.raises(UnexpectedAPIResponse) as exception:
         cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
 
+    # Assert
     assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
     assert exception.value.context == {
         "operation": "Get dataset",
@@ -224,9 +359,25 @@ def test_failure_get_dataset_returns_unexpected_status_code(
             }
         ),
     }
-
-    assert mock_auth_token_post.call_count == 1
-    assert mock_dataset_get.call_count == 1
+    assert get_request_context(mock_auth_token_post) == [
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/auth/token",
+            "params": {},
+            "data": {
+                "grant_type": ["client_credentials"],
+                "scope": [patched_credentials.scopes],
+            },
+        }
+    ]
+    assert get_request_context(mock_dataset_get) == [
+        {
+            "method": "GET",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name=example",
+            "params": {"name": ["example"]},
+            "data": {},
+        }
+    ]
 
 
 def test_failure_get_dataset_returns_invalid_data(
@@ -238,6 +389,7 @@ def test_failure_get_dataset_returns_invalid_data(
     base_uapi_url: str,
     sqlite_instance: Sqlite,
 ):
+    # Arrange
     mock_auth_token_post = requests_mock.post(
         f"{patched_credentials.server}/auth/token",
         status_code=HTTPStatus.OK,
@@ -249,17 +401,36 @@ def test_failure_get_dataset_returns_invalid_data(
         json={},
     )
 
+    # Act
     with pytest.raises(UnexpectedAPIResponseData) as exception:
         cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
 
+    # Assert
     assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
     assert exception.value.context == {
         "operation": "Retrieve dataset `_id`",
         "context": "Dataset did not return the `_id` field which can be used to identify the dataset.",
     }
 
-    assert mock_auth_token_post.call_count == 1
-    assert mock_dataset_get.call_count == 1
+    assert get_request_context(mock_auth_token_post) == [
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/auth/token",
+            "params": {},
+            "data": {
+                "grant_type": ["client_credentials"],
+                "scope": [patched_credentials.scopes],
+            },
+        }
+    ]
+    assert get_request_context(mock_dataset_get) == [
+        {
+            "method": "GET",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name=example",
+            "params": {"name": ["example"]},
+            "data": {},
+        }
+    ]
 
 
 def test_failure_put_dataset_returns_invalid_data(
@@ -276,6 +447,7 @@ def test_failure_put_dataset_returns_invalid_data(
     Since it is not implemented, it will return an internal server error for now, but when it is implemented, this
     test will need to be updated.
     """
+    # Arrange
     mock_auth_token_post = requests_mock.post(
         f"{patched_credentials.server}/auth/token",
         status_code=HTTPStatus.OK,
@@ -286,14 +458,16 @@ def test_failure_put_dataset_returns_invalid_data(
         status_code=HTTPStatus.OK,
         json={"_data": [{"_id": 1}]},
     )
-    mock_dataset_post = requests_mock.put(
+    mock_dsa_put = requests_mock.put(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/1/dsa/",
         status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
     )
 
+    # Act
     with pytest.raises(NotImplementedFeature) as exception:
         cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
 
+    # Assert
     assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
     assert exception.value.context == {
         "status": HTTPStatus.INTERNAL_SERVER_ERROR.value,
@@ -301,9 +475,33 @@ def test_failure_put_dataset_returns_invalid_data(
         "feature": "Updates on existing Datasets",
     }
 
-    assert mock_auth_token_post.call_count == 1
-    assert mock_dataset_get.call_count == 1
-    assert mock_dataset_post.call_count == 1
+    assert get_request_context(mock_auth_token_post) == [
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/auth/token",
+            "params": {},
+            "data": {
+                "grant_type": ["client_credentials"],
+                "scope": [patched_credentials.scopes],
+            },
+        }
+    ]
+    assert get_request_context(mock_dataset_get) == [
+        {
+            "method": "GET",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name=example",
+            "params": {"name": ["example"]},
+            "data": {},
+        }
+    ]
+    assert get_request_context(mock_dsa_put) == [
+        {
+            "method": "PUT",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/1/dsa/",
+            "params": {},
+            "data": {},
+        },
+    ]
 
 
 def test_failure_post_dataset_returns_unexpected_status_code(
@@ -315,6 +513,7 @@ def test_failure_post_dataset_returns_unexpected_status_code(
     base_uapi_url: str,
     sqlite_instance: Sqlite,
 ):
+    # Arrange
     mock_auth_token_post = requests_mock.post(
         f"{patched_credentials.server}/auth/token",
         status_code=HTTPStatus.OK,
@@ -331,9 +530,11 @@ def test_failure_post_dataset_returns_unexpected_status_code(
         json={},
     )
 
+    # Act
     with pytest.raises(UnexpectedAPIResponse) as exception:
         cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
 
+    # Assert
     assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
     assert exception.value.context == {
         "operation": "Create dataset",
@@ -342,9 +543,38 @@ def test_failure_post_dataset_returns_unexpected_status_code(
         "response_data": str({}),
     }
 
-    assert mock_auth_token_post.call_count == 1
-    assert mock_dataset_get.call_count == 1
-    assert mock_dataset_post.call_count == 1
+    assert get_request_context(mock_auth_token_post) == [
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/auth/token",
+            "params": {},
+            "data": {
+                "grant_type": ["client_credentials"],
+                "scope": [patched_credentials.scopes],
+            },
+        }
+    ]
+    assert get_request_context(mock_dataset_get) == [
+        {
+            "method": "GET",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name=example",
+            "params": {"name": ["example"]},
+            "data": {},
+        }
+    ]
+    assert get_request_context(mock_dataset_post) == [
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
+            "params": {},
+            "data": {
+                "name": ["example"],
+                "title": ["example"],
+                "service": ["True"],
+                "subclass": ["service"],
+            },
+        }
+    ]
 
 
 def test_failure_post_dataset_returns_invalid_data(
@@ -356,6 +586,7 @@ def test_failure_post_dataset_returns_invalid_data(
     base_uapi_url: str,
     sqlite_instance: Sqlite,
 ):
+    # Arrange
     mock_auth_token_post = requests_mock.post(
         f"{patched_credentials.server}/auth/token",
         status_code=HTTPStatus.OK,
@@ -372,18 +603,49 @@ def test_failure_post_dataset_returns_invalid_data(
         json={},
     )
 
+    # Act
     with pytest.raises(UnexpectedAPIResponseData) as exception:
         cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
 
+    # Assert
     assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
     assert exception.value.context == {
         "operation": "Retrieve dataset `_id`",
         "context": "Dataset did not return the `_id` field which can be used to identify the dataset.",
     }
 
-    assert mock_auth_token_post.call_count == 1
-    assert mock_dataset_get.call_count == 1
-    assert mock_dataset_post.call_count == 1
+    assert get_request_context(mock_auth_token_post) == [
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/auth/token",
+            "params": {},
+            "data": {
+                "grant_type": ["client_credentials"],
+                "scope": [patched_credentials.scopes],
+            },
+        }
+    ]
+    assert get_request_context(mock_dataset_get) == [
+        {
+            "method": "GET",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name=example",
+            "params": {"name": ["example"]},
+            "data": {},
+        }
+    ]
+    assert get_request_context(mock_dataset_post) == [
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
+            "params": {},
+            "data": {
+                "name": ["example"],
+                "title": ["example"],
+                "service": ["True"],
+                "subclass": ["service"],
+            },
+        }
+    ]
 
 
 def test_failure_post_distribution_returns_unexpected_status_code(
@@ -395,6 +657,7 @@ def test_failure_post_distribution_returns_unexpected_status_code(
     base_uapi_url: str,
     sqlite_instance: Sqlite,
 ):
+    # Arrange
     mock_auth_token_post = requests_mock.post(
         f"{patched_credentials.server}/auth/token",
         status_code=HTTPStatus.OK,
@@ -416,9 +679,11 @@ def test_failure_post_distribution_returns_unexpected_status_code(
         json={},
     )
 
+    # Act
     with pytest.raises(UnexpectedAPIResponse) as exception:
         cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
 
+    # Assert
     assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
     assert exception.value.context == {
         "operation": "Create distribution",
@@ -427,10 +692,46 @@ def test_failure_post_distribution_returns_unexpected_status_code(
         "response_data": str({}),
     }
 
-    assert mock_auth_token_post.call_count == 1
-    assert mock_dataset_get.call_count == 1
-    assert mock_dataset_post.call_count == 1
-    assert mock_distribution_post.call_count == 1
+    assert get_request_context(mock_auth_token_post) == [
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/auth/token",
+            "params": {},
+            "data": {
+                "grant_type": ["client_credentials"],
+                "scope": [patched_credentials.scopes],
+            },
+        }
+    ]
+    assert get_request_context(mock_dataset_get) == [
+        {
+            "method": "GET",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name=example",
+            "params": {"name": ["example"]},
+            "data": {},
+        }
+    ]
+    assert get_request_context(mock_dataset_post) == [
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
+            "params": {},
+            "data": {
+                "name": ["example"],
+                "title": ["example"],
+                "service": ["True"],
+                "subclass": ["service"],
+            },
+        }
+    ]
+    assert get_request_context(mock_distribution_post) == [
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Distribution/",
+            "params": {},
+            "data": ANY,  # DSA content + SQLite content.
+        },
+    ]
 
 
 def test_failure_post_dsa_returns_unexpected_status_code(
@@ -442,6 +743,7 @@ def test_failure_post_dsa_returns_unexpected_status_code(
     base_uapi_url: str,
     sqlite_instance: Sqlite,
 ):
+    # Arrange
     mock_auth_token_post = requests_mock.post(
         f"{patched_credentials.server}/auth/token",
         status_code=HTTPStatus.OK,
@@ -468,9 +770,11 @@ def test_failure_post_dsa_returns_unexpected_status_code(
         json={},
     )
 
+    # Act
     with pytest.raises(UnexpectedAPIResponse) as exception:
         cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
 
+    # Assert
     assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
     assert exception.value.context == {
         "operation": "Create DSA",
@@ -478,8 +782,52 @@ def test_failure_post_dsa_returns_unexpected_status_code(
         "response_status_code": HTTPStatus.INTERNAL_SERVER_ERROR.value,
         "response_data": str({}),
     }
-    assert mock_auth_token_post.call_count == 1
-    assert mock_dataset_get.call_count == 1
-    assert mock_dataset_post.call_count == 1
-    assert mock_distribution_post.call_count == 1
-    assert mock_dsa_post.call_count == 1
+
+    assert get_request_context(mock_auth_token_post) == [
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/auth/token",
+            "params": {},
+            "data": {
+                "grant_type": ["client_credentials"],
+                "scope": [patched_credentials.scopes],
+            },
+        }
+    ]
+    assert get_request_context(mock_dataset_get) == [
+        {
+            "method": "GET",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name=example",
+            "params": {"name": ["example"]},
+            "data": {},
+        }
+    ]
+    assert get_request_context(mock_dataset_post) == [
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
+            "params": {},
+            "data": {
+                "name": ["example"],
+                "title": ["example"],
+                "service": ["True"],
+                "subclass": ["service"],
+            },
+        }
+    ]
+    assert get_request_context(mock_distribution_post) == [
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Distribution/",
+            "params": {},
+            "data": ANY,  # DSA content + SQLite content.
+        },
+    ]
+    assert get_request_context(mock_dsa_post) == [
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/1/dsa/",
+            "params": {},
+            "data": ANY,  # DSA Content from file.
+        },
+    ]
