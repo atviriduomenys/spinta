@@ -11,6 +11,7 @@ A `Dataset` object in this context can represent five types of resources:
 Instead of maintaining separate controllers for each type, this module
 handles creation and related operations for all DCAT resource types.
 """
+
 from __future__ import annotations
 from http import HTTPStatus
 from typing import Optional

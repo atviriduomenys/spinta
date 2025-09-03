@@ -168,7 +168,7 @@ def test_success_existing_dataset(
                 "title": [dataset_prefix],
                 "subclass": [ResourceType.DATA_SERVICE.value],
                 "service": ["True"],
-            }
+            },
         }
     ]
     assert get_request_context(mock_dataset_get) == [
@@ -216,7 +216,7 @@ def test_success_new_dataset(
             {"status_code": HTTPStatus.CREATED, "json": {"_id": 1}},  # Creates Data Service.
             {"status_code": HTTPStatus.CREATED, "json": {"_id": 2}},  # Creates Dataset No. 1.
             {"status_code": HTTPStatus.CREATED, "json": {"_id": 3}},  # Creates Dataset No. 2.
-        ]
+        ],
     )
     mock_distribution_post = requests_mock.post(
         f"{patched_credentials.server}/{base_uapi_url}/Distribution/",
@@ -275,7 +275,7 @@ def test_success_new_dataset(
                 "title": [dataset_prefix],
                 "service": ["True"],
                 "subclass": [ResourceType.DATA_SERVICE],
-            }
+            },
         },
         {
             "method": "POST",
@@ -477,7 +477,7 @@ def test_failure_post_data_service_returns_unexpected_status_code(
                 "title": [dataset_prefix],
                 "subclass": [ResourceType.DATA_SERVICE.value],
                 "service": ["True"],
-            }
+            },
         }
     ]
 
@@ -536,7 +536,7 @@ def test_failure_post_data_service_returns_invalid_data(
                 "title": [dataset_prefix],
                 "subclass": [ResourceType.DATA_SERVICE.value],
                 "service": ["True"],
-            }
+            },
         }
     ]
 
@@ -616,7 +616,7 @@ def test_failure_get_dataset_returns_unexpected_status_code(
                 "title": [dataset_prefix],
                 "subclass": [ResourceType.DATA_SERVICE.value],
                 "service": ["True"],
-            }
+            },
         }
     ]
     assert get_request_context(mock_dataset_get) == [
@@ -689,7 +689,7 @@ def test_failure_get_dataset_returns_invalid_data(
                 "title": [dataset_prefix],
                 "subclass": [ResourceType.DATA_SERVICE.value],
                 "service": ["True"],
-            }
+            },
         }
     ]
     assert get_request_context(mock_dataset_get) == [
@@ -772,7 +772,7 @@ def test_failure_put_dataset_returns_invalid_data(
                 "title": [dataset_prefix],
                 "subclass": [ResourceType.DATA_SERVICE.value],
                 "service": ["True"],
-            }
+            },
         }
     ]
     assert get_request_context(mock_dataset_get) == [
@@ -814,7 +814,7 @@ def test_failure_post_dataset_returns_unexpected_status_code(
         [
             {"status_code": HTTPStatus.CREATED, "json": {"_id": 1}},
             {"status_code": HTTPStatus.INTERNAL_SERVER_ERROR, "json": {}},
-        ]
+        ],
     )
     mock_dataset_get = requests_mock.get(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
@@ -857,7 +857,7 @@ def test_failure_post_dataset_returns_unexpected_status_code(
                 "title": [dataset_prefix],
                 "subclass": [ResourceType.DATA_SERVICE.value],
                 "service": ["True"],
-            }
+            },
         },
         {
             "method": "POST",
@@ -869,7 +869,7 @@ def test_failure_post_dataset_returns_unexpected_status_code(
                 "parent_id": ["1"],
                 "subclass": [ResourceType.DATASET],
             },
-        }
+        },
     ]
     assert get_request_context(mock_dataset_get) == [
         {
@@ -907,7 +907,7 @@ def test_failure_post_dataset_returns_invalid_data(
         [
             {"status_code": HTTPStatus.CREATED, "json": {"_id": 1}},
             {"status_code": HTTPStatus.CREATED, "json": {}},
-        ]
+        ],
     )
     dataset_name_example = f"{dataset_prefix}/example"
 
@@ -943,7 +943,7 @@ def test_failure_post_dataset_returns_invalid_data(
                 "title": [dataset_prefix],
                 "subclass": [ResourceType.DATA_SERVICE.value],
                 "service": ["True"],
-            }
+            },
         },
         {
             "method": "POST",
@@ -955,7 +955,7 @@ def test_failure_post_dataset_returns_invalid_data(
                 "parent_id": ["1"],
                 "subclass": [ResourceType.DATASET],
             },
-        }
+        },
     ]
     assert get_request_context(mock_dataset_get) == [
         {
@@ -1044,7 +1044,7 @@ def test_failure_post_distribution_returns_unexpected_status_code(
                 "title": [dataset_prefix],
                 "subclass": [ResourceType.DATA_SERVICE.value],
                 "service": ["True"],
-            }
+            },
         },
         {
             "method": "POST",
@@ -1056,7 +1056,7 @@ def test_failure_post_distribution_returns_unexpected_status_code(
                 "parent_id": ["1"],
                 "subclass": [ResourceType.DATASET],
             },
-        }
+        },
     ]
     assert get_request_context(mock_distribution_post) == [
         {
@@ -1066,7 +1066,6 @@ def test_failure_post_distribution_returns_unexpected_status_code(
             "data": ANY,  # DSA content + SQLite content.
         },
     ]
-
 
 
 def test_failure_post_dsa_returns_unexpected_status_code(
@@ -1151,7 +1150,7 @@ def test_failure_post_dsa_returns_unexpected_status_code(
                 "title": [dataset_prefix],
                 "subclass": [ResourceType.DATA_SERVICE.value],
                 "service": ["True"],
-            }
+            },
         },
         {
             "method": "POST",
@@ -1163,7 +1162,7 @@ def test_failure_post_dsa_returns_unexpected_status_code(
                 "parent_id": ["1"],
                 "subclass": [ResourceType.DATASET],
             },
-        }
+        },
     ]
     assert get_request_context(mock_distribution_post) == [
         {
