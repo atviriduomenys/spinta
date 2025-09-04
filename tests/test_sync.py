@@ -126,8 +126,10 @@ def test_success_existing_dataset(
     )
     mock_dataset_get = requests_mock.get(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        status_code=HTTPStatus.OK,
-        json={"_data": [{"_id": 2}]},
+        [
+            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
+            {"status_code": HTTPStatus.OK, "json": {"_data": [{"_id": 2}]}},
+        ],
     )
     mock_dataset_put = requests_mock.put(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/2/dsa/",
@@ -135,6 +137,7 @@ def test_success_existing_dataset(
         json={},
     )
     dataset_name = f"{dataset_prefix}/example"
+    agent_name = patched_credentials.client
 
     # Act
     with pytest.raises(NotImplementedFeature) as exception:
@@ -175,10 +178,16 @@ def test_success_existing_dataset(
     assert get_request_context(mock_dataset_get) == [
         {
             "method": "GET",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(agent_name, safe='')}",
+            "params": {"name": [agent_name]},
+            "data": {},
+        },
+        {
+            "method": "GET",
             "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(dataset_name, safe='')}",
             "params": {"name": [dataset_name]},
             "data": {},
-        }
+        },
     ]
     assert get_request_context(mock_dataset_put) == [
         {
@@ -208,8 +217,10 @@ def test_success_new_dataset(
     )
     mock_dataset_get = requests_mock.get(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        status_code=HTTPStatus.NOT_FOUND,
-        json={},
+        [
+            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
+            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
+        ],
     )
     mock_dataset_post = requests_mock.post(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
@@ -229,6 +240,8 @@ def test_success_new_dataset(
         status_code=HTTPStatus.NO_CONTENT,
         json={},
     )
+
+    agent_name = patched_credentials.client
     dataset_name_example = f"{dataset_prefix}/example"
     dataset_name_sqlite = f"{dataset_prefix}/db_sqlite"
 
@@ -248,6 +261,12 @@ def test_success_new_dataset(
         }
     ]
     assert get_request_context(mock_dataset_get) == [
+        {
+            "method": "GET",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(agent_name, safe='')}",
+            "params": {"name": [agent_name]},
+            "data": {},
+        },
         {
             "method": "GET",
             "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(dataset_name_example, safe='')}",
@@ -418,11 +437,18 @@ def test_failure_post_data_service_returns_unexpected_status_code(
         status_code=HTTPStatus.OK,
         json={"access_token": "test-token"},
     )
+    mock_dataset_get = requests_mock.get(
+        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
+        status_code=HTTPStatus.NOT_FOUND,
+        json={},
+    )
     mock_data_service_post = requests_mock.post(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
         status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
         json={},
     )
+
+    agent_name = patched_credentials.client
 
     # Act
     with pytest.raises(UnexpectedAPIResponse) as exception:
@@ -447,6 +473,14 @@ def test_failure_post_data_service_returns_unexpected_status_code(
                 "scope": [patched_credentials.scopes],
             },
         }
+    ]
+    assert get_request_context(mock_dataset_get) == [
+        {
+            "method": "GET",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(agent_name, safe='')}",
+            "params": {"name": [agent_name]},
+            "data": {},
+        },
     ]
     assert get_request_context(mock_data_service_post) == [
         {
@@ -479,11 +513,18 @@ def test_failure_post_data_service_returns_invalid_data(
         status_code=HTTPStatus.OK,
         json={"access_token": "test-token"},
     )
+    mock_data_service_get = requests_mock.get(
+        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
+        status_code=HTTPStatus.NOT_FOUND,
+        json={},
+    )
     mock_data_service_post = requests_mock.post(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
         status_code=HTTPStatus.CREATED,
         json={},
     )
+
+    agent_name = patched_credentials.client
 
     # Act
     with pytest.raises(UnexpectedAPIResponseData) as exception:
@@ -506,6 +547,14 @@ def test_failure_post_data_service_returns_invalid_data(
                 "scope": [patched_credentials.scopes],
             },
         }
+    ]
+    assert get_request_context(mock_data_service_get) == [
+        {
+            "method": "GET",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(agent_name, safe='')}",
+            "params": {"name": [agent_name]},
+            "data": {},
+        },
     ]
     assert get_request_context(mock_data_service_post) == [
         {
@@ -545,16 +594,23 @@ def test_failure_get_dataset_returns_unexpected_status_code(
     )
     mock_dataset_get = requests_mock.get(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-        json={
-            "code": "dataset_not_found",
-            "type": "DatasetNotFound",
-            "template": "The requested Dataset could not be found.",
-            "message": "No dataset matched the provided query.",
-            "status_code": HTTPStatus.INTERNAL_SERVER_ERROR.value,
-        },
+        [
+            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
+            {
+                "status_code": HTTPStatus.INTERNAL_SERVER_ERROR,
+                "json": {
+                    "code": "dataset_not_found",
+                    "type": "DatasetNotFound",
+                    "template": "The requested Dataset could not be found.",
+                    "message": "No dataset matched the provided query.",
+                    "status_code": HTTPStatus.INTERNAL_SERVER_ERROR.value,
+                },
+            },
+        ],
     )
+
     dataset_name_example = f"{dataset_prefix}/example"
+    agent_name = patched_credentials.client
 
     # Act
     with pytest.raises(UnexpectedAPIResponse) as exception:
@@ -603,10 +659,16 @@ def test_failure_get_dataset_returns_unexpected_status_code(
     assert get_request_context(mock_dataset_get) == [
         {
             "method": "GET",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(agent_name, safe='')}",
+            "params": {"name": [agent_name]},
+            "data": {},
+        },
+        {
+            "method": "GET",
             "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(dataset_name_example, safe='')}",
             "params": {"name": [dataset_name_example]},
             "data": {},
-        }
+        },
     ]
 
 
@@ -633,9 +695,13 @@ def test_failure_get_dataset_returns_invalid_data(
     )
     mock_dataset_get = requests_mock.get(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        status_code=HTTPStatus.OK,
-        json={},
+        [
+            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
+            {"status_code": HTTPStatus.OK, "json": {}},
+        ],
     )
+
+    agent_name = patched_credentials.client
     dataset_name_example = f"{dataset_prefix}/example"
 
     # Act
@@ -676,10 +742,16 @@ def test_failure_get_dataset_returns_invalid_data(
     assert get_request_context(mock_dataset_get) == [
         {
             "method": "GET",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(agent_name, safe='')}",
+            "params": {"name": [agent_name]},
+            "data": {},
+        },
+        {
+            "method": "GET",
             "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(dataset_name_example, safe='')}",
             "params": {"name": [dataset_name_example]},
             "data": {},
-        }
+        },
     ]
 
 
@@ -711,13 +783,17 @@ def test_failure_put_dataset_returns_invalid_data(
     )
     mock_dataset_get = requests_mock.get(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        status_code=HTTPStatus.OK,
-        json={"_data": [{"_id": 2}]},
+        [
+            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
+            {"status_code": HTTPStatus.OK, "json": {"_data": [{"_id": 2}]}},
+        ],
     )
     mock_dsa_put = requests_mock.put(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/2/dsa/",
         status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
     )
+
+    agent_name = patched_credentials.client
     dataset_name_example = f"{dataset_prefix}/example"
 
     # Act
@@ -759,10 +835,16 @@ def test_failure_put_dataset_returns_invalid_data(
     assert get_request_context(mock_dataset_get) == [
         {
             "method": "GET",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(agent_name, safe='')}",
+            "params": {"name": [agent_name]},
+            "data": {},
+        },
+        {
+            "method": "GET",
             "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(dataset_name_example, safe='')}",
             "params": {"name": [dataset_name_example]},
             "data": {},
-        }
+        },
     ]
     assert get_request_context(mock_dsa_put) == [
         {
@@ -799,9 +881,13 @@ def test_failure_post_dataset_returns_unexpected_status_code(
     )
     mock_dataset_get = requests_mock.get(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        status_code=HTTPStatus.NOT_FOUND,
-        json={},
+        [
+            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
+            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
+        ],
     )
+
+    agent_name = patched_credentials.client
     dataset_name_example = f"{dataset_prefix}/example"
 
     # Act
@@ -855,10 +941,16 @@ def test_failure_post_dataset_returns_unexpected_status_code(
     assert get_request_context(mock_dataset_get) == [
         {
             "method": "GET",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(agent_name, safe='')}",
+            "params": {"name": [agent_name]},
+            "data": {},
+        },
+        {
+            "method": "GET",
             "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(dataset_name_example, safe='')}",
             "params": {"name": [dataset_name_example]},
             "data": {},
-        }
+        },
     ]
 
 
@@ -880,8 +972,10 @@ def test_failure_post_dataset_returns_invalid_data(
     )
     mock_dataset_get = requests_mock.get(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        status_code=HTTPStatus.NOT_FOUND,
-        json={},
+        [
+            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
+            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
+        ],
     )
     mock_dataset_post = requests_mock.post(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
@@ -890,6 +984,8 @@ def test_failure_post_dataset_returns_invalid_data(
             {"status_code": HTTPStatus.CREATED, "json": {}},
         ],
     )
+
+    agent_name = patched_credentials.client
     dataset_name_example = f"{dataset_prefix}/example"
 
     # Act
@@ -941,10 +1037,16 @@ def test_failure_post_dataset_returns_invalid_data(
     assert get_request_context(mock_dataset_get) == [
         {
             "method": "GET",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(agent_name, safe='')}",
+            "params": {"name": [agent_name]},
+            "data": {},
+        },
+        {
+            "method": "GET",
             "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(dataset_name_example, safe='')}",
             "params": {"name": [dataset_name_example]},
             "data": {},
-        }
+        },
     ]
 
 
@@ -966,8 +1068,10 @@ def test_failure_post_dsa_returns_unexpected_status_code(
     )
     mock_dataset_get = requests_mock.get(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        status_code=HTTPStatus.NOT_FOUND,
-        json={},
+        [
+            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
+            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
+        ],
     )
     mock_dataset_post = requests_mock.post(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
@@ -981,6 +1085,8 @@ def test_failure_post_dsa_returns_unexpected_status_code(
         status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
         json={},
     )
+
+    agent_name = patched_credentials.client
     dataset_name_example = f"{dataset_prefix}/example"
 
     # Act
@@ -1010,10 +1116,16 @@ def test_failure_post_dsa_returns_unexpected_status_code(
     assert get_request_context(mock_dataset_get) == [
         {
             "method": "GET",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(agent_name, safe='')}",
+            "params": {"name": [agent_name]},
+            "data": {},
+        },
+        {
+            "method": "GET",
             "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(dataset_name_example, safe='')}",
             "params": {"name": [dataset_name_example]},
             "data": {},
-        }
+        },
     ]
     assert get_request_context(mock_dataset_post) == [
         {

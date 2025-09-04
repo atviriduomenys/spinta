@@ -6,6 +6,7 @@ from typer import Context as TyperContext, Argument, Option
 
 from spinta.cli.helpers.manifest import convert_str_to_manifest_path
 from spinta.cli.helpers.sync import ContentType
+from spinta.cli.helpers.sync.controllers.data_service import get_data_service_id
 from spinta.cli.helpers.sync.controllers.dataset import get_resource, create_resource
 from spinta.cli.helpers.sync.controllers.dsa import update_dsa, create_dsa
 from spinta.cli.helpers.sync.helpers import (
@@ -73,8 +74,7 @@ def sync(
     agent_name = get_agent_name(credentials)
     prefix = get_data_service_name_prefix(credentials)
 
-    response_create_data_service = create_resource(base_path, headers, agent_name, resource_type="service")
-    data_service_id = extract_identifier_from_response(response_create_data_service, "detail")
+    data_service_id = get_data_service_id(base_path, headers, agent_name)
     for dataset in dataset_data:
         dataset_name = f"{prefix}/{dataset['name']}"
         response_get_dataset = get_resource(base_path, headers, dataset_name)
