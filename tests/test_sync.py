@@ -219,11 +219,6 @@ def test_success_new_dataset(
             {"status_code": HTTPStatus.CREATED, "json": {"_id": 3}},  # Creates Dataset No. 2.
         ],
     )
-    mock_distribution_post = requests_mock.post(
-        f"{patched_credentials.server}/{base_uapi_url}/Distribution/",
-        status_code=HTTPStatus.CREATED,
-        json={"_id": 1},
-    )
     mock_dsa_post = requests_mock.post(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/2/dsa/",
         status_code=HTTPStatus.NO_CONTENT,
@@ -299,20 +294,6 @@ def test_success_new_dataset(
                 "parent_id": ["1"],
                 "subclass": [ResourceType.DATASET],
             },
-        },
-    ]
-    assert get_request_context(mock_distribution_post) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Distribution/",
-            "params": {},
-            "data": ANY,  # DSA content + SQLite content.
-        },
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Distribution/",
-            "params": {},
-            "data": ANY,  # DSA content + SQLite content.
         },
     ]
     assert get_request_context(mock_dsa_post, with_text=True) == [
@@ -967,107 +948,6 @@ def test_failure_post_dataset_returns_invalid_data(
     ]
 
 
-def test_failure_post_distribution_returns_unexpected_status_code(
-    rc: RawConfig,
-    cli: SpintaCliRunner,
-    manifest_path: PosixPath,
-    requests_mock: MagicMock,
-    patched_credentials: RemoteClientCredentials,
-    base_uapi_url: str,
-    sqlite_instance: Sqlite,
-    dataset_prefix: str,
-):
-    # Arrange
-    mock_auth_token_post = requests_mock.post(
-        f"{patched_credentials.server}/auth/token",
-        status_code=HTTPStatus.OK,
-        json={"access_token": "test-token"},
-    )
-    mock_dataset_get = requests_mock.get(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        status_code=HTTPStatus.NOT_FOUND,
-        json={},
-    )
-    mock_dataset_post = requests_mock.post(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        [
-            {"status_code": HTTPStatus.CREATED, "json": {"_id": 1}},
-            {"status_code": HTTPStatus.CREATED, "json": {"_id": 2}},
-        ],
-    )
-    mock_distribution_post = requests_mock.post(
-        f"{patched_credentials.server}/{base_uapi_url}/Distribution/",
-        status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-        json={},
-    )
-    dataset_name_example = f"{dataset_prefix}/example"
-
-    # Act
-    with pytest.raises(UnexpectedAPIResponse) as exception:
-        cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
-
-    # Assert
-    assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
-    assert exception.value.context == {
-        "operation": "Create distribution",
-        "expected_status_code": str({HTTPStatus.CREATED.value}),
-        "response_status_code": HTTPStatus.INTERNAL_SERVER_ERROR.value,
-        "response_data": str({}),
-    }
-
-    assert get_request_context(mock_auth_token_post) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/auth/token",
-            "params": {},
-            "data": {
-                "grant_type": ["client_credentials"],
-                "scope": [patched_credentials.scopes],
-            },
-        }
-    ]
-    assert get_request_context(mock_dataset_get) == [
-        {
-            "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(dataset_name_example, safe='')}",
-            "params": {"name": [dataset_name_example]},
-            "data": {},
-        }
-    ]
-    assert get_request_context(mock_dataset_post) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-            "params": {},
-            "data": {
-                "name": [patched_credentials.client],
-                "title": [patched_credentials.client],
-                "subclass": [ResourceType.DATA_SERVICE.value],
-                "service": ["True"],
-            },
-        },
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-            "params": {},
-            "data": {
-                "name": [dataset_name_example],
-                "title": [dataset_name_example],
-                "parent_id": ["1"],
-                "subclass": [ResourceType.DATASET],
-            },
-        },
-    ]
-    assert get_request_context(mock_distribution_post) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Distribution/",
-            "params": {},
-            "data": ANY,  # DSA content + SQLite content.
-        },
-    ]
-
-
 def test_failure_post_dsa_returns_unexpected_status_code(
     rc: RawConfig,
     cli: SpintaCliRunner,
@@ -1095,11 +975,6 @@ def test_failure_post_dsa_returns_unexpected_status_code(
             {"status_code": HTTPStatus.CREATED, "json": {"_id": 1}},
             {"status_code": HTTPStatus.CREATED, "json": {"_id": 2}},
         ],
-    )
-    mock_distribution_post = requests_mock.post(
-        f"{patched_credentials.server}/{base_uapi_url}/Distribution/",
-        status_code=HTTPStatus.CREATED,
-        json={"_id": 1},
     )
     mock_dsa_post = requests_mock.post(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/2/dsa/",
@@ -1162,14 +1037,6 @@ def test_failure_post_dsa_returns_unexpected_status_code(
                 "parent_id": ["1"],
                 "subclass": [ResourceType.DATASET],
             },
-        },
-    ]
-    assert get_request_context(mock_distribution_post) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Distribution/",
-            "params": {},
-            "data": ANY,  # DSA content + SQLite content.
         },
     ]
     assert get_request_context(mock_dsa_post) == [

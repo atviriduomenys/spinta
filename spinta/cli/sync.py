@@ -7,7 +7,6 @@ from typer import Context as TyperContext, Argument, Option
 from spinta.cli.helpers.manifest import convert_str_to_manifest_path
 from spinta.cli.helpers.sync import ContentType
 from spinta.cli.helpers.sync.controllers.dataset import get_resource, create_resource
-from spinta.cli.helpers.sync.controllers.distribution import create_distribution
 from spinta.cli.helpers.sync.controllers.dsa import update_dsa, create_dsa
 from spinta.cli.helpers.sync.helpers import (
     get_base_path_and_headers,
@@ -85,10 +84,5 @@ def sync(
         elif response_get_dataset.status_code == HTTPStatus.NOT_FOUND:
             response_create_dataset = create_resource(base_path, headers, dataset_name, data_service_id)
             dataset_id = extract_identifier_from_response(response_create_dataset, "detail")
-            for distribution in dataset["resources"]:
-                file_bytes = render_content_from_manifest(context, distribution["manifest"], ContentType.BYTES)
-                create_distribution(
-                    base_path, headers, f"{dataset_name}/{distribution['name']}", file_bytes, dataset_id
-                )
             content = render_content_from_manifest(context, dataset["dataset_manifest"], ContentType.CSV)
             create_dsa(base_path, headers, dataset_id, content)
