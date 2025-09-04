@@ -216,6 +216,21 @@ def get_configuration_credentials(context: Context) -> RemoteClientCredentials:
     return credentials
 
 
+def validate_credentials(credentials: RemoteClientCredentials) -> None:
+    required = {
+        "resource_server": credentials.resource_server,
+        "server": credentials.server,
+        "client": credentials.client,
+        "organization_type": credentials.organization_type,
+        "organization": credentials.organization,
+    }
+
+    missing = [name for name, value in required.items() if not value]
+
+    if missing:
+        raise InvalidCredentialsConfigurationException(missing_credentials=", ".join(missing))
+
+
 def get_base_path_and_headers(credentials: RemoteClientCredentials) -> tuple[str, dict[str, str]]:
     """Construct the API base path and authentication headers.
 
@@ -237,6 +252,10 @@ def get_base_path_and_headers(credentials: RemoteClientCredentials) -> tuple[str
     base_path = f"{resource_server}/uapi/datasets/org/vssa/isris/dcat"
 
     return base_path, headers
+
+
+def get_agent_name(credentials: RemoteClientCredentials) -> str:
+    return credentials.client.rsplit("_", 1)[0]
 
 
 def format_error_response_data(data: dict[str, Any]) -> dict:

@@ -21,6 +21,7 @@ New Features:
 - Build full dataset name following UDTS conventions. (`#1415`_)
 - Remove private source/resource values from DSA. (`#1415`_)
 - Change `spinta sync` hierarchy creation to: Data Service -> Dataset -> Distribution. (`#1415`_)
+- Sprint Review fixes Part 1: Create data service following the Agent name; Remove distribution creation; Try to retrieve Data service before creating one. (`#1415`_)
 
   .. _#1274: https://github.com/atviriduomenys/spinta/issues/1274
   .. _#1275: https://github.com/atviriduomenys/spinta/issues/1275

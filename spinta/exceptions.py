@@ -1130,5 +1130,6 @@ class UnexpectedAPIResponseData(BaseError):
 
 class InvalidCredentialsConfigurationException(UserError):
     template = """
-        Credentials.cfg is missing required configuration credentials. Required credentials: `{required_credentials}`.
+        Credentials.cfg is missing required configuration credentials.
+        Missing: {missing_credentials}.
     """

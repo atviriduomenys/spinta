@@ -33,7 +33,9 @@ RESOURCE_TYPE_MAPPER = {
 }
 
 
-def get_resource(base_path: str, headers: dict[str, str], resource_name: str) -> Response:
+def get_resource(
+    base_path: str, headers: dict[str, str], resource_name: str, validate_response: bool = True
+) -> Response:
     """Retrieve a resource by its unique name (per organization).
 
     Sends a GET request to the Dataset object API with a query parameter `name`.
@@ -55,7 +57,8 @@ def get_resource(base_path: str, headers: dict[str, str], resource_name: str) ->
         headers=headers,
         params={"name": resource_name},
     )
-    validate_api_response(response, {HTTPStatus.OK, HTTPStatus.NOT_FOUND}, "Get resource")
+    if validate_response:
+        validate_api_response(response, {HTTPStatus.OK, HTTPStatus.NOT_FOUND}, "Get resource")
     return response
 
 
@@ -65,6 +68,7 @@ def create_resource(
     resource_name: str,
     parent_id: Optional[str] = None,
     resource_type: str = DEFAULT_RESOURCE,
+    validate_response: bool = True,
 ) -> Response:
     """Create a new resource (dataset, data service, etc.).
 
@@ -96,5 +100,6 @@ def create_resource(
         headers=headers,
         data=data,
     )
-    validate_api_response(response, {HTTPStatus.CREATED}, "Create resource")
+    if validate_response:
+        validate_api_response(response, {HTTPStatus.CREATED}, "Create resource")
     return response
