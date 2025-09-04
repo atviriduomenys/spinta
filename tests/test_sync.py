@@ -48,6 +48,7 @@ def patched_credentials():
         client="client-id",
         secret="secret",
         server="http://example.com",
+        resource_server="http://example.com",
         scopes="scope1 scope2",
         organization="vssa",
         organization_type="gov",
@@ -164,8 +165,8 @@ def test_success_existing_dataset(
             "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
             "params": {},
             "data": {
-                "name": [dataset_prefix],
-                "title": [dataset_prefix],
+                "name": [patched_credentials.client],
+                "title": [patched_credentials.client],
                 "subclass": [ResourceType.DATA_SERVICE.value],
                 "service": ["True"],
             },
@@ -271,8 +272,8 @@ def test_success_new_dataset(
             "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
             "params": {},
             "data": {
-                "name": [dataset_prefix],
-                "title": [dataset_prefix],
+                "name": [patched_credentials.client],
+                "title": [patched_credentials.client],
                 "service": ["True"],
                 "subclass": [ResourceType.DATA_SERVICE],
             },
@@ -361,14 +362,13 @@ def test_failure_configuration_invalid(
     dataset_prefix: str,
 ):
     # Arrange
-    # No `organization` or `organization_type`
     credentials = RemoteClientCredentials(
         section="default",
         remote="origin",
-        client="client-id",
         secret="secret",
-        server="http://example.com",
         scopes="scope1 scope2",
+        client="client",
+        server="https://example.com",
     )
     requests_mock.post(
         f"{credentials.server}/auth/token",
@@ -382,7 +382,7 @@ def test_failure_configuration_invalid(
 
         # Assert
         assert exception.value.status_code == 400
-        assert exception.value.context == {"required_credentials": str(["organization_type", "organization"])}
+        assert exception.value.context == {"missing_credentials": "resource_server, organization_type, organization"}
 
 
 def test_failure_get_access_token_api_call(
@@ -473,8 +473,8 @@ def test_failure_post_data_service_returns_unexpected_status_code(
             "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
             "params": {},
             "data": {
-                "name": [dataset_prefix],
-                "title": [dataset_prefix],
+                "name": [patched_credentials.client],
+                "title": [patched_credentials.client],
                 "subclass": [ResourceType.DATA_SERVICE.value],
                 "service": ["True"],
             },
@@ -532,8 +532,8 @@ def test_failure_post_data_service_returns_invalid_data(
             "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
             "params": {},
             "data": {
-                "name": [dataset_prefix],
-                "title": [dataset_prefix],
+                "name": [patched_credentials.client],
+                "title": [patched_credentials.client],
                 "subclass": [ResourceType.DATA_SERVICE.value],
                 "service": ["True"],
             },
@@ -612,8 +612,8 @@ def test_failure_get_dataset_returns_unexpected_status_code(
             "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
             "params": {},
             "data": {
-                "name": [dataset_prefix],
-                "title": [dataset_prefix],
+                "name": [patched_credentials.client],
+                "title": [patched_credentials.client],
                 "subclass": [ResourceType.DATA_SERVICE.value],
                 "service": ["True"],
             },
@@ -685,8 +685,8 @@ def test_failure_get_dataset_returns_invalid_data(
             "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
             "params": {},
             "data": {
-                "name": [dataset_prefix],
-                "title": [dataset_prefix],
+                "name": [patched_credentials.client],
+                "title": [patched_credentials.client],
                 "subclass": [ResourceType.DATA_SERVICE.value],
                 "service": ["True"],
             },
@@ -768,8 +768,8 @@ def test_failure_put_dataset_returns_invalid_data(
             "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
             "params": {},
             "data": {
-                "name": [dataset_prefix],
-                "title": [dataset_prefix],
+                "name": [patched_credentials.client],
+                "title": [patched_credentials.client],
                 "subclass": [ResourceType.DATA_SERVICE.value],
                 "service": ["True"],
             },
@@ -853,8 +853,8 @@ def test_failure_post_dataset_returns_unexpected_status_code(
             "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
             "params": {},
             "data": {
-                "name": [dataset_prefix],
-                "title": [dataset_prefix],
+                "name": [patched_credentials.client],
+                "title": [patched_credentials.client],
                 "subclass": [ResourceType.DATA_SERVICE.value],
                 "service": ["True"],
             },
@@ -939,8 +939,8 @@ def test_failure_post_dataset_returns_invalid_data(
             "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
             "params": {},
             "data": {
-                "name": [dataset_prefix],
-                "title": [dataset_prefix],
+                "name": [patched_credentials.client],
+                "title": [patched_credentials.client],
                 "subclass": [ResourceType.DATA_SERVICE.value],
                 "service": ["True"],
             },
@@ -1040,8 +1040,8 @@ def test_failure_post_distribution_returns_unexpected_status_code(
             "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
             "params": {},
             "data": {
-                "name": [dataset_prefix],
-                "title": [dataset_prefix],
+                "name": [patched_credentials.client],
+                "title": [patched_credentials.client],
                 "subclass": [ResourceType.DATA_SERVICE.value],
                 "service": ["True"],
             },
@@ -1146,8 +1146,8 @@ def test_failure_post_dsa_returns_unexpected_status_code(
             "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
             "params": {},
             "data": {
-                "name": [dataset_prefix],
-                "title": [dataset_prefix],
+                "name": [patched_credentials.client],
+                "title": [patched_credentials.client],
                 "subclass": [ResourceType.DATA_SERVICE.value],
                 "service": ["True"],
             },

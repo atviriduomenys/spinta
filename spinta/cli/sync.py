@@ -17,6 +17,8 @@ from spinta.cli.helpers.sync.helpers import (
     extract_identifier_from_response,
     get_configuration_credentials,
     get_data_service_name_prefix,
+    get_agent_name,
+    validate_credentials,
 )
 
 logger = logging.getLogger(__name__)
@@ -67,10 +69,12 @@ def sync(
     dataset_data = prepare_synchronization_manifests(context, manifest)
 
     credentials = get_configuration_credentials(context)
+    validate_credentials(credentials)
     base_path, headers = get_base_path_and_headers(credentials)
+    agent_name = get_agent_name(credentials)
     prefix = get_data_service_name_prefix(credentials)
 
-    response_create_data_service = create_resource(base_path, headers, f"{prefix}", resource_type="service")
+    response_create_data_service = create_resource(base_path, headers, agent_name, resource_type="service")
     data_service_id = extract_identifier_from_response(response_create_data_service, "detail")
     for dataset in dataset_data:
         dataset_name = f"{prefix}/{dataset['name']}"
