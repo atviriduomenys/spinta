@@ -6,7 +6,7 @@ from typer import Context as TyperContext, Argument, Option
 
 from spinta.cli.helpers.manifest import convert_str_to_manifest_path
 from spinta.cli.helpers.sync import ContentType
-from spinta.cli.helpers.sync.controllers.dataset import get_dataset, create_dataset
+from spinta.cli.helpers.sync.controllers.dataset import get_resource, create_resource
 from spinta.cli.helpers.sync.controllers.distribution import create_distribution
 from spinta.cli.helpers.sync.controllers.dsa import update_dsa, create_dsa
 from spinta.cli.helpers.sync.helpers import (
@@ -14,7 +14,7 @@ from spinta.cli.helpers.sync.helpers import (
     get_context_and_manifest,
     prepare_synchronization_manifests,
     render_content_from_manifest,
-    extract_dataset_id,
+    extract_identifier_from_response,
     get_configuration_credentials,
     get_data_service_name_prefix,
 )
@@ -70,15 +70,17 @@ def sync(
     base_path, headers = get_base_path_and_headers(credentials)
     prefix = get_data_service_name_prefix(credentials)
 
+    response_create_data_service = create_resource(base_path, headers, f"{prefix}", resource_type="service")
+    data_service_id = extract_identifier_from_response(response_create_data_service, "detail")
     for dataset in dataset_data:
         dataset_name = f"{prefix}/{dataset['name']}"
-        response_get_dataset = get_dataset(base_path, headers, dataset_name)
+        response_get_dataset = get_resource(base_path, headers, dataset_name)
         if response_get_dataset.status_code == HTTPStatus.OK:
-            dataset_id = extract_dataset_id(response_get_dataset, "list")
+            dataset_id = extract_identifier_from_response(response_get_dataset, "list")
             update_dsa(base_path, headers, dataset_id)
         elif response_get_dataset.status_code == HTTPStatus.NOT_FOUND:
-            response_create_dataset = create_dataset(base_path, headers, dataset_name)
-            dataset_id = extract_dataset_id(response_create_dataset, "detail")
+            response_create_dataset = create_resource(base_path, headers, dataset_name, data_service_id)
+            dataset_id = extract_identifier_from_response(response_create_dataset, "detail")
             for distribution in dataset["resources"]:
                 file_bytes = render_content_from_manifest(context, distribution["manifest"], ContentType.BYTES)
                 create_distribution(
