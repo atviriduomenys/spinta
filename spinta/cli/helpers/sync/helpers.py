@@ -128,7 +128,7 @@ def clean_private_attributes(resource: Resource) -> dict[str, Model]:
     resource_models = resource.models
     for model_name, model in resource_models.items():
         for property_name, property in model.properties.items():
-            if property.basename.startswith("_"):  # Skip
+            if property.basename.startswith("_"):  # Skip private properties.
                 continue
             if property.visibility not in {Visibility.private, None}:
                 continue
@@ -190,7 +190,7 @@ def prepare_synchronization_manifests(context: Context, manifest: Manifest) -> l
 
         dataset_data.append(
             {
-                "name": dataset_name,
+                "name": dataset_object.title or dataset_name.rsplit("/", 1)[-1],
                 "dataset_manifest": dataset_manifest,
                 "resources": resource_data,
             }

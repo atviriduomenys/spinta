@@ -35,11 +35,6 @@ def get_request_context(mocked_request: _Matcher, with_text: bool = False) -> li
     return calls
 
 
-def get_full_dataset_name(dataset_prefix: str, dataset_name: str) -> str:
-    """Helper method to build a full dataset name: `prefix + dataset name`."""
-    return f"{dataset_prefix}/{dataset_name}"
-
-
 @pytest.fixture
 def patched_credentials():
     credentials = RemoteClientCredentials(
@@ -136,7 +131,7 @@ def test_success_existing_dataset(
         status_code=HTTPStatus.NOT_IMPLEMENTED,
         json={},
     )
-    dataset_name = f"{dataset_prefix}/example"
+    dataset_name = "example"
     agent_name = patched_credentials.client
 
     # Act
@@ -178,7 +173,7 @@ def test_success_existing_dataset(
     assert get_request_context(mock_dataset_get) == [
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(agent_name, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
             "params": {"name": [agent_name]},
             "data": {},
         },
@@ -242,8 +237,8 @@ def test_success_new_dataset(
     )
 
     agent_name = patched_credentials.client
-    dataset_name_example = f"{dataset_prefix}/example"
-    dataset_name_sqlite = f"{dataset_prefix}/db_sqlite"
+    dataset_name_example = "example"
+    dataset_name_sqlite = "db_sqlite"
 
     # Act
     cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
@@ -263,20 +258,20 @@ def test_success_new_dataset(
     assert get_request_context(mock_dataset_get) == [
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(agent_name, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
             "params": {"name": [agent_name]},
             "data": {},
         },
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(dataset_name_example, safe='')}",
-            "params": {"name": [f"{dataset_prefix}/example"]},
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={dataset_name_example}",
+            "params": {"name": [dataset_name_example]},
             "data": {},
         },
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(dataset_name_sqlite, safe='')}",
-            "params": {"name": [f"{dataset_prefix}/db_sqlite"]},
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={dataset_name_sqlite}",
+            "params": {"name": [dataset_name_sqlite]},
             "data": {},
         },
     ]
@@ -477,7 +472,7 @@ def test_failure_post_data_service_returns_unexpected_status_code(
     assert get_request_context(mock_dataset_get) == [
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(agent_name, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
             "params": {"name": [agent_name]},
             "data": {},
         },
@@ -551,7 +546,7 @@ def test_failure_post_data_service_returns_invalid_data(
     assert get_request_context(mock_data_service_get) == [
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(agent_name, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
             "params": {"name": [agent_name]},
             "data": {},
         },
@@ -609,7 +604,7 @@ def test_failure_get_dataset_returns_unexpected_status_code(
         ],
     )
 
-    dataset_name_example = f"{dataset_prefix}/example"
+    dataset_name_example = "example"
     agent_name = patched_credentials.client
 
     # Act
@@ -659,13 +654,13 @@ def test_failure_get_dataset_returns_unexpected_status_code(
     assert get_request_context(mock_dataset_get) == [
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(agent_name, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
             "params": {"name": [agent_name]},
             "data": {},
         },
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(dataset_name_example, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={dataset_name_example}",
             "params": {"name": [dataset_name_example]},
             "data": {},
         },
@@ -702,7 +697,7 @@ def test_failure_get_dataset_returns_invalid_data(
     )
 
     agent_name = patched_credentials.client
-    dataset_name_example = f"{dataset_prefix}/example"
+    dataset_name_example = "example"
 
     # Act
     with pytest.raises(UnexpectedAPIResponseData) as exception:
@@ -742,13 +737,13 @@ def test_failure_get_dataset_returns_invalid_data(
     assert get_request_context(mock_dataset_get) == [
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(agent_name, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
             "params": {"name": [agent_name]},
             "data": {},
         },
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(dataset_name_example, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={dataset_name_example}",
             "params": {"name": [dataset_name_example]},
             "data": {},
         },
@@ -794,7 +789,7 @@ def test_failure_put_dataset_returns_invalid_data(
     )
 
     agent_name = patched_credentials.client
-    dataset_name_example = f"{dataset_prefix}/example"
+    dataset_name_example = "example"
 
     # Act
     with pytest.raises(NotImplementedFeature) as exception:
@@ -835,13 +830,13 @@ def test_failure_put_dataset_returns_invalid_data(
     assert get_request_context(mock_dataset_get) == [
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(agent_name, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
             "params": {"name": [agent_name]},
             "data": {},
         },
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(dataset_name_example, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={dataset_name_example}",
             "params": {"name": [dataset_name_example]},
             "data": {},
         },
@@ -888,7 +883,7 @@ def test_failure_post_dataset_returns_unexpected_status_code(
     )
 
     agent_name = patched_credentials.client
-    dataset_name_example = f"{dataset_prefix}/example"
+    dataset_name_example = "example"
 
     # Act
     with pytest.raises(UnexpectedAPIResponse) as exception:
@@ -941,13 +936,13 @@ def test_failure_post_dataset_returns_unexpected_status_code(
     assert get_request_context(mock_dataset_get) == [
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(agent_name, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
             "params": {"name": [agent_name]},
             "data": {},
         },
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(dataset_name_example, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={dataset_name_example}",
             "params": {"name": [dataset_name_example]},
             "data": {},
         },
@@ -986,7 +981,7 @@ def test_failure_post_dataset_returns_invalid_data(
     )
 
     agent_name = patched_credentials.client
-    dataset_name_example = f"{dataset_prefix}/example"
+    dataset_name_example = "example"
 
     # Act
     with pytest.raises(UnexpectedAPIResponseData) as exception:
@@ -1037,13 +1032,13 @@ def test_failure_post_dataset_returns_invalid_data(
     assert get_request_context(mock_dataset_get) == [
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(agent_name, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
             "params": {"name": [agent_name]},
             "data": {},
         },
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(dataset_name_example, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={dataset_name_example}",
             "params": {"name": [dataset_name_example]},
             "data": {},
         },
@@ -1087,7 +1082,7 @@ def test_failure_post_dsa_returns_unexpected_status_code(
     )
 
     agent_name = patched_credentials.client
-    dataset_name_example = f"{dataset_prefix}/example"
+    dataset_name_example = "example"
 
     # Act
     with pytest.raises(UnexpectedAPIResponse) as exception:
@@ -1116,13 +1111,13 @@ def test_failure_post_dsa_returns_unexpected_status_code(
     assert get_request_context(mock_dataset_get) == [
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(agent_name, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
             "params": {"name": [agent_name]},
             "data": {},
         },
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(dataset_name_example, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={dataset_name_example}",
             "params": {"name": [dataset_name_example]},
             "data": {},
         },

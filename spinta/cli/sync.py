@@ -16,7 +16,7 @@ from spinta.cli.helpers.sync.helpers import (
     render_content_from_manifest,
     extract_identifier_from_response,
     get_configuration_credentials,
-    get_data_service_name_prefix,
+    # get_data_service_name_prefix,  # TODO: Reuse for DSA.
     get_agent_name,
     validate_credentials,
 )
@@ -72,11 +72,11 @@ def sync(
     validate_credentials(credentials)
     base_path, headers = get_base_path_and_headers(credentials)
     agent_name = get_agent_name(credentials)
-    prefix = get_data_service_name_prefix(credentials)
+    # prefix = get_data_service_name_prefix(credentials)  # TODO: Reuse for DSA.
 
     data_service_id = get_data_service_id(base_path, headers, agent_name)
     for dataset in dataset_data:
-        dataset_name = f"{prefix}/{dataset['name']}"
+        dataset_name = dataset["name"]
         response_get_dataset = get_resource(base_path, headers, dataset_name)
         if response_get_dataset.status_code == HTTPStatus.OK:
             dataset_id = extract_identifier_from_response(response_get_dataset, "list")
