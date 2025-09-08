@@ -27,19 +27,11 @@ from spinta.manifests.tabular.helpers import datasets_to_tabular
 from spinta.manifests.yaml.components import InlineManifest
 
 
+EXCLUDED_RESOURCE_FIELDS = frozenset({"dataset", "models", "given", "lang"})
+
+
 def validate_api_response(response: Response, expected_status_codes: set[HTTPStatus], operation: str) -> None:
-    """Validate that an API response has an expected status code.
-
-    Raises an `UnexpectedAPIResponse` if the response status code is not in the expected set of status codes.
-
-    Args:
-        response: The HTTP response to validate.
-        expected_status_codes: Set of HTTP status codes that are considered valid.
-        operation: Description of the operation being performed (used in error messages).
-
-    Raises:
-        UnexpectedAPIResponse: If the response status code is not in `expected_status_codes`.
-    """
+    """Validates the status code the API has responded with."""
     if response.status_code not in expected_status_codes:
         raise UnexpectedAPIResponse(
             operation=operation,
@@ -63,20 +55,6 @@ def get_context_and_manifest(
     This function inspects and builds a manifest from provided resources,
     formula, backend, and authentication settings. The `priority` determines
     whether manifest or external data should take precedence.
-
-    Args:
-        context: Spinta runtime context.
-        manifest: Path or identifier of the manifest to inspect.
-        resource: Resource definitions to include in the manifest.
-        formula: Formula definitions for derived data.
-        backend: Backend configuration for the manifest.
-        auth: Authentication configuration.
-        priority: Either ``"manifest"`` or ``"external"`` indicating which data takes precedence.
-
-    Returns:
-        Tuple containing:
-            - context: Spinta runtime context.
-            - manifest: Generated manifest object.
     """
     if priority not in ["manifest", "external"]:
         echo(
@@ -98,21 +76,7 @@ def get_context_and_manifest(
 
 
 def get_data_service_name_prefix(credentials: RemoteClientCredentials) -> str:
-    """Build a Dataset prefix for later calls to open data Catalog.
-
-    Building a dataset prefix from:
-        - Organization type;
-        - Organization codename/name;
-        - Information system (IS);
-        - Information subsystem (subIS).
-
-    Args:
-        credentials: RemoteClientCredentials object with client ID, secret, organization info, and server details.
-
-    Returns:
-        A string type prefix to add to the beginning of the Data service name.
-            - `datasets/<organization_type>/<organization_codename>/<IS>/<subIS>`
-    """
+    """Build a dataset prefix in accordance with the UAPI format."""
     if not any([credentials.organization_type, credentials.organization]):
         raise InvalidCredentialsConfigurationException(required_credentials=["organization_type", "organization"])
     prefix = f"datasets/{credentials.organization_type}/{credentials.organization}"
@@ -121,47 +85,32 @@ def get_data_service_name_prefix(credentials: RemoteClientCredentials) -> str:
 
 
 def clean_private_attributes(resource: Resource) -> dict[str, Model]:
-    resource.external = ""
+    """Cleans up attributes that are marked `visibility=private` in the DSA (Duomenų Struktūros Aprašas)."""
+    for field in resource.__annotations__:
+        if field not in EXCLUDED_RESOURCE_FIELDS:
+            setattr(resource, field, "")
     resource.type = ""
-    resource.backend.name = ""
 
-    resource_models = resource.models
-    for model_name, model in resource_models.items():
-        for property_name, property in model.properties.items():
-            if property.basename.startswith("_"):  # Skip
-                continue
-            if property.visibility not in {Visibility.private, None}:
-                continue
-            property.external = ""
+    resource.models = {name: model for name, model in resource.models.items() if model.visibility != Visibility.private}
 
-        if model.visibility not in {Visibility.private, None}:
-            continue
-        model.external.name = ""  # Source column cleanup.
+    for model in resource.models.values():
+        model.properties = {
+            name: property for name, property in model.properties.items() if property.visibility != Visibility.private
+        }
 
-    return resource_models
+    return resource.models
 
 
-def prepare_synchronization_manifests(context: Context, manifest: Manifest) -> list[dict[str, Any]]:
+def prepare_synchronization_manifests(context: Context, manifest: Manifest, prefix: str) -> list[dict[str, Any]]:
     """Prepare dataset and resource manifests for synchronization.
 
     Iterates through datasets and their resources to construct separate
-    manifests for each dataset and its resources, along with their models.
-
-    Args:
-        context: Spinta runtime context.
-        manifest: Root manifest containing dataset definitions.
-
-    Returns:
-        List of dataset metadata dictionaries, each containing:
-            - `name`: Dataset name.
-            - `dataset_manifest`: Manifest object for the dataset.
-            - `resources`: List of resource dictionaries with:
-                - `name`: Resource name.
-                - `manifest`: Manifest object for the resource.
+    manifests for each dataset and its resources, along with their models & properties.
     """
     dataset_data = []
     datasets = commands.get_datasets(context, manifest)
     for dataset_name, dataset_object in datasets.items():
+        dataset_object.name = f"{prefix}/{dataset_object.name}"
         dataset_manifest = Manifest()
         init_manifest(context, dataset_manifest, "sync_dataset_manifest")
 
@@ -190,7 +139,7 @@ def prepare_synchronization_manifests(context: Context, manifest: Manifest) -> l
 
         dataset_data.append(
             {
-                "name": dataset_name,
+                "name": dataset_object.title or dataset_name.rsplit("/", 1)[-1],
                 "dataset_manifest": dataset_manifest,
                 "resources": resource_data,
             }
@@ -200,35 +149,33 @@ def prepare_synchronization_manifests(context: Context, manifest: Manifest) -> l
 
 
 def get_configuration_credentials(context: Context) -> RemoteClientCredentials:
-    """Retrieve remote client credentials from configuration.
-
-    Reads the credential file specified in the Spinta configuration and
-     load client credentials from the default section.
-
-    Args:
-        context: Spinta runtime context containing configuration.
-
-    Returns:
-        RemoteClientCredentials object with client ID, secret, organization info, and server details.
-    """
+    """Retrieve remote client credentials from configuration."""
     config: Config = context.get("config")
     credentials: RemoteClientCredentials = get_client_credentials(config.credentials_file, DEFAULT_CREDENTIALS_SECTION)
     return credentials
+
+
+def validate_credentials(credentials: RemoteClientCredentials) -> None:
+    """Validates the credentials required for calls to the Catalog."""
+    required = {
+        "resource_server": credentials.resource_server,
+        "server": credentials.server,
+        "client": credentials.client,
+        "organization_type": credentials.organization_type,
+        "organization": credentials.organization,
+    }
+
+    missing = [name for name, value in required.items() if not value]
+
+    if missing:
+        raise InvalidCredentialsConfigurationException(missing_credentials=", ".join(missing))
 
 
 def get_base_path_and_headers(credentials: RemoteClientCredentials) -> tuple[str, dict[str, str]]:
     """Construct the API base path and authentication headers.
 
     Retrieves client credentials, fetches an access token, and prepares
-    the Authorization headers.
-
-    Args:
-        context: Spinta runtime context containing configuration.
-
-    Returns:
-        Tuple containing:
-            - `base_path`: The base URL for the dataset API.
-            - `headers`: Dictionary with Authorization header including Bearer token.
+    the Authorization headers for API calls to Catalog.
     """
     access_token = get_access_token(credentials)
     headers = {"Authorization": f"Bearer {access_token}"}
@@ -239,64 +186,40 @@ def get_base_path_and_headers(credentials: RemoteClientCredentials) -> tuple[str
     return base_path, headers
 
 
+def get_agent_name(credentials: RemoteClientCredentials) -> str:
+    """Retrieves the name of the agent from the client name set in the configuration file."""
+    return credentials.client.rsplit("_", 1)[0]
+
+
 def format_error_response_data(data: dict[str, Any]) -> dict:
-    """Remove unnecessary fields from an API error response for returning to the user.
-
-    Args:
-        data: The raw error response data.
-
-    Returns:
-        The cleaned error response data dictionary without the 'context' key.
-    """
-    data.pop("context", None)
+    """Cleans up the API error response to be user-friendly."""
+    data.pop("context", None)  # Removing the full traceback.
     return data
 
 
-def extract_dataset_id(response: Response, response_type: str) -> str:
-    """Extract the dataset ID from an API response.
-
-    Args:
-        response: HTTP response containing dataset data.
-        response_type: Type of response, either 'list' or 'detail'.
-
-    Returns:
-        Dataset ID string.
-
-    Raises:
-        UnexpectedAPIResponseData: If the `_id` field is missing from the response.
-    """
-    dataset_id = None
+def extract_identifier_from_response(response: Response, response_type: str) -> str:
+    """Extract the resource ID from an API response."""
+    identifier = None
     if response_type == "list":
-        dataset_id = response.json().get("_data", [{}])[0].get(IDENTIFIER)
+        identifier = response.json().get("_data", [{}])[0].get(IDENTIFIER)
     elif response_type == "detail":
-        dataset_id = response.json().get(IDENTIFIER)
+        identifier = response.json().get(IDENTIFIER)
 
-    if not dataset_id:
+    if not identifier:
         raise UnexpectedAPIResponseData(
             operation=f"Retrieve dataset `{IDENTIFIER}`",
             context=f"Dataset did not return the `{IDENTIFIER}` field which can be used to identify the dataset.",
         )
 
-    return dataset_id
+    return identifier
 
 
 def render_content_from_manifest(context: Context, manifest: InlineManifest, content_type: ContentType) -> bytes | str:
     """Render manifest content in the requested format.
 
-    Converts dataset information from a manifest into tabular rows and serializes it into:
-        - CSV;
-        - UTF-8 encoded bytes.
-
-    Args:
-        context: Spinta runtime context.
-        manifest: Loaded manifest to render.
-        content_type: Desired content type, either ``ContentType.CSV`` or ``ContentType.BYTES``.
-
-    Returns:
-        Rendered content as a CSV string or UTF-8 encoded bytes.
-
-    Raises:
-        NotImplementedFeature: If the provided content type is not supported.
+    Converts dataset information from a manifest into tabular rows and serializes it into the selected format:
+     - CSV;
+     - UTF-8 encoded bytes.
     """
     rows = datasets_to_tabular(context, manifest)
     rows = ({c: row[c] for c in DATASET} for row in rows)

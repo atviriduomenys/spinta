@@ -32,6 +32,10 @@ New Features:
 - Added the `changelog` admin script (`spinta admin changelog`). This script checks for duplicate entries in the `changelog`
   (entries with the same local primary key but different global primary keys (`_id`)) and performs a `move` action on them
   to ensure a single active local-global key pair (`#1340`_).
+- Change `spinta sync` hierarchy creation to: Data Service -> Dataset -> Distribution. (`#1415`_)
+- Sprint Review fixes Part 1: Create data service following the Agent name; Remove distribution creation; Try to retrieve Data service before creating one. (`#1415`_)
+- Sprint Review fixes Part 2: Generate dataset name from title or from the last part of dataset column value; Hide `visibility=private` rows; Add the full Dataset name in the DSA. (`#1415`_)
+- Sprint Review fixes Part 2.1: Adjust docstrings. (`#1415`_)
 
   .. _#1274: https://github.com/atviriduomenys/spinta/issues/1274
   .. _#1275: https://github.com/atviriduomenys/spinta/issues/1275

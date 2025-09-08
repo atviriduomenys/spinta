@@ -8,6 +8,7 @@ import pytest
 import sqlalchemy as sa
 from requests_mock.adapter import _Matcher
 
+from spinta.cli.helpers.sync.controllers.enum import ResourceType
 from spinta.client import RemoteClientCredentials
 from spinta.core.config import RawConfig
 from spinta.exceptions import (
@@ -34,11 +35,6 @@ def get_request_context(mocked_request: _Matcher, with_text: bool = False) -> li
     return calls
 
 
-def get_full_dataset_name(dataset_prefix: str, dataset_name: str) -> str:
-    """Helper method to build a full dataset name: `prefix + dataset name`."""
-    return f"{dataset_prefix}/{dataset_name}"
-
-
 @pytest.fixture
 def patched_credentials():
     credentials = RemoteClientCredentials(
@@ -47,6 +43,7 @@ def patched_credentials():
         client="client-id",
         secret="secret",
         server="http://example.com",
+        resource_server="http://example.com",
         scopes="scope1 scope2",
         organization="vssa",
         organization_type="gov",
@@ -90,11 +87,11 @@ def manifest_path(context: ContextForTests, tmp_path: PosixPath) -> PosixPath:
     manifest = striptable("""
         id | d | r | b | m | property      | type    | ref     | source  | level | status    | visibility | access | title | description
            | example                       |         |         |         |       |           |            |        |       |
-           |   | cities                    | sql     | default | default |       |           | private    |        |       |
+           |   | cities                    | sql     | default | default |       |           | public     |        |       |
            |                               |         |         |         |       |           |            |        |       |
-           |   |   |   | City              |         | id      | users   | 4     | completed | private    | open   | Name  |
-           |   |   |   |   | id            | integer |         | id      |       |           | private    |        |       |
-           |   |   |   |   | full_name     | string  |         | name    |       |           | private    |        |       |
+           |   |   |   | City              |         | id      | users   | 4     | completed | public     | open   | Name  |
+           |   |   |   |   | id            | integer |         | id      |       |           | public     |        |       |
+           |   |   |   |   | full_name     | string  |         | name    |       |           | public     |        |       |
         """)
     manifest_path = tmp_path / "manifest.csv"
     create_tabular_manifest(context, manifest_path, manifest)
@@ -117,17 +114,25 @@ def test_success_existing_dataset(
         status_code=HTTPStatus.OK,
         json={"access_token": "test-token"},
     )
+    mock_data_service_post = requests_mock.post(
+        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
+        status_code=HTTPStatus.CREATED,
+        json={"_id": 1},
+    )
     mock_dataset_get = requests_mock.get(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        status_code=HTTPStatus.OK,
-        json={"_data": [{"_id": 1}]},
+        [
+            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
+            {"status_code": HTTPStatus.OK, "json": {"_data": [{"_id": 2}]}},
+        ],
     )
     mock_dataset_put = requests_mock.put(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/1/dsa/",
+        f"{patched_credentials.server}/{base_uapi_url}/Dataset/2/dsa/",
         status_code=HTTPStatus.NOT_IMPLEMENTED,
         json={},
     )
-    dataset_name = f"{dataset_prefix}/example"
+    dataset_name = "example"
+    agent_name = patched_credentials.client
 
     # Act
     with pytest.raises(NotImplementedFeature) as exception:
@@ -137,7 +142,7 @@ def test_success_existing_dataset(
     assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
     assert exception.value.context == {
         "status": HTTPStatus.NOT_IMPLEMENTED.value,
-        "dataset_id": 1,
+        "dataset_id": 2,
         "feature": "Updates on existing Datasets",
     }
 
@@ -152,18 +157,37 @@ def test_success_existing_dataset(
             },
         }
     ]
+    assert get_request_context(mock_data_service_post) == [
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
+            "params": {},
+            "data": {
+                "name": [patched_credentials.client],
+                "title": [patched_credentials.client],
+                "subclass": [ResourceType.DATA_SERVICE.value],
+                "service": ["True"],
+            },
+        }
+    ]
     assert get_request_context(mock_dataset_get) == [
+        {
+            "method": "GET",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
+            "params": {"name": [agent_name]},
+            "data": {},
+        },
         {
             "method": "GET",
             "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(dataset_name, safe='')}",
             "params": {"name": [dataset_name]},
             "data": {},
-        }
+        },
     ]
     assert get_request_context(mock_dataset_put) == [
         {
             "method": "PUT",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/1/dsa/",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/2/dsa/",
             "params": {},
             "data": {},
         }
@@ -188,26 +212,33 @@ def test_success_new_dataset(
     )
     mock_dataset_get = requests_mock.get(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        status_code=HTTPStatus.NOT_FOUND,
-        json={},
+        [
+            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
+            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
+        ],
     )
     mock_dataset_post = requests_mock.post(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        status_code=HTTPStatus.CREATED,
-        json={"_id": 1},
-    )
-    mock_distribution_post = requests_mock.post(
-        f"{patched_credentials.server}/{base_uapi_url}/Distribution/",
-        status_code=HTTPStatus.CREATED,
-        json={"_id": 1},
+        [
+            {"status_code": HTTPStatus.CREATED, "json": {"_id": 1}},  # Creates Data Service.
+            {"status_code": HTTPStatus.CREATED, "json": {"_id": 2}},  # Creates Dataset No. 1.
+            {"status_code": HTTPStatus.CREATED, "json": {"_id": 3}},  # Creates Dataset No. 2.
+        ],
     )
     mock_dsa_post = requests_mock.post(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/1/dsa/",
+        f"{patched_credentials.server}/{base_uapi_url}/Dataset/2/dsa/",
         status_code=HTTPStatus.NO_CONTENT,
         json={},
     )
-    dataset_name_example = f"{dataset_prefix}/example"
-    dataset_name_sqlite = f"{dataset_prefix}/db_sqlite"
+    mock_dsa_post_2 = requests_mock.post(
+        f"{patched_credentials.server}/{base_uapi_url}/Dataset/3/dsa/",
+        status_code=HTTPStatus.NO_CONTENT,
+        json={},
+    )
+
+    agent_name = patched_credentials.client
+    dataset_name_example = "example"
+    dataset_name_sqlite = "db_sqlite"
 
     # Act
     cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
@@ -227,14 +258,20 @@ def test_success_new_dataset(
     assert get_request_context(mock_dataset_get) == [
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(dataset_name_example, safe='')}",
-            "params": {"name": [f"{dataset_prefix}/example"]},
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
+            "params": {"name": [agent_name]},
             "data": {},
         },
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(dataset_name_sqlite, safe='')}",
-            "params": {"name": [f"{dataset_prefix}/db_sqlite"]},
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={dataset_name_example}",
+            "params": {"name": [dataset_name_example]},
+            "data": {},
+        },
+        {
+            "method": "GET",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={dataset_name_sqlite}",
+            "params": {"name": [dataset_name_sqlite]},
             "data": {},
         },
     ]
@@ -244,10 +281,21 @@ def test_success_new_dataset(
             "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
             "params": {},
             "data": {
+                "name": [patched_credentials.client],
+                "title": [patched_credentials.client],
+                "service": ["True"],
+                "subclass": [ResourceType.DATA_SERVICE],
+            },
+        },
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
+            "params": {},
+            "data": {
                 "name": [dataset_name_example],
                 "title": [dataset_name_example],
-                "service": ["True"],
-                "subclass": ["service"],
+                "parent_id": ["1"],
+                "subclass": [ResourceType.DATASET],
             },
         },
         {
@@ -257,57 +305,116 @@ def test_success_new_dataset(
             "data": {
                 "name": [dataset_name_sqlite],
                 "title": [dataset_name_sqlite],
-                "service": ["True"],
-                "subclass": ["service"],
+                "parent_id": ["1"],
+                "subclass": [ResourceType.DATASET],
             },
-        },
-    ]
-    assert get_request_context(mock_distribution_post) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Distribution/",
-            "params": {},
-            "data": ANY,  # DSA content + SQLite content.
-        },
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Distribution/",
-            "params": {},
-            "data": ANY,  # DSA content + SQLite content.
         },
     ]
     assert get_request_context(mock_dsa_post, with_text=True) == [
         {
             "method": "POST",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/1/dsa/",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/2/dsa/",
             "params": {},
             "data": {},
             "text": """id,dataset,resource,base,model,property,type,ref,source,source.type,prepare,origin,count,level,status,visibility,access,uri,eli,title,description
-,example,,,,,,,,,,,,,,,,,,,
+,datasets/gov/vssa/example,,,,,,,,,,,,,,,,,,,
 ,,cities,,,,,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,
-,,,,City,,,id,,,,,,4,completed,private,open,,,Name,
-,,,,,id,integer,,,,,,,,,private,,,,,
-,,,,,full_name,string,,,,,,,,,private,,,,,""",
-        },
+,,,,/example/City,,,id,users,,,,,4,completed,public,open,,,Name,
+,,,,,id,integer,,id,,,,,,,public,,,,,
+,,,,,full_name,string,,name,,,,,,,public,,,,,""",
+        }
+    ]
+    assert get_request_context(mock_dsa_post_2, with_text=True) == [
         {
             "method": "POST",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/1/dsa/",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/3/dsa/",
+            "params": {},
+            "data": {},
+            "text": """id,dataset,resource,base,model,property,type,ref,source,source.type,prepare,origin,count,level,status,visibility,access,uri,eli,title,description""",
+        },
+    ]
+
+
+def test_success_private_fields_cleaned_successfully(
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    context: ContextForTests,
+    tmp_path: PosixPath,
+    requests_mock: MagicMock,
+    patched_credentials: RemoteClientCredentials,
+    base_uapi_url: str,
+    sqlite: Sqlite,
+    dataset_prefix: str,
+):
+    # Arrange
+    requests_mock.post(
+        f"{patched_credentials.server}/auth/token",
+        status_code=HTTPStatus.OK,
+        json={"access_token": "test-token"},
+    )
+    requests_mock.get(
+        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
+        [
+            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
+            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
+        ],
+    )
+    requests_mock.post(
+        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
+        [
+            {"status_code": HTTPStatus.CREATED, "json": {"_id": 1}},  # Creates Data Service.
+            {"status_code": HTTPStatus.CREATED, "json": {"_id": 2}},  # Creates Dataset No. 1.
+            {"status_code": HTTPStatus.CREATED, "json": {"_id": 3}},  # Creates Dataset No. 2.
+        ],
+    )
+    mock_dsa_post = requests_mock.post(
+        f"{patched_credentials.server}/{base_uapi_url}/Dataset/2/dsa/",
+        status_code=HTTPStatus.NO_CONTENT,
+        json={},
+    )
+    requests_mock.post(
+        f"{patched_credentials.server}/{base_uapi_url}/Dataset/3/dsa/",
+        status_code=HTTPStatus.NO_CONTENT,
+        json={},
+    )
+
+    sqlite.init({})
+    manifest = striptable("""
+    id | dataset | resource  | base | model   | property   | type    | ref     | source                    | prepare | level | status    | visibility | access  | uri | eli | title     | description
+       | example |           |      |         |            |         |         |                           |         |       |           |            |         |     |     |           |
+       |         | countries |      |         |            | sql     | default | default                   |         |       |           |            |         |     |     |           |
+       |         |           |      | Country |            |         |         | country_source            |         | 4     | completed | private    | open    |     |     | Countries |
+       |         |           |      |         | id         | integer |         | country_id_source         |         |       |           | package    | open    |     |     |           |
+       |         |           |      |         | name       | string  |         | country_name_source       |         |       |           | package    | open    |     |     |           |
+       |         | cities    |      |         |            | sql     | default | default                   |         |       |           |            |         |     |     |           |
+       |         |           |      | City    |            |         |         | city_source               |         | 4     | completed | private    | open    |     |     | Cities    |
+       |         |           |      |         | id         | integer |         | city_id_source            |         |       |           | private    | open    |     |     |           |
+       |         |           |      |         | size       | integer |         | city_size_source          |         |       |           | private    | open    |     |     |           |
+       |         |           |      | Village |            |         |         | village_source            |         | 4     | completed | package    | open    |     |     | Villages  |
+       |         |           |      |         | id         | integer |         | village_id_source         |         |       |           | package    | open    |     |     |           |
+       |         |           |      |         | population | integer |         | village_population_source |         |       |           | private    | private |     |     |           |
+    """)
+    manifest_path = tmp_path / "manifest.csv"
+    create_tabular_manifest(context, manifest_path, manifest)
+
+    # Act
+    cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite.dsn], catch_exceptions=False)
+
+    # Assert
+    assert get_request_context(mock_dsa_post, with_text=True) == [
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/2/dsa/",
             "params": {},
             "data": {},
             "text": """id,dataset,resource,base,model,property,type,ref,source,source.type,prepare,origin,count,level,status,visibility,access,uri,eli,title,description
-,db_sqlite,,,,,,,,,,,,,,,,,,,
-,,resource1,,,,,,,,,,,,,,,,,,
+,datasets/gov/vssa/example,,,,,,,,,,,,,,,,,,,
+,,cities,,,,,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,
-,,,,City,,,,,,,,,,develop,private,,,,,
-,,,,,country_id,ref,Country,,,,,,,develop,private,,,,,
-,,,,,name,string,,,,,,,,develop,private,,,,,
-,,,,,,,,,,,,,,,,,,,,
-,,,,Country,,,id,,,,,,,develop,private,,,,,
-,,,,,code,string,,,,,,,,develop,private,,,,,
-,,,,,id,integer,,,,,,,,develop,private,,,,,
-,,,,,name,string,,,,,,,,develop,private,,,,,""",
-        },
+,,,,/example/Village,,,,village_source,,,,,4,completed,package,open,,,Villages,
+,,,,,id,integer,,village_id_source,,,,,,,package,open,,,,""",
+        }
     ]
 
 
@@ -321,14 +428,13 @@ def test_failure_configuration_invalid(
     dataset_prefix: str,
 ):
     # Arrange
-    # No `organization` or `organization_type`
     credentials = RemoteClientCredentials(
         section="default",
         remote="origin",
-        client="client-id",
         secret="secret",
-        server="http://example.com",
         scopes="scope1 scope2",
+        client="client",
+        server="https://example.com",
     )
     requests_mock.post(
         f"{credentials.server}/auth/token",
@@ -342,7 +448,7 @@ def test_failure_configuration_invalid(
 
         # Assert
         assert exception.value.status_code == 400
-        assert exception.value.context == {"required_credentials": str(["organization_type", "organization"])}
+        assert exception.value.context == {"missing_credentials": "resource_server, organization_type, organization"}
 
 
 def test_failure_get_access_token_api_call(
@@ -381,7 +487,7 @@ def test_failure_get_access_token_api_call(
     ]
 
 
-def test_failure_get_dataset_returns_unexpected_status_code(
+def test_failure_post_data_service_returns_unexpected_status_code(
     rc: RawConfig,
     cli: SpintaCliRunner,
     manifest_path: PosixPath,
@@ -399,16 +505,16 @@ def test_failure_get_dataset_returns_unexpected_status_code(
     )
     mock_dataset_get = requests_mock.get(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-        json={
-            "code": "dataset_not_found",
-            "type": "DatasetNotFound",
-            "template": "The requested Dataset could not be found.",
-            "message": "No dataset matched the provided query.",
-            "status_code": HTTPStatus.INTERNAL_SERVER_ERROR.value,
-        },
+        status_code=HTTPStatus.NOT_FOUND,
+        json={},
     )
-    dataset_name_example = f"{dataset_prefix}/example"
+    mock_data_service_post = requests_mock.post(
+        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
+        status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+        json={},
+    )
+
+    agent_name = patched_credentials.client
 
     # Act
     with pytest.raises(UnexpectedAPIResponse) as exception:
@@ -417,7 +523,169 @@ def test_failure_get_dataset_returns_unexpected_status_code(
     # Assert
     assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
     assert exception.value.context == {
-        "operation": "Get dataset",
+        "operation": "Create resource",
+        "expected_status_code": str({HTTPStatus.CREATED.value}),
+        "response_status_code": HTTPStatus.INTERNAL_SERVER_ERROR.value,
+        "response_data": str({}),
+    }
+
+    assert get_request_context(mock_auth_token_post) == [
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/auth/token",
+            "params": {},
+            "data": {
+                "grant_type": ["client_credentials"],
+                "scope": [patched_credentials.scopes],
+            },
+        }
+    ]
+    assert get_request_context(mock_dataset_get) == [
+        {
+            "method": "GET",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
+            "params": {"name": [agent_name]},
+            "data": {},
+        },
+    ]
+    assert get_request_context(mock_data_service_post) == [
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
+            "params": {},
+            "data": {
+                "name": [patched_credentials.client],
+                "title": [patched_credentials.client],
+                "subclass": [ResourceType.DATA_SERVICE.value],
+                "service": ["True"],
+            },
+        }
+    ]
+
+
+def test_failure_post_data_service_returns_invalid_data(
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    manifest_path: PosixPath,
+    requests_mock: MagicMock,
+    patched_credentials: RemoteClientCredentials,
+    base_uapi_url: str,
+    sqlite_instance: Sqlite,
+    dataset_prefix: str,
+):
+    # Arrange
+    mock_auth_token_post = requests_mock.post(
+        f"{patched_credentials.server}/auth/token",
+        status_code=HTTPStatus.OK,
+        json={"access_token": "test-token"},
+    )
+    mock_data_service_get = requests_mock.get(
+        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
+        status_code=HTTPStatus.NOT_FOUND,
+        json={},
+    )
+    mock_data_service_post = requests_mock.post(
+        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
+        status_code=HTTPStatus.CREATED,
+        json={},
+    )
+
+    agent_name = patched_credentials.client
+
+    # Act
+    with pytest.raises(UnexpectedAPIResponseData) as exception:
+        cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
+
+    # Assert
+    assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
+    assert exception.value.context == {
+        "operation": "Retrieve dataset `_id`",
+        "context": "Dataset did not return the `_id` field which can be used to identify the dataset.",
+    }
+
+    assert get_request_context(mock_auth_token_post) == [
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/auth/token",
+            "params": {},
+            "data": {
+                "grant_type": ["client_credentials"],
+                "scope": [patched_credentials.scopes],
+            },
+        }
+    ]
+    assert get_request_context(mock_data_service_get) == [
+        {
+            "method": "GET",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
+            "params": {"name": [agent_name]},
+            "data": {},
+        },
+    ]
+    assert get_request_context(mock_data_service_post) == [
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
+            "params": {},
+            "data": {
+                "name": [patched_credentials.client],
+                "title": [patched_credentials.client],
+                "subclass": [ResourceType.DATA_SERVICE.value],
+                "service": ["True"],
+            },
+        }
+    ]
+
+
+def test_failure_get_dataset_returns_unexpected_status_code(
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    manifest_path: PosixPath,
+    requests_mock: MagicMock,
+    patched_credentials: RemoteClientCredentials,
+    base_uapi_url: str,
+    sqlite_instance: Sqlite,
+    dataset_prefix: str,
+):
+    # Arrange
+    mock_auth_token_post = requests_mock.post(
+        f"{patched_credentials.server}/auth/token",
+        status_code=HTTPStatus.OK,
+        json={"access_token": "test-token"},
+    )
+    mock_data_service_post = requests_mock.post(
+        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
+        status_code=HTTPStatus.CREATED,
+        json={"_id": 1},
+    )
+    mock_dataset_get = requests_mock.get(
+        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
+        [
+            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
+            {
+                "status_code": HTTPStatus.INTERNAL_SERVER_ERROR,
+                "json": {
+                    "code": "dataset_not_found",
+                    "type": "DatasetNotFound",
+                    "template": "The requested Dataset could not be found.",
+                    "message": "No dataset matched the provided query.",
+                    "status_code": HTTPStatus.INTERNAL_SERVER_ERROR.value,
+                },
+            },
+        ],
+    )
+
+    dataset_name_example = "example"
+    agent_name = patched_credentials.client
+
+    # Act
+    with pytest.raises(UnexpectedAPIResponse) as exception:
+        cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
+
+    # Assert
+    assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
+    assert exception.value.context == {
+        "operation": "Get resource",
         "expected_status_code": str({HTTPStatus.OK.value, HTTPStatus.NOT_FOUND.value}),
         "response_status_code": HTTPStatus.INTERNAL_SERVER_ERROR.value,
         "response_data": str(
@@ -441,13 +709,32 @@ def test_failure_get_dataset_returns_unexpected_status_code(
             },
         }
     ]
+    assert get_request_context(mock_data_service_post) == [
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
+            "params": {},
+            "data": {
+                "name": [patched_credentials.client],
+                "title": [patched_credentials.client],
+                "subclass": [ResourceType.DATA_SERVICE.value],
+                "service": ["True"],
+            },
+        }
+    ]
     assert get_request_context(mock_dataset_get) == [
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(dataset_name_example, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
+            "params": {"name": [agent_name]},
+            "data": {},
+        },
+        {
+            "method": "GET",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={dataset_name_example}",
             "params": {"name": [dataset_name_example]},
             "data": {},
-        }
+        },
     ]
 
 
@@ -467,12 +754,21 @@ def test_failure_get_dataset_returns_invalid_data(
         status_code=HTTPStatus.OK,
         json={"access_token": "test-token"},
     )
+    mock_data_service_post = requests_mock.post(
+        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
+        status_code=HTTPStatus.CREATED,
+        json={"_id": 1},
+    )
     mock_dataset_get = requests_mock.get(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        status_code=HTTPStatus.OK,
-        json={},
+        [
+            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
+            {"status_code": HTTPStatus.OK, "json": {}},
+        ],
     )
-    dataset_name_example = f"{dataset_prefix}/example"
+
+    agent_name = patched_credentials.client
+    dataset_name_example = "example"
 
     # Act
     with pytest.raises(UnexpectedAPIResponseData) as exception:
@@ -496,13 +792,32 @@ def test_failure_get_dataset_returns_invalid_data(
             },
         }
     ]
+    assert get_request_context(mock_data_service_post) == [
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
+            "params": {},
+            "data": {
+                "name": [patched_credentials.client],
+                "title": [patched_credentials.client],
+                "subclass": [ResourceType.DATA_SERVICE.value],
+                "service": ["True"],
+            },
+        }
+    ]
     assert get_request_context(mock_dataset_get) == [
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(dataset_name_example, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
+            "params": {"name": [agent_name]},
+            "data": {},
+        },
+        {
+            "method": "GET",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={dataset_name_example}",
             "params": {"name": [dataset_name_example]},
             "data": {},
-        }
+        },
     ]
 
 
@@ -527,16 +842,25 @@ def test_failure_put_dataset_returns_invalid_data(
         status_code=HTTPStatus.OK,
         json={"access_token": "test-token"},
     )
+    mock_data_service_post = requests_mock.post(
+        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
+        status_code=HTTPStatus.CREATED,
+        json={"_id": 1},
+    )
     mock_dataset_get = requests_mock.get(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        status_code=HTTPStatus.OK,
-        json={"_data": [{"_id": 1}]},
+        [
+            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
+            {"status_code": HTTPStatus.OK, "json": {"_data": [{"_id": 2}]}},
+        ],
     )
     mock_dsa_put = requests_mock.put(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/1/dsa/",
+        f"{patched_credentials.server}/{base_uapi_url}/Dataset/2/dsa/",
         status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
     )
-    dataset_name_example = f"{dataset_prefix}/example"
+
+    agent_name = patched_credentials.client
+    dataset_name_example = "example"
 
     # Act
     with pytest.raises(NotImplementedFeature) as exception:
@@ -546,7 +870,7 @@ def test_failure_put_dataset_returns_invalid_data(
     assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
     assert exception.value.context == {
         "status": HTTPStatus.INTERNAL_SERVER_ERROR.value,
-        "dataset_id": 1,
+        "dataset_id": 2,
         "feature": "Updates on existing Datasets",
     }
 
@@ -561,18 +885,37 @@ def test_failure_put_dataset_returns_invalid_data(
             },
         }
     ]
+    assert get_request_context(mock_data_service_post) == [
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
+            "params": {},
+            "data": {
+                "name": [patched_credentials.client],
+                "title": [patched_credentials.client],
+                "subclass": [ResourceType.DATA_SERVICE.value],
+                "service": ["True"],
+            },
+        }
+    ]
     assert get_request_context(mock_dataset_get) == [
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(dataset_name_example, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
+            "params": {"name": [agent_name]},
+            "data": {},
+        },
+        {
+            "method": "GET",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={dataset_name_example}",
             "params": {"name": [dataset_name_example]},
             "data": {},
-        }
+        },
     ]
     assert get_request_context(mock_dsa_put) == [
         {
             "method": "PUT",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/1/dsa/",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/2/dsa/",
             "params": {},
             "data": {},
         },
@@ -595,17 +938,23 @@ def test_failure_post_dataset_returns_unexpected_status_code(
         status_code=HTTPStatus.OK,
         json={"access_token": "test-token"},
     )
-    mock_dataset_get = requests_mock.get(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        status_code=HTTPStatus.NOT_FOUND,
-        json={},
-    )
     mock_dataset_post = requests_mock.post(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-        json={},
+        [
+            {"status_code": HTTPStatus.CREATED, "json": {"_id": 1}},
+            {"status_code": HTTPStatus.INTERNAL_SERVER_ERROR, "json": {}},
+        ],
     )
-    dataset_name_example = f"{dataset_prefix}/example"
+    mock_dataset_get = requests_mock.get(
+        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
+        [
+            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
+            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
+        ],
+    )
+
+    agent_name = patched_credentials.client
+    dataset_name_example = "example"
 
     # Act
     with pytest.raises(UnexpectedAPIResponse) as exception:
@@ -614,7 +963,7 @@ def test_failure_post_dataset_returns_unexpected_status_code(
     # Assert
     assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
     assert exception.value.context == {
-        "operation": "Create dataset",
+        "operation": "Create resource",
         "expected_status_code": str({HTTPStatus.CREATED.value}),
         "response_status_code": HTTPStatus.INTERNAL_SERVER_ERROR.value,
         "response_data": str({}),
@@ -631,15 +980,18 @@ def test_failure_post_dataset_returns_unexpected_status_code(
             },
         }
     ]
-    assert get_request_context(mock_dataset_get) == [
-        {
-            "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(dataset_name_example, safe='')}",
-            "params": {"name": [dataset_name_example]},
-            "data": {},
-        }
-    ]
     assert get_request_context(mock_dataset_post) == [
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
+            "params": {},
+            "data": {
+                "name": [patched_credentials.client],
+                "title": [patched_credentials.client],
+                "subclass": [ResourceType.DATA_SERVICE.value],
+                "service": ["True"],
+            },
+        },
         {
             "method": "POST",
             "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
@@ -647,10 +999,24 @@ def test_failure_post_dataset_returns_unexpected_status_code(
             "data": {
                 "name": [dataset_name_example],
                 "title": [dataset_name_example],
-                "service": ["True"],
-                "subclass": ["service"],
+                "parent_id": ["1"],
+                "subclass": [ResourceType.DATASET],
             },
-        }
+        },
+    ]
+    assert get_request_context(mock_dataset_get) == [
+        {
+            "method": "GET",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
+            "params": {"name": [agent_name]},
+            "data": {},
+        },
+        {
+            "method": "GET",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={dataset_name_example}",
+            "params": {"name": [dataset_name_example]},
+            "data": {},
+        },
     ]
 
 
@@ -672,15 +1038,21 @@ def test_failure_post_dataset_returns_invalid_data(
     )
     mock_dataset_get = requests_mock.get(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        status_code=HTTPStatus.NOT_FOUND,
-        json={},
+        [
+            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
+            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
+        ],
     )
     mock_dataset_post = requests_mock.post(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        status_code=HTTPStatus.CREATED,
-        json={},
+        [
+            {"status_code": HTTPStatus.CREATED, "json": {"_id": 1}},
+            {"status_code": HTTPStatus.CREATED, "json": {}},
+        ],
     )
-    dataset_name_example = f"{dataset_prefix}/example"
+
+    agent_name = patched_credentials.client
+    dataset_name_example = "example"
 
     # Act
     with pytest.raises(UnexpectedAPIResponseData) as exception:
@@ -704,15 +1076,18 @@ def test_failure_post_dataset_returns_invalid_data(
             },
         }
     ]
-    assert get_request_context(mock_dataset_get) == [
-        {
-            "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(dataset_name_example, safe='')}",
-            "params": {"name": [dataset_name_example]},
-            "data": {},
-        }
-    ]
     assert get_request_context(mock_dataset_post) == [
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
+            "params": {},
+            "data": {
+                "name": [patched_credentials.client],
+                "title": [patched_credentials.client],
+                "subclass": [ResourceType.DATA_SERVICE.value],
+                "service": ["True"],
+            },
+        },
         {
             "method": "POST",
             "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
@@ -720,97 +1095,23 @@ def test_failure_post_dataset_returns_invalid_data(
             "data": {
                 "name": [dataset_name_example],
                 "title": [dataset_name_example],
-                "service": ["True"],
-                "subclass": ["service"],
+                "parent_id": ["1"],
+                "subclass": [ResourceType.DATASET],
             },
-        }
-    ]
-
-
-def test_failure_post_distribution_returns_unexpected_status_code(
-    rc: RawConfig,
-    cli: SpintaCliRunner,
-    manifest_path: PosixPath,
-    requests_mock: MagicMock,
-    patched_credentials: RemoteClientCredentials,
-    base_uapi_url: str,
-    sqlite_instance: Sqlite,
-    dataset_prefix: str,
-):
-    # Arrange
-    mock_auth_token_post = requests_mock.post(
-        f"{patched_credentials.server}/auth/token",
-        status_code=HTTPStatus.OK,
-        json={"access_token": "test-token"},
-    )
-    mock_dataset_get = requests_mock.get(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        status_code=HTTPStatus.NOT_FOUND,
-        json={},
-    )
-    mock_dataset_post = requests_mock.post(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        status_code=HTTPStatus.CREATED,
-        json={"_id": 1},
-    )
-    mock_distribution_post = requests_mock.post(
-        f"{patched_credentials.server}/{base_uapi_url}/Distribution/",
-        status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-        json={},
-    )
-    dataset_name_example = f"{dataset_prefix}/example"
-
-    # Act
-    with pytest.raises(UnexpectedAPIResponse) as exception:
-        cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
-
-    # Assert
-    assert exception.value.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
-    assert exception.value.context == {
-        "operation": "Create distribution",
-        "expected_status_code": str({HTTPStatus.CREATED.value}),
-        "response_status_code": HTTPStatus.INTERNAL_SERVER_ERROR.value,
-        "response_data": str({}),
-    }
-
-    assert get_request_context(mock_auth_token_post) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/auth/token",
-            "params": {},
-            "data": {
-                "grant_type": ["client_credentials"],
-                "scope": [patched_credentials.scopes],
-            },
-        }
+        },
     ]
     assert get_request_context(mock_dataset_get) == [
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(dataset_name_example, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
+            "params": {"name": [agent_name]},
+            "data": {},
+        },
+        {
+            "method": "GET",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={dataset_name_example}",
             "params": {"name": [dataset_name_example]},
             "data": {},
-        }
-    ]
-    assert get_request_context(mock_dataset_post) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-            "params": {},
-            "data": {
-                "name": [dataset_name_example],
-                "title": [dataset_name_example],
-                "service": ["True"],
-                "subclass": ["service"],
-            },
-        }
-    ]
-    assert get_request_context(mock_distribution_post) == [
-        {
-            "method": "POST",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Distribution/",
-            "params": {},
-            "data": ANY,  # DSA content + SQLite content.
         },
     ]
 
@@ -833,25 +1134,26 @@ def test_failure_post_dsa_returns_unexpected_status_code(
     )
     mock_dataset_get = requests_mock.get(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        status_code=HTTPStatus.NOT_FOUND,
-        json={},
+        [
+            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
+            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
+        ],
     )
     mock_dataset_post = requests_mock.post(
         f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
-        status_code=HTTPStatus.CREATED,
-        json={"_id": 1},
-    )
-    mock_distribution_post = requests_mock.post(
-        f"{patched_credentials.server}/{base_uapi_url}/Distribution/",
-        status_code=HTTPStatus.CREATED,
-        json={"_id": 1},
+        [
+            {"status_code": HTTPStatus.CREATED, "json": {"_id": 1}},
+            {"status_code": HTTPStatus.CREATED, "json": {"_id": 2}},
+        ],
     )
     mock_dsa_post = requests_mock.post(
-        f"{patched_credentials.server}/{base_uapi_url}/Dataset/1/dsa/",
+        f"{patched_credentials.server}/{base_uapi_url}/Dataset/2/dsa/",
         status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
         json={},
     )
-    dataset_name_example = f"{dataset_prefix}/example"
+
+    agent_name = patched_credentials.client
+    dataset_name_example = "example"
 
     # Act
     with pytest.raises(UnexpectedAPIResponse) as exception:
@@ -880,10 +1182,16 @@ def test_failure_post_dsa_returns_unexpected_status_code(
     assert get_request_context(mock_dataset_get) == [
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(dataset_name_example, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
+            "params": {"name": [agent_name]},
+            "data": {},
+        },
+        {
+            "method": "GET",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={dataset_name_example}",
             "params": {"name": [dataset_name_example]},
             "data": {},
-        }
+        },
     ]
     assert get_request_context(mock_dataset_post) == [
         {
@@ -891,25 +1199,28 @@ def test_failure_post_dsa_returns_unexpected_status_code(
             "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
             "params": {},
             "data": {
-                "name": [dataset_name_example],
-                "title": [dataset_name_example],
+                "name": [patched_credentials.client],
+                "title": [patched_credentials.client],
+                "subclass": [ResourceType.DATA_SERVICE.value],
                 "service": ["True"],
-                "subclass": ["service"],
             },
-        }
-    ]
-    assert get_request_context(mock_distribution_post) == [
+        },
         {
             "method": "POST",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Distribution/",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
             "params": {},
-            "data": ANY,  # DSA content + SQLite content.
+            "data": {
+                "name": [dataset_name_example],
+                "title": [dataset_name_example],
+                "parent_id": ["1"],
+                "subclass": [ResourceType.DATASET],
+            },
         },
     ]
     assert get_request_context(mock_dsa_post) == [
         {
             "method": "POST",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/1/dsa/",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/2/dsa/",
             "params": {},
             "data": ANY,  # DSA Content from file.
         },
