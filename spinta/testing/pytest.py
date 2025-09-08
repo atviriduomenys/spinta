@@ -10,6 +10,8 @@ import sqlalchemy as sa
 import sqlalchemy_utils as su
 from sqlalchemy.engine.url import make_url, URL
 from responses import RequestsMock
+from sqlalchemy import text
+from sqlalchemy.pool import NullPool
 
 from spinta.core.config import RawConfig
 from spinta.core.config import read_config
@@ -68,6 +70,36 @@ def _prepare_postgresql(dsn: str) -> None:
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis_tiger_geocoder"))
 
 
+@pytest.fixture(scope="session")
+def postgresql(rc) -> str:
+    """
+    Session-wide base DSN fixture. Monkeypatch su.drop_database so any drop
+    first terminates lingering connections from a *different* DB.
+    """
+    dsn: str = rc.get("backends", "default", "dsn", required=True)
+
+    # Wrap sqlalchemy_utils.drop_database globally for this session.
+    original_drop = su.drop_database
+
+    def drop_force(db_url: str):
+        # ensure we are NOT connected to the target DB when altering it
+        _terminate_backends_same_server(db_url)
+        return original_drop(db_url)
+
+    su.drop_database = drop_force  # monkeypatch for the session
+
+    try:
+        if not su.database_exists(dsn):
+            su.create_database(dsn)
+        _prepare_postgresql(dsn)
+        yield dsn
+    finally:
+        # restore original
+        su.drop_database = original_drop
+        # (optional) if you previously dropped the base DSN at teardown, keep doing so safely
+        if su.database_exists(dsn):
+            _terminate_backends_same_server(dsn)
+            original_drop(dsn)
 
 
 @pytest.fixture(scope="session")
