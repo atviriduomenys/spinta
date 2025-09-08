@@ -40,26 +40,12 @@ def sync(
 ):
     """Synchronize datasets from data source to the data Catalog.
 
-    This command reads the specified data sources (databases, files, etc.), retrieves or creates the
-    corresponding datasets in the catalog, and ensures that their distributions and DSA are up to date.
-
-    The workflow is as follows:
-    1. Load and parse data sources.
-    2. Build a Spinta context and load the manifest.
-    3. Determine the dataset name from the manifest.
-    4. Retrieve the dataset from the catalog:
-       - If it exists, update its DSA.
-       - If it does not exist, create the dataset, its distributions, and its DSA in the Catalog.
-
-    Args:
-        ctx: Typer CLI context object.
-        manifests: List of manifest file paths to synchronize.
-
-    Raises:
-        NotImplementedFeature: If an unsupported operation is encountered.
-        UnexpectedAPIResponse: If the API responds with an unexpected status code.
-        UnexpectedAPIResponseData: If dataset identifiers that were expected are missing from the API response.
-        UnexpectedAPIResponseData: If expected attributes are missing from the API response.
+    This command:
+     - Reads the specified data sources (databases, files, etc.)
+     - Creates/Retrieves a parent Data Service for all datasets that will be created
+     - Creates/Retrieves datasets corresponding to what was retrieved from source and creates datasets in Catalog.
+     - Creates as many DSA (Duomenų Struktūros Aprašas) as there are datasets in Catalog.
+     - Ensures that the datasets & their DSA's are up to date; # TODO: Yet to be implemented.
 
     Documentation:
         https://atviriduomenys.readthedocs.io/agentas.html#sinchronizacija
