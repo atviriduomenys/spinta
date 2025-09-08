@@ -66,17 +66,18 @@ def sync(
     """
     manifest = convert_str_to_manifest_path(manifest)
     context, manifest = get_context_and_manifest(ctx, manifest, resource, formula, backend, auth, priority)
-    dataset_data = prepare_synchronization_manifests(context, manifest)
 
     credentials = get_configuration_credentials(context)
     validate_credentials(credentials)
     base_path, headers = get_base_path_and_headers(credentials)
     agent_name = get_agent_name(credentials)
+
     prefix = get_data_service_name_prefix(credentials)
+    dataset_data = prepare_synchronization_manifests(context, manifest, prefix)
 
     data_service_id = get_data_service_id(base_path, headers, agent_name)
     for dataset in dataset_data:
-        dataset_name = f"{prefix}/{dataset['name']}"
+        dataset_name = dataset["name"]
         response_get_dataset = get_resource(base_path, headers, dataset_name)
         if response_get_dataset.status_code == HTTPStatus.OK:
             dataset_id = extract_identifier_from_response(response_get_dataset, "list")

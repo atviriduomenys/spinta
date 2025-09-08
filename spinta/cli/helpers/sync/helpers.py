@@ -27,6 +27,9 @@ from spinta.manifests.tabular.helpers import datasets_to_tabular
 from spinta.manifests.yaml.components import InlineManifest
 
 
+EXCLUDED_RESOURCE_FIELDS = frozenset({"dataset", "models", "given", "lang"})
+
+
 def validate_api_response(response: Response, expected_status_codes: set[HTTPStatus], operation: str) -> None:
     """Validate that an API response has an expected status code.
 
@@ -121,27 +124,22 @@ def get_data_service_name_prefix(credentials: RemoteClientCredentials) -> str:
 
 
 def clean_private_attributes(resource: Resource) -> dict[str, Model]:
-    resource.external = ""
+    for field in resource.__annotations__:
+        if field not in EXCLUDED_RESOURCE_FIELDS:
+            setattr(resource, field, "")
     resource.type = ""
-    resource.backend.name = ""
 
-    resource_models = resource.models
-    for model_name, model in resource_models.items():
-        for property_name, property in model.properties.items():
-            if property.basename.startswith("_"):  # Skip
-                continue
-            if property.visibility not in {Visibility.private, None}:
-                continue
-            property.external = ""
+    resource.models = {name: model for name, model in resource.models.items() if model.visibility != Visibility.private}
 
-        if model.visibility not in {Visibility.private, None}:
-            continue
-        model.external.name = ""  # Source column cleanup.
+    for model in resource.models.values():
+        model.properties = {
+            name: property for name, property in model.properties.items() if property.visibility != Visibility.private
+        }
 
-    return resource_models
+    return resource.models
 
 
-def prepare_synchronization_manifests(context: Context, manifest: Manifest) -> list[dict[str, Any]]:
+def prepare_synchronization_manifests(context: Context, manifest: Manifest, prefix: str) -> list[dict[str, Any]]:
     """Prepare dataset and resource manifests for synchronization.
 
     Iterates through datasets and their resources to construct separate
@@ -162,6 +160,7 @@ def prepare_synchronization_manifests(context: Context, manifest: Manifest) -> l
     dataset_data = []
     datasets = commands.get_datasets(context, manifest)
     for dataset_name, dataset_object in datasets.items():
+        dataset_object.name = f"{prefix}/{dataset_object.name}"
         dataset_manifest = Manifest()
         init_manifest(context, dataset_manifest, "sync_dataset_manifest")
 
@@ -190,7 +189,7 @@ def prepare_synchronization_manifests(context: Context, manifest: Manifest) -> l
 
         dataset_data.append(
             {
-                "name": dataset_name,
+                "name": dataset_object.title or dataset_name.rsplit("/", 1)[-1],
                 "dataset_manifest": dataset_manifest,
                 "resources": resource_data,
             }

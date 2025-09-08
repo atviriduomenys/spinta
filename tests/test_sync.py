@@ -35,11 +35,6 @@ def get_request_context(mocked_request: _Matcher, with_text: bool = False) -> li
     return calls
 
 
-def get_full_dataset_name(dataset_prefix: str, dataset_name: str) -> str:
-    """Helper method to build a full dataset name: `prefix + dataset name`."""
-    return f"{dataset_prefix}/{dataset_name}"
-
-
 @pytest.fixture
 def patched_credentials():
     credentials = RemoteClientCredentials(
@@ -92,11 +87,11 @@ def manifest_path(context: ContextForTests, tmp_path: PosixPath) -> PosixPath:
     manifest = striptable("""
         id | d | r | b | m | property      | type    | ref     | source  | level | status    | visibility | access | title | description
            | example                       |         |         |         |       |           |            |        |       |
-           |   | cities                    | sql     | default | default |       |           | private    |        |       |
+           |   | cities                    | sql     | default | default |       |           | public     |        |       |
            |                               |         |         |         |       |           |            |        |       |
-           |   |   |   | City              |         | id      | users   | 4     | completed | private    | open   | Name  |
-           |   |   |   |   | id            | integer |         | id      |       |           | private    |        |       |
-           |   |   |   |   | full_name     | string  |         | name    |       |           | private    |        |       |
+           |   |   |   | City              |         | id      | users   | 4     | completed | public     | open   | Name  |
+           |   |   |   |   | id            | integer |         | id      |       |           | public     |        |       |
+           |   |   |   |   | full_name     | string  |         | name    |       |           | public     |        |       |
         """)
     manifest_path = tmp_path / "manifest.csv"
     create_tabular_manifest(context, manifest_path, manifest)
@@ -136,7 +131,7 @@ def test_success_existing_dataset(
         status_code=HTTPStatus.NOT_IMPLEMENTED,
         json={},
     )
-    dataset_name = f"{dataset_prefix}/example"
+    dataset_name = "example"
     agent_name = patched_credentials.client
 
     # Act
@@ -178,7 +173,7 @@ def test_success_existing_dataset(
     assert get_request_context(mock_dataset_get) == [
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(agent_name, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
             "params": {"name": [agent_name]},
             "data": {},
         },
@@ -242,8 +237,8 @@ def test_success_new_dataset(
     )
 
     agent_name = patched_credentials.client
-    dataset_name_example = f"{dataset_prefix}/example"
-    dataset_name_sqlite = f"{dataset_prefix}/db_sqlite"
+    dataset_name_example = "example"
+    dataset_name_sqlite = "db_sqlite"
 
     # Act
     cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite_instance.dsn], catch_exceptions=False)
@@ -263,20 +258,20 @@ def test_success_new_dataset(
     assert get_request_context(mock_dataset_get) == [
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(agent_name, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
             "params": {"name": [agent_name]},
             "data": {},
         },
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(dataset_name_example, safe='')}",
-            "params": {"name": [f"{dataset_prefix}/example"]},
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={dataset_name_example}",
+            "params": {"name": [dataset_name_example]},
             "data": {},
         },
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(dataset_name_sqlite, safe='')}",
-            "params": {"name": [f"{dataset_prefix}/db_sqlite"]},
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={dataset_name_sqlite}",
+            "params": {"name": [dataset_name_sqlite]},
             "data": {},
         },
     ]
@@ -322,12 +317,12 @@ def test_success_new_dataset(
             "params": {},
             "data": {},
             "text": """id,dataset,resource,base,model,property,type,ref,source,source.type,prepare,origin,count,level,status,visibility,access,uri,eli,title,description
-,example,,,,,,,,,,,,,,,,,,,
+,datasets/gov/vssa/example,,,,,,,,,,,,,,,,,,,
 ,,cities,,,,,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,
-,,,,City,,,id,,,,,,4,completed,private,open,,,Name,
-,,,,,id,integer,,,,,,,,,private,,,,,
-,,,,,full_name,string,,,,,,,,,private,,,,,""",
+,,,,/example/City,,,id,users,,,,,4,completed,public,open,,,Name,
+,,,,,id,integer,,id,,,,,,,public,,,,,
+,,,,,full_name,string,,name,,,,,,,public,,,,,""",
         }
     ]
     assert get_request_context(mock_dsa_post_2, with_text=True) == [
@@ -336,19 +331,90 @@ def test_success_new_dataset(
             "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/3/dsa/",
             "params": {},
             "data": {},
-            "text": """id,dataset,resource,base,model,property,type,ref,source,source.type,prepare,origin,count,level,status,visibility,access,uri,eli,title,description
-,db_sqlite,,,,,,,,,,,,,,,,,,,
-,,resource1,,,,,,,,,,,,,,,,,,
-,,,,,,,,,,,,,,,,,,,,
-,,,,City,,,,,,,,,,develop,private,,,,,
-,,,,,country_id,ref,Country,,,,,,,develop,private,,,,,
-,,,,,name,string,,,,,,,,develop,private,,,,,
-,,,,,,,,,,,,,,,,,,,,
-,,,,Country,,,id,,,,,,,develop,private,,,,,
-,,,,,code,string,,,,,,,,develop,private,,,,,
-,,,,,id,integer,,,,,,,,develop,private,,,,,
-,,,,,name,string,,,,,,,,develop,private,,,,,""",
+            "text": """id,dataset,resource,base,model,property,type,ref,source,source.type,prepare,origin,count,level,status,visibility,access,uri,eli,title,description""",
         },
+    ]
+
+
+def test_success_private_fields_cleaned_successfully(
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    context: ContextForTests,
+    tmp_path: PosixPath,
+    requests_mock: MagicMock,
+    patched_credentials: RemoteClientCredentials,
+    base_uapi_url: str,
+    sqlite: Sqlite,
+    dataset_prefix: str,
+):
+    # Arrange
+    requests_mock.post(
+        f"{patched_credentials.server}/auth/token",
+        status_code=HTTPStatus.OK,
+        json={"access_token": "test-token"},
+    )
+    requests_mock.get(
+        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
+        [
+            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
+            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
+        ],
+    )
+    requests_mock.post(
+        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
+        [
+            {"status_code": HTTPStatus.CREATED, "json": {"_id": 1}},  # Creates Data Service.
+            {"status_code": HTTPStatus.CREATED, "json": {"_id": 2}},  # Creates Dataset No. 1.
+            {"status_code": HTTPStatus.CREATED, "json": {"_id": 3}},  # Creates Dataset No. 2.
+        ],
+    )
+    mock_dsa_post = requests_mock.post(
+        f"{patched_credentials.server}/{base_uapi_url}/Dataset/2/dsa/",
+        status_code=HTTPStatus.NO_CONTENT,
+        json={},
+    )
+    requests_mock.post(
+        f"{patched_credentials.server}/{base_uapi_url}/Dataset/3/dsa/",
+        status_code=HTTPStatus.NO_CONTENT,
+        json={},
+    )
+
+    sqlite.init({})
+    manifest = striptable("""
+    id | dataset | resource  | base | model   | property   | type    | ref     | source                    | prepare | level | status    | visibility | access  | uri | eli | title     | description
+       | example |           |      |         |            |         |         |                           |         |       |           |            |         |     |     |           |
+       |         | countries |      |         |            | sql     | default | default                   |         |       |           |            |         |     |     |           |
+       |         |           |      | Country |            |         |         | country_source            |         | 4     | completed | private    | open    |     |     | Countries |
+       |         |           |      |         | id         | integer |         | country_id_source         |         |       |           | package    | open    |     |     |           |
+       |         |           |      |         | name       | string  |         | country_name_source       |         |       |           | package    | open    |     |     |           |
+       |         | cities    |      |         |            | sql     | default | default                   |         |       |           |            |         |     |     |           |
+       |         |           |      | City    |            |         |         | city_source               |         | 4     | completed | private    | open    |     |     | Cities    |
+       |         |           |      |         | id         | integer |         | city_id_source            |         |       |           | private    | open    |     |     |           |
+       |         |           |      |         | size       | integer |         | city_size_source          |         |       |           | private    | open    |     |     |           |
+       |         |           |      | Village |            |         |         | village_source            |         | 4     | completed | package    | open    |     |     | Villages  |
+       |         |           |      |         | id         | integer |         | village_id_source         |         |       |           | package    | open    |     |     |           |
+       |         |           |      |         | population | integer |         | village_population_source |         |       |           | private    | private |     |     |           |
+    """)
+    manifest_path = tmp_path / "manifest.csv"
+    create_tabular_manifest(context, manifest_path, manifest)
+
+    # Act
+    cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite.dsn], catch_exceptions=False)
+
+    # Assert
+    assert get_request_context(mock_dsa_post, with_text=True) == [
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/2/dsa/",
+            "params": {},
+            "data": {},
+            "text": """id,dataset,resource,base,model,property,type,ref,source,source.type,prepare,origin,count,level,status,visibility,access,uri,eli,title,description
+,datasets/gov/vssa/example,,,,,,,,,,,,,,,,,,,
+,,cities,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,
+,,,,/example/Village,,,,village_source,,,,,4,completed,package,open,,,Villages,
+,,,,,id,integer,,village_id_source,,,,,,,package,open,,,,""",
+        }
     ]
 
 
@@ -477,7 +543,7 @@ def test_failure_post_data_service_returns_unexpected_status_code(
     assert get_request_context(mock_dataset_get) == [
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(agent_name, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
             "params": {"name": [agent_name]},
             "data": {},
         },
@@ -551,7 +617,7 @@ def test_failure_post_data_service_returns_invalid_data(
     assert get_request_context(mock_data_service_get) == [
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(agent_name, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
             "params": {"name": [agent_name]},
             "data": {},
         },
@@ -609,7 +675,7 @@ def test_failure_get_dataset_returns_unexpected_status_code(
         ],
     )
 
-    dataset_name_example = f"{dataset_prefix}/example"
+    dataset_name_example = "example"
     agent_name = patched_credentials.client
 
     # Act
@@ -659,13 +725,13 @@ def test_failure_get_dataset_returns_unexpected_status_code(
     assert get_request_context(mock_dataset_get) == [
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(agent_name, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
             "params": {"name": [agent_name]},
             "data": {},
         },
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(dataset_name_example, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={dataset_name_example}",
             "params": {"name": [dataset_name_example]},
             "data": {},
         },
@@ -702,7 +768,7 @@ def test_failure_get_dataset_returns_invalid_data(
     )
 
     agent_name = patched_credentials.client
-    dataset_name_example = f"{dataset_prefix}/example"
+    dataset_name_example = "example"
 
     # Act
     with pytest.raises(UnexpectedAPIResponseData) as exception:
@@ -742,13 +808,13 @@ def test_failure_get_dataset_returns_invalid_data(
     assert get_request_context(mock_dataset_get) == [
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(agent_name, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
             "params": {"name": [agent_name]},
             "data": {},
         },
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(dataset_name_example, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={dataset_name_example}",
             "params": {"name": [dataset_name_example]},
             "data": {},
         },
@@ -794,7 +860,7 @@ def test_failure_put_dataset_returns_invalid_data(
     )
 
     agent_name = patched_credentials.client
-    dataset_name_example = f"{dataset_prefix}/example"
+    dataset_name_example = "example"
 
     # Act
     with pytest.raises(NotImplementedFeature) as exception:
@@ -835,13 +901,13 @@ def test_failure_put_dataset_returns_invalid_data(
     assert get_request_context(mock_dataset_get) == [
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(agent_name, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
             "params": {"name": [agent_name]},
             "data": {},
         },
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(dataset_name_example, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={dataset_name_example}",
             "params": {"name": [dataset_name_example]},
             "data": {},
         },
@@ -888,7 +954,7 @@ def test_failure_post_dataset_returns_unexpected_status_code(
     )
 
     agent_name = patched_credentials.client
-    dataset_name_example = f"{dataset_prefix}/example"
+    dataset_name_example = "example"
 
     # Act
     with pytest.raises(UnexpectedAPIResponse) as exception:
@@ -941,13 +1007,13 @@ def test_failure_post_dataset_returns_unexpected_status_code(
     assert get_request_context(mock_dataset_get) == [
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(agent_name, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
             "params": {"name": [agent_name]},
             "data": {},
         },
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(dataset_name_example, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={dataset_name_example}",
             "params": {"name": [dataset_name_example]},
             "data": {},
         },
@@ -986,7 +1052,7 @@ def test_failure_post_dataset_returns_invalid_data(
     )
 
     agent_name = patched_credentials.client
-    dataset_name_example = f"{dataset_prefix}/example"
+    dataset_name_example = "example"
 
     # Act
     with pytest.raises(UnexpectedAPIResponseData) as exception:
@@ -1037,13 +1103,13 @@ def test_failure_post_dataset_returns_invalid_data(
     assert get_request_context(mock_dataset_get) == [
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(agent_name, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
             "params": {"name": [agent_name]},
             "data": {},
         },
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(dataset_name_example, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={dataset_name_example}",
             "params": {"name": [dataset_name_example]},
             "data": {},
         },
@@ -1087,7 +1153,7 @@ def test_failure_post_dsa_returns_unexpected_status_code(
     )
 
     agent_name = patched_credentials.client
-    dataset_name_example = f"{dataset_prefix}/example"
+    dataset_name_example = "example"
 
     # Act
     with pytest.raises(UnexpectedAPIResponse) as exception:
@@ -1116,13 +1182,13 @@ def test_failure_post_dsa_returns_unexpected_status_code(
     assert get_request_context(mock_dataset_get) == [
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(agent_name, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={agent_name}",
             "params": {"name": [agent_name]},
             "data": {},
         },
         {
             "method": "GET",
-            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={quote(dataset_name_example, safe='')}",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/?name={dataset_name_example}",
             "params": {"name": [dataset_name_example]},
             "data": {},
         },
