@@ -124,16 +124,13 @@ def get_data_service_name_prefix(credentials: RemoteClientCredentials) -> str:
 
 
 def clean_private_attributes(resource: Resource) -> dict[str, Model]:
-    # Resource cleaning
     for field in resource.__annotations__:
         if field not in EXCLUDED_RESOURCE_FIELDS:
             setattr(resource, field, "")
     resource.type = ""
 
-    # Model cleaning
     resource.models = {name: model for name, model in resource.models.items() if model.visibility != Visibility.private}
 
-    # Property cleaning
     for model in resource.models.values():
         model.properties = {
             name: property for name, property in model.properties.items() if property.visibility != Visibility.private
