@@ -10,8 +10,6 @@ import sqlalchemy as sa
 import sqlalchemy_utils as su
 from sqlalchemy.engine.url import make_url, URL
 from responses import RequestsMock
-from sqlalchemy import text
-from sqlalchemy.pool import NullPool
 
 from spinta.core.config import RawConfig
 from spinta.core.config import read_config
