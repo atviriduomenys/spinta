@@ -141,7 +141,7 @@ def clean_private_attributes(resource: Resource) -> dict[str, Model]:
     return resource_models
 
 
-def prepare_synchronization_manifests(context: Context, manifest: Manifest) -> list[dict[str, Any]]:
+def prepare_synchronization_manifests(context: Context, manifest: Manifest, prefix: str) -> list[dict[str, Any]]:
     """Prepare dataset and resource manifests for synchronization.
 
     Iterates through datasets and their resources to construct separate
@@ -162,6 +162,7 @@ def prepare_synchronization_manifests(context: Context, manifest: Manifest) -> l
     dataset_data = []
     datasets = commands.get_datasets(context, manifest)
     for dataset_name, dataset_object in datasets.items():
+        dataset_object.name = f"{prefix}/{dataset_object.name}"
         dataset_manifest = Manifest()
         init_manifest(context, dataset_manifest, "sync_dataset_manifest")
 

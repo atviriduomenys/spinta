@@ -16,7 +16,7 @@ from spinta.cli.helpers.sync.helpers import (
     render_content_from_manifest,
     extract_identifier_from_response,
     get_configuration_credentials,
-    # get_data_service_name_prefix,  # TODO: Reuse for DSA.
+    get_data_service_name_prefix,
     get_agent_name,
     validate_credentials,
 )
@@ -66,13 +66,14 @@ def sync(
     """
     manifest = convert_str_to_manifest_path(manifest)
     context, manifest = get_context_and_manifest(ctx, manifest, resource, formula, backend, auth, priority)
-    dataset_data = prepare_synchronization_manifests(context, manifest)
 
     credentials = get_configuration_credentials(context)
     validate_credentials(credentials)
     base_path, headers = get_base_path_and_headers(credentials)
     agent_name = get_agent_name(credentials)
-    # prefix = get_data_service_name_prefix(credentials)  # TODO: Reuse for DSA.
+
+    prefix = get_data_service_name_prefix(credentials)
+    dataset_data = prepare_synchronization_manifests(context, manifest, prefix)
 
     data_service_id = get_data_service_id(base_path, headers, agent_name)
     for dataset in dataset_data:
