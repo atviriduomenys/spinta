@@ -87,11 +87,11 @@ def manifest_path(context: ContextForTests, tmp_path: PosixPath) -> PosixPath:
     manifest = striptable("""
         id | d | r | b | m | property      | type    | ref     | source  | level | status    | visibility | access | title | description
            | example                       |         |         |         |       |           |            |        |       |
-           |   | cities                    | sql     | default | default |       |           | private    |        |       |
+           |   | cities                    | sql     | default | default |       |           | public     |        |       |
            |                               |         |         |         |       |           |            |        |       |
-           |   |   |   | City              |         | id      | users   | 4     | completed | private    | open   | Name  |
-           |   |   |   |   | id            | integer |         | id      |       |           | private    |        |       |
-           |   |   |   |   | full_name     | string  |         | name    |       |           | private    |        |       |
+           |   |   |   | City              |         | id      | users   | 4     | completed | public     | open   | Name  |
+           |   |   |   |   | id            | integer |         | id      |       |           | public     |        |       |
+           |   |   |   |   | full_name     | string  |         | name    |       |           | public     |        |       |
         """)
     manifest_path = tmp_path / "manifest.csv"
     create_tabular_manifest(context, manifest_path, manifest)
@@ -320,9 +320,9 @@ def test_success_new_dataset(
 ,datasets/gov/vssa/example,,,,,,,,,,,,,,,,,,,
 ,,cities,,,,,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,
-,,,,/example/City,,,id,,,,,,4,completed,private,open,,,Name,
-,,,,,id,integer,,,,,,,,,private,,,,,
-,,,,,full_name,string,,,,,,,,,private,,,,,""",
+,,,,/example/City,,,id,users,,,,,4,completed,public,open,,,Name,
+,,,,,id,integer,,id,,,,,,,public,,,,,
+,,,,,full_name,string,,name,,,,,,,public,,,,,""",
         }
     ]
     assert get_request_context(mock_dsa_post_2, with_text=True) == [
@@ -331,19 +331,90 @@ def test_success_new_dataset(
             "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/3/dsa/",
             "params": {},
             "data": {},
-            "text": """id,dataset,resource,base,model,property,type,ref,source,source.type,prepare,origin,count,level,status,visibility,access,uri,eli,title,description
-,datasets/gov/vssa/db_sqlite,,,,,,,,,,,,,,,,,,,
-,,resource1,,,,,,,,,,,,,,,,,,
-,,,,,,,,,,,,,,,,,,,,
-,,,,/db_sqlite/City,,,,,,,,,,develop,private,,,,,
-,,,,,country_id,ref,/db_sqlite/Country,,,,,,,develop,private,,,,,
-,,,,,name,string,,,,,,,,develop,private,,,,,
-,,,,,,,,,,,,,,,,,,,,
-,,,,/db_sqlite/Country,,,id,,,,,,,develop,private,,,,,
-,,,,,code,string,,,,,,,,develop,private,,,,,
-,,,,,id,integer,,,,,,,,develop,private,,,,,
-,,,,,name,string,,,,,,,,develop,private,,,,,""",
+            "text": """id,dataset,resource,base,model,property,type,ref,source,source.type,prepare,origin,count,level,status,visibility,access,uri,eli,title,description""",
         },
+    ]
+
+
+def test_success_private_fields_cleaned_successfully(
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    context: ContextForTests,
+    tmp_path: PosixPath,
+    requests_mock: MagicMock,
+    patched_credentials: RemoteClientCredentials,
+    base_uapi_url: str,
+    sqlite: Sqlite,
+    dataset_prefix: str,
+):
+    # Arrange
+    requests_mock.post(
+        f"{patched_credentials.server}/auth/token",
+        status_code=HTTPStatus.OK,
+        json={"access_token": "test-token"},
+    )
+    requests_mock.get(
+        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
+        [
+            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
+            {"status_code": HTTPStatus.NOT_FOUND, "json": {}},
+        ],
+    )
+    requests_mock.post(
+        f"{patched_credentials.server}/{base_uapi_url}/Dataset/",
+        [
+            {"status_code": HTTPStatus.CREATED, "json": {"_id": 1}},  # Creates Data Service.
+            {"status_code": HTTPStatus.CREATED, "json": {"_id": 2}},  # Creates Dataset No. 1.
+            {"status_code": HTTPStatus.CREATED, "json": {"_id": 3}},  # Creates Dataset No. 2.
+        ],
+    )
+    mock_dsa_post = requests_mock.post(
+        f"{patched_credentials.server}/{base_uapi_url}/Dataset/2/dsa/",
+        status_code=HTTPStatus.NO_CONTENT,
+        json={},
+    )
+    requests_mock.post(
+        f"{patched_credentials.server}/{base_uapi_url}/Dataset/3/dsa/",
+        status_code=HTTPStatus.NO_CONTENT,
+        json={},
+    )
+
+    sqlite.init({})
+    manifest = striptable("""
+    id | dataset | resource  | base | model   | property   | type    | ref     | source                    | prepare | level | status    | visibility | access  | uri | eli | title     | description
+       | example |           |      |         |            |         |         |                           |         |       |           |            |         |     |     |           |
+       |         | countries |      |         |            | sql     | default | default                   |         |       |           |            |         |     |     |           |
+       |         |           |      | Country |            |         |         | country_source            |         | 4     | completed | private    | open    |     |     | Countries |
+       |         |           |      |         | id         | integer |         | country_id_source         |         |       |           | package    | open    |     |     |           |
+       |         |           |      |         | name       | string  |         | country_name_source       |         |       |           | package    | open    |     |     |           |
+       |         | cities    |      |         |            | sql     | default | default                   |         |       |           |            |         |     |     |           |
+       |         |           |      | City    |            |         |         | city_source               |         | 4     | completed | private    | open    |     |     | Cities    |
+       |         |           |      |         | id         | integer |         | city_id_source            |         |       |           | private    | open    |     |     |           |
+       |         |           |      |         | size       | integer |         | city_size_source          |         |       |           | private    | open    |     |     |           |
+       |         |           |      | Village |            |         |         | village_source            |         | 4     | completed | package    | open    |     |     | Villages  |
+       |         |           |      |         | id         | integer |         | village_id_source         |         |       |           | package    | open    |     |     |           |
+       |         |           |      |         | population | integer |         | village_population_source |         |       |           | private    | private |     |     |           |
+    """)
+    manifest_path = tmp_path / "manifest.csv"
+    create_tabular_manifest(context, manifest_path, manifest)
+
+    # Act
+    cli.invoke(rc, args=["sync", manifest_path, "-r", "sql", sqlite.dsn], catch_exceptions=False)
+
+    # Assert
+    assert get_request_context(mock_dsa_post, with_text=True) == [
+        {
+            "method": "POST",
+            "url": f"{patched_credentials.server}/{base_uapi_url}/Dataset/2/dsa/",
+            "params": {},
+            "data": {},
+            "text": """id,dataset,resource,base,model,property,type,ref,source,source.type,prepare,origin,count,level,status,visibility,access,uri,eli,title,description
+,datasets/gov/vssa/example,,,,,,,,,,,,,,,,,,,
+,,cities,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,
+,,,,/example/Village,,,,village_source,,,,,4,completed,package,open,,,Villages,
+,,,,,id,integer,,village_id_source,,,,,,,package,open,,,,""",
+        }
     ]
 
 

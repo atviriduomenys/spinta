@@ -27,6 +27,9 @@ from spinta.manifests.tabular.helpers import datasets_to_tabular
 from spinta.manifests.yaml.components import InlineManifest
 
 
+EXCLUDED_RESOURCE_FIELDS = frozenset({"dataset", "models", "given", "lang"})
+
+
 def validate_api_response(response: Response, expected_status_codes: set[HTTPStatus], operation: str) -> None:
     """Validate that an API response has an expected status code.
 
@@ -121,24 +124,22 @@ def get_data_service_name_prefix(credentials: RemoteClientCredentials) -> str:
 
 
 def clean_private_attributes(resource: Resource) -> dict[str, Model]:
-    resource.external = ""
+    # Resource cleaning
+    for field in resource.__annotations__:
+        if field not in EXCLUDED_RESOURCE_FIELDS:
+            setattr(resource, field, "")
     resource.type = ""
-    resource.backend.name = ""
 
-    resource_models = resource.models
-    for model_name, model in resource_models.items():
-        for property_name, property in model.properties.items():
-            if property.basename.startswith("_"):  # Skip private properties.
-                continue
-            if property.visibility not in {Visibility.private, None}:
-                continue
-            property.external = ""
+    # Model cleaning
+    resource.models = {name: model for name, model in resource.models.items() if model.visibility != Visibility.private}
 
-        if model.visibility not in {Visibility.private, None}:
-            continue
-        model.external.name = ""  # Source column cleanup.
+    # Property cleaning
+    for model in resource.models.values():
+        model.properties = {
+            name: property for name, property in model.properties.items() if property.visibility != Visibility.private
+        }
 
-    return resource_models
+    return resource.models
 
 
 def prepare_synchronization_manifests(context: Context, manifest: Manifest, prefix: str) -> list[dict[str, Any]]:
