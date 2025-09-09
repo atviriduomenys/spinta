@@ -100,7 +100,9 @@ class CastMatrix:
         """
         Checks for unsafe casting between 2 types using runtime
         """
-        with self.engine.connect(poolclass=sa.pool.NullPool,) as conn:
+        with self.engine.connect(
+            poolclass=sa.pool.NullPool,
+        ) as conn:
             try:
                 conn.execute(
                     sa.text("SELECT NULL::" + from_type + "::" + to_type),

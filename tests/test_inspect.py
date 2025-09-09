@@ -2240,15 +2240,19 @@ def test_inspect_xml_model_ref_change(rc: RawConfig, cli: SpintaCliRunner, tmp_p
 
 def debug_active_connections(dsn: str):
     from sqlalchemy.engine import url as sa_url
+
     u = sa_url.make_url(dsn)
     admin = u.set(database="postgres")  # jungiamės prie 'postgres'
     eng = sa.create_engine(admin)
     with eng.connect() as c:
-        rows = c.execute(sa.text("""
+        rows = c.execute(
+            sa.text("""
             SELECT pid, usename, state, query
             FROM pg_stat_activity
             WHERE datname = :db
-        """), {"db": u.database}).fetchall()
+        """),
+            {"db": u.database},
+        ).fetchall()
         for r in rows:
             print("ACTIVE CONNECTIONS")
             print(r)
