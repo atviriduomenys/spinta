@@ -3,7 +3,7 @@ from __future__ import annotations
 import importlib
 import pkgutil
 
-from mypy.checkexpr import defaultdict
+from collections import defaultdict
 
 from spinta.cli.helpers.script.components import ScriptBase
 from spinta.exceptions import ScriptNotFound

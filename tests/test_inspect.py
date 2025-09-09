@@ -2238,17 +2238,34 @@ def test_inspect_xml_model_ref_change(rc: RawConfig, cli: SpintaCliRunner, tmp_p
     assert a == b
 
 
+def debug_active_connections(dsn: str):
+    from sqlalchemy.engine import url as sa_url
+    u = sa_url.make_url(dsn)
+    admin = u.set(database="postgres")  # jungiamės prie 'postgres'
+    eng = sa.create_engine(admin)
+    with eng.connect() as c:
+        rows = c.execute(sa.text("""
+            SELECT pid, usename, state, query
+            FROM pg_stat_activity
+            WHERE datname = :db
+        """), {"db": u.database}).fetchall()
+        for r in rows:
+            print("ACTIVE CONNECTIONS")
+            print(r)
+    eng.dispose()
+
+
 def test_inspect_with_postgresql_schema(rc_new: RawConfig, cli: SpintaCliRunner, tmp_path: Path, postgresql):
     db = f"{postgresql}/inspect_schema"
     if su.database_exists(db):
         su.drop_database(db)
     su.create_database(db)
     engine = sa.create_engine(db)
-    with engine.connect() as conn:
-        engine.execute(sa.schema.CreateSchema("test_schema"))
-        meta = sa.MetaData(conn, schema="test_schema")
+    with engine.begin() as conn:
+        conn.execute(sa.schema.CreateSchema("test_schema"))
+        meta = sa.MetaData(schema="test_schema")
         sa.Table("cities", meta, sa.Column("id", sa.Integer), sa.Column("name", sa.Text))
-        meta.create_all()
+        meta.create_all(conn)
 
     result_file_path = tmp_path / "result.csv"
     # Configure Spinta.
@@ -2310,6 +2327,10 @@ def test_inspect_with_postgresql_schema(rc_new: RawConfig, cli: SpintaCliRunner,
         context,
     )
     assert a == b
+
+    engine.dispose()
+
+    debug_active_connections(db)
 
     if su.database_exists(db):
         su.drop_database(db)

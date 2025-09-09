@@ -77,7 +77,7 @@ class CastMatrix:
         Checks postgresql cast table between given type strings
         """
 
-        with self.engine.connect() as conn:
+        with self.engine.connect(poolclass=sa.pool.NullPool) as conn:
             result = conn.execute(
                 sa.text("""
             SELECT 1
@@ -100,7 +100,7 @@ class CastMatrix:
         """
         Checks for unsafe casting between 2 types using runtime
         """
-        with self.engine.connect() as conn:
+        with self.engine.connect(poolclass=sa.pool.NullPool,) as conn:
             try:
                 conn.execute(
                     sa.text("SELECT NULL::" + from_type + "::" + to_type),

@@ -66,6 +66,7 @@ def _prepare_postgresql(dsn: str) -> None:
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis_topology"))
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS fuzzystrmatch"))
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis_tiger_geocoder"))
+    engine.dispose()
 
 
 @pytest.fixture(scope="session")
@@ -78,6 +79,9 @@ def postgresql(rc) -> str:
         su.create_database(dsn)
         _prepare_postgresql(dsn)
         yield dsn
+        # --- NEW: uždarom jungtis prieš drop ---
+        engine = sa.create_engine(dsn)
+        engine.dispose()
         su.drop_database(dsn)
 
 
