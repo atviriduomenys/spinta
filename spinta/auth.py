@@ -253,10 +253,8 @@ class Token(rfc6749.TokenMixin):
         self._validator = validator
 
     def valid_scope(self, scope):
-        if self._validator.scope_insufficient(self.get_scope(), scope):
-            return False
-        else:
-            return True
+        required_scopes = scope_to_list(scope)
+        return not self._validator.scope_insufficient(self.get_scope(), required_scopes)
 
     def check_scope(self, scope):
         if not self.valid_scope(scope):
