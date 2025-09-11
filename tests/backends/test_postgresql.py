@@ -40,7 +40,7 @@ def _get_table_name(model, prop=None, ttype=TableType.MAIN):
 def test_get_table_name():
     assert _get_table_name("org") == "org"
     assert len(_get_table_name("a" * 1000)) == NAMEDATALEN
-    assert _get_table_name("a" * 1000) == "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_291e9a6c_aaaaaaaaaaaaaaaa"
+    assert _get_table_name("a" * 1000) == "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_41edece4_aaaaaaaaaaaaaaaa"
     assert _get_table_name("some_/name/hėrę!") == "some_/name/hėrę!"
 
 
