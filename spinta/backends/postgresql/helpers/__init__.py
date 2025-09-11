@@ -24,7 +24,7 @@ def get_column_name(prop: Property, replace: bool = False) -> str:
 def get_pg_name(name: str) -> str:
     if len(name) > NAMEDATALEN:
         hs = 8
-        h = hashlib.sha1(name.encode()).hexdigest()[:hs]
+        h = hashlib.sha256(name.encode()).hexdigest()[:hs]
         i = int(NAMEDATALEN / 100 * 60)
         j = NAMEDATALEN - i - hs - 2
         name = name[:i] + "_" + h + "_" + name[-j:]
