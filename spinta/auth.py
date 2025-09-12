@@ -37,7 +37,7 @@ from starlette.datastructures import FormData, QueryParams, Headers
 from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse
 
-from spinta.components import Config
+from spinta.components import Config, ScopeFormatterFuncUDTS
 from spinta.components import Context, Namespace, Model, Property
 from spinta.components import ScopeFormatterFunc
 from spinta.core.enums import Access, Action
@@ -544,6 +544,7 @@ def get_scope_name(
     context: Context,
     node: Union[Namespace, Model, Property],
     action: Action,
+    udts: bool = False,
 ) -> str:
     config = context.get("config")
 
@@ -552,18 +553,18 @@ def get_scope_name(
     elif isinstance(node, Model):
         name = node.model_type()
     elif isinstance(node, Property):
-        name = node.model.model_type() + "_" + node.place
+        name = node.model.model_type() + "_" + node.place if not udts else node.model.model_type() + "/@" + node.place
     else:
         raise Exception(f"Unknown node type {node}.")
-
     return name_to_scope(
         "{prefix}{name}_{action}" if name else "{prefix}{action}",
         name,
         maxlen=config.scope_max_length,
         params={
-            "prefix": config.scope_prefix,
-            "action": action.value,
+            "prefix": config.scope_prefix if not udts else config.scope_prefix_udts,
+            "action": "create" if action.value == "insert" and udts else action.value,
         },
+        udts=udts,
     )
 
 
@@ -639,8 +640,7 @@ def authorized(
     scope_formatter = scope_formatter or config.scope_formatter
     if not isinstance(action, (list, tuple)):
         action = [action]
-    scopes = [scope_formatter(context, scope, act) for act in action for scope in scopes]
-
+    scopes = [scope_formatter(context, scope, act, udts) for act in action for scope in scopes for udts in [False, True]]
     # Check if client has at least one of required scopes.
     if throw:
         token.check_scope(scopes)
