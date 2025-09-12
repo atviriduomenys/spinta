@@ -1060,3 +1060,82 @@ def test_xsd_different_elements_same_complex_type(rc: RawConfig, tmp_path: Path)
         xsd_file.write(xsd)
     manifest = load_manifest(rc, path_xsd2)
     assert manifest == table
+
+
+def test_xsd_global_attributes_ref_from_complex_type(rc: RawConfig, tmp_path: Path):
+    xsd = """
+<s:schema xmlns:s="http://www.w3.org/2001/XMLSchema"
+          xmlns:tns="http://example.test/ns"
+          targetNamespace="http://example.test/ns"
+          elementFormDefault="qualified"
+          attributeFormDefault="unqualified">
+
+    <!-- global attributes -->
+    <s:attribute name="code" type="s:string"/>
+    <s:attribute name="lang" type="s:language"/>
+
+    <s:element name="country">
+        <s:complexType>
+            <s:attribute ref="tns:code" use="required"/>
+            <s:attribute ref="tns:lang"/>
+        </s:complexType>
+    </s:element>
+</s:schema>
+"""
+
+    table = """
+ id | d | r | b | m | property | type            | ref | source   | status  | visibility
+    | manifest                 |                 |     |          |         |
+    |   | resource1            | dask/xml        |     |          |         |
+    |                          |                 |     |          |         |
+    |   |   |   | Country      |                 |     | /country | develop | private
+    |   |   |   |   | code     | string required |     | @code    | develop | private
+    |   |   |   |   | lang     | string          |     | @lang    | develop | private
+"""
+    path = tmp_path / "manifest.xsd"
+    path_xsd2 = f"xsd2+file://{path}"
+    with open(path, "w") as f:
+        f.write(xsd)
+    manifest = load_manifest(rc, path_xsd2)
+    assert manifest == table
+
+
+def test_xsd_global_attribute_ref_with_inline_simple_content(rc: RawConfig, tmp_path: Path):
+    # A global attribute with a restricted simpleType, referenced as required
+    xsd = """
+<s:schema xmlns:s="http://www.w3.org/2001/XMLSchema"
+          xmlns:tns="http://example.test/ns"
+          targetNamespace="http://example.test/ns"
+          elementFormDefault="qualified"
+          attributeFormDefault="unqualified">
+
+    <s:attribute name="abbr">
+        <s:simpleType>
+            <s:restriction base="s:string">
+                <s:maxLength value="8"/>
+            </s:restriction>
+        </s:simpleType>
+    </s:attribute>
+
+    <s:element name="item">
+        <s:complexType>
+            <s:attribute ref="tns:abbr" use="required"/>
+        </s:complexType>
+    </s:element>
+</s:schema>
+"""
+
+    table = """
+ id | d | r | b | m | property | type            | ref | source | status  | visibility
+    | manifest2                |                 |     |        |         |
+    |   | resource1            | dask/xml        |     |        |         |
+    |                          |                 |     |        |         |
+    |   |   |   | Item         |                 |     | /item  | develop | private
+    |   |   |   |   | abbr     | string required |     | @abbr  | develop | private
+"""
+    path = tmp_path / "manifest2.xsd"
+    path_xsd2 = f"xsd2+file://{path}"
+    with open(path, "w") as f:
+        f.write(xsd)
+    manifest = load_manifest(rc, path_xsd2)
+    assert manifest == table
