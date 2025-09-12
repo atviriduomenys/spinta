@@ -6,8 +6,7 @@ import uuid
 
 import pytest
 import ruamel.yaml
-
-from authlib.jose import jwk
+from authlib.jose import JsonWebKey
 from authlib.jose import jwt
 
 from spinta import auth, commands
@@ -16,9 +15,9 @@ from spinta.components import Context
 from spinta.core.enums import Action
 from spinta.exceptions import InvalidClientFileFormat
 from spinta.testing.cli import SpintaCliRunner
-from spinta.testing.utils import get_error_codes
 from spinta.testing.client import create_test_client, get_yaml_data
 from spinta.testing.context import create_test_context
+from spinta.testing.utils import get_error_codes
 from spinta.utils.config import get_keymap_path
 
 
@@ -45,7 +44,7 @@ def test_app(context, app):
     }
 
     config = context.get("config")
-    key = jwk.loads(json.loads((config.config_path / "keys/public.json").read_text()))
+    key = JsonWebKey.import_key(json.loads((config.config_path / "keys/public.json").read_text()))
     token = jwt.decode(data["access_token"], key)
     assert token == {
         "iss": config.server_url,
@@ -60,11 +59,13 @@ def test_app(context, app):
 
 def test_genkeys(rc, cli: SpintaCliRunner, tmp_path):
     result = cli.invoke(rc, ["genkeys", "-p", tmp_path])
-    assert result.output == (
-        f"Private key saved to {tmp_path}/keys/private.json.\nPublic key saved to {tmp_path}/keys/public.json.\n"
-    )
-    jwk.loads(json.loads((tmp_path / "keys/private.json").read_text()))
-    jwk.loads(json.loads((tmp_path / "keys/public.json").read_text()))
+
+    private_path = tmp_path / "keys" / "private.json"
+    public_path = tmp_path / "keys" / "public.json"
+
+    assert result.output == f"Private key saved to {private_path}.\nPublic key saved to {public_path}.\n"
+    JsonWebKey.import_key(json.loads(private_path.read_text()))
+    JsonWebKey.import_key(json.loads(public_path.read_text()))
 
 
 def test_client_add_old(rc, cli: SpintaCliRunner, tmp_path):
@@ -194,7 +195,9 @@ def test_empty_scope(context, app):
     assert "scope" not in data
 
     config = context.get("config")
-    key = jwk.loads(json.loads((config.config_path / "keys/public.json").read_text()))
+    public_path = config.config_path / "keys" / "public.json"
+
+    key = JsonWebKey.import_key(json.loads(public_path.read_text()))
     token = jwt.decode(data["access_token"], key)
     assert token["scope"] == ""
 
@@ -322,7 +325,7 @@ def test_token_validation_key_config(backends, rc, tmp_path, request):
     context = create_test_context(rc).load()
     request.addfinalizer(context.wipe_all)
 
-    prvkey = jwk.loads(prvkey)
+    prvkey = JsonWebKey.import_key(prvkey)
     client = "RANDOMID"
     scopes = ["spinta_report_getall"]
     token = auth.create_access_token(context, prvkey, client, scopes=scopes)

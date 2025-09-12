@@ -4,11 +4,13 @@ import json
 import pathlib
 from typing import Any, Dict, Iterator
 
-import dask
 import numpy as np
 import pandas as pd
 import requests
 import yaml
+
+import dask
+from dask.bag import from_sequence
 from dask.dataframe import DataFrame
 from lxml import etree
 
@@ -415,7 +417,7 @@ def getall(
 
     meta = get_dask_dataframe_meta(model)
     df = (
-        dask.bag.from_sequence(bases)
+        from_sequence(bases)
         .map(_get_data_json, source=model.external.name, model_props=props)
         .flatten()
         .to_dataframe(meta=meta)
@@ -444,7 +446,7 @@ def getall(
 
     meta = get_dask_dataframe_meta(model)
     df = (
-        dask.bag.from_sequence(bases)
+        from_sequence(bases)
         .map(
             _get_data_xml,
             namespaces=_gather_namespaces_from_model(context, model),

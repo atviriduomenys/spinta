@@ -1,24 +1,24 @@
 import json
+import logging
 import uuid
 from typing import Type
-
-import logging
 
 from authlib.common.errors import AuthlibHTTPError
 from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 from pydantic import ValidationError
-
 from starlette.applications import Starlette
+from starlette.datastructures import FormData
 from starlette.exceptions import HTTPException
-from starlette.requests import Request
-from starlette.responses import Response, JSONResponse
-from starlette.responses import RedirectResponse
-from starlette.templating import Jinja2Templates
-from starlette.staticfiles import StaticFiles
-from starlette.routing import Route, Mount
 from starlette.middleware import Middleware
+from starlette.requests import Request
+from starlette.responses import RedirectResponse
+from starlette.responses import Response, JSONResponse
+from starlette.routing import Route, Mount
+from starlette.staticfiles import StaticFiles
+from starlette.templating import Jinja2Templates
 
 from spinta import components, commands
+from spinta.accesslog import create_accesslog
 from spinta.api.validators import ClientAddData, ClientPatchData, ClientSecretPatchData
 from spinta.auth import (
     AuthorizationServer,
@@ -32,19 +32,19 @@ from spinta.auth import (
     get_clients_path,
     Scopes,
     authenticate_token,
+    StarletteOAuth2Data,
 )
-from spinta.auth import ResourceProtector
 from spinta.auth import BearerTokenValidator
+from spinta.auth import ResourceProtector
 from spinta.auth import get_auth_request
 from spinta.auth import get_auth_token
 from spinta.commands import prepare, get_version
 from spinta.components import Context, UrlParams
 from spinta.exceptions import BaseError, MultipleErrors, error_response, InsufficientPermission, ClientValidationError
+from spinta.exceptions import NoAuthServer
 from spinta.middlewares import ContextMiddleware
 from spinta.urlparams import Version
 from spinta.urlparams import get_response_type
-from spinta.accesslog import create_accesslog
-from spinta.exceptions import NoAuthServer
 from spinta.utils.path import resource_filename
 
 log = logging.getLogger(__name__)
@@ -79,12 +79,13 @@ async def auth_token(request: Request):
     auth_server = context.get("auth.server")
     if auth_server.enabled():
         resp: JSONResponse = auth_server.create_token_response(
-            {
-                "method": request.method,
-                "url": str(request.url.replace(query="")),
-                "body": dict(await request.form()),
-                "headers": request.headers,
-            }
+            StarletteOAuth2Data(
+                method=request.method,
+                uri=str(request.url.replace(query="")),
+                headers=request.headers,
+                form=await request.form(),
+                query=request.query_params,
+            )
         )
 
         payload = json.loads(resp.body.decode("utf-8"))
@@ -117,12 +118,13 @@ def _auth_client_context(request: Request) -> Context:
     context.set(
         "auth.request",
         get_auth_request(
-            {
-                "method": request.method,
-                "url": str(request.url.replace(query="")),
-                "body": None,
-                "headers": request.headers,
-            }
+            StarletteOAuth2Data(
+                method=request.method,
+                uri=str(request.url.replace(query="")),
+                headers=request.headers,
+                form=FormData(),
+                query=request.query_params,
+            )
         ),
     )
     context.set("auth.token", get_auth_token(context))
@@ -295,12 +297,13 @@ async def homepage(request: Request):
     context.set(
         "auth.request",
         get_auth_request(
-            {
-                "method": request.method,
-                "url": str(request.url.replace(query="")),
-                "body": None,
-                "headers": request.headers,
-            }
+            StarletteOAuth2Data(
+                method=request.method,
+                uri=str(request.url.replace(query="")),
+                headers=request.headers,
+                form=await request.form(),
+                query=request.query_params,
+            )
         ),
     )
     context.set("auth.token", get_auth_token(context))

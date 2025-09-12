@@ -81,9 +81,9 @@ def internal_authorized(
 
     # Check if client has at least one of required scopes.
     if throw:
-        token.check_scope(scopes, operator="OR")
+        token.check_scope(scopes)
     else:
-        return token.valid_scope(scopes, operator="OR")
+        return token.valid_scope(scopes)
 
 
 def internal_scope_formatter(
