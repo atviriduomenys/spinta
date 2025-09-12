@@ -847,7 +847,6 @@ class XSDReader:
             ref_local_name = ref.split(":")[-1]
             prop = deepcopy(self.global_attribute_properties[ref_local_name])
 
-
         if node.attrib.get("use") == "required":
             prop.required = True
 
@@ -857,7 +856,9 @@ class XSDReader:
                 continue
             if QName(child).localname == "simpleType":
                 if prop.type:
-                    raise RuntimeError(f"attribute can't have both `type` defined and `simpleType` child element: {prop.xsd_name}")
+                    raise RuntimeError(
+                        f"attribute can't have both `type` defined and `simpleType` child element: {prop.xsd_name}"
+                    )
                 if not ref:
                     prop.type = self.process_simple_type(child, state)
                 else:
