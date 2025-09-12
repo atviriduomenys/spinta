@@ -85,8 +85,8 @@ Bug fixes:
 
 Bug fixes:
 
-- Recognize MySQL BLOB types (TINYBLOB, BLOB, MEDIUMBLOB, LONGBLOB) in 
-  inspect command. Previously, LONGBLOB columns caused TypeError during 
+- Recognize MySQL BLOB types (TINYBLOB, BLOB, MEDIUMBLOB, LONGBLOB) in
+  inspect command. Previously, LONGBLOB columns caused TypeError during
   ŠDSA generation (`#1484`_).
 
   .. _#1484: https://github.com/atviriduomenys/spinta/issues/1484

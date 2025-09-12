@@ -125,7 +125,7 @@ def test_version(app):
 
 
 def test_app(app):
-    app.authorize(["spinta_getall"])
+    app.authorize(["uapi:/:getall"])
     resp = app.get("/", headers={"accept": "text/html"})
     assert resp.status_code == 200, resp.text
 
@@ -160,7 +160,7 @@ def test_app(app):
 
 
 def test_directory(app):
-    app.authorize(["spinta_datasets_getall"])
+    app.authorize(["uapi:/datasets/:getall"])
     resp = app.get("/datasets/xlsx/Rinkimai/:ns", headers={"accept": "text/html"})
     assert resp.status_code == 200
 
@@ -955,7 +955,7 @@ def test_insufficient_scope(model, context, app):
 )
 def test_post_update_postgres(model, context, app):
     # tests if update works with `id` present in the json
-    app.authorize(["spinta_set_meta_fields"])
+    app.authorize(["uapi:/:set_meta_fields"])
     app.authmodel(model, ["insert"])
     resp = app.post(
         f"/{model}",
@@ -1034,7 +1034,7 @@ def test_post_revision(model, context, app):
 )
 def test_post_duplicate_id(model, app):
     # tests 400 response when trying to create object with id which exists
-    app.authorize(["spinta_set_meta_fields"])
+    app.authorize(["uapi:/:set_meta_fields"])
     app.authmodel(model, ["insert"])
     resp = app.post(
         f"/{model}",
@@ -1066,7 +1066,7 @@ def test_post_duplicate_id(model, app):
 def test_patch_duplicate_id(model, context, app):
     # tests that duplicate ID detection works with PATCH requests
     app.authmodel(model, ["insert", "getone", "patch"])
-    app.authorize(["spinta_set_meta_fields"])
+    app.authorize(["uapi:/:set_meta_fields"])
 
     # create extra report
     resp = app.post(
@@ -1478,10 +1478,10 @@ def test_head_method(
     app = create_test_client(
         context,
         scope=[
-            "spinta_getall",
-            "spinta_search",
-            "spinta_getone",
-            "spinta_changes",
+            "uapi:/:getall",
+            "uapi:/:search",
+            "uapi:/:getone",
+            "uapi:/:changes",
         ],
     )
 
@@ -1549,7 +1549,7 @@ def test_delete_batch(
 
 
 def test_get_gt_ge_lt_le_ne(app):
-    app.authorize(["spinta_set_meta_fields"])
+    app.authorize(["uapi:/:set_meta_fields"])
     app.authmodel("/datasets/json/Rinkimai", ["insert", "upsert", "search"])
 
     resp = app.post(
@@ -1630,12 +1630,14 @@ def test_get_gt_ge_lt_le_ne(app):
 @pytest.mark.parametrize(
     "client_name, scopes, secret",
     [
+        ("test_client_id", ["uapi:/:getall"], "secret"),
         ("test_client_id", ["spinta_getall"], "secret"),
         ("test_only_client", None, "req"),
+        (None, ["uapi:/:getall"], "req"),
         (None, ["spinta_getall"], "req"),
         (None, None, "onlysecret"),
     ],
-    ids=["all given", "only name", "only scope", "only secret"],
+    ids=["all given", "all given", "only name", "only scope", "only scope", "only secret"],
 )
 def test_auth_clients_create_authorized_correct(
     rc: RawConfig, tmp_path: pathlib.Path, client_name: str, scopes: list, secret: str
@@ -1683,7 +1685,7 @@ def test_auth_clients_create_with_backends_authorized(
     backends: dict,
 ) -> None:
     context, app = ensure_temp_context_and_app(rc, tmp_path)
-    app.authorize(["spinta_auth_clients"])
+    app.authorize(["uapi:/:auth_clients"])
     data = {
         "secret": "test_secret",
         "backends": backends,
@@ -1792,7 +1794,7 @@ def test_auth_clients_get_unauthorized(rc: RawConfig, tmp_path: pathlib.Path):
 
 def test_auth_clients_get_all_authorized(rc: RawConfig, tmp_path: pathlib.Path):
     context, app = ensure_temp_context_and_app(rc, tmp_path)
-    app.authorize(["spinta_auth_clients"])
+    app.authorize(["uapi:/:auth_clients"])
 
     client_one = create_client(context.get("config"), name="one", secret="secret")
     client_two = create_client(context.get("config"), name="two", secret="secret")
@@ -1819,13 +1821,15 @@ def test_auth_clients_get_all_unauthorized(rc: RawConfig, tmp_path: pathlib.Path
 @pytest.mark.parametrize(
     "client_name, scopes, secret",
     [
+        ("test_client_id", ["uapi:/:create"], "secret"),
         ("test_client_id", ["spinta_insert"], "secret"),
         (None, None, None),
         ("test_only_client", None, None),
+        (None, ["uapi:/:create"], None),
         (None, ["spinta_insert"], None),
         (None, None, "onlysecret"),
     ],
-    ids=["all given", "none given", "only name", "only scope", "only secret"],
+    ids=["all given", "all given", "none given", "only name", "only scope", "only scope", "only secret"],
 )
 def test_auth_clients_update_authorized_admin_correct(
     rc: RawConfig, tmp_path: pathlib.Path, client_name: str, scopes: list, secret: str
@@ -1923,7 +1927,7 @@ def test_auth_clients_update_authorized_correct(rc: RawConfig, tmp_path: pathlib
     assert resp.json() == {
         "client_id": client["client_id"],
         "client_name": "TEST",
-        "scopes": ["spinta_getall"],
+        "scopes": ["uapi:/:getall"],
         "backends": {},
     }
     client = query_client(path, client=client["client_id"])
@@ -1998,7 +2002,7 @@ def test_auth_clients_update_name_full_check(rc: RawConfig, tmp_path: pathlib.Pa
     assert resp.json() == {
         "client_id": resp_json["client_id"],
         "client_name": "TESTNEWOTHER",
-        "scopes": ["spinta_getall"],
+        "scopes": ["uapi:/:getall"],
         "backends": {},
     }
 
