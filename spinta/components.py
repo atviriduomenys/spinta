@@ -1051,6 +1051,17 @@ ScopeFormatterFunc = Callable[
 ]
 
 
+ScopeFormatterFuncUDTS = Callable[
+    [
+        Context,
+        Union[Namespace, Model, Property],
+        Action,
+    ],
+    str,
+]
+
+
+
 class Config:
     """Spinta configuration
 
