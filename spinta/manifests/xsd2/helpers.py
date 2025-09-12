@@ -323,6 +323,7 @@ class XSDReader:
     separate_complex_type_root_elements: list[XSDProperty]
     properties_xsd_type_to_set: set[str]
     namespaces: dict[str, str] | None = None
+    global_attribute_properties: dict[str, list[XSDProperty]] = {}
 
     def __init__(self, path: str, dataset_name) -> None:
         self._path = path
@@ -340,6 +341,12 @@ class XSDReader:
         for node in custom_types_nodes:
             custom_type = self.process_simple_type(node, state)
             self.custom_types[custom_type.xsd_type] = custom_type
+
+    def register_global_attributes(self, state: State):
+        global_attributes_nodes = self.root.xpath('./*[local-name() = "attribute"]')
+        for attribute in global_attributes_nodes:
+            attribute_property = self.process_attribute(attribute, state)
+            self.global_attribute_properties[attribute_property.xsd_name] = attribute_property
 
     def _extract_root(self):
         if self._path.startswith("http"):
@@ -508,6 +515,8 @@ class XSDReader:
 
         self.register_simple_types(state)
 
+        self.register_global_attributes(state)
+
         self.process_root(state)
 
         # post processing
@@ -544,6 +553,9 @@ class XSDReader:
                     model.is_root_model = True
             elif QName(node).localname == "simpleType":
                 # simple types are processed in self.register_simple_types
+                pass
+            elif QName(node).localname == "attribute":
+                # global attributes are processed in self.register_global_attributes
                 pass
             elif QName(node).localname == "include":
                 logger.warning(f"tag {QName(node).localname} not supported yet")
@@ -669,7 +681,7 @@ class XSDReader:
                 description = self.process_annotation(child, state)
 
             else:
-                raise RuntimeError(f"This node type cannot be in the element: {QName(node).localname}")
+                raise RuntimeError(f"This node type cannot be in the element: {QName(child).localname}")
 
             if "description" in locals() and description:
                 for prop in props:
@@ -810,8 +822,6 @@ class XSDReader:
 
     def process_attribute(self, node: _Element, state: State) -> XSDProperty:
         prop = XSDProperty()
-        prop.source = f"@{node.attrib.get('name')}"
-        prop.xsd_name = node.attrib.get("name")
 
         attribute_type = node.attrib.get("type")
 
@@ -824,6 +834,20 @@ class XSDReader:
             else:
                 raise RuntimeError(f"Unknown attribute type: {attribute_type}")
 
+        prop.source = f"@{node.attrib.get('name')}"
+        prop.xsd_name = node.attrib.get("name")
+
+        ref = node.attrib.get("ref")
+        if ref:
+            if attribute_type:
+                raise RuntimeError(f"attribute can't have both `ref` and `type`: {node.attrib.get('name')}")
+            if prop.xsd_name:
+                raise RuntimeError(f"attribute can't have both `ref` and `name`: {node.attrib.get('name')}")
+
+            ref_local_name = ref.split(":")[-1]
+            prop = deepcopy(self.global_attribute_properties[ref_local_name])
+
+
         if node.attrib.get("use") == "required":
             prop.required = True
 
@@ -832,7 +856,12 @@ class XSDReader:
             if isinstance(child, etree._Comment):
                 continue
             if QName(child).localname == "simpleType":
-                prop.type = self.process_simple_type(child, state)
+                if prop.type:
+                    raise RuntimeError(f"attribute can't have both `type` defined and `simpleType` child element: {prop.xsd_name}")
+                if not ref:
+                    prop.type = self.process_simple_type(child, state)
+                else:
+                    raise RuntimeError(f"attribute can't have both `ref` and `type`: {prop.xsd_name}")
             elif QName(child).localname == "annotation":
                 prop.description = self.process_annotation(child, state)
             else:
