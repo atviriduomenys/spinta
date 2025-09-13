@@ -894,7 +894,7 @@ class XSDReader:
                         new_property_groups.append(new_group)
                 property_groups = new_property_groups
             else:
-                raise RuntimeError(f"Unexpected element type inside <{QName(child).localname}>: {local_name}")
+                raise RuntimeError(f"Unexpected element type inside sequence: {localname}")
 
         if _is_array(node):
             for property_group in property_groups:
