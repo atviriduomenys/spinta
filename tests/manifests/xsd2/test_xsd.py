@@ -1060,3 +1060,47 @@ def test_xsd_different_elements_same_complex_type(rc: RawConfig, tmp_path: Path)
         xsd_file.write(xsd)
     manifest = load_manifest(rc, path_xsd2)
     assert manifest == table
+
+
+def test_xsd_model_name_deduplication(rc: RawConfig, tmp_path: Path):
+    xsd = """
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            <xs:element name="address" type="tns:address"/>
+            <xs:complexType name="address">
+                <xs:sequence>
+                    <xs:element name="street" type="xs:string"/>
+                    <xs:element name="house" type="xs:string"/>
+                </xs:sequence>
+            </xs:complexType>
+            <xs:complexType name="organization">
+                <xs:sequence>
+                    <xs:element name="name" type="xs:string"/>
+                    <xs:element name="address" type="tns:address"/>
+                </xs:sequence>
+            </xs:complexType>
+        </xs:schema>
+    """
+
+    table = """
+ id | d | r | b | m | property           | type            | ref     | source        | prepare  | status  | visibility
+    | manifest                           |                 |         |               |          |         |
+    |   | resource1                      | dask/xml        |         |               |          |         |
+    |                                    |                 |         |               |          |         |
+    |   |   |   | Address/:part          |                 |         |               |          | develop | private
+    |   |   |   |   | house              | string required |         | house/text()  |          | develop | private
+    |   |   |   |   | street             | string required |         | street/text() |          | develop | private
+    |                                    |                 |         |               |          |         |
+    |   |   |   | Address1               |                 |         | /address      |          | develop | private
+    |   |   |   |   | house              | string required |         | house/text()  |          | develop | private
+    |   |   |   |   | street             | string required |         | street/text() |          | develop | private
+    |                                    |                 |         |               |          |         |
+    |   |   |   | Organization/:part     |                 |         |               |          | develop | private
+    |   |   |   |   | address            | ref required    | Address | address       | expand() | develop | private
+    |   |   |   |   | name               | string required |         | name/text()   |          | develop | private
+    """
+    path = tmp_path / "manifest.xsd"
+    path_xsd2 = f"xsd2+file://{path}"
+    with open(path, "w") as xsd_file:
+        xsd_file.write(xsd)
+    manifest = load_manifest(rc, path_xsd2)
+    assert manifest == table
