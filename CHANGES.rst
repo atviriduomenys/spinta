@@ -1,6 +1,15 @@
 Changes
 #######
 
+0.2dev6 (unreleased)
+====================
+
+
+Bug Fixes:
+
+- Model names were not deduplicated correctly in all cases.(`#1469`_)
+ .. _#1469: https://github.com/atviriduomenys/spinta/issues/1469
+
 
 0.2dev4 (unreleased)
 ====================

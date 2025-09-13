@@ -456,7 +456,7 @@ class XSDReader:
                 model.is_partial = False
                 model.is_entry_model = True
                 model.source = f"/{prop.xsd_name}"
-                model.set_name(deduplicator(to_model_name(prop.xsd_name)))
+                model.set_name(self.deduplicate_model_name(to_model_name(prop.xsd_name)))
                 processed_models.append(model)
 
     def _add_refs_for_backrefs(self):
