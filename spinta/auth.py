@@ -556,8 +556,14 @@ def get_scope_name(
         name = node.model.model_type() + "_" + node.place if not udts else node.model.model_type() + "/@" + node.place
     else:
         raise Exception(f"Unknown node type {node}.")
+
+    if not udts:
+        template = "{prefix}{name}_{action}" if name else "{prefix}{action}"
+    else:
+        template = "{prefix}{name}/:{action}" if name else "{prefix}:{action}"
+
     return name_to_scope(
-        "{prefix}{name}_{action}" if name else "{prefix}{action}",
+        template,
         name,
         maxlen=config.scope_max_length,
         params={
