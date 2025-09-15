@@ -37,7 +37,7 @@ from starlette.datastructures import FormData, QueryParams, Headers
 from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse
 
-from spinta.components import Config, ScopeFormatterFuncUDTS
+from spinta.components import Config
 from spinta.components import Context, Namespace, Model, Property
 from spinta.components import ScopeFormatterFunc
 from spinta.core.enums import Access, Action
