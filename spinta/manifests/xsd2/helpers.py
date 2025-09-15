@@ -837,8 +837,7 @@ class XSDReader:
         prop.source = f"@{node.attrib.get('name')}"
         prop.xsd_name = node.attrib.get("name")
 
-        ref = node.attrib.get("ref")
-        if ref:
+        if ref := node.attrib.get("ref"):
             if attribute_type:
                 raise RuntimeError(f"attribute can't have both `ref` and `type`: {node.attrib.get('name')}")
             if prop.xsd_name:
