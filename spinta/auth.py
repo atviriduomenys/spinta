@@ -646,7 +646,9 @@ def authorized(
     scope_formatter = scope_formatter or config.scope_formatter
     if not isinstance(action, (list, tuple)):
         action = [action]
-    scopes = [scope_formatter(context, scope, act, udts) for act in action for scope in scopes for udts in [False, True]]
+    scopes = [
+        scope_formatter(context, scope, act, udts) for act in action for scope in scopes for udts in [False, True]
+    ]
     # Check if client has at least one of required scopes.
     if throw:
         token.check_scope(scopes)
