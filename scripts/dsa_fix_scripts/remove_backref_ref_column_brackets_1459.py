@@ -9,39 +9,30 @@ from pathlib import Path
 
 def remove_bracket_content_for_backref(text):
     """
-    Remove any words containing brackets (empty or non-empty) from the text
+    Remove only the bracket content from words in the text
     when the type column is 'backref'.
     For example:
-    "word1, word2[], word3" -> "word1, word3"
-    "word1, word2[content], word3" -> "word1, word3"
+    "word1, word2[], word3" -> "word1, word2, word3"
+    "word1, word2[content], word3" -> "word1, word2, word3"
+    "SomeModel[some_prop]" -> "SomeModel"
+    "/path/to/Model[prop1, prop2]" -> "/path/to/Model"
     """
-    # First, split by commas and process each part separately
-    parts = [part.strip() for part in text.split(',')]
-    filtered_parts = []
-    removed_parts = False
-
-    for part in parts:
-        # Check if this part contains any square brackets (empty or with content)
-        if '[' in part and ']' in part:
-            print(f"Found brackets in: '{part}'")
-            removed_parts = True
-            continue  # Skip parts with any square brackets
-
-        # If we got here, the part has no square brackets, so keep it
-        filtered_parts.append(part)
-
-    clean_result = ', '.join(filtered_parts)
-
+    # Apply regex to remove any bracket content in the entire text
+    original_text = text
+    modified_text = re.sub(r'\[.*?\]', '', text)
+    changes_made = original_text != modified_text
+    
     # Clean up extra spaces and commas
-    clean_result = re.sub(r'\s{2,}', ' ', clean_result)
+    clean_result = re.sub(r'\s{2,}', ' ', modified_text)
     clean_result = re.sub(r',\s*,', ',', clean_result)
     clean_result = clean_result.strip(', ')
 
-    if removed_parts:
-        print(f"Original: '{text}'")
+    if changes_made:
+        print(f"Found brackets in: '{original_text}'")
+        print(f"Original: '{original_text}'")
         print(f"Cleaned: '{clean_result}'")
 
-    return clean_result, removed_parts
+    return clean_result, changes_made
 
 
 def process_csv_file(file_path):

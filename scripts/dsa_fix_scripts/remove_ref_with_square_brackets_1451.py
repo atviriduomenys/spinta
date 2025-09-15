@@ -104,7 +104,7 @@ def process_csv_file(file_path):
             'prepare': f'update(ref: "{original_ref}")',
             'level': original_level,
             'visibility': 'protected',
-            'uri': 'https://github.com/atviriduomenys/spinta/issues/1309'
+            'uri': 'https://github.com/atviriduomenys/spinta/issues/1451'
         }
 
         # Write comment row using csv to match format
