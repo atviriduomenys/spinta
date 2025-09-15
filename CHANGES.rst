@@ -137,6 +137,8 @@ Backwards incompatible:
 - The `spinta upgrade` command no longer uses the `-r` argument to specify a script. Instead, you can now pass one or more
   scripts directly as arguments, e.g., `spinta upgrade redirect` or `spinta upgrade clients redirect` (`#1340`_).
 
+- `private` and `public` keys now include `kid` field (`#675`_).
+
 Improvements:
 
 - `migrate` command now warns users if there are potential type casting issues (invalid or unsafe).
@@ -167,6 +169,11 @@ Improvements:
 
 - Added support for `ruff` linting and code formatting (`#434`_).
 
+- Updated `authlib` minimal version to 1.0.0 (`#675`_).
+
+- Added `nan` field support to `spyna` (`#675`_).
+
+  .. _#675: https://github.com/atviriduomenys/spinta/issues/675
   .. _#434: https://github.com/atviriduomenys/spinta/issues/434
   .. _#1419: https://github.com/atviriduomenys/spinta/issues/1419
   .. _#1254: https://github.com/atviriduomenys/spinta/issues/1254
