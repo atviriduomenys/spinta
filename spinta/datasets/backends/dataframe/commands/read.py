@@ -118,8 +118,9 @@ def _get_row_value(context: Context, row: Any, sel: Any, params: dict | None) ->
             env = Env(context)(this=sel.prop)
             for enum_option in enum_options.values():
                 if isinstance(enum_option.prepare, Expr):
-                    val = env.call(enum_option.prepare.name, str(val), *enum_option.prepare.args)
-                    if val:
+                    processed = env.call(enum_option.prepare.name, val, *enum_option.prepare.args)
+                    if val != processed:
+                        val = processed
                         break
             if val is None:
                 pass
