@@ -839,9 +839,9 @@ class XSDReader:
 
         if ref := node.attrib.get("ref"):
             if attribute_type:
-                raise RuntimeError(f"attribute can't have both `ref` and `type`: {node.attrib.get('name')}")
+                raise RuntimeError(f"attribute {node.attrib.get('name')} can't have both `ref` and `type`")
             if prop.xsd_name:
-                raise RuntimeError(f"attribute can't have both `ref` and `name`: {node.attrib.get('name')}")
+                raise RuntimeError(f"attribute {node.attrib.get('name')} can't have both `ref` and `name`")
 
             ref_local_name = ref.split(":")[-1]
             prop = deepcopy(self.global_attribute_properties[ref_local_name])
