@@ -75,7 +75,12 @@ def internal_authorized(
         scopes.extend(parents)
     if not isinstance(action, (list, tuple)):
         action = [action]
-    scopes = [internal_scope_formatter(context, scope, act, udts) for act in action for scope in scopes for udts in [False, True]]
+    scopes = [
+        internal_scope_formatter(context, scope, act, udts)
+        for act in action
+        for scope in scopes
+        for udts in [False, True]
+    ]
     # Check if client has at least one of required scopes.
     if throw:
         token.check_scope(scopes)
