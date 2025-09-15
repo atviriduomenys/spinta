@@ -1697,7 +1697,7 @@ def test_swap_ufunc(rc: RawConfig, fs: AbstractFileSystem):
       |   |   |   | id       | string   |      | id                  |                    | open
       |   |   |   | name     | string   |      | name                |                    | open
       |   |   |   |          | enum     |      |                     |                    | open
-      |   |   |   |          |          |      |                     |  swap('nan', '---')  | open
+      |   |   |   |          |          |      |                     |  swap(nan, '---')  | open
       |   |   |   |          |          |      |                     |  swap(null, '---') | open
       |   |   |   |          |          |      |                     |  swap('', '---')   | open
       |   |   |   |          |          |      |                     |  '---'             | open
