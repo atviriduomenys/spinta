@@ -325,7 +325,7 @@ class XSDReader:
     namespaces: dict[str, str] | None = None
     global_attribute_properties: dict[str, list[XSDProperty]] = {}
 
-    def __init__(self, path: str, dataset_name) -> None:
+    def __init__(self, path: str, dataset_name: str) -> None:
         self._path = path
         self.dataset_resource = XSDDatasetResource(dataset_given_name=dataset_name, resource_name="resource1")
         self.custom_types = {}
@@ -342,13 +342,13 @@ class XSDReader:
             custom_type = self.process_simple_type(node, state)
             self.custom_types[custom_type.xsd_type] = custom_type
 
-    def register_global_attributes(self, state: State):
+    def register_global_attributes(self, state: State) -> None:
         global_attributes_nodes = self.root.xpath('./*[local-name() = "attribute"]')
         for attribute in global_attributes_nodes:
             attribute_property = self.process_attribute(attribute, state)
             self.global_attribute_properties[attribute_property.xsd_name] = attribute_property
 
-    def _extract_root(self):
+    def _extract_root(self) -> None:
         if self._path.startswith("http"):
             document = etree.parse(urlopen(self._path))
             objectify.deannotate(document, cleanup_namespaces=True)
@@ -359,7 +359,7 @@ class XSDReader:
                 text = file.read()
                 self.root = etree.fromstring(bytes(text, encoding="utf-8"))
 
-    def _create_resource_model(self):
+    def _create_resource_model(self) -> None:
         self.resource_model = XSDModel(dataset_resource=self.dataset_resource)
         self.resource_model.type = "model"
         self.resource_model.is_partial = False
@@ -369,7 +369,7 @@ class XSDReader:
 
     #     resource model will be added to models at the end, if it has any peoperties
 
-    def _is_referenced(self, node):
+    def _is_referenced(self, node: _Element) -> bool:
         # if this node is referenced by some other node
         node_name = node.get("name")
         xpath_search_string = f'//*[@ref="{node_name}"]'
@@ -388,12 +388,12 @@ class XSDReader:
             return True
         return False
 
-    def _post_process_resource_model(self):
+    def _post_process_resource_model(self) -> None:
         if self.resource_model.properties:
             self.resource_model.set_name(self.deduplicate_model_name("Resource"))
             self.models.append(self.resource_model)
 
-    def _post_process_refs(self):
+    def _post_process_refs(self) -> None:
         """
         Links properties in all models to their target models based on xsd_ref_to and xsd_type_to.
         Also links models to their base models based on the 'prepare' attribute (extend statements).
