@@ -553,21 +553,21 @@ def get_scope_name(
     elif isinstance(node, Model):
         name = node.model_type()
     elif isinstance(node, Property):
-        name = node.model.model_type() + "_" + node.place if not udts else node.model.model_type() + "/@" + node.place
+        name = node.model.model_type() + "/@" + node.place if udts else node.model.model_type() + "_" + node.place
     else:
         raise Exception(f"Unknown node type {node}.")
 
-    if not udts:
-        template = "{prefix}{name}_{action}" if name else "{prefix}{action}"
-    else:
+    if udts:
         template = "{prefix}{name}/:{action}" if name else "{prefix}:{action}"
+    else:
+        template = "{prefix}{name}_{action}" if name else "{prefix}{action}"
 
     return name_to_scope(
         template,
         name,
         maxlen=config.scope_max_length,
         params={
-            "prefix": config.scope_prefix if not udts else config.scope_prefix_udts,
+            "prefix": config.scope_prefix_udts if udts else config.scope_prefix,
             "action": "create" if action.value == "insert" and udts else action.value,
         },
         udts=udts,
@@ -607,7 +607,6 @@ def authorized(
 ):
     config: Config = context.get("config")
     token = context.get("auth.token")
-
     # Unauthorized clients can only access open nodes.
     unauthorized = token.get_client_id() == get_default_auth_client_id(context)
     open_node = node.access >= Access.open

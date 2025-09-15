@@ -57,7 +57,6 @@ def internal_authorized(
     throw: bool = False,
 ):
     token = context.get("auth.token")
-
     # Unauthorized clients can only access open nodes.
     unauthorized = token.get_client_id() == get_default_auth_client_id(context)
 
@@ -74,11 +73,9 @@ def internal_authorized(
     # Protected and higher level nodes can be accessed with parent nodes scopes.
     if access > Access.private:
         scopes.extend(parents)
-
     if not isinstance(action, (list, tuple)):
         action = [action]
-    scopes = [internal_scope_formatter(context, scope, act) for act in action for scope in scopes]
-
+    scopes = [internal_scope_formatter(context, scope, act, udts) for act in action for scope in scopes for udts in [False, True]]
     # Check if client has at least one of required scopes.
     if throw:
         token.check_scope(scopes)
@@ -90,17 +87,24 @@ def internal_scope_formatter(
     context: Context,
     name: str,
     action: Action,
+    udts: bool = False,
 ) -> str:
     config = context.get("config")
 
+    if udts:
+        template = "{prefix}{name}/:{action}" if name else "{prefix}:{action}"
+    else:
+        template = "{prefix}{name}_{action}" if name else "{prefix}{action}"
+
     return name_to_scope(
-        "{prefix}{name}_{action}" if name else "{prefix}{action}",
+        template,
         name,
         maxlen=config.scope_max_length,
         params={
-            "prefix": config.scope_prefix,
-            "action": action.value,
+            "prefix": config.scope_prefix_udts if udts else config.scope_prefix,
+            "action": "create" if action.value == "insert" and udts else action.value,
         },
+        udts=udts,
     )
 
 
