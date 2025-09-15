@@ -16,3 +16,6 @@ class Soap(DaskBackend):
     @contextlib.contextmanager
     def begin(self):
         yield
+
+    def __dask_tokenize__(self):
+        return self.type, self.name
