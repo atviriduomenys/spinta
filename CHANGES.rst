@@ -6,7 +6,7 @@ Changes
 
 - `spinta copy` for XSD supports globally defined attributes, referenced in other places.(`#605`_)
 
-  .. _#605: https://github.com/atviriduomenys/spinta/issues/1274
+  .. _#605: https://github.com/atviriduomenys/spinta/issues/605
 
 0.2dev4 (unreleased)
 ====================
