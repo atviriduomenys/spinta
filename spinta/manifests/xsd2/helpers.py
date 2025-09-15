@@ -858,10 +858,9 @@ class XSDReader:
                     raise RuntimeError(
                         f"attribute can't have both `type` defined and `simpleType` child element: {prop.xsd_name}"
                     )
-                if not ref:
-                    prop.type = self.process_simple_type(child, state)
-                else:
+                if ref:
                     raise RuntimeError(f"attribute can't have both `ref` and `type`: {prop.xsd_name}")
+                prop.type = self.process_simple_type(child, state)
             elif QName(child).localname == "annotation":
                 prop.description = self.process_annotation(child, state)
             else:
