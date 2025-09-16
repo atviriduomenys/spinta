@@ -1,6 +1,15 @@
 Changes
 #######
 
+0.2dev6 (unreleased)
+====================
+
+Improvements:
+
+- Updated `authlib` minimal version to 1.0.0 (`#675`_).
+- `private` and `public` keys now include `kid` field (`#675`_).
+
+  .. _#675: https://github.com/atviriduomenys/spinta/issues/675
 
 0.2dev4 (unreleased)
 ====================
