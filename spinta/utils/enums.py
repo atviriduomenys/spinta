@@ -5,7 +5,7 @@ from typing import Any, Optional, Type, TYPE_CHECKING
 from spinta import exceptions
 
 if TYPE_CHECKING:
-    from spinta.components import Component
+    from spinta.components import Component, Context
 
 
 def get_enum_by_name(enum, value):
@@ -30,6 +30,7 @@ def enum_by_name(
 
 
 def enum_by_value(
+    context: Context,
     component: Component,
     param: Optional[str],  # component param
     enum: Type[Enum],
@@ -40,4 +41,8 @@ def enum_by_value(
     for item in enum:
         if item.value == value:
             return item
-    raise exceptions.InvalidValue(component, param=param, given=value)
+
+    error = exceptions.InvalidValue(component, param=param, given=value)
+
+    manager = context.get("error_manager")
+    manager.handle_error(error)
