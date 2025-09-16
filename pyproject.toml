@@ -36,7 +36,9 @@ spinta = "spinta.cli.main:app"
 [tool.poetry.dependencies]
 python = "^3.9"
 aiofiles = "*"
-authlib = "~0.11"
+# https://github.com/atviriduomenys/spinta/issues/675
+# 0.x -> 1.x upgrade changed their implementation API, so we can no longer support 0.x.
+authlib = ">=1.0.0"
 jinja2 = "*"
 jsonpatch = "*"
 lark-parser = "*"
@@ -79,7 +81,8 @@ psycopg2-binary = "*"
 # sqlalchemy = "~1.4"
 sqlalchemy = "~1.4"
 # https://github.com/kvesteri/sqlalchemy-utils/issues/472
-sqlalchemy-utils = "*"
+# https://github.com/kvesteri/sqlalchemy-utils/issues/791
+sqlalchemy-utils = "<=0.41.2"
 
 # Mongo backend dependendencies
 # https://github.com/atviriduomenys/spinta/issues/806
@@ -106,7 +109,8 @@ psutil = "*"
 tabulate = "*"
 pyproj = [{version = ">=3.7.0", python = ">=3.13"}, {version = "3.6.1", python = "<3.13"}]
 xmltodict = "*"
-sqlean-py = "*"
+# Error when trying to install >=3.50
+sqlean-py = "<=3.49.1"
 cachetools = "*"
 docutils = "^0.21.2"
 zeep = "^4.3.1"

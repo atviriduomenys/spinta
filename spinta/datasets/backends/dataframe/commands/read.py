@@ -1,14 +1,17 @@
 from __future__ import annotations
 import io
 import json
+import math
 import pathlib
 from typing import Any, Dict, Iterator
 
-import dask
 import numpy as np
 import pandas as pd
 import requests
 import yaml
+
+import dask
+from dask.bag import from_sequence
 from dask.dataframe import DataFrame
 from lxml import etree
 
@@ -111,13 +114,17 @@ def _get_row_value(context: Context, row: Any, sel: Any, params: dict | None) ->
                         property=sel.prop.name,
                         external=sel.prop.external.name,
                     )
-
         if enum_options := get_prop_enum(sel.prop):
             env = Env(context)(this=sel.prop)
             for enum_option in enum_options.values():
                 if isinstance(enum_option.prepare, Expr):
-                    val = env.call(enum_option.prepare.name, str(val), *enum_option.prepare.args)
-                    if val:
+                    # This is backward compatibility for older Dask versions, where empty fields returned as NaN.
+                    # If we do not want to support nan type this eventually should be moved to the dask reader part.
+                    if isinstance(val, float) and math.isnan(val):
+                        val = None
+                    processed = env.call(enum_option.prepare.name, val, *enum_option.prepare.args)
+                    if val != processed:
+                        val = processed
                         break
             if val is None:
                 pass
@@ -415,7 +422,7 @@ def getall(
 
     meta = get_dask_dataframe_meta(model)
     df = (
-        dask.bag.from_sequence(bases)
+        from_sequence(bases)
         .map(_get_data_json, source=model.external.name, model_props=props)
         .flatten()
         .to_dataframe(meta=meta)
@@ -444,7 +451,7 @@ def getall(
 
     meta = get_dask_dataframe_meta(model)
     df = (
-        dask.bag.from_sequence(bases)
+        from_sequence(bases)
         .map(
             _get_data_xml,
             namespaces=_gather_namespaces_from_model(context, model),

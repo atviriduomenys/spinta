@@ -77,6 +77,10 @@ def test_soap_read_calls_soap_operation_with_empty_request_body(rc: RawConfig, m
         "spinta.datasets.backends.dataframe.backends.soap.commands.read._get_data_soap",
         return_value=[],
     )
+    soap_data_mock.configure_mock(
+        __dask_tokenize__=lambda: ("_get_data_soap", "empty"),
+    )
+
     source = "CityService.CityPort.CityPortType.CityOperation"
     context, manifest = prepare_manifest(
         rc,
@@ -104,6 +108,10 @@ def test_soap_read_calls_soap_operation_with_default_request_body_values(rc: Raw
         "spinta.datasets.backends.dataframe.backends.soap.commands.read._get_data_soap",
         return_value=[],
     )
+    soap_data_mock.configure_mock(
+        __dask_tokenize__=lambda: ("_get_data_soap", "empty"),
+    )
+
     source = "CityService.CityPort.CityPortType.CityOperation"
     context, manifest = prepare_manifest(rc, WSDL_SOAP_PARAM_MANIFEST.format(source=source), mode=Mode.external)
 
@@ -126,6 +134,10 @@ def test_soap_read_calls_soap_operation_with_request_body_values_from_url(rc: Ra
         "spinta.datasets.backends.dataframe.backends.soap.commands.read._get_data_soap",
         return_value=[],
     )
+    soap_data_mock.configure_mock(
+        __dask_tokenize__=lambda: ("_get_data_soap", "empty"),
+    )
+
     source = "CityService.CityPort.CityPortType.CityOperation"
     context, manifest = prepare_manifest(rc, WSDL_SOAP_PARAM_MANIFEST.format(source=source), mode=Mode.external)
 

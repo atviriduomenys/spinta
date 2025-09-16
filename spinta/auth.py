@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import dataclasses
 import datetime
 import enum
 import json
@@ -9,27 +10,30 @@ import os
 import pathlib
 import time
 import uuid
+from collections import defaultdict
+from functools import cached_property
 from threading import Lock
 from typing import Set, Any
 from typing import Type
 from typing import Union, List, Tuple
 
 import ruamel.yaml
-from authlib.jose import jwk
+from authlib.jose import JsonWebKey
 from authlib.jose import jwt
 from authlib.jose.errors import JoseError
 from authlib.oauth2 import OAuth2Error
 from authlib.oauth2 import OAuth2Request
 from authlib.oauth2 import rfc6749
 from authlib.oauth2 import rfc6750
-from authlib.oauth2.rfc6749 import grants
-from authlib.oauth2.rfc6749.errors import InvalidClientError, UnsupportedTokenTypeError
+from authlib.oauth2.rfc6749 import grants, OAuth2Payload, scope_to_list, list_to_scope
+from authlib.oauth2.rfc6749.errors import InvalidClientError
 from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 from cachetools import cached, LRUCache
 from cachetools.keys import hashkey
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
 from multipledispatch import dispatch
+from starlette.datastructures import FormData, QueryParams, Headers
 from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse
 
@@ -69,6 +73,9 @@ KEYMAP_CACHE_SIZE_LIMIT = 1
 DEFAULT_CLIENT_ID_CACHE_SIZE_LIMIT = 1
 DEFAULT_CREDENTIALS_SECTION = "default"
 
+# Scope types taken from authlib.oauth2.rfc6749.util.scope_to_list
+SCOPE_TYPE = Union[tuple, list, set, str, None]
+
 
 class KeyType(enum.Enum):
     public = "public"
@@ -92,31 +99,31 @@ class Scopes(enum.Enum):
     # Grants access to change meta fields (like _id) through request
     SET_META_FIELDS = "set_meta_fields"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.value
 
 
 class AuthorizationServer(rfc6749.AuthorizationServer):
     def __init__(self, context):
-        super().__init__(
-            query_client=self._query_client,
-            generate_token=rfc6750.BearerToken(
+        super().__init__()
+        self.register_grant(grants.ClientCredentialsGrant)
+        self.register_token_generator(
+            "default",
+            rfc6750.BearerToken(
                 access_token_generator=self._generate_token,
                 expires_generator=self._get_expires_in,
             ),
-            save_token=self._save_token,
         )
-        self.register_grant(grants.ClientCredentialsGrant)
         self._context = context
         self._private_key = load_key(context, KeyType.private, required=False)
 
-    def enabled(self):
+    def enabled(self) -> bool:
         return self._private_key is not None
 
-    def create_oauth2_request(self, request):
+    def create_oauth2_request(self, request: StarletteOAuth2Data) -> OAuth2Request:
         return get_auth_request(request)
 
-    def handle_response(self, status_code, payload, headers) -> JSONResponse:
+    def handle_response(self, status_code: int, payload: Any, headers: Any) -> JSONResponse:
         return JSONResponse(payload, status_code=status_code, headers=dict(headers))
 
     def handle_error_response(
@@ -130,19 +137,19 @@ class AuthorizationServer(rfc6749.AuthorizationServer):
     def send_signal(self, *args, **kwargs):
         pass
 
-    def _query_client(self, client_name):
+    def query_client(self, client_name: str) -> Client:
         path = get_clients_path(self._context.get("config"))
         return query_client(path, client_name, is_name=True)
 
-    def _save_token(self, token, request):
+    def save_token(self, token, request):
         pass
 
-    def _get_expires_in(self, client, grant_type):
+    def _get_expires_in(self, client: Client, grant_type: str) -> int:
         return int(datetime.timedelta(days=10).total_seconds())
 
-    def _generate_token(self, client: Client, grant_type, user, scope, **kwargs):
+    def _generate_token(self, grant_type: str, client: Client, user: str, scope: str, **kwargs) -> str:
         expires_in = self._get_expires_in(client, grant_type)
-        scopes = scope.split() if scope else []
+        scopes = set(scope.split()) if scope else set()
         return create_access_token(self._context, self._private_key, client.id, expires_in, scopes)
 
 
@@ -152,9 +159,8 @@ class ResourceProtector(rfc6749.ResourceProtector):
         context: Context,
         Validator: Type[rfc6750.BearerTokenValidator],
     ):
-        self.TOKEN_VALIDATORS = {
-            Validator.TOKEN_TYPE: Validator(context),
-        }
+        super().__init__()
+        self.register_token_validator(Validator(context))
 
 
 class BearerTokenValidator(rfc6750.BearerTokenValidator):
@@ -163,14 +169,8 @@ class BearerTokenValidator(rfc6750.BearerTokenValidator):
         self._context = context
         self._public_key = load_key(context, KeyType.public)
 
-    def authenticate_token(self, token_string: str):
+    def authenticate_token(self, token_string: str) -> Token:
         return Token(token_string, self)
-
-    def request_invalid(self, request):
-        return False
-
-    def token_revoked(self, token):
-        return False
 
 
 class Client(rfc6749.ClientMixin):
@@ -195,21 +195,45 @@ class Client(rfc6749.ClientMixin):
         self.scopes = set(scopes)
         self.backends = backends
 
-    def __repr__(self):
+        # Auth method used for token endpoint.
+        # More info: token_endpoint_auth_method https://datatracker.ietf.org/doc/html/rfc7591#autoid-5
+        self.token_endpoint_auth_method = "client_secret_basic"
+
+        # Allowed grant types.
+        # More info: grant_types https://datatracker.ietf.org/doc/html/rfc7591#autoid-5
+        self.grant_types = ["client_credentials"]
+
+    def __repr__(self) -> str:
         cls = type(self)
         return f"{cls.__module__}.{cls.__name__}(id={self.id!r})"
 
-    def check_client_secret(self, client_secret):
+    def get_client_id(self) -> str:
+        return self.id
+
+    def get_allowed_scope(self, scope: str) -> str:
+        scopes = set(scope_to_list(scope))
+        unknown_scopes = scopes - self.scopes
+        if unknown_scopes:
+            log.warning("requested unknown scopes: %s", ", ".join(sorted(unknown_scopes)))
+            unknown_scopes = ", ".join(sorted(unknown_scopes))
+            raise InvalidScopes(scopes=unknown_scopes)
+        else:
+            result = list_to_scope(scopes)
+            return result
+
+    def check_client_secret(self, client_secret: Any) -> bool:
         log.debug(f"Incorrect client {self.id!r} secret hash.")
         return passwords.verify(client_secret, self.secret_hash)
 
-    def check_token_endpoint_auth_method(self, method: str):
-        return method == "client_secret_basic"
+    def check_endpoint_auth_method(self, method: str, endpoint: str) -> bool:
+        if endpoint == "token":
+            return method == self.token_endpoint_auth_method
+        return False
 
-    def check_grant_type(self, grant_type: str):
-        return grant_type == "client_credentials"
+    def check_grant_type(self, grant_type: str) -> bool:
+        return grant_type in self.grant_types
 
-    def check_requested_scopes(self, scopes: set):
+    def check_requested_scopes(self, scopes: set) -> bool:
         unknown_scopes = scopes - self.scopes
         if unknown_scopes:
             log.warning("requested unknown scopes: %s", ", ".join(sorted(unknown_scopes)))
@@ -226,19 +250,22 @@ class Token(rfc6749.TokenMixin):
         except JoseError as e:
             raise InvalidToken(error=str(e))
 
+        self.expires_in = self._token["exp"] - self._token["iat"]
+        self.client_id = self.get_aud()
+
         self._validator = validator
 
-    def valid_scope(self, scope, *, operator="AND"):
-        if self._validator.scope_insufficient(self, scope, operator):
-            return False
-        else:
-            return True
+    def valid_scope(self, scope: SCOPE_TYPE) -> bool:
+        required_scopes = scope_to_list(scope)
+        return not self._validator.scope_insufficient(self.get_scope(), required_scopes)
 
-    def check_scope(self, scope, *, operator="AND"):
-        if not self.valid_scope(scope, operator=operator):
+    def check_scope(self, scope: SCOPE_TYPE):
+        if not self.valid_scope(scope):
             client_id = self._token["aud"]
 
+            operator = "OR"
             if isinstance(scope, str):
+                operator = "AND"
                 scope = [scope]
 
             missing_scopes = ", ".join(sorted(scope))
@@ -253,51 +280,110 @@ class Token(rfc6749.TokenMixin):
             else:
                 raise Exception(f"Unknown operator {operator}.")
 
-    def get_expires_at(self):
-        return self._token["exp"]
+    # No longer mandatory, but will keep it, since it is used in other places.
+    def get_client_id(self) -> str:
+        return self.get_aud()
 
-    def get_scope(self):
-        return self._token.get("scope", "")
-
-    def get_sub(self):  # User.
+    def get_sub(self) -> str:  # User.
         return self._token.get("sub", "")
 
-    def get_aud(self):  # Client.
+    def get_aud(self) -> str:  # Client.
         return self._token.get("aud", "")
 
-    def get_jti(self):
+    def get_jti(self) -> str:
         return self._token.get("jti", "")
 
-    def get_client_id(self):
-        return self.get_aud()
+    # Currently required implementations for authlib >= 1.0
+    # https://gist.github.com/lepture/506bfc29b827fae87981fc58eff2393e#token-model
+
+    def get_scope(self) -> str:
+        return self._token.get("scope", "")
+
+    def check_client(self, client) -> bool:
+        return self.get_aud() == client.id
+
+    def get_expires_in(self) -> int:
+        return self.expires_in
+
+    def is_revoked(self) -> bool:
+        return False
+
+    def is_expired(self) -> bool:
+        return time.time() > self._token["exp"]
 
 
 class AdminToken(rfc6749.TokenMixin):
-    def valid_scope(self, scope, **kwargs):
+    def valid_scope(self, scope: SCOPE_TYPE, **kwargs) -> bool:
         return True
 
-    def check_scope(self, scope, **kwargs):
+    def check_scope(self, scope: SCOPE_TYPE, **kwargs):
         pass
 
-    def get_sub(self):  # User.
+    def get_sub(self) -> str:  # User.
         return "admin"
 
-    def get_aud(self):  # Client.
+    def get_aud(self) -> str:  # Client.
         return "admin"
 
-    def get_jti(self):
+    def get_jti(self) -> str:
         return "admin"
 
-    def get_client_id(self):
+    def get_client_id(self) -> str:
         return self.get_aud()
+
+
+@dataclasses.dataclass
+class StarletteOAuth2Data:
+    method: str
+    uri: str
+    headers: Headers
+    query: QueryParams
+    form: FormData
+
+
+class StarletteOAuth2Payload(OAuth2Payload):
+    # Implementation was taken from DjangoOAuth2Payload
+
+    def __init__(self, data: StarletteOAuth2Data):
+        self.query = data.query
+        self.form = data.form
+
+    @property
+    def data(self) -> dict:
+        data = {}
+        data.update(self.query)
+        data.update(self.form)
+        return data
+
+    @cached_property
+    def datalist(self) -> dict:
+        values = defaultdict(list)
+        for k in self.query:
+            values[k].extend(self.query.getlist(k))
+        for k in self.form:
+            values[k].extend(self.form.getlist(k))
+        return values
+
+
+class StarletteOAuth2Request(OAuth2Request):
+    def __init__(self, data: StarletteOAuth2Data):
+        super().__init__(method=data.method, uri=data.uri, headers=data.headers)
+        self.payload = StarletteOAuth2Payload(data)
+        self._data = data
+
+    @property
+    def args(self) -> QueryParams:
+        return self._data.query
+
+    @property
+    def form(self) -> FormData:
+        return self._data.form
 
 
 def authenticate_token(protector: ResourceProtector, token: str, type_: str) -> Token:
     type_ = type_.lower()
-    if type_ not in protector.TOKEN_VALIDATORS:
-        raise UnsupportedTokenTypeError()
-
-    return protector.TOKEN_VALIDATORS[type_].authenticate_token(token)
+    validator = protector.get_token_validator(type_)
+    return validator.authenticate_token(token)
 
 
 def get_auth_token(context: Context) -> Token:
@@ -357,13 +443,8 @@ def get_token_from_http_basic_auth(context: Context, request: OAuth2Request):
     return create_client_access_token(context, client)
 
 
-def get_auth_request(request: dict) -> OAuth2Request:
-    return OAuth2Request(
-        request["method"],
-        request["url"],
-        request["body"],
-        request["headers"],
-    )
+def get_auth_request(data: StarletteOAuth2Data) -> StarletteOAuth2Request:
+    return StarletteOAuth2Request(data)
 
 
 def create_key_pair():
@@ -397,8 +478,7 @@ def load_key(context: Context, key_type: KeyType, *, required: bool = True):
         keys = [k for k in key["keys"] if k["alg"] == "RS512"]
         key = keys[0]
 
-    key = jwk.loads(key)
-    return key
+    return JsonWebKey.import_key(key)
 
 
 def create_client_access_token(context: Context, client: Union[str, Client]):
@@ -563,9 +643,9 @@ def authorized(
 
     # Check if client has at least one of required scopes.
     if throw:
-        token.check_scope(scopes, operator="OR")
+        token.check_scope(scopes)
     else:
-        return token.valid_scope(scopes, operator="OR")
+        return token.valid_scope(scopes)
 
 
 def auth_server_keys_exists(path: pathlib.Path):
@@ -598,11 +678,16 @@ def gen_auth_server_keys(
                 create = True
 
     if create:
-        key = create_key_pair()
-        keys = (key, key.public_key())
-        for k, file in zip(keys, files):
-            with file.open("w") as f:
-                json.dump(jwk.dumps(k), f, indent=4, ensure_ascii=False)
+        private_key = create_key_pair()
+        public_key = private_key.public_key()
+
+        with files[0].open("w") as f:
+            result = JsonWebKey.import_key(private_key, {"kty": "RSA"})
+            json.dump(result.as_dict(is_private=True), f, indent=4, ensure_ascii=False)
+
+        with files[1].open("w") as f:
+            result = JsonWebKey.import_key(public_key, {"kty": "RSA"})
+            json.dump(result.as_dict(), f, indent=4, ensure_ascii=False)
 
     return files
 
