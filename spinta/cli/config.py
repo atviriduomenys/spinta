@@ -34,4 +34,4 @@ def check(
     context = configure_context(ctx.obj, manifests, mode=mode, check_names=check_names)
     prepare_manifest(context, ensure_config_dir=True, full_load=True)
     manager = context.get("error_manager")
-    manager.handler.post_process()
+    manager.handler.post_process("check")
