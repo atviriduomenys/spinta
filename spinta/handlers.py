@@ -23,9 +23,6 @@ class CLIErrorHandler(ErrorHandler):
     def get_counts(self) -> dict[str, int]:
         return self._error_counts
 
-    def clear(self) -> None:
-        self._error_counts.clear()
-
     def post_process(self) -> None:
         counts = self.get_counts()
         if not counts:
