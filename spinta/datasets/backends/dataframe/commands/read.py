@@ -1,6 +1,7 @@
 from __future__ import annotations
 import io
 import json
+import math
 import pathlib
 from typing import Any, Dict, Iterator
 
@@ -113,11 +114,14 @@ def _get_row_value(context: Context, row: Any, sel: Any, params: dict | None) ->
                         property=sel.prop.name,
                         external=sel.prop.external.name,
                     )
-
         if enum_options := get_prop_enum(sel.prop):
             env = Env(context)(this=sel.prop)
             for enum_option in enum_options.values():
                 if isinstance(enum_option.prepare, Expr):
+                    # This is backward compatibility for older Dask versions, where empty fields returned as NaN.
+                    # If we do not want to support nan type this eventually should be moved to the dask reader part.
+                    if isinstance(val, float) and math.isnan(val):
+                        val = None
                     processed = env.call(enum_option.prepare.name, val, *enum_option.prepare.args)
                     if val != processed:
                         val = processed

@@ -17,5 +17,7 @@ class Soap(DaskBackend):
     def begin(self):
         yield
 
+    # This backend is used as a parameter for _get_data_soap, which is then passed to Dask reader.
+    # Dask requires all the given parameters to be hashable, it uses __dask_tokenize__ to achieve it.
     def __dask_tokenize__(self):
         return self.type, self.name

@@ -34,7 +34,7 @@ kwarg: NAME ":" test
 filter: test ("," test)* [","]
 attr: "." NAME | "@" NAME
 name: NAME
-value: NULL | NAN | BOOL | INT | FLOAT | STRING | ALL
+value: NULL | BOOL | INT | FLOAT | STRING | ALL
 
 COMP: ">=" | "<=" | "!=" | "=" | "<" | ">"
 TERM: "+" | "-"
@@ -49,7 +49,6 @@ FLOAT: /(\d+)?\.\d+/
 INT: /0|[1-9]\d*/
 BOOL: "false" | "true"
 NULL: "null"
-NAN: "nan"
 
 COMMENT: /#[^\n]*/
 WS: /[ \t\f\r\n]+/
@@ -175,8 +174,6 @@ class Visitor:
             return float(token.value)
         if token.type == "NULL":
             return None
-        if token.type == "NAN":
-            return float("nan")
         if token.type == "BOOL":
             return self._const(token.value)
         if token.type == "ALL":
