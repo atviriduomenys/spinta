@@ -446,7 +446,7 @@ class XSDReader:
     def post_process_separate_complex_type_root_elements(self) -> None:
         processed_models = []
         # todo think of a better way to deduplicate in a case where a complexType can be used by both root-element and non-root element
-        deduplicator = Deduplicator()
+        # deduplicator = Deduplicator()
         for prop in self.separate_complex_type_root_elements:
             for model in self.top_level_complex_type_models[prop.xsd_type_to]:
                 # this complexType is also used by non-top level elements, we need to leave it and work on it's copy
@@ -458,6 +458,8 @@ class XSDReader:
                 model.is_entry_model = True
                 model.source = f"/{prop.xsd_name}"
                 model.set_name(self.deduplicate_model_name(to_model_name(prop.xsd_name)))
+                # todo was previously done this way:
+                # model.set_name(self.deduplicator(to_model_name(prop.xsd_name)))
                 processed_models.append(model)
 
     def _add_refs_for_backrefs(self):
