@@ -1066,6 +1066,7 @@ class Config:
     config_path: pathlib.Path
     server_url: str
     scope_prefix: str
+    scope_prefix_udts: str
     scope_formatter: ScopeFormatterFunc
     scope_max_length: int
     scope_log: bool
