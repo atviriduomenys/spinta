@@ -8,8 +8,7 @@ from spinta.exceptions import BaseError
 
 class ErrorHandler(ABC):
     @abstractmethod
-    def handle_error(self, error: Exception, file: str | None = None) -> None:
-        ...
+    def handle_error(self, error: Exception, file: str | None = None) -> None: ...
 
 
 class CLIErrorHandler(ErrorHandler):
