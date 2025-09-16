@@ -36,6 +36,8 @@ spinta = "spinta.cli.main:app"
 [tool.poetry.dependencies]
 python = "^3.9"
 aiofiles = "*"
+# https://github.com/atviriduomenys/spinta/issues/675
+# 0.x -> 1.x upgrade changed their implementation API, so we can no longer support 0.x.
 authlib = ">=1.0.0"
 jinja2 = "*"
 jsonpatch = "*"
