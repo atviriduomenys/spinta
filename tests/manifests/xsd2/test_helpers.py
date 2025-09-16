@@ -1412,3 +1412,248 @@ def test_process_union(xsd_reader):
     xsd_type = xsd_reader.process_union(union_node, state)
 
     assert xsd_type.name == "number"
+
+
+def test_process_attribute_with_builtin_type_optional_by_default(xsd_reader):
+    xml = """
+    <attribute name="code" type="xs:string"/>
+    """
+    node = etree.fromstring(xml)
+    xsd_reader.root = node
+    xsd_reader.namespaces = []
+    state = State()
+
+    prop = xsd_reader.process_attribute(node, state)
+
+    assert prop.xsd_name == "code"
+    assert prop.type.name == "string"
+    assert getattr(prop, "required", False) is False
+
+
+def test_process_attribute_use_required_sets_required_true(xsd_reader):
+    xml = """
+    <attribute name="id" type="xs:integer" use="required"/>
+    """
+    node = etree.fromstring(xml)
+    xsd_reader.root = node
+    xsd_reader.namespaces = []
+    state = State()
+
+    prop = xsd_reader.process_attribute(node, state)
+
+    assert prop.xsd_name == "id"
+    assert prop.type.name == "integer"
+    assert prop.required is True
+
+
+def test_process_attribute_with_custom_type(xsd_reader):
+    xml = """
+    <attribute name="status" type="tns:Custom"/>
+    """
+    node = etree.fromstring(xml)
+    xsd_reader.root = node
+    xsd_reader.namespaces = []
+    # seed custom types lookup
+    xsd_reader.custom_types = {"Custom": XSDType(name="Custom")}
+    state = State()
+
+    prop = xsd_reader.process_attribute(node, state)
+
+    assert prop.xsd_name == "status"
+    assert prop.type.name == "Custom"
+
+
+def test_process_attribute_with_ref_uses_global_attribute_properties(xsd_reader):
+    xml = """
+    <attribute ref="tns:foo"/>
+    """
+    node = etree.fromstring(xml)
+    xsd_reader.root = node
+    xsd_reader.namespaces = []
+    xsd_reader.global_attribute_properties = {"foo": XSDProperty(property_type=XSDType(name="uuid"))}
+    state = State()
+
+    prop = xsd_reader.process_attribute(node, state)
+
+    assert prop.type.name == "uuid"
+
+
+def test_process_attribute_with_inline_simple_type(xsd_reader):
+    xml = """
+    <attribute name="abbr">
+        <simpleType>
+            <restriction base="xs:string">
+                <maxLength value="8"/>
+            </restriction>
+        </simpleType>
+    </attribute>
+    """
+    node = etree.fromstring(xml)
+    xsd_reader.root = node
+    xsd_reader.namespaces = []
+    state = State()
+
+    prop = xsd_reader.process_attribute(node, state)
+
+    assert prop.xsd_name == "abbr"
+    assert prop.type.name == "string"
+
+
+def test_process_attribute_allows_annotation_child(xsd_reader):
+    xml = """
+    <attribute name="code" type="xs:string">
+        <annotation>
+            <documentation>desc</documentation>
+        </annotation>
+    </attribute>
+    """
+    node = etree.fromstring(xml)
+    xsd_reader.root = node
+    xsd_reader.namespaces = []
+    state = State()
+
+    prop = xsd_reader.process_attribute(node, state)
+
+    assert prop.xsd_name == "code"
+    assert prop.type.name == "string"
+
+
+def test_process_attribute_with_both_ref_and_type_raises(xsd_reader):
+    xml = """
+    <attribute ref="tns:foo" type="xs:string"/>
+    """
+    node = etree.fromstring(xml)
+    xsd_reader.root = node
+    xsd_reader.namespaces = []
+    xsd_reader.global_attribute_properties = {"foo": XSDProperty(property_type=XSDType(name="string"))}
+    state = State()
+
+    with pytest.raises(RuntimeError, match=r"attribute  with ref 'tns:foo' can't have both `ref` and `type`"):
+        xsd_reader.process_attribute(node, state)
+
+
+def test_process_attribute_with_simple_type_and_type_raises(xsd_reader):
+    xml = """
+    <attribute name="code" type="xs:string">
+        <simpleType>
+            <restriction base="xs:string"/>
+        </simpleType>
+    </attribute>
+    """
+    node = etree.fromstring(xml)
+    xsd_reader.root = node
+    xsd_reader.namespaces = []
+    state = State()
+
+    with pytest.raises(RuntimeError):
+        xsd_reader.process_attribute(node, state)
+
+
+def test_process_attribute_with_simple_type_and_ref_raises(xsd_reader):
+    xml = """
+    <attribute ref="tns:foo">
+        <simpleType>
+            <restriction base="xs:string"/>
+        </simpleType>
+    </attribute>
+    """
+    node = etree.fromstring(xml)
+    xsd_reader.root = node
+    xsd_reader.namespaces = []
+    xsd_reader.global_attribute_properties = {"foo": XSDProperty(property_type=XSDType(name="string"))}
+    state = State()
+
+    with pytest.raises(RuntimeError):
+        xsd_reader.process_attribute(node, state)
+
+
+def test_process_attribute_with_unexpected_child_raises(xsd_reader):
+    xml = """
+    <attribute name="weird">
+        <complexType/>
+    </attribute>
+    """
+    node = etree.fromstring(xml)
+    xsd_reader.root = node
+    xsd_reader.namespaces = []
+    state = State()
+
+    with pytest.raises(RuntimeError, match=r"Unexpected element type inside attribute element"):
+        xsd_reader.process_attribute(node, state)
+
+
+def test_register_global_attributes_single(xsd_reader):
+    xml = """
+    <schema>
+        <attribute name="code" type="xs:string"/>
+    </schema>
+    """
+    node = etree.fromstring(xml)
+    xsd_reader.root = node
+    xsd_reader.namespaces = []
+    xsd_reader.global_attribute_properties = {}
+    state = State()
+
+    # Mock process_attribute to return a property whose .name drives the dict key
+    prop = XSDProperty(xsd_name="code", property_type=XSDType(name="string"))
+    prop.name = "code"
+    xsd_reader.process_attribute = MagicMock(return_value=prop)
+
+    xsd_reader.register_global_attributes(state)
+
+    assert set(xsd_reader.global_attribute_properties.keys()) == {"code"}
+    assert xsd_reader.global_attribute_properties["code"] is prop
+    xsd_reader.process_attribute.assert_called_once()
+
+
+def test_register_global_attributes_multiple_and_mixed_children(xsd_reader):
+    xml = """
+    <schema>
+        <attribute name="a" type="xs:string"/>
+        <element name="ignored">
+            <attribute name="nested" type="xs:string"/>
+        </element>
+        <attribute name="b" type="xs:string"/>
+    </schema>
+    """
+    node = etree.fromstring(xml)
+    xsd_reader.root = node
+    xsd_reader.namespaces = []
+    xsd_reader.global_attribute_properties = {}
+    state = State()
+
+    def side_effect(attr_node, _state):
+        name = attr_node.get("name")
+        p = XSDProperty(xsd_name=name, property_type=XSDType(name="string"))
+        p.name = name
+        return p
+
+    xsd_reader.process_attribute = MagicMock(side_effect=side_effect)
+
+    xsd_reader.register_global_attributes(state)
+
+    # Only top-level <attribute> nodes should be registered (a, b), nested one is ignored
+    assert set(xsd_reader.global_attribute_properties.keys()) == {"a", "b"}
+    assert xsd_reader.process_attribute.call_count == 2
+
+
+def test_register_global_attributes_ignores_when_none(xsd_reader):
+    xml = """
+    <schema>
+        <element name="onlyElements">
+            <attribute name="nested" type="xs:string"/>
+        </element>
+    </schema>
+    """
+    node = etree.fromstring(xml)
+    xsd_reader.root = node
+    xsd_reader.namespaces = []
+    xsd_reader.global_attribute_properties = {}
+    state = State()
+
+    xsd_reader.process_attribute = MagicMock()
+
+    xsd_reader.register_global_attributes(state)
+
+    assert xsd_reader.global_attribute_properties == {}
+    xsd_reader.process_attribute.assert_not_called()

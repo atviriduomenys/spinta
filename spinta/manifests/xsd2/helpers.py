@@ -323,8 +323,9 @@ class XSDReader:
     separate_complex_type_root_elements: list[XSDProperty]
     properties_xsd_type_to_set: set[str]
     namespaces: dict[str, str] | None = None
+    global_attribute_properties: dict[str, list[XSDProperty]] = {}
 
-    def __init__(self, path: str, dataset_name) -> None:
+    def __init__(self, path: str, dataset_name: str) -> None:
         self._path = path
         self.dataset_resource = XSDDatasetResource(dataset_given_name=dataset_name, resource_name="resource1")
         self.custom_types = {}
@@ -341,7 +342,13 @@ class XSDReader:
             custom_type = self.process_simple_type(node, state)
             self.custom_types[custom_type.xsd_type] = custom_type
 
-    def _extract_root(self):
+    def register_global_attributes(self, state: State) -> None:
+        global_attributes_nodes = self.root.xpath('./*[local-name() = "attribute"]')
+        for attribute in global_attributes_nodes:
+            attribute_property = self.process_attribute(attribute, state)
+            self.global_attribute_properties[attribute_property.xsd_name] = attribute_property
+
+    def _extract_root(self) -> None:
         if self._path.startswith("http"):
             document = etree.parse(urlopen(self._path))
             objectify.deannotate(document, cleanup_namespaces=True)
@@ -352,7 +359,7 @@ class XSDReader:
                 text = file.read()
                 self.root = etree.fromstring(bytes(text, encoding="utf-8"))
 
-    def _create_resource_model(self):
+    def _create_resource_model(self) -> None:
         self.resource_model = XSDModel(dataset_resource=self.dataset_resource)
         self.resource_model.type = "model"
         self.resource_model.is_partial = False
@@ -362,7 +369,7 @@ class XSDReader:
 
     #     resource model will be added to models at the end, if it has any peoperties
 
-    def _is_referenced(self, node):
+    def _is_referenced(self, node: _Element) -> bool:
         # if this node is referenced by some other node
         node_name = node.get("name")
         xpath_search_string = f'//*[@ref="{node_name}"]'
@@ -381,12 +388,12 @@ class XSDReader:
             return True
         return False
 
-    def _post_process_resource_model(self):
+    def _post_process_resource_model(self) -> None:
         if self.resource_model.properties:
             self.resource_model.set_name(self.deduplicate_model_name("Resource"))
             self.models.append(self.resource_model)
 
-    def _post_process_refs(self):
+    def _post_process_refs(self) -> None:
         """
         Links properties in all models to their target models based on xsd_ref_to and xsd_type_to.
         Also links models to their base models based on the 'prepare' attribute (extend statements).
@@ -508,6 +515,8 @@ class XSDReader:
 
         self.register_simple_types(state)
 
+        self.register_global_attributes(state)
+
         self.process_root(state)
 
         # post processing
@@ -544,6 +553,9 @@ class XSDReader:
                     model.is_root_model = True
             elif QName(node).localname == "simpleType":
                 # simple types are processed in self.register_simple_types
+                pass
+            elif QName(node).localname == "attribute":
+                # global attributes are processed in self.register_global_attributes
                 pass
             elif QName(node).localname == "include":
                 logger.warning(f"tag {QName(node).localname} not supported yet")
@@ -669,7 +681,7 @@ class XSDReader:
                 description = self.process_annotation(child, state)
 
             else:
-                raise RuntimeError(f"This node type cannot be in the element: {QName(node).localname}")
+                raise RuntimeError(f"This node type cannot be in the element: {QName(child).localname}")
 
             if "description" in locals() and description:
                 for prop in props:
@@ -810,8 +822,6 @@ class XSDReader:
 
     def process_attribute(self, node: _Element, state: State) -> XSDProperty:
         prop = XSDProperty()
-        prop.source = f"@{node.attrib.get('name')}"
-        prop.xsd_name = node.attrib.get("name")
 
         attribute_type = node.attrib.get("type")
 
@@ -824,6 +834,18 @@ class XSDReader:
             else:
                 raise RuntimeError(f"Unknown attribute type: {attribute_type}")
 
+        prop.source = f"@{node.attrib.get('name')}"
+        prop.xsd_name = node.attrib.get("name")
+
+        if ref := node.attrib.get("ref"):
+            if attribute_type:
+                raise RuntimeError(f"attribute  with ref '{ref}' can't have both `ref` and `type`")
+            if prop.xsd_name:
+                raise RuntimeError(f"attribute {node.attrib.get('name')} can't have both `ref` and `name`")
+
+            ref_local_name = ref.split(":")[-1]
+            prop = deepcopy(self.global_attribute_properties[ref_local_name])
+
         if node.attrib.get("use") == "required":
             prop.required = True
 
@@ -832,6 +854,12 @@ class XSDReader:
             if isinstance(child, etree._Comment):
                 continue
             if QName(child).localname == "simpleType":
+                if prop.type:
+                    raise RuntimeError(
+                        f"attribute '{prop.xsd_name}' can't have both `type` defined and `simpleType` child element: "
+                    )
+                if ref:
+                    raise RuntimeError(f"attribute with ref '{ref}' can't have both `ref` and `type`")
                 prop.type = self.process_simple_type(child, state)
             elif QName(child).localname == "annotation":
                 prop.description = self.process_annotation(child, state)
