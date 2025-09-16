@@ -23,9 +23,9 @@ def test_handle_error_multiple_files():
     assert counts["data2.csv"] == 1
 
 
-def test_post_process_ok(capsys):
+def test_post_process_ok_check(capsys):
     handler = CLIErrorHandler()
-    handler.post_process()
+    handler.post_process("check")
     captured = capsys.readouterr()
     output = captured.out
     assert "OK" in output

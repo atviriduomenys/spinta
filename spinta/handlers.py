@@ -8,7 +8,10 @@ from spinta.exceptions import BaseError
 
 class ErrorHandler(ABC):
     @abstractmethod
-    def handle_error(self, error: Exception, file: str | None = None) -> None: ...
+    def handle_error(self, error: BaseError, file: str | None = None) -> None: ...
+
+    @abstractmethod
+    def post_process(self, command: str | None = None) -> None: ...
 
 
 class CLIErrorHandler(ErrorHandler):
@@ -23,10 +26,12 @@ class CLIErrorHandler(ErrorHandler):
     def get_counts(self) -> dict[str, int]:
         return self._error_counts
 
-    def post_process(self) -> None:
+    def post_process(self, command: str | None = None) -> None:
         counts = self.get_counts()
         if not counts:
-            echo("OK")
+            if command:
+                echo("OK")
+            return
 
         total_errors = sum(counts.values())
         echo(f"Total errors: {total_errors}")
