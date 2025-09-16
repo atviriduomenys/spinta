@@ -48,7 +48,7 @@ def _load_enum_item(
         item.prepare = env.resolve(expr)
 
     load_access_param(item, data.get("access"), parents)
-    load_level(item, data.get("level"))
+    load_level(context, item, data.get("level"))
     load_status(item, data.get("status"))
     load_visibility(item, data.get("visibility"))
     return item
