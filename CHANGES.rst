@@ -39,6 +39,11 @@ New Features:
 - Refactor tests for synchronization to be more maintainable + assert what endpoints are called with and not only that they are called. (`#1415`_)
 - Build full dataset name following UDTS conventions. (`#1415`_)
 - Remove private source/resource values from DSA. (`#1415`_)
+- Added the `spinta admin` command for running maintenance scripts. Unlike `spinta upgrade`, the `admin` command requires
+  specific scripts to be passed and cannot run all scripts by default (`#1340`_).
+- Added the `changelog` admin script (`spinta admin changelog`). This script checks for duplicate entries in the `changelog`
+  (entries with the same local primary key but different global primary keys (`_id`)) and performs a `move` action on them
+  to ensure a single active local-global key pair (`#1340`_).
 - Change `spinta sync` hierarchy creation to: Data Service -> Dataset -> Distribution. (`#1415`_)
 - Sprint Review fixes Part 1: Create data service following the Agent name; Remove distribution creation; Try to retrieve Data service before creating one. (`#1415`_)
 - Sprint Review fixes Part 2: Generate dataset name from title or from the last part of dataset column value; Hide `visibility=private` rows; Add the full Dataset name in the DSA. (`#1415`_)
@@ -55,11 +60,21 @@ New Features:
   .. _#1415: https://github.com/atviriduomenys/spinta/issues/1415
 
 
+Improvements:
+
+- `spinta migrate` now is able to better map `ref` type migrations (`#1230`_).
+- Added support for `ruff` linting and code formatting (`#434`_).
+- Deobfuscated `SqlAlchemyKeymap` database values, they are no longer hashed (`#1307`_).
+- `keymap sync` now supports `move` changelog action (`#1307`_).
+
 Bug fixes:
 
 - Fixed situation where nested properties in `ref` column were giving an error. (`#981`_)
 - Fixed a bug where `spinta` didn't work with Python version 3.13 (`#986`_, `#1357`_)
-- Updated `pyproj` from version 3.6.1 to 3.7.1 to ensure compatibility with Python version 3.13 (`1358`_)
+- Updated `pyproj` from version 3.6.1 to 3.7.1 to ensure compatibility with Python version 3.13 (`#1358`_)
+- Fixed an error caused by fetching changelog data containing columns no longer declared in the manifest (`#1251`_).
+- Introduced `duplicate_warn_only` argument to `keymap` configuration (by default it's disabled). It can be used to supress
+  duplicate error. Only use this if necessary and are aware of possible issues (`#1402`_).
 
   .. _#981: https://github.com/atviriduomenys/spinta/issues/981
   .. _#986: https://github.com/atviriduomenys/spinta/issues/986
@@ -2499,7 +2514,7 @@ Backwards incompatible features:
 
   Here, `test` configuration environment fully overrides `backends` and removes
   `mongo` backend defined in default configuration scope.o
-  
+
   But `dev` environment overrides only `backends.default.type` and leaves
   everything else as is, `mongo` backend stays untouched.
 
@@ -2658,7 +2673,7 @@ Internal changes:
     - `decode` - convert values from external to internal form.
 
   - Data validation:
-    
+
     - `validate` - simple data validation.
     - `verify` - complex data validation involving access to stored data.
 
@@ -2787,7 +2802,7 @@ Internal changes:
 
 - In `PostgreSQL` backends, references to `_txn` model is no longer used, in
   order to remove interdependence between two separate manifests.
-  
+
   Also, `_txn` might be saved on another backend.
 
 - `RawConfig` now can take default values from `spinta/config.yml`.
