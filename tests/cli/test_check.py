@@ -250,7 +250,6 @@ def test_check_level_multiple_manifests(context: Context, rc, cli: SpintaCliRunn
             "check",
             tmp_path / "manifest.csv",
             tmp_path / "manifest2.csv",
-
         ],
         fail=False,
     )
