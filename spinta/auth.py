@@ -73,6 +73,9 @@ KEYMAP_CACHE_SIZE_LIMIT = 1
 DEFAULT_CLIENT_ID_CACHE_SIZE_LIMIT = 1
 DEFAULT_CREDENTIALS_SECTION = "default"
 
+# Scope types taken from authlib.oauth2.rfc6749.util.scope_to_list
+SCOPE_TYPE = Union[tuple, list, set, str, None]
+
 
 class KeyType(enum.Enum):
     public = "public"
@@ -96,7 +99,7 @@ class Scopes(enum.Enum):
     # Grants access to change meta fields (like _id) through request
     SET_META_FIELDS = "set_meta_fields"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.value
 
 
@@ -114,13 +117,13 @@ class AuthorizationServer(rfc6749.AuthorizationServer):
         self._context = context
         self._private_key = load_key(context, KeyType.private, required=False)
 
-    def enabled(self):
+    def enabled(self) -> bool:
         return self._private_key is not None
 
-    def create_oauth2_request(self, request) -> OAuth2Request:
+    def create_oauth2_request(self, request: StarletteOAuth2Data) -> OAuth2Request:
         return get_auth_request(request)
 
-    def handle_response(self, status_code, payload, headers) -> JSONResponse:
+    def handle_response(self, status_code: int, payload: Any, headers: Any) -> JSONResponse:
         return JSONResponse(payload, status_code=status_code, headers=dict(headers))
 
     def handle_error_response(
@@ -134,19 +137,19 @@ class AuthorizationServer(rfc6749.AuthorizationServer):
     def send_signal(self, *args, **kwargs):
         pass
 
-    def query_client(self, client_name) -> Client:
+    def query_client(self, client_name: str) -> Client:
         path = get_clients_path(self._context.get("config"))
         return query_client(path, client_name, is_name=True)
 
     def save_token(self, token, request):
         pass
 
-    def _get_expires_in(self, client, grant_type):
+    def _get_expires_in(self, client: Client, grant_type: str) -> int:
         return int(datetime.timedelta(days=10).total_seconds())
 
-    def _generate_token(self, grant_type, client: Client, user, scope, **kwargs):
+    def _generate_token(self, grant_type: str, client: Client, user: str, scope: str, **kwargs) -> str:
         expires_in = self._get_expires_in(client, grant_type)
-        scopes = scope.split() if scope else []
+        scopes = set(scope.split()) if scope else set()
         return create_access_token(self._context, self._private_key, client.id, expires_in, scopes)
 
 
@@ -166,7 +169,7 @@ class BearerTokenValidator(rfc6750.BearerTokenValidator):
         self._context = context
         self._public_key = load_key(context, KeyType.public)
 
-    def authenticate_token(self, token_string: str):
+    def authenticate_token(self, token_string: str) -> Token:
         return Token(token_string, self)
 
 
@@ -200,7 +203,7 @@ class Client(rfc6749.ClientMixin):
         # More info: grant_types https://datatracker.ietf.org/doc/html/rfc7591#autoid-5
         self.grant_types = ["client_credentials"]
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         cls = type(self)
         return f"{cls.__module__}.{cls.__name__}(id={self.id!r})"
 
@@ -218,11 +221,11 @@ class Client(rfc6749.ClientMixin):
             result = list_to_scope(scopes)
             return result
 
-    def check_client_secret(self, client_secret):
+    def check_client_secret(self, client_secret: Any) -> bool:
         log.debug(f"Incorrect client {self.id!r} secret hash.")
         return passwords.verify(client_secret, self.secret_hash)
 
-    def check_endpoint_auth_method(self, method: str, endpoint: str):
+    def check_endpoint_auth_method(self, method: str, endpoint: str) -> bool:
         if endpoint == "token":
             return method == self.token_endpoint_auth_method
         return False
@@ -230,7 +233,7 @@ class Client(rfc6749.ClientMixin):
     def check_grant_type(self, grant_type: str) -> bool:
         return grant_type in self.grant_types
 
-    def check_requested_scopes(self, scopes: set):
+    def check_requested_scopes(self, scopes: set) -> bool:
         unknown_scopes = scopes - self.scopes
         if unknown_scopes:
             log.warning("requested unknown scopes: %s", ", ".join(sorted(unknown_scopes)))
@@ -252,11 +255,11 @@ class Token(rfc6749.TokenMixin):
 
         self._validator = validator
 
-    def valid_scope(self, scope):
+    def valid_scope(self, scope: SCOPE_TYPE) -> bool:
         required_scopes = scope_to_list(scope)
         return not self._validator.scope_insufficient(self.get_scope(), required_scopes)
 
-    def check_scope(self, scope):
+    def check_scope(self, scope: SCOPE_TYPE):
         if not self.valid_scope(scope):
             client_id = self._token["aud"]
 
@@ -278,54 +281,54 @@ class Token(rfc6749.TokenMixin):
                 raise Exception(f"Unknown operator {operator}.")
 
     # No longer mandatory, but will keep it, since it is used in other places.
-    def get_client_id(self):
+    def get_client_id(self) -> str:
         return self.get_aud()
 
-    def get_sub(self):  # User.
+    def get_sub(self) -> str:  # User.
         return self._token.get("sub", "")
 
-    def get_aud(self):  # Client.
+    def get_aud(self) -> str:  # Client.
         return self._token.get("aud", "")
 
-    def get_jti(self):
+    def get_jti(self) -> str:
         return self._token.get("jti", "")
 
     # Currently required implementations for authlib >= 1.0
     # https://gist.github.com/lepture/506bfc29b827fae87981fc58eff2393e#token-model
 
-    def get_scope(self):
+    def get_scope(self) -> str:
         return self._token.get("scope", "")
 
-    def check_client(self, client):
+    def check_client(self, client) -> bool:
         return self.get_aud() == client.id
 
-    def get_expires_in(self):
+    def get_expires_in(self) -> int:
         return self.expires_in
 
-    def is_revoked(self):
+    def is_revoked(self) -> bool:
         return False
 
-    def is_expired(self):
+    def is_expired(self) -> bool:
         return time.time() > self._token["exp"]
 
 
 class AdminToken(rfc6749.TokenMixin):
-    def valid_scope(self, scope, **kwargs):
+    def valid_scope(self, scope: SCOPE_TYPE, **kwargs) -> bool:
         return True
 
-    def check_scope(self, scope, **kwargs):
+    def check_scope(self, scope: SCOPE_TYPE, **kwargs):
         pass
 
-    def get_sub(self):  # User.
+    def get_sub(self) -> str:  # User.
         return "admin"
 
-    def get_aud(self):  # Client.
+    def get_aud(self) -> str:  # Client.
         return "admin"
 
-    def get_jti(self):
+    def get_jti(self) -> str:
         return "admin"
 
-    def get_client_id(self):
+    def get_client_id(self) -> str:
         return self.get_aud()
 
 
@@ -346,14 +349,14 @@ class StarletteOAuth2Payload(OAuth2Payload):
         self.form = data.form
 
     @property
-    def data(self):
+    def data(self) -> dict:
         data = {}
         data.update(self.query)
         data.update(self.form)
-        return self.form
+        return data
 
     @cached_property
-    def datalist(self):
+    def datalist(self) -> dict:
         values = defaultdict(list)
         for k in self.query:
             values[k].extend(self.query.getlist(k))
@@ -369,11 +372,11 @@ class StarletteOAuth2Request(OAuth2Request):
         self._data = data
 
     @property
-    def args(self):
+    def args(self) -> QueryParams:
         return self._data.query
 
     @property
-    def form(self):
+    def form(self) -> FormData:
         return self._data.form
 
 
