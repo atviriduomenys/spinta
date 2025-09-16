@@ -6,12 +6,22 @@ Changes
 
 Improvements:
 
+- `spinta copy` for XSD supports globally defined attributes, referenced in other places.(`#605`_)
 - Updated `authlib` minimal version to 1.0.0 (`#675`_).
 - `private` and `public` keys now include `kid` field (`#675`_).
 
+  .. _#605: https://github.com/atviriduomenys/spinta/issues/605
   .. _#675: https://github.com/atviriduomenys/spinta/issues/675
 
-0.2dev4 (unreleased)
+Other:
+- Removed dependency `mypy`
+
+0.2dev5 (2025-09-03)
+====================
+
+- Added dependency `mypy`
+
+0.2dev4 (2025-08-28)
 ====================
 
 New Features:
